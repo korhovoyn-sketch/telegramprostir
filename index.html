@@ -1277,7 +1277,7 @@ select.add-row-in.lifted{color:var(--t1)}
    AUTH SCREENS
 ══════════════════════════════════════════════════ */
 .auth-wrap{position:fixed;inset:0;z-index:1000;background:var(--mesh);background-attachment:fixed;overflow-y:auto;-webkit-overflow-scrolling:touch}
-.auth-wrap.hidden{display:none!important}
+.auth-wrap.hidden{display:none!important;visibility:hidden!important;pointer-events:none!important}
 .auth-screen{display:none;flex-direction:column;min-height:100dvh;box-sizing:border-box;padding:0 24px max(28px,env(safe-area-inset-bottom))}
 .auth-screen.active{display:flex}
 .az-top{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-top:max(40px,env(safe-area-inset-top));padding-bottom:24px;min-height:38dvh}
@@ -1510,33 +1510,33 @@ select.add-row-in.lifted{color:var(--t1)}
   <div class="az-bottom"></div>
 </div>
 
-<!-- REGISTER 3 OTP -->
+<!-- REGISTER 3 — EMAIL SENT -->
 <div class="auth-screen" id="auth-reg-3">
   <div class="az-top az-top--compact">
-    <div class="a-mark a-mark--sm"><div class="alm-scene">
-          <div class="alm-layer alm-l1" style="--base-z:translateZ(42px)"><div class="alm-layer-face"></div><div class="alm-layer-side"></div></div>
-          <div class="alm-layer alm-l2" style="--base-z:translateZ(22px)"><div class="alm-layer-face"></div><div class="alm-layer-side"></div></div>
-          <div class="alm-layer alm-l3" style="--base-z:translateZ(2px)"><div class="alm-layer-face"></div><div class="alm-layer-side"></div></div>
-          <div class="alm-layer alm-l4" style="--base-z:translateZ(-18px)"><div class="alm-layer-face"></div><div class="alm-layer-side"></div></div>
-          <div class="alm-layer alm-l5" style="--base-z:translateZ(-38px)"><div class="alm-layer-face"></div><div class="alm-layer-side"></div></div>
-        </div><div class="alm-glow"></div><div class="alm-particles"><div class="alm-dot" style="left:8px;top:20px;--dur:2.8s;--delay:0s;--dx:3px;--dy:-10px"></div><div class="alm-dot" style="right:10px;top:14px;--dur:3.4s;--delay:.5s;--dx:-3px;--dy:-8px"></div><div class="alm-dot" style="left:20px;bottom:14px;--dur:2.6s;--delay:.9s;--dx:4px;--dy:-6px"></div></div></div>
+    <div class="a-mark a-mark--sm"><div class="alm-particles"><div class="alm-dot" style="left:8px;top:20px;--dur:2.8s;--delay:0s;--dx:3px;--dy:-10px"></div><div class="alm-dot" style="right:10px;top:14px;--dur:3.4s;--delay:.5s;--dx:-3px;--dy:-8px"></div></div>
+    </div>
     <div class="a-steps"><div class="a-step done"></div><div class="a-step done"></div><div class="a-step on"></div></div>
   </div>
-  <div class="az-form">
-    <div class="a-title">Підтвердження</div>
-    <div class="a-sub">Код надіслано на <b id="otp-email-show" style="color:var(--t1)"></b></div>
-    <div class="a-otp-wrap" id="otp-wrap">
-      <input class="a-otp" type="tel" maxlength="1" inputmode="numeric" oninput="otpNext(this,0)" onkeydown="otpBack(this,event,0)">
-      <input class="a-otp" type="tel" maxlength="1" inputmode="numeric" oninput="otpNext(this,1)" onkeydown="otpBack(this,event,1)">
-      <input class="a-otp" type="tel" maxlength="1" inputmode="numeric" oninput="otpNext(this,2)" onkeydown="otpBack(this,event,2)">
-      <input class="a-otp" type="tel" maxlength="1" inputmode="numeric" oninput="otpNext(this,3)" onkeydown="otpBack(this,event,3)">
-      <input class="a-otp" type="tel" maxlength="1" inputmode="numeric" oninput="otpNext(this,4)" onkeydown="otpBack(this,event,4)">
-      <input class="a-otp" type="tel" maxlength="1" inputmode="numeric" oninput="otpNext(this,5)" onkeydown="otpBack(this,event,5)">
+  <div class="az-form" style="align-items:center;text-align:center;justify-content:center">
+    <div class="a-success-ico" style="background:rgba(10,132,255,.12);border-color:rgba(10,132,255,.25)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
     </div>
-    <div class="af-err-row" id="otp-err"></div>
-    <div class="a-resend">Не прийшов? <span id="otp-resend-btn" onclick="otpResend()">Надіслати знову</span> <span id="otp-timer"></span></div>
-    <button class="a-btn-primary" id="otp-submit" onclick="verifyOtp()" disabled>Підтвердити</button>
-    <button class="a-btn-ghost" onclick="authGo('auth-reg-2')">← Назад</button>
+    <div class="a-title">Підтвердіть email</div>
+    <div class="a-sub" style="margin-bottom:24px">
+      Лист з підтвердженням відправлено на<br>
+      <b id="otp-email-show" style="color:var(--p1)"></b><br><br>
+      Натисніть посилання в листі — і ви автоматично увійдете в додаток.<br>
+      <span style="color:var(--t4);font-size:12px">Перевірте папку «Спам» якщо не бачите листа.</span>
+    </div>
+    <button class="a-btn-primary" onclick="window.location.reload()" style="max-width:300px">
+      Я підтвердив — увійти
+    </button>
+    <button class="a-btn-ghost" onclick="resendConfirmEmail()" style="max-width:300px;margin-top:4px">
+      Надіслати лист повторно
+    </button>
+    <button class="a-btn-ghost" onclick="authGo('auth-login')" style="max-width:300px;opacity:.6">
+      ← До входу
+    </button>
   </div>
   <div class="az-bottom"></div>
 </div>
@@ -1669,16 +1669,16 @@ select.add-row-in.lifted{color:var(--t1)}
     <div class="h-eye"><svg><use href="#i-trend"/></svg>Дохід · Квітень 2026</div>
     <div class="h-num"><sup>₴</sup>86 400<sub>/міс</sub></div>
     <div class="h-row">
-      <div class="h-delta"><svg><use href="#i-trend"/></svg>+₴4 200 vs березень</div>
-      <div class="h-chip">+5.1%</div>
+      <div class="h-delta"><svg><use href="#i-trend"/></svg>Дані завантажуються...</div>
+      <div class="h-chip"></div>
     </div>
   </div>
 
   <div class="kscroll">
-    <div class="kc gl kp-v" onclick="pr(this)"><div class="kc-ic"><svg><use href="#i-build"/></svg></div><div class="kc-v">57%</div><div class="kc-l">Заповненість</div></div>
-    <div class="kc gl kp-b" onclick="pr(this)"><div class="kc-ic"><svg><use href="#i-grid"/></svg></div><div class="kc-v">7</div><div class="kc-l">Об'єктів</div></div>
-    <div class="kc gl kp-o" onclick="pr(this)"><div class="kc-ic"><svg><use href="#i-chart"/></svg></div><div class="kc-v">₴352</div><div class="kc-l">Ставка/м²</div></div>
-    <div class="kc gl kp-t" onclick="pr(this)"><div class="kc-ic"><svg><use href="#i-money"/></svg></div><div class="kc-v">₴42</div><div class="kc-l">Eксплуат./м²</div></div>
+    <div class="kc gl kp-v" onclick="pr(this)"><div class="kc-ic"><svg><use href="#i-build"/></svg></div><div class="kc-v">—</div><div class="kc-l">Заповненість</div></div>
+    <div class="kc gl kp-b" onclick="pr(this)"><div class="kc-ic"><svg><use href="#i-grid"/></svg></div><div class="kc-v">0</div><div class="kc-l">Об'єктів</div></div>
+    <div class="kc gl kp-o" onclick="pr(this)"><div class="kc-ic"><svg><use href="#i-chart"/></svg></div><div class="kc-v">—</div><div class="kc-l">Ставка/м²</div></div>
+    <div class="kc gl kp-t" onclick="pr(this)"><div class="kc-ic"><svg><use href="#i-money"/></svg></div><div class="kc-v">—</div><div class="kc-l">Eксплуат./м²</div></div>
   </div>
 
   <div class="sh"><div class="sh-t">Заповненість</div></div>
@@ -1688,15 +1688,14 @@ select.add-row-in.lifted{color:var(--t1)}
     <div class="oi"><div class="oi-row"><span class="oi-n">Будинки</span><span class="oi-p">0/1 · 0%</span></div><div class="obar"><div class="of of-o" style="width:0" data-w="0%"></div></div></div>
   </div>
 
-  <div class="sh"><div class="sh-t">Активність</div><div class="sh-l">Всі</div></div>
-  <div class="feed-wrap gl">
-    <div class="fi"><div class="fd fb"><svg><use href="#i-mail"/></svg></div><div class="fi-b"><div class="fi-t">Нова заявка від Анни К.</div><div class="fi-s">ЖК «Паркова Алея» · 2 кімнати</div></div><div class="fi-tm">11:42</div><div class="fch"><svg><use href="#i-chev"/></svg></div></div>
-    <div class="fi"><div class="fd fv"><svg><use href="#i-credit"/></svg></div><div class="fi-b"><div class="fi-t">Отримано орендну плату</div><div class="fi-s">Офіс «Гулівер» · ₴60 000</div></div><div class="fi-tm">Вчора</div><div class="fch"><svg><use href="#i-chev"/></svg></div></div>
-    <div class="fi"><div class="fd fo"><svg><use href="#i-warn"/></svg></div><div class="fi-b"><div class="fi-t">Закінчується договір</div><div class="fi-s">Апартаменти Lux · 18 днів</div></div><div class="fi-tm">22 бер</div><div class="fch"><svg><use href="#i-chev"/></svg></div></div>
-    <div class="fi"><div class="fd ft"><svg><use href="#i-plus"/></svg></div><div class="fi-b"><div class="fi-t">Об'єкт додано в базу</div><div class="fi-s">Котедж Вишгород · 130 м²</div></div><div class="fi-tm">19 бер</div><div class="fch"><svg><use href="#i-chev"/></svg></div></div>
-  </div>
-
-</div></div></div>
+  <div class="sh">
+  <div class="sh-t">Активність</div>
+  <div class="sh-act" onclick="T('Фільтр активності')">Всі</div>
+</div>
+<div class="gl" style="margin:0 var(--gap) 12px;padding:28px 20px;text-align:center;border-radius:var(--rXL)">
+  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.2)" stroke-width="1.5" stroke-linecap="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+  <div style="font-size:14px;color:var(--t3);margin-top:10px">Активність з'явиться після першої угоди</div>
+</div></div></div></div>
 
 <!-- █ BASES █ -->
 <div class="page" id="page-bases">
@@ -1709,16 +1708,10 @@ select.add-row-in.lifted{color:var(--t1)}
   </div>
 
   <div class="sh"><div class="sh-t">Мої бази</div></div>
-  <div class="bwrap gl">
-    <div class="brow" onclick="openBase('Київ Центр')" oncontextmenu="askDeleteBase(event,'Київ Центр')"><div class="bi bv"><svg><use href="#i-city"/></svg></div><div class="bi2"><div class="b-nm">Київ Центр</div><div class="b-mt">Власна · 2 учасники · сьогодні</div></div><div class="b-st"><div class="b-n">7</div><div class="b-l">об'єктів</div></div><div class="gchev" style="margin-left:8px"><svg><use href="#i-chev"/></svg></div></div>
-    <div class="brow" onclick="openBase('Лівий берег')" oncontextmenu="askDeleteBase(event,'Лівий берег')"><div class="bi bb"><svg><use href="#i-wave"/></svg></div><div class="bi2"><div class="b-nm">Лівий берег</div><div class="b-mt">Власна · 1 учасник · 3 дні тому</div></div><div class="b-st"><div class="b-n">3</div><div class="b-l">об'єктів</div></div><div class="gchev" style="margin-left:8px"><svg><use href="#i-chev"/></svg></div></div>
+  <div class="gl" style="margin:0 var(--gap) 10px;padding:24px 20px;text-align:center;border-radius:var(--rXL)">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.2)" stroke-width="1.5" stroke-linecap="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v5c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 10v5c0 1.66 4.03 3 9 3s9-1.34 9-3v-5"/></svg>
+    <div style="font-size:14px;color:var(--t3);margin-top:10px">Ще немає баз.<br>Створіть першу нижче.</div>
   </div>
-
-  <div class="sh"><div class="sh-t">Спільні бази</div></div>
-  <div class="bwrap gl">
-    <div class="brow" onclick="openBase('«Новобуд»')" oncontextmenu="askDeleteBase(event,'«Новобуд»')"><div class="bi bo"><svg><use href="#i-build"/></svg></div><div class="bi2"><div class="b-nm">Агентство «Новобуд»</div><div class="b-mt">Спільний доступ · 5 учасників</div></div><div class="b-st"><div class="b-n">24</div><div class="b-l">об'єктів</div></div><div class="gchev" style="margin-left:8px"><svg><use href="#i-chev"/></svg></div></div>
-  </div>
-
   <div class="nb-btn" onclick="openCreateBase()">
     <div class="nb-plus"><svg><use href="#i-plus"/></svg></div>
     <div class="nb-txt">Створити нову базу</div>
@@ -1742,7 +1735,7 @@ select.add-row-in.lifted{color:var(--t1)}
     </button>
     <div class="base-hdr-mid">
       <div class="base-hdr-nm" id="base-hdr-nm">База</div>
-      <div class="base-hdr-cnt" id="base-hdr-cnt">7 об'єктів</div>
+      <div class="base-hdr-cnt" id="base-hdr-cnt">0 об'єктів</div>
     </div>
     <button class="base-add-btn" onclick="tabTap(document.getElementById('t-add'),'add','iconPlus')">
       <svg><use href="#i-plus"/></svg>
@@ -1757,7 +1750,7 @@ select.add-row-in.lifted{color:var(--t1)}
     </div>
   </div>
   <div class="frow" id="obj-frow">
-    <div class="fch on" onclick="setF(this)" data-filter="all">Всі <span id="fc-all">7</span></div>
+    <div class="fch on" onclick="setF(this)" data-filter="all">Всі <span id="fc-all">0</span></div>
     <div class="fch" onclick="setF(this)" data-filter="free">Вільні <span id="fc-free">3</span></div>
     <div class="fch" onclick="setF(this)" data-filter="rented">В оренді <span id="fc-rent">4</span></div>
     <div class="fch" onclick="setF(this)" data-filter="apartment">Квартири</div>
@@ -1766,121 +1759,11 @@ select.add-row-in.lifted{color:var(--t1)}
   </div>
 
   <div class="sg" id="obj-list">
-
-    <div class="oc gc" onclick="pC(this);openS('a')" data-status="rented" data-type="apartment">
-      <div class="oc-top">
-        <div class="oc-ic oc-ic-apt"><svg><use href="#i-home"/></svg></div>
-        <div class="oc-mt">
-          <div class="oc-nm">ЖК «Паркова Алея», 2к</div>
-          <div class="oc-ad"><svg><use href="#i-pin"/></svg>Київ, Антоновича, 5 · пов 14/22</div>
-        </div>
-        <div class="oc-st s-ok">В оренді</div>
-      </div>
-      <div class="fin">
-        <div class="fn"><div class="fn-l">Площа</div><div class="fn-v">61.2 м²</div></div>
-        <div class="fn"><div class="fn-l">Ставка</div><div class="fn-v hi">₴392/м²</div></div>
-        <div class="fn"><div class="fn-l">Оренда</div><div class="fn-v hi">₴24 000</div></div>
-      </div>
-      <div class="oc-ft">
-        <div class="ut-row">
-          <span class="ut u-w"><svg><use href="#i-drop"/></svg>Вода</span>
-          <span class="ut u-g"><svg><use href="#i-flame"/></svg>Газ</span>
-          <span class="ut u-h"><svg><use href="#i-thermo"/></svg>Тепло</span>
-          <span class="ut u-e"><svg><use href="#i-zap"/></svg>Світло</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="oc gc" onclick="pC(this);openS('b')" data-status="rented" data-type="apartment">
-      <div class="oc-top">
-        <div class="oc-ic oc-ic-apt"><svg><use href="#i-home"/></svg></div>
-        <div class="oc-mt">
-          <div class="oc-nm">ЖК «Оазис», студія</div>
-          <div class="oc-ad"><svg><use href="#i-pin"/></svg>Київ, Саксаганського, 110 · пов 7/16</div>
-        </div>
-        <div class="oc-st s-ok">В оренді</div>
-      </div>
-      <div class="fin">
-        <div class="fn"><div class="fn-l">Площа</div><div class="fn-v">32.5 м²</div></div>
-        <div class="fn"><div class="fn-l">Ставка</div><div class="fn-v hi">₴450/м²</div></div>
-        <div class="fn"><div class="fn-l">Оренда</div><div class="fn-v hi">₴14 625</div></div>
-      </div>
-      <div class="oc-ft">
-        <div class="ut-row">
-          <span class="ut u-w"><svg><use href="#i-drop"/></svg>Вода</span>
-          <span class="ut u-e"><svg><use href="#i-zap"/></svg>Світло</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="oc gc" onclick="pC(this);openS('c')" data-status="free" data-type="apartment">
-      <div class="oc-top">
-        <div class="oc-ic oc-ic-apt"><svg><use href="#i-home"/></svg></div>
-        <div class="oc-mt">
-          <div class="oc-nm">ЖК «Сонячний», 1к</div>
-          <div class="oc-ad"><svg><use href="#i-pin"/></svg>Київ, Перемоги, 42 · пов 5/9</div>
-        </div>
-        <div class="oc-st s-free">Вільна</div>
-      </div>
-      <div class="fin">
-        <div class="fn"><div class="fn-l">Площа</div><div class="fn-v">41.0 м²</div></div>
-        <div class="fn"><div class="fn-l">Ставка</div><div class="fn-v hi">₴380/м²</div></div>
-        <div class="fn"><div class="fn-l">Оренда</div><div class="fn-v hi">₴15 580</div></div>
-      </div>
-      <div class="oc-ft">
-        <div class="ut-row">
-          <span class="ut u-w"><svg><use href="#i-drop"/></svg>Вода</span>
-          <span class="ut u-g"><svg><use href="#i-flame"/></svg>Газ</span>
-          <span class="ut u-h"><svg><use href="#i-thermo"/></svg>Тепло</span>
-          <span class="ut u-e"><svg><use href="#i-zap"/></svg>Світло</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="oc gc" onclick="pC(this);openS('d')" data-status="rented" data-type="commercial">
-      <div class="oc-top">
-        <div class="oc-ic oc-ic-com"><svg><use href="#i-store"/></svg></div>
-        <div class="oc-mt">
-          <div class="oc-nm">Магазин «Продукти»</div>
-          <div class="oc-ad"><svg><use href="#i-pin"/></svg>Київ, Хрещатик, 8 · пов 1/1</div>
-        </div>
-        <div class="oc-st s-ok">В оренді</div>
-      </div>
-      <div class="fin">
-        <div class="fn"><div class="fn-l">Площа</div><div class="fn-v">95.0 м²</div></div>
-        <div class="fn"><div class="fn-l">Ставка</div><div class="fn-v hi">₴520/м²</div></div>
-        <div class="fn"><div class="fn-l">Оренда</div><div class="fn-v hi">₴49 400</div></div>
-      </div>
-      <div class="oc-ft">
-        <div class="ut-row">
-          <span class="ut u-w"><svg><use href="#i-drop"/></svg>Вода</span>
-          <span class="ut u-e"><svg><use href="#i-zap"/></svg>Світло</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="oc gc" onclick="pC(this);openS('ad1')" data-status="free" data-type="commercial">
-      <div class="oc-top">
-        <div class="oc-ic oc-ic-com"><svg><use href="#i-store"/></svg></div>
-        <div class="oc-mt">
-          <div class="oc-nm">Торговий павільйон №3</div>
-          <div class="oc-ad"><svg><use href="#i-pin"/></svg>Київ, Деміївська, 15 · пов 1/1</div>
-        </div>
-        <div class="oc-st s-free">Вільний</div>
-      </div>
-      <div class="fin">
-        <div class="fn"><div class="fn-l">Площа</div><div class="fn-v">48.0 м²</div></div>
-        <div class="fn"><div class="fn-l">Ставка</div><div class="fn-v hi">₴480/м²</div></div>
-        <div class="fn"><div class="fn-l">Оренда</div><div class="fn-v hi">₴23 040</div></div>
-      </div>
-      <div class="oc-ft">
-        <div class="ut-row">
-          <span class="ut u-e"><svg><use href="#i-zap"/></svg>Світло</span>
-        </div>
-      </div>
-    </div>
-
-  </div><!-- /obj-list -->
+  <div style="padding:32px 20px;text-align:center">
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.2)" stroke-width="1.5" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    <div style="font-size:14px;color:var(--t3);margin-top:10px">Об'єктів ще немає.<br>Натисніть + щоб додати.</div>
+  </div>
+</div><!-- /obj-list -->
 </div><!-- /page-objects -->
 
 <!-- █ CREATE BASE MODAL █ -->
@@ -2040,9 +1923,6 @@ select.add-row-in.lifted{color:var(--t1)}
         <div class="add-row-lbl">База нерухомості</div>
         <select class="add-row-in" id="f-base">
           <option value="">Оберіть базу</option>
-          <option>Київ Центр</option>
-          <option>Лівий берег</option>
-          <option>Агентство «Новобуд»</option>
         </select>
       </div>
     </div>
@@ -2195,7 +2075,7 @@ select.add-row-in.lifted{color:var(--t1)}
 
   <div class="ph gl">
     <div class="pav"><svg><use href="#i-user"/></svg></div>
-    <div><div class="p-nm">Іванов Сергій</div><div class="p-rl">Власник нерухомості · Київ</div><div class="p-vf"><svg><use href="#i-verify"/></svg>Верифікований</div></div>
+    <div><div class="p-nm">Ваш профіль</div><div class="p-rl">Налаштуйте профіль</div><div class="p-vf"><svg><use href="#i-verify"/></svg>Верифікований</div></div>
   </div>
 
   <div class="pl-row gl" onclick="T('Ваш план PRO')">
@@ -2218,7 +2098,8 @@ select.add-row-in.lifted{color:var(--t1)}
     <div class="mr" onclick="pRow(this);T('Договори')"><div class="mi iv"><svg><use href="#i-doc"/></svg></div><div class="mr-lb">Договори оренди</div><div class="mr-ch"><svg><use href="#i-chev"/></svg></div></div>
     <div class="mr" onclick="pRow(this);T('Платежі')"><div class="mi it"><svg><use href="#i-credit"/></svg></div><div class="mr-lb">Платежі та рахунки</div><div class="mr-ch"><svg><use href="#i-chev"/></svg></div></div>
     <div class="mr" onclick="pRow(this);T('Запросити')"><div class="mi ib"><svg><use href="#i-share"/></svg></div><div class="mr-lb">Запросити в базу</div><div class="mr-ch"><svg><use href="#i-chev"/></svg></div></div>
-    <div class="mr" onclick="pRow(this);T('Налаштування')"><div class="mi" style="background:rgba(255,255,255,.08)"><svg style="stroke:var(--t2)"><use href="#i-gear"/></svg></div><div class="mr-lb">Налаштування</div><div class="mr-ch"><svg><use href="#i-chev"/></svg></div></div>
+    <div class="mr" onclick="pRow(this);T('Налаштування')"><div class="mi" style="background:rgba(255,255,255,.08)"><svg style="stroke:var(--t2)"><use href="#i-gear"/></svg></div>
+    <div class="mr" onclick="doLogout()" style="border-top:1px solid rgba(255,69,58,.12)"><div class="mi" style="background:rgba(255,69,58,.1)"><svg style="stroke:var(--red)"><use href="#i-del"/></svg></div><div class="mr-lb" style="color:var(--red)">Вийти з акаунту</div></div><div class="mr-lb">Налаштування</div><div class="mr-ch"><svg><use href="#i-chev"/></svg></div></div>
   </div>
 
 </div></div></div>
@@ -2373,12 +2254,12 @@ function togU(row){row.classList.toggle('on');row.querySelector('.sw').classList
 
 /* Sheet */
 const SD={
-  a:{t:'ЖК «Паркова Алея», 2к',cta:'Переглянути договір',r:[['Адреса','Антоновича, 5, Київ'],['Загальна площа','68.0 м²'],['Розрахункова площа','61.2 м²'],['Ставка оренди','₴392 / м² / міс'],['Оренда загальна','₴24 000 / міс'],['Eксплуатація','₴38 / м² / міс'],['Витрати загальні','₴2 326 / міс'],['Комунікації','Вода · Газ · Тепло · Світло'],['Статус','✓ В оренді']]},
-  b:{t:'Будинок, Пуща-Водиця',cta:'Опублікувати в оренду',r:[['Адреса','Лісова, 12, Пуща-Водиця'],['Загальна площа','180.0 м²'],['Розрахункова площа','162.0 м²'],['Ставка оренди','₴278 / м² / міс'],['Оренда загальна','₴45 000 / міс'],['Eксплуатація','₴55 / м² / міс'],['Витрати загальні','₴8 910 / міс'],['Комунікації','Вода · Світло'],['Статус','Вільно']]},
-  c:{t:'Офіс «Гулівер», 120 м²',cta:'Переглянути договір',r:[['Адреса','пл. Спортивна, 1, Київ'],['Загальна площа','120.0 м²'],['Розрахункова площа','108.0 м²'],['Ставка оренди','₴556 / м² / міс'],['Оренда загальна','₴60 000 / міс'],['Eксплуатація','₴62 / м² / міс'],['Витрати загальні','₴6 696 / міс'],['Комунікації','Вода · Тепло · Світло'],['Статус','✓ В оренді']]},
-  d:{t:'Апартаменти Lux, студія',cta:'Продовжити договір',r:[['Адреса','пр. Перемоги, 44, Київ'],['Загальна площа','38.0 м²'],['Розрахункова площа','33.8 м²'],['Ставка оренди','₴473 / м² / міс'],['Оренда загальна','₴16 000 / міс'],['Eксплуатація','₴44 / м² / міс'],['Витрати загальні','₴1 487 / міс'],['Комунікації','Вода · Тепло · Світло'],['Статус','⚠ Завершується через 18 днів']]},
-  ad1:{t:'Паркова Алея — оголошення',cta:'Редагувати',r:[['Переглядів','142'],['Заявок','3'],['Опубліковано','15 черв 2025']]},
-  ad2:{t:'Апартаменти Lux — оголошення',cta:'Редагувати',r:[['Переглядів','89'],['Заявок','1'],['Опубліковано','2 лип 2025']]},
+  a:{t:'Обʼєкт #1',cta:'Деталі',r:[['Адреса','—'],['Площа','—'],['Ставка','—'],['Оренда','—']]},
+  b:{t:'Обʼєкт #2',cta:'Деталі',r:[['Адреса','—'],['Площа','—'],['Ставка','—'],['Оренда','—']]},
+  c:{t:'Обʼєкт #3',cta:'Деталі',r:[['Адреса','—'],['Площа','—'],['Ставка','—'],['Оренда','—']]},
+  d:{t:'Обʼєкт #4',cta:'Деталі',r:[['Адреса','—'],['Площа','—'],['Ставка','—'],['Оренда','—']]},
+  ad1:{t:'Обʼєкт #5',cta:'Деталі',r:[['Адреса','—'],['Площа','—'],['Ставка','—'],['Оренда','—']]},
+  ad2:{t:'Обʼєкт #6',cta:'Деталі',r:[['Адреса','—'],['Площа','—'],['Ставка','—'],['Оренда','—']]},
 };
 function openS(id){
   const d=SD[id];if(!d)return;
@@ -2393,14 +2274,25 @@ function clShD(){document.getElementById('sh-ov').classList.remove('open')}
 /* Toast */
 let _tt;
 function enterApp(){
+  /* Hide auth overlay completely */
   const wrap=document.getElementById('auth-wrap');
-  if(wrap) wrap.style.display='none';
+  if(wrap){
+    wrap.classList.add('hidden');
+    wrap.style.display='none';
+    wrap.style.visibility='hidden';
+    wrap.style.pointerEvents='none';
+  }
+  /* Activate dashboard */
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.ti').forEach(t=>t.classList.remove('on'));
   const dash=document.getElementById('page-dash');
   if(dash) dash.classList.add('active');
   const td=document.getElementById('t-dash');
   if(td) td.classList.add('on');
+  resetDashboard();
+  /* Ensure tbar visible */
+  const tbar=document.querySelector('.tbar');
+  if(tbar){ tbar.style.display='flex'; tbar.style.visibility='visible'; }
 }
 
 function T(msg){
@@ -2773,17 +2665,58 @@ async function regStep2(){
   afError('af-re','');afError('af-rp','');
   if(!email||!/^[^@]+@[^@]+\.[^@]+$/.test(email)){afError('af-re','Введіть коректний email');return;}
   if(pass.length<8){afError('af-rp','Мінімум 8 символів');return;}
+
   const btn=document.querySelector('#auth-reg-2 .a-btn-primary');
-  if(btn){btn.textContent='Створюємо...';btn.disabled=true;}
+  if(btn){btn.textContent='Реєструємо...';btn.disabled=true;}
+
   try{
-    const{data,error}=await window.db.auth.signUp({email,password:pass,options:{data:{name:window._regName||'',city:window._regCity||''}}});
+    const{data,error}=await window.db.auth.signUp({
+      email,password:pass,
+      options:{
+        data:{name:window._regName||'',city:window._regCity||''},
+        emailRedirectTo: window.location.origin
+      }
+    });
+
     if(btn){btn.textContent='Далі →';btn.disabled=false;}
-    if(error){afError('af-re',error.message.includes('registered')?'Email вже зареєстровано':'Помилка: '+error.message);return;}
-    if(data?.user){window.db.from('users').upsert({id:data.user.id,email,name:window._regName||'',city:window._regCity||'',plan:'free'},{onConflict:'id'}).catch(()=>{});}
-    window.currentUser=data.user;
-    if(data.session){authGo('auth-success');setTimeout(()=>enterApp(),1800);}
-    else{const s=document.getElementById('otp-email-show');if(s)s.textContent=email;authGo('auth-reg-3');startOtpTimer();}
-  }catch(e){if(btn){btn.textContent='Далі →';btn.disabled=false;}afError('af-re','Помилка мережi');}
+
+    if(error){
+      let msg='Помилка реєстрації';
+      if(error.message.includes('already registered')||error.message.includes('User already')) msg='Цей email вже зареєстровано. Натисніть «Увійти».';
+      else if(error.message.includes('Password')) msg='Пароль занадто простий. Мінімум 8 символів.';
+      else if(error.message.includes('valid email')) msg='Невірний формат email';
+      else if(error.message.includes('rate')||error.message.includes('limit')) msg='Забагато спроб. Зачекайте хвилину.';
+      else msg='Помилка: '+error.message;
+      afError('af-re',msg);
+      return;
+    }
+
+    /* Зберігаємо в таблицю users (ігноруємо RLS помилку) */
+    if(data?.user?.id){
+      window.db.from('users').upsert({
+        id:data.user.id,email,
+        name:window._regName||'',city:window._regCity||'',plan:'free'
+      },{onConflict:'id'}).catch(()=>{});
+    }
+
+    window.currentUser=data?.user;
+    window._pendingEmail=email;
+
+    /* Якщо сесія є — підтвердження вимкнено, входимо одразу */
+    if(data?.session){
+      authGo('auth-success');
+      setTimeout(()=>enterApp(),1600);
+    } else {
+      /* Підтвердження email увімкнено — показуємо екран «перевірте пошту» */
+      const s=document.getElementById('otp-email-show');
+      if(s) s.textContent=email;
+      authGo('auth-reg-3');
+    }
+
+  }catch(e){
+    if(btn){btn.textContent='Далі →';btn.disabled=false;}
+    afError('af-re','Помилка мережi. Перевірте інтернет.');
+  }
 }
 async function doLogin(){
   const email=(document.getElementById('l-email')?.value||'').trim();
@@ -2795,7 +2728,7 @@ async function doLogin(){
   try{
     const{data,error}=await window.db.auth.signInWithPassword({email,password:pass});
     if(btn){btn.textContent='Увійти';btn.disabled=false;}
-    if(error){const msg=error.message.includes('Invalid')?'Невірний email або пароль':error.message.includes('confirmed')?'Підтвердіть email — перевірте пошту':'Помилка: '+error.message;afError('af-le',msg);return;}
+    if(error){const msg=error.message.includes('Invalid')?'Невірний email або пароль':error.message.includes('confirmed')?'Email не підтверджено. Перевірте пошту (і папку Спам)':'Помилка: '+error.message;afError('af-le',msg);return;}
     window.currentUser=data.user;enterApp();
   }catch(e){if(btn){btn.textContent='Увійти';btn.disabled=false;}afError('af-le','Помилка мережi');}
 }
@@ -2832,16 +2765,35 @@ async function loginWithGoogle(){
 async function checkExistingSession(){
   const tg=window.Telegram?.WebApp;
   if(tg?.initDataUnsafe?.user){await loginViaTelegram();return;}
-  const url=window.location.hash+window.location.search;
-  if(url.includes('access_token')||url.includes('code=')){
-    await new Promise(r=>setTimeout(r,800));
-    const{data:{session}}=await window.db.auth.getSession();
-    if(session){window.currentUser=session.user;window.history.replaceState({},'',window.location.pathname);enterApp();return;}
+
+  /* Handle email confirmation redirect (contains #access_token or ?code=) */
+  const fragment=window.location.hash;
+  const search=window.location.search;
+  if(fragment.includes('access_token')||search.includes('code=')||fragment.includes('type=signup')){
+    /* Give Supabase SDK time to parse the token from URL */
+    await new Promise(r=>setTimeout(r,1000));
+    try{
+      const{data:{session}}=await window.db.auth.getSession();
+      if(session){
+        window.currentUser=session.user;
+        window.history.replaceState({},'',window.location.pathname);
+        T('✅ Email підтверджено! Ласкаво просимо.');
+        enterApp();
+        return;
+      }
+    }catch(e){}
   }
-  const{data:{session}}=await window.db.auth.getSession().catch(()=>({data:{session:null}}));
-  if(session){window.currentUser=session.user;enterApp();}
+
+  /* Check existing session */
+  try{
+    const{data:{session}}=await window.db.auth.getSession();
+    if(session){window.currentUser=session.user;enterApp();}
+    /* else: stay on auth screen — already visible */
+  }catch(e){
+    /* Network error — stay on auth screen */
+  }
 }
-/* OTP helpers */
+
 function otpNext(inp,idx){
   inp.classList.toggle('filled',inp.value.length>0);
   if(inp.value.length===1){const next=document.querySelectorAll('.a-otp')[idx+1];if(next)next.focus();}
@@ -2859,6 +2811,22 @@ function startOtpTimer(){
   _otpTimer=setInterval(()=>{sec--;if(tm)tm.textContent='('+sec+'с)';if(sec<=0){clearInterval(_otpTimer);if(btn)btn.style.display='';if(tm)tm.textContent='';}},1000);
 }
 function otpResend(){startOtpTimer();T('Код відправлено повторно');}
+
+
+async function resendConfirmEmail(){
+  const email=window._pendingEmail||'';
+  if(!email){authGo('auth-reg-2');return;}
+  const{error}=await window.db.auth.resend({type:'signup',email});
+  if(error){T('Помилка: '+error.message);}
+  else{T('✅ Лист відправлено повторно на '+email);}
+}
+
+
+function resetDashboard(){
+  /* Reset all KPI to zero until real data loads */
+  document.querySelectorAll('.h-num').forEach(el=>el.textContent='₴0');
+  document.querySelectorAll('.kc-v').forEach(el=>el.textContent='0');
+}
 
 </script>
 </body>
