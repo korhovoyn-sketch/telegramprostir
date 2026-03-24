@@ -2154,19 +2154,21 @@ try{
     'sb_publishable_IF73m2oD9rU7PeQp82Cskw_hS_ia_p0'
   );
   /* onAuthStateChange — найнадійніший спосіб зловити вхід/вихід */
-  window.db.auth.onAuthStateChange((event, session)=>{
+  window.db.auth.onAuthStateChange(async (event, session)=>{
     if(event==='SIGNED_IN' && session){
       window.currentUser = session.user;
       /* Зберігаємо профіль при першому вході */
       if(event==='SIGNED_IN'){
         const meta = session.user.user_metadata||{};
-        window.db.from('users').upsert({
-          id: session.user.id,
-          email: session.user.email,
-          name: meta.name || meta.full_name || (session.user.email ? session.user.email.split('@')[0] : 'Користувач'),
-          city: meta.city || '',
-          plan: 'free'
-        },{onConflict:'id'}).catch(()=>{});
+        try{
+          await window.db.from('users').upsert({
+            id:    session.user.id,
+            email: session.user.email || '',
+            name:  meta.name || meta.full_name || (session.user.email ? session.user.email.split('@')[0] : 'Користувач'),
+            city:  meta.city || '',
+            plan:  'free'
+          },{onConflict:'id'});
+        }catch(_){}
       }
       /* Якщо auth-wrap видимий — входимо в додаток */
       const wrap = document.getElementById('auth-wrap');
@@ -2739,10 +2741,15 @@ async function regStep2(){
 
     /* Зберігаємо в таблицю users (ігноруємо RLS помилку) */
     if(data?.user?.id){
-      window.db.from('users').upsert({
-        id:data.user.id,email,
-        name:window._regName||'',city:window._regCity||'',plan:'free'
-      },{onConflict:'id'}).catch(()=>{});
+      try{
+        await window.db.from('users').upsert({
+          id:   data.user.id,
+          email:email,
+          name: window._regName||'',
+          city: window._regCity||'',
+          plan: 'free'
+        },{onConflict:'id'});
+      }catch(_){}
     }
 
     window.currentUser=data?.user;
@@ -2790,7 +2797,7 @@ async function doReset(){
   authGo('auth-reset-sent');
 }
 async function doLogout(){
-  await window.db?.auth.signOut().catch(()=>{});
+  await window.db?.auth.signOut();
   window.currentUser=null;
   const wrap=document.getElementById('auth-wrap');if(wrap)wrap.classList.remove('hidden');
   authGo('auth-login');T('Ви вийшли з акаунту');
@@ -2829,12 +2836,14 @@ async function loginViaTelegram(){
 
     /* Крок 2: Зберігаємо Telegram профіль (без email — анонімний) */
     const tgName = [(user.first_name||''), (user.last_name||'')].filter(Boolean).join(' ') || 'Telegram User';
-    window.db.from('users').upsert({
-      id:          sessionUser.id,
-      name:        tgName,
-      telegram_id: String(user.id),
-      plan:        'free'
-    },{onConflict:'id'}).catch(()=>{});
+    try{
+      await window.db.from('users').upsert({
+        id:          sessionUser.id,
+        name:        tgName,
+        telegram_id: String(user.id),
+        plan:        'free'
+      },{onConflict:'id'});
+    }catch(_){}
 
     /* Крок 3: Вхід в додаток */
     enterApp();
