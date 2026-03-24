@@ -2163,7 +2163,7 @@ try{
         window.db.from('users').upsert({
           id: session.user.id,
           email: session.user.email,
-          name: meta.name || meta.full_name || session.user.email.split('@')[0],
+          name: meta.name || meta.full_name || (session.user.email ? session.user.email.split('@')[0] : 'Користувач'),
           city: meta.city || '',
           plan: 'free'
         },{onConflict:'id'}).catch(()=>{});
@@ -2796,13 +2796,53 @@ async function doLogout(){
   authGo('auth-login');T('Ви вийшли з акаунту');
 }
 async function loginViaTelegram(){
-  const tg=window.Telegram?.WebApp;
-  if(!tg?.initDataUnsafe?.user)return;
-  const user=tg.initDataUnsafe.user;
-  const{data,error}=await window.db.auth.signInAnonymously().catch(()=>({data:null,error:{message:'anon disabled'}}));
-  if(error||!data){authGo('auth-login');return;}
-  await window.db.from('users').upsert({id:data.user.id,telegram_id:user.id,name:(user.first_name||'')+(user.last_name?' '+user.last_name:'')},{onConflict:'id'}).catch(()=>{});
-  window.currentUser=data.user;enterApp();
+  const tg = window.Telegram?.WebApp;
+
+  if(!tg?.initDataUnsafe?.user){
+    T('Відкрийте додаток через Telegram бота');
+    return;
+  }
+
+  const user = tg.initDataUnsafe.user;
+  const btn  = document.querySelector('button[onclick="loginViaTelegram()"]') ||
+               document.querySelector('.a-soc');
+  if(btn){ btn.disabled=true; btn.style.opacity='.6'; }
+
+  try{
+    /* Крок 1: Анонімний вхід */
+    const res = await window.db.auth.signInAnonymously();
+
+    if(btn){ btn.disabled=false; btn.style.opacity=''; }
+
+    if(res.error){
+      afError('af-le', 'Telegram вхід: ' + res.error.message);
+      return;
+    }
+
+    const sessionUser = res.data?.user || res.data?.session?.user;
+    if(!sessionUser){
+      afError('af-le', 'Не вдалось отримати сесію. Спробуйте ще раз.');
+      return;
+    }
+
+    window.currentUser = sessionUser;
+
+    /* Крок 2: Зберігаємо Telegram профіль (без email — анонімний) */
+    const tgName = [(user.first_name||''), (user.last_name||'')].filter(Boolean).join(' ') || 'Telegram User';
+    window.db.from('users').upsert({
+      id:          sessionUser.id,
+      name:        tgName,
+      telegram_id: String(user.id),
+      plan:        'free'
+    },{onConflict:'id'}).catch(()=>{});
+
+    /* Крок 3: Вхід в додаток */
+    enterApp();
+
+  }catch(err){
+    if(btn){ btn.disabled=false; btn.style.opacity=''; }
+    afError('af-le', 'Помилка: ' + (err?.message || 'невідома'));
+  }
 }
 async function loginWithGoogle(){
   const{error}=await window.db.auth.signInWithOAuth({provider:'google',options:{redirectTo:window.location.href}});
@@ -2810,22 +2850,20 @@ async function loginWithGoogle(){
 }
 async function checkExistingSession(){
   /* Telegram auto-login */
-  const tg=window.Telegram?.WebApp;
-  if(tg?.initDataUnsafe?.user){ await loginViaTelegram(); return; }
+  const tg = window.Telegram?.WebApp;
+  if(tg?.initDataUnsafe?.user){
+    try{ await loginViaTelegram(); }catch(e){}
+    return;
+  }
 
-  /* onAuthStateChange вже підписаний і обробить PKCE redirect автоматично */
-  /* Просто перевіряємо чи є вже збережена сесія */
+  /* Перевіряємо збережену сесію */
   try{
-    const{data:{session}}=await window.db.auth.getSession();
+    const { data:{ session } } = await window.db.auth.getSession();
     if(session){
-      window.currentUser=session.user;
+      window.currentUser = session.user;
       enterApp();
     }
-    /* Якщо немає сесії — onAuthStateChange спрацює сам коли Supabase
-       обробить ?code= параметр з email підтвердження */
-  }catch(e){
-    /* Залишаємось на екрані авторизації */
-  }
+  }catch(e){}
 }
 
 function otpNext(inp,idx){
