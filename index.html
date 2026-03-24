@@ -157,7 +157,7 @@ body{
    TAB BAR
 ════════════════════════════════════ */
 .tbar{
-  position:fixed;bottom:0;left:0;right:0;z-index:200;
+  position:fixed;bottom:0;left:0;right:0;z-index:9999;
   display:flex;align-items:stretch;
   padding-bottom:env(safe-area-inset-bottom);
   background:#100c1e;
@@ -1389,7 +1389,7 @@ select.add-row-in.lifted{color:var(--t1)}
 </style>
 </head>
 <body>
-<div class="auth-wrap" id="auth-wrap">
+<div class="auth-wrap" id="auth-wrap" class="hidden" style="display:none!important">
 
 <!-- LOGIN -->
 <div class="auth-screen active" id="auth-login">
@@ -2073,7 +2073,7 @@ select.add-row-in.lifted{color:var(--t1)}
   </div>
 
 </div>
-
+</div>
 
 <!-- █ PROFILE █ -->
 <div class="page" id="page-profile">
@@ -2207,7 +2207,7 @@ function tabTap(el,page,animName){
 }
 
 /* ═══ DEV mode — skip auth ═══ */
-window.addEventListener('load',()=>setTimeout(checkExistingSession,400));
+window.addEventListener('load',()=>enterApp()); /* DEV MODE */
 
 if(window.Telegram?.WebApp){const tg=window.Telegram.WebApp;tg.ready();tg.expand();tg.setHeaderColor('#0c0c14');tg.setBackgroundColor('#0c0c14')}
 
@@ -2383,7 +2383,7 @@ function closeCreateBase(){
 
 
 
-function confirmCreateBase(){
+async function confirmCreateBase(){
   const name = document.getElementById('cb-name')?.value.trim();
   if(!name){ document.getElementById('cb-name')?.classList.add('err'); T('Введіть назву бази'); return; }
   const desc = document.getElementById('cb-desc')?.value.trim();
@@ -2394,11 +2394,20 @@ function confirmCreateBase(){
 
   /* Save to Supabase if connected */
   if(window.db && window.currentUser){
-    window.db.from('databases').insert([{
-      name, owner_id: window.currentUser.id,
-      slug: name.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,''),
-      is_public: vis === 'public'
-    }]).then(({error})=>{ if(error) console.warn('DB save:',error.message); });
+    (async()=>{
+    try{
+      const {error}=await window.db.from('databases').insert([{
+        owner_id:window.currentUser.id,
+        name:name,
+        slug:name.toLowerCase().replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-'),
+        is_public:false
+      }]);
+      if(error){T('Помилка збереження: '+error.message);return;}
+      closeCreateBase();
+      T('✅ База «'+name+'» створена!');
+      setTimeout(loadBases,300);
+    }catch(e){T('Помилка: '+e.message);}
+  })()
   }
 
   closeCreateBase();
@@ -2430,14 +2439,15 @@ function askDeleteBase(e, name){
   if(cov){ cov.style.display='flex'; }
 }
 
-function confirmDeleteBase(){
+async function confirmDeleteBase(){
   const name = window._delBaseName;
   window._bases = window._bases.filter(b=>b.name !== name);
 
   if(window.db && window.currentUser){
-    window.db.from('databases').delete().eq('name', name).then(({error})=>{
+    try{
+      const {error} = await window.db.from('databases').delete().eq('name', name);
       if(error) console.warn('DB delete:',error.message);
-    });
+    }catch(e){ console.warn(e); }
   }
 
   closeCov('cov-del-base');
@@ -2554,7 +2564,7 @@ function togUtil(row){
 }
 
 /* Add object */
-function addO(){
+async function addO(){
   const name = (document.getElementById('f-name')?.value||'').trim();
   const addr = (document.getElementById('f-addr')?.value||'').trim();
   const area = parseFloat(document.getElementById('f-area')?.value)||0;
@@ -2600,18 +2610,29 @@ function addO(){
     util_rate:util, costs, description:desc, type, status:'free', utilities:utils };
 
   if(window.db && window.currentUser){
-    window.db.from('objects').insert([{owner_id:window.currentUser?.id,
-      name, address:addr, area_total:area, rent_price:rent,
-      rate_per_m2:rate, type, status:'free',
-      utilities: utils, description:desc
-    }]).then(({error})=>{
+    try{
+      const {error} = await window.db.from('objects').insert([{
+        owner_id:    window.currentUser.id,
+        name,
+        address:     addr,
+        area_total:  area,
+        rent_price:  rent,
+        rate_per_m2: rate,
+        type,
+        status:      'free',
+        utilities:   utils,
+        description: desc
+      }]);
       if(btn){ btn.textContent = 'Додати об\'єкт'; btn.disabled = false; }
       if(error){ showAddErr('Помилка: ' + error.message); return; }
       T('✅ «' + name + '» додано до бази!');
       clearAddForm();
       go('bases');
       setTimeout(loadBases,300);
-    });
+    }catch(e){
+      if(btn){ btn.textContent = 'Додати об\'єкт'; btn.disabled = false; }
+      showAddErr('Помилка: ' + e.message);
+    }
   } else {
     /* offline/dev */
     setTimeout(()=>{
@@ -2739,18 +2760,7 @@ async function regStep2(){
       return;
     }
 
-    /* Зберігаємо в таблицю users (ігноруємо RLS помилку) */
-    if(data?.user?.id){
-      try{
-        await window.db.from('users').upsert({
-          id:   data.user.id,
-          email:email,
-          name: window._regName||'',
-          city: window._regCity||'',
-          plan: 'free'
-        },{onConflict:'id'});
-      }catch(_){}
-    }
+    /* Profile saved by onAuthStateChange after email confirmed */
 
     window.currentUser=data?.user;
     window._pendingEmail=email;
@@ -2837,7 +2847,7 @@ async function loginViaTelegram(){
     /* Крок 2: Зберігаємо Telegram профіль (без email — анонімний) */
     const tgName = [(user.first_name||''), (user.last_name||'')].filter(Boolean).join(' ') || 'Telegram User';
     try{
-      await window.db.from('users').upsert({
+      await await window.db.from('users').upsert({
         id:          sessionUser.id,
         name:        tgName,
         telegram_id: String(user.id),
@@ -2921,18 +2931,21 @@ async function loadBases(){
   if(!list) return;
   list.innerHTML = '<div style="padding:20px;text-align:center"><div class="spin"></div></div>';
 
-  const {data,error} = await window.db
-    .from('databases')
-    .select('id,name,is_public,created_at')
-    .eq('owner_id', window.currentUser.id)
-    .order('created_at',{ascending:false})
-    .catch(()=>({data:null,error:{message:'network'}}));
+  let data, error;
+  try{
+    const res = await window.db
+      .from('databases')
+      .select('id,name,is_public,created_at')
+      .eq('owner_id', window.currentUser.id)
+      .order('created_at',{ascending:false});
+    data = res.data; error = res.error;
+  }catch(e){ renderBasesEmpty(list); return; }
 
   if(error||!data){ renderBasesEmpty(list); return; }
   if(data.length===0){ renderBasesEmpty(list); return; }
 
-  const {data:objs} = await window.db.from('objects').select('db_id')
-    .catch(()=>({data:[]}));
+  let objs = [];
+  try{ const r = await window.db.from('objects').select('db_id'); objs = r.data||[]; }catch(_){}
   const countMap={};
   (objs||[]).forEach(o=>{ countMap[o.db_id]=(countMap[o.db_id]||0)+1; });
 
@@ -2986,12 +2999,15 @@ async function loadObjects(dbId){
   if(!list) return;
   list.innerHTML='<div style="padding:28px;text-align:center"><div class="spin"></div></div>';
 
-  const {data,error}=await window.db
-    .from('objects')
-    .select('id,name,address,area_total,rent_price,rate_per_m2,status,type,utilities')
-    .eq('db_id',dbId)
-    .order('created_at',{ascending:false})
-    .catch(()=>({data:null,error:{message:'network'}}));
+  let data, error;
+  try{
+    const res = await window.db
+      .from('objects')
+      .select('id,name,address,area_total,rent_price,rate_per_m2,status,type,utilities')
+      .eq('db_id',dbId)
+      .order('created_at',{ascending:false});
+    data = res.data; error = res.error;
+  }catch(e){ data=null; error={message:e.message}; }
 
   if(!data||data.length===0){
     list.innerHTML='<div style="padding:32px 20px;text-align:center">'
@@ -3062,7 +3078,7 @@ async function loadProfile(){
   if(nm) nm.textContent=name;
   if(rl) rl.textContent=meta.city?'Рієлтор · '+meta.city:'Власник нерухомості';
 
-  const {data}=await window.db.from('users').select('*').eq('id',user.id).single().catch(()=>({data:null}));
+  const {data}=await (async()=>{try{const r=await window.db.from('users').select('*').eq('id',user.id).single();return r;}catch(e){return {data:null};}})();
   if(data){
     if(nm&&data.name) nm.textContent=data.name;
     if(rl&&data.city) rl.textContent='Рієлтор · '+data.city;
@@ -3070,16 +3086,17 @@ async function loadProfile(){
     if(planEl) planEl.textContent=data.plan==='pro'?'PRO — активний':'Free тариф';
   }
 
-  const {count:bCount}=await window.db.from('databases').select('id',{count:'exact',head:true}).eq('owner_id',user.id).catch(()=>({count:0}));
-  const {count:oCount}=await window.db.from('objects').select('id',{count:'exact',head:true}).catch(()=>({count:0}));
-  const ps1=document.getElementById('p-stat-bases'); if(ps1) ps1.textContent=bCount||0;
-  const ps2=document.getElementById('p-stat-objects'); if(ps2) ps2.textContent=oCount||0;
+  let bCount=0, oCount=0;
+  try{ const rb=await window.db.from('databases').select('id',{count:'exact',head:true}).eq('owner_id',user.id); bCount=rb.count||0; }catch(_){}
+  try{ const ro=await window.db.from('objects').select('id',{count:'exact',head:true}); oCount=ro.count||0; }catch(_){}
+  const ps1=document.getElementById('p-stat-bases'); if(ps1) ps1.textContent=bCount;
+  const ps2=document.getElementById('p-stat-objects'); if(ps2) ps2.textContent=oCount;
 }
 
 /* ── LOAD DASHBOARD ── */
 async function loadDashboard(){
   if(!window.db||!window.currentUser) return;
-  const {data:objs}=await window.db.from('objects').select('rent_price,status,type,rate_per_m2,area_total').catch(()=>({data:[]}));
+  let objs=[];try{const r=await window.db.from('objects').select('rent_price,status,type,rate_per_m2,area_total');objs=r.data||[];}catch(_){}
   if(!objs||objs.length===0) return;
   const rented=objs.filter(o=>o.status==='rented');
   const income=rented.reduce((s,o)=>s+(Number(o.rent_price)||0),0);
