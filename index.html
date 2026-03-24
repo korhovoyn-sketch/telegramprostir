@@ -1,4 +1,3 @@
-<!DOCTYPE html>
 <html lang="uk">
 <head>
 <meta charset="UTF-8">
@@ -1885,11 +1884,7 @@ select.add-row-in.lifted{color:var(--t1)}
       <div class="tpc-nm">Паркомісця</div>
       <div class="tpc-badge">+ місця</div>
     
-    <div class="tpc" data-type="parking" data-has-units="true" onclick="selT(this)">
-      <div class="tpc-ic tpc-red tpc-complex"><svg><use href="#i-parking"/></svg></div>
-      <div class="tpc-nm">Паркомісця</div>
-      <div class="tpc-badge">+ місця</div>
-    </div></div>
+    ></div>
   </div>
 
   <!-- Sub-units panel (complex types) -->
@@ -2304,6 +2299,7 @@ function enterApp(){
   /* Ensure tbar visible */
   const tbar=document.querySelector('.tbar');
   if(tbar){ tbar.style.display='flex'; tbar.style.visibility='visible'; }
+  setTimeout(()=>{ loadProfile(); loadBases(); loadDashboard(); },100);
 }
 
 function T(msg){
@@ -2890,6 +2886,8 @@ async function loadBases(){
   html+='</div>';
   list.innerHTML=html;
 
+  const fsel=document.getElementById('f-base');
+  if(fsel){ fsel.innerHTML='<option value=>Оберіть базу</option>'+data.map(b=>'<option value=+b.id+>'+b.name+'</option>').join(''); }
   const badge=document.getElementById('bases-count');
   if(badge) badge.textContent=data.length+' баз';
 
