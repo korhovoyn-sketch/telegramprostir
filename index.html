@@ -1533,7 +1533,7 @@ select.add-row-in.lifted{color:var(--t1)}
       <span style="color:var(--t4);font-size:12px">Перевірте папку «Спам» якщо не бачите листа.</span>
     </div>
     <button class="a-btn-primary" onclick="window.location.reload()" style="max-width:300px">
-      Я підтвердив — увійти
+      Відкрити додаток після підтвердження
     </button>
     <button class="a-btn-ghost" onclick="resendConfirmEmail()" style="max-width:300px;margin-top:4px">
       Надіслати лист повторно
@@ -2148,7 +2148,42 @@ select.add-row-in.lifted{color:var(--t1)}
 
 <script>
 /* ═══ SUPABASE ═══ */
-try{window.db=supabase.createClient('https://cjsuuzynpuimgndudzka.supabase.co','sb_publishable_IF73m2oD9rU7PeQp82Cskw_hS_ia_p0');}catch(e){console.warn('[Prostir] Supabase:',e.message)}
+try{
+  window.db=supabase.createClient(
+    'https://cjsuuzynpuimgndudzka.supabase.co',
+    'sb_publishable_IF73m2oD9rU7PeQp82Cskw_hS_ia_p0'
+  );
+  /* onAuthStateChange — найнадійніший спосіб зловити вхід/вихід */
+  window.db.auth.onAuthStateChange((event, session)=>{
+    if(event==='SIGNED_IN' && session){
+      window.currentUser = session.user;
+      /* Зберігаємо профіль при першому вході */
+      if(event==='SIGNED_IN'){
+        const meta = session.user.user_metadata||{};
+        window.db.from('users').upsert({
+          id: session.user.id,
+          email: session.user.email,
+          name: meta.name || meta.full_name || session.user.email.split('@')[0],
+          city: meta.city || '',
+          plan: 'free'
+        },{onConflict:'id'}).catch(()=>{});
+      }
+      /* Якщо auth-wrap видимий — входимо в додаток */
+      const wrap = document.getElementById('auth-wrap');
+      const isAuthVisible = wrap && wrap.style.display !== 'none' && !wrap.classList.contains('hidden');
+      if(isAuthVisible) enterApp();
+    }
+    if(event==='SIGNED_OUT'){
+      window.currentUser = null;
+    }
+    if(event==='PASSWORD_RECOVERY'){
+      /* Юзер перейшов по посиланню скидання пароля */
+      const wrap = document.getElementById('auth-wrap');
+      if(wrap){ wrap.classList.remove('hidden'); wrap.style.display=''; }
+      authGo('auth-reset');
+    }
+  });
+}catch(e){console.warn('[Prostir] Supabase:',e.message)}
 
 /* ═══ TAB TAP + micro-animations ═══ */
 function tabTap(el,page,animName){
@@ -2726,7 +2761,7 @@ async function regStep2(){
 
   }catch(e){
     if(btn){btn.textContent='Далі →';btn.disabled=false;}
-    afError('af-re','Помилка мережi. Перевірте інтернет.');
+    afError('af-re','Помилка: '+(e && e.message ? e.message : 'перевірте інтернет'));
   }
 }
 async function doLogin(){
@@ -2741,7 +2776,7 @@ async function doLogin(){
     if(btn){btn.textContent='Увійти';btn.disabled=false;}
     if(error){const msg=error.message.includes('Invalid')?'Невірний email або пароль':error.message.includes('confirmed')?'Email не підтверджено. Перевірте пошту (і папку Спам)':'Помилка: '+error.message;afError('af-le',msg);return;}
     window.currentUser=data.user;enterApp();
-  }catch(e){if(btn){btn.textContent='Увійти';btn.disabled=false;}afError('af-le','Помилка мережi');}
+  }catch(e){if(btn){btn.textContent='Увійти';btn.disabled=false;}afError('af-le','Помилка: '+(e && e.message ? e.message : 'мережа'));}
 }
 async function doReset(){
   const email=(document.getElementById('rst-email-inp')?.value||'').trim();
@@ -2774,34 +2809,22 @@ async function loginWithGoogle(){
   if(error)afError('af-le','Google: '+error.message);
 }
 async function checkExistingSession(){
+  /* Telegram auto-login */
   const tg=window.Telegram?.WebApp;
-  if(tg?.initDataUnsafe?.user){await loginViaTelegram();return;}
+  if(tg?.initDataUnsafe?.user){ await loginViaTelegram(); return; }
 
-  /* Handle email confirmation redirect (contains #access_token or ?code=) */
-  const fragment=window.location.hash;
-  const search=window.location.search;
-  if(fragment.includes('access_token')||search.includes('code=')||fragment.includes('type=signup')){
-    /* Give Supabase SDK time to parse the token from URL */
-    await new Promise(r=>setTimeout(r,1000));
-    try{
-      const{data:{session}}=await window.db.auth.getSession();
-      if(session){
-        window.currentUser=session.user;
-        window.history.replaceState({},'',window.location.pathname);
-        T('✅ Email підтверджено! Ласкаво просимо.');
-        enterApp();
-        return;
-      }
-    }catch(e){}
-  }
-
-  /* Check existing session */
+  /* onAuthStateChange вже підписаний і обробить PKCE redirect автоматично */
+  /* Просто перевіряємо чи є вже збережена сесія */
   try{
     const{data:{session}}=await window.db.auth.getSession();
-    if(session){window.currentUser=session.user;enterApp();}
-    /* else: stay on auth screen — already visible */
+    if(session){
+      window.currentUser=session.user;
+      enterApp();
+    }
+    /* Якщо немає сесії — onAuthStateChange спрацює сам коли Supabase
+       обробить ?code= параметр з email підтвердження */
   }catch(e){
-    /* Network error — stay on auth screen */
+    /* Залишаємось на екрані авторизації */
   }
 }
 
