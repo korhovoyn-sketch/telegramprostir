@@ -1382,6 +1382,11 @@ select.add-row-in.lifted{color:var(--t1)}
   .az-top{min-height:28dvh}
 }
 
+
+/* spinner */
+.spin{width:22px;height:22px;border:2px solid rgba(255,255,255,.1);border-top-color:var(--p1);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+
 </style>
 </head>
 <body>
@@ -1707,10 +1712,16 @@ select.add-row-in.lifted{color:var(--t1)}
     <div class="pb-sub">Створюйте бази, запрошуйте команду, публікуйте оренду — все в одному місці.</div>
   </div>
 
-  <div class="sh"><div class="sh-t">Мої бази</div></div>
-  <div class="gl" style="margin:0 var(--gap) 10px;padding:24px 20px;text-align:center;border-radius:var(--rXL)">
-    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.2)" stroke-width="1.5" stroke-linecap="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v5c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 10v5c0 1.66 4.03 3 9 3s9-1.34 9-3v-5"/></svg>
-    <div style="font-size:14px;color:var(--t3);margin-top:10px">Ще немає баз.<br>Створіть першу нижче.</div>
+  <div class="sh">
+    <div class="sh-t">Мої бази</div>
+    <div class="sh-act" id="bases-count" style="font-size:12px;color:var(--t3)"></div>
+  </div>
+  <div id="bases-list">
+    <!-- populated by loadBases() -->
+    <div class="bases-empty gl" style="margin:0 var(--gap) 10px;padding:24px 20px;text-align:center;border-radius:var(--rXL)">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.2)" stroke-width="1.5" stroke-linecap="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v5c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 10v5c0 1.66 4.03 3 9 3s9-1.34 9-3v-5"/></svg>
+      <div style="font-size:14px;color:var(--t3);margin-top:10px">Ще немає баз.<br>Створіть першу нижче.</div>
+    </div>
   </div>
   <div class="nb-btn" onclick="openCreateBase()">
     <div class="nb-plus"><svg><use href="#i-plus"/></svg></div>
@@ -2075,19 +2086,19 @@ select.add-row-in.lifted{color:var(--t1)}
 
   <div class="ph gl">
     <div class="pav"><svg><use href="#i-user"/></svg></div>
-    <div><div class="p-nm">Ваш профіль</div><div class="p-rl">Налаштуйте профіль</div><div class="p-vf"><svg><use href="#i-verify"/></svg>Верифікований</div></div>
+    <div><div class="p-nm" id="p-name">Ваш профіль</div><div class="p-rl" id="p-role">Налаштуйте профіль</div><div class="p-vf"><svg><use href="#i-verify"/></svg>Верифікований</div></div>
   </div>
 
   <div class="pl-row gl" onclick="T('Ваш план PRO')">
-    <div><div class="pl-nm">Тариф PRO</div><div class="pl-sb">Активний до 22 квіт 2026</div></div>
+    <div><div class="pl-nm">Тариф PRO</div><div class="pl-sb" id="p-plan-sub">Free тариф</div></div>
     <div class="pl-bdg">PRO</div>
   </div>
 
   <div class="sg-row">
-    <div class="st gl"><div class="st-v" style="color:var(--p1)">2</div><div class="st-l">Бази</div></div>
-    <div class="st gl"><div class="st-v" style="color:var(--blue)">10</div><div class="st-l">Об'єкти</div></div>
-    <div class="st gl"><div class="st-v" style="color:var(--orn)">23</div><div class="st-l">Угоди</div></div>
-    <div class="st gl"><div class="st-v" style="color:var(--teal)">4.9</div><div class="st-l">Рейтинг</div></div>
+    <div class="st gl"><div class="st-v" id="p-stat-bases" style="color:var(--p1)">0</div><div class="st-l">Бази</div></div>
+    <div class="st gl"><div class="st-v" id="p-stat-objects" style="color:var(--blue)">0</div><div class="st-l">Об'єкти</div></div>
+    <div class="st gl"><div class="st-v" id="p-stat-deals" style="color:var(--orn)">0</div><div class="st-l">Угоди</div></div>
+    <div class="st gl"><div class="st-v" id="p-stat-rating" style="color:var(--teal)">—</div><div class="st-l">Рейтинг</div></div>
   </div>
 
   <div class="sh"><div class="sh-t">Налаштування</div></div>
@@ -2118,7 +2129,7 @@ select.add-row-in.lifted{color:var(--t1)}
     <div class="ti-ic ti-ic-add"><svg><use href="#i-plus"/></svg></div>
     <div class="ti-lb">Додати</div>
   </div>
-  <div class="ti"    id="t-profile" onclick="tabTap(this,'profile','iconUser')">
+  <div class="ti"    id="t-profile" onclick="tabTap(this,'profile','iconUser');loadProfile()">
     <div class="ti-ic"><svg><use href="#i-user"/></svg></div>
     <div class="ti-lb">Профіль</div>
   </div>
@@ -2362,16 +2373,19 @@ function confirmCreateBase(){
   T('✅ Базу «' + name + '» створено');
 }
 
-function openBase(name){
-  const nm=document.getElementById('base-hdr-nm');
-  const cnt=document.getElementById('base-hdr-cnt');
-  const counts={'Київ Центр':7,'Лівий берег':3,'«Новобуд»':24};
-  if(nm) nm.textContent=name;
-  if(cnt) cnt.textContent=(counts[name]||'0')+' обʼєктів';
+function openBase(name, dbId){
+  window._currentBaseId   = dbId;
+  window._currentBaseName = name;
+  const nm  = document.getElementById('base-hdr-nm');
+  const cnt = document.getElementById('base-hdr-cnt');
+  if(nm)  nm.textContent  = name;
+  if(cnt) cnt.textContent = 'Завантаження...';
   document.querySelectorAll('.ti').forEach(t=>t.classList.remove('on'));
-  const tb=document.getElementById('t-bases');if(tb)tb.classList.add('on');
+  const tb = document.getElementById('t-bases');
+  if(tb) tb.classList.add('on');
   window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('medium');
   go('objects');
+  if(dbId) loadObjects(dbId);
 }
 
 function askDeleteBase(e, name){
@@ -2553,7 +2567,7 @@ function addO(){
     util_rate:util, costs, description:desc, type, status:'free', utilities:utils };
 
   if(window.db && window.currentUser){
-    window.db.from('objects').insert([{
+    window.db.from('objects').insert([{owner_id:window.currentUser?.id,
       name, address:addr, area_total:area, rent_price:rent,
       rate_per_m2:rate, type, status:'free',
       utilities: utils, description:desc
@@ -2563,6 +2577,7 @@ function addO(){
       T('✅ «' + name + '» додано до бази!');
       clearAddForm();
       go('bases');
+      setTimeout(loadBases,300);
     });
   } else {
     /* offline/dev */
@@ -2827,6 +2842,191 @@ function resetDashboard(){
   document.querySelectorAll('.h-num').forEach(el=>el.textContent='₴0');
   document.querySelectorAll('.kc-v').forEach(el=>el.textContent='0');
 }
+
+
+/* ══════════════════════════════════════════════════════════════
+   REAL DATA LOADING — Supabase
+══════════════════════════════════════════════════════════════ */
+
+/* ── LOAD BASES ── */
+async function loadBases(){
+  if(!window.db||!window.currentUser) return;
+  const list = document.getElementById('bases-list');
+  if(!list) return;
+  list.innerHTML = '<div style="padding:20px;text-align:center"><div class="spin"></div></div>';
+
+  const {data,error} = await window.db
+    .from('databases')
+    .select('id,name,is_public,created_at')
+    .eq('owner_id', window.currentUser.id)
+    .order('created_at',{ascending:false})
+    .catch(()=>({data:null,error:{message:'network'}}));
+
+  if(error||!data){ renderBasesEmpty(list); return; }
+  if(data.length===0){ renderBasesEmpty(list); return; }
+
+  const {data:objs} = await window.db.from('objects').select('db_id')
+    .catch(()=>({data:[]}));
+  const countMap={};
+  (objs||[]).forEach(o=>{ countMap[o.db_id]=(countMap[o.db_id]||0)+1; });
+
+  const colors=['bv','bb','bo','bp','br'];
+  const icons=['i-city','i-wave','i-build','i-home','i-db'];
+  let html='<div class="bwrap">';
+  data.forEach((base,i)=>{
+    const cnt=countMap[base.id]||0;
+    const col=colors[i%colors.length];
+    const ico=icons[i%icons.length];
+    const nm=base.name.replace(/[<>"]/g,'');
+    const id=base.id;
+    html+='<div class="brow" onclick="openBase(\"'+nm+'\",\"'+id+'\")" data-id="'+id+'">'
+      +'<div class="bi '+col+'"><svg><use href="#'+ico+'"/></svg></div>'
+      +'<div class="bi2"><div class="b-nm">'+nm+'</div>'
+      +'<div class="b-mt">Власна · '+new Date(base.created_at).toLocaleDateString('uk')+'</div></div>'
+      +'<div class="b-st"><div class="b-n">'+cnt+'</div><div class="b-l">обʼєктів</div></div>'
+      +'<div class="gchev"><svg><use href="#i-chev"/></svg></div>'
+      +'</div>';
+  });
+  html+='</div>';
+  list.innerHTML=html;
+
+  const badge=document.getElementById('bases-count');
+  if(badge) badge.textContent=data.length+' баз';
+
+  const sel=document.getElementById('f-base');
+  if(sel){
+    sel.innerHTML='<option value="">Оберіть базу</option>'
+      +data.map(b=>'<option value="'+b.id+'">'+b.name+'</option>').join('');
+  }
+
+  const ps=document.getElementById('p-stat-bases');
+  if(ps) ps.textContent=data.length;
+}
+
+function renderBasesEmpty(list){
+  list.innerHTML='<div class="gl" style="margin:0 var(--gap) 10px;padding:24px 20px;text-align:center;border-radius:var(--rXL)">'
+    +'<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.2)" stroke-width="1.5" stroke-linecap="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v5c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 10v5c0 1.66 4.03 3 9 3s9-1.34 9-3v-5"/></svg>'
+    +'<div style="font-size:14px;color:var(--t3);margin-top:10px">Ще немає баз.<br>Створіть першу нижче.</div>'
+    +'</div>';
+}
+
+/* ── LOAD OBJECTS ── */
+async function loadObjects(dbId){
+  if(!window.db||!window.currentUser) return;
+  window._currentBaseId=dbId;
+  const list=document.getElementById('obj-list');
+  if(!list) return;
+  list.innerHTML='<div style="padding:28px;text-align:center"><div class="spin"></div></div>';
+
+  const {data,error}=await window.db
+    .from('objects')
+    .select('id,name,address,area_total,rent_price,rate_per_m2,status,type,utilities')
+    .eq('db_id',dbId)
+    .order('created_at',{ascending:false})
+    .catch(()=>({data:null,error:{message:'network'}}));
+
+  if(!data||data.length===0){
+    list.innerHTML='<div style="padding:32px 20px;text-align:center">'
+      +'<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.2)" stroke-width="1.5" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>'
+      +'<div style="font-size:14px;color:var(--t3);margin-top:10px">Обʼєктів ще немає.<br>Натисніть + щоб додати.</div>'
+      +'</div>';
+    updateBaseHeader(dbId,0);
+    return;
+  }
+
+  const typeIcons={apartment:'i-home',house:'i-build',commercial:'i-store',office:'i-doc',business_center:'i-city',shopping_center:'i-store',warehouse:'i-box',hotel:'i-hotel',parking:'i-parking'};
+  const typeColors={apartment:'oc-ic-apt',house:'oc-ic-house',commercial:'oc-ic-com',office:'oc-ic-com'};
+  const stLbls={free:'Вільний',rented:'В оренді',reserved:'Резерв'};
+  const stCls={free:'s-free',rented:'s-ok',reserved:'s-warn'};
+  const utIcons={water:'i-drop',gas:'i-flame',heat:'i-thermo',elec:'i-zap'};
+  const utCls={water:'u-w',gas:'u-g',heat:'u-h',elec:'u-e'};
+  const utLbls={water:'Вода',gas:'Газ',heat:'Тепло',elec:'Світло'};
+
+  let html='';
+  data.forEach(obj=>{
+    const ico=typeIcons[obj.type]||'i-home';
+    const col=typeColors[obj.type]||'oc-ic-apt';
+    const st=stLbls[obj.status]||'—';
+    const sc=stCls[obj.status]||'s-free';
+    const area=obj.area_total?obj.area_total+' м²':'—';
+    const rate=obj.rate_per_m2?'₴'+obj.rate_per_m2+'/м²':'—';
+    const rent=obj.rent_price?'₴'+Number(obj.rent_price).toLocaleString('uk'):'—';
+    const u=obj.utilities||{};
+    const utags=['water','gas','heat','elec']
+      .filter(k=>u[k])
+      .map(k=>'<span class="ut '+utCls[k]+'"><svg><use href="#'+utIcons[k]+'"/></svg>'+utLbls[k]+'</span>')
+      .join('');
+    html+='<div class="oc gc" data-id="'+obj.id+'" data-status="'+obj.status+'" data-type="'+obj.type+'" onclick="pC(this)">'
+      +'<div class="oc-top">'
+      +'<div class="oc-ic '+col+'"><svg><use href="#'+ico+'"/></svg></div>'
+      +'<div class="oc-mt"><div class="oc-nm">'+obj.name+'</div>'
+      +'<div class="oc-ad"><svg><use href="#i-pin"/></svg>'+(obj.address||'—')+'</div></div>'
+      +'<div class="oc-st '+sc+'">'+st+'</div>'
+      +'</div>'
+      +'<div class="fin">'
+      +'<div class="fn"><div class="fn-l">Площа</div><div class="fn-v">'+area+'</div></div>'
+      +'<div class="fn"><div class="fn-l">Ставка</div><div class="fn-v hi">'+rate+'</div></div>'
+      +'<div class="fn"><div class="fn-l">Оренда</div><div class="fn-v hi">'+rent+'</div></div>'
+      +'</div>'
+      +(utags?'<div class="oc-ft"><div class="ut-row">'+utags+'</div></div>':'')
+      +'</div>';
+  });
+  list.innerHTML=html;
+  updateBaseHeader(dbId,data.length);
+
+  const ps=document.getElementById('p-stat-objects');
+  if(ps) ps.textContent=data.length;
+}
+
+function updateBaseHeader(dbId,count){
+  const cnt=document.getElementById('base-hdr-cnt');
+  if(cnt) cnt.textContent=count+(count===1?' обʼєкт':count>1&&count<5?' обʼєкти':' обʼєктів');
+}
+
+/* ── LOAD PROFILE ── */
+async function loadProfile(){
+  if(!window.db||!window.currentUser) return;
+  const user=window.currentUser;
+  const meta=user.user_metadata||{};
+  const name=meta.name||meta.full_name||user.email?.split('@')[0]||'Користувач';
+  const nm=document.getElementById('p-name');
+  const rl=document.getElementById('p-role');
+  if(nm) nm.textContent=name;
+  if(rl) rl.textContent=meta.city?'Рієлтор · '+meta.city:'Власник нерухомості';
+
+  const {data}=await window.db.from('users').select('*').eq('id',user.id).single().catch(()=>({data:null}));
+  if(data){
+    if(nm&&data.name) nm.textContent=data.name;
+    if(rl&&data.city) rl.textContent='Рієлтор · '+data.city;
+    const planEl=document.getElementById('p-plan-sub');
+    if(planEl) planEl.textContent=data.plan==='pro'?'PRO — активний':'Free тариф';
+  }
+
+  const {count:bCount}=await window.db.from('databases').select('id',{count:'exact',head:true}).eq('owner_id',user.id).catch(()=>({count:0}));
+  const {count:oCount}=await window.db.from('objects').select('id',{count:'exact',head:true}).catch(()=>({count:0}));
+  const ps1=document.getElementById('p-stat-bases'); if(ps1) ps1.textContent=bCount||0;
+  const ps2=document.getElementById('p-stat-objects'); if(ps2) ps2.textContent=oCount||0;
+}
+
+/* ── LOAD DASHBOARD ── */
+async function loadDashboard(){
+  if(!window.db||!window.currentUser) return;
+  const {data:objs}=await window.db.from('objects').select('rent_price,status,type,rate_per_m2,area_total').catch(()=>({data:[]}));
+  if(!objs||objs.length===0) return;
+  const rented=objs.filter(o=>o.status==='rented');
+  const income=rented.reduce((s,o)=>s+(Number(o.rent_price)||0),0);
+  const occ=Math.round(rented.length/objs.length*100);
+  const avgRate=objs.length?Math.round(objs.reduce((s,o)=>s+(Number(o.rate_per_m2)||0),0)/objs.length):0;
+  const heroNum=document.querySelector('.h-num');
+  if(heroNum) heroNum.textContent='₴'+income.toLocaleString('uk')+'/міс';
+  document.querySelectorAll('.kc-v').forEach((el,i)=>{
+    [occ+'%',objs.length,avgRate?'₴'+avgRate:'—','—'][i]!==undefined
+      &&(el.textContent=[occ+'%',objs.length,avgRate?'₴'+avgRate:'—','—'][i]);
+  });
+}
+
+
+/* ── Spinner CSS ── */
 
 </script>
 </body>
