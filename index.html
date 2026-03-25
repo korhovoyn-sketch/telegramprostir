@@ -1,6 +1,7 @@
 <html lang="uk">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Prostir</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -73,7 +74,7 @@ body{
 *{scrollbar-width:none}
 
 /* ── PAGE ── */
-.page{display:none}
+.page{display:none;padding-bottom:calc(72px + env(safe-area-inset-bottom))}
 .page.active{display:block;animation:pgIn .28s cubic-bezier(.4,0,.2,1) both}
 @keyframes pgIn{from{opacity:0;transform:translateY(10px) scale(.992)}to{opacity:1;transform:none}}
 .sg>*{opacity:0;animation:fadeUp .34s cubic-bezier(.4,0,.2,1) both}
@@ -235,7 +236,7 @@ body{padding-bottom:calc(58px + env(safe-area-inset-bottom))}
 /* ════════════════════════════════════
    SHARED LAYOUT
 ════════════════════════════════════ */
-.pw{padding:12px 0 0}
+.pw{padding:12px 0 0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:calc(80px + env(safe-area-inset-bottom))}
 .sh{display:flex;align-items:center;justify-content:space-between;padding:0 var(--gap);margin:14px 0 8px}
 .sh-t{font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.65px}
 .sh-l{font-size:13px;font-weight:500;color:var(--p1);cursor:pointer}
@@ -494,7 +495,7 @@ textarea.fr-in{resize:none;height:68px;text-align:left;padding-top:2px}
 .st-l{font-size:10px;color:var(--t2);font-weight:400;letter-spacing:.1px}
 
 .mw{margin:0 var(--gap) 12px;border-radius:var(--rXL)}
-.mr{display:flex;align-items:center;gap:12px;padding:13px 16px;border-top:1px solid var(--sep);cursor:pointer;position:relative;z-index:3;transition:background .11s}
+.mr{display:flex;align-items:center;gap:12px;padding:13px 16px;border-top:1px solid var(--sep);cursor:pointer;position:relative;z-index:3;transition:background .11s;min-height:52px}
 .mr:first-of-type{border-top:none}
 .mr:active{background:rgba(255,255,255,.05)}
 .mi{width:32px;height:32px;border-radius:var(--rSM);display:flex;align-items:center;justify-content:center;flex-shrink:0}
@@ -523,7 +524,7 @@ textarea.fr-in{resize:none;height:68px;text-align:left;padding-top:2px}
   padding:12px 20px max(32px,env(safe-area-inset-bottom));
   transform:translateY(100%);transition:transform .44s cubic-bezier(.22,1,.36,1);
   position:relative;overflow:hidden;
-}
+;max-height:85dvh;overflow-y:auto;-webkit-overflow-scrolling:touch}
 .sh-bx::before{content:'';position:absolute;inset:0;border-radius:inherit;background:linear-gradient(180deg,rgba(255,255,255,.08) 0%,transparent 28%);pointer-events:none}
 .sh-ov.open .sh-bx{transform:none}
 .sh-hnd{width:36px;height:4px;background:rgba(255,255,255,.18);border-radius:2px;margin:0 auto 20px}
@@ -742,7 +743,7 @@ textarea.fr-in{resize:none;height:68px;text-align:left;padding-top:2px}
 /* === CREATE/DELETE MODALS === */
 .cov{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);display:flex;align-items:flex-end;animation:fadeIn .2s ease}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-.cov-sheet{width:100%;max-width:500px;margin:0 auto;background:rgba(22,18,36,.95);backdrop-filter:blur(32px);-webkit-backdrop-filter:blur(32px);border-radius:22px 22px 0 0;border-top:1px solid rgba(255,255,255,.1);animation:sheetUp .28s cubic-bezier(.34,1.2,.64,1)}
+.cov-sheet{width:100%;max-width:500px;margin:0 auto;background:rgba(22,18,36,.95);backdrop-filter:blur(32px);-webkit-backdrop-filter:blur(32px);border-radius:22px 22px 0 0;border-top:1px solid rgba(255,255,255,.1);animation:sheetUp .28s cubic-bezier(.34,1.2,.64,1);max-height:92dvh;overflow-y:auto;-webkit-overflow-scrolling:touch}
 @keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
 .cov-drag{width:36px;height:4px;border-radius:2px;background:rgba(255,255,255,.18);margin:10px auto 0}
 .cov-hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 16px 4px}
@@ -750,7 +751,7 @@ textarea.fr-in{resize:none;height:68px;text-align:left;padding-top:2px}
 .cov-close{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .14s}
 .cov-close:active{background:rgba(255,255,255,.15)}
 .cov-close svg{width:14px;height:14px;stroke:var(--t2);fill:none;stroke-width:2.2;stroke-linecap:round}
-.cov-body{padding:8px 0 max(24px,env(safe-area-inset-bottom))}
+.cov-body{padding:8px 0 max(24px,env(safe-area-inset-bottom));overflow-y:auto;max-height:72dvh}
 
 
 /* ═══════════════════════════════════════
@@ -1142,27 +1143,29 @@ select.fr-in{padding:11px 0;-webkit-appearance:none;appearance:none;color:var(--
 /* floating label */
 .add-row-body{flex:1;min-width:0;position:relative;padding:14px 0 6px}
 .add-row-lbl{
-  position:absolute;top:50%;transform:translateY(-50%);
+  position:absolute;
+  left:0;top:50%;transform:translateY(-50%);
   font-size:15px;color:var(--t3);
   transition:all .18s cubic-bezier(.4,0,.2,1);
   pointer-events:none;line-height:1;
+  white-space:nowrap;
 }
 .add-row-body.lifted .add-row-lbl,
 .add-row-in:focus ~ .add-row-lbl{
   top:6px;transform:none;
-  font-size:10px;font-weight:700;color:var(--p1);letter-spacing:.4px;text-transform:uppercase;
+  font-size:10px;font-weight:700;
+  color:var(--p1);letter-spacing:.4px;text-transform:uppercase;
 }
 .add-row-in{
   width:100%;background:transparent;border:none;outline:none;
   font-family:var(--f);font-size:15px;color:var(--t1);font-weight:400;
-  padding-top:12px;
-  caret-color:var(--p1);
-  -webkit-appearance:none;
+  padding:16px 0 4px;
+  caret-color:var(--p1);-webkit-appearance:none;
 }
 .add-row-in::placeholder{color:transparent}
 .add-row-in-accent{color:var(--p1);font-weight:600}
-select.add-row-in{padding-top:12px;color:var(--t2)}
-select.add-row-in.lifted{color:var(--t1)}
+select.add-row-in{padding-top:16px;padding-bottom:4px;color:var(--t2)}
+select.add-row-in.lifted{color:var(--t1)} select.add-row-in{padding-top:16px}
 .add-row-calc{
   font-size:10px;font-weight:700;letter-spacing:.3px;text-transform:uppercase;
   color:var(--green);background:rgba(48,209,88,.1);
@@ -1385,6 +1388,93 @@ select.add-row-in.lifted{color:var(--t1)}
 /* spinner */
 .spin{width:22px;height:22px;border:2px solid rgba(255,255,255,.1);border-top-color:var(--p1);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto}
 @keyframes spin{to{transform:rotate(360deg)}}
+
+:root{--tg-bg:var(--tg-theme-bg-color,#0c0c14);--tg-text:var(--tg-theme-text-color,#fff);--tg-hint:var(--tg-theme-hint-color,rgba(255,255,255,.45));--tg-btn:var(--tg-theme-button-color,#a855f7);--tg-btn-txt:var(--tg-theme-button-text-color,#fff);--tg-sec:var(--tg-theme-secondary_bg_color,#1c1c1e);}
+
+/* ── KEYBOARD SAFE: Add page actions stick to bottom ── */
+.add-actions{
+  position:sticky;bottom:0;
+  background:rgba(12,12,20,.92);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  padding:12px var(--gap) max(20px,env(safe-area-inset-bottom));
+  border-top:1px solid var(--sep);z-index:10;
+}
+
+/* ── OBJECT CARD press state ── */
+.oc:active{transform:scale(.985);opacity:.88}
+
+/* ── btn-full (create base button) ── */
+.btn-full{
+  display:block;width:100%;min-height:48px;
+  border-radius:var(--rLG);
+  background:var(--pg);color:#fff;border:none;
+  font-family:var(--f);font-size:16px;font-weight:600;
+  cursor:pointer;
+  box-shadow:0 3px 16px rgba(168,85,247,.38);
+  transition:transform .18s cubic-bezier(.34,1.56,.64,1),filter .14s;
+  position:relative;overflow:hidden;
+}
+.btn-full::before{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.12),transparent 55%);pointer-events:none}
+.btn-full:active{transform:scale(.97);filter:brightness(.88)}
+
+/* ── FOCUS visible (keyboard nav) ── */
+:focus-visible{outline:2px solid var(--p1);outline-offset:2px;border-radius:4px}
+input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none}
+
+/* ── SMALL PHONE (360px-) ── */
+@media(max-width:360px){
+  .tp-grid{grid-template-columns:repeat(3,1fr) !important}
+  .tpc{padding:10px 4px}
+  .tpc-lb{font-size:10px}
+  .a-title{font-size:20px}
+  .afields .af{height:48px}
+}
+
+/* ── LARGE PHONE (430px+) ── */
+@media(min-width:430px){
+  .tp-grid{grid-template-columns:repeat(5,1fr)}
+  .add-row{min-height:56px}
+}
+
+/* ── TABLET (600px+) ── */
+@media(min-width:600px){
+  .pw{max-width:600px;margin:0 auto}
+  .sg{max-width:100%}
+}
+
+/* Modal open states */
+.cov{display:none}
+.cov.open{display:flex}
+.cov-sheet{
+  transform:translateY(100%);
+  transition:transform .32s cubic-bezier(.34,1.06,.64,1);
+}
+.cov.open .cov-sheet{
+  transform:translateY(0);
+}
+
+
+/* Touch target fixes */
+.ti{ min-height:50px; }
+.tbar{ min-height:calc(56px + env(safe-area-inset-bottom)); }
+.btn-full{
+  display:block; width:100%;
+  min-height:52px; height:52px;
+  border-radius:var(--rLG);
+  background:var(--pg);
+  color:#fff;
+  font-family:var(--f); font-size:16px; font-weight:600;
+  border:none; cursor:pointer;
+  box-shadow:0 3px 14px rgba(168,85,247,.35);
+  transition:transform .18s cubic-bezier(.34,1.56,.64,1), filter .14s;
+  position:relative; overflow:hidden;
+}
+.btn-full::before{
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(180deg,rgba(255,255,255,.12),transparent 55%);
+  pointer-events:none;
+}
+.btn-full:active{ transform:scale(.97); filter:brightness(.88); }
 
 </style>
 </head>
@@ -1927,7 +2017,7 @@ select.add-row-in.lifted{color:var(--t1)}
       <div class="add-row-ico"><svg><use href="#i-db"/></svg></div>
       <div class="add-row-body">
         <div class="add-row-lbl">База нерухомості</div>
-        <select class="add-row-in" id="f-base">
+        <select class="add-row-in" id="f-base" onchange="addRowLift(this)">
           <option value="">Оберіть базу</option>
         </select>
       </div>
@@ -2073,7 +2163,6 @@ select.add-row-in.lifted{color:var(--t1)}
   </div>
 
 </div>
-</div>
 
 <!-- █ PROFILE █ -->
 <div class="page" id="page-profile">
@@ -2109,6 +2198,8 @@ select.add-row-in.lifted{color:var(--t1)}
   </div>
 
 </div></div></div>
+
+</div>
 
 <!-- TAB BAR -->
 <div class="tbar">
@@ -2147,586 +2238,416 @@ select.add-row-in.lifted{color:var(--t1)}
 <div class="tst" id="tst"><svg><use href="#i-check"/></svg><span id="tst-tx"></span></div>
 
 <script>
-/* ═══ SUPABASE ═══ */
-try{
-  window.db=supabase.createClient(
-    'https://cjsuuzynpuimgndudzka.supabase.co',
-    'sb_publishable_IF73m2oD9rU7PeQp82Cskw_hS_ia_p0'
-  );
-  /* onAuthStateChange — найнадійніший спосіб зловити вхід/вихід */
-  window.db.auth.onAuthStateChange(async (event, session)=>{
-    if(event==='SIGNED_IN' && session){
-      window.currentUser = session.user;
-      /* Зберігаємо профіль при першому вході */
-      if(event==='SIGNED_IN'){
-        const meta = session.user.user_metadata||{};
-        try{
-          await window.db.from('users').upsert({
-            id:    session.user.id,
-            email: session.user.email || '',
-            name:  meta.name || meta.full_name || (session.user.email ? session.user.email.split('@')[0] : 'Користувач'),
-            city:  meta.city || '',
-            plan:  'free'
-          },{onConflict:'id'});
-        }catch(_){}
-      }
-      /* Якщо auth-wrap видимий — входимо в додаток */
-      const wrap = document.getElementById('auth-wrap');
-      const isAuthVisible = wrap && wrap.style.display !== 'none' && !wrap.classList.contains('hidden');
-      if(isAuthVisible) enterApp();
-    }
-    if(event==='SIGNED_OUT'){
-      window.currentUser = null;
-    }
-    if(event==='PASSWORD_RECOVERY'){
-      /* Юзер перейшов по посиланню скидання пароля */
-      const wrap = document.getElementById('auth-wrap');
-      if(wrap){ wrap.classList.remove('hidden'); wrap.style.display=''; }
-      authGo('auth-reset');
-    }
-  });
-}catch(e){console.warn('[Prostir] Supabase:',e.message)}
+/* ═══════════════════════════════════════════════════════
+   PROSTIR — MAIN APPLICATION JS
+═══════════════════════════════════════════════════════ */
 
-/* ═══ TAB TAP + micro-animations ═══ */
-function tabTap(el,page,animName){
+/* ── XSS Protection ── */
+function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+
+/* ── TOAST ── */
+function T(msg, dur=2800){
+  const t=document.getElementById('tst');
+  if(!t)return;
+  t.textContent=msg;t.classList.add('show');
+  clearTimeout(t._to);
+  t._to=setTimeout(()=>t.classList.remove('show'),dur);
+}
+
+/* ── NAVIGATION ── */
+function go(page){
+  const pg=document.getElementById('page-'+page);
+  if(!pg)return;
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  pg.classList.add('active');
+  pg.scrollTop=0;
+  if(typeof tgBackBtnUpdate==='function')tgBackBtnUpdate(page);
+}
+
+/* ── TAB BAR ── */
+function tabTap(el, page, animName){
   document.querySelectorAll('.ti').forEach(t=>t.classList.remove('on'));
   el.classList.add('on');
-  const svg=el.querySelector('.ti-ic svg');
-  if(svg&&animName){
-    svg.style.animation='none';void svg.offsetWidth;
-    svg.style.animation=animName+' .42s cubic-bezier(.34,1.56,.64,1)';
-    svg.addEventListener('animationend',()=>svg.style.animation='',{once:true});
-  }
-  const ic=el.querySelector('.ti-ic');
-  if(ic){
-    ic.style.animation='tiTap .38s cubic-bezier(.34,1.56,.64,1)';
-    ic.addEventListener('animationend',()=>ic.style.animation='',{once:true});
-  }
+  const svg=el.querySelector('svg');
+  if(svg){svg.style.animation='none';void svg.offsetWidth;svg.style.animation=animName+' .42s cubic-bezier(.34,1.56,.64,1)';}
   window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('light');
   go(page);
 }
 
-/* ═══ DEV mode — skip auth ═══ */
-window.addEventListener('load',()=>enterApp()); /* DEV MODE */
-
-if(window.Telegram?.WebApp){const tg=window.Telegram.WebApp;tg.ready();tg.expand();tg.setHeaderColor('#0c0c14');tg.setBackgroundColor('#0c0c14')}
-
-/* Navigation */
-function go(id){
-  const pg=document.getElementById('page-'+id);
-  if(!pg){console.warn('[go] missing page:',id);return;}
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  pg.classList.add('active');
-  window.scrollTo({top:0,behavior:'smooth'});
-}
-
-/* Glass card press — liquid feel */
-function setTP(el,e){
-  const r=el.getBoundingClientRect();
-  const s=e?.touches?.[0]??e??{clientX:r.left+r.width/2,clientY:r.top+r.height/2};
-  el.style.setProperty('--tx',((s.clientX-r.left)/r.width*100).toFixed(1)+'%');
-  el.style.setProperty('--ty',((s.clientY-r.top)/r.height*100).toFixed(1)+'%');
-}
-function pC(el,e){
-  setTP(el,e||window._lt);
-  el.classList.add('pr');
-  clearTimeout(el._t);
-  el._t=setTimeout(()=>el.classList.remove('pr'),400);
-}
-function pRow(el){el.style.background='rgba(255,255,255,.05)';setTimeout(()=>el.style.background='',200)}
-function pr(el){el.style.transform='scale(.91)';setTimeout(()=>el.style.transform='',240)}
-
-document.addEventListener('touchstart',e=>{
-  window._lt=e;
-  const c=e.target.closest('.gc');
-  if(c)pC(c,e);
-},{passive:true});
-
-/* Tab spring animation */
-document.querySelectorAll('.ti').forEach(ti=>{
-  ti.addEventListener('click',()=>{
-    ti.querySelector('.ti-ic').animate(
-      [{transform:'scale(1)'},{transform:'scale(.7)'},{transform:'scale(1.12)'},{transform:'scale(1)'}],
-      {duration:340,easing:'cubic-bezier(.34,1.56,.64,1)'}
-    );
-  });
-});
-
-function setF(el){
-  el.closest('.frow').querySelectorAll('.fch').forEach(b=>b.classList.remove('on'));
-  el.classList.add('on');
-  /* animate chip */
-  el.style.transform='scale(.9)';
-  setTimeout(()=>el.style.transform='',200);
-  /* filter objects */
-  const filter = el.dataset.filter || 'all';
-  document.querySelectorAll('#obj-list .oc').forEach(card=>{
-    if(filter==='all'){ card.style.display=''; return; }
-    const st   = card.dataset.status  || '';
-    const type = card.dataset.type    || '';
-    const show = st===filter || type===filter;
-    card.style.display = show ? '' : 'none';
-  });
-}
-
-const _typeFields = {
-  apartment:       {rooms:true,  floors:true,  units:false, floorLabel:'Поверх / Поверхів'},
-  house:           {rooms:true,  floors:true,  units:false, floorLabel:'Поверх / Поверхів'},
-  commercial:      {rooms:false, floors:false, units:false, floorLabel:'Поверх'},
-  office:          {rooms:false, floors:false, units:false, floorLabel:'Поверх'},
-  business_center: {rooms:false, floors:true,  units:true,  floorLabel:'Поверхів у будівлі'},
-  shopping_center: {rooms:false, floors:true,  units:true,  floorLabel:'Поверхів'},
-  warehouse:       {rooms:false, floors:false, units:true,  floorLabel:'Висота, м'},
-  hotel:           {rooms:false, floors:true,  units:true,  floorLabel:'Поверхів'},
-  parking:         {rooms:false, floors:false, units:true,  floorLabel:'Рівень / Поверх'},
-};
-
-function updateFormForType(type){
-  const cfg = _typeFields[type] || _typeFields.apartment;
-  /* floor label */
-  const fl = document.querySelector('.fr-lb-floor');
-  if(fl) fl.textContent = cfg.floorLabel;
-  /* rooms row */
-  const rr = document.getElementById('fr-rooms');
-  if(rr) rr.style.display = cfg.rooms ? '' : 'none';
-}
-function togU(row){row.classList.toggle('on');row.querySelector('.sw').classList.toggle('on')}
-
-
-
-
-/* Sheet */
-const SD={
-  a:{t:'Обʼєкт #1',cta:'Деталі',r:[['Адреса','—'],['Площа','—'],['Ставка','—'],['Оренда','—']]},
-  b:{t:'Обʼєкт #2',cta:'Деталі',r:[['Адреса','—'],['Площа','—'],['Ставка','—'],['Оренда','—']]},
-  c:{t:'Обʼєкт #3',cta:'Деталі',r:[['Адреса','—'],['Площа','—'],['Ставка','—'],['Оренда','—']]},
-  d:{t:'Обʼєкт #4',cta:'Деталі',r:[['Адреса','—'],['Площа','—'],['Ставка','—'],['Оренда','—']]},
-  ad1:{t:'Обʼєкт #5',cta:'Деталі',r:[['Адреса','—'],['Площа','—'],['Ставка','—'],['Оренда','—']]},
-  ad2:{t:'Обʼєкт #6',cta:'Деталі',r:[['Адреса','—'],['Площа','—'],['Ставка','—'],['Оренда','—']]},
-};
-function openS(id){
-  const d=SD[id];if(!d)return;
-  document.getElementById('sh-tit').textContent=d.t;
-  document.getElementById('sh-cta').textContent=d.cta;
-  document.getElementById('sh-bd').innerHTML=d.r.map(r=>`<div class="sh-row"><span class="sh-k">${r[0]}</span><span class="sh-v">${r[1]}</span></div>`).join('');
-  document.getElementById('sh-ov').classList.add('open');
-}
-function clSh(e){if(e.target===document.getElementById('sh-ov'))clShD()}
-function clShD(){document.getElementById('sh-ov').classList.remove('open')}
-
-/* Toast */
-let _tt;
+/* ── ENTER APP ── */
 function enterApp(){
-  /* Hide auth overlay completely */
   const wrap=document.getElementById('auth-wrap');
-  if(wrap){
-    wrap.classList.add('hidden');
-    wrap.style.display='none';
-    wrap.style.visibility='hidden';
-    wrap.style.pointerEvents='none';
-  }
-  /* Activate dashboard */
+  if(wrap){wrap.classList.add('hidden');wrap.style.display='none';wrap.style.visibility='hidden';wrap.style.pointerEvents='none';}
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.ti').forEach(t=>t.classList.remove('on'));
-  const dash=document.getElementById('page-dash');
-  if(dash) dash.classList.add('active');
-  const td=document.getElementById('t-dash');
-  if(td) td.classList.add('on');
-  resetDashboard();
-  /* Ensure tbar visible */
+  const dash=document.getElementById('page-dash');if(dash)dash.classList.add('active');
+  const td=document.getElementById('t-dash');if(td)td.classList.add('on');
+  if(typeof resetDashboard==='function')resetDashboard();
   const tbar=document.querySelector('.tbar');
-  if(tbar){ tbar.style.display='flex'; tbar.style.visibility='visible'; }
-  setTimeout(()=>{ loadProfile(); loadBases(); loadDashboard(); },100);
+  if(tbar){tbar.style.display='flex';tbar.style.visibility='visible';}
+  setTimeout(()=>{
+    if(typeof loadProfile==='function')loadProfile();
+    if(typeof loadBases==='function')loadBases();
+    if(typeof loadDashboard==='function')loadDashboard();
+    if(typeof handleDeepLink==='function')handleDeepLink();
+    if(window._postLoginRedirect){const pg=window._postLoginRedirect;window._postLoginRedirect=null;const ti=document.getElementById('t-'+pg);if(ti)setTimeout(()=>ti.click(),400);}
+    if(window._pendingBaseOpen){const bid=window._pendingBaseOpen;window._pendingBaseOpen=null;setTimeout(()=>openBase('',bid),600);}
+    if(typeof offlineQueueFlush==='function')offlineQueueFlush();
+  },100);
 }
 
-function T(msg){
-  document.getElementById('tst-tx').textContent=msg;
-  const el=document.getElementById('tst');
-  el.classList.add('show');
-  clearTimeout(_tt);
-  _tt=setTimeout(()=>el.classList.remove('show'),2600);
+/* ── DISMISS HINT ── */
+function dismissHint(btn){
+  const h=btn?.closest('.welcome-hint');
+  if(h){h.style.opacity='0';h.style.transform='scale(.96)';setTimeout(()=>h.remove(),300);}
 }
 
-/* Occ bars */
-setTimeout(()=>document.querySelectorAll('.of[data-w]').forEach(b=>b.style.width=b.dataset.w),380);
-
-/* ═══ BASE MANAGEMENT ═══ */
-
-/* In-memory bases store (until Supabase connected) */
-window._bases = window._bases || [
-  {id:'b1', name:'Київ Центр',  desc:'', vis:'private', count:7},
-  {id:'b2', name:'Лівий берег', desc:'', vis:'private', count:3},
-  {id:'b3', name:'Новобуд',     desc:'', vis:'public',  count:24, shared:true},
-];
-window._delBaseId = null;
-
-function openCreateBase(){
-  const cov = document.getElementById('cov-base');
-  if(!cov) return;
-  cov.style.display = 'flex';
-  setTimeout(()=>document.getElementById('cb-name')?.focus(), 320);
-}
-
-function closeCreateBase(){
-  const cov = document.getElementById('cov-base');
-  if(cov){ cov.style.animation='fadeOut .18s ease forwards'; setTimeout(()=>{cov.style.display='none';cov.style.animation=''},200); }
-  document.getElementById('cb-name').value='';
-  document.getElementById('cb-desc').value='';
-}
-/* ── CREATE BASE ── */
-
-
-/* ── DELETE BASE ── */
-
-
-/* ── OPEN BASE (navigate) ── */
-
-
-
-async function confirmCreateBase(){
-  const name = document.getElementById('cb-name')?.value.trim();
-  if(!name){ document.getElementById('cb-name')?.classList.add('err'); T('Введіть назву бази'); return; }
-  const desc = document.getElementById('cb-desc')?.value.trim();
-  const vis  = document.getElementById('cb-vis')?.value || 'private';
-
-  const newBase = { id: 'b' + Date.now(), name, desc, vis, count: 0 };
-  window._bases.push(newBase);
-
-  /* Save to Supabase if connected */
-  if(window.db && window.currentUser){
-    (async()=>{
-    try{
-      const {error}=await window.db.from('databases').insert([{
-        owner_id:window.currentUser.id,
-        name:name,
-        slug:name.toLowerCase().replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-'),
-        is_public:false
-      }]);
-      if(error){T('Помилка збереження: '+error.message);return;}
-      closeCreateBase();
-      T('✅ База «'+name+'» створена!');
-      setTimeout(loadBases,300);
-    }catch(e){T('Помилка: '+e.message);}
-  })()
-  }
-
-  closeCreateBase();
-  renderBases();
-  T('✅ Базу «' + name + '» створено');
-}
-
+/* ── OPEN BASE ── */
 function openBase(name, dbId){
-  window._currentBaseId   = dbId;
-  window._currentBaseName = name;
-  const nm  = document.getElementById('base-hdr-nm');
-  const cnt = document.getElementById('base-hdr-cnt');
-  if(nm)  nm.textContent  = name;
-  if(cnt) cnt.textContent = 'Завантаження...';
+  window._currentBaseId=dbId;
+  window._currentBaseName=name;
+  const nm=document.getElementById('base-hdr-nm');
+  const cnt=document.getElementById('base-hdr-cnt');
+  if(nm)nm.textContent=name;
+  if(cnt)cnt.textContent='Завантаження...';
   document.querySelectorAll('.ti').forEach(t=>t.classList.remove('on'));
-  const tb = document.getElementById('t-bases');
-  if(tb) tb.classList.add('on');
+  const tb=document.getElementById('t-bases');if(tb)tb.classList.add('on');
   window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('medium');
   go('objects');
-  if(dbId) loadObjects(dbId);
+  if(dbId&&typeof loadObjects==='function')loadObjects(dbId);
 }
 
-function askDeleteBase(e, name){
-  e && e.preventDefault();
-  window._delBaseName = name;
-  const nameEl = document.getElementById('del-base-name');
-  if(nameEl) nameEl.textContent = name;
-  const cov = document.getElementById('cov-del-base');
-  if(cov){ cov.style.display='flex'; }
+/* ── CREATE BASE MODAL ── */
+function openCreateBase(){
+  const m=document.getElementById('cov-base');
+  if(!m)return;
+  m.style.display='flex';
+  requestAnimationFrame(()=>{
+    requestAnimationFrame(()=>m.classList.add('open'));
+  });
+  const inp=document.getElementById('cb-name');
+  if(inp)setTimeout(()=>inp.focus(),350);
 }
-
-async function confirmDeleteBase(){
-  const name = window._delBaseName;
-  window._bases = window._bases.filter(b=>b.name !== name);
-
-  if(window.db && window.currentUser){
-    try{
-      const {error} = await window.db.from('databases').delete().eq('name', name);
-      if(error) console.warn('DB delete:',error.message);
-    }catch(e){ console.warn(e); }
-  }
-
-  closeCov('cov-del-base');
-  renderBases();
-  T('🗑 База «' + name + '» видалена');
+function closeCreateBase(){
+  const m=document.getElementById('cov-base');
+  if(!m)return;
+  m.classList.remove('open');
+  setTimeout(()=>{
+    m.style.display='none';
+    const n=document.getElementById('cb-name');if(n)n.value='';
+    const d=document.getElementById('cb-desc');if(d)d.value='';
+    const inp=document.getElementById('cb-name');if(inp)inp.style.borderColor='';
+  },350);
 }
-
 function closeCov(id){
-  const el = document.getElementById(id);
-  if(!el) return;
-  el.style.animation = 'fadeOut .18s ease forwards';
-  setTimeout(()=>{ el.style.display='none'; el.style.animation=''; }, 200);
+  const m=document.getElementById(id);
+  if(!m)return;
+  m.classList.remove('open');
+  setTimeout(()=>m.style.display='none',350);
 }
 
-/* Close modal on overlay click */
-document.addEventListener('click', function(e){
-  if(e.target.classList.contains('cov')) closeCov(e.target.id);
-});
-
-function renderBases(){
-  const wrap = document.querySelector('#page-bases .bwrap');
-  if(!wrap) return;
-  const myBases = window._bases.filter(b=>!b.shared);
-  if(!myBases.length){
-    wrap.innerHTML = '<div style="padding:16px var(--gap);color:var(--t4);font-size:13px;text-align:center">Поки немає баз — натисніть «+ Нова база»</div>';
-    return;
+/* ── DELETE BASE ── */
+function askDeleteBase(e, name){
+  if(e)e.preventDefault();
+  window._delBaseName=name;
+  const lbl=document.getElementById('del-base-name');if(lbl)lbl.textContent=name;
+  const m=document.getElementById('cov-del-base');
+  if(!m)return;
+  m.style.display='flex';requestAnimationFrame(()=>requestAnimationFrame(()=>m.classList.add('open')));
+}
+async function confirmDeleteBase(){
+  const name=window._delBaseName;
+  if(!name)return;
+  closeCov('cov-del-base');
+  /* Remove from DOM */
+  document.querySelectorAll('.brow').forEach(row=>{
+    if(row.querySelector('.b-nm')?.textContent===name){
+      row.style.transition='all .25s';row.style.opacity='0';row.style.transform='translateX(16px)';
+      setTimeout(()=>row.remove(),260);
+    }
+  });
+  /* Delete from Supabase */
+  if(window.db&&window.currentUser){
+    try{
+      const {error}=await window.db.from('databases').delete().eq('name',name).eq('owner_id',window.currentUser.id);
+      if(error)handleDbError(error,'confirmDeleteBase');
+      else{T('🗑 База «'+name+'» видалена');setTimeout(loadBases,400);}
+    }catch(e){handleDbError(e,'confirmDeleteBase');}
+  } else {
+    T('🗑 База «'+name+'» видалена (офлайн)');
   }
-  wrap.innerHTML = myBases.map(b=>`
-    <div class="brow" onclick="openBase('${b.name}')" oncontextmenu="askDeleteBase(event,'${b.name}')">
-      <div class="bi bv"><svg><use href="#i-city"/></svg></div>
-      <div class="bi2">
-        <div class="b-nm">${b.name}</div>
-        <div class="b-mt">${b.vis==='public'?'Публічна':'Приватна'} · щойно</div>
-      </div>
-      <div class="b-st"><div class="b-n">${b.count}</div><div class="b-l">об'єктів</div></div>
-      <div class="brow-del" onclick="event.stopPropagation();askDeleteBase(null,'${b.name}')">
-        <svg><use href="#i-del"/></svg>
-      </div>
-    </div>`).join('');
 }
 
-/* Add delete button CSS */
-(function(){
-  const s = document.createElement('style');
-  s.textContent = '.brow-del{width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:rgba(255,69,58,.1);border:1px solid rgba(255,69,58,.15);cursor:pointer;flex-shrink:0;margin-left:6px;transition:background .14s}.brow-del:active{background:rgba(255,69,58,.22)}.brow-del svg{width:14px;height:14px;stroke:var(--red);fill:none;stroke-width:1.8;stroke-linecap:round}@keyframes fadeOut{to{opacity:0;transform:translateY(4px)}}';
-  document.head.appendChild(s);
-})();
+/* ── OBJECT SHEET ── */
+const SD={a:{t:'Обʼєкт #1',cta:'Деталі',r:[['Адреса','—'],['Площа','—'],['Ставка','—'],['Оренда','—']]},b:{t:'Обʼєкт #2',cta:'Деталі',r:[['Адреса','—'],['Площа','—'],['Ставка','—'],['Оренда','—']]}};
+function openS(key){
+  const d=SD[key];if(!d)return;
+  const sh=document.getElementById('sh-ov');
+  document.getElementById('sh-tit').textContent=d.t;
+  document.getElementById('sh-cta').textContent=d.cta;
+  const bd=document.getElementById('sh-bd');
+  bd.innerHTML=d.r.map(([l,v])=>'<div class="pr"><div class="pr-l">'+l+'</div><div class="pr-v">'+v+'</div></div>').join('');
+  sh.classList.add('open');
+}
+function clSh(e){if(!e||e.target===document.getElementById('sh-ov'))document.getElementById('sh-ov')?.classList.remove('open');}
+function clShD(){document.getElementById('sh-ov')?.classList.remove('open');}
+function pC(el){
+  el.style.transform='scale(.97)';el.style.transition='transform .12s';
+  setTimeout(()=>{el.style.transform='';},140);
+}
+function pRow(el){
+  el.style.transform='scale(.98)';el.style.background='rgba(255,255,255,.06)';
+  setTimeout(()=>{el.style.transform='';el.style.background='';},180);
+}
+function pr(el){pRow(el);}
 
-
-function filterObjects(q){
-  const query = q.toLowerCase().trim();
+/* ── FILTER OBJECTS ── */
+let _filterType='all', _filterStatus='all', _filterQ='';
+function setF(el, type, val){
+  el.closest('.frow')?.querySelectorAll('.fc').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on');
+  el.style.transform='scale(.93)';setTimeout(()=>el.style.transform='',180);
+  if(type==='status')_filterStatus=val;
+  else _filterType=val;
+  filterObjects();
+}
+function filterObjects(){
+  const q=_filterQ.toLowerCase();
   document.querySelectorAll('#obj-list .oc').forEach(card=>{
-    const txt = card.textContent.toLowerCase();
-    card.style.display = (!query || txt.includes(query)) ? '' : 'none';
+    const st=card.dataset.status||'';
+    const tp=card.dataset.type||'';
+    const tx=(card.textContent||'').toLowerCase();
+    const okSt=_filterStatus==='all'||st===_filterStatus;
+    const okTp=_filterType==='all'||tp===_filterType;
+    const okQ=!q||tx.includes(q);
+    card.style.display=(okSt&&okTp&&okQ)?'':'none';
   });
 }
 
+/* ── ADD OBJECT PAGE ── */
+let _selectedType='apartment', _manualEdit=false;
+const _typeFields={apartment:{rooms:true,floor:true},house:{rooms:true,floor:false},
+  commercial:{rooms:false,floor:true},office:{rooms:false,floor:true},
+  business_center:{rooms:false,floor:false},shopping_center:{rooms:false,floor:false},
+  warehouse:{rooms:false,floor:true},hotel:{rooms:false,floor:false},parking:{rooms:false,floor:true}};
 
-/* ══════════════════════════════════════════
-   ADD OBJECT — full JS
-══════════════════════════════════════════ */
-
-/* Type selector */
 function selT(el){
   document.querySelectorAll('.tpc').forEach(t=>t.classList.remove('sel'));
   el.classList.add('sel');
-  window._selectedType = el.dataset.type || 'apartment';
-
-  /* bounce animation */
-  const ic = el.querySelector('.tpc-ic');
-  if(ic){ ic.style.transform='scale(.78)'; setTimeout(()=>ic.style.transform='',260); }
+  _selectedType=el.dataset.type||'apartment';
   window.Telegram?.WebApp?.HapticFeedback?.selectionChanged?.();
-
-  /* sub-units panel */
-  const panel = document.getElementById('tp-units');
-  const titleEl = document.getElementById('tp-units-title');
-  const hasUnits = el.dataset.hasUnits === 'true';
-  const unitNames = {
-    business_center:'Офіси', shopping_center:'Секції / Магазини',
-    warehouse:'Секції / Бокси', hotel:'Номери', parking:'Паркомісця'
-  };
-  if(panel){ panel.classList.toggle('hidden', !hasUnits); }
-  if(titleEl && unitNames[window._selectedType]) titleEl.textContent = unitNames[window._selectedType];
-
-  /* adapt form */
-  updateFormForType(window._selectedType);
+  /* Sub-units panel */
+  const hasUnits=el.dataset.hasUnits==='true';
+  const units=document.getElementById('tp-units');
+  const title=document.getElementById('tp-units-title');
+  if(units){units.classList.toggle('hidden',!hasUnits);}
+  if(title&&el.dataset.unitsLabel)title.textContent=el.dataset.unitsLabel;
+  updateFormForType(_selectedType);
 }
-
-/* Floating label lift */
+function updateFormForType(type){
+  const cfg=_typeFields[type]||{rooms:true,floor:true};
+  const rr=document.getElementById('fr-rooms');
+  if(rr)rr.style.display=cfg.rooms?'':'none';
+}
 function addRowLift(inp){
-  const body = inp.closest('.add-row-body');
-  if(!body) return;
-  body.classList.toggle('lifted', inp.value.length > 0);
+  const body=inp.closest('.add-row-body');if(!body)return;
+  const hasVal=inp.value&&inp.value.length>0;
+  body.classList.toggle('lifted',hasVal);
 }
-
-/* Auto-calculate rent = rate × area2 (or area) */
+function liftAllFields(){
+  document.querySelectorAll('.add-row-in').forEach(inp=>addRowLift(inp));
+}
 function calcRent(){
-  const rate  = parseFloat(document.getElementById('f-rate')?.value)  || 0;
-  const area2 = parseFloat(document.getElementById('f-area2')?.value) || 0;
-  const area  = parseFloat(document.getElementById('f-area')?.value)  || 0;
-  const rentInp = document.getElementById('f-rent');
-  const badge   = document.getElementById('rent-calc-badge');
-  if(rate > 0 && (area2 > 0 || area > 0)){
-    const calc = Math.round(rate * (area2 || area));
-    if(rentInp && !rentInp._manualEdit){ rentInp.value = calc; addRowLift(rentInp); }
-    if(badge) badge.style.display = '';
+  const rate=parseFloat(document.getElementById('f-rate')?.value)||0;
+  const area=parseFloat(document.getElementById('f-area2')?.value)||parseFloat(document.getElementById('f-area')?.value)||0;
+  if(!_manualEdit&&rate&&area){
+    const rent=Math.round(rate*area);
+    const ri=document.getElementById('f-rent');if(ri)ri.value=rent;
+    const rb=document.getElementById('rent-calc-badge');if(rb)rb.style.display='inline';
+    const body=document.getElementById('f-rent')?.closest('.add-row-body');
+    if(body)body.classList.add('lifted');
   }
 }
-
-/* Utility toggle (new) */
-function togUtil(row){
+function togUtil(el){
+  const row=el.closest('.add-util-row');if(!row)return;
   row.classList.toggle('on');
   window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('light');
 }
-
-/* Add object */
+function showAddErr(msg){
+  const e=document.getElementById('add-err');
+  if(!e)return;
+  e.textContent=msg;e.style.display='flex';
+  e.style.animation='none';void e.offsetWidth;e.style.animation='shake .35s cubic-bezier(.36,.07,.19,.97)';
+}
+function clearAddForm(){
+  ['f-name','f-addr','f-area','f-area2','f-rooms','f-floor','f-rate','f-rent','f-util','f-costs','f-desc'].forEach(id=>{
+    const el=document.getElementById(id);if(el)el.value='';
+  });
+  const sel=document.getElementById('f-base');if(sel)sel.selectedIndex=0;
+  document.querySelectorAll('.add-row-body').forEach(b=>b.classList.remove('lifted'));
+  document.querySelectorAll('.tpc').forEach(t=>t.classList.remove('sel'));
+  const first=document.querySelector('.tpc');if(first){first.classList.add('sel');_selectedType='apartment';}
+  const units=document.getElementById('tp-units');if(units)units.classList.add('hidden');
+  const badge=document.getElementById('rent-calc-badge');if(badge)badge.style.display='none';
+  const err=document.getElementById('add-err');if(err)err.style.display='none';
+  document.querySelectorAll('.add-util-row').forEach(r=>r.classList.add('on'));
+  _manualEdit=false;
+}
+let _submitting=false;
 async function addO(){
-  const name = (document.getElementById('f-name')?.value||'').trim();
-  const addr = (document.getElementById('f-addr')?.value||'').trim();
-  const area = parseFloat(document.getElementById('f-area')?.value)||0;
-  const area2= parseFloat(document.getElementById('f-area2')?.value)||0;
-  const rooms= parseInt(document.getElementById('f-rooms')?.value)||0;
-  const floor= (document.getElementById('f-floor')?.value||'').trim();
-  const rate = parseFloat(document.getElementById('f-rate')?.value)||0;
-  const rent = parseFloat(document.getElementById('f-rent')?.value)||0;
-  const util = parseFloat(document.getElementById('f-util')?.value)||0;
-  const costs= parseFloat(document.getElementById('f-costs')?.value)||0;
-  const desc = (document.getElementById('f-desc')?.value||'').trim();
-  const base = (document.getElementById('f-base')?.value||'').trim();
-  const type = window._selectedType || 'apartment';
-
-  /* utilities */
-  const utils = {
-    water: document.getElementById('util-water')?.classList.contains('on'),
-    gas:   document.getElementById('util-gas')?.classList.contains('on'),
-    heat:  document.getElementById('util-heat')?.classList.contains('on'),
-    elec:  document.getElementById('util-elec')?.classList.contains('on'),
+  if(_submitting)return;
+  _submitting=true;
+  const name=(document.getElementById('f-name')?.value||'').trim();
+  const addr=(document.getElementById('f-addr')?.value||'').trim();
+  const area=parseFloat(document.getElementById('f-area')?.value)||null;
+  const area2=parseFloat(document.getElementById('f-area2')?.value)||null;
+  const rooms=parseInt(document.getElementById('f-rooms')?.value)||null;
+  const floor=(document.getElementById('f-floor')?.value||'').trim()||null;
+  const rate=parseFloat(document.getElementById('f-rate')?.value)||null;
+  const rent=parseFloat(document.getElementById('f-rent')?.value)||null;
+  const util=parseFloat(document.getElementById('f-util')?.value)||null;
+  const costs2=parseFloat(document.getElementById('f-costs')?.value)||null;
+  const desc=(document.getElementById('f-desc')?.value||'').trim()||null;
+  const dbId=(document.getElementById('f-base')?.value||'').trim();
+  const type=window._selectedType||'apartment';
+  const utils={
+    water:document.getElementById('util-water')?.classList.contains('on')??true,
+    gas:document.getElementById('util-gas')?.classList.contains('on')??true,
+    heat:document.getElementById('util-heat')?.classList.contains('on')??true,
+    elec:document.getElementById('util-elec')?.classList.contains('on')??true
   };
-
-  /* validate */
-  const errEl = document.getElementById('add-err');
-  if(!name){
-    showAddErr('Введіть назву об\'єкту');
-    document.getElementById('f-name')?.focus();
-    return;
-  }
-  if(!addr){
-    showAddErr('Введіть адресу');
-    document.getElementById('f-addr')?.focus();
-    return;
-  }
-  if(errEl) errEl.style.display = 'none';
-
-  /* loading state */
-  const btn = document.getElementById('add-submit-btn');
-  if(btn){ btn.textContent = 'Зберігаємо...'; btn.disabled = true; }
-
-  const obj = { name, address:addr, area_total:area, area_calc:area2,
-    rooms, floor, rate_per_m2:rate, rent_price:rent,
-    util_rate:util, costs, description:desc, type, status:'free', utilities:utils };
-
-  if(window.db && window.currentUser){
+  if(!name){showAddErr('Введіть назву обʼєкту');document.getElementById('f-name')?.focus();_submitting=false;return;}
+  if(!addr){showAddErr('Введіть адресу');document.getElementById('f-addr')?.focus();_submitting=false;return;}
+  if(!dbId){showAddErr('Оберіть базу нерухомості');document.getElementById('f-base')?.focus();_submitting=false;return;}
+  const errEl=document.getElementById('add-err');if(errEl)errEl.style.display='none';
+  const btn=document.getElementById('add-submit-btn');
+  if(btn){btn.textContent='Зберігаємо...';btn.disabled=true;}
+  if(window.db&&window.currentUser){
     try{
-      const {error} = await window.db.from('objects').insert([{
-        owner_id:    window.currentUser.id,
-        name,
-        address:     addr,
-        area_total:  area,
-        rent_price:  rent,
-        rate_per_m2: rate,
-        type,
-        status:      'free',
-        utilities:   utils,
-        description: desc
+      const res=await window.db.from('objects').insert([{
+        owner_id:window.currentUser.id,db_id:dbId,name,address:addr,
+        area_total:area,area_calc:area2,rooms:rooms,floor:floor,
+        rent_price:rent,rate_per_m2:rate,util_rate:util,costs:costs2,
+        type:type,status:'free',utilities:utils,description:desc
       }]);
-      if(btn){ btn.textContent = 'Додати об\'єкт'; btn.disabled = false; }
-      if(error){ showAddErr('Помилка: ' + error.message); return; }
-      T('✅ «' + name + '» додано до бази!');
-      clearAddForm();
-      go('bases');
-      setTimeout(loadBases,300);
+      if(btn){btn.textContent='Додати обʼєкт';btn.disabled=false;}
+      if(res.error){handleDbError(res.error,'addO');showAddErr('Помилка: '+res.error.message);_submitting=false;return;}
+      T('✅ «'+escHtml(name)+'» додано до бази!');
+      _submitting=false;clearAddForm();go('bases');
+      setTimeout(function(){if(typeof loadBases==='function')loadBases();},300);
+    }catch(err){
+      if(btn){btn.textContent='Додати обʼєкт';btn.disabled=false;}
+      _submitting=false;showAddErr('Помилка: '+(err&&err.message?err.message:''));
+    }
+  }else{
+    if(typeof offlineQueueAdd==='function'){
+      offlineQueueAdd('insert_object',{owner_id:null,db_id:dbId,name:name,address:addr,
+        area_total:area,rent_price:rent,rate_per_m2:rate,type:type,
+        status:'free',utilities:utils,description:desc});
+    }
+    if(btn){btn.textContent='Додати обʼєкт';btn.disabled=false;}
+    T('⬇️ Збережено офлайн');
+    _submitting=false;clearAddForm();go('bases');
+  }
+}
+/* ── CONFIRM CREATE BASE ── */
+async function confirmCreateBase(){
+  const name=(document.getElementById('cb-name')?.value||'').trim();
+  const desc=(document.getElementById('cb-desc')?.value||'').trim();
+  const vis=document.getElementById('cb-vis')?.value||'private';
+  if(!name){
+    const inp=document.getElementById('cb-name');
+    if(inp){inp.style.borderColor='var(--red)';setTimeout(()=>inp.style.borderColor='',1500);inp.focus();}
+    T('Введіть назву бази');return;
+  }
+  const btn=document.querySelector('#cov-base .btn-full');
+  if(btn){btn.textContent='Зберігаємо...';btn.disabled=true;}
+  if(window.db&&window.currentUser){
+    try{
+      const {data,error}=await window.db.from('databases').insert([{
+        owner_id:window.currentUser.id,name,
+        slug:name.toLowerCase().replace(/[\s]+/g,'-').replace(/[^a-z0-9-]/g,'').replace(/-+/g,'-'),
+        is_public:vis==='public'
+      }]).select('id,name,created_at').single();
+      if(btn){btn.textContent='Створити базу';btn.disabled=false;}
+      if(error){handleDbError(error,'confirmCreateBase');return;}
+      if(data)addBaseRow(data);
+      closeCreateBase();
+      T('✅ База «'+name+'» створена!');
+      setTimeout(()=>{if(typeof loadBases==='function')loadBases();},400);
     }catch(e){
-      if(btn){ btn.textContent = 'Додати об\'єкт'; btn.disabled = false; }
-      showAddErr('Помилка: ' + e.message);
+      if(btn){btn.textContent='Створити базу';btn.disabled=false;}
+      T('Помилка: '+(e?.message||''));
     }
   } else {
-    /* offline/dev */
-    setTimeout(()=>{
-      if(btn){ btn.textContent = 'Додати об\'єкт'; btn.disabled = false; }
-      T('✅ «' + name + '» додано (офлайн)');
-      clearAddForm();
-      go('bases');
-    }, 600);
+    if(btn){btn.textContent='Створити базу';btn.disabled=false;}
+    closeCreateBase();T('✅ База «'+name+'» (офлайн)');
   }
 }
-
-function showAddErr(msg){
-  const el = document.getElementById('add-err');
-  if(el){ el.style.display='flex'; el.textContent = '⚠ ' + msg;
-    el.style.animation='none'; void el.offsetWidth; el.style.animation='shake .35s cubic-bezier(.36,.07,.19,.97)';
-  }
+function addBaseRow(base){
+  const list=document.getElementById('bases-list');if(!list)return;
+  const empty=list.querySelector('.bases-empty, [style*="text-align:center"]');if(empty)empty.remove();
+  let wrap=list.querySelector('.bwrap');
+  if(!wrap){wrap=document.createElement('div');wrap.className='bwrap';list.appendChild(wrap);}
+  const colors=['bv','bb','bo','bp','br'];
+  const icons=['i-city','i-wave','i-build','i-home','i-db'];
+  const idx=wrap.querySelectorAll('.brow').length%5;
+  const nm=escHtml(base.name||'');
+  const id=base.id||'';
+  const row=document.createElement('div');
+  row.className='brow';
+  row.dataset.id=id; row.dataset.name=nm;
+  row.onclick=function(){openBase(this.dataset.name,this.dataset.id);};
+  row.innerHTML='<div class="bi '+colors[idx]+'"><svg><use href="#'+icons[idx]+'"/></svg></div>'
+    +'<div class="bi2"><div class="b-nm">'+nm+'</div><div class="b-mt">Власна · щойно</div></div>'
+    +'<div class="b-st"><div class="b-n">0</div><div class="b-l">обʼєктів</div></div>'
+    +'<div class="gchev"><svg><use href="#i-chev"/></svg></div>';
+  row.style.animation='fadeUp .28s cubic-bezier(.4,0,.2,1)';
+  wrap.appendChild(row);
 }
 
-function clearAddForm(){
-  ['f-name','f-addr','f-area','f-area2','f-rooms','f-floor',
-   'f-rate','f-rent','f-util','f-costs','f-desc'].forEach(id=>{
-    const el = document.getElementById(id);
-    if(el){ el.value=''; el.closest('.add-row-body')?.classList.remove('lifted'); }
-  });
-  /* reset type */
-  document.querySelectorAll('.tpc').forEach(t=>t.classList.remove('sel'));
-  const first = document.querySelector('.tpc');
-  if(first){ first.classList.add('sel'); window._selectedType='apartment'; }
-  document.getElementById('tp-units')?.classList.add('hidden');
-  /* reset utilities */
-  document.querySelectorAll('.add-util-row').forEach(r=>r.classList.add('on'));
-  /* reset select */
-  const sel = document.getElementById('f-base');
-  if(sel) sel.selectedIndex = 0;
-  /* hide error */
-  const errEl = document.getElementById('add-err');
-  if(errEl) errEl.style.display='none';
-  /* hide rent badge */
-  const badge = document.getElementById('rent-calc-badge');
-  if(badge) badge.style.display='none';
+/* ── PROFILE ── */
+function setTP(el,type){
+  document.querySelectorAll('.tpc,.tpo').forEach(t=>t.classList.remove('sel'));
+  el.classList.add('sel');_selectedType=type;
 }
 
-/* rent manual edit guard */
-document.addEventListener('DOMContentLoaded', ()=>{
-  const rentInp = document.getElementById('f-rent');
-  if(rentInp) rentInp.addEventListener('input', ()=>{ rentInp._manualEdit = rentInp.value.length > 0; });
-});
-
-
-/* ══════════════════════════════════════════
-   AUTH SYSTEM
-══════════════════════════════════════════ */
-const _errMap={'af-le':'err-login','af-lp':'err-login','af-rn':'err-reg1','af-rc':'err-reg1','af-re':'err-reg2','af-rp':'err-reg2','af-rst':'err-rst'};
-
+/* ── AUTH HELPERS ── */
 function authGo(id){
   document.querySelectorAll('.auth-screen').forEach(s=>s.classList.remove('active'));
   const s=document.getElementById(id);
-  if(s){s.classList.add('active');s.scrollTop=0;s.querySelectorAll('.af-err-row').forEach(e=>e.innerHTML='');s.querySelectorAll('.af.err').forEach(e=>e.classList.remove('err'));}
+  if(s){s.classList.add('active');s.scrollTop=0;
+    s.querySelectorAll('.af-err-row').forEach(e=>e.innerHTML='');
+    s.querySelectorAll('.af.err').forEach(e=>e.classList.remove('err'));}
 }
 function afLive(inp,fieldId){
   const f=document.getElementById(fieldId);
   if(f){f.classList.toggle('has-val',inp.value.length>0);f.classList.remove('err');}
-  const errEl=document.getElementById(_errMap[fieldId]||fieldId+'-err');
-  if(errEl) errEl.innerHTML='';
 }
 function afError(fieldId,msg){
+  const _errMap={'af-le':'err-login','af-lp':'err-login','af-rn':'err-reg1','af-rc':'err-reg1','af-re':'err-reg2','af-rp':'err-reg2','af-rst':'err-rst'};
   const f=document.getElementById(fieldId);
-  if(f){f.classList.add('err');setTimeout(()=>f.classList.remove('err'),1200);}
+  if(f){f.classList.add('err');setTimeout(()=>f.classList.remove('err'),1400);}
   const errEl=document.getElementById(_errMap[fieldId]||fieldId+'-err');
-  if(errEl) errEl.innerHTML='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> '+msg;
+  if(errEl)errEl.innerHTML='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> '+msg;
 }
 function togPass(id,btn){
-  const inp=document.getElementById(id);
-  if(!inp)return;
+  const inp=document.getElementById(id);if(!inp)return;
   inp.type=inp.type==='password'?'text':'password';
   btn.style.opacity=inp.type==='text'?'1':'0.5';
 }
 function checkStrength(val){
-  const fill=document.getElementById('str-fill');
-  const txt=document.getElementById('str-txt');
-  if(!fill||!txt)return;
-  let score=0;
-  if(val.length>=8)score++;if(val.length>=12)score++;
-  if(/[A-Z]/.test(val))score++;if(/[0-9]/.test(val))score++;if(/[^A-Za-z0-9]/.test(val))score++;
-  const levels=[{w:'0%',c:'var(--red)',t:''},{w:'25%',c:'var(--red)',t:'Слабкий'},{w:'50%',c:'var(--orn)',t:'Середній'},{w:'75%',c:'var(--orn)',t:'Добрий'},{w:'100%',c:'var(--green)',t:'Надійний'}];
-  const l=levels[Math.min(score,4)];
-  fill.style.width=l.w;fill.style.background=l.c;txt.textContent=l.t;txt.style.color=l.c;
+  const fill=document.getElementById('str-fill');const txt=document.getElementById('str-txt');if(!fill||!txt)return;
+  let s=0;
+  if(val.length>=8)s++;if(val.length>=12)s++;if(/[A-Z]/.test(val))s++;if(/[0-9]/.test(val))s++;if(/[^A-Za-z0-9]/.test(val))s++;
+  const lvl=[{w:'0%',c:'var(--red)',t:''},{w:'25%',c:'var(--red)',t:'Слабкий'},{w:'50%',c:'var(--orn)',t:'Середній'},{w:'75%',c:'var(--orn)',t:'Добрий'},{w:'100%',c:'var(--green)',t:'Надійний'}][Math.min(s,4)];
+  fill.style.width=lvl.w;fill.style.background=lvl.c;txt.textContent=lvl.t;txt.style.color=lvl.c;
 }
 function regStep1(){
   const name=(document.getElementById('r-name')?.value||'').trim();
   const city=(document.getElementById('r-city')?.value||'').trim();
   if(name.length<2){afError('af-rn',"Введіть ім'я та прізвище");return;}
-  window._regName=name;window._regCity=city;
-  authGo('auth-reg-2');
+  window._regName=name;window._regCity=city;authGo('auth-reg-2');
 }
 async function regStep2(){
   const email=(document.getElementById('r-email')?.value||'').trim();
@@ -2734,52 +2655,23 @@ async function regStep2(){
   afError('af-re','');afError('af-rp','');
   if(!email||!/^[^@]+@[^@]+\.[^@]+$/.test(email)){afError('af-re','Введіть коректний email');return;}
   if(pass.length<8){afError('af-rp','Мінімум 8 символів');return;}
-
   const btn=document.querySelector('#auth-reg-2 .a-btn-primary');
   if(btn){btn.textContent='Реєструємо...';btn.disabled=true;}
-
   try{
-    const{data,error}=await window.db.auth.signUp({
-      email,password:pass,
-      options:{
-        data:{name:window._regName||'',city:window._regCity||''},
-        emailRedirectTo: window.location.origin
-      }
-    });
-
+    const{data,error}=await window.db.auth.signUp({email,password:pass,
+      options:{data:{name:window._regName||'',city:window._regCity||''},emailRedirectTo:window.location.origin}});
     if(btn){btn.textContent='Далі →';btn.disabled=false;}
-
     if(error){
       let msg='Помилка реєстрації';
-      if(error.message.includes('already registered')||error.message.includes('User already')) msg='Цей email вже зареєстровано. Натисніть «Увійти».';
-      else if(error.message.includes('Password')) msg='Пароль занадто простий. Мінімум 8 символів.';
-      else if(error.message.includes('valid email')) msg='Невірний формат email';
-      else if(error.message.includes('rate')||error.message.includes('limit')) msg='Забагато спроб. Зачекайте хвилину.';
+      if(error.message.includes('already registered')||error.message.includes('User already'))msg='Цей email вже зареєстровано.';
+      else if(error.message.includes('Password'))msg='Пароль занадто простий.';
       else msg='Помилка: '+error.message;
-      afError('af-re',msg);
-      return;
+      afError('af-re',msg);return;
     }
-
-    /* Profile saved by onAuthStateChange after email confirmed */
-
-    window.currentUser=data?.user;
-    window._pendingEmail=email;
-
-    /* Якщо сесія є — підтвердження вимкнено, входимо одразу */
-    if(data?.session){
-      authGo('auth-success');
-      setTimeout(()=>enterApp(),1600);
-    } else {
-      /* Підтвердження email увімкнено — показуємо екран «перевірте пошту» */
-      const s=document.getElementById('otp-email-show');
-      if(s) s.textContent=email;
-      authGo('auth-reg-3');
-    }
-
-  }catch(e){
-    if(btn){btn.textContent='Далі →';btn.disabled=false;}
-    afError('af-re','Помилка: '+(e && e.message ? e.message : 'перевірте інтернет'));
-  }
+    window.currentUser=data?.user;window._pendingEmail=email;
+    if(data?.session){authGo('auth-success');setTimeout(()=>enterApp(),1600);}
+    else{const s=document.getElementById('otp-email-show');if(s)s.textContent=email;authGo('auth-reg-3');}
+  }catch(e){if(btn){btn.textContent='Далі →';btn.disabled=false;}afError('af-re','Помилка: '+(e?.message||'мережа'));}
 }
 async function doLogin(){
   const email=(document.getElementById('l-email')?.value||'').trim();
@@ -2791,9 +2683,12 @@ async function doLogin(){
   try{
     const{data,error}=await window.db.auth.signInWithPassword({email,password:pass});
     if(btn){btn.textContent='Увійти';btn.disabled=false;}
-    if(error){const msg=error.message.includes('Invalid')?'Невірний email або пароль':error.message.includes('confirmed')?'Email не підтверджено. Перевірте пошту (і папку Спам)':'Помилка: '+error.message;afError('af-le',msg);return;}
+    if(error){
+      const msg=error.message.includes('Invalid')?'Невірний email або пароль':error.message.includes('confirmed')?'Email не підтверджено. Перевірте пошту та папку Спам':'Помилка: '+error.message;
+      afError('af-le',msg);return;
+    }
     window.currentUser=data.user;enterApp();
-  }catch(e){if(btn){btn.textContent='Увійти';btn.disabled=false;}afError('af-le','Помилка: '+(e && e.message ? e.message : 'мережа'));}
+  }catch(e){if(btn){btn.textContent='Увійти';btn.disabled=false;}afError('af-le','Помилка: '+(e?.message||'мережа'));}
 }
 async function doReset(){
   const email=(document.getElementById('rst-email-inp')?.value||'').trim();
@@ -2807,66 +2702,162 @@ async function doReset(){
   authGo('auth-reset-sent');
 }
 async function doLogout(){
-  await window.db?.auth.signOut();
+  await window.db?.auth.signOut().catch(()=>{});
   window.currentUser=null;
-  const wrap=document.getElementById('auth-wrap');if(wrap)wrap.classList.remove('hidden');
+  const wrap=document.getElementById('auth-wrap');
+  if(wrap){wrap.classList.remove('hidden');wrap.style.display='';wrap.style.visibility='';wrap.style.pointerEvents='';}
   authGo('auth-login');T('Ви вийшли з акаунту');
 }
 async function loginViaTelegram(){
-  const tg = window.Telegram?.WebApp;
-
-  if(!tg?.initDataUnsafe?.user){
-    T('Відкрийте додаток через Telegram бота');
-    return;
-  }
-
-  const user = tg.initDataUnsafe.user;
-  const btn  = document.querySelector('button[onclick="loginViaTelegram()"]') ||
-               document.querySelector('.a-soc');
-  if(btn){ btn.disabled=true; btn.style.opacity='.6'; }
-
+  const tg=window.Telegram?.WebApp;
+  if(!tg?.initDataUnsafe?.user){T('Відкрийте додаток через Telegram бота');return;}
+  const user=tg.initDataUnsafe.user;
+  const btn=document.querySelector('button[onclick="loginViaTelegram()"]')||document.querySelector('.a-soc');
+  if(btn){btn.disabled=true;btn.style.opacity='.6';}
   try{
-    /* Крок 1: Анонімний вхід */
-    const res = await window.db.auth.signInAnonymously();
-
-    if(btn){ btn.disabled=false; btn.style.opacity=''; }
-
-    if(res.error){
-      afError('af-le', 'Telegram вхід: ' + res.error.message);
-      return;
-    }
-
-    const sessionUser = res.data?.user || res.data?.session?.user;
-    if(!sessionUser){
-      afError('af-le', 'Не вдалось отримати сесію. Спробуйте ще раз.');
-      return;
-    }
-
-    window.currentUser = sessionUser;
-
-    /* Крок 2: Зберігаємо Telegram профіль (без email — анонімний) */
-    const tgName = [(user.first_name||''), (user.last_name||'')].filter(Boolean).join(' ') || 'Telegram User';
-    try{
-      await await window.db.from('users').upsert({
-        id:          sessionUser.id,
-        name:        tgName,
-        telegram_id: String(user.id),
-        plan:        'free'
-      },{onConflict:'id'});
-    }catch(_){}
-
-    /* Крок 3: Вхід в додаток */
+    const res=await window.db.auth.signInAnonymously();
+    if(btn){btn.disabled=false;btn.style.opacity='';}
+    if(res.error){afError('af-le','Telegram вхід: '+res.error.message);return;}
+    const sessionUser=res.data?.user||res.data?.session?.user;
+    if(!sessionUser){afError('af-le','Не вдалось отримати сесію.');return;}
+    window.currentUser=sessionUser;
+    const tgName=user.username?('@'+user.username):[(user.first_name||''),(user.last_name||'')].filter(Boolean).join(' ')||'Telegram User';
+    /* upsert outside lock context */
+    setTimeout(async()=>{
+      try{
+        await window.db.from('users').upsert({id:sessionUser.id,name:tgName,telegram_id:String(user.id),plan:'free'},{onConflict:'id'});
+      }catch(_){}
+    },0);
     enterApp();
-
   }catch(err){
-    if(btn){ btn.disabled=false; btn.style.opacity=''; }
-    afError('af-le', 'Помилка: ' + (err?.message || 'невідома'));
+    if(btn){btn.disabled=false;btn.style.opacity='';}
+    afError('af-le','Помилка: '+(err?.message||''));
   }
 }
 async function loginWithGoogle(){
   const{error}=await window.db.auth.signInWithOAuth({provider:'google',options:{redirectTo:window.location.href}});
   if(error)afError('af-le','Google: '+error.message);
 }
+
+
+/* ── TELEGRAM BackButton ── */
+function tgBackBtnUpdate(page){
+  const tg=window.Telegram?.WebApp;if(!tg?.BackButton)return;
+  if(page==='objects'){tg.BackButton.show();}else{tg.BackButton.hide();}
+}
+(function(){
+  const tg=window.Telegram?.WebApp;if(!tg?.BackButton)return;
+  tg.BackButton.onClick(()=>{
+    const a=document.querySelector('.page.active');
+    if(a?.id==='page-objects'){go('bases');}else{tg.BackButton.hide();}
+  });
+})();
+
+/* ── DEEP LINKING ── */
+function handleDeepLink(){
+  const tg=window.Telegram?.WebApp;if(!tg)return;
+  const param=tg.initDataUnsafe?.start_param;if(!param)return;
+  const map={profile:'t-profile',bases:'t-bases',add:'t-add'};
+  if(map[param]){
+    if(window.currentUser){const ti=document.getElementById(map[param]);if(ti)setTimeout(()=>ti.click(),300);}
+    else{window._postLoginRedirect=param;}
+    return;
+  }
+  if(param.startsWith('base_')){window._pendingBaseOpen=param.slice(5);}
+}
+
+/* ── OFFLINE QUEUE ── */
+const _OQ='prostir_offline_queue';
+function offlineQueueAdd(type,data){
+  try{const q=JSON.parse(localStorage.getItem(_OQ)||'[]');q.push({type,data,ts:Date.now()});localStorage.setItem(_OQ,JSON.stringify(q));}catch(_){}
+}
+async function offlineQueueFlush(){
+  let q=[];try{q=JSON.parse(localStorage.getItem(_OQ)||'[]');}catch(_){}
+  if(!q.length||!window.db||!window.currentUser)return;
+  const ok=[];const fail=[];
+  for(const item of q){
+    try{
+      const tbl=item.type==='insert_object'?'objects':'databases';
+      const{error}=await window.db.from(tbl).insert([item.data]);
+      if(!error)ok.push(item);else fail.push(item);
+    }catch(_){fail.push(item);}
+  }
+  localStorage.setItem(_OQ,JSON.stringify(fail));
+  if(ok.length){T('✅ Синхронізовано '+ok.length+' збережених дій');setTimeout(()=>{loadBases();loadDashboard();},500);}
+}
+
+/* ── INIT ── */
+window.addEventListener('load',()=>enterApp()); /* DEV MODE */
+(function(){
+  const tg=window.Telegram?.WebApp;if(!tg)return;
+  tg.ready();tg.expand();
+  const bg=tg.themeParams?.bg_color||'#0c0c14';
+  tg.setHeaderColor(bg);tg.setBackgroundColor(bg);
+  const r=document.documentElement;
+  const tp=tg.themeParams||{};
+  if(tp.bg_color)     r.style.setProperty('--tg-bg',tp.bg_color);
+  if(tp.text_color)   r.style.setProperty('--tg-text',tp.text_color);
+  if(tp.button_color) r.style.setProperty('--tg-btn',tp.button_color);
+  if(tp.secondary_bg_color) r.style.setProperty('--tg-sec',tp.secondary_bg_color);
+  tg.onEvent('themeChanged',()=>{
+    const p=tg.themeParams||{};
+    if(p.bg_color)     r.style.setProperty('--tg-bg',p.bg_color);
+    if(p.text_color)   r.style.setProperty('--tg-text',p.text_color);
+    if(p.button_color) r.style.setProperty('--tg-btn',p.button_color);
+  });
+})();
+</script>
+
+<script>
+/* ═══ SUPABASE ═══ */
+try{
+  /* noOpLock: workaround for Telegram WebApp iframe + Web Locks deadlock */
+  const noOpLock = async (name, timeout, fn) => fn();
+  window.db=supabase.createClient(
+    'https://cjsuuzynpuimgndudzka.supabase.co',
+    'sb_publishable_IF73m2oD9rU7PeQp82Cskw_hS_ia_p0',
+    { auth: { lock: noOpLock } }
+  );
+  /* onAuthStateChange — найнадійніший спосіб зловити вхід/вихід */
+  window.db.auth.onAuthStateChange((event, session) => {
+  /* NO async here — causes Supabase deadlock (bug #762) */
+  /* Defer all Supabase calls via setTimeout */
+  if(event === 'SIGNED_IN' && session){
+    window.currentUser = session.user;
+    /* Check if user is on auth screen → go to app */
+    const wrap = document.getElementById('auth-wrap');
+    const onAuth = wrap && !wrap.classList.contains('hidden') && wrap.style.display !== 'none';
+    if(onAuth) enterApp();
+    /* Defer profile upsert OUTSIDE the callback */
+    setTimeout(() => {
+      const meta = session.user.user_metadata || {};
+      const name = meta.name || meta.full_name ||
+        (session.user.email ? session.user.email.split('@')[0] : 'Користувач');
+      window.db.from('users').upsert({
+        id:    session.user.id,
+        email: session.user.email || '',
+        name:  name,
+        city:  meta.city || '',
+        plan:  'free'
+      }, {onConflict:'id'}).then(r => {
+        if(r.error) console.warn('[upsert users]', r.error.message);
+      });
+    }, 0);
+  }
+  if(event === 'SIGNED_OUT'){
+    window.currentUser = null;
+  }
+  if(event === 'PASSWORD_RECOVERY'){
+    const wrap = document.getElementById('auth-wrap');
+    if(wrap){ wrap.classList.remove('hidden'); wrap.style.display = ''; }
+    if(typeof authGo === 'function') authGo('auth-reset');
+  }
+  if(event === 'TOKEN_REFRESHED' && session){
+    window.currentUser = session.user;
+  }
+});
+}catch(e){ console.warn('[Supabase init]', e.message); }
+
 async function checkExistingSession(){
   /* Telegram auto-login */
   const tg = window.Telegram?.WebApp;
@@ -2890,7 +2881,7 @@ function otpNext(inp,idx){
   if(inp.value.length===1){const next=document.querySelectorAll('.a-otp')[idx+1];if(next)next.focus();}
   const all=document.querySelectorAll('.a-otp');
   const filled=[...all].every(i=>i.value.length===1);
-  const btn=document.getElementById('otp-submit');if(btn)btn.disabled=!filled;
+  const btn=document.getElementById('otp-submit');if(btn)btn.disabled=!filled; /* may not exist in current flow */
 }
 function otpBack(inp,e,idx){if(e.key==='Backspace'&&!inp.value){const prev=document.querySelectorAll('.a-otp')[idx-1];if(prev)prev.focus();}}
 function verifyOtp(){T('Перевірка коду...');setTimeout(()=>{authGo('auth-success');setTimeout(()=>enterApp(),1800);},1000);}
@@ -2898,6 +2889,7 @@ let _otpTimer=null;
 function startOtpTimer(){
   clearInterval(_otpTimer);let sec=60;
   const btn=document.getElementById('otp-resend-btn');const tm=document.getElementById('otp-timer');
+  if(!btn&&!tm)return; /* elements not in DOM — skip */
   if(btn)btn.style.display='none';
   _otpTimer=setInterval(()=>{sec--;if(tm)tm.textContent='('+sec+'с)';if(sec<=0){clearInterval(_otpTimer);if(btn)btn.style.display='';if(tm)tm.textContent='';}},1000);
 }
@@ -2937,11 +2929,14 @@ async function loadBases(){
       .from('databases')
       .select('id,name,is_public,created_at')
       .eq('owner_id', window.currentUser.id)
-      .order('created_at',{ascending:false});
+      .order('created_at',{ascending:false})
+    .eq('owner_id',window.currentUser.id)
+    .range(0,49);
     data = res.data; error = res.error;
   }catch(e){ renderBasesEmpty(list); return; }
 
-  if(error||!data){ renderBasesEmpty(list); return; }
+  if(error){ handleDbError(error,'loadBases'); renderBasesEmpty(list); return; }
+  if(!data){ renderBasesEmpty(list); return; }
   if(data.length===0){ renderBasesEmpty(list); return; }
 
   let objs = [];
@@ -2956,7 +2951,7 @@ async function loadBases(){
     const cnt=countMap[base.id]||0;
     const col=colors[i%colors.length];
     const ico=icons[i%icons.length];
-    const nm=base.name.replace(/[<>"]/g,'');
+    const nm=escHtml(base.name||'');
     const id=base.id;
     html+='<div class="brow" onclick="openBase(\"'+nm+'\",\"'+id+'\")" data-id="'+id+'">'
       +'<div class="bi '+col+'"><svg><use href="#'+ico+'"/></svg></div>'
@@ -3005,10 +3000,16 @@ async function loadObjects(dbId){
       .from('objects')
       .select('id,name,address,area_total,rent_price,rate_per_m2,status,type,utilities')
       .eq('db_id',dbId)
-      .order('created_at',{ascending:false});
+      .order('created_at',{ascending:false})
+    .eq('owner_id',window.currentUser.id)
+    .range(0,49);
     data = res.data; error = res.error;
   }catch(e){ data=null; error={message:e.message}; }
 
+  if(error){ handleDbError(error,'loadObjects');
+    list.innerHTML='<div style="padding:24px;text-align:center;color:var(--red);font-size:13px">❌ Помилка завантаження. Спробуйте ще раз.</div>';
+    return;
+  }
   if(!data||data.length===0){
     list.innerHTML='<div style="padding:32px 20px;text-align:center">'
       +'<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.2)" stroke-width="1.5" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>'
@@ -3044,7 +3045,7 @@ async function loadObjects(dbId){
       +'<div class="oc-top">'
       +'<div class="oc-ic '+col+'"><svg><use href="#'+ico+'"/></svg></div>'
       +'<div class="oc-mt"><div class="oc-nm">'+obj.name+'</div>'
-      +'<div class="oc-ad"><svg><use href="#i-pin"/></svg>'+(obj.address||'—')+'</div></div>'
+      +'<div class="oc-ad"><svg><use href="#i-pin"/></svg>'+escHtml(obj.address||'—')+'</div></div>'
       +'<div class="oc-st '+sc+'">'+st+'</div>'
       +'</div>'
       +'<div class="fin">'
@@ -3112,6 +3113,125 @@ async function loadDashboard(){
 
 
 /* ── Spinner CSS ── */
+
+
+/* ══════════════════════════════════════════════════════
+   GLOBAL ERROR HANDLING + OFFLINE DETECTION
+══════════════════════════════════════════════════════ */
+
+/* 1. Глобальний обробник JavaScript помилок */
+window.onerror = function(msg, src, line, col, err){
+  /* Ігноруємо дрібні помилки розширень браузера */
+  if(src && src.includes('extension')) return false;
+  console.warn('[Prostir Error]', msg, 'at', src, line+':'+col);
+  /* Показуємо тост тільки для критичних помилок */
+  if(msg && !msg.includes('ResizeObserver') && !msg.includes('Script error')){
+    T('Помилка: ' + (err?.message || msg).slice(0,60));
+  }
+  return false;
+};
+
+/* 2. Необроблені Promise rejections */
+window.addEventListener('unhandledrejection', function(e){
+  const msg = e.reason?.message || String(e.reason) || 'невідома помилка';
+  console.warn('[Prostir] Unhandled promise:', msg);
+  /* Supabase мережеві помилки */
+  if(msg.includes('fetch') || msg.includes('network') || msg.includes('Failed')){
+    showNetworkError();
+  }
+  e.preventDefault();
+});
+
+/* 3. Виявлення відсутності інтернету */
+let _netErrShown = false;
+function showNetworkError(){
+  if(_netErrShown) return;
+  _netErrShown = true;
+  T('Немає зв\'язку з сервером. Перевірте інтернет.');
+  setTimeout(()=>{ _netErrShown=false; }, 8000);
+}
+
+window.addEventListener('offline', function(){
+  T('Інтернет недоступний — зміни збережуться при відновленні');
+});
+
+window.addEventListener('online',function(){
+  T('З\'єднання відновлено ✅');
+  if(window.currentUser){
+    if(typeof offlineQueueFlush==='function')offlineQueueFlush();
+    setTimeout(function(){if(typeof loadBases==='function')loadBases();if(typeof loadDashboard==='function')loadDashboard();},800);
+  }
+});
+
+/* 4. Supabase помилка-обгортка — показує юзеру зрозуміле повідомлення */
+function handleDbError(error, context){
+  if(!error) return;
+  const msg = error.message || String(error);
+  console.warn('[DB Error]', context, msg);
+
+  /* Класифікуємо помилку */
+  if(msg.includes('JWT') || msg.includes('session') || msg.includes('not authenticated')){
+    T('Сесія закінчилась — увійдіть знову');
+    setTimeout(doLogout, 1500);
+    return;
+  }
+  if(msg.includes('network') || msg.includes('fetch') || msg.includes('Failed to fetch')){
+    showNetworkError(); return;
+  }
+  if(msg.includes('row-level security') || msg.includes('RLS') || msg.includes('permission')){
+    console.warn('[RLS]', context, msg); return; /* тихо */
+  }
+  if(msg.includes('duplicate') || msg.includes('unique')){
+    return; /* дублікат — ігноруємо */
+  }
+  /* Загальна помилка */
+  T('Помилка: ' + msg.slice(0,50));
+}
+
+/* 5. Safe Supabase wrapper — замість try/catch скрізь */
+async function dbQuery(fn, context, fallback){
+  try{
+    const result = await fn();
+    if(result?.error) handleDbError(result.error, context || 'query');
+    return result;
+  }catch(e){
+    handleDbError(e, context || 'query');
+    return fallback !== undefined ? {data: fallback, error: e} : {data: null, error: e};
+  }
+}
+
+
+/* ── KEYBOARD AVOIDANCE via visualViewport ── */
+(function(){
+  if(!window.visualViewport) return;
+  var prevKbH = 0;
+  function onVpChange(){
+    var vv = window.visualViewport;
+    var kbH = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+    if(Math.abs(kbH - prevKbH) < 10) return;
+    prevKbH = kbH;
+    var sheet = document.querySelector('.cov-sheet');
+    if(sheet) sheet.style.paddingBottom = kbH > 80 ? (kbH + 8) + 'px' : '';
+    /* Hide tbar when keyboard opens to avoid overlap */
+    var tbar = document.querySelector('.tbar');
+    if(tbar){
+      if(kbH > 80){ tbar.style.transform = 'translateY(100%)'; tbar.style.transition = 'transform .2s'; }
+      else { tbar.style.transform = ''; }
+    }
+    /* Push active page up above keyboard */
+    var activePage = document.querySelector('.page.active .pw');
+    if(activePage){
+      activePage.style.paddingBottom = kbH > 80 ? (kbH + 90) + 'px' : '';
+    }
+    if(kbH > 80){
+      var el = document.activeElement;
+      if(el && (el.tagName==='INPUT'||el.tagName==='TEXTAREA')){
+        setTimeout(function(){el.scrollIntoView({behavior:'smooth',block:'center'});},80);
+      }
+    }
+  }
+  window.visualViewport.addEventListener('resize', onVpChange);
+})();
 
 </script>
 </body>
