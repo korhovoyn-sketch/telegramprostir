@@ -6,6 +6,7 @@
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700&display=swap" rel="stylesheet">
+<meta name="robots" content="noindex,nofollow">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://telegram.org https://cdn.jsdelivr.net https://fonts.googleapis.com https://fonts.gstatic.com https://*.supabase.co wss://*.supabase.co data: blob:; script-src 'self' 'unsafe-inline' https://telegram.org https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; font-src 'self' https://fonts.gstatic.com data:;">
 <style>
 /* ════════════════════════════════════
@@ -96,6 +97,15 @@
 /* ── Backdrop-filter fallback (low-end devices) ── */
 @supports not (backdrop-filter:blur(1px)){
   .gl,.gc{background:rgba(20,18,30,.96) !important;}
+}
+
+/* ── Reduced motion: respect user OS setting ── */
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{
+    animation-duration:.01ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:.01ms !important;
+  }
 }
 
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -1977,11 +1987,11 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none}
 </div><!-- /page-objects -->
 
 <!-- █ CREATE BASE MODAL █ -->
-<div class="cov" id="cov-base" style="display:none">
+<div class="cov" id="cov-base" style="display:none" role="dialog" aria-modal="true" aria-labelledby="cov-base-title">
   <div class="cov-sheet" id="cov-base-sheet">
     <div class="cov-drag"></div>
     <div class="cov-hdr">
-      <div class="cov-title">Нова база</div>
+      <div class="cov-title" id="cov-base-title">Нова база</div>
       <div class="cov-close" onclick="closeCreateBase()"><svg><use href="#i-x"/></svg></div>
     </div>
     <div class="cov-body">
@@ -2311,24 +2321,24 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none}
 </div>
 
 <!-- TAB BAR -->
-<div class="tbar">
-  <div class="ti on" id="t-dash"    onclick="tabTap(this,'dash','iconGrid')">
-    <div class="ti-ic"><svg><use href="#i-grid"/></svg></div>
+<nav class="tbar" role="tablist" aria-label="Навігація">
+  <div class="ti on" id="t-dash"    role="tab" aria-selected="true"  aria-label="Дашборд"  onclick="tabTap(this,'dash','iconGrid')">
+    <div class="ti-ic"><svg aria-hidden="true"><use href="#i-grid"/></svg></div>
     <div class="ti-lb">Дашборд</div>
   </div>
-  <div class="ti"    id="t-bases"   onclick="tabTap(this,'bases','iconDb')">
-    <div class="ti-ic"><svg><use href="#i-db"/></svg></div>
+  <div class="ti"    id="t-bases"   role="tab" aria-selected="false" aria-label="Бази"     onclick="tabTap(this,'bases','iconDb')">
+    <div class="ti-ic"><svg aria-hidden="true"><use href="#i-db"/></svg></div>
     <div class="ti-lb">Бази</div>
   </div>
-  <div class="ti"    id="t-add"     onclick="tabTap(this,'add','iconPlus')">
-    <div class="ti-ic ti-ic-add"><svg><use href="#i-plus"/></svg></div>
+  <div class="ti"    id="t-add"     role="tab" aria-selected="false" aria-label="Додати об'єкт" onclick="tabTap(this,'add','iconPlus')">
+    <div class="ti-ic ti-ic-add"><svg aria-hidden="true"><use href="#i-plus"/></svg></div>
     <div class="ti-lb">Додати</div>
   </div>
-  <div class="ti"    id="t-profile" onclick="tabTap(this,'profile','iconUser');loadProfile()">
-    <div class="ti-ic"><svg><use href="#i-user"/></svg></div>
+  <div class="ti"    id="t-profile" role="tab" aria-selected="false" aria-label="Профіль"  onclick="tabTap(this,'profile','iconUser');loadProfile()">
+    <div class="ti-ic"><svg aria-hidden="true"><use href="#i-user"/></svg></div>
     <div class="ti-lb">Профіль</div>
   </div>
-</div>
+</nav>
 
 <!-- BOTTOM SHEET -->
 <div class="sh-ov" id="sh-ov" onclick="clSh(event)">
@@ -2525,8 +2535,8 @@ function go(page){
 
 /* ── TAB BAR ── */
 function tabTap(el, page, animName){
-  document.querySelectorAll('.ti').forEach(t=>t.classList.remove('on'));
-  el.classList.add('on');
+  document.querySelectorAll('.ti').forEach(t=>{t.classList.remove('on');t.setAttribute('aria-selected','false');});
+  el.classList.add('on');el.setAttribute('aria-selected','true');
   const svg=el.querySelector('svg');
   if(svg){svg.style.animation='none';void svg.offsetWidth;svg.style.animation=animName+' .42s cubic-bezier(.34,1.56,.64,1)';}
   window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('light');
@@ -2804,8 +2814,7 @@ async function addO(){
   }else{
     if(typeof offlineQueueAdd==='function'){
       offlineQueueAdd('insert_object',{owner_id:window.currentUser?.id||null,db_id:dbId,name:name,address:addr,
-        area_total:area,rent_price:rent,rate_per_m2:rate,type:type,
-        status:'free',utilities:utils,description:desc});
+        area_total:area,rent_price:rent,rate_per_m2:rate,type:type,status:'free'});
     }
     if(btn){btn.textContent='Додати обʼєкт';btn.disabled=false;}
     T('⬇️ Збережено офлайн');
@@ -3011,15 +3020,18 @@ async function loginWithGoogle(){
 
 
 /* ── TELEGRAM BackButton ── */
+const _HOME_PAGES = new Set(['dashboard','bases','add','profile']);
 function tgBackBtnUpdate(page){
   const tg=window.Telegram?.WebApp;if(!tg?.BackButton)return;
-  if(page==='objects'){tg.BackButton.show();}else{tg.BackButton.hide();}
+  if(_HOME_PAGES.has(page)){tg.BackButton.hide();}else{tg.BackButton.show();}
 }
 (function(){
   const tg=window.Telegram?.WebApp;if(!tg?.BackButton)return;
   tg.BackButton.onClick(()=>{
     const a=document.querySelector('.page.active');
-    if(a?.id==='page-objects'){go('bases');}else{tg.BackButton.hide();}
+    const id=a?.id?.replace('page-','');
+    if(id==='objects'){go('bases');}
+    else{tg.BackButton.hide();}
   });
 })();
 
@@ -3105,7 +3117,22 @@ document.addEventListener('DOMContentLoaded',()=>{
     if(p.text_color)   r.style.setProperty('--tg-text',p.text_color);
     if(p.button_color) r.style.setProperty('--tg-btn',p.button_color);
   });
+  /* viewportChanged — стабільна висота після анімації TMA */
+  tg.onEvent('viewportChanged',({isStateStable})=>{
+    if(isStateStable){
+      document.documentElement.style.setProperty('--tg-viewport-height', tg.viewportStableHeight+'px');
+    }
+  });
 })();
+
+/* ── Global error handler — catch unhandled JS errors silently ── */
+window.onerror = function(msg, src, line, col, err){
+  console.error('[GlobalError]', msg, src+':'+line+':'+col, err);
+  return true; /* prevent default browser error dialog */
+};
+window.addEventListener('unhandledrejection', function(e){
+  console.error('[UnhandledPromise]', e.reason);
+});
 </script>
 
 <script>
@@ -3114,8 +3141,8 @@ try{
   /* noOpLock: workaround for Telegram WebApp iframe + Web Locks deadlock */
   const noOpLock = async (name, timeout, fn) => fn();
   window.db=supabase.createClient(
-    'https://cjsuuzynpuimgndudzka.supabase.co',
-    'sb_publishable_IF73m2oD9rU7PeQp82Cskw_hS_ia_p0',
+    CONFIG.supabaseUrl,
+    CONFIG.supabaseKey,
     { auth: { lock: noOpLock } }
   );
   /* onAuthStateChange — найнадійніший спосіб зловити вхід/вихід */
@@ -3240,7 +3267,7 @@ async function loadBases(){
   try{
     const res = await withRetry(()=>window.db
       .from('databases')
-      .select('id,name,is_public,created_at')
+      .select('id,name,created_at')
       .eq('owner_id', window.currentUser.id)
       .order('created_at',{ascending:false})
       .range(0,49), 2, 'loadBases');
@@ -3308,7 +3335,7 @@ async function loadObjects(dbId){
   try{
     const res = await withRetry(()=>window.db
       .from('objects')
-      .select('id,name,address,area_total,rent_price,rate_per_m2,status,type,utilities')
+      .select('id,name,address,area_total,rent_price,rate_per_m2,status,type')
       .eq('db_id',dbId)
       .eq('owner_id',window.currentUser.id)
       .order('created_at',{ascending:false})
