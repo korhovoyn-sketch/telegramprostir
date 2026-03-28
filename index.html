@@ -2789,9 +2789,8 @@ async function addO(){
     try{
       const res=await window.db.from('objects').insert([{
         owner_id:window.currentUser.id,db_id:dbId,name,address:addr,
-        area_total:area,area_calc:area2,rooms:rooms,floor:floor,
-        rent_price:rent,rate_per_m2:rate,util_rate:util,costs:costs2,
-        type:type,status:'free',utilities:utils,description:desc
+        area_total:area,rooms:rooms,floor:floor,
+        rent_price:rent,rate_per_m2:rate,type:type,status:'free'
       }]);
       if(btn){btn.textContent='Додати обʼєкт';btn.disabled=false;}
       if(res.error){handleDbError(res.error,'addO');showAddErr('Помилка: '+res.error.message);_submitting=false;return;}
@@ -2833,9 +2832,7 @@ async function confirmCreateBase(){
     T('✅ База «'+name+'» створена!');
     try{
       const {data,error}=await window.db.from('databases').insert([{
-        owner_id:window.currentUser.id,name,
-        slug:name.toLowerCase().replace(/[\s]+/g,'-').replace(/[^a-z0-9-]/g,'').replace(/-+/g,'-'),
-        is_public:vis==='public'
+        owner_id:window.currentUser.id,name
       }]).select('id,name,created_at').single();
       if(btn){btn.textContent='Створити базу';btn.disabled=false;}
       if(error){
@@ -3066,6 +3063,28 @@ document.addEventListener('DOMContentLoaded',()=>{
   /* UX: confirm before closing app with unsaved data */
   const tgApp = window.Telegram?.WebApp;
   if(tgApp?.enableClosingConfirmation) tgApp.enableClosingConfirmation();
+
+  /* ── Keyboard fix: scroll focused input above keyboard ── */
+  document.addEventListener('focusin', e => {
+    const el = e.target;
+    if(el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT'){
+      setTimeout(() => el.scrollIntoView({behavior:'smooth', block:'center'}), 350);
+    }
+  });
+  /* visualViewport: push add-page content up when keyboard shows */
+  if(window.visualViewport){
+    window.visualViewport.addEventListener('resize', () => {
+      const offset = Math.max(0, window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop);
+      const addPage = document.getElementById('page-add');
+      if(addPage) addPage.style.paddingBottom = offset > 60 ? (offset + 80) + 'px' : '';
+      const covBase = document.getElementById('cov-base');
+      if(covBase && covBase.classList.contains('open')){
+        const sheet = document.getElementById('cov-base-sheet');
+        if(sheet) sheet.style.marginBottom = offset > 60 ? offset + 'px' : '';
+      }
+    });
+  }
+
   /* Start auth flow */
   if(typeof checkExistingSession==='function') checkExistingSession();
 });
