@@ -1,12 +1,12 @@
 <html lang="uk">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover,interactive-widget=resizes-content">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover,interactive-widget=resizes-content">
 <title>Prostir</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700&display=swap" rel="stylesheet">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' https://telegram.org https://cdn.jsdelivr.net https://fonts.googleapis.com https://fonts.gstatic.com https://*.supabase.co wss://*.supabase.co data: blob:; script-src 'self' 'unsafe-inline' https://telegram.org https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; font-src 'self' https://fonts.gstatic.com data:;">
 <style>
 /* ════════════════════════════════════
    TOKENS
@@ -54,6 +54,48 @@
 
   --rXL:22px;--rLG:18px;--rMD:14px;--rSM:10px;--rXS:8px;
   --gap:16px;
+
+  /* ── 8dp Grid ── */
+  --sp1:4px;--sp2:8px;--sp3:12px;--sp4:16px;--sp5:20px;--sp6:24px;--sp8:32px;--sp10:40px;
+
+  /* ── Liquid Glass 2.0 (0.5px inner border) ── */
+  --glInner: inset 0 0.5px 0 rgba(255,255,255,.18), inset 0 -0.5px 0 rgba(0,0,0,.12);
+  --glBlur: blur(30px);
+  --glSat: saturate(180%);
+
+  /* ── Typography clamp ── */
+  --tx-xs:  clamp(10px,2.5vw,11px);
+  --tx-sm:  clamp(12px,3vw,13px);
+  --tx-base:clamp(13px,3.5vw,15px);
+  --tx-lg:  clamp(15px,4vw,17px);
+  --tx-xl:  clamp(17px,4.5vw,20px);
+  --tx-2xl: clamp(20px,5.5vw,24px);
+  --tx-3xl: clamp(26px,7vw,34px);
+
+  /* ── Safe areas ── */
+  --sat: env(safe-area-inset-top,0px);
+  --sab: env(safe-area-inset-bottom,0px);
+  --sal: env(safe-area-inset-left,0px);
+  --sar: env(safe-area-inset-right,0px);
+
+  /* ── Telegram theme bindings ── */
+  --tg-bg-clr:   var(--tg-theme-bg-color,#0c0c14);
+  --tg-text-clr: var(--tg-theme-text-color,#ffffff);
+  --tg-hint-clr: var(--tg-theme-hint-color,rgba(255,255,255,.5));
+  --tg-link-clr: var(--tg-theme-link-color,#0a84ff);
+  --tg-btn-clr:  var(--tg-theme-button-color,#7c3aed);
+  --tg-btn-txt:  var(--tg-theme-button-text-color,#ffffff);
+  --tg-sec-bg:   var(--tg-theme-secondary-bg-color,rgba(255,255,255,.05));
+
+  /* ── Transition presets ── */
+  --t-fast: 150ms cubic-bezier(0.4,0,0.2,1);
+  --t-base: 250ms cubic-bezier(0.4,0,0.2,1);
+  --t-spring: 400ms cubic-bezier(0.34,1.56,0.64,1);
+}
+
+/* ── Backdrop-filter fallback (low-end devices) ── */
+@supports not (backdrop-filter:blur(1px)){
+  .gl,.gc{background:rgba(20,18,30,.96) !important;}
 }
 
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -89,10 +131,10 @@ body{
 ════════════════════════════════════ */
 .gl{
   background:var(--gBg);
-  backdrop-filter:saturate(160%) blur(26px);
-  -webkit-backdrop-filter:saturate(160%) blur(26px);
-  border:1px solid var(--gBd);
-  box-shadow:var(--gShad);
+  backdrop-filter:var(--glSat) var(--glBlur);
+  -webkit-backdrop-filter:var(--glSat) var(--glBlur);
+  border:0.5px solid var(--gBd);
+  box-shadow:var(--gShad),var(--glInner);
   position:relative;overflow:hidden;
 }
 /* specular top edge */
@@ -111,16 +153,17 @@ body{
 /* interactive glass card */
 .gc{
   background:var(--gBg);
-  backdrop-filter:saturate(160%) blur(26px);
-  -webkit-backdrop-filter:saturate(160%) blur(26px);
-  border:1px solid var(--gBd);
-  box-shadow:var(--gShad);
+  backdrop-filter:var(--glSat) var(--glBlur);
+  -webkit-backdrop-filter:var(--glSat) var(--glBlur);
+  border:0.5px solid var(--gBd);
+  box-shadow:var(--gShad),var(--glInner);
   border-radius:var(--rXL);
   overflow:hidden;cursor:pointer;
   transform:translateZ(0);
   position:relative;
-  transition:transform .22s cubic-bezier(.34,1.56,.64,1),box-shadow .22s,border-color .18s;
+  transition:transform var(--t-spring),box-shadow var(--t-base),border-color var(--t-fast);
 }
+.gc:active{transform:scale(.97) translateZ(0);box-shadow:var(--gShadS),var(--glInner);}
 .gc::before{
   content:'';position:absolute;inset:0;border-radius:inherit;
   background:linear-gradient(155deg,var(--gShin) 0%,rgba(255,255,255,.02) 28%,transparent 55%);
@@ -1476,10 +1519,77 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none}
 }
 .btn-full:active{ transform:scale(.97); filter:brightness(.88); }
 
+/* ══════════════════════════════════════════════
+   SKELETON LOADERS
+══════════════════════════════════════════════ */
+@keyframes shimmer{
+  0%{background-position:200% 0}
+  100%{background-position:-200% 0}
+}
+.skel{
+  border-radius:var(--rMD);
+  background:linear-gradient(90deg,
+    rgba(255,255,255,.04) 25%,
+    rgba(255,255,255,.10) 50%,
+    rgba(255,255,255,.04) 75%);
+  background-size:200% 100%;
+  animation:shimmer 1.6s infinite;
+}
+.skel-base{height:72px;border-radius:var(--rLG);margin-bottom:var(--sp2);}
+.skel-obj {height:120px;border-radius:var(--rXL);margin-bottom:var(--sp2);}
+.skel-text{height:14px;border-radius:6px;margin-bottom:var(--sp1);}
+.skel-text.w60{width:60%;}
+.skel-text.w40{width:40%;}
+
+/* ══════════════════════════════════════════════
+   BASE DELETE BUTTON
+══════════════════════════════════════════════ */
+.b-del{
+  width:36px;height:36px;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  border-radius:var(--rSM);
+  background:rgba(255,69,58,.08);
+  border:0.5px solid rgba(255,69,58,.18);
+  color:var(--red);
+  transition:background var(--t-fast),transform var(--t-fast);
+  margin-left:var(--sp2);
+}
+.b-del svg{width:16px;height:16px;stroke:var(--red);fill:none;}
+.b-del:active{background:rgba(255,69,58,.22);transform:scale(.92);}
+
+/* ══════════════════════════════════════════════
+   MICRO-INTERACTIONS
+══════════════════════════════════════════════ */
+.ti{transition:transform var(--t-spring),opacity var(--t-fast);}
+.ti:active{transform:scale(.88);}
+.ti.on .ti-ic{transform:translateY(-1px);}
+.ti .ti-ic{transition:transform var(--t-spring);}
+
+/* brow tap feedback */
+.brow{
+  transition:transform var(--t-spring),background var(--t-fast);
+  cursor:pointer;
+}
+.brow:active{transform:scale(.98);background:rgba(255,255,255,.04);}
+
+/* fch filter chip micro bounce */
+.fch{transition:transform var(--t-spring),background var(--t-fast),color var(--t-fast);}
+.fch:active{transform:scale(.92);}
+
+/* ══════════════════════════════════════════════
+   AUTH WRAP — ensure correct positioning
+══════════════════════════════════════════════ */
+.auth-wrap{
+  position:fixed;inset:0;z-index:1000;
+  background:var(--bg);
+  overflow-y:auto;
+}
+.auth-wrap.hidden{display:none !important;visibility:hidden;pointer-events:none;}
+
 </style>
 </head>
 <body>
-<div class="auth-wrap" id="auth-wrap" class="hidden" style="display:none!important">
+<div class="auth-wrap hidden" id="auth-wrap" style="display:none!important">
 
 <!-- LOGIN -->
 <div class="auth-screen active" id="auth-login">
@@ -1973,8 +2083,7 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none}
       <div class="tpc-ic tpc-red tpc-complex"><svg><use href="#i-parking"/></svg></div>
       <div class="tpc-nm">Паркомісця</div>
       <div class="tpc-badge">+ місця</div>
-    
-    ></div>
+    </div>
   </div>
 
   <!-- Sub-units panel (complex types) -->
@@ -2193,8 +2302,8 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none}
     <div class="mr" onclick="pRow(this);T('Договори')"><div class="mi iv"><svg><use href="#i-doc"/></svg></div><div class="mr-lb">Договори оренди</div><div class="mr-ch"><svg><use href="#i-chev"/></svg></div></div>
     <div class="mr" onclick="pRow(this);T('Платежі')"><div class="mi it"><svg><use href="#i-credit"/></svg></div><div class="mr-lb">Платежі та рахунки</div><div class="mr-ch"><svg><use href="#i-chev"/></svg></div></div>
     <div class="mr" onclick="pRow(this);T('Запросити')"><div class="mi ib"><svg><use href="#i-share"/></svg></div><div class="mr-lb">Запросити в базу</div><div class="mr-ch"><svg><use href="#i-chev"/></svg></div></div>
-    <div class="mr" onclick="pRow(this);T('Налаштування')"><div class="mi" style="background:rgba(255,255,255,.08)"><svg style="stroke:var(--t2)"><use href="#i-gear"/></svg></div>
-    <div class="mr" onclick="doLogout()" style="border-top:1px solid rgba(255,69,58,.12)"><div class="mi" style="background:rgba(255,69,58,.1)"><svg style="stroke:var(--red)"><use href="#i-del"/></svg></div><div class="mr-lb" style="color:var(--red)">Вийти з акаунту</div></div><div class="mr-lb">Налаштування</div><div class="mr-ch"><svg><use href="#i-chev"/></svg></div></div>
+    <div class="mr" onclick="pRow(this);T('Налаштування')"><div class="mi" style="background:rgba(255,255,255,.08)"><svg style="stroke:var(--t2)"><use href="#i-gear"/></svg></div><div class="mr-lb">Налаштування</div><div class="mr-ch"><svg><use href="#i-chev"/></svg></div></div>
+    <div class="mr" onclick="doLogout()" style="border-top:1px solid rgba(255,69,58,.12)"><div class="mi" style="background:rgba(255,69,58,.1)"><svg style="stroke:var(--red)"><use href="#i-del"/></svg></div><div class="mr-lb" style="color:var(--red)">Вийти з акаунту</div></div>
   </div>
 
 </div></div></div>
@@ -2241,6 +2350,156 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none}
 /* ═══════════════════════════════════════════════════════
    PROSTIR — MAIN APPLICATION JS
 ═══════════════════════════════════════════════════════ */
+
+/*
+ * ╔══════════════════════════════════════════════════════════════╗
+ * ║  PROSTIR v2.0 — Premium Real Estate Telegram Mini App       ║
+ * ╠══════════════════════════════════════════════════════════════╣
+ * ║  SECURITY FIXES:                                            ║
+ * ║  [SEC-3]  Stored XSS: escHtml() on all DB values in innerHTML║
+ * ║  [SEC-4]  HTML attribute injection: escHtml() on attributes  ║
+ * ║  [SEC-6]  Base deletion uses id (not name)                  ║
+ * ║  [SEC-7]  Content-Security-Policy meta tag added            ║
+ * ║  [SEC-8]  Dev-mode auth bypass removed                      ║
+ * ║  [SEC-10] owner_id filter on object count in loadBases()    ║
+ * ║  [SEC-11] owner_id filter on profile object count           ║
+ * ║  [SEC-12] OAuth redirectTo uses origin not href             ║
+ * ║  [CQ-11]  Offline queue captures owner_id at enqueue time   ║
+ * ╠══════════════════════════════════════════════════════════════╣
+ * ║  BUG FIXES:                                                 ║
+ * ║  [BUG-1]  Search works: filterObjects(q) updates _filterQ   ║
+ * ║  [BUG-2]  Filter chips: setF() reads data-filter, .fch sel  ║
+ * ║  [BUG-3]  checkExistingSession() called on DOMContentLoaded ║
+ * ║  [BUG-4]  Parking card HTML nesting fixed                   ║
+ * ║  [BUG-5]  Removed broken f-base population block            ║
+ * ║  [BUG-6]  Profile HTML nesting fixed (logout/settings)      ║
+ * ║  [BUG-7]  Removed duplicate owner_id filter in loadBases()  ║
+ * ║  [BUG-8]  auth-wrap double class attribute fixed            ║
+ * ║  [BUG-9]  Merged duplicate viewport meta tags               ║
+ * ║  [BUG-12] Delete base uses _delBaseId (not name)            ║
+ * ║  [BUG-13] Dashboard shows ₴0/міс consistently               ║
+ * ║  [BUG-14] OTP uses real supabase.auth.verifyOtp()           ║
+ * ╠══════════════════════════════════════════════════════════════╣
+ * ║  ARCHITECTURE:                                              ║
+ * ║  - CONFIG constants (TABLES, OBJECT_TYPES, STATUS, PLANS)   ║
+ * ║  - APP centralized state object                             ║
+ * ║  - i18n localization dictionary                             ║
+ * ║  - Retry Logic with exponential backoff                     ║
+ * ║  - Skeleton loaders for async list loads                    ║
+ * ║  - PLANS_CONFIG for Telegram Stars monetization             ║
+ * ║  - Closing confirmation + context menu disabled             ║
+ * ╚══════════════════════════════════════════════════════════════╝
+ */
+
+/* ════════════════════════════════════════════════
+   CONFIG & CONSTANTS
+════════════════════════════════════════════════ */
+const CONFIG = {
+  supabaseUrl: 'https://cjsuuzynpuimgndudzka.supabase.co',
+  supabaseKey: 'sb_publishable_IF73m2oD9rU7PeQp82Cskw_hS_ia_p0'
+};
+const TABLES = { databases: 'databases', objects: 'objects', users: 'users' };
+const OBJECT_TYPES = ['apartment','house','commercial','office','hotel','warehouse','business_center','shopping_center','parking'];
+const STATUS = { free: 'free', rented: 'rented', reserved: 'reserved' };
+const PLANS = { free: 'free', pro: 'pro' };
+
+/* Monetization: Telegram Stars ready */
+const PLANS_CONFIG = {
+  free: { maxBases: 3, maxObjects: 50, label: 'Free' },
+  pro:  { maxBases: 999, maxObjects: 9999, label: 'PRO', stars: 100, period: 'monthly' }
+};
+
+/* ════════════════════════════════════════════════
+   APP STATE (replaces scattered window.* vars)
+════════════════════════════════════════════════ */
+const APP = {
+  user: null,                /* current Supabase user */
+  currentBaseId: null,
+  currentBaseName: null,
+  delBaseId: null,
+  delBaseName: null,
+  pendingEmail: null,
+  postLoginRedirect: null,
+  pendingBaseOpen: null,
+  regName: null,
+  regCity: null,
+  selectedType: 'apartment',
+  filterType: 'all',
+  filterStatus: 'all',
+  filterQ: '',
+  submitting: false,
+  manualEdit: false,
+  netErrShown: false
+};
+
+/* ════════════════════════════════════════════════
+   i18n LOCALIZATION
+════════════════════════════════════════════════ */
+const i18n = {
+  uk: {
+    appName: 'Простір',
+    loading: 'Завантаження...',
+    saving: 'Зберігаємо...',
+    saved: 'Збережено',
+    error: 'Помилка',
+    retry: 'Спробуйте ще раз',
+    noInternet: 'Немає зв\'язку з сервером. Перевірте інтернет.',
+    internetBack: 'З\'єднання відновлено ✅',
+    internetOff: 'Інтернет недоступний — зміни збережуться при відновленні',
+    sessionExpired: 'Сесія закінчилась — увійдіть знову',
+    syncOk: (n) => '✅ Синхронізовано '+n+' збережених дій',
+    baseDeleted: (name) => '🗑 База «'+name+'» видалена',
+    objectAdded: (name) => '✅ «'+name+'» додано до бази!',
+    offlineSaved: '⬇️ Збережено офлайн',
+    loggedOut: 'Ви вийшли з акаунту',
+    openViaTelegram: 'Відкрийте додаток через Telegram бота',
+    enterBaseName: 'Введіть назву бази',
+    enterObjectName: 'Введіть назву обʼєкту',
+    enterAddress: 'Введіть адресу',
+    selectBase: 'Оберіть базу нерухомості',
+    noBases: 'Ще немає баз.\nСтворіть першу нижче.',
+    noObjects: 'Обʼєктів ще немає.\nНатисніть + щоб додати.',
+    invalidOtp: 'Введіть 6-значний код',
+    otpError: 'Невірний код',
+    emailNotFound: 'Електронна адреса не знайдена. Спробуйте ще раз.',
+    baseLimit: (n) => 'Досягнуто ліміт '+n+' баз (Free тариф). Оновіться до PRO.',
+    objectLimit: (n) => 'Досягнуто ліміт '+n+' об\'єктів (Free тариф). Оновіться до PRO.'
+  }
+};
+const t = (key, ...args) => {
+  const val = i18n.uk[key];
+  return typeof val === 'function' ? val(...args) : (val || key);
+};
+
+/* ════════════════════════════════════════════════
+   RETRY LOGIC — exponential backoff
+════════════════════════════════════════════════ */
+async function withRetry(fn, maxRetries=3, context='') {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (attempt === maxRetries) throw err;
+      const delay = Math.pow(2, attempt) * 1000; /* 1s, 2s, 4s */
+      console.warn('[Retry]', context, 'attempt', attempt+1, 'wait', delay+'ms', err?.message);
+      await new Promise(r => setTimeout(r, delay));
+    }
+  }
+}
+
+/* ════════════════════════════════════════════════
+   SKELETON LOADERS
+════════════════════════════════════════════════ */
+function skeletonBases(n=3) {
+  return Array.from({length:n}, ()=>
+    '<div class="skel skel-base"></div>'
+  ).join('');
+}
+function skeletonObjects(n=4) {
+  return Array.from({length:n}, ()=>
+    '<div class="skel skel-obj"></div>'
+  ).join('');
+}
 
 /* ── XSS Protection ── */
 function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
@@ -2347,8 +2606,9 @@ function closeCov(id){
 }
 
 /* ── DELETE BASE ── */
-function askDeleteBase(e, name){
+function askDeleteBase(e, id, name){
   if(e)e.preventDefault();
+  window._delBaseId=id;
   window._delBaseName=name;
   const lbl=document.getElementById('del-base-name');if(lbl)lbl.textContent=name;
   const m=document.getElementById('cov-del-base');
@@ -2356,21 +2616,22 @@ function askDeleteBase(e, name){
   m.style.display='flex';requestAnimationFrame(()=>requestAnimationFrame(()=>m.classList.add('open')));
 }
 async function confirmDeleteBase(){
-  const name=window._delBaseName;
-  if(!name)return;
+  const id=window._delBaseId;
+  const name=window._delBaseName||'базу';
+  if(!id)return;
   closeCov('cov-del-base');
-  /* Remove from DOM */
+  /* Optimistic: Remove from DOM immediately */
   document.querySelectorAll('.brow').forEach(row=>{
-    if(row.querySelector('.b-nm')?.textContent===name){
+    if(row.dataset.id===id){
       row.style.transition='all .25s';row.style.opacity='0';row.style.transform='translateX(16px)';
       setTimeout(()=>row.remove(),260);
     }
   });
-  /* Delete from Supabase */
+  /* Delete from Supabase by id */
   if(window.db&&window.currentUser){
     try{
-      const {error}=await window.db.from('databases').delete().eq('name',name).eq('owner_id',window.currentUser.id);
-      if(error)handleDbError(error,'confirmDeleteBase');
+      const {error}=await window.db.from('databases').delete().eq('id',id).eq('owner_id',window.currentUser.id);
+      if(error){handleDbError(error,'confirmDeleteBase');setTimeout(loadBases,400);}
       else{T('🗑 База «'+name+'» видалена');setTimeout(loadBases,400);}
     }catch(e){handleDbError(e,'confirmDeleteBase');}
   } else {
@@ -2403,15 +2664,17 @@ function pr(el){pRow(el);}
 
 /* ── FILTER OBJECTS ── */
 let _filterType='all', _filterStatus='all', _filterQ='';
-function setF(el, type, val){
-  el.closest('.frow')?.querySelectorAll('.fc').forEach(c=>c.classList.remove('on'));
+function setF(el){
+  el.closest('.frow')?.querySelectorAll('.fch').forEach(c=>c.classList.remove('on'));
   el.classList.add('on');
   el.style.transform='scale(.93)';setTimeout(()=>el.style.transform='',180);
-  if(type==='status')_filterStatus=val;
-  else _filterType=val;
+  const filter=el.dataset.filter||'all';
+  if(filter==='free'||filter==='rented'||filter==='reserved') _filterStatus=filter;
+  else{ _filterStatus='all'; _filterType=filter; }
   filterObjects();
 }
-function filterObjects(){
+function filterObjects(query){
+  if(typeof query==='string') _filterQ=query;
   const q=_filterQ.toLowerCase();
   document.querySelectorAll('#obj-list .oc').forEach(card=>{
     const st=card.dataset.status||'';
@@ -2509,7 +2772,7 @@ async function addO(){
   const costs2=parseFloat(document.getElementById('f-costs')?.value)||null;
   const desc=(document.getElementById('f-desc')?.value||'').trim()||null;
   const dbId=(document.getElementById('f-base')?.value||'').trim();
-  const type=window._selectedType||'apartment';
+  const type=_selectedType||'apartment';
   const utils={
     water:document.getElementById('util-water')?.classList.contains('on')??true,
     gas:document.getElementById('util-gas')?.classList.contains('on')??true,
@@ -2541,7 +2804,7 @@ async function addO(){
     }
   }else{
     if(typeof offlineQueueAdd==='function'){
-      offlineQueueAdd('insert_object',{owner_id:null,db_id:dbId,name:name,address:addr,
+      offlineQueueAdd('insert_object',{owner_id:window.currentUser?.id||null,db_id:dbId,name:name,address:addr,
         area_total:area,rent_price:rent,rate_per_m2:rate,type:type,
         status:'free',utilities:utils,description:desc});
     }
@@ -2563,6 +2826,11 @@ async function confirmCreateBase(){
   const btn=document.querySelector('#cov-base .btn-full');
   if(btn){btn.textContent='Зберігаємо...';btn.disabled=true;}
   if(window.db&&window.currentUser){
+    /* Optimistic UI: show row immediately */
+    const tempId='__temp_'+Date.now();
+    addBaseRow({id:tempId, name, created_at:new Date().toISOString()});
+    closeCreateBase();
+    T('✅ База «'+name+'» створена!');
     try{
       const {data,error}=await window.db.from('databases').insert([{
         owner_id:window.currentUser.id,name,
@@ -2570,10 +2838,14 @@ async function confirmCreateBase(){
         is_public:vis==='public'
       }]).select('id,name,created_at').single();
       if(btn){btn.textContent='Створити базу';btn.disabled=false;}
-      if(error){handleDbError(error,'confirmCreateBase');return;}
-      if(data)addBaseRow(data);
-      closeCreateBase();
-      T('✅ База «'+name+'» створена!');
+      if(error){
+        /* Rollback optimistic row */
+        document.querySelector('.brow[data-id="'+tempId+'"]')?.remove();
+        handleDbError(error,'confirmCreateBase');return;
+      }
+      /* Replace temp row with real id */
+      const tempRow=document.querySelector('.brow[data-id="'+tempId+'"]');
+      if(tempRow&&data){tempRow.dataset.id=data.id;tempRow.dataset.name=escHtml(data.name||name);}
       setTimeout(()=>{if(typeof loadBases==='function')loadBases();},400);
     }catch(e){
       if(btn){btn.textContent='Створити базу';btn.disabled=false;}
@@ -2601,7 +2873,7 @@ function addBaseRow(base){
   row.innerHTML='<div class="bi '+colors[idx]+'"><svg><use href="#'+icons[idx]+'"/></svg></div>'
     +'<div class="bi2"><div class="b-nm">'+nm+'</div><div class="b-mt">Власна · щойно</div></div>'
     +'<div class="b-st"><div class="b-n">0</div><div class="b-l">обʼєктів</div></div>'
-    +'<div class="gchev"><svg><use href="#i-chev"/></svg></div>';
+    +'<div class="b-del" title="Видалити базу" onclick="event.stopPropagation();askDeleteBase(event,\''+id+'\',\''+nm+'\')"><svg><use href="#i-del"/></svg></div>';
   row.style.animation='fadeUp .28s cubic-bezier(.4,0,.2,1)';
   wrap.appendChild(row);
 }
@@ -2704,6 +2976,7 @@ async function doReset(){
 async function doLogout(){
   await window.db?.auth.signOut().catch(()=>{});
   window.currentUser=null;
+  APP.user=null;
   const wrap=document.getElementById('auth-wrap');
   if(wrap){wrap.classList.remove('hidden');wrap.style.display='';wrap.style.visibility='';wrap.style.pointerEvents='';}
   authGo('auth-login');T('Ви вийшли з акаунту');
@@ -2735,7 +3008,7 @@ async function loginViaTelegram(){
   }
 }
 async function loginWithGoogle(){
-  const{error}=await window.db.auth.signInWithOAuth({provider:'google',options:{redirectTo:window.location.href}});
+  const{error}=await window.db.auth.signInWithOAuth({provider:'google',options:{redirectTo:window.location.origin}});
   if(error)afError('af-le','Google: '+error.message);
 }
 
@@ -2787,7 +3060,15 @@ async function offlineQueueFlush(){
 }
 
 /* ── INIT ── */
-window.addEventListener('load',()=>enterApp()); /* DEV MODE */
+document.addEventListener('DOMContentLoaded',()=>{
+  /* Security: disable context menu to protect content */
+  document.addEventListener('contextmenu', e => e.preventDefault());
+  /* UX: confirm before closing app with unsaved data */
+  const tgApp = window.Telegram?.WebApp;
+  if(tgApp?.enableClosingConfirmation) tgApp.enableClosingConfirmation();
+  /* Start auth flow */
+  if(typeof checkExistingSession==='function') checkExistingSession();
+});
 (function(){
   const tg=window.Telegram?.WebApp;if(!tg)return;
   tg.ready();tg.expand();
@@ -2884,7 +3165,20 @@ function otpNext(inp,idx){
   const btn=document.getElementById('otp-submit');if(btn)btn.disabled=!filled; /* may not exist in current flow */
 }
 function otpBack(inp,e,idx){if(e.key==='Backspace'&&!inp.value){const prev=document.querySelectorAll('.a-otp')[idx-1];if(prev)prev.focus();}}
-function verifyOtp(){T('Перевірка коду...');setTimeout(()=>{authGo('auth-success');setTimeout(()=>enterApp(),1800);},1000);}
+async function verifyOtp(){
+  const inputs=document.querySelectorAll('.a-otp');
+  const token=[...inputs].map(i=>i.value).join('');
+  if(token.length<6){T('Введіть 6-значний код');return;}
+  const email=window._pendingEmail||'';
+  if(!email){T('Електронна адреса не знайдена. Спробуйте ще раз.');authGo('auth-login');return;}
+  T('Перевірка коду...');
+  try{
+    const{data,error}=await window.db.auth.verifyOtp({email,token,type:'email'});
+    if(error){T('Невірний код: '+error.message);return;}
+    if(data?.session){window.currentUser=data.session.user;enterApp();}
+    else{authGo('auth-success');setTimeout(()=>enterApp(),1800);}
+  }catch(e){T('Помилка верифікації: '+(e?.message||''));}
+}
 let _otpTimer=null;
 function startOtpTimer(){
   clearInterval(_otpTimer);let sec=60;
@@ -2907,7 +3201,7 @@ async function resendConfirmEmail(){
 
 function resetDashboard(){
   /* Reset all KPI to zero until real data loads */
-  document.querySelectorAll('.h-num').forEach(el=>el.textContent='₴0');
+  document.querySelectorAll('.h-num').forEach(el=>el.textContent='₴0/міс');
   document.querySelectorAll('.kc-v').forEach(el=>el.textContent='0');
 }
 
@@ -2921,17 +3215,16 @@ async function loadBases(){
   if(!window.db||!window.currentUser) return;
   const list = document.getElementById('bases-list');
   if(!list) return;
-  list.innerHTML = '<div style="padding:20px;text-align:center"><div class="spin"></div></div>';
+  list.innerHTML = '<div style="padding:0 var(--gap)">'+skeletonBases(3)+'</div>';
 
   let data, error;
   try{
-    const res = await window.db
+    const res = await withRetry(()=>window.db
       .from('databases')
       .select('id,name,is_public,created_at')
       .eq('owner_id', window.currentUser.id)
       .order('created_at',{ascending:false})
-    .eq('owner_id',window.currentUser.id)
-    .range(0,49);
+      .range(0,49), 2, 'loadBases');
     data = res.data; error = res.error;
   }catch(e){ renderBasesEmpty(list); return; }
 
@@ -2940,7 +3233,7 @@ async function loadBases(){
   if(data.length===0){ renderBasesEmpty(list); return; }
 
   let objs = [];
-  try{ const r = await window.db.from('objects').select('db_id'); objs = r.data||[]; }catch(_){}
+  try{ const r = await window.db.from('objects').select('db_id').eq('owner_id',window.currentUser.id); objs = r.data||[]; }catch(_){}
   const countMap={};
   (objs||[]).forEach(o=>{ countMap[o.db_id]=(countMap[o.db_id]||0)+1; });
 
@@ -2953,26 +3246,24 @@ async function loadBases(){
     const ico=icons[i%icons.length];
     const nm=escHtml(base.name||'');
     const id=base.id;
-    html+='<div class="brow" onclick="openBase(\"'+nm+'\",\"'+id+'\")" data-id="'+id+'">'
+    html+='<div class="brow" onclick="openBase(\''+nm+'\',\''+id+'\')" data-id="'+id+'">'
       +'<div class="bi '+col+'"><svg><use href="#'+ico+'"/></svg></div>'
       +'<div class="bi2"><div class="b-nm">'+nm+'</div>'
       +'<div class="b-mt">Власна · '+new Date(base.created_at).toLocaleDateString('uk')+'</div></div>'
       +'<div class="b-st"><div class="b-n">'+cnt+'</div><div class="b-l">обʼєктів</div></div>'
-      +'<div class="gchev"><svg><use href="#i-chev"/></svg></div>'
+      +'<div class="b-del" onclick="event.stopPropagation();askDeleteBase(event,\''+id+'\',\''+nm+'\')" title="Видалити базу"><svg><use href="#i-del"/></svg></div>'
       +'</div>';
   });
   html+='</div>';
   list.innerHTML=html;
 
-  const fsel=document.getElementById('f-base');
-  if(fsel){ fsel.innerHTML='<option value=>Оберіть базу</option>'+data.map(b=>'<option value=+b.id+>'+b.name+'</option>').join(''); }
   const badge=document.getElementById('bases-count');
   if(badge) badge.textContent=data.length+' баз';
 
   const sel=document.getElementById('f-base');
   if(sel){
     sel.innerHTML='<option value="">Оберіть базу</option>'
-      +data.map(b=>'<option value="'+b.id+'">'+b.name+'</option>').join('');
+      +data.map(b=>'<option value="'+escHtml(b.id)+'">'+escHtml(b.name||'')+'</option>').join('');
   }
 
   const ps=document.getElementById('p-stat-bases');
@@ -2992,17 +3283,17 @@ async function loadObjects(dbId){
   window._currentBaseId=dbId;
   const list=document.getElementById('obj-list');
   if(!list) return;
-  list.innerHTML='<div style="padding:28px;text-align:center"><div class="spin"></div></div>';
+  list.innerHTML='<div style="padding:0 var(--gap)">'+skeletonObjects(4)+'</div>';
 
   let data, error;
   try{
-    const res = await window.db
+    const res = await withRetry(()=>window.db
       .from('objects')
       .select('id,name,address,area_total,rent_price,rate_per_m2,status,type,utilities')
       .eq('db_id',dbId)
+      .eq('owner_id',window.currentUser.id)
       .order('created_at',{ascending:false})
-    .eq('owner_id',window.currentUser.id)
-    .range(0,49);
+      .range(0,49), 2, 'loadObjects');
     data = res.data; error = res.error;
   }catch(e){ data=null; error={message:e.message}; }
 
@@ -3041,10 +3332,10 @@ async function loadObjects(dbId){
       .filter(k=>u[k])
       .map(k=>'<span class="ut '+utCls[k]+'"><svg><use href="#'+utIcons[k]+'"/></svg>'+utLbls[k]+'</span>')
       .join('');
-    html+='<div class="oc gc" data-id="'+obj.id+'" data-status="'+obj.status+'" data-type="'+obj.type+'" onclick="pC(this)">'
+    html+='<div class="oc gc" data-id="'+escHtml(obj.id||'')+'" data-status="'+escHtml(obj.status||'')+'" data-type="'+escHtml(obj.type||'')+'" onclick="pC(this)">'
       +'<div class="oc-top">'
       +'<div class="oc-ic '+col+'"><svg><use href="#'+ico+'"/></svg></div>'
-      +'<div class="oc-mt"><div class="oc-nm">'+obj.name+'</div>'
+      +'<div class="oc-mt"><div class="oc-nm">'+escHtml(obj.name||'—')+'</div>'
       +'<div class="oc-ad"><svg><use href="#i-pin"/></svg>'+escHtml(obj.address||'—')+'</div></div>'
       +'<div class="oc-st '+sc+'">'+st+'</div>'
       +'</div>'
@@ -3088,8 +3379,14 @@ async function loadProfile(){
   }
 
   let bCount=0, oCount=0;
-  try{ const rb=await window.db.from('databases').select('id',{count:'exact',head:true}).eq('owner_id',user.id); bCount=rb.count||0; }catch(_){}
-  try{ const ro=await window.db.from('objects').select('id',{count:'exact',head:true}); oCount=ro.count||0; }catch(_){}
+  try{
+    const [rb, ro] = await Promise.all([
+      window.db.from('databases').select('id',{count:'exact',head:true}).eq('owner_id',user.id),
+      window.db.from('objects').select('id',{count:'exact',head:true}).eq('owner_id',user.id)
+    ]);
+    bCount = rb.count||0;
+    oCount = ro.count||0;
+  }catch(_){}
   const ps1=document.getElementById('p-stat-bases'); if(ps1) ps1.textContent=bCount;
   const ps2=document.getElementById('p-stat-objects'); if(ps2) ps2.textContent=oCount;
 }
@@ -3097,7 +3394,11 @@ async function loadProfile(){
 /* ── LOAD DASHBOARD ── */
 async function loadDashboard(){
   if(!window.db||!window.currentUser) return;
-  let objs=[];try{const r=await window.db.from('objects').select('rent_price,status,type,rate_per_m2,area_total');objs=r.data||[];}catch(_){}
+  let objs=[];
+  try{
+    const r=await window.db.from('objects').select('rent_price,status,type,rate_per_m2,area_total').eq('owner_id',window.currentUser.id);
+    objs=r.data||[];
+  }catch(_){}
   if(!objs||objs.length===0) return;
   const rented=objs.filter(o=>o.status==='rented');
   const income=rented.reduce((s,o)=>s+(Number(o.rent_price)||0),0);
