@@ -3,9 +3,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover,interactive-widget=resizes-content">
 <title>Prostir</title>
+<link rel="preconnect" href="https://cjsuuzynpuimgndudzka.supabase.co">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700&display=swap" rel="stylesheet">
+<meta name="robots" content="noindex,nofollow">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' https://telegram.org https://cdn.jsdelivr.net https://fonts.googleapis.com https://fonts.gstatic.com https://*.supabase.co wss://*.supabase.co data: blob:; script-src 'self' 'unsafe-inline' https://telegram.org https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; font-src 'self' https://fonts.gstatic.com data:;">
 <style>
 /* ════════════════════════════════════
@@ -34,7 +38,7 @@
   --t1:#ffffff;
   --t2:rgba(255,255,255,.70);
   --t3:rgba(255,255,255,.38);
-  --t4:rgba(255,255,255,.18);
+  --t4:rgba(255,255,255,.38);
   --f: 'Inter',-apple-system,'Helvetica Neue',sans-serif;
 
   /* purple accent */
@@ -47,10 +51,11 @@
   --pGl:0 0 22px rgba(168,85,247,.32);
 
   /* system */
-  --red:  #ff453a;
-  --blue: #0a84ff;
-  --orn:  #ff9f0a;
-  --teal: #40c8e0;
+  --red:   #ff453a;
+  --blue:  #0a84ff;
+  --orn:   #ff9f0a;
+  --teal:  #40c8e0;
+  --green: #30d158;
 
   --rXL:22px;--rLG:18px;--rMD:14px;--rSM:10px;--rXS:8px;
   --gap:16px;
@@ -97,6 +102,31 @@
 @supports not (backdrop-filter:blur(1px)){
   .gl,.gc{background:rgba(20,18,30,.96) !important;}
 }
+
+/* ── Reduced motion: respect user OS setting ── */
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{
+    animation-duration:.01ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:.01ms !important;
+  }
+}
+
+/* ── Focus visible outlines (WCAG 2.4.7) ── */
+:focus-visible{
+  outline:2px solid var(--p1);
+  outline-offset:2px;
+}
+:focus:not(:focus-visible){outline:none}
+
+/* ── Touch targets minimum 44px (WCAG 2.5.8) ── */
+.hb{min-width:44px;min-height:44px}
+.b-del{min-width:44px;min-height:44px}
+.cov-close{min-width:44px;min-height:44px}
+.fch{min-height:44px;padding:10px 16px;display:inline-flex;align-items:center}
+
+/* ── will-change for GPU acceleration ── */
+.gc,.ti,.cov-sheet{will-change:transform}
 
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html{background:var(--bg)}
@@ -426,7 +456,7 @@ body{padding-bottom:calc(58px + env(safe-area-inset-bottom))}
 .u-e{background:rgba(192,132,252,.11);color:var(--p1)}.u-e svg{stroke:var(--p1)}
 .u-n{background:rgba(255,255,255,.04);color:var(--t4);font-style:italic}
 .oc-acts{display:flex;gap:6px;flex-shrink:0}
-.ica{width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.10);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .14s cubic-bezier(.34,1.56,.64,1),background .12s}
+.ica{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.10);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .14s cubic-bezier(.34,1.56,.64,1),background .12s;flex-shrink:0}
 .ica:active{transform:scale(.8);background:rgba(255,255,255,.14)}
 .ica svg{width:14px;height:14px;fill:none;stroke:var(--t2);stroke-width:1.9;stroke-linecap:round}
 
@@ -599,7 +629,7 @@ textarea.fr-in{resize:none;height:68px;text-align:left;padding-top:2px}
   white-space:nowrap;
   box-shadow:0 4px 24px rgba(0,0,0,.5),0 0 0 1px rgba(192,132,252,.14);
   opacity:0;transition:transform .4s cubic-bezier(.34,1.56,.64,1),opacity .28s ease;
-  pointer-events:none;position:relative;overflow:hidden;
+  pointer-events:none;overflow:hidden;
 }
 .tst::before{content:'';position:absolute;inset:0;border-radius:inherit;background:linear-gradient(180deg,rgba(255,255,255,.07) 0%,transparent 45%);pointer-events:none}
 .tst.show{transform:translateX(-50%) translateY(0) scale(1);opacity:1}
@@ -979,7 +1009,7 @@ select.fr-in{padding:11px 0;-webkit-appearance:none;appearance:none;color:var(--
   border-bottom:1px solid rgba(255,255,255,.06);
 }
 .base-back{
-  width:36px;height:36px;border-radius:10px;flex-shrink:0;
+  width:44px;height:44px;border-radius:12px;flex-shrink:0;
   background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.09);
   display:flex;align-items:center;justify-content:center;
   cursor:pointer;transition:background .15s,transform .2s cubic-bezier(.34,1.56,.64,1);
@@ -990,7 +1020,7 @@ select.fr-in{padding:11px 0;-webkit-appearance:none;appearance:none;color:var(--
 .base-hdr-nm{font-size:16px;font-weight:700;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .base-hdr-cnt{font-size:11px;color:var(--t3);margin-top:1px}
 .base-add-btn{
-  width:36px;height:36px;border-radius:10px;flex-shrink:0;
+  width:44px;height:44px;border-radius:12px;flex-shrink:0;
   background:var(--pBg);border:1px solid var(--pBd);
   display:flex;align-items:center;justify-content:center;
   cursor:pointer;transition:background .15s,transform .2s cubic-bezier(.34,1.56,.64,1);
@@ -1431,16 +1461,19 @@ select.add-row-in.lifted{color:var(--t1)} select.add-row-in{padding-top:16px}
 /* spinner */
 .spin{width:22px;height:22px;border:2px solid rgba(255,255,255,.1);border-top-color:var(--p1);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto}
 @keyframes spin{to{transform:rotate(360deg)}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+@keyframes pop{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
 
 :root{--tg-bg:var(--tg-theme-bg-color,#0c0c14);--tg-text:var(--tg-theme-text-color,#fff);--tg-hint:var(--tg-theme-hint-color,rgba(255,255,255,.45));--tg-btn:var(--tg-theme-button-color,#a855f7);--tg-btn-txt:var(--tg-theme-button-text-color,#fff);--tg-sec:var(--tg-theme-secondary_bg_color,#1c1c1e);}
 
-/* ── KEYBOARD SAFE: Add page actions stick to bottom ── */
+/* ── KEYBOARD SAFE: Add page actions sit above tab bar ── */
 .add-actions{
-  position:sticky;bottom:0;
+  position:sticky;bottom:calc(56px + env(safe-area-inset-bottom));
   background:rgba(12,12,20,.92);
   backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
-  padding:12px var(--gap) max(20px,env(safe-area-inset-bottom));
+  padding:12px var(--gap) 12px;
   border-top:1px solid var(--sep);z-index:10;
+  margin-bottom:0;
 }
 
 /* ── OBJECT CARD press state ── */
@@ -1462,7 +1495,7 @@ select.add-row-in.lifted{color:var(--t1)} select.add-row-in{padding-top:16px}
 
 /* ── FOCUS visible (keyboard nav) ── */
 :focus-visible{outline:2px solid var(--p1);outline-offset:2px;border-radius:4px}
-input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none}
+input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--p1);outline-offset:1px;border-radius:var(--rSM)}
 
 /* ── SMALL PHONE (360px-) ── */
 @media(max-width:360px){
@@ -1535,9 +1568,12 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none}
   background-size:200% 100%;
   animation:shimmer 1.6s infinite;
 }
-.skel-base{height:72px;border-radius:var(--rLG);margin-bottom:var(--sp2);}
-.skel-obj {height:120px;border-radius:var(--rXL);margin-bottom:var(--sp2);}
-.skel-text{height:14px;border-radius:6px;margin-bottom:var(--sp1);}
+.skel-base-row{display:flex;align-items:center;gap:12px;padding:10px 0;margin-bottom:var(--sp2);}
+.skel-circle{width:44px;height:44px;border-radius:12px;flex-shrink:0;}
+.skel-lines{flex:1;display:flex;flex-direction:column;gap:8px;}
+.skel-obj{height:110px;border-radius:var(--rXL);margin-bottom:var(--sp2);padding:16px;display:flex;flex-direction:column;justify-content:flex-end;}
+.skel-obj-inner{display:flex;flex-direction:column;gap:6px;}
+.skel-text{height:13px;border-radius:6px;}
 .skel-text.w60{width:60%;}
 .skel-text.w40{width:40%;}
 
@@ -1585,6 +1621,120 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none}
   overflow-y:auto;
 }
 .auth-wrap.hidden{display:none !important;visibility:hidden;pointer-events:none;}
+
+/* ══════════════════════════════════════════════
+   UI/UX POLISH — professional audit fixes
+══════════════════════════════════════════════ */
+
+/* Auth step indicator — smooth transition */
+.a-step{transition:width .35s cubic-bezier(.4,0,.2,1),background .3s ease}
+
+/* Select chevron — custom dropdown arrow */
+select.fr-in,select.add-row-in{
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,.35)' stroke-width='2.5' stroke-linecap='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;
+  background-position:right 0 center;
+  padding-right:18px;
+  cursor:pointer;
+}
+
+/* Filter chips — enforce 44px touch target (WCAG 2.5.8) */
+.fch{min-height:44px !important;display:inline-flex !important;align-items:center !important;}
+
+/* Skeleton — inner text lines need opaque base so they're visible on shimmer card */
+.skel-obj .skel-text{
+  background:linear-gradient(90deg,rgba(255,255,255,.08) 25%,rgba(255,255,255,.18) 50%,rgba(255,255,255,.08) 75%);
+  background-size:200% 100%;
+  animation:shimmer 1.6s infinite;
+}
+
+/* Object card cursor */
+.oc{cursor:pointer;transition:transform var(--t-fast),opacity var(--t-fast)}
+
+/* cov-close minimum tap area */
+.cov-close{min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center}
+
+/* Tab icon hover glow (desktop/web) */
+@media(hover:hover){
+  .ti:hover .ti-ic{background:rgba(255,255,255,.07)}
+  .ti.on:hover .ti-ic{background:rgba(168,85,247,.25)}
+  .hb:hover{background:rgba(255,255,255,.09);border-color:rgba(255,255,255,.14)}
+}
+
+/* fch on-state shadow pop */
+.fch.on{box-shadow:0 2px 10px rgba(168,85,247,.28)}
+
+/* ── PHOTO PREVIEW GRID ── */
+.photo-preview-grid{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:8px;
+  padding:0 var(--gap) 8px;
+}
+.photo-preview-grid:empty{display:none}
+.photo-thumb{
+  position:relative;aspect-ratio:1;border-radius:var(--rMD);overflow:hidden;
+  background:rgba(255,255,255,.04);border:1px solid var(--gBd);
+  animation:pgIn .22s cubic-bezier(.4,0,.2,1);
+}
+.photo-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.photo-thumb-del{
+  position:absolute;top:5px;right:5px;
+  width:22px;height:22px;border-radius:50%;
+  background:rgba(0,0,0,.65);border:none;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;color:#fff;font-size:13px;line-height:1;
+  transition:background .14s,transform .14s;
+}
+.photo-thumb-del:active{background:var(--red);transform:scale(.85)}
+.photo-upload-progress{
+  position:absolute;inset:0;background:rgba(0,0,0,.55);
+  display:flex;align-items:center;justify-content:center;
+}
+.photo-upload-progress .spin{width:18px;height:18px}
+
+/* ── SHARE SHEET ── */
+.share-preview{
+  background:rgba(255,255,255,.04);border:1px solid var(--gBd);
+  border-radius:var(--rMD);padding:12px 14px;
+  font-size:13px;color:var(--t2);line-height:1.7;
+  white-space:pre-wrap;word-break:break-word;
+  max-height:180px;overflow-y:auto;
+  position:relative;z-index:2;
+}
+.share-close-btn{
+  display:block;width:100%;margin-top:8px;padding:12px;
+  background:transparent;border:none;
+  font-family:var(--f);font-size:14px;color:var(--t3);
+  cursor:pointer;text-align:center;
+  transition:color .14s;
+}
+.share-close-btn:active{color:var(--t1)}
+
+/* ── SHARE BUTTON on object card ── */
+.oc-share-btn{
+  display:flex;align-items:center;justify-content:center;
+  width:26px;height:26px;border-radius:8px;
+  background:rgba(10,132,255,.08);border:0.5px solid rgba(10,132,255,.2);
+  color:var(--blue);cursor:pointer;
+  transition:background var(--t-fast),transform var(--t-fast);
+  flex-shrink:0;
+}
+.oc-share-btn:active{background:rgba(10,132,255,.2);transform:scale(.88);}
+.oc-share-btn svg{width:12px;height:12px;stroke:var(--blue);fill:none;stroke-width:2;stroke-linecap:round}
+
+/* Object card delete button */
+.oc-del-btn{
+  display:flex;align-items:center;justify-content:center;
+  width:26px;height:26px;border-radius:8px;
+  background:rgba(255,69,58,.08);border:0.5px solid rgba(255,69,58,.2);
+  color:var(--red);cursor:pointer;
+  transition:background var(--t-fast),transform var(--t-fast);
+  flex-shrink:0;
+}
+.oc-del-btn:active{background:rgba(255,69,58,.22);transform:scale(.88);}
+
+/* Status badge tap hint */
+.oc-st[style*="cursor"]{transition:transform var(--t-fast),opacity var(--t-fast);}
+.oc-st[style*="cursor"]:active{transform:scale(.92);opacity:.7;}
 
 </style>
 </head>
@@ -1818,6 +1968,8 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none}
   <symbol id="i-trend"  viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></symbol>
   <symbol id="i-credit" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></symbol>
   <symbol id="i-share"  viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></symbol>
+  <symbol id="i-link"   viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></symbol>
+  <symbol id="i-copy"   viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol>
   <symbol id="i-gear"   viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></symbol>
   <symbol id="i-plus"   viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
   <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></symbol>
@@ -1977,31 +2129,18 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none}
 </div><!-- /page-objects -->
 
 <!-- █ CREATE BASE MODAL █ -->
-<div class="cov" id="cov-base" style="display:none">
+<div class="cov" id="cov-base" style="display:none" role="dialog" aria-modal="true" aria-labelledby="cov-base-title">
   <div class="cov-sheet" id="cov-base-sheet">
     <div class="cov-drag"></div>
     <div class="cov-hdr">
-      <div class="cov-title">Нова база</div>
+      <div class="cov-title" id="cov-base-title">Нова база</div>
       <div class="cov-close" onclick="closeCreateBase()"><svg><use href="#i-x"/></svg></div>
     </div>
     <div class="cov-body">
       <div class="fg gl" style="margin-top:4px">
         <div class="fr" style="border-top:none">
-          <label class="fr-lb">Назва</label>
+          <label class="fr-lb">Назва бази</label>
           <input class="fr-in" id="cb-name" type="text" placeholder="Наприклад: Київ Центр" autocomplete="off">
-        </div>
-        <div class="fr">
-          <label class="fr-lb">Опис</label>
-          <input class="fr-in" id="cb-desc" type="text" placeholder="Необов'язково">
-        </div>
-      </div>
-      <div class="fg gl">
-        <div class="fr" style="border-top:none">
-          <label class="fr-lb">Видимість</label>
-          <select class="fr-in" id="cb-vis">
-            <option value="private">🔒 Приватна</option>
-            <option value="public">🌐 Публічна (з посиланням)</option>
-          </select>
         </div>
       </div>
       <button class="btn-full" onclick="confirmCreateBase()" style="margin-top:8px">Створити базу</button>
@@ -2010,11 +2149,11 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none}
 </div>
 
 <!-- █ DELETE BASE CONFIRM █ -->
-<div class="cov" id="cov-del-base" style="display:none">
+<div class="cov" id="cov-del-base" style="display:none" role="dialog" aria-modal="true" aria-labelledby="cov-del-base-title">
   <div class="cov-sheet">
     <div class="cov-drag"></div>
     <div class="cov-hdr">
-      <div class="cov-title" style="color:var(--red)">Видалити базу?</div>
+      <div class="cov-title" id="cov-del-base-title" style="color:var(--red)">Видалити базу?</div>
     </div>
     <div class="cov-body">
       <div class="hint hint-orn" style="margin:0 0 12px">
@@ -2253,12 +2392,14 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none}
   </div>
 
   <!-- ── PHOTO ── -->
+  <input type="file" id="obj-photo-input" accept="image/*" multiple style="display:none" onchange="handlePhotoSelect(this)">
   <div class="add-section-lbl">Фото <span class="add-section-opt">необов'язково</span></div>
-  <div class="add-photo-zone" onclick="T('Відкриваємо галерею...')">
+  <div class="add-photo-zone" id="photo-zone" onclick="triggerPhotoInput()">
     <svg><use href="#i-photo"/></svg>
-    <div class="add-photo-lbl">Додати фотографії</div>
+    <div class="add-photo-lbl" id="photo-zone-lbl">Додати фотографії</div>
     <div class="add-photo-sub">До 10 фото · JPG або PNG</div>
   </div>
+  <div class="photo-preview-grid" id="photo-preview-grid"></div>
 
   <!-- Error row -->
   <div class="add-err" id="add-err" style="display:none"></div>
@@ -2311,24 +2452,24 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none}
 </div>
 
 <!-- TAB BAR -->
-<div class="tbar">
-  <div class="ti on" id="t-dash"    onclick="tabTap(this,'dash','iconGrid')">
-    <div class="ti-ic"><svg><use href="#i-grid"/></svg></div>
+<nav class="tbar" role="tablist" aria-label="Навігація">
+  <div class="ti on" id="t-dash"    role="tab" aria-selected="true"  aria-label="Дашборд"  onclick="tabTap(this,'dash','iconGrid')">
+    <div class="ti-ic"><svg aria-hidden="true"><use href="#i-grid"/></svg></div>
     <div class="ti-lb">Дашборд</div>
   </div>
-  <div class="ti"    id="t-bases"   onclick="tabTap(this,'bases','iconDb')">
-    <div class="ti-ic"><svg><use href="#i-db"/></svg></div>
+  <div class="ti"    id="t-bases"   role="tab" aria-selected="false" aria-label="Бази"     onclick="tabTap(this,'bases','iconDb')">
+    <div class="ti-ic"><svg aria-hidden="true"><use href="#i-db"/></svg></div>
     <div class="ti-lb">Бази</div>
   </div>
-  <div class="ti"    id="t-add"     onclick="tabTap(this,'add','iconPlus')">
-    <div class="ti-ic ti-ic-add"><svg><use href="#i-plus"/></svg></div>
+  <div class="ti"    id="t-add"     role="tab" aria-selected="false" aria-label="Додати об'єкт" onclick="tabTap(this,'add','iconPlus')">
+    <div class="ti-ic ti-ic-add"><svg aria-hidden="true"><use href="#i-plus"/></svg></div>
     <div class="ti-lb">Додати</div>
   </div>
-  <div class="ti"    id="t-profile" onclick="tabTap(this,'profile','iconUser');loadProfile()">
-    <div class="ti-ic"><svg><use href="#i-user"/></svg></div>
+  <div class="ti"    id="t-profile" role="tab" aria-selected="false" aria-label="Профіль"  onclick="tabTap(this,'profile','iconUser');loadProfile()">
+    <div class="ti-ic"><svg aria-hidden="true"><use href="#i-user"/></svg></div>
     <div class="ti-lb">Профіль</div>
   </div>
-</div>
+</nav>
 
 <!-- BOTTOM SHEET -->
 <div class="sh-ov" id="sh-ov" onclick="clSh(event)">
@@ -2472,6 +2613,24 @@ const t = (key, ...args) => {
 };
 
 /* ════════════════════════════════════════════════
+   TMA MainButton HELPERS
+════════════════════════════════════════════════ */
+let _mainBtnCb=null;
+function _showMainButton(text, cb){
+  const tg=window.Telegram?.WebApp;if(!tg?.MainButton)return;
+  if(_mainBtnCb) tg.MainButton.offClick(_mainBtnCb);
+  _mainBtnCb=cb;
+  tg.MainButton.setParams({text, color:'#7c3aed', text_color:'#ffffff', is_active:true, is_visible:true});
+  tg.MainButton.onClick(cb);
+  tg.MainButton.show();
+}
+function _hideMainButton(){
+  const tg=window.Telegram?.WebApp;if(!tg?.MainButton)return;
+  if(_mainBtnCb){tg.MainButton.offClick(_mainBtnCb);_mainBtnCb=null;}
+  tg.MainButton.hide();
+}
+
+/* ════════════════════════════════════════════════
    RETRY LOGIC — exponential backoff
 ════════════════════════════════════════════════ */
 async function withRetry(fn, maxRetries=3, context='') {
@@ -2492,12 +2651,20 @@ async function withRetry(fn, maxRetries=3, context='') {
 ════════════════════════════════════════════════ */
 function skeletonBases(n=3) {
   return Array.from({length:n}, ()=>
-    '<div class="skel skel-base"></div>'
+    '<div class="skel-base-row">'
+      +'<div class="skel skel-circle"></div>'
+      +'<div class="skel-lines"><div class="skel skel-text w60"></div><div class="skel skel-text w40"></div></div>'
+    +'</div>'
   ).join('');
 }
 function skeletonObjects(n=4) {
   return Array.from({length:n}, ()=>
-    '<div class="skel skel-obj"></div>'
+    '<div class="skel skel-obj">'
+      +'<div class="skel-obj-inner">'
+        +'<div class="skel skel-text w60" style="margin-bottom:6px"></div>'
+        +'<div class="skel skel-text w40"></div>'
+      +'</div>'
+    +'</div>'
   ).join('');
 }
 
@@ -2521,12 +2688,15 @@ function go(page){
   pg.classList.add('active');
   pg.scrollTop=0;
   if(typeof tgBackBtnUpdate==='function')tgBackBtnUpdate(page);
+  /* TMA MainButton for Add Object page */
+  if(page==='add'){_showMainButton('Додати об\'єкт', addO);}
+  else if(typeof _hideMainButton==='function'){_hideMainButton();}
 }
 
 /* ── TAB BAR ── */
 function tabTap(el, page, animName){
-  document.querySelectorAll('.ti').forEach(t=>t.classList.remove('on'));
-  el.classList.add('on');
+  document.querySelectorAll('.ti').forEach(t=>{t.classList.remove('on');t.setAttribute('aria-selected','false');});
+  el.classList.add('on');el.setAttribute('aria-selected','true');
   const svg=el.querySelector('svg');
   if(svg){svg.style.animation='none';void svg.offsetWidth;svg.style.animation=animName+' .42s cubic-bezier(.34,1.56,.64,1)';}
   window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('light');
@@ -2549,22 +2719,17 @@ function enterApp(){
     if(typeof loadBases==='function')loadBases();
     if(typeof loadDashboard==='function')loadDashboard();
     if(typeof handleDeepLink==='function')handleDeepLink();
-    if(window._postLoginRedirect){const pg=window._postLoginRedirect;window._postLoginRedirect=null;const ti=document.getElementById('t-'+pg);if(ti)setTimeout(()=>ti.click(),400);}
-    if(window._pendingBaseOpen){const bid=window._pendingBaseOpen;window._pendingBaseOpen=null;setTimeout(()=>openBase('',bid),600);}
+    if(APP.postLoginRedirect){const pg=APP.postLoginRedirect;APP.postLoginRedirect=null;const ti=document.getElementById('t-'+pg);if(ti)setTimeout(()=>ti.click(),400);}
+    if(APP.pendingBaseOpen){const bid=APP.pendingBaseOpen;APP.pendingBaseOpen=null;setTimeout(()=>openBase('',bid),600);}
     if(typeof offlineQueueFlush==='function')offlineQueueFlush();
   },100);
 }
 
-/* ── DISMISS HINT ── */
-function dismissHint(btn){
-  const h=btn?.closest('.welcome-hint');
-  if(h){h.style.opacity='0';h.style.transform='scale(.96)';setTimeout(()=>h.remove(),300);}
-}
 
 /* ── OPEN BASE ── */
 function openBase(name, dbId){
-  window._currentBaseId=dbId;
-  window._currentBaseName=name;
+  APP.currentBaseId=dbId;
+  APP.currentBaseName=name;
   const nm=document.getElementById('base-hdr-nm');
   const cnt=document.getElementById('base-hdr-cnt');
   if(nm)nm.textContent=name;
@@ -2586,11 +2751,14 @@ function openCreateBase(){
   });
   const inp=document.getElementById('cb-name');
   if(inp)setTimeout(()=>inp.focus(),350);
+  /* TMA MainButton */
+  _showMainButton('Створити базу', confirmCreateBase);
 }
 function closeCreateBase(){
   const m=document.getElementById('cov-base');
   if(!m)return;
   m.classList.remove('open');
+  _hideMainButton();
   setTimeout(()=>{
     m.style.display='none';
     const n=document.getElementById('cb-name');if(n)n.value='';
@@ -2604,20 +2772,40 @@ function closeCov(id){
   m.classList.remove('open');
   setTimeout(()=>m.style.display='none',350);
 }
+/* ── Focus trap for modals (WCAG) ── */
+document.addEventListener('keydown',function(e){
+  if(e.key!=='Tab')return;
+  const openCov=document.querySelector('.cov.open .cov-sheet, .cov[style*="display: flex"] .cov-sheet, .cov[style*="display:flex"] .cov-sheet');
+  if(!openCov)return;
+  const focusable=openCov.querySelectorAll('input,textarea,select,button,[tabindex]:not([tabindex="-1"])');
+  if(!focusable.length)return;
+  const first=focusable[0], last=focusable[focusable.length-1];
+  if(e.shiftKey){if(document.activeElement===first){e.preventDefault();last.focus();}}
+  else{if(document.activeElement===last){e.preventDefault();first.focus();}}
+});
 
 /* ── DELETE BASE ── */
 function askDeleteBase(e, id, name){
   if(e)e.preventDefault();
-  window._delBaseId=id;
-  window._delBaseName=name;
+  APP.delBaseId=id;
+  APP.delBaseName=name;
+  /* Try native TMA confirm first (6.2+) */
+  const tg=window.Telegram?.WebApp;
+  if(tg?.showConfirm && tg.isVersionAtLeast?.('6.2')){
+    tg.showConfirm('Видалити базу «'+name+'»?', (confirmed)=>{
+      if(confirmed) confirmDeleteBase();
+    });
+    return;
+  }
+  /* Fallback: custom modal */
   const lbl=document.getElementById('del-base-name');if(lbl)lbl.textContent=name;
   const m=document.getElementById('cov-del-base');
   if(!m)return;
   m.style.display='flex';requestAnimationFrame(()=>requestAnimationFrame(()=>m.classList.add('open')));
 }
 async function confirmDeleteBase(){
-  const id=window._delBaseId;
-  const name=window._delBaseName||'базу';
+  const id=APP.delBaseId;
+  const name=APP.delBaseName||'базу';
   if(!id)return;
   closeCov('cov-del-base');
   /* Optimistic: Remove from DOM immediately */
@@ -2647,7 +2835,7 @@ function openS(key){
   document.getElementById('sh-tit').textContent=d.t;
   document.getElementById('sh-cta').textContent=d.cta;
   const bd=document.getElementById('sh-bd');
-  bd.innerHTML=d.r.map(([l,v])=>'<div class="pr"><div class="pr-l">'+l+'</div><div class="pr-v">'+v+'</div></div>').join('');
+  bd.innerHTML=d.r.map(([l,v])=>'<div class="pr"><div class="pr-l">'+escHtml(l)+'</div><div class="pr-v">'+escHtml(v)+'</div></div>').join('');
   sh.classList.add('open');
 }
 function clSh(e){if(!e||e.target===document.getElementById('sh-ov'))document.getElementById('sh-ov')?.classList.remove('open');}
@@ -2655,6 +2843,51 @@ function clShD(){document.getElementById('sh-ov')?.classList.remove('open');}
 function pC(el){
   el.style.transform='scale(.97)';el.style.transition='transform .12s';
   setTimeout(()=>{el.style.transform='';},140);
+}
+
+/* ── DELETE OBJECT ── */
+function askDeleteObject(e, id, name){
+  e.stopPropagation();
+  const tg=window.Telegram?.WebApp;
+  if(tg&&tg.showConfirm){
+    tg.showConfirm('Видалити «'+name+'»?\nЦю дію не можна скасувати.',function(ok){
+      if(ok)doDeleteObject(id,name);
+    });
+  } else if(window.confirm('Видалити «'+name+'»?')){
+    doDeleteObject(id,name);
+  }
+}
+async function cycleStatus(el, id){
+  if(!window.db||!window.currentUser){T('Немає підключення');return;}
+  const cycle={free:'rented',rented:'reserved',reserved:'free'};
+  const labels={free:'Вільний',rented:'В оренді',reserved:'Резерв'};
+  const cls={free:'s-free',rented:'s-ok',reserved:'s-warn'};
+  const card=el.closest('.oc');
+  const cur=card?.dataset.status||'free';
+  const next=cycle[cur]||'free';
+  try{
+    const{error}=await window.db.from('objects').update({status:next}).eq('id',id).eq('owner_id',window.currentUser.id);
+    if(error){handleDbError(error,'cycleStatus');return;}
+    if(card)card.dataset.status=next;
+    el.textContent=labels[next];
+    el.className='oc-st '+cls[next];
+    el.style.cursor='pointer';
+    window.Telegram?.WebApp?.HapticFeedback?.selectionChanged?.();
+    T('Статус: '+labels[next]);
+  }catch(e){T('Помилка: '+(e?.message||''));}
+}
+async function doDeleteObject(id, name){
+  if(!window.db||!window.currentUser){T('Немає підключення');return;}
+  try{
+    const{error}=await window.db.from('objects').delete()
+      .eq('id',id).eq('owner_id',window.currentUser.id);
+    if(error){handleDbError(error,'doDeleteObject');return;}
+    T('🗑 «'+escHtml(name)+'» видалено');
+    /* Remove card from DOM immediately (optimistic) */
+    const card=document.querySelector('.oc[data-id="'+id+'"]');
+    if(card){card.style.transition='opacity .25s,transform .25s';card.style.opacity='0';card.style.transform='scale(.9)';setTimeout(()=>{card.remove();updateBaseHeader(APP.currentBaseId,document.querySelectorAll('#obj-list .oc').length);},260);}
+    window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success');
+  }catch(e){T('Помилка: '+(e?.message||''));}
 }
 function pRow(el){
   el.style.transform='scale(.98)';el.style.background='rgba(255,255,255,.06)';
@@ -2755,6 +2988,10 @@ function clearAddForm(){
   const err=document.getElementById('add-err');if(err)err.style.display='none';
   document.querySelectorAll('.add-util-row').forEach(r=>r.classList.add('on'));
   _manualEdit=false;
+  /* Clear photo previews */
+  APP.pendingPhotos=[];
+  const grid=document.getElementById('photo-preview-grid');if(grid)grid.innerHTML='';
+  const lbl=document.getElementById('photo-zone-lbl');if(lbl)lbl.textContent='Додати фотографії';
 }
 let _submitting=false;
 async function addO(){
@@ -2789,15 +3026,27 @@ async function addO(){
     try{
       const res=await window.db.from('objects').insert([{
         owner_id:window.currentUser.id,db_id:dbId,name,address:addr,
-        area_total:area,area_calc:area2,rooms:rooms,floor:floor,
-        rent_price:rent,rate_per_m2:rate,util_rate:util,costs:costs2,
-        type:type,status:'free',utilities:utils,description:desc
-      }]);
+        area_total:area,rooms:rooms,floor:floor,
+        rent_price:rent,rate_per_m2:rate,type:type,status:'free'
+      }]).select('id');
       if(btn){btn.textContent='Додати обʼєкт';btn.disabled=false;}
       if(res.error){handleDbError(res.error,'addO');showAddErr('Помилка: '+res.error.message);_submitting=false;return;}
-      T('✅ «'+escHtml(name)+'» додано до бази!');
-      _submitting=false;clearAddForm();go('bases');
-      setTimeout(function(){if(typeof loadBases==='function')loadBases();},300);
+      const newId = res.data?.[0]?.id || null;
+      /* Upload photos if any */
+      if(newId && APP.pendingPhotos.length){
+        uploadPhotos(newId).then(function(urls){
+          if(urls.length) T('✅ «'+escHtml(name)+'» + '+urls.length+' фото збережено!');
+          else if(APP.pendingPhotos.length) T('✅ «'+escHtml(name)+'» збережено (фото — потрібен bucket "photos" в Supabase Storage)');
+        });
+      } else {
+        T('✅ «'+escHtml(name)+'» додано до бази!');
+      }
+      _submitting=false;
+      /* Go back to the objects list for that base */
+      const baseSelect=document.getElementById('f-base');
+      const baseName=baseSelect?.options[baseSelect.selectedIndex]?.text||'';
+      clearAddForm();
+      openBase(baseName,dbId);
     }catch(err){
       if(btn){btn.textContent='Додати обʼєкт';btn.disabled=false;}
       _submitting=false;showAddErr('Помилка: '+(err&&err.message?err.message:''));
@@ -2805,12 +3054,14 @@ async function addO(){
   }else{
     if(typeof offlineQueueAdd==='function'){
       offlineQueueAdd('insert_object',{owner_id:window.currentUser?.id||null,db_id:dbId,name:name,address:addr,
-        area_total:area,rent_price:rent,rate_per_m2:rate,type:type,
-        status:'free',utilities:utils,description:desc});
+        area_total:area,rent_price:rent,rate_per_m2:rate,type:type,status:'free'});
     }
     if(btn){btn.textContent='Додати обʼєкт';btn.disabled=false;}
     T('⬇️ Збережено офлайн');
-    _submitting=false;clearAddForm();go('bases');
+    _submitting=false;
+    const baseSelectOff=document.getElementById('f-base');
+    const baseNameOff=baseSelectOff?.options[baseSelectOff.selectedIndex]?.text||'';
+    clearAddForm();openBase(baseNameOff,dbId);
   }
 }
 /* ── CONFIRM CREATE BASE ── */
@@ -2833,9 +3084,7 @@ async function confirmCreateBase(){
     T('✅ База «'+name+'» створена!');
     try{
       const {data,error}=await window.db.from('databases').insert([{
-        owner_id:window.currentUser.id,name,
-        slug:name.toLowerCase().replace(/[\s]+/g,'-').replace(/[^a-z0-9-]/g,'').replace(/-+/g,'-'),
-        is_public:vis==='public'
+        owner_id:window.currentUser.id,name
       }]).select('id,name,created_at').single();
       if(btn){btn.textContent='Створити базу';btn.disabled=false;}
       if(error){
@@ -2919,19 +3168,19 @@ function regStep1(){
   const name=(document.getElementById('r-name')?.value||'').trim();
   const city=(document.getElementById('r-city')?.value||'').trim();
   if(name.length<2){afError('af-rn',"Введіть ім'я та прізвище");return;}
-  window._regName=name;window._regCity=city;authGo('auth-reg-2');
+  APP.regName=name;APP.regCity=city;authGo('auth-reg-2');
 }
 async function regStep2(){
   const email=(document.getElementById('r-email')?.value||'').trim();
   const pass=document.getElementById('r-pass')?.value||'';
   afError('af-re','');afError('af-rp','');
-  if(!email||!/^[^@]+@[^@]+\.[^@]+$/.test(email)){afError('af-re','Введіть коректний email');return;}
+  if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)){afError('af-re','Введіть коректний email');return;}
   if(pass.length<8){afError('af-rp','Мінімум 8 символів');return;}
   const btn=document.querySelector('#auth-reg-2 .a-btn-primary');
   if(btn){btn.textContent='Реєструємо...';btn.disabled=true;}
   try{
     const{data,error}=await window.db.auth.signUp({email,password:pass,
-      options:{data:{name:window._regName||'',city:window._regCity||''},emailRedirectTo:window.location.origin}});
+      options:{data:{name:APP.regName||'',city:APP.regCity||''},emailRedirectTo:window.location.origin}});
     if(btn){btn.textContent='Далі →';btn.disabled=false;}
     if(error){
       let msg='Помилка реєстрації';
@@ -2940,7 +3189,7 @@ async function regStep2(){
       else msg='Помилка: '+error.message;
       afError('af-re',msg);return;
     }
-    window.currentUser=data?.user;window._pendingEmail=email;
+    window.currentUser=data?.user;APP.pendingEmail=email;
     if(data?.session){authGo('auth-success');setTimeout(()=>enterApp(),1600);}
     else{const s=document.getElementById('otp-email-show');if(s)s.textContent=email;authGo('auth-reg-3');}
   }catch(e){if(btn){btn.textContent='Далі →';btn.disabled=false;}afError('af-re','Помилка: '+(e?.message||'мережа'));}
@@ -2964,7 +3213,7 @@ async function doLogin(){
 }
 async function doReset(){
   const email=(document.getElementById('rst-email-inp')?.value||'').trim();
-  if(!email||!/^[^@]+@[^@]+\.[^@]+$/.test(email)){afError('af-rst','Введіть коректний email');return;}
+  if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)){afError('af-rst','Введіть коректний email');return;}
   const btn=document.querySelector('#auth-reset .a-btn-primary');
   if(btn){btn.textContent='Надсилаємо...';btn.disabled=true;}
   const{error}=await window.db.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin});
@@ -3014,15 +3263,18 @@ async function loginWithGoogle(){
 
 
 /* ── TELEGRAM BackButton ── */
+const _HOME_PAGES = new Set(['dashboard','bases','add','profile']);
 function tgBackBtnUpdate(page){
   const tg=window.Telegram?.WebApp;if(!tg?.BackButton)return;
-  if(page==='objects'){tg.BackButton.show();}else{tg.BackButton.hide();}
+  if(_HOME_PAGES.has(page)){tg.BackButton.hide();}else{tg.BackButton.show();}
 }
 (function(){
   const tg=window.Telegram?.WebApp;if(!tg?.BackButton)return;
   tg.BackButton.onClick(()=>{
     const a=document.querySelector('.page.active');
-    if(a?.id==='page-objects'){go('bases');}else{tg.BackButton.hide();}
+    const id=a?.id?.replace('page-','');
+    if(id==='objects'){go('bases');}
+    else{tg.BackButton.hide();}
   });
 })();
 
@@ -3033,10 +3285,10 @@ function handleDeepLink(){
   const map={profile:'t-profile',bases:'t-bases',add:'t-add'};
   if(map[param]){
     if(window.currentUser){const ti=document.getElementById(map[param]);if(ti)setTimeout(()=>ti.click(),300);}
-    else{window._postLoginRedirect=param;}
+    else{APP.postLoginRedirect=param;}
     return;
   }
-  if(param.startsWith('base_')){window._pendingBaseOpen=param.slice(5);}
+  if(param.startsWith('base_')){APP.pendingBaseOpen=param.slice(5);}
 }
 
 /* ── OFFLINE QUEUE ── */
@@ -3066,12 +3318,36 @@ document.addEventListener('DOMContentLoaded',()=>{
   /* UX: confirm before closing app with unsaved data */
   const tgApp = window.Telegram?.WebApp;
   if(tgApp?.enableClosingConfirmation) tgApp.enableClosingConfirmation();
+
+  /* ── Keyboard fix: scroll focused input above keyboard ── */
+  document.addEventListener('focusin', e => {
+    const el = e.target;
+    if(el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT'){
+      setTimeout(() => el.scrollIntoView({behavior:'smooth', block:'center'}), 350);
+    }
+  });
+  /* visualViewport: push add-page content up when keyboard shows */
+  if(window.visualViewport){
+    window.visualViewport.addEventListener('resize', () => {
+      const offset = Math.max(0, window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop);
+      const addPage = document.getElementById('page-add');
+      if(addPage) addPage.style.paddingBottom = offset > 60 ? (offset + 80) + 'px' : '';
+      const covBase = document.getElementById('cov-base');
+      if(covBase && covBase.classList.contains('open')){
+        const sheet = document.getElementById('cov-base-sheet');
+        if(sheet) sheet.style.marginBottom = offset > 60 ? offset + 'px' : '';
+      }
+    });
+  }
+
   /* Start auth flow */
   if(typeof checkExistingSession==='function') checkExistingSession();
 });
 (function(){
   const tg=window.Telegram?.WebApp;if(!tg)return;
   tg.ready();tg.expand();
+  /* Prevent accidental app close when scrolling forms (TMA 7.7+) */
+  if(tg.isVersionAtLeast?.('7.7') && tg.disableVerticalSwipes) tg.disableVerticalSwipes();
   const bg=tg.themeParams?.bg_color||'#0c0c14';
   tg.setHeaderColor(bg);tg.setBackgroundColor(bg);
   const r=document.documentElement;
@@ -3086,7 +3362,22 @@ document.addEventListener('DOMContentLoaded',()=>{
     if(p.text_color)   r.style.setProperty('--tg-text',p.text_color);
     if(p.button_color) r.style.setProperty('--tg-btn',p.button_color);
   });
+  /* viewportChanged — стабільна висота після анімації TMA */
+  tg.onEvent('viewportChanged',({isStateStable})=>{
+    if(isStateStable){
+      document.documentElement.style.setProperty('--tg-viewport-height', tg.viewportStableHeight+'px');
+    }
+  });
 })();
+
+/* ── Global error handler — catch unhandled JS errors silently ── */
+window.onerror = function(msg, src, line, col, err){
+  console.error('[GlobalError]', msg, src+':'+line+':'+col, err);
+  return false;
+};
+window.addEventListener('unhandledrejection', function(e){
+  console.error('[UnhandledPromise]', e.reason);
+});
 </script>
 
 <script>
@@ -3095,8 +3386,8 @@ try{
   /* noOpLock: workaround for Telegram WebApp iframe + Web Locks deadlock */
   const noOpLock = async (name, timeout, fn) => fn();
   window.db=supabase.createClient(
-    'https://cjsuuzynpuimgndudzka.supabase.co',
-    'sb_publishable_IF73m2oD9rU7PeQp82Cskw_hS_ia_p0',
+    CONFIG.supabaseUrl,
+    CONFIG.supabaseKey,
     { auth: { lock: noOpLock } }
   );
   /* onAuthStateChange — найнадійніший спосіб зловити вхід/вихід */
@@ -3169,7 +3460,7 @@ async function verifyOtp(){
   const inputs=document.querySelectorAll('.a-otp');
   const token=[...inputs].map(i=>i.value).join('');
   if(token.length<6){T('Введіть 6-значний код');return;}
-  const email=window._pendingEmail||'';
+  const email=APP.pendingEmail||'';
   if(!email){T('Електронна адреса не знайдена. Спробуйте ще раз.');authGo('auth-login');return;}
   T('Перевірка коду...');
   try{
@@ -3191,7 +3482,7 @@ function otpResend(){startOtpTimer();T('Код відправлено повто
 
 
 async function resendConfirmEmail(){
-  const email=window._pendingEmail||'';
+  const email=APP.pendingEmail||'';
   if(!email){authGo('auth-reg-2');return;}
   const{error}=await window.db.auth.resend({type:'signup',email});
   if(error){T('Помилка: '+error.message);}
@@ -3221,14 +3512,14 @@ async function loadBases(){
   try{
     const res = await withRetry(()=>window.db
       .from('databases')
-      .select('id,name,is_public,created_at')
+      .select('id,name,created_at')
       .eq('owner_id', window.currentUser.id)
       .order('created_at',{ascending:false})
       .range(0,49), 2, 'loadBases');
     data = res.data; error = res.error;
-  }catch(e){ renderBasesEmpty(list); return; }
+  }catch(e){ renderBasesError(list); return; }
 
-  if(error){ handleDbError(error,'loadBases'); renderBasesEmpty(list); return; }
+  if(error){ handleDbError(error,'loadBases'); renderBasesError(list); return; }
   if(!data){ renderBasesEmpty(list); return; }
   if(data.length===0){ renderBasesEmpty(list); return; }
 
@@ -3276,11 +3567,17 @@ function renderBasesEmpty(list){
     +'<div style="font-size:14px;color:var(--t3);margin-top:10px">Ще немає баз.<br>Створіть першу нижче.</div>'
     +'</div>';
 }
+function renderBasesError(list){
+  list.innerHTML='<div style="padding:24px;text-align:center">'
+    +'<div style="color:var(--red);font-size:13px;margin-bottom:12px">❌ Помилка завантаження баз</div>'
+    +'<button onclick="loadBases()" style="background:var(--pg);color:#fff;border:none;padding:10px 20px;border-radius:var(--rSM);font-family:var(--f);font-size:14px;cursor:pointer;min-height:44px">Спробувати ще</button>'
+    +'</div>';
+}
 
 /* ── LOAD OBJECTS ── */
 async function loadObjects(dbId){
   if(!window.db||!window.currentUser) return;
-  window._currentBaseId=dbId;
+  APP.currentBaseId=dbId;
   const list=document.getElementById('obj-list');
   if(!list) return;
   list.innerHTML='<div style="padding:0 var(--gap)">'+skeletonObjects(4)+'</div>';
@@ -3289,7 +3586,7 @@ async function loadObjects(dbId){
   try{
     const res = await withRetry(()=>window.db
       .from('objects')
-      .select('id,name,address,area_total,rent_price,rate_per_m2,status,type,utilities')
+      .select('id,name,address,area_total,rent_price,rate_per_m2,status,type')
       .eq('db_id',dbId)
       .eq('owner_id',window.currentUser.id)
       .order('created_at',{ascending:false})
@@ -3298,7 +3595,7 @@ async function loadObjects(dbId){
   }catch(e){ data=null; error={message:e.message}; }
 
   if(error){ handleDbError(error,'loadObjects');
-    list.innerHTML='<div style="padding:24px;text-align:center;color:var(--red);font-size:13px">❌ Помилка завантаження. Спробуйте ще раз.</div>';
+    list.innerHTML='<div style="padding:24px;text-align:center"><div style="color:var(--red);font-size:13px;margin-bottom:12px">❌ Помилка завантаження</div><button onclick="loadObjects(\''+escHtml(dbId)+'\')" style="background:var(--pg);color:#fff;border:none;padding:10px 20px;border-radius:var(--rSM);font-family:var(--f);font-size:14px;cursor:pointer">Спробувати ще</button></div>';
     return;
   }
   if(!data||data.length===0){
@@ -3332,12 +3629,20 @@ async function loadObjects(dbId){
       .filter(k=>u[k])
       .map(k=>'<span class="ut '+utCls[k]+'"><svg><use href="#'+utIcons[k]+'"/></svg>'+utLbls[k]+'</span>')
       .join('');
-    html+='<div class="oc gc" data-id="'+escHtml(obj.id||'')+'" data-status="'+escHtml(obj.status||'')+'" data-type="'+escHtml(obj.type||'')+'" onclick="pC(this)">'
+    const sid=escHtml(obj.id||'');
+    const sname=escHtml(obj.name||'—');
+    html+='<div class="oc gc" data-id="'+sid+'" data-status="'+escHtml(obj.status||'')+'" data-type="'+escHtml(obj.type||'')+'" onclick="pC(this)">'
       +'<div class="oc-top">'
       +'<div class="oc-ic '+col+'"><svg><use href="#'+ico+'"/></svg></div>'
-      +'<div class="oc-mt"><div class="oc-nm">'+escHtml(obj.name||'—')+'</div>'
+      +'<div class="oc-mt"><div class="oc-nm">'+sname+'</div>'
       +'<div class="oc-ad"><svg><use href="#i-pin"/></svg>'+escHtml(obj.address||'—')+'</div></div>'
-      +'<div class="oc-st '+sc+'">'+st+'</div>'
+      +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0">'
+      +'<div class="oc-st '+sc+'" style="cursor:pointer" onclick="event.stopPropagation();cycleStatus(this,\''+sid+'\')" title="Змінити статус">'+st+'</div>'
+      +'<div style="display:flex;gap:5px;margin-top:2px">'
+      +'<button class="oc-share-btn" onclick="shareObject(event,\''+sid+'\')" title="Поділитись"><svg><use href="#i-share"/></svg></button>'
+      +'<button class="oc-del-btn" onclick="askDeleteObject(event,\''+sid+'\',\''+sname+'\')" title="Видалити"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>'
+      +'</div>'
+      +'</div>'
       +'</div>'
       +'<div class="fin">'
       +'<div class="fn"><div class="fn-l">Площа</div><div class="fn-v">'+area+'</div></div>'
@@ -3480,25 +3785,13 @@ function handleDbError(error, context){
     showNetworkError(); return;
   }
   if(msg.includes('row-level security') || msg.includes('RLS') || msg.includes('permission')){
-    console.warn('[RLS]', context, msg); return; /* тихо */
+    console.warn('[RLS]', context, msg); T('Немає доступу. Спробуйте ще раз'); return;
   }
   if(msg.includes('duplicate') || msg.includes('unique')){
     return; /* дублікат — ігноруємо */
   }
   /* Загальна помилка */
   T('Помилка: ' + msg.slice(0,50));
-}
-
-/* 5. Safe Supabase wrapper — замість try/catch скрізь */
-async function dbQuery(fn, context, fallback){
-  try{
-    const result = await fn();
-    if(result?.error) handleDbError(result.error, context || 'query');
-    return result;
-  }catch(e){
-    handleDbError(e, context || 'query');
-    return fallback !== undefined ? {data: fallback, error: e} : {data: null, error: e};
-  }
 }
 
 
@@ -3534,6 +3827,195 @@ async function dbQuery(fn, context, fallback){
   window.visualViewport.addEventListener('resize', onVpChange);
 })();
 
+
+/* ════════════════════════════════════════════════════
+   PHOTO UPLOAD
+════════════════════════════════════════════════════ */
+const STORAGE_BUCKET = 'photos'; /* Supabase Storage bucket name */
+APP.pendingPhotos = []; /* {file, dataUrl} */
+
+function triggerPhotoInput(){
+  const cur = APP.pendingPhotos.length;
+  if(cur >= 10){T('Максимум 10 фото');return;}
+  document.getElementById('obj-photo-input')?.click();
+}
+
+function handlePhotoSelect(input){
+  const files = Array.from(input.files||[]);
+  if(!files.length) return;
+  const remaining = 10 - APP.pendingPhotos.length;
+  const toAdd = files.slice(0, remaining);
+  if(files.length > remaining) T('Додано '+toAdd.length+' з '+files.length+' (ліміт 10)');
+
+  let loaded = 0;
+  toAdd.forEach(function(file){
+    if(!file.type.startsWith('image/')){T('Тільки зображення (JPG, PNG, HEIC)');return;}
+    const reader = new FileReader();
+    reader.onload = function(e){
+      APP.pendingPhotos.push({file:file, dataUrl:e.target.result});
+      loaded++;
+      if(loaded === toAdd.length) renderPhotoPreviews();
+    };
+    reader.readAsDataURL(file);
+  });
+  /* Reset input so same file can be re-selected */
+  input.value = '';
+}
+
+function renderPhotoPreviews(){
+  const grid = document.getElementById('photo-preview-grid');
+  if(!grid) return;
+  grid.innerHTML = APP.pendingPhotos.map(function(p, i){
+    return '<div class="photo-thumb">'
+      +'<img src="'+p.dataUrl+'" alt="фото '+(i+1)+'">'
+      +'<button class="photo-thumb-del" onclick="removePhoto('+i+')" aria-label="Видалити фото">×</button>'
+      +'</div>';
+  }).join('');
+  /* Update zone label */
+  const lbl = document.getElementById('photo-zone-lbl');
+  if(lbl) lbl.textContent = APP.pendingPhotos.length
+    ? APP.pendingPhotos.length+' фото вибрано — натисніть щоб додати ще'
+    : 'Додати фотографії';
+}
+
+function removePhoto(idx){
+  APP.pendingPhotos.splice(idx, 1);
+  renderPhotoPreviews();
+  window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('light');
+}
+
+async function uploadPhotos(objectId){
+  if(!APP.pendingPhotos.length || !window.db) return [];
+  const urls = [];
+  const grid = document.getElementById('photo-preview-grid');
+  const thumbs = grid ? grid.querySelectorAll('.photo-thumb') : [];
+
+  for(let i = 0; i < APP.pendingPhotos.length; i++){
+    const p = APP.pendingPhotos[i];
+    /* Show spinner on thumbnail */
+    if(thumbs[i]){
+      const sp = document.createElement('div');
+      sp.className = 'photo-upload-progress';
+      sp.innerHTML = '<div class="spin"></div>';
+      thumbs[i].appendChild(sp);
+    }
+    try{
+      const ext = p.file.name.split('.').pop().toLowerCase() || 'jpg';
+      const path = 'objects/'+objectId+'/'+Date.now()+'_'+i+'.'+ext;
+      const {error} = await window.db.storage.from(STORAGE_BUCKET).upload(path, p.file, {
+        cacheControl: '3600', upsert: true, contentType: p.file.type
+      });
+      if(!error){
+        const {data:urlData} = window.db.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+        if(urlData?.publicUrl) urls.push(urlData.publicUrl);
+      } else {
+        console.warn('[Photo upload error]', error.message);
+      }
+    }catch(e){ console.warn('[Photo upload]', e.message); }
+  }
+  return urls;
+}
+
+/* ════════════════════════════════════════════════════
+   SHARE OBJECT
+════════════════════════════════════════════════════ */
+const TYPE_EMOJI = {
+  apartment:'🏠', house:'🏡', commercial:'🏪', office:'🏢',
+  business_center:'🏙', shopping_center:'🏬', warehouse:'📦',
+  hotel:'🏨', parking:'🅿️'
+};
+const STATUS_UA = {free:'Вільний ✅', rented:'В оренді 🔑', reserved:'Резерв ⏳'};
+
+function shareObject(e, id){
+  e.stopPropagation();
+  const card = document.querySelector('.oc[data-id="'+id+'"]');
+  if(!card){ T('Помилка: картка не знайдена'); return; }
+
+  const name    = card.querySelector('.oc-nm')?.textContent?.trim() || '—';
+  const addr    = card.querySelector('.oc-ad')?.textContent?.trim() || '—';
+  const status  = card.dataset.status || 'free';
+  const type    = card.dataset.type || 'apartment';
+  const fnVals  = card.querySelectorAll('.fn-v');
+  const area    = fnVals[0]?.textContent?.trim() || '—';
+  const rate    = fnVals[1]?.textContent?.trim() || '—';
+  const rent    = fnVals[2]?.textContent?.trim() || '—';
+  const utags   = Array.from(card.querySelectorAll('.ut')).map(function(u){return u.textContent.trim();}).join(', ') || '—';
+
+  const emoji = TYPE_EMOJI[type] || '🏠';
+  const stLbl = STATUS_UA[status] || '—';
+
+  const baseName = APP.currentBaseName ? ' · '+APP.currentBaseName : '';
+  APP._shareText =
+    emoji+' '+name+baseName+'\n'
+    +'📍 '+addr+'\n'
+    +'📊 '+stLbl+'\n\n'
+    +'📐 Площа: '+area+'\n'
+    +'💰 Ставка: '+rate+'\n'
+    +'💳 Оренда: '+rent+'\n'
+    +'💡 Комунальні: '+utags+'\n\n'
+    +'📱 Prostir — платформа управління нерухомістю';
+
+  const preview = document.getElementById('share-preview-text');
+  if(preview) preview.textContent = APP._shareText;
+
+  const ov = document.getElementById('share-ov');
+  if(ov){ ov.classList.add('open'); window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('light'); }
+}
+
+function closeShareSheet(){
+  document.getElementById('share-ov')?.classList.remove('open');
+}
+
+async function copyShareText(){
+  const text = APP._shareText || '';
+  try{
+    await navigator.clipboard.writeText(text);
+    T('✅ Скопійовано в буфер обміну');
+    closeShareSheet();
+  }catch(e){
+    /* Fallback: execCommand */
+    const ta = document.createElement('textarea');
+    ta.value = text;ta.style.position='fixed';ta.style.opacity='0';
+    document.body.appendChild(ta);ta.focus();ta.select();
+    try{ document.execCommand('copy');T('✅ Скопійовано');closeShareSheet(); }catch(_){ T('Не вдалось скопіювати'); }
+    document.body.removeChild(ta);
+  }
+  window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success');
+}
+
+function tgShare(){
+  const text = encodeURIComponent(APP._shareText || '');
+  const url = 'https://t.me/share/url?url=%20&text='+text;
+  /* Telegram Mini App: open in browser/share */
+  if(window.Telegram?.WebApp?.openLink){
+    window.Telegram.WebApp.openLink(url);
+  } else {
+    window.open(url, '_blank');
+  }
+  closeShareSheet();
+}
+
 </script>
+
+<!-- █ SHARE SHEET █ -->
+<div class="sh-ov" id="share-ov" onclick="if(event.target===this)closeShareSheet()">
+  <div class="sh-bx">
+    <div class="sh-hnd"></div>
+    <div class="sh-tit">Поділитись об'єктом</div>
+    <div class="share-preview" id="share-preview-text"></div>
+    <div class="sh-bts" style="margin-top:14px">
+      <button class="sh-s" onclick="copyShareText()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        Скопіювати
+      </button>
+      <button class="sh-p" onclick="tgShare()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21.198 2.433a2.242 2.242 0 0 0-1.022.215l-16.8 6.498c-1.28.504-1.261 1.698-.233 2.003l4.157 1.3 1.594 5.01c.206.579.752.778 1.21.432l2.36-1.896 4.58 3.374c.782.455 1.407.219 1.61-.734l2.875-13.562c.26-1.196-.27-1.985-1.33-2.64z" fill="currentColor"/></svg>
+        Telegram
+      </button>
+    </div>
+    <button class="share-close-btn" onclick="closeShareSheet()">Закрити</button>
+  </div>
+</div>
+
 </body>
 </html>
