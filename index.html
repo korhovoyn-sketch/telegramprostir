@@ -1664,6 +1664,21 @@ select.fr-in,select.add-row-in{
 /* fch on-state shadow pop */
 .fch.on{box-shadow:0 2px 10px rgba(168,85,247,.28)}
 
+/* Object card delete button */
+.oc-del-btn{
+  display:flex;align-items:center;justify-content:center;
+  width:26px;height:26px;border-radius:8px;
+  background:rgba(255,69,58,.08);border:0.5px solid rgba(255,69,58,.2);
+  color:var(--red);cursor:pointer;
+  transition:background var(--t-fast),transform var(--t-fast);
+  flex-shrink:0;
+}
+.oc-del-btn:active{background:rgba(255,69,58,.22);transform:scale(.88);}
+
+/* Status badge tap hint */
+.oc-st[style*="cursor"]{transition:transform var(--t-fast),opacity var(--t-fast);}
+.oc-st[style*="cursor"]:active{transform:scale(.92);opacity:.7;}
+
 </style>
 </head>
 <body>
@@ -2065,21 +2080,8 @@ select.fr-in,select.add-row-in{
     <div class="cov-body">
       <div class="fg gl" style="margin-top:4px">
         <div class="fr" style="border-top:none">
-          <label class="fr-lb">Назва</label>
+          <label class="fr-lb">Назва бази</label>
           <input class="fr-in" id="cb-name" type="text" placeholder="Наприклад: Київ Центр" autocomplete="off">
-        </div>
-        <div class="fr">
-          <label class="fr-lb">Опис</label>
-          <input class="fr-in" id="cb-desc" type="text" placeholder="Необов'язково">
-        </div>
-      </div>
-      <div class="fg gl">
-        <div class="fr" style="border-top:none">
-          <label class="fr-lb">Видимість</label>
-          <select class="fr-in" id="cb-vis">
-            <option value="private">🔒 Приватна</option>
-            <option value="public">🌐 Публічна (з посиланням)</option>
-          </select>
         </div>
       </div>
       <button class="btn-full" onclick="confirmCreateBase()" style="margin-top:8px">Створити базу</button>
@@ -2781,6 +2783,51 @@ function pC(el){
   el.style.transform='scale(.97)';el.style.transition='transform .12s';
   setTimeout(()=>{el.style.transform='';},140);
 }
+
+/* ── DELETE OBJECT ── */
+function askDeleteObject(e, id, name){
+  e.stopPropagation();
+  const tg=window.Telegram?.WebApp;
+  if(tg&&tg.showConfirm){
+    tg.showConfirm('Видалити «'+name+'»?\nЦю дію не можна скасувати.',function(ok){
+      if(ok)doDeleteObject(id,name);
+    });
+  } else if(window.confirm('Видалити «'+name+'»?')){
+    doDeleteObject(id,name);
+  }
+}
+async function cycleStatus(el, id){
+  if(!window.db||!window.currentUser){T('Немає підключення');return;}
+  const cycle={free:'rented',rented:'reserved',reserved:'free'};
+  const labels={free:'Вільний',rented:'В оренді',reserved:'Резерв'};
+  const cls={free:'s-free',rented:'s-ok',reserved:'s-warn'};
+  const card=el.closest('.oc');
+  const cur=card?.dataset.status||'free';
+  const next=cycle[cur]||'free';
+  try{
+    const{error}=await window.db.from('objects').update({status:next}).eq('id',id).eq('owner_id',window.currentUser.id);
+    if(error){handleDbError(error,'cycleStatus');return;}
+    if(card)card.dataset.status=next;
+    el.textContent=labels[next];
+    el.className='oc-st '+cls[next];
+    el.style.cursor='pointer';
+    window.Telegram?.WebApp?.HapticFeedback?.selectionChanged?.();
+    T('Статус: '+labels[next]);
+  }catch(e){T('Помилка: '+(e?.message||''));}
+}
+async function doDeleteObject(id, name){
+  if(!window.db||!window.currentUser){T('Немає підключення');return;}
+  try{
+    const{error}=await window.db.from('objects').delete()
+      .eq('id',id).eq('owner_id',window.currentUser.id);
+    if(error){handleDbError(error,'doDeleteObject');return;}
+    T('🗑 «'+escHtml(name)+'» видалено');
+    /* Remove card from DOM immediately (optimistic) */
+    const card=document.querySelector('.oc[data-id="'+id+'"]');
+    if(card){card.style.transition='opacity .25s,transform .25s';card.style.opacity='0';card.style.transform='scale(.9)';setTimeout(()=>{card.remove();updateBaseHeader(APP.currentBaseId,document.querySelectorAll('#obj-list .oc').length);},260);}
+    window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success');
+  }catch(e){T('Помилка: '+(e?.message||''));}
+}
 function pRow(el){
   el.style.transform='scale(.98)';el.style.background='rgba(255,255,255,.06)';
   setTimeout(()=>{el.style.transform='';el.style.background='';},180);
@@ -2920,8 +2967,12 @@ async function addO(){
       if(btn){btn.textContent='Додати обʼєкт';btn.disabled=false;}
       if(res.error){handleDbError(res.error,'addO');showAddErr('Помилка: '+res.error.message);_submitting=false;return;}
       T('✅ «'+escHtml(name)+'» додано до бази!');
-      _submitting=false;clearAddForm();go('bases');
-      setTimeout(function(){if(typeof loadBases==='function')loadBases();},300);
+      _submitting=false;
+      /* Go back to the objects list for that base */
+      const baseSelect=document.getElementById('f-base');
+      const baseName=baseSelect?.options[baseSelect.selectedIndex]?.text||'';
+      clearAddForm();
+      openBase(baseName,dbId);
     }catch(err){
       if(btn){btn.textContent='Додати обʼєкт';btn.disabled=false;}
       _submitting=false;showAddErr('Помилка: '+(err&&err.message?err.message:''));
@@ -2933,7 +2984,10 @@ async function addO(){
     }
     if(btn){btn.textContent='Додати обʼєкт';btn.disabled=false;}
     T('⬇️ Збережено офлайн');
-    _submitting=false;clearAddForm();go('bases');
+    _submitting=false;
+    const baseSelectOff=document.getElementById('f-base');
+    const baseNameOff=baseSelectOff?.options[baseSelectOff.selectedIndex]?.text||'';
+    clearAddForm();openBase(baseNameOff,dbId);
   }
 }
 /* ── CONFIRM CREATE BASE ── */
@@ -3501,12 +3555,17 @@ async function loadObjects(dbId){
       .filter(k=>u[k])
       .map(k=>'<span class="ut '+utCls[k]+'"><svg><use href="#'+utIcons[k]+'"/></svg>'+utLbls[k]+'</span>')
       .join('');
-    html+='<div class="oc gc" data-id="'+escHtml(obj.id||'')+'" data-status="'+escHtml(obj.status||'')+'" data-type="'+escHtml(obj.type||'')+'" onclick="pC(this)">'
+    const sid=escHtml(obj.id||'');
+    const sname=escHtml(obj.name||'—');
+    html+='<div class="oc gc" data-id="'+sid+'" data-status="'+escHtml(obj.status||'')+'" data-type="'+escHtml(obj.type||'')+'" onclick="pC(this)">'
       +'<div class="oc-top">'
       +'<div class="oc-ic '+col+'"><svg><use href="#'+ico+'"/></svg></div>'
-      +'<div class="oc-mt"><div class="oc-nm">'+escHtml(obj.name||'—')+'</div>'
+      +'<div class="oc-mt"><div class="oc-nm">'+sname+'</div>'
       +'<div class="oc-ad"><svg><use href="#i-pin"/></svg>'+escHtml(obj.address||'—')+'</div></div>'
-      +'<div class="oc-st '+sc+'">'+st+'</div>'
+      +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">'
+      +'<div class="oc-st '+sc+'" style="cursor:pointer" onclick="event.stopPropagation();cycleStatus(this,\''+sid+'\')" title="Змінити статус">'+st+'</div>'
+      +'<button class="oc-del-btn" onclick="askDeleteObject(event,\''+sid+'\',\''+sname+'\')" title="Видалити"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>'
+      +'</div>'
       +'</div>'
       +'<div class="fin">'
       +'<div class="fn"><div class="fn-l">Площа</div><div class="fn-v">'+area+'</div></div>'
