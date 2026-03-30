@@ -51,10 +51,11 @@
   --pGl:0 0 22px rgba(168,85,247,.32);
 
   /* system */
-  --red:  #ff453a;
-  --blue: #0a84ff;
-  --orn:  #ff9f0a;
-  --teal: #40c8e0;
+  --red:   #ff453a;
+  --blue:  #0a84ff;
+  --orn:   #ff9f0a;
+  --teal:  #40c8e0;
+  --green: #30d158;
 
   --rXL:22px;--rLG:18px;--rMD:14px;--rSM:10px;--rXS:8px;
   --gap:16px;
@@ -455,7 +456,7 @@ body{padding-bottom:calc(58px + env(safe-area-inset-bottom))}
 .u-e{background:rgba(192,132,252,.11);color:var(--p1)}.u-e svg{stroke:var(--p1)}
 .u-n{background:rgba(255,255,255,.04);color:var(--t4);font-style:italic}
 .oc-acts{display:flex;gap:6px;flex-shrink:0}
-.ica{width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.10);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .14s cubic-bezier(.34,1.56,.64,1),background .12s}
+.ica{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.10);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .14s cubic-bezier(.34,1.56,.64,1),background .12s;flex-shrink:0}
 .ica:active{transform:scale(.8);background:rgba(255,255,255,.14)}
 .ica svg{width:14px;height:14px;fill:none;stroke:var(--t2);stroke-width:1.9;stroke-linecap:round}
 
@@ -628,7 +629,7 @@ textarea.fr-in{resize:none;height:68px;text-align:left;padding-top:2px}
   white-space:nowrap;
   box-shadow:0 4px 24px rgba(0,0,0,.5),0 0 0 1px rgba(192,132,252,.14);
   opacity:0;transition:transform .4s cubic-bezier(.34,1.56,.64,1),opacity .28s ease;
-  pointer-events:none;position:relative;overflow:hidden;
+  pointer-events:none;overflow:hidden;
 }
 .tst::before{content:'';position:absolute;inset:0;border-radius:inherit;background:linear-gradient(180deg,rgba(255,255,255,.07) 0%,transparent 45%);pointer-events:none}
 .tst.show{transform:translateX(-50%) translateY(0) scale(1);opacity:1}
@@ -1008,7 +1009,7 @@ select.fr-in{padding:11px 0;-webkit-appearance:none;appearance:none;color:var(--
   border-bottom:1px solid rgba(255,255,255,.06);
 }
 .base-back{
-  width:36px;height:36px;border-radius:10px;flex-shrink:0;
+  width:44px;height:44px;border-radius:12px;flex-shrink:0;
   background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.09);
   display:flex;align-items:center;justify-content:center;
   cursor:pointer;transition:background .15s,transform .2s cubic-bezier(.34,1.56,.64,1);
@@ -1019,7 +1020,7 @@ select.fr-in{padding:11px 0;-webkit-appearance:none;appearance:none;color:var(--
 .base-hdr-nm{font-size:16px;font-weight:700;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .base-hdr-cnt{font-size:11px;color:var(--t3);margin-top:1px}
 .base-add-btn{
-  width:36px;height:36px;border-radius:10px;flex-shrink:0;
+  width:44px;height:44px;border-radius:12px;flex-shrink:0;
   background:var(--pBg);border:1px solid var(--pBd);
   display:flex;align-items:center;justify-content:center;
   cursor:pointer;transition:background .15s,transform .2s cubic-bezier(.34,1.56,.64,1);
@@ -1460,16 +1461,19 @@ select.add-row-in.lifted{color:var(--t1)} select.add-row-in{padding-top:16px}
 /* spinner */
 .spin{width:22px;height:22px;border:2px solid rgba(255,255,255,.1);border-top-color:var(--p1);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto}
 @keyframes spin{to{transform:rotate(360deg)}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+@keyframes pop{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
 
 :root{--tg-bg:var(--tg-theme-bg-color,#0c0c14);--tg-text:var(--tg-theme-text-color,#fff);--tg-hint:var(--tg-theme-hint-color,rgba(255,255,255,.45));--tg-btn:var(--tg-theme-button-color,#a855f7);--tg-btn-txt:var(--tg-theme-button-text-color,#fff);--tg-sec:var(--tg-theme-secondary_bg_color,#1c1c1e);}
 
-/* ── KEYBOARD SAFE: Add page actions stick to bottom ── */
+/* ── KEYBOARD SAFE: Add page actions sit above tab bar ── */
 .add-actions{
-  position:sticky;bottom:0;
+  position:sticky;bottom:calc(56px + env(safe-area-inset-bottom));
   background:rgba(12,12,20,.92);
   backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
-  padding:12px var(--gap) max(20px,env(safe-area-inset-bottom));
+  padding:12px var(--gap) 12px;
   border-top:1px solid var(--sep);z-index:10;
+  margin-bottom:0;
 }
 
 /* ── OBJECT CARD press state ── */
@@ -1491,7 +1495,7 @@ select.add-row-in.lifted{color:var(--t1)} select.add-row-in{padding-top:16px}
 
 /* ── FOCUS visible (keyboard nav) ── */
 :focus-visible{outline:2px solid var(--p1);outline-offset:2px;border-radius:4px}
-input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none}
+input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--p1);outline-offset:1px;border-radius:var(--rSM)}
 
 /* ── SMALL PHONE (360px-) ── */
 @media(max-width:360px){
@@ -1617,6 +1621,48 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none}
   overflow-y:auto;
 }
 .auth-wrap.hidden{display:none !important;visibility:hidden;pointer-events:none;}
+
+/* ══════════════════════════════════════════════
+   UI/UX POLISH — professional audit fixes
+══════════════════════════════════════════════ */
+
+/* Auth step indicator — smooth transition */
+.a-step{transition:width .35s cubic-bezier(.4,0,.2,1),background .3s ease}
+
+/* Select chevron — custom dropdown arrow */
+select.fr-in,select.add-row-in{
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,.35)' stroke-width='2.5' stroke-linecap='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;
+  background-position:right 0 center;
+  padding-right:18px;
+  cursor:pointer;
+}
+
+/* Filter chips — enforce 44px touch target (WCAG 2.5.8) */
+.fch{min-height:44px !important;display:inline-flex !important;align-items:center !important;}
+
+/* Skeleton — inner text lines need opaque base so they're visible on shimmer card */
+.skel-obj .skel-text{
+  background:linear-gradient(90deg,rgba(255,255,255,.08) 25%,rgba(255,255,255,.18) 50%,rgba(255,255,255,.08) 75%);
+  background-size:200% 100%;
+  animation:shimmer 1.6s infinite;
+}
+
+/* Object card cursor */
+.oc{cursor:pointer;transition:transform var(--t-fast),opacity var(--t-fast)}
+
+/* cov-close minimum tap area */
+.cov-close{min-width:44px;min-height:44px;display:flex;align-items:center;justify-content:center}
+
+/* Tab icon hover glow (desktop/web) */
+@media(hover:hover){
+  .ti:hover .ti-ic{background:rgba(255,255,255,.07)}
+  .ti.on:hover .ti-ic{background:rgba(168,85,247,.25)}
+  .hb:hover{background:rgba(255,255,255,.09);border-color:rgba(255,255,255,.14)}
+}
+
+/* fch on-state shadow pop */
+.fch.on{box-shadow:0 2px 10px rgba(168,85,247,.28)}
 
 </style>
 </head>
@@ -2042,11 +2088,11 @@ input:focus-visible,textarea:focus-visible,select:focus-visible{outline:none}
 </div>
 
 <!-- █ DELETE BASE CONFIRM █ -->
-<div class="cov" id="cov-del-base" style="display:none">
+<div class="cov" id="cov-del-base" style="display:none" role="dialog" aria-modal="true" aria-labelledby="cov-del-base-title">
   <div class="cov-sheet">
     <div class="cov-drag"></div>
     <div class="cov-hdr">
-      <div class="cov-title" style="color:var(--red)">Видалити базу?</div>
+      <div class="cov-title" id="cov-del-base-title" style="color:var(--red)">Видалити базу?</div>
     </div>
     <div class="cov-body">
       <div class="hint hint-orn" style="margin:0 0 12px">
