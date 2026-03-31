@@ -2143,6 +2143,7 @@ select.fr-in,select.add-row-in{
           <input class="fr-in" id="cb-name" type="text" placeholder="Наприклад: Київ Центр" autocomplete="off">
         </div>
       </div>
+      <div id="cb-err" style="display:none;color:var(--red);font-size:13px;margin-top:8px;text-align:center;padding:6px 10px;background:rgba(255,69,58,.1);border-radius:var(--rSM)"></div>
       <button class="btn-full" onclick="confirmCreateBase()" style="margin-top:8px">Створити базу</button>
     </div>
   </div>
@@ -2420,7 +2421,11 @@ select.fr-in,select.add-row-in{
 
   <div class="ph gl">
     <div class="pav"><svg><use href="#i-user"/></svg></div>
-    <div><div class="p-nm" id="p-name">Ваш профіль</div><div class="p-rl" id="p-role">Налаштуйте профіль</div><div class="p-vf"><svg><use href="#i-verify"/></svg>Верифікований</div></div>
+    <div style="min-width:0;flex:1">
+      <div class="p-nm" id="p-name">Завантаження...</div>
+      <div class="p-rl" id="p-role" style="margin-top:2px"></div>
+      <div id="p-email" style="font-size:11px;color:var(--t3);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+    </div>
   </div>
 
   <div class="pl-row gl" onclick="T('Ваш план PRO')">
@@ -2714,8 +2719,8 @@ function enterApp(){
   if(typeof resetDashboard==='function')resetDashboard();
   const tbar=document.querySelector('.tbar');
   if(tbar){tbar.style.display='flex';tbar.style.visibility='visible';}
+  /* loadBases/Dashboard immediately; loadProfile after short delay so TG upsert can settle */
   setTimeout(()=>{
-    if(typeof loadProfile==='function')loadProfile();
     if(typeof loadBases==='function')loadBases();
     if(typeof loadDashboard==='function')loadDashboard();
     if(typeof handleDeepLink==='function')handleDeepLink();
@@ -2723,6 +2728,8 @@ function enterApp(){
     if(APP.pendingBaseOpen){const bid=APP.pendingBaseOpen;APP.pendingBaseOpen=null;setTimeout(()=>openBase('',bid),600);}
     if(typeof offlineQueueFlush==='function')offlineQueueFlush();
   },100);
+  /* Profile loads 800ms later to let upsert settle for Telegram anonymous auth */
+  setTimeout(()=>{ if(typeof loadProfile==='function')loadProfile(); },800);
 }
 
 
@@ -2761,9 +2768,8 @@ function closeCreateBase(){
   _hideMainButton();
   setTimeout(()=>{
     m.style.display='none';
-    const n=document.getElementById('cb-name');if(n)n.value='';
-    const d=document.getElementById('cb-desc');if(d)d.value='';
-    const inp=document.getElementById('cb-name');if(inp)inp.style.borderColor='';
+    const n=document.getElementById('cb-name');if(n){n.value='';n.style.borderColor='';}
+    const e=document.getElementById('cb-err');if(e)e.style.display='none';
   },350);
 }
 function closeCov(id){
@@ -3067,42 +3073,44 @@ async function addO(){
 /* ── CONFIRM CREATE BASE ── */
 async function confirmCreateBase(){
   const name=(document.getElementById('cb-name')?.value||'').trim();
-  const desc=(document.getElementById('cb-desc')?.value||'').trim();
-  const vis=document.getElementById('cb-vis')?.value||'private';
+  const errEl=document.getElementById('cb-err');
+  function showCbErr(msg){if(errEl){errEl.textContent=msg;errEl.style.display='block';}else{T(msg);}}
+  function hideCbErr(){if(errEl)errEl.style.display='none';}
   if(!name){
     const inp=document.getElementById('cb-name');
     if(inp){inp.style.borderColor='var(--red)';setTimeout(()=>inp.style.borderColor='',1500);inp.focus();}
-    T('Введіть назву бази');return;
+    showCbErr('Введіть назву бази');return;
   }
+  hideCbErr();
   const btn=document.querySelector('#cov-base .btn-full');
   if(btn){btn.textContent='Зберігаємо...';btn.disabled=true;}
-  if(window.db&&window.currentUser){
-    /* Optimistic UI: show row immediately */
-    const tempId='__temp_'+Date.now();
-    addBaseRow({id:tempId, name, created_at:new Date().toISOString()});
-    closeCreateBase();
-    T('✅ База «'+name+'» створена!');
-    try{
-      const {data,error}=await window.db.from('databases').insert([{
-        owner_id:window.currentUser.id,name
-      }]).select('id,name,created_at').single();
-      if(btn){btn.textContent='Створити базу';btn.disabled=false;}
-      if(error){
-        /* Rollback optimistic row */
-        document.querySelector('.brow[data-id="'+tempId+'"]')?.remove();
-        handleDbError(error,'confirmCreateBase');return;
-      }
-      /* Replace temp row with real id */
-      const tempRow=document.querySelector('.brow[data-id="'+tempId+'"]');
-      if(tempRow&&data){tempRow.dataset.id=data.id;tempRow.dataset.name=escHtml(data.name||name);}
-      setTimeout(()=>{if(typeof loadBases==='function')loadBases();},400);
-    }catch(e){
-      if(btn){btn.textContent='Створити базу';btn.disabled=false;}
-      T('Помилка: '+(e?.message||''));
-    }
-  } else {
+  if(!window.db||!window.currentUser){
     if(btn){btn.textContent='Створити базу';btn.disabled=false;}
-    closeCreateBase();T('✅ База «'+name+'» (офлайн)');
+    closeCreateBase();
+    addBaseRow({id:'__off_'+Date.now(),name,created_at:new Date().toISOString()});
+    T('✅ База «'+escHtml(name)+'» (офлайн)');
+    return;
+  }
+  try{
+    const {data,error}=await window.db.from('databases')
+      .insert([{owner_id:window.currentUser.id,name}])
+      .select('id,name,created_at');
+    if(btn){btn.textContent='Створити базу';btn.disabled=false;}
+    if(error){
+      showCbErr('Помилка: '+error.message);
+      console.warn('[confirmCreateBase]',error);
+      return;
+    }
+    const newBase=data?.[0]||{id:'__'+Date.now(),name,created_at:new Date().toISOString()};
+    closeCreateBase();
+    addBaseRow(newBase);
+    T('✅ База «'+escHtml(name)+'» створена!');
+    /* Refresh full list to get accurate counts */
+    setTimeout(()=>{if(typeof loadBases==='function')loadBases();},600);
+  }catch(e){
+    if(btn){btn.textContent='Створити базу';btn.disabled=false;}
+    showCbErr('Помилка: '+(e?.message||'мережа'));
+    console.warn('[confirmCreateBase catch]',e);
   }
 }
 function addBaseRow(base){
@@ -3326,19 +3334,7 @@ document.addEventListener('DOMContentLoaded',()=>{
       setTimeout(() => el.scrollIntoView({behavior:'smooth', block:'center'}), 350);
     }
   });
-  /* visualViewport: push add-page content up when keyboard shows */
-  if(window.visualViewport){
-    window.visualViewport.addEventListener('resize', () => {
-      const offset = Math.max(0, window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop);
-      const addPage = document.getElementById('page-add');
-      if(addPage) addPage.style.paddingBottom = offset > 60 ? (offset + 80) + 'px' : '';
-      const covBase = document.getElementById('cov-base');
-      if(covBase && covBase.classList.contains('open')){
-        const sheet = document.getElementById('cov-base-sheet');
-        if(sheet) sheet.style.marginBottom = offset > 60 ? offset + 'px' : '';
-      }
-    });
-  }
+  /* Keyboard avoidance is handled by the visualViewport IIFE below */
 
   /* Start auth flow */
   if(typeof checkExistingSession==='function') checkExistingSession();
@@ -3431,21 +3427,32 @@ try{
 }catch(e){ console.warn('[Supabase init]', e.message); }
 
 async function checkExistingSession(){
-  /* Telegram auto-login */
   const tg = window.Telegram?.WebApp;
+  /* Telegram auto-login (anonymous) */
   if(tg?.initDataUnsafe?.user){
-    try{ await loginViaTelegram(); }catch(e){}
+    try{ await loginViaTelegram(); }catch(e){ showAuthWrap(); }
     return;
   }
-
-  /* Перевіряємо збережену сесію */
+  /* Check stored session */
   try{
-    const { data:{ session } } = await window.db.auth.getSession();
-    if(session){
-      window.currentUser = session.user;
-      enterApp();
+    if(!window.db){ showAuthWrap(); return; }
+    const { data, error } = await window.db.auth.getSession();
+    if(error || !data?.session){
+      showAuthWrap(); return;
     }
-  }catch(e){}
+    window.currentUser = data.session.user;
+    enterApp();
+  }catch(e){ showAuthWrap(); }
+}
+function showAuthWrap(){
+  const wrap = document.getElementById('auth-wrap');
+  if(wrap){
+    wrap.classList.remove('hidden');
+    wrap.style.display='';
+    wrap.style.visibility='';
+    wrap.style.pointerEvents='';
+  }
+  if(typeof authGo === 'function') authGo('auth-login');
 }
 
 function otpNext(inp,idx){
@@ -3666,32 +3673,56 @@ function updateBaseHeader(dbId,count){
 
 /* ── LOAD PROFILE ── */
 async function loadProfile(){
-  if(!window.db||!window.currentUser) return;
+  if(!window.currentUser) return;
   const user=window.currentUser;
   const meta=user.user_metadata||{};
-  const name=meta.name||meta.full_name||user.email?.split('@')[0]||'Користувач';
+  /* Telegram user info (available for anonymous TMA sessions) */
+  const tgUser=window.Telegram?.WebApp?.initDataUnsafe?.user;
+  const tgName=tgUser?(tgUser.username?('@'+tgUser.username):[(tgUser.first_name||''),(tgUser.last_name||'')].filter(Boolean).join(' '))||'':null;
+  /* Derive display name — priority: tg name > meta.name > email prefix > fallback */
+  let displayName = meta.name||meta.full_name||tgName||user.email?.split('@')[0]||'Користувач';
+  let displayRole = tgUser?'Telegram · @'+(tgUser.username||tgUser.first_name||'user'):(meta.city?'Рієлтор · '+meta.city:'Власник нерухомості');
+
   const nm=document.getElementById('p-name');
   const rl=document.getElementById('p-role');
-  if(nm) nm.textContent=name;
-  if(rl) rl.textContent=meta.city?'Рієлтор · '+meta.city:'Власник нерухомості';
+  if(nm) nm.textContent=displayName;
+  if(rl) rl.textContent=displayRole;
 
-  const {data}=await (async()=>{try{const r=await window.db.from('users').select('*').eq('id',user.id).single();return r;}catch(e){return {data:null};}})();
+  /* Load from users table — retry once to handle race with initial upsert */
+  let data=null;
+  for(let attempt=0; attempt<2; attempt++){
+    try{
+      const r=await window.db.from('users').select('*').eq('id',user.id).single();
+      if(!r.error && r.data){data=r.data;break;}
+    }catch(_){}
+    if(attempt===0) await new Promise(r=>setTimeout(r,600));
+  }
+
   if(data){
-    if(nm&&data.name) nm.textContent=data.name;
-    if(rl&&data.city) rl.textContent='Рієлтор · '+data.city;
+    if(nm && data.name) nm.textContent=data.name;
+    if(rl){
+      if(data.city) rl.textContent='Рієлтор · '+data.city;
+      else if(tgUser) rl.textContent='Telegram · @'+(tgUser.username||tgUser.first_name||'user');
+    }
     const planEl=document.getElementById('p-plan-sub');
     if(planEl) planEl.textContent=data.plan==='pro'?'PRO — активний':'Free тариф';
   }
 
+  /* Show email if available */
+  const emailEl=document.getElementById('p-email');
+  if(emailEl) emailEl.textContent=user.email||tgName||'—';
+
   let bCount=0, oCount=0;
-  try{
-    const [rb, ro] = await Promise.all([
-      window.db.from('databases').select('id',{count:'exact',head:true}).eq('owner_id',user.id),
-      window.db.from('objects').select('id',{count:'exact',head:true}).eq('owner_id',user.id)
-    ]);
-    bCount = rb.count||0;
-    oCount = ro.count||0;
-  }catch(_){}
+  if(window.db){
+    try{
+      const [rb, ro] = await Promise.all([
+        window.db.from('databases').select('id',{count:'exact',head:true}).eq('owner_id',user.id),
+        window.db.from('objects').select('id',{count:'exact',head:true}).eq('owner_id',user.id)
+      ]);
+      bCount = rb.count||0;
+      oCount = ro.count||0;
+    }catch(_){}
+  }
   const ps1=document.getElementById('p-stat-bases'); if(ps1) ps1.textContent=bCount;
   const ps2=document.getElementById('p-stat-objects'); if(ps2) ps2.textContent=oCount;
 }
@@ -3802,29 +3833,33 @@ function handleDbError(error, context){
   function onVpChange(){
     var vv = window.visualViewport;
     var kbH = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-    if(Math.abs(kbH - prevKbH) < 10) return;
+    if(Math.abs(kbH - prevKbH) < 8) return;
     prevKbH = kbH;
-    var sheet = document.querySelector('.cov-sheet');
-    if(sheet) sheet.style.paddingBottom = kbH > 80 ? (kbH + 8) + 'px' : '';
-    /* Hide tbar when keyboard opens to avoid overlap */
+    var kb = kbH > 80;
+    /* Modal sheets: translate up so form fields stay visible */
+    document.querySelectorAll('.cov.open .cov-sheet').forEach(function(sheet){
+      sheet.style.transition = 'transform 0.2s ease';
+      sheet.style.transform = kb ? 'translateY(-'+Math.min(kbH,280)+'px)' : '';
+    });
+    /* Hide tab bar when keyboard is visible */
     var tbar = document.querySelector('.tbar');
     if(tbar){
-      if(kbH > 80){ tbar.style.transform = 'translateY(100%)'; tbar.style.transition = 'transform .2s'; }
-      else { tbar.style.transform = ''; }
+      if(kb){ tbar.style.transform='translateY(100%)';tbar.style.transition='transform .2s'; }
+      else { tbar.style.transform='';tbar.style.transition='transform .2s'; }
     }
-    /* Push active page up above keyboard */
-    var activePage = document.querySelector('.page.active .pw');
-    if(activePage){
-      activePage.style.paddingBottom = kbH > 80 ? (kbH + 90) + 'px' : '';
-    }
-    if(kbH > 80){
+    /* Push active page scrollable area above keyboard */
+    var activePw = document.querySelector('.page.active .pw');
+    if(activePw) activePw.style.paddingBottom = kb ? (kbH + 90)+'px' : '';
+    /* Scroll focused input into view */
+    if(kb){
       var el = document.activeElement;
-      if(el && (el.tagName==='INPUT'||el.tagName==='TEXTAREA')){
+      if(el && (el.tagName==='INPUT'||el.tagName==='TEXTAREA'||el.tagName==='SELECT')){
         setTimeout(function(){el.scrollIntoView({behavior:'smooth',block:'center'});},80);
       }
     }
   }
   window.visualViewport.addEventListener('resize', onVpChange);
+  window.visualViewport.addEventListener('scroll', onVpChange);
 })();
 
 
