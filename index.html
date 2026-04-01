@@ -3030,6 +3030,14 @@ async function addO(){
   if(btn){btn.textContent='Зберігаємо...';btn.disabled=true;}
   if(window.db&&window.currentUser){
     try{
+      /* BUG-2: verify db_id belongs to current user before insert */
+      const{data:dbOwn,error:dbOwnErr}=await window.db.from('databases')
+        .select('id').eq('id',dbId).eq('owner_id',window.currentUser.id).maybeSingle();
+      if(dbOwnErr||!dbOwn){
+        showAddErr('Базу не знайдено або немає доступу');
+        if(btn){btn.textContent='Додати обʼєкт';btn.disabled=false;}
+        _submitting=false;return;
+      }
       const res=await window.db.from('objects').insert([{
         owner_id:window.currentUser.id,db_id:dbId,name,address:addr,
         area_total:area,rooms:rooms,floor:floor,
@@ -3240,28 +3248,35 @@ async function doLogout(){
 }
 async function loginViaTelegram(){
   const tg=window.Telegram?.WebApp;
-  if(!tg?.initDataUnsafe?.user){T('Відкрийте додаток через Telegram бота');return;}
-  const user=tg.initDataUnsafe.user;
+  /* tg.initData = raw validated string; initDataUnsafe = unverified parsed object */
+  if(!tg?.initData){T('Відкрийте додаток через Telegram бота');return;}
   const btn=document.querySelector('button[onclick="loginViaTelegram()"]')||document.querySelector('.a-soc');
   if(btn){btn.disabled=true;btn.style.opacity='.6';}
   try{
-    const res=await window.db.auth.signInAnonymously();
+    /* SEC-1: send raw initData to Edge Function for HMAC-SHA256 server-side validation */
+    const resp = await fetch(CONFIG.supabaseUrl+'/functions/v1/telegram-auth',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':CONFIG.supabaseKey},
+      body:JSON.stringify({initData:tg.initData})
+    });
     if(btn){btn.disabled=false;btn.style.opacity='';}
-    if(res.error){afError('af-le','Telegram вхід: '+res.error.message);return;}
-    const sessionUser=res.data?.user||res.data?.session?.user;
-    if(!sessionUser){afError('af-le','Не вдалось отримати сесію.');return;}
-    window.currentUser=sessionUser;
-    const tgName=user.username?('@'+user.username):[(user.first_name||''),(user.last_name||'')].filter(Boolean).join(' ')||'Telegram User';
-    /* upsert outside lock context */
-    setTimeout(async()=>{
-      try{
-        await window.db.from('users').upsert({id:sessionUser.id,name:tgName,telegram_id:String(user.id),plan:'free'},{onConflict:'id'});
-      }catch(_){}
-    },0);
+    const result = await resp.json().catch(()=>({}));
+    if(!resp.ok||result.error||!result.access_token){
+      afError('af-le','Telegram вхід: '+(result.error||'невідома помилка'));return;
+    }
+    /* Exchange tokens for a Supabase session */
+    const{data:sessData,error:sessErr}=await window.db.auth.setSession({
+      access_token:result.access_token,
+      refresh_token:result.refresh_token
+    });
+    if(sessErr||!sessData?.session){
+      afError('af-le','Помилка сесії: '+(sessErr?.message||''));return;
+    }
+    window.currentUser=sessData.session.user;
     enterApp();
   }catch(err){
     if(btn){btn.disabled=false;btn.style.opacity='';}
-    afError('af-le','Помилка: '+(err?.message||''));
+    afError('af-le','Помилка: '+(err?.message||'мережа'));
   }
 }
 async function loginWithGoogle(){
@@ -3302,20 +3317,40 @@ function handleDeepLink(){
 /* ── OFFLINE QUEUE ── */
 const _OQ='prostir_offline_queue';
 function offlineQueueAdd(type,data){
-  try{const q=JSON.parse(localStorage.getItem(_OQ)||'[]');q.push({type,data,ts:Date.now()});localStorage.setItem(_OQ,JSON.stringify(q));}catch(_){}
+  /* SEC-3: never queue without a confirmed owner — prevents cross-user contamination */
+  if(!window.currentUser?.id){console.warn('[offlineQueue] no user — skipping queue');return;}
+  try{
+    /* Always stamp owner_id at enqueue time from the authenticated session */
+    const item={type,data:{...data,owner_id:window.currentUser.id},ts:Date.now(),uid:window.currentUser.id};
+    const q=JSON.parse(localStorage.getItem(_OQ)||'[]');
+    q.push(item);
+    localStorage.setItem(_OQ,JSON.stringify(q));
+  }catch(_){}
 }
 async function offlineQueueFlush(){
+  if(!window.db||!window.currentUser)return;
+  const currentUid=window.currentUser.id;
   let q=[];try{q=JSON.parse(localStorage.getItem(_OQ)||'[]');}catch(_){}
-  if(!q.length||!window.db||!window.currentUser)return;
+  if(!q.length)return;
+  /* SEC-3: discard any items queued by a different user (different account on same device) */
+  const mine=q.filter(item=>!item.uid||item.uid===currentUid);
+  const foreign=q.filter(item=>item.uid&&item.uid!==currentUid);
+  if(foreign.length){
+    console.warn('[offlineQueue] discarding',foreign.length,'items from different user');
+    localStorage.setItem(_OQ,JSON.stringify(foreign)); /* preserve for their account */
+  }
+  if(!mine.length)return;
   const ok=[];const fail=[];
-  for(const item of q){
+  for(const item of mine){
     try{
       const tbl=item.type==='insert_object'?'objects':'databases';
       const{error}=await window.db.from(tbl).insert([item.data]);
-      if(!error)ok.push(item);else fail.push(item);
-    }catch(_){fail.push(item);}
+      if(!error)ok.push(item);else{console.warn('[offlineQueue] insert error:',error.message);fail.push(item);}
+    }catch(e){console.warn('[offlineQueue] catch:',e?.message);fail.push(item);}
   }
-  localStorage.setItem(_OQ,JSON.stringify(fail));
+  /* Keep only failed items (+ foreign items already saved above) */
+  const remaining=[...foreign,...fail];
+  localStorage.setItem(_OQ,JSON.stringify(remaining));
   if(ok.length){T('✅ Синхронізовано '+ok.length+' збережених дій');setTimeout(()=>{loadBases();loadDashboard();},500);}
 }
 
@@ -3531,7 +3566,7 @@ async function loadBases(){
   if(data.length===0){ renderBasesEmpty(list); return; }
 
   let objs = [];
-  try{ const r = await window.db.from('objects').select('db_id').eq('owner_id',window.currentUser.id); objs = r.data||[]; }catch(_){}
+  try{ const r = await window.db.from('objects').select('db_id').eq('owner_id',window.currentUser.id).range(0,999); objs = r.data||[]; }catch(_){}
   const countMap={};
   (objs||[]).forEach(o=>{ countMap[o.db_id]=(countMap[o.db_id]||0)+1; });
 
@@ -3732,7 +3767,7 @@ async function loadDashboard(){
   if(!window.db||!window.currentUser) return;
   let objs=[];
   try{
-    const r=await window.db.from('objects').select('rent_price,status,type,rate_per_m2,area_total').eq('owner_id',window.currentUser.id);
+    const r=await window.db.from('objects').select('rent_price,status,type,rate_per_m2,area_total').eq('owner_id',window.currentUser.id).range(0,499);
     objs=r.data||[];
   }catch(_){}
   if(!objs||objs.length===0) return;
@@ -3818,8 +3853,8 @@ function handleDbError(error, context){
   if(msg.includes('row-level security') || msg.includes('RLS') || msg.includes('permission')){
     console.warn('[RLS]', context, msg); T('Немає доступу. Спробуйте ще раз'); return;
   }
-  if(msg.includes('duplicate') || msg.includes('unique')){
-    return; /* дублікат — ігноруємо */
+  if(msg.includes('duplicate') || msg.includes('unique') || msg.includes('already exists')){
+    T('Такий запис вже існує'); return;
   }
   /* Загальна помилка */
   T('Помилка: ' + msg.slice(0,50));
@@ -3980,7 +4015,9 @@ function shareObject(e, id){
   const stLbl = STATUS_UA[status] || '—';
 
   const baseName = APP.currentBaseName ? ' · '+APP.currentBaseName : '';
-  APP._shareText =
+  /* BUG-6: store text on the DOM element, not in a global variable, to avoid
+     race conditions if shareObject() is called twice before copyShareText() runs */
+  const shareText =
     emoji+' '+name+baseName+'\n'
     +'📍 '+addr+'\n'
     +'📊 '+stLbl+'\n\n'
@@ -3991,10 +4028,14 @@ function shareObject(e, id){
     +'📱 Prostir — платформа управління нерухомістю';
 
   const preview = document.getElementById('share-preview-text');
-  if(preview) preview.textContent = APP._shareText;
+  if(preview) preview.textContent = shareText;
 
   const ov = document.getElementById('share-ov');
-  if(ov){ ov.classList.add('open'); window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('light'); }
+  if(ov){
+    ov.dataset.shareText = encodeURIComponent(shareText);
+    ov.classList.add('open');
+    window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('light');
+  }
 }
 
 function closeShareSheet(){
@@ -4002,7 +4043,8 @@ function closeShareSheet(){
 }
 
 async function copyShareText(){
-  const text = APP._shareText || '';
+  /* BUG-6: read from DOM, not from APP._shareText global */
+  const text = decodeURIComponent(document.getElementById('share-ov')?.dataset.shareText || '');
   try{
     await navigator.clipboard.writeText(text);
     T('✅ Скопійовано в буфер обміну');
@@ -4019,7 +4061,8 @@ async function copyShareText(){
 }
 
 function tgShare(){
-  const text = encodeURIComponent(APP._shareText || '');
+  const raw = decodeURIComponent(document.getElementById('share-ov')?.dataset.shareText || '');
+  const text = encodeURIComponent(raw);
   const url = 'https://t.me/share/url?url=%20&text='+text;
   /* Telegram Mini App: open in browser/share */
   if(window.Telegram?.WebApp?.openLink){
