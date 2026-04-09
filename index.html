@@ -3568,7 +3568,9 @@ async function resendConfirmEmail(){
 
 function resetDashboard(){
   /* Reset all KPI to zero until real data loads */
-  document.querySelectorAll('.h-num').forEach(el=>el.textContent='₴0/міс');
+  const incReset=document.getElementById('dash-income');if(incReset)incReset.textContent='0';
+  const monthReset=document.getElementById('dash-month');if(monthReset)monthReset.textContent='...';
+  const deltaReset=document.getElementById('dash-delta');if(deltaReset)deltaReset.textContent='Дані завантажуються...';
   document.querySelectorAll('.kc-v').forEach(el=>el.textContent='0');
 }
 
