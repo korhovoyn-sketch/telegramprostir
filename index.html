@@ -353,7 +353,7 @@ body{padding-bottom:calc(58px + env(safe-area-inset-bottom))}
 .oi-n{font-size:14px;font-weight:500}.oi-p{font-size:12px;font-weight:500;color:var(--t2)}
 .obar{height:3px;background:rgba(255,255,255,.07);border-radius:2px;overflow:hidden}
 .of{height:100%;border-radius:2px;transition:width .9s cubic-bezier(.4,0,.2,1)}
-.of-v{background:var(--pg)}.of-b{background:linear-gradient(90deg,var(--blue),var(--teal))}.of-o{background:linear-gradient(90deg,var(--orn),#ffd60a)}
+.of-v{background:var(--pg)}.of-b{background:linear-gradient(90deg,var(--blue),var(--teal))}.of-o{background:linear-gradient(90deg,var(--orn),#ffd60a)}.of-t{background:var(--teal)}.of-p{background:var(--p1)}
 
 .feed-wrap{margin:0 var(--gap) 12px;border-radius:var(--rXL)}
 .fi{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--sep);cursor:pointer;transition:background .11s;position:relative;z-index:3}
@@ -2019,13 +2019,13 @@ select.fr-in,select.add-row-in{
 <!-- █ DASHBOARD █ -->
 <div class="page active" id="page-dash">
 <div class="pw">
-  <div class="hint hint-blue" id="welcome-hint" style="margin-top:8px"><div class="hint-ico"><svg><use href="#i-tip"/></svg></div><div class="hint-body"><div class="hint-title">Привiт! Починаємо</div><div class="hint-txt">Перейдiть до вкладки <b>Бази</b>, створiть свою першу базу та додайте об'єкт. Статистика на дашбордi заповниться автоматично.</div></div><div class="hint-close" onclick="document.getElementById('welcome-hint').style.display='none'"><svg><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div></div><div class="sg">
+  <div class="hint hint-blue" id="welcome-hint" style="margin-top:8px"><div class="hint-ico"><svg><use href="#i-tip"/></svg></div><div class="hint-body"><div class="hint-title">Привiт! Починаємо</div><div class="hint-txt">Перейдiть до вкладки <b>Бази</b>, створiть свою першу базу та додайте об'єкт. Статистика на дашбордi заповниться автоматично.</div></div><div class="hint-close" onclick="closeWelcomeHint()"><svg><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div></div><div class="sg">
 
   <div class="hero gl">
-    <div class="h-eye"><svg><use href="#i-trend"/></svg>Дохід · Квітень 2026</div>
-    <div class="h-num"><sup>₴</sup>86 400<sub>/міс</sub></div>
+    <div class="h-eye"><svg><use href="#i-trend"/></svg>Дохід · <span id="dash-month">...</span></div>
+    <div class="h-num"><sup>₴</sup><span id="dash-income">0</span><sub>/міс</sub></div>
     <div class="h-row">
-      <div class="h-delta"><svg><use href="#i-trend"/></svg>Дані завантажуються...</div>
+      <div class="h-delta"><svg><use href="#i-trend"/></svg><span id="dash-delta">Дані завантажуються...</span></div>
       <div class="h-chip"></div>
     </div>
   </div>
@@ -2038,10 +2038,8 @@ select.fr-in,select.add-row-in{
   </div>
 
   <div class="sh"><div class="sh-t">Заповненість</div></div>
-  <div class="occ-wrap gl">
-    <div class="oi"><div class="oi-row"><span class="oi-n">Квартири</span><span class="oi-p">3/4 · 75%</span></div><div class="obar"><div class="of of-v" style="width:0" data-w="75%"></div></div></div>
-    <div class="oi"><div class="oi-row"><span class="oi-n">Комерційні</span><span class="oi-p">1/2 · 50%</span></div><div class="obar"><div class="of of-b" style="width:0" data-w="50%"></div></div></div>
-    <div class="oi"><div class="oi-row"><span class="oi-n">Будинки</span><span class="oi-p">0/1 · 0%</span></div><div class="obar"><div class="of of-o" style="width:0" data-w="0%"></div></div></div>
+  <div class="occ-wrap gl" id="occ-wrap">
+    <div style="padding:20px;text-align:center;color:var(--t3);font-size:13px">Додайте обʼєкти щоб бачити статистику</div>
   </div>
 
   <div class="sh">
@@ -2457,7 +2455,7 @@ select.fr-in,select.add-row-in{
 </div>
 
 <!-- TAB BAR -->
-<nav class="tbar" role="tablist" aria-label="Навігація">
+<nav class="tbar" role="tablist" aria-label="Навігація" style="display:none">
   <div class="ti on" id="t-dash"    role="tab" aria-selected="true"  aria-label="Дашборд"  onclick="tabTap(this,'dash','iconGrid')">
     <div class="ti-ic"><svg aria-hidden="true"><use href="#i-grid"/></svg></div>
     <div class="ti-lb">Дашборд</div>
@@ -2709,6 +2707,12 @@ function tabTap(el, page, animName){
 }
 
 /* ── ENTER APP ── */
+function closeWelcomeHint(){
+  const h=document.getElementById('welcome-hint');
+  if(h)h.style.display='none';
+  try{localStorage.setItem('prostir_hint_closed','1');}catch(_){}
+}
+
 function enterApp(){
   const wrap=document.getElementById('auth-wrap');
   if(wrap){wrap.classList.add('hidden');wrap.style.display='none';wrap.style.visibility='hidden';wrap.style.pointerEvents='none';}
@@ -2719,6 +2723,8 @@ function enterApp(){
   if(typeof resetDashboard==='function')resetDashboard();
   const tbar=document.querySelector('.tbar');
   if(tbar){tbar.style.display='flex';tbar.style.visibility='visible';}
+  /* Hide welcome hint if user already closed it */
+  try{if(localStorage.getItem('prostir_hint_closed')==='1'){const h=document.getElementById('welcome-hint');if(h)h.style.display='none';}}catch(_){}
   /* loadBases/Dashboard immediately; loadProfile after short delay so TG upsert can settle */
   setTimeout(()=>{
     if(typeof loadBases==='function')loadBases();
@@ -3038,6 +3044,15 @@ async function addO(){
         if(btn){btn.textContent='Додати обʼєкт';btn.disabled=false;}
         _submitting=false;return;
       }
+      // Check object plan limit
+      const objLimit=PLANS_CONFIG.free.maxObjects;
+      const{count:objCount}=await window.db.from('objects')
+        .select('id',{count:'exact',head:true}).eq('owner_id',window.currentUser.id);
+      if((objCount||0)>=objLimit){
+        showAddErr(`Ліміт ${objLimit} обʼєктів на Free тарифі. Оновіться до PRO.`);
+        if(btn){btn.textContent='Додати обʼєкт';btn.disabled=false;}
+        _submitting=false;return;
+      }
       const res=await window.db.from('objects').insert([{
         owner_id:window.currentUser.id,db_id:dbId,name,address:addr,
         area_total:area,rooms:rooms,floor:floor,
@@ -3100,6 +3115,15 @@ async function confirmCreateBase(){
     return;
   }
   try{
+    // Check plan limit
+    const limit=PLANS_CONFIG.free.maxBases;
+    const {count,error:cntErr}=await window.db.from('databases')
+      .select('id',{count:'exact',head:true}).eq('owner_id',window.currentUser.id);
+    if(!cntErr&&(count||0)>=limit){
+      if(btn){btn.textContent='Створити базу';btn.disabled=false;}
+      showCbErr(`Ліміт ${limit} баз на Free тарифі. Оновіться до PRO.`);
+      return;
+    }
     const {data,error}=await window.db.from('databases')
       .insert([{owner_id:window.currentUser.id,name}])
       .select('id,name,created_at');
@@ -3242,9 +3266,19 @@ async function doLogout(){
   await window.db?.auth.signOut().catch(()=>{});
   window.currentUser=null;
   APP.user=null;
+  /* Hide tab bar so it doesn't overlap the auth screen (z-index:9999 > auth z-index:1000) */
+  const tbar=document.querySelector('.tbar');
+  if(tbar){tbar.style.display='none';tbar.style.visibility='hidden';}
+  /* Reset active page back to dashboard for next login */
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  const dash=document.getElementById('page-dash');if(dash)dash.classList.add('active');
+  document.querySelectorAll('.ti').forEach(t=>t.classList.remove('on'));
+  const td=document.getElementById('t-dash');if(td){td.classList.add('on');td.setAttribute('aria-selected','true');}
+  /* Show auth */
   const wrap=document.getElementById('auth-wrap');
   if(wrap){wrap.classList.remove('hidden');wrap.style.display='';wrap.style.visibility='';wrap.style.pointerEvents='';}
-  authGo('auth-login');T('Ви вийшли з акаунту');
+  authGo('auth-login');
+  T('Ви вийшли з акаунту');
 }
 async function loginViaTelegram(){
   const tg=window.Telegram?.WebApp;
@@ -3745,7 +3779,16 @@ async function loadProfile(){
 
   /* Show email if available */
   const emailEl=document.getElementById('p-email');
-  if(emailEl) emailEl.textContent=user.email||tgName||'—';
+  if(emailEl){
+    const isSysEmail=user.email&&(user.email.includes('@prostir.app')||user.email.includes('@prostir.local'));
+    if(isSysEmail||!user.email){
+      emailEl.textContent='';
+      emailEl.style.display='none';
+    } else {
+      emailEl.textContent=user.email;
+      emailEl.style.display='';
+    }
+  }
 
   let bCount=0, oCount=0;
   if(window.db){
@@ -3765,22 +3808,60 @@ async function loadProfile(){
 /* ── LOAD DASHBOARD ── */
 async function loadDashboard(){
   if(!window.db||!window.currentUser) return;
+  // Update month label regardless of objects count
+  const months=['Січень','Лютий','Березень','Квітень','Травень','Червень',
+    'Липень','Серпень','Вересень','Жовтень','Листопад','Грудень'];
+  const now=new Date();
+  const monthEl=document.getElementById('dash-month');
+  if(monthEl) monthEl.textContent=months[now.getMonth()]+' '+now.getFullYear();
   let objs=[];
   try{
     const r=await window.db.from('objects').select('rent_price,status,type,rate_per_m2,area_total').eq('owner_id',window.currentUser.id).range(0,499);
     objs=r.data||[];
   }catch(_){}
-  if(!objs||objs.length===0) return;
   const rented=objs.filter(o=>o.status==='rented');
   const income=rented.reduce((s,o)=>s+(Number(o.rent_price)||0),0);
-  const occ=Math.round(rented.length/objs.length*100);
+  const occ=objs.length?Math.round(rented.length/objs.length*100):0;
   const avgRate=objs.length?Math.round(objs.reduce((s,o)=>s+(Number(o.rate_per_m2)||0),0)/objs.length):0;
-  const heroNum=document.querySelector('.h-num');
-  if(heroNum) heroNum.textContent='₴'+income.toLocaleString('uk')+'/міс';
+  // Update income span
+  const incomeEl=document.getElementById('dash-income');
+  if(incomeEl) incomeEl.textContent=income.toLocaleString('uk');
+  // Update delta text
+  const deltaEl=document.getElementById('dash-delta');
+  if(deltaEl) deltaEl.textContent=objs.length?'Оновлено щойно':'Додайте обʼєкти';
+  // Update KPI cards
   document.querySelectorAll('.kc-v').forEach((el,i)=>{
     [occ+'%',objs.length,avgRate?'₴'+avgRate:'—','—'][i]!==undefined
       &&(el.textContent=[occ+'%',objs.length,avgRate?'₴'+avgRate:'—','—'][i]);
   });
+  if(!objs.length) return;
+  // Build occupancy bars by type
+  const TYPE_UA={apartment:'Квартири',house:'Будинки',commercial:'Комерційні',
+    office:'Офіси',warehouse:'Склади',hotel:'Готелі',parking:'Паркомісця',
+    business_center:'Бізнес центри',shopping_center:'ТРЦ'};
+  const groups={};
+  objs.forEach(o=>{
+    if(!groups[o.type])groups[o.type]={total:0,rented:0};
+    groups[o.type].total++;
+    if(o.status==='rented')groups[o.type].rented++;
+  });
+  const occWrap=document.getElementById('occ-wrap');
+  if(occWrap&&Object.keys(groups).length){
+    const colors=['of-v','of-b','of-o','of-t','of-p'];
+    let html='';
+    Object.entries(groups).forEach(([type,g],i)=>{
+      const pct=Math.round(g.rented/g.total*100);
+      html+=`<div class="oi"><div class="oi-row"><span class="oi-n">${TYPE_UA[type]||type}</span><span class="oi-p">${g.rented}/${g.total} · ${pct}%</span></div>`
+        +`<div class="obar"><div class="of ${colors[i%colors.length]}" style="width:0" data-w="${pct}%"></div></div></div>`;
+    });
+    occWrap.innerHTML=html;
+    requestAnimationFrame(()=>{
+      occWrap.querySelectorAll('.of[data-w]').forEach(b=>{
+        b.style.transition='width .6s cubic-bezier(.4,0,.2,1)';
+        b.style.width=b.dataset.w;
+      });
+    });
+  }
 }
 
 
@@ -3979,9 +4060,17 @@ async function uploadPhotos(objectId){
         const {data:urlData} = window.db.storage.from(STORAGE_BUCKET).getPublicUrl(path);
         if(urlData?.publicUrl) urls.push(urlData.publicUrl);
       } else {
-        console.warn('[Photo upload error]', error.message);
+        const emsg=error.message||'';
+        if(emsg.includes('bucket')||emsg.includes('not found')||emsg.includes('storage')||emsg.includes('Bucket')){
+          T('Фото: налаштуйте bucket "photos" у Supabase Storage');
+        } else { console.warn('[Photo upload error]', emsg); }
       }
-    }catch(e){ console.warn('[Photo upload]', e.message); }
+    }catch(e){
+      const emsg=e?.message||'';
+      if(emsg.includes('bucket')||emsg.includes('storage')){
+        T('Фото: налаштуйте bucket "photos" у Supabase Storage');
+      } else { console.warn('[Photo upload]', emsg); }
+    }
   }
   return urls;
 }
