@@ -133,55 +133,48 @@ serve(async (req) => {
 
     const email = `${tgUser.id}@telegram.propspace.app`
 
-    // Step 1: Create or ensure auth user exists
+    // Step 1: Create or ensure auth user exists via generateLink
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'magiclink',
       email,
     })
     if (linkError) throw linkError
-    if (!linkData?.user?.id) throw new Error('Auth user creation failed — no user id returned')
+    if (!linkData?.user?.id) {
+      throw new Error('Auth user creation failed — generateLink returned no user')
+    }
 
     const authUserId = linkData.user.id
+    console.log(`[telegram-auth] Created/found auth user: ${authUserId}`)
 
-    // Step 2: Create a valid session via direct Supabase Admin API
-    // Using REST API directly to ensure correct response format
-    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-
-    if (!supabaseUrl || !serviceRoleKey) {
-      throw new Error('Supabase config missing')
-    }
-
-    const sessionRes = await fetch(`${supabaseUrl}/auth/v1/admin/sessions`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${serviceRoleKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ user_id: authUserId }),
+    // Step 2: Create session via admin SDK
+    // This returns a guaranteed valid JWT session
+    const { data: sessionData, error: sessionError } = await supabaseAdmin.auth.admin.createSession({
+      user_id: authUserId,
     })
 
-    if (!sessionRes.ok) {
-      const errData = await sessionRes.text()
-      throw new Error(`Session creation failed: ${sessionRes.status} — ${errData}`)
+    if (sessionError) {
+      console.error('[telegram-auth] createSession error:', sessionError)
+      throw new Error(`Failed to create session: ${sessionError.message}`)
     }
 
-    const sessionDataRaw = await sessionRes.json()
-    const accessToken = sessionDataRaw?.session?.access_token ?? sessionDataRaw?.access_token
-    const refreshToken = sessionDataRaw?.session?.refresh_token ?? sessionDataRaw?.refresh_token
-
-    if (!accessToken || !refreshToken) {
-      throw new Error(`Invalid tokens in response: access_token=${!!accessToken}, refresh_token=${!!refreshToken}`)
+    if (!sessionData?.session?.access_token || !sessionData?.session?.refresh_token) {
+      console.error('[telegram-auth] Missing tokens in session:', { sessionData })
+      throw new Error('Session created but missing access/refresh tokens')
     }
 
-    // Validate token format (must be JWT with 3 parts)
-    const parts = accessToken.split('.')
-    if (parts.length !== 3) {
-      throw new Error(`Invalid access_token format: expected JWT with 3 parts, got ${parts.length}`)
+    const accessToken = sessionData.session.access_token
+    const refreshToken = sessionData.session.refresh_token
+
+    // Validate JWT format before returning
+    const tokenParts = accessToken.split('.')
+    if (tokenParts.length !== 3) {
+      throw new Error(`Invalid JWT format from createSession: got ${tokenParts.length} parts instead of 3`)
     }
+
+    console.log('[telegram-auth] Session created successfully')
 
     const { data: fullUser } = await supabaseAdmin.from('users').select('*').eq('id', userId).single()
-    if (!fullUser) throw new Error('User not found in database')
+    if (!fullUser) throw new Error('User not found in database after auth session creation')
 
     return new Response(
       JSON.stringify({
