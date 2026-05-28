@@ -27,6 +27,12 @@ export default function CreateDatabaseScreen() {
   const isEdit = !!editId
   const existing = databases.find((d) => d.id === editId)
 
+  useEffect(() => {
+    const tg = window.Telegram?.WebApp
+    tg?.enableClosingConfirmation()
+    return () => { tg?.disableClosingConfirmation() }
+  }, [])
+
   const [name, setName] = useState('')
   const [address, setAddress] = useState('')
   const [type, setType] = useState<DatabaseType | null>(null)
@@ -45,6 +51,7 @@ export default function CreateDatabaseScreen() {
 
   async function handleSave() {
     if (!canCreate || !type) return
+    window.Telegram?.WebApp?.HapticFeedback.notificationOccurred('success')
     if (isEdit && editId) {
       await updateDatabase(editId, { name: name.trim(), address: address.trim() || undefined, type, color })
       navigate('db-objects', { dbId: editId })

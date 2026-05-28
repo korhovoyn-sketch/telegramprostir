@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import { useAppStore } from '@/store/appStore'
 
@@ -28,6 +29,21 @@ const QRScannerScreen = dynamic(() => import('@/screens/QRScannerScreen'))
 
 export default function Page() {
   const screen = useAppStore((s) => s.screen)
+  const history = useAppStore((s) => s.history)
+  const back = useAppStore((s) => s.back)
+
+  useEffect(() => {
+    const tg = window.Telegram?.WebApp
+    if (!tg) return
+    const handleBack = () => back()
+    if (history.length > 0) {
+      tg.BackButton.show()
+    } else {
+      tg.BackButton.hide()
+    }
+    tg.BackButton.onClick(handleBack)
+    return () => { tg.BackButton.offClick(handleBack) }
+  }, [history.length, back])
 
   switch (screen) {
     case 'splash': return <SplashScreen />

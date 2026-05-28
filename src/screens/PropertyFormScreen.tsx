@@ -30,6 +30,12 @@ export default function PropertyFormScreen() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
 
   useEffect(() => {
+    const tg = window.Telegram?.WebApp
+    tg?.enableClosingConfirmation()
+    return () => { tg?.disableClosingConfirmation() }
+  }, [])
+
+  useEffect(() => {
     if (isEdit && existing) {
       setName(existing.name)
       setFloor(existing.floor ?? '')
@@ -58,6 +64,7 @@ export default function PropertyFormScreen() {
 
   async function handleSave() {
     if (!canSave || !screenParams.dbId) return
+    window.Telegram?.WebApp?.HapticFeedback.notificationOccurred('success')
     const payload = {
       db_id: screenParams.dbId!,
       name: name.trim(),

@@ -1,8 +1,9 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
+const allowedOrigin = Deno.env.get('ALLOWED_ORIGIN') ?? '*'
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': allowedOrigin,
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
@@ -43,7 +44,7 @@ async function validateInitData(initData: string, botToken: string): Promise<Rec
   if (expectedHash !== hash) return null
 
   const authDate = parseInt(params.get('auth_date') ?? '')
-  if (!authDate || Date.now() / 1000 - authDate > 3600) return null
+  if (!authDate || Date.now() / 1000 - authDate > 300) return null
 
   return Object.fromEntries(params.entries())
 }
