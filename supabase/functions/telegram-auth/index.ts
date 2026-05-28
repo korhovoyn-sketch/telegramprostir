@@ -42,8 +42,8 @@ async function validateInitData(initData: string, botToken: string): Promise<Rec
 
   if (expectedHash !== hash) return null
 
-  const authDate = parseInt(params.get('auth_date') ?? '0')
-  if (Date.now() / 1000 - authDate > 300) return null
+  const authDate = parseInt(params.get('auth_date') ?? '')
+  if (!authDate || Date.now() / 1000 - authDate > 300) return null
 
   return Object.fromEntries(params.entries())
 }
@@ -91,7 +91,7 @@ serve(async (req) => {
       .from('users')
       .select('id, role')
       .eq('tg_id', tgUser.id)
-      .single()
+      .maybeSingle()
 
     const userPayload = {
       tg_id: tgUser.id,
@@ -121,15 +121,17 @@ serve(async (req) => {
       email: `${tgUser.id}@telegram.propspace.app`,
     })
     if (authError) throw authError
+    if (!authData?.properties?.hashed_token) throw new Error('No auth token received')
 
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
     )
-    const { data: session } = await supabaseClient.auth.verifyOtp({
-      token_hash: authData.properties?.hashed_token ?? '',
+    const { data: session, error: otpError } = await supabaseClient.auth.verifyOtp({
+      token_hash: authData.properties.hashed_token,
       type: 'magiclink',
     })
+    if (otpError || !session?.session) throw otpError ?? new Error('Failed to verify OTP')
 
     const { data: fullUser } = await supabaseAdmin.from('users').select('*').eq('id', userId).single()
 

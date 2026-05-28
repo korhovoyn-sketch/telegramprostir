@@ -11,7 +11,7 @@ export default function WelcomeScreen() {
   const { tg, user: tgUser } = useTelegram()
 
   async function handleLogin() {
-    if (!tg) {
+    if (!tg?.initData) {
       console.warn('Telegram WebApp not available — dev mode')
       return
     }

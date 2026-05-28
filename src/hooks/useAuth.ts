@@ -26,12 +26,14 @@ export function useAuth() {
 
       const { access_token, refresh_token, user } = await res.json()
 
+      if (!access_token || !refresh_token) throw new Error('Invalid tokens received')
+
       await supabase.auth.setSession({ access_token, refresh_token })
 
       const dbUser: User = user
       setUser(dbUser)
 
-      if (!dbUser.role || (!dbUser.email && !dbUser.phone)) {
+      if (!dbUser.role) {
         navigate('role-select')
       } else {
         navigate(dbUser.role === 'owner' ? 'db-list' : 'realtor-dashboard')

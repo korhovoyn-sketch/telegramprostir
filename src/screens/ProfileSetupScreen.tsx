@@ -17,11 +17,11 @@ export default function ProfileSetupScreen() {
     if (email || phone) {
       await updateProfile({ email: email || undefined, phone: phone || undefined })
     }
-    navigate(user?.role === 'owner' ? 'empty-state' : 'empty-state')
+    navigate(user?.role === 'owner' ? 'empty-state' : 'realtor-dashboard')
   }
 
   function skip() {
-    navigate(user?.role === 'owner' ? 'empty-state' : 'empty-state')
+    navigate(user?.role === 'owner' ? 'empty-state' : 'realtor-dashboard')
   }
 
   return (
