@@ -73,19 +73,23 @@ export function useAuth() {
   }, [setUser, showToast])
 
   const restoreSession = useCallback(async () => {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return false
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) return false
 
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', session.user.id)
-      .single()
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', session.user.id)
+        .single()
 
-    if (error || !data) return false
+      if (error || !data) return false
 
-    setUser(data as User)
-    return true
+      setUser(data as User)
+      return true
+    } catch {
+      return false
+    }
   }, [setUser])
 
   return { loading, loginViaTelegram, logout, updateProfile, restoreSession }

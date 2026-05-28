@@ -32,6 +32,10 @@ export default function SplashScreen() {
           navigate(user.role === 'owner' ? 'db-list' : 'realtor-dashboard')
         }
       }, 400)
+    }).catch(() => {
+      clearInterval(interval)
+      setProgress(100)
+      setTimeout(() => navigate('welcome'), 400)
     })
 
     return () => clearInterval(interval)
