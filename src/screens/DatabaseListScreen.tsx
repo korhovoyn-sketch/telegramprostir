@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { useDatabases } from '@/hooks/useDatabases'
-import Header from '@/components/ui/Header'
 import TabBar from '@/components/ui/TabBar'
 import SearchBar from '@/components/ui/SearchBar'
 import { FreshnessBadge } from '@/components/ui/Badge'

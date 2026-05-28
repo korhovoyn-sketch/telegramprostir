@@ -72,6 +72,7 @@ export default function WelcomeScreen() {
       <button
         className={`mbtn ${loading ? 'is-loading' : ''}`}
         onClick={handleLogin}
+        disabled={loading}
         style={{ position: 'relative', bottom: 'auto', left: 'auto', right: 'auto', margin: '24px 12px 0', width: 'calc(100% - 24px)' }}
       >
         {!loading && <IconTelegram size={18} />}

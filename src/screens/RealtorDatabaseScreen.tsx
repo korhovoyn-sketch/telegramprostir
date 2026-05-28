@@ -12,10 +12,11 @@ import { formatPrice, calcRent, calcUtilities, DB_TYPE_LABELS } from '@/lib/util
 import type { Database, Property, PropertyStatus } from '@/types'
 
 export default function RealtorDatabaseScreen() {
-  const { screenParams, navigate } = useAppStore()
+  const { screenParams, navigate, showToast } = useAppStore()
   const [db, setDb] = useState<Database | null>(null)
   const [properties, setProperties] = useState<Property[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const [search, setSearch] = useState('')
   const [tab, setTab] = useState<'all' | PropertyStatus>('all')
 
@@ -23,16 +24,24 @@ export default function RealtorDatabaseScreen() {
     async function load() {
       if (!screenParams.dbId) return
       setLoading(true)
-      const [dbRes, propsRes] = await Promise.all([
-        supabase.from('databases').select('*').eq('id', screenParams.dbId).single(),
-        supabase.from('properties').select('*, photos:property_photos(*)').eq('db_id', screenParams.dbId).order('created_at', { ascending: false }),
-      ])
-      if (dbRes.data) setDb(dbRes.data as Database)
-      setProperties((propsRes.data ?? []) as Property[])
-      setLoading(false)
+      setError(false)
+      try {
+        const [dbRes, propsRes] = await Promise.all([
+          supabase.from('databases').select('*').eq('id', screenParams.dbId).single(),
+          supabase.from('properties').select('*, photos:property_photos(*)').eq('db_id', screenParams.dbId).order('created_at', { ascending: false }),
+        ])
+        if (dbRes.error) throw dbRes.error
+        setDb(dbRes.data as Database)
+        setProperties((propsRes.data ?? []) as Property[])
+      } catch (e) {
+        setError(true)
+        showToast({ type: 'error', title: 'Помилка завантаження', subtitle: (e as Error).message })
+      } finally {
+        setLoading(false)
+      }
     }
     load()
-  }, [screenParams.dbId])
+  }, [screenParams.dbId, showToast])
 
   const filtered = properties.filter((p) => {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase())
@@ -48,7 +57,15 @@ export default function RealtorDatabaseScreen() {
   if (!db) return (
     <div className="scr bg-cyan">
       <Header title="База" backLabel="Бази" />
-      <div className="loader-wrap"><div className="loader" /></div>
+      {error ? (
+        <div className="empty-state" style={{ paddingTop: 40 }}>
+          <div className="empty-ic">⚠️</div>
+          <div className="empty-h">Помилка завантаження</div>
+          <div className="empty-s">Перевір підключення і спробуй ще раз</div>
+        </div>
+      ) : (
+        <div className="loader-wrap"><div className="loader" /></div>
+      )}
     </div>
   )
 

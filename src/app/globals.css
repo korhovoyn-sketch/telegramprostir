@@ -208,7 +208,7 @@ input:focus,textarea:focus{outline:none}
 /* ── SEARCH ── */
 .search-inline{margin:0 var(--g3) var(--g3);padding:9px 12px;border-radius:var(--r-pill);background:var(--glass-2);display:flex;align-items:center;gap:8px;border:var(--bd);transition:border-color .2s,background .2s}
 .search-inline:focus-within{border-color:rgba(122,179,255,.5) !important;background:rgba(34,158,217,.08) !important}
-.search-inline input{flex:1;background:transparent;border:none;outline:none;color:var(--t1);font-size:13px;font-family:inherit}
+.search-inline input{flex:1;background:transparent;border:none;outline:none;color:var(--t1);font-size:14px;font-family:inherit}
 .search-inline input::placeholder{color:var(--t4)}
 
 /* ── OBJECT CARD ── */

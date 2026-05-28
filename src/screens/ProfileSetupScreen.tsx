@@ -102,6 +102,7 @@ export default function ProfileSetupScreen() {
       <button
         className={`mbtn success ${loading ? 'is-loading' : ''}`}
         onClick={handleContinue}
+        disabled={loading}
       >
         {!loading && 'Почати роботу →'}
       </button>

@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { useAuth } from '@/hooks/useAuth'
-import Header from '@/components/ui/Header'
 import TabBar from '@/components/ui/TabBar'
 import Toggle from '@/components/ui/Toggle'
 import { IconMail, IconPhone, IconLanguage, IconCurrencyDollar, IconMoon, IconBell, IconLogout, IconCrown, IconShield } from '@/components/Icons'

@@ -118,6 +118,7 @@ export default function ExportScreen() {
       <button
         className={`mbtn ${loading ? 'is-loading' : ''}`}
         onClick={handleExport}
+        disabled={loading}
       >
         {!loading && <IconFileExport size={18} />}
         {!loading && `Створити ${FORMATS.find(f => f.id === format)?.label}`}
