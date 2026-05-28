@@ -18,20 +18,28 @@ export default function RealtorDashboardScreen() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
 
+  const { showToast } = useAppStore()
+
   useEffect(() => {
     async function load() {
       if (!user) return
       setLoading(true)
-      const { data } = await supabase
-        .from('realtor_subscriptions')
-        .select('*, database:databases(*)')
-        .eq('realtor_id', user.id)
-        .order('created_at', { ascending: false })
-      setSubscriptions((data ?? []) as RealtorSubscription[])
-      setLoading(false)
+      try {
+        const { data, error } = await supabase
+          .from('realtor_subscriptions')
+          .select('*, database:databases(*)')
+          .eq('realtor_id', user.id)
+          .order('created_at', { ascending: false })
+        if (error) throw error
+        setSubscriptions((data ?? []) as RealtorSubscription[])
+      } catch (e) {
+        showToast({ type: 'error', title: 'Помилка завантаження', subtitle: (e as Error).message })
+      } finally {
+        setLoading(false)
+      }
     }
     load()
-  }, [user])
+  }, [user, showToast])
 
   const filtered = subscriptions.filter((s) =>
     s.database?.name.toLowerCase().includes(search.toLowerCase()) ?? false

@@ -81,7 +81,15 @@ serve(async (req) => {
       })
     }
 
-    const tgUser = JSON.parse(validated.user ?? '{}')
+    let tgUser: Record<string, string>
+    try {
+      tgUser = JSON.parse(validated.user ?? '{}')
+    } catch {
+      return new Response(JSON.stringify({ error: 'Invalid user data' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',

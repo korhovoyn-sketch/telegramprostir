@@ -11,7 +11,7 @@ import type { PropertyView } from '@/types'
 const DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд']
 
 export default function SharingAnalyticsScreen() {
-  const { screenParams, user } = useAppStore()
+  const { screenParams, user, showToast } = useAppStore()
   const [views, setViews] = useState<PropertyView[]>([])
   const [loading, setLoading] = useState(true)
   const [chartData, setChartData] = useState<number[]>(Array(7).fill(0))
@@ -27,7 +27,8 @@ export default function SharingAnalyticsScreen() {
           query = query.eq('property_id', screenParams.propertyId)
         }
 
-        const { data } = await query
+        const { data, error } = await query
+        if (error) throw error
         setViews((data ?? []) as PropertyView[])
 
         // Build chart data (last 7 days)
@@ -38,12 +39,14 @@ export default function SharingAnalyticsScreen() {
           if (diff < 7) dayData[6 - diff]++
         })
         setChartData(dayData)
+      } catch (e) {
+        showToast({ type: 'error', title: 'Помилка аналітики', subtitle: (e as Error).message })
       } finally {
         setLoading(false)
       }
     }
     load()
-  }, [screenParams.propertyId, screenParams.dbId])
+  }, [screenParams.propertyId, screenParams.dbId, showToast])
 
   const maxVal = Math.max(...chartData, 1)
   const totalViews = views.length

@@ -18,28 +18,37 @@ export default function CollectionsScreen() {
     async function load() {
       if (!user) return
       setLoading(true)
-      const { data } = await supabase
-        .from('collections')
-        .select('*')
-        .eq('realtor_id', user.id)
-        .order('created_at', { ascending: false })
-      setCollections((data ?? []) as Collection[])
-      setLoading(false)
+      try {
+        const { data, error } = await supabase
+          .from('collections')
+          .select('*')
+          .eq('realtor_id', user.id)
+          .order('created_at', { ascending: false })
+        if (error) throw error
+        setCollections((data ?? []) as Collection[])
+      } catch (e) {
+        showToast({ type: 'error', title: 'Помилка завантаження', subtitle: (e as Error).message })
+      } finally {
+        setLoading(false)
+      }
     }
     load()
-  }, [user])
+  }, [user, showToast])
 
   async function createCollection() {
     if (!user) return
     const name = `Підбірка ${collections.length + 1}`
-    const { data, error } = await supabase
-      .from('collections')
-      .insert({ realtor_id: user.id, name, is_draft: true })
-      .select()
-      .single()
-    if (!error && data) {
+    try {
+      const { data, error } = await supabase
+        .from('collections')
+        .insert({ realtor_id: user.id, name, is_draft: true })
+        .select()
+        .single()
+      if (error) throw error
       setCollections([data as Collection, ...collections])
       showToast({ type: 'success', title: 'Підбірку створено' })
+    } catch (e) {
+      showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
     }
   }
 

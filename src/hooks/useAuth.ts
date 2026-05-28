@@ -46,7 +46,11 @@ export function useAuth() {
   }, [setUser, navigate, showToast])
 
   const logout = useCallback(async () => {
-    await supabase.auth.signOut()
+    try {
+      await supabase.auth.signOut()
+    } catch {
+      // ignore signOut errors — clear local state regardless
+    }
     setUser(null)
     navigate('welcome')
   }, [setUser, navigate])

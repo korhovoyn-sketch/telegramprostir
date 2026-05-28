@@ -21,7 +21,7 @@ export default function DatabaseListScreen() {
   }, [loadDatabases])
 
   const filtered = databases.filter((db) =>
-    db.name.toLowerCase().includes(search.toLowerCase()) ||
+    (db.name ?? '').toLowerCase().includes(search.toLowerCase()) ||
     (db.address ?? '').toLowerCase().includes(search.toLowerCase())
   )
 

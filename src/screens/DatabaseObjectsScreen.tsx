@@ -43,7 +43,11 @@ export default function DatabaseObjectsScreen() {
     for_sale: properties.filter(p => p.status === 'for_sale').length,
   }
 
-  if (!db) return null
+  if (!db) return (
+    <div className="scr bg-blue">
+      <div className="loader-wrap" style={{ paddingTop: 80 }}><div className="loader" /></div>
+    </div>
+  )
 
   return (
     <div className="scr bg-blue">
