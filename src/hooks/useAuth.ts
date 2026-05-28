@@ -13,6 +13,8 @@ export function useAuth() {
     setLoading(true)
     try {
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      if (!supabaseUrl) throw new Error('Supabase URL not configured')
+
       const res = await fetch(`${supabaseUrl}/functions/v1/telegram-auth`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -20,15 +22,30 @@ export function useAuth() {
       })
 
       if (!res.ok) {
-        const err = await res.json()
-        throw new Error(err.error || 'Auth failed')
+        const err = await res.json().catch(() => ({ error: 'Unknown error' }))
+        throw new Error(err.error || `HTTP ${res.status}`)
       }
 
-      const { access_token, refresh_token, user } = await res.json()
+      const body = await res.json()
+      const access_token = body?.access_token
+      const refresh_token = body?.refresh_token
+      const user = body?.user
 
-      if (!access_token || !refresh_token) throw new Error('Invalid tokens received')
+      if (!access_token) throw new Error('No access_token in response')
+      if (!refresh_token) throw new Error('No refresh_token in response')
+      if (!user) throw new Error('No user in response')
 
-      await supabase.auth.setSession({ access_token, refresh_token })
+      // Validate JWT format before setSession
+      const tokenParts = access_token.split('.')
+      if (tokenParts.length !== 3) {
+        throw new Error(`Invalid token format: expected 3 parts, got ${tokenParts.length}`)
+      }
+
+      try {
+        await supabase.auth.setSession({ access_token, refresh_token })
+      } catch (sessionErr) {
+        throw new Error(`setSession failed: ${(sessionErr as Error).message}`)
+      }
 
       const dbUser: User = user
       setUser(dbUser)
@@ -39,7 +56,9 @@ export function useAuth() {
         navigate(dbUser.role === 'owner' ? 'db-list' : 'realtor-dashboard')
       }
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка входу', subtitle: (e as Error).message })
+      const errorMsg = (e as Error).message || 'Unknown error'
+      console.error('[useAuth] loginViaTelegram error:', errorMsg, e)
+      showToast({ type: 'error', title: 'Помилка входу', subtitle: errorMsg })
     } finally {
       setLoading(false)
     }

@@ -131,31 +131,62 @@ serve(async (req) => {
       userId = newUser.id
     }
 
-    // Ensure auth.users entry exists for this Telegram user; generateLink creates it if missing
     const email = `${tgUser.id}@telegram.propspace.app`
+
+    // Step 1: Create or ensure auth user exists
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'magiclink',
       email,
     })
     if (linkError) throw linkError
+    if (!linkData?.user?.id) throw new Error('Auth user creation failed — no user id returned')
 
-    const authUserId = linkData?.user?.id
-    if (!authUserId) throw new Error('Failed to get auth user id from generateLink')
+    const authUserId = linkData.user.id
 
-    // Create a session directly via admin API — no OTP round-trip, no type-mismatch risk
-    const { data: sessionData, error: sessionError } = await supabaseAdmin.auth.admin.createSession({
-      user_id: authUserId,
+    // Step 2: Create a valid session via direct Supabase Admin API
+    // Using REST API directly to ensure correct response format
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+
+    if (!supabaseUrl || !serviceRoleKey) {
+      throw new Error('Supabase config missing')
+    }
+
+    const sessionRes = await fetch(`${supabaseUrl}/auth/v1/admin/sessions`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${serviceRoleKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ user_id: authUserId }),
     })
-    if (sessionError || !sessionData?.session) {
-      throw sessionError ?? new Error('Failed to create auth session')
+
+    if (!sessionRes.ok) {
+      const errData = await sessionRes.text()
+      throw new Error(`Session creation failed: ${sessionRes.status} — ${errData}`)
+    }
+
+    const sessionDataRaw = await sessionRes.json()
+    const accessToken = sessionDataRaw?.session?.access_token ?? sessionDataRaw?.access_token
+    const refreshToken = sessionDataRaw?.session?.refresh_token ?? sessionDataRaw?.refresh_token
+
+    if (!accessToken || !refreshToken) {
+      throw new Error(`Invalid tokens in response: access_token=${!!accessToken}, refresh_token=${!!refreshToken}`)
+    }
+
+    // Validate token format (must be JWT with 3 parts)
+    const parts = accessToken.split('.')
+    if (parts.length !== 3) {
+      throw new Error(`Invalid access_token format: expected JWT with 3 parts, got ${parts.length}`)
     }
 
     const { data: fullUser } = await supabaseAdmin.from('users').select('*').eq('id', userId).single()
+    if (!fullUser) throw new Error('User not found in database')
 
     return new Response(
       JSON.stringify({
-        access_token: sessionData.session.access_token,
-        refresh_token: sessionData.session.refresh_token,
+        access_token: accessToken,
+        refresh_token: refreshToken,
         user: fullUser,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
