@@ -144,7 +144,7 @@ serve(async (req) => {
     )
     const { data: session, error: otpError } = await supabaseClient.auth.verifyOtp({
       token_hash: authData.properties.hashed_token,
-      type: 'email',
+      type: 'magiclink',
     })
     if (otpError || !session?.session) throw otpError ?? new Error('Failed to verify OTP')
 
