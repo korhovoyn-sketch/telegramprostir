@@ -131,29 +131,31 @@ serve(async (req) => {
       userId = newUser.id
     }
 
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.generateLink({
+    // Ensure auth.users entry exists for this Telegram user; generateLink creates it if missing
+    const email = `${tgUser.id}@telegram.propspace.app`
+    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'magiclink',
-      email: `${tgUser.id}@telegram.propspace.app`,
+      email,
     })
-    if (authError) throw authError
-    if (!authData?.properties?.hashed_token) throw new Error('No auth token received')
+    if (linkError) throw linkError
 
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-    )
-    const { data: session, error: otpError } = await supabaseClient.auth.verifyOtp({
-      token_hash: authData.properties.hashed_token,
-      type: 'magiclink',
+    const authUserId = linkData?.user?.id
+    if (!authUserId) throw new Error('Failed to get auth user id from generateLink')
+
+    // Create a session directly via admin API — no OTP round-trip, no type-mismatch risk
+    const { data: sessionData, error: sessionError } = await supabaseAdmin.auth.admin.createSession({
+      user_id: authUserId,
     })
-    if (otpError || !session?.session) throw otpError ?? new Error('Failed to verify OTP')
+    if (sessionError || !sessionData?.session) {
+      throw sessionError ?? new Error('Failed to create auth session')
+    }
 
     const { data: fullUser } = await supabaseAdmin.from('users').select('*').eq('id', userId).single()
 
     return new Response(
       JSON.stringify({
-        access_token: session?.session?.access_token,
-        refresh_token: session?.session?.refresh_token,
+        access_token: sessionData.session.access_token,
+        refresh_token: sessionData.session.refresh_token,
         user: fullUser,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
