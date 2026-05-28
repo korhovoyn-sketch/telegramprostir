@@ -236,7 +236,7 @@ export default function PropertyFormScreen() {
           subtitle={`Об'єкт "${name}" буде видалено. Це незворотно.`}
           onClose={() => setShowDeleteModal(false)}
           actions={[
-            { label: 'Видалити', variant: 'danger', onClick: () => { deleteProperty(editId, screenParams.dbId!); setShowDeleteModal(false) } },
+            { label: 'Видалити', variant: 'danger', onClick: async () => { await deleteProperty(editId, screenParams.dbId!); setShowDeleteModal(false) } },
             { label: 'Скасувати', variant: 'secondary', onClick: () => setShowDeleteModal(false) },
           ]}
         />

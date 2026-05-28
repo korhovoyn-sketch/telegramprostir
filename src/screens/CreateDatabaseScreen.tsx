@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useAppStore } from '@/store/appStore'
 import { useDatabases } from '@/hooks/useDatabases'
 import Header from '@/components/ui/Header'
 import { IconMapPin } from '@/components/Icons'
@@ -19,23 +20,42 @@ const TYPES: { id: DatabaseType; label: string; desc: string; emoji: string }[] 
 const COLOR_NAMES = Object.keys(DB_COLORS)
 
 export default function CreateDatabaseScreen() {
-  const { createDatabase, loading } = useDatabases()
+  const { screenParams, databases, navigate } = useAppStore()
+  const { createDatabase, updateDatabase, loading } = useDatabases()
+
+  const editId = screenParams.dbId
+  const isEdit = !!editId
+  const existing = databases.find((d) => d.id === editId)
 
   const [name, setName] = useState('')
   const [address, setAddress] = useState('')
   const [type, setType] = useState<DatabaseType | null>(null)
   const [color, setColor] = useState('purple')
 
+  useEffect(() => {
+    if (isEdit && existing) {
+      setName(existing.name)
+      setAddress(existing.address ?? '')
+      setType(existing.type)
+      setColor(existing.color)
+    }
+  }, [isEdit, existing])
+
   const canCreate = name.trim().length > 0 && type !== null
 
-  async function handleCreate() {
+  async function handleSave() {
     if (!canCreate || !type) return
-    await createDatabase({ name: name.trim(), address: address.trim() || undefined, type, color })
+    if (isEdit && editId) {
+      await updateDatabase(editId, { name: name.trim(), address: address.trim() || undefined, type, color })
+      navigate('db-objects', { dbId: editId })
+    } else {
+      await createDatabase({ name: name.trim(), address: address.trim() || undefined, type, color })
+    }
   }
 
   return (
     <div className="scr bg-purple">
-      <Header title="Нова база" backLabel="Бази" />
+      <Header title={isEdit ? 'Редагувати базу' : 'Нова база'} backLabel={isEdit ? 'Назад' : 'Бази'} />
 
       <div className="body">
         {/* Name & address */}
@@ -116,10 +136,10 @@ export default function CreateDatabaseScreen() {
 
       <button
         className={`mbtn success ${!canCreate || loading ? 'disabled' : ''} ${loading ? 'is-loading' : ''}`}
-        onClick={handleCreate}
+        onClick={handleSave}
         disabled={!canCreate || loading}
       >
-        {!loading && 'Створити базу'}
+        {!loading && (isEdit ? 'Зберегти зміни' : 'Створити базу')}
       </button>
     </div>
   )

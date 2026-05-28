@@ -37,6 +37,7 @@ export default function Page() {
     case 'empty-state': return <EmptyStateScreen />
     case 'db-list': return <DatabaseListScreen />
     case 'create-db': return <CreateDatabaseScreen />
+    case 'edit-db': return <CreateDatabaseScreen />
     case 'db-objects': return <DatabaseObjectsScreen />
     case 'property-form': return <PropertyFormScreen />
     case 'property-detail': return <PropertyDetailScreen />

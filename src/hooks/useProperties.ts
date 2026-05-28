@@ -17,12 +17,16 @@ export function useProperties(dbId?: string) {
     try {
       const { data, error } = await supabase
         .from('properties')
-        .select(`*, photos:property_photos(*)`)
+        .select(`*, photos:property_photos(*), views:property_views(id)`)
         .eq('db_id', targetDbId)
         .order('created_at', { ascending: false })
 
       if (error) throw error
-      setProperties(data as Property[])
+      const mapped = (data ?? []).map((p) => {
+        const row = p as Record<string, unknown>
+        return { ...row, views: undefined, _view_count: (row.views as unknown[])?.length ?? 0 }
+      })
+      setProperties(mapped as unknown as Property[])
     } catch (e) {
       showToast({ type: 'error', title: 'Помилка завантаження', subtitle: (e as Error).message })
     } finally {

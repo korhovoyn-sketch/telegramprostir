@@ -210,7 +210,7 @@ export default function DatabaseObjectsScreen() {
           subtitle={`База "${db.name}" і всі ${properties.length} об'єктів будуть видалені. Це незворотно.`}
           onClose={() => setShowDeleteModal(false)}
           actions={[
-            { label: 'Видалити', variant: 'danger', onClick: () => { deleteDatabase(db.id); setShowDeleteModal(false) } },
+            { label: 'Видалити', variant: 'danger', onClick: async () => { await deleteDatabase(db.id); setShowDeleteModal(false) } },
             { label: 'Скасувати', variant: 'secondary', onClick: () => setShowDeleteModal(false) },
           ]}
         />
