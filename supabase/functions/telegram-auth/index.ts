@@ -1,10 +1,15 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const allowedOrigin = Deno.env.get('ALLOWED_ORIGIN') ?? '*'
+// CORS: Allow all Telegram Mini App domains
+// These are safe because:
+// 1. initData must pass HMAC-SHA256 validation (signed by Telegram Bot Token)
+// 2. Only valid Telegram users can authenticate
 const corsHeaders = {
-  'Access-Control-Allow-Origin': allowedOrigin,
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Max-Age': '86400',
 }
 
 const RATE_LIMIT = new Map<string, { count: number; reset: number }>()
