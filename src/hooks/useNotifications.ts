@@ -33,11 +33,12 @@ export function useNotifications() {
     try {
       const { error } = await supabase.from('notifications').update({ is_read: true }).eq('id', id)
       if (error) throw error
-      setNotifications(notifications.map((n) => (n.id === id ? { ...n, is_read: true } : n)))
+      const fresh = useAppStore.getState().notifications
+      setNotifications(fresh.map((n) => (n.id === id ? { ...n, is_read: true } : n)))
     } catch (e) {
       showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
     }
-  }, [notifications, setNotifications, showToast])
+  }, [setNotifications, showToast])
 
   const markAllAsRead = useCallback(async () => {
     if (!user) return
@@ -58,11 +59,12 @@ export function useNotifications() {
     try {
       const { error } = await supabase.from('notifications').delete().eq('id', id)
       if (error) throw error
-      setNotifications(notifications.filter((n) => n.id !== id))
+      const fresh = useAppStore.getState().notifications
+      setNotifications(fresh.filter((n) => n.id !== id))
     } catch (e) {
       showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
     }
-  }, [notifications, setNotifications, showToast])
+  }, [setNotifications, showToast])
 
   return { loading, notifications, loadNotifications, markRead, markAllAsRead, deleteNotification }
 }

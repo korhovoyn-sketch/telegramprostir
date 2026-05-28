@@ -44,7 +44,7 @@ async function validateInitData(initData: string, botToken: string): Promise<Rec
   if (expectedHash !== hash) return null
 
   const authDate = parseInt(params.get('auth_date') ?? '')
-  if (!authDate || Date.now() / 1000 - authDate > 300) return null
+  if (!authDate || Date.now() / 1000 - authDate > 3600) return null
 
   return Object.fromEntries(params.entries())
 }
@@ -91,6 +91,12 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
+    if (!tgUser.id) {
+      return new Response(JSON.stringify({ error: 'Missing user id' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
@@ -121,7 +127,7 @@ serve(async (req) => {
         .insert({ ...userPayload, role: 'owner' })
         .select('id')
         .single()
-      if (error || !newUser) throw error
+      if (error || !newUser) throw error ?? new Error('Insert returned no data — check RLS policies')
       userId = newUser.id
     }
 

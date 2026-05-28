@@ -12,12 +12,10 @@ import { DB_TYPE_LABELS, DB_COLORS } from '@/lib/utils'
 import type { Database, RealtorSubscription } from '@/types'
 
 export default function RealtorDashboardScreen() {
-  const { user, navigate, unreadCount } = useAppStore()
+  const { user, navigate, unreadCount, showToast } = useAppStore()
   const [subscriptions, setSubscriptions] = useState<RealtorSubscription[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-
-  const { showToast } = useAppStore()
 
   useEffect(() => {
     async function load() {

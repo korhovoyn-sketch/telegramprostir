@@ -31,6 +31,7 @@ export default function RealtorDatabaseScreen() {
           supabase.from('properties').select('*, photos:property_photos(*)').eq('db_id', screenParams.dbId).order('created_at', { ascending: false }),
         ])
         if (dbRes.error) throw dbRes.error
+        if (propsRes.error) throw propsRes.error
         setDb(dbRes.data as Database)
         setProperties((propsRes.data ?? []) as Property[])
       } catch (e) {

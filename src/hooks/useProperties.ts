@@ -23,8 +23,8 @@ export function useProperties(dbId?: string) {
 
       if (error) throw error
       const mapped = (data ?? []).map((p) => {
-        const row = p as Record<string, unknown>
-        return { ...row, views: undefined, _view_count: (row.views as unknown[])?.length ?? 0 }
+        const { views, ...rest } = p as Record<string, unknown>
+        return { ...rest, _view_count: (views as unknown[])?.length ?? 0 }
       })
       setProperties(mapped as unknown as Property[])
     } catch (e) {
