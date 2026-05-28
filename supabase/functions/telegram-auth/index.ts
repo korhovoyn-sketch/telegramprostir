@@ -43,7 +43,7 @@ async function validateInitData(initData: string, botToken: string): Promise<Rec
   if (expectedHash !== hash) return null
 
   const authDate = parseInt(params.get('auth_date') ?? '')
-  if (!authDate || Date.now() / 1000 - authDate > 300) return null
+  if (!authDate || Date.now() / 1000 - authDate > 3600) return null
 
   return Object.fromEntries(params.entries())
 }
