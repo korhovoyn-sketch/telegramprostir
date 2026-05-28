@@ -1,0 +1,57 @@
+'use client'
+
+import dynamic from 'next/dynamic'
+import { useAppStore } from '@/store/appStore'
+
+const SplashScreen = dynamic(() => import('@/screens/SplashScreen'))
+const WelcomeScreen = dynamic(() => import('@/screens/WelcomeScreen'))
+const RoleSelectScreen = dynamic(() => import('@/screens/RoleSelectScreen'))
+const ProfileSetupScreen = dynamic(() => import('@/screens/ProfileSetupScreen'))
+const EmptyStateScreen = dynamic(() => import('@/screens/EmptyStateScreen'))
+const DatabaseListScreen = dynamic(() => import('@/screens/DatabaseListScreen'))
+const CreateDatabaseScreen = dynamic(() => import('@/screens/CreateDatabaseScreen'))
+const DatabaseObjectsScreen = dynamic(() => import('@/screens/DatabaseObjectsScreen'))
+const PropertyFormScreen = dynamic(() => import('@/screens/PropertyFormScreen'))
+const PropertyDetailScreen = dynamic(() => import('@/screens/PropertyDetailScreen'))
+const SharingAnalyticsScreen = dynamic(() => import('@/screens/SharingAnalyticsScreen'))
+const ExportScreen = dynamic(() => import('@/screens/ExportScreen'))
+const RealtorDashboardScreen = dynamic(() => import('@/screens/RealtorDashboardScreen'))
+const RealtorDatabaseScreen = dynamic(() => import('@/screens/RealtorDatabaseScreen'))
+const CollectionsScreen = dynamic(() => import('@/screens/CollectionsScreen'))
+const ProfileScreen = dynamic(() => import('@/screens/ProfileScreen'))
+const NotificationsScreen = dynamic(() => import('@/screens/NotificationsScreen'))
+const ErrorScreen = dynamic(() => import('@/screens/ErrorScreen'))
+const SuccessScreen = dynamic(() => import('@/screens/SuccessScreen'))
+const PhotoUploadScreen = dynamic(() => import('@/screens/PhotoUploadScreen'))
+const PhotoGalleryScreen = dynamic(() => import('@/screens/PhotoGalleryScreen'))
+const QRScannerScreen = dynamic(() => import('@/screens/QRScannerScreen'))
+
+export default function Page() {
+  const screen = useAppStore((s) => s.screen)
+
+  switch (screen) {
+    case 'splash': return <SplashScreen />
+    case 'welcome': return <WelcomeScreen />
+    case 'role-select': return <RoleSelectScreen />
+    case 'profile-setup': return <ProfileSetupScreen />
+    case 'empty-state': return <EmptyStateScreen />
+    case 'db-list': return <DatabaseListScreen />
+    case 'create-db': return <CreateDatabaseScreen />
+    case 'db-objects': return <DatabaseObjectsScreen />
+    case 'property-form': return <PropertyFormScreen />
+    case 'property-detail': return <PropertyDetailScreen />
+    case 'sharing-analytics': return <SharingAnalyticsScreen />
+    case 'export': return <ExportScreen />
+    case 'realtor-dashboard': return <RealtorDashboardScreen />
+    case 'realtor-database': return <RealtorDatabaseScreen />
+    case 'collections': return <CollectionsScreen />
+    case 'profile': return <ProfileScreen />
+    case 'notifications': return <NotificationsScreen />
+    case 'error': return <ErrorScreen />
+    case 'success': return <SuccessScreen />
+    case 'photo-upload': return <PhotoUploadScreen />
+    case 'photo-gallery': return <PhotoGalleryScreen />
+    case 'qr-scanner': return <QRScannerScreen />
+    default: return <SplashScreen />
+  }
+}
