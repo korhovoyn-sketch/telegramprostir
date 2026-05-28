@@ -134,7 +134,11 @@ serve(async (req) => {
     const { data: fullUser } = await supabaseAdmin.from('users').select('*').eq('id', userId).single()
 
     return new Response(
-      JSON.stringify({ session: session?.session, user: fullUser }),
+      JSON.stringify({
+        access_token: session?.session?.access_token,
+        refresh_token: session?.session?.refresh_token,
+        user: fullUser,
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     )
   } catch (err) {
