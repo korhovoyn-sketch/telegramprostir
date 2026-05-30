@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useAppStore } from '@/store/appStore'
 import Header from '@/components/ui/Header'
 import Toggle from '@/components/ui/Toggle'
-import { IconFileExport, IconFile } from '@/components/Icons'
+import { IconFileExport } from '@/components/Icons'
 
 const FORMATS = [
   { id: 'pdf', label: 'PDF Документ', desc: 'Красива презентація з фото для клієнта', emoji: '📄' },
@@ -20,7 +20,7 @@ const TEMPLATES = [
 ]
 
 export default function ExportScreen() {
-  const { screenParams, showToast } = useAppStore()
+  const { showToast } = useAppStore()
   const [format, setFormat] = useState('pdf')
   const [template, setTemplate] = useState('classic')
   const [includePhotos, setIncludePhotos] = useState(true)

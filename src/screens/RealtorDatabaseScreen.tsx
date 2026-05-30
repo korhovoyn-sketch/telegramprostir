@@ -7,7 +7,7 @@ import Header from '@/components/ui/Header'
 import SearchBar from '@/components/ui/SearchBar'
 import { StatusBadge } from '@/components/ui/Badge'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
-import { IconChevronRight, IconShare, IconBookmark, IconEye, IconPhoto } from '@/components/Icons'
+import { IconShare, IconBookmark, IconPhoto } from '@/components/Icons'
 import { formatPrice, calcRent, calcUtilities, DB_TYPE_LABELS } from '@/lib/utils'
 import type { Database, Property, PropertyStatus } from '@/types'
 

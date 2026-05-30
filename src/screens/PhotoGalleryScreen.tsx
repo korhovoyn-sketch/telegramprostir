@@ -1,5 +1,6 @@
 'use client'
 
+/* eslint-disable @next/next/no-img-element */
 import { useState } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { IconX, IconShare, IconChevronLeft, IconChevronRight } from '@/components/Icons'

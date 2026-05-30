@@ -1,7 +1,7 @@
 'use client'
 
 import { create } from 'zustand'
-import type { User, Toast, ScreenName, ScreenParams, Database, Property, Notification } from '@/types'
+import type { User, Toast, ScreenName, ScreenParams, Database, Notification } from '@/types'
 
 interface NavEntry {
   screen: ScreenName

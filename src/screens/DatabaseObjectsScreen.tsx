@@ -10,14 +10,14 @@ import SearchBar from '@/components/ui/SearchBar'
 import { StatusBadge, FreshnessBadge } from '@/components/ui/Badge'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import Modal from '@/components/ui/Modal'
-import { IconPlus, IconDots, IconEye, IconPhoto, IconShare, IconFileExport } from '@/components/Icons'
+import { IconPlus, IconDots, IconEye, IconPhoto, IconShare } from '@/components/Icons'
 import { formatPrice, calcRent, calcUtilities, DB_TYPE_LABELS } from '@/lib/utils'
 import type { PropertyStatus } from '@/types'
 
 export default function DatabaseObjectsScreen() {
   const { screenParams, navigate, databases } = useAppStore()
-  const { deleteDatabase, loading: dbLoading } = useDatabases()
-  const { properties, loading, loadProperties, cycleStatus, deleteProperty } = useProperties(screenParams.dbId)
+  const { deleteDatabase } = useDatabases()
+  const { properties, loading, loadProperties } = useProperties(screenParams.dbId)
 
   const [search, setSearch] = useState('')
   const [tab, setTab] = useState<'all' | PropertyStatus>('all')

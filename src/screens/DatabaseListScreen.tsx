@@ -8,7 +8,7 @@ import SearchBar from '@/components/ui/SearchBar'
 import { FreshnessBadge } from '@/components/ui/Badge'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import { IconBell, IconChevronRight, IconPlus } from '@/components/Icons'
-import { DB_TYPE_ICONS, DB_COLORS, DB_TYPE_LABELS } from '@/lib/utils'
+import { DB_COLORS, DB_TYPE_LABELS } from '@/lib/utils'
 
 export default function DatabaseListScreen() {
   const { user, navigate, unreadCount } = useAppStore()
@@ -87,7 +87,6 @@ export default function DatabaseListScreen() {
         ) : (
           <div className="list">
             {filtered.map((db) => {
-              const iconId = DB_TYPE_ICONS[db.type] ?? 'ti-building'
               const colorStyle = { background: DB_COLORS[db.color] ?? DB_COLORS.purple }
               return (
                 <div

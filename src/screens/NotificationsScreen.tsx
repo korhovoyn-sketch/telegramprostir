@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { useNotifications } from '@/hooks/useNotifications'
-import Header from '@/components/ui/Header'
 import TabBar from '@/components/ui/TabBar'
 import { formatDate } from '@/lib/utils'
 import type { Notification } from '@/types'
@@ -12,7 +11,7 @@ type NotifTab = 'all' | 'views' | 'chats' | 'system'
 
 export default function NotificationsScreen() {
   const unreadCount = useAppStore((s) => s.unreadCount)
-  const { notifications, loading, loadNotifications, markRead, markAllAsRead, deleteNotification } = useNotifications()
+  const { notifications, loading, loadNotifications, markRead, markAllAsRead } = useNotifications()
   const [tab, setTab] = useState<NotifTab>('all')
 
   useEffect(() => { loadNotifications() }, [loadNotifications])

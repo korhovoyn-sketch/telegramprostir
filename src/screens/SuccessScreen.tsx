@@ -10,14 +10,13 @@ export default function SuccessScreen() {
   const title = (screenParams.title as string) ?? 'Збережено!'
   const message = (screenParams.message as string) ?? 'Дані успішно збережено'
   const nextScreen = (screenParams.nextScreen as string) ?? 'db-list'
-  const nextParams = (screenParams.nextParams as Record<string, unknown>) ?? {}
-
   useEffect(() => {
+    const nextParams = (screenParams.nextParams as Record<string, unknown>) ?? {}
     const timer = setTimeout(() => {
       navigate(nextScreen as Parameters<typeof navigate>[0], nextParams)
     }, 3000)
     return () => clearTimeout(timer)
-  }, [navigate, nextScreen, nextParams])
+  }, [navigate, nextScreen, screenParams.nextParams])
 
   return (
     <div className="scr bg-success" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>

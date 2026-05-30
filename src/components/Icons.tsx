@@ -6,7 +6,7 @@ interface IconProps {
   color?: string
 }
 
-function Icon({ d, className = '', size = 24, color = 'currentColor', children, viewBox = '0 0 24 24' }: IconProps & { d?: string; children?: React.ReactNode; viewBox?: string }) {
+function Icon({ className = '', size = 24, color = 'currentColor', children, viewBox = '0 0 24 24' }: IconProps & { children?: React.ReactNode; viewBox?: string }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
