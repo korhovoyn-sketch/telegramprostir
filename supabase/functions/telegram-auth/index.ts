@@ -1,5 +1,4 @@
 // deno-lint-ignore-file no-explicit-any
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
 const corsHeaders = {
@@ -59,7 +58,7 @@ async function validateInitData(
   return Object.fromEntries(params.entries())
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -112,17 +111,24 @@ serve(async (req) => {
     const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
 
+    if (!SUPABASE_URL || !SERVICE_KEY || !ANON_KEY) {
+      throw new Error('Missing required environment variables: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_ANON_KEY')
+    }
+
     const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_KEY)
+
+    const tgId = parseInt(tgUser.id, 10)
+    if (isNaN(tgId)) throw new Error('Invalid Telegram user id')
 
     // ── Upsert user in public.users ──────────────────────────────────────────
     const { data: existing } = await supabaseAdmin
       .from('users')
       .select('id, role')
-      .eq('tg_id', tgUser.id)
+      .eq('tg_id', tgId)
       .maybeSingle()
 
     const userPayload = {
-      tg_id: tgUser.id,
+      tg_id: tgId,
       tg_username: tgUser.username ?? null,
       first_name: tgUser.first_name ?? 'User',
       last_name: tgUser.last_name ?? null,
@@ -132,7 +138,7 @@ serve(async (req) => {
 
     let userId: string
     if (existing) {
-      await supabaseAdmin.from('users').update(userPayload).eq('tg_id', tgUser.id)
+      await supabaseAdmin.from('users').update(userPayload).eq('tg_id', tgId)
       userId = existing.id
     } else {
       const { data: newUser, error: insertErr } = await supabaseAdmin
@@ -147,8 +153,6 @@ serve(async (req) => {
     }
 
     // ── Create Supabase auth session ──────────────────────────────────────────
-    // Step 1: generateLink creates auth.users entry if it doesn't exist,
-    //         and returns hashed_token for a magiclink OTP
     const email = `${tgUser.id}@telegram.propspace.app`
     const { data: linkData, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
       type: 'magiclink',
@@ -159,7 +163,6 @@ serve(async (req) => {
       throw new Error('generateLink returned no hashed_token')
     }
 
-    // Step 2: verifyOtp with hashed_token + type:'magiclink' → valid JWT session
     const supabaseAnon = createClient(SUPABASE_URL, ANON_KEY)
     const { data: sessionData, error: otpErr } = await supabaseAnon.auth.verifyOtp({
       token_hash: linkData.properties.hashed_token,
@@ -170,7 +173,6 @@ serve(async (req) => {
 
     const { access_token, refresh_token } = sessionData.session
 
-    // Guard: must be a valid JWT (3 dot-separated parts)
     if (!access_token || access_token.split('.').length !== 3) {
       throw new Error(`Invalid JWT from verifyOtp: "${access_token?.substring(0, 20)}"`)
     }

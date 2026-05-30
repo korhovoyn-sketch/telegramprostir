@@ -4,7 +4,7 @@ on:
   push:
     paths:
       - 'supabase/functions/**'
-    branches: [main]
+    branches: [main, claude/lucid-planck-Hjo1u]
   workflow_dispatch:
 
 jobs:
@@ -12,6 +12,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Verify SUPABASE_ACCESS_TOKEN is set
+        run: |
+          if [ -z "${{ secrets.SUPABASE_ACCESS_TOKEN }}" ]; then
+            echo "::error::SUPABASE_ACCESS_TOKEN secret is not set in GitHub repository settings."
+            echo "Go to Settings → Secrets and variables → Actions → New repository secret"
+            echo "Name: SUPABASE_ACCESS_TOKEN"
+            echo "Value: your Supabase personal access token from https://supabase.com/dashboard/account/tokens"
+            exit 1
+          fi
+          echo "SUPABASE_ACCESS_TOKEN is configured."
 
       - uses: supabase/setup-cli@v1
         with:

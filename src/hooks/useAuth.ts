@@ -28,11 +28,14 @@ export function useAuth() {
       })
 
       if (!res.ok) {
+        if (res.status === 404) {
+          throw new Error('Сервіс авторизації не знайдено (404). Функція не задеплоєна на Supabase.')
+        }
         const rawText = await res.text().catch(() => '')
         let errMsg = `HTTP ${res.status}`
         try {
           const parsed = JSON.parse(rawText)
-          errMsg = parsed.error || parsed.message || errMsg
+          errMsg = parsed.error || parsed.detail || parsed.message || errMsg
         } catch { /* rawText wasn't JSON */ }
         throw new Error(errMsg)
       }
