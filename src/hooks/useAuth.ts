@@ -13,17 +13,28 @@ export function useAuth() {
     setLoading(true)
     try {
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
       if (!supabaseUrl) throw new Error('Supabase URL not configured')
+      if (!supabaseAnonKey) throw new Error('Supabase anon key not configured')
 
       const res = await fetch(`${supabaseUrl}/functions/v1/telegram-auth`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseAnonKey}`,
+          'apikey': supabaseAnonKey,
+        },
         body: JSON.stringify({ initData }),
       })
 
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: 'Unknown error' }))
-        throw new Error(err.error || `HTTP ${res.status}`)
+        const rawText = await res.text().catch(() => '')
+        let errMsg = `HTTP ${res.status}`
+        try {
+          const parsed = JSON.parse(rawText)
+          errMsg = parsed.error || parsed.message || errMsg
+        } catch { /* rawText wasn't JSON */ }
+        throw new Error(errMsg)
       }
 
       const body = await res.json()
