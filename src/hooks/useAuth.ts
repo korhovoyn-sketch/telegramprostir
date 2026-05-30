@@ -102,10 +102,16 @@ export function useAuth() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) return false
 
+      // auth.users.id !== public.users.id — link via tg_id stored in user metadata
+      // The auth user email is `{tgId}@telegram.propspace.app`
+      const email = session.user.email ?? ''
+      const tgId = email.replace('@telegram.propspace.app', '')
+      if (!tgId || tgId === email) return false
+
       const { data, error } = await supabase
         .from('users')
         .select('*')
-        .eq('id', session.user.id)
+        .eq('tg_id', tgId)
         .single()
 
       if (error || !data) return false
