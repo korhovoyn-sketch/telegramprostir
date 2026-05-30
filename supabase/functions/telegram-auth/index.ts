@@ -1,10 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-// CORS: Allow all Telegram Mini App domains
-// These are safe because:
-// 1. initData must pass HMAC-SHA256 validation (signed by Telegram Bot Token)
-// 2. Only valid Telegram users can authenticate
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -26,7 +22,10 @@ function checkRateLimit(ip: string): boolean {
   return true
 }
 
-async function validateInitData(initData: string, botToken: string): Promise<Record<string, string> | null> {
+async function validateInitData(
+  initData: string,
+  botToken: string,
+): Promise<Record<string, string> | null> {
   const params = new URLSearchParams(initData)
   const hash = params.get('hash')
   if (!hash) return null
@@ -39,12 +38,17 @@ async function validateInitData(initData: string, botToken: string): Promise<Rec
 
   const encoder = new TextEncoder()
   const keyData = encoder.encode('WebAppData')
-  const secretKey = await crypto.subtle.importKey('raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+  const secretKey = await crypto.subtle.importKey(
+    'raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'],
+  )
   const secretKeyBytes = await crypto.subtle.sign('HMAC', secretKey, encoder.encode(botToken))
-
-  const hmacKey = await crypto.subtle.importKey('raw', secretKeyBytes, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+  const hmacKey = await crypto.subtle.importKey(
+    'raw', secretKeyBytes, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'],
+  )
   const signature = await crypto.subtle.sign('HMAC', hmacKey, encoder.encode(dataCheckString))
-  const expectedHash = Array.from(new Uint8Array(signature)).map((b) => b.toString(16).padStart(2, '0')).join('')
+  const expectedHash = Array.from(new Uint8Array(signature))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
 
   if (expectedHash !== hash) return null
 
@@ -68,8 +72,8 @@ serve(async (req) => {
   }
 
   try {
-    const { initData } = await req.json()
-    if (!initData) {
+    const body = await req.json().catch(() => null)
+    if (!body?.initData) {
       return new Response(JSON.stringify({ error: 'Missing initData' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -79,7 +83,7 @@ serve(async (req) => {
     const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN')
     if (!botToken) throw new Error('Bot token not configured')
 
-    const validated = await validateInitData(initData, botToken)
+    const validated = await validateInitData(body.initData, botToken)
     if (!validated) {
       return new Response(JSON.stringify({ error: 'Invalid initData' }), {
         status: 401,
@@ -102,11 +106,14 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-    )
 
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
+    const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+
+    const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_KEY)
+
+    // ── Upsert user in public.users ──────────────────────────────────────────
     const { data: existing } = await supabaseAdmin
       .from('users')
       .select('id, role')
@@ -127,73 +134,64 @@ serve(async (req) => {
       await supabaseAdmin.from('users').update(userPayload).eq('tg_id', tgUser.id)
       userId = existing.id
     } else {
-      const { data: newUser, error } = await supabaseAdmin
+      const { data: newUser, error: insertErr } = await supabaseAdmin
         .from('users')
         .insert({ ...userPayload, role: 'owner' })
         .select('id')
         .single()
-      if (error || !newUser) throw error ?? new Error('Insert returned no data — check RLS policies')
+      if (insertErr || !newUser) {
+        throw insertErr ?? new Error('User insert failed — check RLS policies')
+      }
       userId = newUser.id
     }
 
+    // ── Create Supabase auth session ──────────────────────────────────────────
+    // Step 1: generateLink creates auth.users entry if it doesn't exist,
+    //         and returns hashed_token for a magiclink OTP
     const email = `${tgUser.id}@telegram.propspace.app`
-
-    // Step 1: Create or ensure auth user exists via generateLink
-    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+    const { data: linkData, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
       type: 'magiclink',
       email,
     })
-    if (linkError) throw linkError
-    if (!linkData?.user?.id) {
-      throw new Error('Auth user creation failed — generateLink returned no user')
+    if (linkErr) throw new Error(`generateLink failed: ${linkErr.message}`)
+    if (!linkData?.properties?.hashed_token) {
+      throw new Error('generateLink returned no hashed_token')
     }
 
-    const authUserId = linkData.user.id
-    console.log(`[telegram-auth] Created/found auth user: ${authUserId}`)
-
-    // Step 2: Create session via admin SDK
-    // This returns a guaranteed valid JWT session
-    const { data: sessionData, error: sessionError } = await supabaseAdmin.auth.admin.createSession({
-      user_id: authUserId,
+    // Step 2: verifyOtp with hashed_token + type:'magiclink' → valid JWT session
+    const supabaseAnon = createClient(SUPABASE_URL, ANON_KEY)
+    const { data: sessionData, error: otpErr } = await supabaseAnon.auth.verifyOtp({
+      token_hash: linkData.properties.hashed_token,
+      type: 'magiclink',
     })
+    if (otpErr) throw new Error(`verifyOtp failed: ${otpErr.message}`)
+    if (!sessionData?.session) throw new Error('verifyOtp returned no session')
 
-    if (sessionError) {
-      console.error('[telegram-auth] createSession error:', sessionError)
-      throw new Error(`Failed to create session: ${sessionError.message}`)
+    const { access_token, refresh_token } = sessionData.session
+
+    // Guard: must be a valid JWT (3 dot-separated parts)
+    if (!access_token || access_token.split('.').length !== 3) {
+      throw new Error(`Invalid JWT from verifyOtp: "${access_token?.substring(0, 20)}"`)
     }
 
-    if (!sessionData?.session?.access_token || !sessionData?.session?.refresh_token) {
-      console.error('[telegram-auth] Missing tokens in session:', { sessionData })
-      throw new Error('Session created but missing access/refresh tokens')
-    }
-
-    const accessToken = sessionData.session.access_token
-    const refreshToken = sessionData.session.refresh_token
-
-    // Validate JWT format before returning
-    const tokenParts = accessToken.split('.')
-    if (tokenParts.length !== 3) {
-      throw new Error(`Invalid JWT format from createSession: got ${tokenParts.length} parts instead of 3`)
-    }
-
-    console.log('[telegram-auth] Session created successfully')
-
-    const { data: fullUser } = await supabaseAdmin.from('users').select('*').eq('id', userId).single()
-    if (!fullUser) throw new Error('User not found in database after auth session creation')
+    // ── Return ───────────────────────────────────────────────────────────────
+    const { data: fullUser } = await supabaseAdmin
+      .from('users')
+      .select('*')
+      .eq('id', userId)
+      .single()
+    if (!fullUser) throw new Error('User not found after session creation')
 
     return new Response(
-      JSON.stringify({
-        access_token: accessToken,
-        refresh_token: refreshToken,
-        user: fullUser,
-      }),
+      JSON.stringify({ access_token, refresh_token, user: fullUser }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     )
   } catch (err) {
-    console.error('telegram-auth error:', err)
-    return new Response(JSON.stringify({ error: 'Internal error' }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('[telegram-auth] error:', msg)
+    return new Response(
+      JSON.stringify({ error: 'Internal error', detail: msg }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    )
   }
 })
