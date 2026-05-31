@@ -138,7 +138,8 @@ Deno.serve(async (req) => {
 
     let userId: string
     if (existing) {
-      await supabaseAdmin.from('users').update(userPayload).eq('tg_id', tgId)
+      const { error: updateErr } = await supabaseAdmin.from('users').update(userPayload).eq('tg_id', tgId)
+      if (updateErr) throw new Error(`User update failed: ${updateErr.message}`)
       userId = existing.id
     } else {
       const { data: newUser, error: insertErr } = await supabaseAdmin
@@ -146,9 +147,8 @@ Deno.serve(async (req) => {
         .insert({ ...userPayload, role: 'owner' })
         .select('id')
         .single()
-      if (insertErr || !newUser) {
-        throw insertErr ?? new Error('User insert failed — check RLS policies')
-      }
+      if (insertErr) throw new Error(`User insert failed: ${insertErr.message}`)
+      if (!newUser) throw new Error('User insert returned no data — check RLS policies')
       userId = newUser.id
     }
 
@@ -190,7 +190,11 @@ Deno.serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     )
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
+    const msg = err instanceof Error
+      ? err.message
+      : (typeof err === 'object' && err !== null && 'message' in err)
+        ? String((err as { message: unknown }).message)
+        : JSON.stringify(err)
     console.error('[telegram-auth] error:', msg)
     return new Response(
       JSON.stringify({ error: 'Internal error', detail: msg }),
