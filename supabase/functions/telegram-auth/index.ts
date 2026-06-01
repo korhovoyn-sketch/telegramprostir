@@ -1,4 +1,3 @@
-// deno-lint-ignore-file no-explicit-any
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 
 const corsHeaders = {
@@ -53,9 +52,28 @@ async function validateInitData(
   if (expectedHash !== hash) return null
 
   const authDate = parseInt(params.get('auth_date') ?? '')
-  if (!authDate || Date.now() / 1000 - authDate > 3600) return null
+  if (!authDate || Date.now() / 1000 - authDate > 86400) return null
 
   return Object.fromEntries(params.entries())
+}
+
+// Derive a deterministic password from SERVICE_KEY + email.
+// Never exposed to users — only used internally for JWT generation.
+async function derivePassword(serviceKey: string, email: string): Promise<string> {
+  const encoder = new TextEncoder()
+  const key = await crypto.subtle.importKey(
+    'raw', encoder.encode(serviceKey), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'],
+  )
+  const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(email))
+  return Array.from(new Uint8Array(sig)).map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+function serializeError(err: unknown): string {
+  if (err instanceof Error) return err.message
+  if (typeof err === 'object' && err !== null && 'message' in err) {
+    return String((err as { message: unknown }).message)
+  }
+  return JSON.stringify(err)
 }
 
 Deno.serve(async (req) => {
@@ -83,6 +101,13 @@ Deno.serve(async (req) => {
     const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN')
     if (!botToken) throw new Error('Bot token not configured')
 
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
+    const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+    if (!SUPABASE_URL || !SERVICE_KEY || !ANON_KEY) {
+      throw new Error('Missing Supabase env vars')
+    }
+
     const validated = await validateInitData(body.initData, botToken)
     if (!validated) {
       return new Response(JSON.stringify({ error: 'Invalid initData' }), {
@@ -107,16 +132,7 @@ Deno.serve(async (req) => {
       })
     }
 
-    const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
-    const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
-
-    if (!SUPABASE_URL || !SERVICE_KEY || !ANON_KEY) {
-      throw new Error('Missing required environment variables: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_ANON_KEY')
-    }
-
     const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_KEY)
-
     const tgId = parseInt(tgUser.id, 10)
     if (isNaN(tgId)) throw new Error('Invalid Telegram user id')
 
@@ -138,7 +154,8 @@ Deno.serve(async (req) => {
 
     let userId: string
     if (existing) {
-      const { error: updateErr } = await supabaseAdmin.from('users').update(userPayload).eq('tg_id', tgId)
+      const { error: updateErr } = await supabaseAdmin
+        .from('users').update(userPayload).eq('tg_id', tgId)
       if (updateErr) throw new Error(`User update failed: ${updateErr.message}`)
       userId = existing.id
     } else {
@@ -148,41 +165,43 @@ Deno.serve(async (req) => {
         .select('id')
         .single()
       if (insertErr) throw new Error(`User insert failed: ${insertErr.message}`)
-      if (!newUser) throw new Error('User insert returned no data — check RLS policies')
+      if (!newUser) throw new Error('User insert returned no data')
       userId = newUser.id
     }
 
-    // ── Create Supabase auth session ──────────────────────────────────────────
+    // ── Create Supabase auth session ─────────────────────────────────────────
+    // We use createUser + signInWithPassword instead of generateLink/verifyOtp
+    // to avoid dependency on Supabase's email sending infrastructure.
     const email = `${tgUser.id}@telegram.propspace.app`
-    const { data: linkData, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'magiclink',
+    const password = await derivePassword(SERVICE_KEY, email)
+
+    // Create auth user (ignore "already registered" error — user exists)
+    const { error: createErr } = await supabaseAdmin.auth.admin.createUser({
       email,
+      password,
+      email_confirm: true,
     })
-    if (linkErr) throw new Error(`generateLink failed: ${linkErr.message}`)
-    if (!linkData?.properties?.hashed_token) {
-      throw new Error('generateLink returned no hashed_token')
+    if (createErr && !createErr.message?.toLowerCase().includes('already registered')) {
+      throw new Error(`Auth user creation failed: ${createErr.message}`)
     }
 
+    // Sign in to get JWT tokens
     const supabaseAnon = createClient(SUPABASE_URL, ANON_KEY)
-    const { data: sessionData, error: otpErr } = await supabaseAnon.auth.verifyOtp({
-      token_hash: linkData.properties.hashed_token,
-      type: 'magiclink',
+    const { data: signInData, error: signInErr } = await supabaseAnon.auth.signInWithPassword({
+      email,
+      password,
     })
-    if (otpErr) throw new Error(`verifyOtp failed: ${otpErr.message}`)
-    if (!sessionData?.session) throw new Error('verifyOtp returned no session')
+    if (signInErr) throw new Error(`Sign in failed: ${signInErr.message}`)
+    if (!signInData?.session) throw new Error('Sign in returned no session')
 
-    const { access_token, refresh_token } = sessionData.session
-
+    const { access_token, refresh_token } = signInData.session
     if (!access_token || access_token.split('.').length !== 3) {
-      throw new Error(`Invalid JWT from verifyOtp: "${access_token?.substring(0, 20)}"`)
+      throw new Error(`Invalid JWT: "${access_token?.substring(0, 20)}"`)
     }
 
     // ── Return ───────────────────────────────────────────────────────────────
     const { data: fullUser } = await supabaseAdmin
-      .from('users')
-      .select('*')
-      .eq('id', userId)
-      .single()
+      .from('users').select('*').eq('id', userId).single()
     if (!fullUser) throw new Error('User not found after session creation')
 
     return new Response(
@@ -190,11 +209,7 @@ Deno.serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     )
   } catch (err) {
-    const msg = err instanceof Error
-      ? err.message
-      : (typeof err === 'object' && err !== null && 'message' in err)
-        ? String((err as { message: unknown }).message)
-        : JSON.stringify(err)
+    const msg = serializeError(err)
     console.error('[telegram-auth] error:', msg)
     return new Response(
       JSON.stringify({ error: 'Internal error', detail: msg }),
