@@ -35,7 +35,7 @@ export function useAuth() {
         let errMsg = `HTTP ${res.status}`
         try {
           const parsed = JSON.parse(rawText)
-          errMsg = parsed.error || parsed.detail || parsed.message || errMsg
+          errMsg = parsed.detail || parsed.message || parsed.error || errMsg
         } catch { /* rawText wasn't JSON */ }
         throw new Error(errMsg)
       }
