@@ -49,10 +49,8 @@ export function useAuth() {
       if (!refresh_token) throw new Error('No refresh_token in response')
       if (!user) throw new Error('No user in response')
 
-      // Validate JWT format before setSession
-      const tokenParts = access_token.split('.')
-      if (tokenParts.length !== 3) {
-        throw new Error(`Invalid token format: expected 3 parts, got ${tokenParts.length}`)
+      if (access_token.split('.').length !== 3) {
+        throw new Error(`Invalid token format: expected 3 parts, got ${access_token.split('.').length}`)
       }
 
       try {
@@ -94,10 +92,15 @@ export function useAuth() {
       const { data: { user: authUser } } = await supabase.auth.getUser()
       if (!authUser) throw new Error('Not authenticated')
 
+      // auth.users.id !== public.users.id — update by tg_id extracted from email
+      const tgIdStr = (authUser.email ?? '').replace('@telegram.propspace.app', '')
+      const tgId = parseInt(tgIdStr, 10)
+      if (!tgId) throw new Error('Cannot determine tg_id from session')
+
       const { data, error } = await supabase
         .from('users')
         .update({ ...updates, updated_at: new Date().toISOString() })
-        .eq('id', authUser.id)
+        .eq('tg_id', tgId)
         .select()
         .single()
 
@@ -116,11 +119,14 @@ export function useAuth() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) return false
 
-      // auth.users.id !== public.users.id — link via tg_id stored in user metadata
-      // The auth user email is `{tgId}@telegram.propspace.app`
+      // auth.users.id !== public.users.id — link via tg_id from email
       const email = session.user.email ?? ''
-      const tgId = email.replace('@telegram.propspace.app', '')
-      if (!tgId || tgId === email) return false
+      const tgIdStr = email.replace('@telegram.propspace.app', '')
+      if (!tgIdStr || tgIdStr === email) return false
+
+      // Parse to number — tg_id column is BIGINT, string comparison silently fails
+      const tgId = parseInt(tgIdStr, 10)
+      if (isNaN(tgId)) return false
 
       const { data, error } = await supabase
         .from('users')
