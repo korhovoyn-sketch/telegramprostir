@@ -303,6 +303,24 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('photos', 'photos', true)
 ON CONFLICT (id) DO NOTHING;
 
+-- Storage object RLS policies (bucket is public for reads; authenticated users can write)
+DROP POLICY IF EXISTS "storage_photos_select" ON storage.objects;
+DROP POLICY IF EXISTS "storage_photos_insert" ON storage.objects;
+DROP POLICY IF EXISTS "storage_photos_update" ON storage.objects;
+DROP POLICY IF EXISTS "storage_photos_delete" ON storage.objects;
+
+CREATE POLICY "storage_photos_select" ON storage.objects
+  FOR SELECT USING (bucket_id = 'photos');
+
+CREATE POLICY "storage_photos_insert" ON storage.objects
+  FOR INSERT WITH CHECK (bucket_id = 'photos' AND auth.role() = 'authenticated');
+
+CREATE POLICY "storage_photos_update" ON storage.objects
+  FOR UPDATE USING (bucket_id = 'photos' AND auth.role() = 'authenticated');
+
+CREATE POLICY "storage_photos_delete" ON storage.objects
+  FOR DELETE USING (bucket_id = 'photos' AND auth.role() = 'authenticated');
+
 -- ── 10. RELOAD POSTGREST CACHE ──────────────────────────────────────────────
 NOTIFY pgrst, 'reload schema';
 

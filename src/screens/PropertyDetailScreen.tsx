@@ -180,7 +180,7 @@ export default function PropertyDetailScreen() {
 
       <div className="body">
         {/* Hero */}
-        <div className="obj-hero" onClick={() => photos.length > 0 && openGallery(0)} style={{ cursor: photos.length > 0 ? 'pointer' : 'default' }}>
+        <div className="obj-hero" onClick={() => photos.length > 0 && openGallery(0)} style={{ cursor: photos.length > 0 ? 'pointer' : 'default', background: photos.length > 0 ? undefined : 'transparent' }}>
           {photos.length > 0 ? (
             <img
               src={photoUrl(photos[0].storage_path)}
