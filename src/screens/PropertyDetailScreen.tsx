@@ -16,6 +16,105 @@ function photoUrl(path: string) {
   return `${SUPABASE_URL}/storage/v1/object/public/photos/${path}`
 }
 
+function Building3DHero() {
+  return (
+    <svg viewBox="0 0 160 150" width="136" height="126" style={{ overflow: 'visible', filter: 'drop-shadow(0 14px 32px rgba(60,80,255,0.45))' }}>
+      <style>{`
+        @keyframes b3dFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-9px)} }
+        @keyframes b3dGlow  { 0%,100%{opacity:.4} 50%{opacity:.75} }
+        @keyframes b3dWinA  { 0%,82%,100%{opacity:.78} 88%{opacity:.15} }
+        @keyframes b3dWinB  { 0%,68%,100%{opacity:.48} 74%{opacity:.92} }
+        @keyframes b3dWinC  { 0%,56%,100%{opacity:.65} 62%{opacity:.18} }
+        @keyframes b3dSpark { 0%,100%{opacity:0} 50%{opacity:1} }
+        .b3d-g{animation:b3dFloat 3.8s ease-in-out infinite;transform-origin:80px 112px}
+        .b3d-gl{animation:b3dGlow 3.8s ease-in-out infinite}
+        .b3d-wa{animation:b3dWinA 5.2s .3s ease-in-out infinite}
+        .b3d-wb{animation:b3dWinB 5.2s 1.1s ease-in-out infinite}
+        .b3d-wc{animation:b3dWinC 5.2s 2.0s ease-in-out infinite}
+        .b3d-wd{animation:b3dWinA 5.2s 2.8s ease-in-out infinite}
+        .b3d-s1{animation:b3dSpark 2.6s 0s ease-in-out infinite}
+        .b3d-s2{animation:b3dSpark 2.6s .9s ease-in-out infinite}
+        .b3d-s3{animation:b3dSpark 2.6s 1.7s ease-in-out infinite}
+      `}</style>
+      <defs>
+        <linearGradient id="b3dFr" x1="0" y1="0" x2=".08" y2="1">
+          <stop offset="0%" stopColor="#4E87E8"/><stop offset="100%" stopColor="#1C3F8E"/>
+        </linearGradient>
+        <linearGradient id="b3dSd" x1="0" y1="0" x2="1" y2=".15">
+          <stop offset="0%" stopColor="#1C3F8E"/><stop offset="100%" stopColor="#0B2362"/>
+        </linearGradient>
+        <linearGradient id="b3dTp" x1="0" y1="1" x2="1" y2="0">
+          <stop offset="0%" stopColor="#3A70D4"/><stop offset="100%" stopColor="#61A0F0"/>
+        </linearGradient>
+        <radialGradient id="b3dSh" cx="50%" cy="20%" r="65%">
+          <stop offset="0%" stopColor="#5030FF" stopOpacity=".55"/>
+          <stop offset="100%" stopColor="#5030FF" stopOpacity="0"/>
+        </radialGradient>
+      </defs>
+
+      {/* Ground glow */}
+      <ellipse className="b3d-gl" cx="89" cy="126" rx="50" ry="11" fill="url(#b3dSh)"/>
+
+      <g className="b3d-g">
+        {/* Top face */}
+        <polygon points="46,50 110,50 132,36 68,36" fill="url(#b3dTp)"/>
+
+        {/* Front face */}
+        <rect x="46" y="50" width="64" height="70" fill="url(#b3dFr)"/>
+
+        {/* Right side face */}
+        <polygon points="110,50 132,36 132,106 110,120" fill="url(#b3dSd)"/>
+
+        {/* Rooftop antenna */}
+        <rect x="83" y="28" width="3.5" height="10" fill="rgba(160,200,255,.65)" rx="1"/>
+        <circle cx="84.75" cy="27" r="2.5" fill="rgba(180,220,255,.85)"/>
+
+        {/* Left edge highlight */}
+        <line x1="46" y1="50" x2="46" y2="120" stroke="rgba(255,255,255,.2)" strokeWidth="1.5"/>
+        <line x1="46" y1="50" x2="110" y2="50" stroke="rgba(255,255,255,.24)" strokeWidth="1"/>
+
+        {/* Front windows — row 1 */}
+        <rect className="b3d-wa" x="53" y="59" width="13" height="13" rx="2" fill="rgba(165,215,255,.82)"/>
+        <rect className="b3d-wb" x="72" y="59" width="13" height="13" rx="2" fill="rgba(165,215,255,.52)"/>
+        <rect className="b3d-wc" x="91" y="59" width="13" height="13" rx="2" fill="rgba(165,215,255,.76)"/>
+
+        {/* Front windows — row 2 */}
+        <rect className="b3d-wd" x="53" y="77" width="13" height="13" rx="2" fill="rgba(165,215,255,.44)"/>
+        <rect className="b3d-wa" x="72" y="77" width="13" height="13" rx="2" fill="rgba(165,215,255,.86)"/>
+        <rect className="b3d-wb" x="91" y="77" width="13" height="13" rx="2" fill="rgba(165,215,255,.38)"/>
+
+        {/* Front windows — row 3 */}
+        <rect className="b3d-wc" x="53" y="95" width="13" height="13" rx="2" fill="rgba(165,215,255,.7)"/>
+        <rect x="72"  y="95" width="13" height="13" rx="2" fill="rgba(165,215,255,.22)"/>
+        <rect className="b3d-wd" x="91" y="95" width="13" height="13" rx="2" fill="rgba(165,215,255,.62)"/>
+
+        {/* Side face windows */}
+        <rect className="b3d-wb" x="115" y="55" width="9" height="12" rx="1.5" fill="rgba(120,175,240,.48)"/>
+        <rect className="b3d-wc" x="115" y="73" width="9" height="12" rx="1.5" fill="rgba(120,175,240,.62)"/>
+        <rect x="115" y="91" width="9" height="12" rx="1.5" fill="rgba(120,175,240,.28)"/>
+
+        {/* Ground floor + door */}
+        <rect x="46" y="108" width="64" height="12" fill="rgba(12,28,72,.7)"/>
+        <rect x="70" y="108" width="18" height="12" fill="rgba(18,36,90,.9)" rx="1"/>
+
+        {/* Ground floor edge */}
+        <line x1="46" y1="120" x2="110" y2="120" stroke="rgba(255,255,255,.07)" strokeWidth="1"/>
+      </g>
+
+      {/* Sparkle stars */}
+      <g className="b3d-s1">
+        <path d="M22,46 L23.4,49.6 L27,50.5 L23.4,51.4 L22,55 L20.6,51.4 L17,50.5 L20.6,49.6Z" fill="#a78bfa"/>
+      </g>
+      <g className="b3d-s2">
+        <path d="M140,60 L141.2,63 L144,63.7 L141.2,64.4 L140,67.4 L138.8,64.4 L136,63.7 L138.8,63Z" fill="#7AB3FF"/>
+      </g>
+      <g className="b3d-s3">
+        <path d="M16,88 L17,90.6 L19.6,91.2 L17,91.8 L16,94.4 L15,91.8 L12.4,91.2 L15,90.6Z" fill="#c4b5fd"/>
+      </g>
+    </svg>
+  )
+}
+
 export default function PropertyDetailScreen() {
   const { screenParams, navigate, user } = useAppStore()
   const { properties, loadProperties, deletePhoto } = useProperties(screenParams.dbId)
@@ -98,7 +197,7 @@ export default function PropertyDetailScreen() {
               style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
             />
           ) : (
-            <span>🏢</span>
+            <Building3DHero />
           )}
 
           <div className="obj-hero-bdg">
