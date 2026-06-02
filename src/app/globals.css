@@ -164,19 +164,21 @@ body{
 .fr{display:flex;align-items:center;padding:11px var(--pad-card);border-bottom:.5px solid rgba(255,255,255,.08);gap:10px;min-height:var(--input-h)}
 .fr:last-child{border:none}
 .fr-l{font-size:14px;color:var(--t1);flex:0 0 auto;min-width:80px}
-.fr-i{flex:1;background:transparent;border:none;outline:none;font-size:14px;color:var(--t1);text-align:right;font-family:inherit;min-width:0;-moz-appearance:textfield}
+.fr-i{flex:1;background:transparent;border:none;outline:none;font-size:16px;color:var(--t1);text-align:right;font-family:inherit;min-width:0;-moz-appearance:textfield}
 .fr-i::-webkit-outer-spin-button,.fr-i::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .fr-i::placeholder{color:var(--t4)}
 .fr-u{font-size:12px;color:var(--t3);flex-shrink:0;min-width:32px;text-align:right}
-.fr-textarea{min-height:90px;padding:11px var(--pad-card);resize:vertical;font-family:inherit;background:transparent;border:none;outline:none;font-size:14px;color:var(--t1);width:100%}
+.fr-textarea{min-height:90px;padding:11px var(--pad-card);resize:vertical;font-family:inherit;background:transparent;border:none;outline:none;font-size:16px;color:var(--t1);width:100%}
 .fr-seg{display:flex;background:var(--glass-2);border-radius:10px;padding:2px;gap:2px;width:100%;border:var(--bd)}
 .fr-seg-b{flex:1;padding:6px 4px;border-radius:8px;font-size:11px;font-weight:600;text-align:center;color:var(--t3);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;transition:all .22s var(--ease)}
 .fr-seg-b.on{background:var(--glass-3);color:var(--t1);box-shadow:0 1.5px 6px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.3)}
 .hi-row{background:linear-gradient(90deg,rgba(34,158,217,.18),rgba(120,80,235,.12))}
 .hi-row .fr-l{color:var(--info-fg);font-weight:600;font-size:13px}
-.hi-row .fr-i{font-weight:700;font-size:15px;color:var(--t1)}
+.hi-row .fr-i{font-weight:700;font-size:16px;color:var(--t1)}
 .hi-row .fr-u{color:var(--info-fg);font-weight:600}
 input:focus,textarea:focus{outline:none}
+/* iOS Safari auto-zoom fix: font-size < 16px triggers zoom on input focus */
+input,textarea,select{font-size:16px;touch-action:manipulation}
 .fr:focus-within{background:linear-gradient(90deg,rgba(34,158,217,.08),transparent)}
 .fr:focus-within .fr-l{color:var(--info-fg)}
 
@@ -208,7 +210,7 @@ input:focus,textarea:focus{outline:none}
 /* ── SEARCH ── */
 .search-inline{margin:0 var(--g3) var(--g3);padding:9px 12px;border-radius:var(--r-pill);background:var(--glass-2);display:flex;align-items:center;gap:8px;border:var(--bd);transition:border-color .2s,background .2s}
 .search-inline:focus-within{border-color:rgba(122,179,255,.5) !important;background:rgba(34,158,217,.08) !important}
-.search-inline input{flex:1;background:transparent;border:none;outline:none;color:var(--t1);font-size:14px;font-family:inherit}
+.search-inline input{flex:1;background:transparent;border:none;outline:none;color:var(--t1);font-size:16px;font-family:inherit}
 .search-inline input::placeholder{color:var(--t4)}
 
 /* ── OBJECT CARD ── */
