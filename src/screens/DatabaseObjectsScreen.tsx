@@ -62,7 +62,7 @@ export default function DatabaseObjectsScreen() {
         }
       />
 
-      <div className="body">
+      <div className="body has-fab">
         {/* DB info card */}
         <div className="info-card glass-s" style={{ margin: '0 12px 12px' }}>
           <div className="info-ic">🏢</div>
@@ -118,7 +118,7 @@ export default function DatabaseObjectsScreen() {
             </div>
           </div>
         ) : (
-          <div className="list" style={{ marginBottom: 80 }}>
+          <div className="list">
             {filtered.map((p) => {
               const rent = p.rent_rate && p.area_useful
                 ? calcRent(p.area_useful, p.rent_rate, p.rent_type)

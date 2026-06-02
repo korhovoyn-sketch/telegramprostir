@@ -60,7 +60,7 @@ export default function RealtorDashboardScreen() {
         </button>
       </div>
 
-      <div className="body">
+      <div className="body has-tabbar-btn">
         <div className="greet">{greet}, {user?.first_name}</div>
         <div className="display">Робочі бази</div>
 
@@ -122,9 +122,6 @@ export default function RealtorDashboardScreen() {
           </div>
         )}
 
-        <div className="cta" onClick={() => navigate('qr-scanner')}>
-          Підписатись за QR-кодом
-        </div>
       </div>
 
       <button className="mbtn" onClick={() => navigate('qr-scanner')} style={{ bottom: 'calc(78px + var(--safe-bottom))' }}>

@@ -59,7 +59,7 @@ export default function CollectionsScreen() {
         <div className="hdr-sp" />
       </div>
 
-      <div className="body">
+      <div className="body has-fab">
         <div className="greet">Мої підбірки</div>
         <div className="display">Для клієнтів</div>
 

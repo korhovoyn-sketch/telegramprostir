@@ -96,6 +96,10 @@ body{
 /* ── BODY ── */
 .body{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding-bottom:calc(80px + var(--safe-bottom));position:relative;z-index:5}
 .body::-webkit-scrollbar{display:none}
+/* Screens with TabBar (64px) + FAB (48px at 74px from bottom = top at 122px) need more clearance */
+.body.has-fab{padding-bottom:calc(160px + var(--safe-bottom))}
+/* Screens with TabBar + mbtn above TabBar (mbtn at 78px, height 50px = top at 128px) */
+.body.has-tabbar-btn{padding-bottom:calc(148px + var(--safe-bottom))}
 
 /* ── MAIN BUTTON ── */
 .mbtn{position:absolute;left:var(--g3);right:var(--g3);bottom:calc(14px + var(--safe-bottom));height:var(--btn-h);background:linear-gradient(180deg,#2AABEE,#229ED9);border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;color:#fff;font-size:15px;font-weight:600;letter-spacing:.005em;cursor:pointer;box-shadow:0 8px 24px rgba(34,158,217,.42),inset 0 1px 0 rgba(255,255,255,.32);z-index:20;gap:8px;transition:transform .15s var(--ease),box-shadow .15s var(--ease),opacity .15s;border:none;width:calc(100% - 24px)}
