@@ -172,19 +172,23 @@ export default function SharingAnalyticsScreen() {
           const shareLink = `https://t.me/propspacebot?start=${shareToken}`
           const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(shareLink)}`
           return (
-            <div className="glass-s" style={{ margin: '0 12px 16px', padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-              <div style={{ color: 'rgba(255,255,255,.6)', fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>QR-код для ріелтора</div>
-              <img
-                src={qrUrl}
-                alt="QR code"
-                width={180}
-                height={180}
-                style={{ borderRadius: 12, background: '#fff', padding: 8 }}
-              />
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)', wordBreak: 'break-all', textAlign: 'center' }}>{shareLink}</div>
+            <div className="qr-hero glass-s">
+              <div className="qr-wrap">
+                <img
+                  src={qrUrl}
+                  alt="QR code"
+                  width={124}
+                  height={124}
+                  style={{ display: 'block', width: '100%', height: '100%' }}
+                />
+              </div>
+              <div className="qr-meta">
+                <div className="qr-name">QR-код для ріелтора</div>
+                <div className="qr-link" style={{ wordBreak: 'break-all' }}>{shareLink}</div>
+              </div>
               <button
                 className="glass-s"
-                style={{ padding: '8px 20px', borderRadius: 20, fontSize: 13, fontWeight: 600, color: '#fff', border: '.5px solid rgba(255,255,255,.2)', cursor: 'pointer', background: 'rgba(255,255,255,.08)' }}
+                style={{ marginTop: 8, padding: '8px 20px', borderRadius: 20, fontSize: 13, fontWeight: 600, color: '#fff', border: '.5px solid rgba(255,255,255,.2)', cursor: 'pointer', background: 'rgba(255,255,255,.08)' }}
                 onClick={() => {
                   navigator.clipboard.writeText(shareLink)
                   showToast({ type: 'success', title: 'Посилання скопійовано' })

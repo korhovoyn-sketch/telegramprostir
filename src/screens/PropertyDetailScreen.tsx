@@ -344,10 +344,8 @@ export default function PropertyDetailScreen() {
         {property.description && (
           <>
             <div className="over">Опис</div>
-            <div className="glass-s" style={{ margin: '0 12px 12px', borderRadius: 'var(--r-md)', padding: '12px 14px' }}>
-              <p style={{ margin: 0, fontSize: 14, color: 'var(--t2)', lineHeight: 1.55 }}>
-                {property.description}
-              </p>
+            <div className="descr glass-s">
+              <div className="descr-t">{property.description}</div>
             </div>
           </>
         )}
