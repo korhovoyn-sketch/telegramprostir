@@ -225,7 +225,7 @@ export default function PropertyDetailScreen() {
         </div>
 
         {/* Details grid */}
-        <div className="glass-s" style={{ margin: '0 12px 12px', borderRadius: 'var(--r-md)', padding: '14px' }}>
+        <div className="glass-s" style={{ margin: '16px 12px 12px', borderRadius: 'var(--r-md)', padding: '14px' }}>
           <div className="obj-grid">
             {property.area_useful && (
               <div className="obj-f">
@@ -296,7 +296,7 @@ export default function PropertyDetailScreen() {
         {/* Photo strip with real images + delete + add */}
         <div className="over">
           <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <IconCamera size={13} color="var(--t3)" />
+            <IconCamera size={14} color="#a78bfa" />
             Фотографії
           </span>
         </div>
