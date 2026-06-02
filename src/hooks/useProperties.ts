@@ -89,6 +89,16 @@ export function useProperties(dbId?: string) {
   const deleteProperty = useCallback(async (id: string, dbId: string) => {
     setLoading(true)
     try {
+      // Clean up storage files before deleting the record (cascade handles DB rows)
+      const { data: photos } = await supabase
+        .from('property_photos')
+        .select('storage_path')
+        .eq('property_id', id)
+
+      if (photos && photos.length > 0) {
+        await supabase.storage.from('photos').remove(photos.map((p) => p.storage_path))
+      }
+
       const { error } = await supabase.from('properties').delete().eq('id', id)
       if (error) throw error
 
@@ -102,8 +112,36 @@ export function useProperties(dbId?: string) {
     }
   }, [showToast, navigate])
 
+  const deletePhoto = useCallback(async (photoId: string, storagePath: string) => {
+    try {
+      // Remove from storage first, then the DB record
+      await supabase.storage.from('photos').remove([storagePath])
+      const { error } = await supabase.from('property_photos').delete().eq('id', photoId)
+      if (error) throw error
+
+      // Update local state — remove photo from the relevant property
+      setProperties((prev) => prev.map((p) => ({
+        ...p,
+        photos: p.photos?.filter((ph) => ph.id !== photoId),
+      })))
+    } catch (e) {
+      showToast({ type: 'error', title: 'Помилка видалення фото', subtitle: (e as Error).message })
+      throw e
+    }
+  }, [showToast])
+
   const uploadPhoto = useCallback(async (propertyId: string, file: File) => {
-    const path = `${propertyId}/${Date.now()}_${file.name}`
+    const MAX_MB = 10
+    const ALLOWED = /\.(jpe?g|png|webp|heic|heif)$/i
+    if (!ALLOWED.test(file.name) && !file.type.startsWith('image/')) {
+      throw new Error('Дозволені лише зображення (JPG, PNG, WEBP, HEIC)')
+    }
+    if (file.size > MAX_MB * 1024 * 1024) {
+      throw new Error(`Файл занадто великий (макс. ${MAX_MB}МБ)`)
+    }
+
+    const ext = file.name.split('.').pop() ?? 'jpg'
+    const path = `${propertyId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
     const { error: upErr } = await supabase.storage.from('photos').upload(path, file)
     if (upErr) throw upErr
 
@@ -112,6 +150,8 @@ export function useProperties(dbId?: string) {
       storage_path: path,
     })
     if (dbErr) throw dbErr
+
+    return path
   }, [])
 
   return {
@@ -122,6 +162,7 @@ export function useProperties(dbId?: string) {
     updateProperty,
     cycleStatus,
     deleteProperty,
+    deletePhoto,
     uploadPhoto,
   }
 }

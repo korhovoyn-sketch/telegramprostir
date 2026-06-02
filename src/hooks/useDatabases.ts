@@ -86,6 +86,24 @@ export function useDatabases() {
   const deleteDatabase = useCallback(async (id: string) => {
     setLoading(true)
     try {
+      // Clean up all storage files for this database before deleting records
+      const { data: props } = await supabase
+        .from('properties')
+        .select('id')
+        .eq('db_id', id)
+
+      if (props && props.length > 0) {
+        const propIds = props.map((p) => p.id)
+        const { data: photos } = await supabase
+          .from('property_photos')
+          .select('storage_path')
+          .in('property_id', propIds)
+
+        if (photos && photos.length > 0) {
+          await supabase.storage.from('photos').remove(photos.map((p) => p.storage_path))
+        }
+      }
+
       const { error } = await supabase.from('databases').delete().eq('id', id)
       if (error) throw error
 

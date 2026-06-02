@@ -16,7 +16,13 @@ interface UploadItem {
 export default function PhotoUploadScreen() {
   const { screenParams, back, showToast } = useAppStore()
   const propertyId = screenParams.propertyId as string
-  const files = (screenParams.files as File[]) ?? []
+  const MAX_MB = 10
+  const ALLOWED = /\.(jpe?g|png|webp|heic|heif)$/i
+  const rawFiles = (screenParams.files as File[]) ?? []
+  const files = rawFiles.filter((f) =>
+    (ALLOWED.test(f.name) || f.type.startsWith('image/')) &&
+    f.size <= MAX_MB * 1024 * 1024
+  )
   const [queue, setQueue] = useState<UploadItem[]>(
     files.map((f) => ({ file: f, status: 'pending', progress: 0 }))
   )
@@ -35,7 +41,7 @@ export default function PhotoUploadScreen() {
       const item = queue[idx]
       setQueue((q) => q.map((x, i) => i === idx ? { ...x, status: 'uploading', progress: 10 } : x))
 
-      const ext = item.file.name.split('.').pop()
+      const ext = (item.file.name.split('.').pop() ?? 'jpg').replace(/[^a-z0-9]/gi, '')
       const path = `${propertyId}/${Date.now()}_${idx}.${ext}`
       const { error } = await supabase.storage
         .from('photos')

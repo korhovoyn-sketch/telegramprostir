@@ -1,16 +1,23 @@
 'use client'
 
+/* eslint-disable @next/next/no-img-element */
 import { useEffect } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { useProperties } from '@/hooks/useProperties'
 import Header from '@/components/ui/Header'
 import { StatusBadge } from '@/components/ui/Badge'
-import { IconEdit, IconShare, IconMapPin, IconPhoto } from '@/components/Icons'
+import { IconEdit, IconShare, IconMapPin, IconPhoto, IconX } from '@/components/Icons'
 import { formatPrice, calcRent, calcUtilities, STATUS_LABELS } from '@/lib/utils'
+
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
+
+function photoUrl(path: string) {
+  return `${SUPABASE_URL}/storage/v1/object/public/photos/${path}`
+}
 
 export default function PropertyDetailScreen() {
   const { screenParams, navigate } = useAppStore()
-  const { properties, loadProperties } = useProperties(screenParams.dbId)
+  const { properties, loadProperties, deletePhoto } = useProperties(screenParams.dbId)
 
   const property = properties.find(p => p.id === screenParams.propertyId)
 
@@ -34,6 +41,19 @@ export default function PropertyDetailScreen() {
     ? calcUtilities(property.area_total, property.utilities_rate)
     : 0
   const total = rent + utils
+  const photos = property.photos ?? []
+
+  function openGallery(index: number) {
+    navigate('photo-gallery', { photos, initialIndex: index })
+  }
+
+  async function handleDeletePhoto(photoId: string, storagePath: string) {
+    if (!window.confirm) {
+      await deletePhoto(photoId, storagePath)
+      return
+    }
+    await deletePhoto(photoId, storagePath)
+  }
 
   return (
     <div className="scr bg-blue">
@@ -53,16 +73,13 @@ export default function PropertyDetailScreen() {
 
       <div className="body">
         {/* Hero */}
-        <div className="obj-hero">
-          {property.photos && property.photos.length > 0 ? (
-            <div
-              style={{ position: 'absolute', inset: 0, background: 'var(--glass-1)', cursor: 'pointer' }}
-              onClick={() => navigate('photo-gallery', { propertyId: property.id, photoIndex: 0 })}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: 40 }}>
-                📷
-              </div>
-            </div>
+        <div className="obj-hero" onClick={() => photos.length > 0 && openGallery(0)} style={{ cursor: photos.length > 0 ? 'pointer' : 'default' }}>
+          {photos.length > 0 ? (
+            <img
+              src={photoUrl(photos[0].storage_path)}
+              alt={property.name}
+              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+            />
           ) : (
             <span>🏢</span>
           )}
@@ -73,7 +90,10 @@ export default function PropertyDetailScreen() {
           </div>
 
           <div className="obj-hero-r">
-            <button className="obj-hero-a" onClick={() => navigate('sharing-analytics', { propertyId: property.id, dbId: screenParams.dbId })}>
+            <button
+              className="obj-hero-a"
+              onClick={(e) => { e.stopPropagation(); navigate('sharing-analytics', { propertyId: property.id, dbId: screenParams.dbId }) }}
+            >
               <IconShare size={14} />
             </button>
           </div>
@@ -88,10 +108,10 @@ export default function PropertyDetailScreen() {
                 </div>
               )}
             </div>
-            {property.photos && property.photos.length > 0 && (
-              <div className="obj-hero-photos" onClick={() => navigate('photo-gallery', { propertyId: property.id, photoIndex: 0 })}>
+            {photos.length > 0 && (
+              <div className="obj-hero-photos" onClick={(e) => { e.stopPropagation(); openGallery(0) }}>
                 <IconPhoto size={10} />
-                {property.photos.length} фото
+                {photos.length} фото
               </div>
             )}
           </div>
@@ -154,22 +174,37 @@ export default function PropertyDetailScreen() {
           </div>
         )}
 
-        {/* Photo add */}
+        {/* Photo strip with real images + delete + add */}
         <div className="over">Фотографії</div>
         <div className="photos-strip">
-          {property.photos?.map((photo, i) => (
-            <div
-              key={photo.id}
-              className="photo-t"
-              onClick={() => navigate('photo-gallery', { propertyId: property.id, photoIndex: i })}
-            >
-              📷
+          {photos.map((photo, i) => (
+            <div key={photo.id} className="photo-t" style={{ position: 'relative' }}>
+              <img
+                src={photoUrl(photo.storage_path)}
+                alt=""
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                onClick={() => openGallery(i)}
+              />
+              {/* Delete button */}
+              <button
+                onClick={(e) => { e.stopPropagation(); handleDeletePhoto(photo.id, photo.storage_path) }}
+                style={{
+                  position: 'absolute', top: 3, right: 3,
+                  width: 20, height: 20, borderRadius: '50%',
+                  background: 'rgba(0,0,0,.65)', border: 'none',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: '#fff', cursor: 'pointer', zIndex: 2,
+                }}
+              >
+                <IconX size={10} />
+              </button>
             </div>
           ))}
+          {/* Add photo button */}
           <div
             className="photo-t"
             onClick={() => navigate('photo-upload', { propertyId: property.id })}
-            style={{ border: '.5px dashed rgba(255,255,255,.28)' }}
+            style={{ border: '.5px dashed rgba(255,255,255,.28)', fontSize: 28, color: 'rgba(255,255,255,.4)' }}
           >
             +
           </div>
