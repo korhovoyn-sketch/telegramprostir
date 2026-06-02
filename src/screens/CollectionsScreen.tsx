@@ -429,7 +429,7 @@ export default function CollectionsScreen() {
           const property_count = Array.isArray(countArr) && countArr.length > 0 ? countArr[0].count : 0
 
           // Load up to 3 thumbnail photos
-          let thumb_urls: string[] = []
+          const thumb_urls: string[] = []
           if (property_count > 0) {
             const { data: cpData } = await supabase
               .from('collection_properties')
