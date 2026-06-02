@@ -212,6 +212,19 @@ EXCEPTION WHEN OTHERS THEN RETURN NULL;
 END;
 $$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
 
+-- ── 7b. RLS CROSS-TABLE HELPERS (SECURITY DEFINER breaks recursion cycles) ───
+-- Without these, db_realtor_select → realtor_subscriptions → subs_owner_select
+-- → databases → db_realtor_select creates an infinite recursion error.
+CREATE OR REPLACE FUNCTION get_realtor_db_ids(p_uid UUID)
+RETURNS SETOF UUID LANGUAGE sql STABLE SECURITY DEFINER AS $$
+  SELECT db_id FROM realtor_subscriptions WHERE realtor_id = p_uid
+$$;
+
+CREATE OR REPLACE FUNCTION get_owner_db_ids(p_uid UUID)
+RETURNS SETOF UUID LANGUAGE sql STABLE SECURITY DEFINER AS $$
+  SELECT id FROM databases WHERE owner_id = p_uid
+$$;
+
 -- ── 8. RLS POLICIES (drop all, recreate cleanly) ────────────────────────────
 ALTER TABLE users                 ENABLE ROW LEVEL SECURITY;
 ALTER TABLE databases             ENABLE ROW LEVEL SECURITY;
@@ -238,14 +251,14 @@ CREATE POLICY "users_service" ON users FOR ALL TO service_role USING (true) WITH
 CREATE POLICY "db_owner_all"      ON databases FOR ALL
   USING (owner_id = current_app_user_id()) WITH CHECK (owner_id = current_app_user_id());
 CREATE POLICY "db_realtor_select" ON databases FOR SELECT
-  USING (id IN (SELECT db_id FROM realtor_subscriptions WHERE realtor_id = current_app_user_id()));
+  USING (id IN (SELECT get_realtor_db_ids(current_app_user_id())));
 CREATE POLICY "db_service"        ON databases FOR ALL TO service_role USING (true) WITH CHECK (true);
 
 -- properties
 CREATE POLICY "props_owner_all"      ON properties FOR ALL
   USING (owner_id = current_app_user_id()) WITH CHECK (owner_id = current_app_user_id());
 CREATE POLICY "props_realtor_select" ON properties FOR SELECT
-  USING (db_id IN (SELECT db_id FROM realtor_subscriptions WHERE realtor_id = current_app_user_id()));
+  USING (db_id IN (SELECT get_realtor_db_ids(current_app_user_id())));
 CREATE POLICY "props_service"        ON properties FOR ALL TO service_role USING (true) WITH CHECK (true);
 
 -- property_photos
@@ -255,14 +268,14 @@ CREATE POLICY "photos_owner_all" ON property_photos FOR ALL
 CREATE POLICY "photos_realtor_select" ON property_photos FOR SELECT
   USING (property_id IN (
     SELECT p.id FROM properties p
-    JOIN realtor_subscriptions rs ON rs.db_id = p.db_id
-    WHERE rs.realtor_id = current_app_user_id()));
+    WHERE p.db_id IN (SELECT get_realtor_db_ids(current_app_user_id()))
+  ));
 
 -- realtor_subscriptions
 CREATE POLICY "subs_realtor_all"  ON realtor_subscriptions FOR ALL
   USING (realtor_id = current_app_user_id()) WITH CHECK (realtor_id = current_app_user_id());
 CREATE POLICY "subs_owner_select" ON realtor_subscriptions FOR SELECT
-  USING (db_id IN (SELECT id FROM databases WHERE owner_id = current_app_user_id()));
+  USING (db_id IN (SELECT get_owner_db_ids(current_app_user_id())));
 
 -- collections
 CREATE POLICY "col_realtor_all" ON collections FOR ALL
