@@ -45,7 +45,19 @@ Every file in `src/screens/` is a self-contained screen component. Screens pull 
 
 `supabase/functions/telegram-auth/index.ts` runs on Deno v2. Use `Deno.serve(async (req) => { ... })` — the old `serve()` from `deno.land/std@0.168.0` is incompatible and causes EarlyDrop. Pass `tg_id` to Supabase queries as `parseInt(tgUser.id, 10)` (BIGINT column rejects string comparisons with a PostgrestError).
 
+Session creation uses `admin.createUser({ email, password, email_confirm: true })` + `signInWithPassword`, **not** `generateLink`/`verifyOtp`. The password is derived deterministically via `HMAC(SERVICE_KEY, email)` and never leaves the function. This avoids any dependency on Supabase's email-sending provider being enabled (which made `generateLink` fail with "Database error saving new user").
+
 Deploying the Edge Function requires `SUPABASE_ACCESS_TOKEN` in GitHub repository secrets. Push to `main` or `claude/lucid-planck-Hjo1u` with changes under `supabase/functions/**` to trigger `.github/workflows/deploy-edge-function.yml`.
+
+### Database schema & migrations
+
+`supabase/migrations/` holds three files: `001_schema.sql` (canonical fresh schema), `002_rls.sql` (RLS + the `current_app_user_id()` helper), and `003_reconcile.sql` (idempotent — brings any existing/legacy DB up to spec and removes legacy artifacts).
+
+Two non-obvious things that broke auth historically and must stay correct:
+1. **`current_app_user_id()` resolves identity from the JWT *email* claim**, not a `tg_id` claim (Supabase doesn't add custom claims here). Email is `{tgId}@telegram.propspace.app`; the helper parses tg_id from it. A `tg_id`-claim version silently returns NULL → every RLS check fails → empty data everywhere.
+2. **No `handle_new_user` trigger may exist on `auth.users`.** The Supabase starter template installs one that inserts into `public.users` with stale column names; it makes GoTrue fail with "Database error creating new user". `003_reconcile.sql` drops it. The edge function is the only thing that writes `public.users`.
+
+The container running Claude Code on the web has **no outbound network** (Supabase host returns 403), so migrations cannot be pushed from here. Apply schema changes by running the SQL in the Supabase dashboard SQL Editor, or via the `migrate.yml` workflow on push to `main`.
 
 ### Roles
 

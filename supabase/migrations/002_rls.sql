@@ -11,13 +11,22 @@ ALTER TABLE collection_properties ENABLE ROW LEVEL SECURITY;
 ALTER TABLE property_views ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
--- Helper: get current app user id from tg_id claim in JWT
+-- Helper: resolve public.users.id from the JWT email claim.
+-- The Supabase JWT carries no custom tg_id claim; the auth email is
+-- "{tgId}@telegram.propspace.app", so we parse tg_id from there.
 CREATE OR REPLACE FUNCTION current_app_user_id()
 RETURNS UUID AS $$
-  SELECT id FROM users
-  WHERE tg_id = (current_setting('request.jwt.claims', true)::jsonb->>'tg_id')::bigint
-  LIMIT 1;
-$$ LANGUAGE sql STABLE SECURITY DEFINER;
+DECLARE jwt_email TEXT; tg_id_val BIGINT;
+BEGIN
+  jwt_email := current_setting('request.jwt.claims', true)::jsonb->>'email';
+  IF jwt_email IS NULL OR jwt_email NOT LIKE '%@telegram.propspace.app' THEN
+    RETURN NULL;
+  END IF;
+  tg_id_val := SPLIT_PART(jwt_email, '@', 1)::BIGINT;
+  RETURN (SELECT id FROM users WHERE tg_id = tg_id_val LIMIT 1);
+EXCEPTION WHEN OTHERS THEN RETURN NULL;
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
 
 -- users
 CREATE POLICY "users_own" ON users
