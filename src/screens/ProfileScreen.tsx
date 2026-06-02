@@ -12,9 +12,33 @@ export default function ProfileScreen() {
   const { user, databases, showToast } = useAppStore()
   const { logout, updateProfile } = useAuth()
 
-  const [pushEnabled, setPushEnabled] = useState(true)
-  const [weeklyReport, setWeeklyReport] = useState(true)
-  const [newViews, setNewViews] = useState(true)
+  const [pushEnabled, setPushEnabled] = useState(() => {
+    if (typeof window === 'undefined') return true
+    return localStorage.getItem('pref_push') !== 'false'
+  })
+  const [weeklyReport, setWeeklyReport] = useState(() => {
+    if (typeof window === 'undefined') return true
+    return localStorage.getItem('pref_weekly') !== 'false'
+  })
+  const [newViews, setNewViews] = useState(() => {
+    if (typeof window === 'undefined') return true
+    return localStorage.getItem('pref_views') !== 'false'
+  })
+
+  function handlePushToggle(v: boolean) {
+    setPushEnabled(v)
+    localStorage.setItem('pref_push', String(v))
+  }
+
+  function handleWeeklyToggle(v: boolean) {
+    setWeeklyReport(v)
+    localStorage.setItem('pref_weekly', String(v))
+  }
+
+  function handleNewViewsToggle(v: boolean) {
+    setNewViews(v)
+    localStorage.setItem('pref_views', String(v))
+  }
 
   if (!user) return null
 
@@ -97,14 +121,32 @@ export default function ProfileScreen() {
           <div className="fr">
             <IconLanguage size={15} color="var(--t3)" />
             <span className="fr-l" style={{ marginLeft: 6 }}>Мова</span>
-            <span style={{ flex: 1, textAlign: 'right', color: 'var(--t3)', fontSize: 14 }}>Укр</span>
-            <span className="chev">›</span>
+            <div className="fr-seg" style={{ maxWidth: 130 }}>
+              {(['uk', 'en'] as const).map(lang => (
+                <div
+                  key={lang}
+                  className={`fr-seg-b ${(user.language_code ?? 'uk') === lang ? 'on' : ''}`}
+                  onClick={() => updateProfile({ language_code: lang })}
+                >
+                  {lang === 'uk' ? 'Укр' : 'Eng'}
+                </div>
+              ))}
+            </div>
           </div>
           <div className="fr">
             <IconCurrencyDollar size={15} color="var(--t3)" />
             <span className="fr-l" style={{ marginLeft: 6 }}>Валюта</span>
-            <span style={{ flex: 1, textAlign: 'right', color: 'var(--t3)', fontSize: 14 }}>{user.currency}</span>
-            <span className="chev">›</span>
+            <div className="fr-seg" style={{ maxWidth: 180 }}>
+              {(['USD', 'UAH', 'EUR'] as const).map(cur => (
+                <div
+                  key={cur}
+                  className={`fr-seg-b ${(user.currency ?? 'USD') === cur ? 'on' : ''}`}
+                  onClick={() => updateProfile({ currency: cur })}
+                >
+                  {cur}
+                </div>
+              ))}
+            </div>
           </div>
           <div className="fr">
             <IconMoon size={15} color="var(--t3)" />
@@ -118,15 +160,15 @@ export default function ProfileScreen() {
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div className="fr">
             <span className="fr-l">Telegram Push</span>
-            <Toggle value={pushEnabled} onChange={setPushEnabled} />
+            <Toggle value={pushEnabled} onChange={handlePushToggle} />
           </div>
           <div className="fr">
             <span className="fr-l">Щотижневий звіт</span>
-            <Toggle value={weeklyReport} onChange={setWeeklyReport} />
+            <Toggle value={weeklyReport} onChange={handleWeeklyToggle} />
           </div>
           <div className="fr">
             <span className="fr-l">Нові перегляди</span>
-            <Toggle value={newViews} onChange={setNewViews} />
+            <Toggle value={newViews} onChange={handleNewViewsToggle} />
           </div>
         </div>
 

@@ -11,10 +11,14 @@ type NotifTab = 'all' | 'views' | 'chats' | 'system'
 
 export default function NotificationsScreen() {
   const unreadCount = useAppStore((s) => s.unreadCount)
-  const { notifications, loading, loadNotifications, markRead, markAllAsRead } = useNotifications()
+  const { notifications, loading, loadNotifications, markRead, markAllAsRead, subscribeToNotifications } = useNotifications()
   const [tab, setTab] = useState<NotifTab>('all')
 
-  useEffect(() => { loadNotifications() }, [loadNotifications])
+  useEffect(() => {
+    loadNotifications()
+    const cleanup = subscribeToNotifications()
+    return cleanup
+  }, [loadNotifications, subscribeToNotifications])
 
   const filtered = notifications.filter((n) => {
     if (tab === 'all') return true

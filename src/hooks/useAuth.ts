@@ -9,6 +9,34 @@ export function useAuth() {
   const [loading, setLoading] = useState(false)
   const { setUser, navigate, showToast } = useAppStore()
 
+  const setupAuthListener = useCallback(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'TOKEN_REFRESHED' && session) {
+        try {
+          const email = session.user.email ?? ''
+          const tgIdStr = email.replace('@telegram.propspace.app', '')
+          if (!tgIdStr || tgIdStr === email) return
+          const tgId = parseInt(tgIdStr, 10)
+          if (isNaN(tgId)) return
+          const { data, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('tg_id', tgId)
+            .single()
+          if (!error && data) {
+            useAppStore.getState().setUser(data as User)
+          }
+        } catch {
+          // silently ignore token refresh fetch errors
+        }
+      } else if (event === 'SIGNED_OUT') {
+        useAppStore.getState().setUser(null)
+        useAppStore.getState().navigate('welcome')
+      }
+    })
+    return subscription
+  }, [])
+
   const loginViaTelegram = useCallback(async (initData: string) => {
     setLoading(true)
     try {
@@ -143,5 +171,5 @@ export function useAuth() {
     }
   }, [setUser])
 
-  return { loading, loginViaTelegram, logout, updateProfile, restoreSession }
+  return { loading, loginViaTelegram, logout, updateProfile, restoreSession, setupAuthListener }
 }

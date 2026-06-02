@@ -21,11 +21,12 @@ export default function PhotoGalleryScreen() {
     : null
 
   function handleShare() {
-    if (!url) return
+    if (!photo) return
+    const imageUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/photos/${photo.storage_path}`
+    const shareText = `Фото нерухомості ${current + 1}/${photos.length}`
+    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(imageUrl)}&text=${encodeURIComponent(shareText)}`
     if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-      window.Telegram.WebApp.openTelegramLink(
-        `https://t.me/share/url?url=${encodeURIComponent(url)}`
-      )
+      window.Telegram.WebApp.openTelegramLink(shareUrl)
     }
   }
 

@@ -16,6 +16,7 @@ export default function RealtorDashboardScreen() {
   const [subscriptions, setSubscriptions] = useState<RealtorSubscription[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [propertyCount, setPropertyCount] = useState<number>(0)
 
   useEffect(() => {
     async function load() {
@@ -29,6 +30,16 @@ export default function RealtorDashboardScreen() {
           .order('created_at', { ascending: false })
         if (error) throw error
         setSubscriptions((data ?? []) as RealtorSubscription[])
+
+        // Load real property count across all subscribed databases
+        const dbIds = (data ?? []).map((s) => (s as RealtorSubscription & { database?: { id: string } }).database?.id).filter((id): id is string => Boolean(id))
+        if (dbIds.length > 0) {
+          const { count } = await supabase
+            .from('properties')
+            .select('id', { count: 'exact', head: true })
+            .in('db_id', dbIds)
+          setPropertyCount(count ?? 0)
+        }
       } catch (e) {
         showToast({ type: 'error', title: 'Помилка завантаження', subtitle: (e as Error).message })
       } finally {
@@ -70,10 +81,11 @@ export default function RealtorDashboardScreen() {
             <div className="stat-l">Власників</div>
           </div>
           <div className="stat glass-s">
-            <div className="stat-n">-</div>
+            <div className="stat-n">{propertyCount}</div>
             <div className="stat-l">Об&apos;єктів</div>
           </div>
           <div className="stat glass-s" style={{ background: 'rgba(255,80,180,.18)', border: '.5px solid rgba(255,80,180,.28)' }}>
+            {/* Favorites count not yet implemented */}
             <div className="stat-n" style={{ color: '#ffb8e0' }}>-</div>
             <div className="stat-l" style={{ color: '#ffb8e0' }}>Обраних</div>
           </div>

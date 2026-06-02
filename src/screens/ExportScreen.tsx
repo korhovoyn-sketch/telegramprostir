@@ -2,9 +2,11 @@
 
 import { useState } from 'react'
 import { useAppStore } from '@/store/appStore'
+import { supabase } from '@/lib/supabase'
 import Header from '@/components/ui/Header'
 import Toggle from '@/components/ui/Toggle'
 import { IconFileExport } from '@/components/Icons'
+import type { Property } from '@/types'
 
 const FORMATS = [
   { id: 'pdf', label: 'PDF Документ', desc: 'Красива презентація з фото для клієнта', emoji: '📄' },
@@ -19,8 +21,26 @@ const TEMPLATES = [
   { id: 'minimal', label: 'Мінімал' },
 ]
 
+const CSV_HEADERS = ['Назва', 'Поверх', 'Статус', 'Площа корисна (м²)', 'Площа загальна (м²)', 'Оренда ($/міс)', 'Комунальні ($/міс)', 'Паркінг']
+
+function propertyToRow(p: Property): (string | number)[] {
+  return [
+    p.name,
+    p.floor ?? '',
+    p.status === 'free' ? 'Вільно' : p.status === 'occupied' ? 'Зайнято' : 'Продаж',
+    p.area_useful ?? '',
+    p.area_total ?? '',
+    p.rent_rate
+      ? (p.rent_type === 'per_m2' && p.area_useful ? Number((p.rent_rate * p.area_useful).toFixed(0)) : p.rent_rate)
+      : '',
+    p.utilities_rate && p.area_total ? Number((p.utilities_rate * p.area_total).toFixed(0)) : '',
+    p.has_parking ? p.parking_spaces : 0,
+  ]
+}
+
 export default function ExportScreen() {
-  const { showToast } = useAppStore()
+  const { screenParams, showToast } = useAppStore()
+  const { dbId } = screenParams
   const [format, setFormat] = useState('pdf')
   const [template, setTemplate] = useState('classic')
   const [includePhotos, setIncludePhotos] = useState(true)
@@ -32,9 +52,77 @@ export default function ExportScreen() {
 
   async function handleExport() {
     setLoading(true)
-    await new Promise(r => setTimeout(r, 1500))
-    setLoading(false)
-    showToast({ type: 'success', title: 'Файл готовий', subtitle: 'Збережено у завантаження' })
+    try {
+      // Fetch properties
+      const { data: propertiesRaw, error } = await supabase
+        .from('properties')
+        .select('*, photos:property_photos(*)')
+        .eq('db_id', dbId ?? '')
+
+      if (error) throw error
+
+      const properties = (propertiesRaw ?? []) as Property[]
+      const rows = onlyFree ? properties.filter((p) => p.status === 'free') : properties
+
+      if (format === 'excel') {
+        // CSV/Excel export
+        const BOM = '﻿'
+        const csvRows = rows.map((p) =>
+          propertyToRow(p).map((v) => `"${v}"`).join(',')
+        )
+        const csv = [CSV_HEADERS.join(','), ...csvRows].join('\n')
+        const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `properties_${Date.now()}.csv`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+        showToast({ type: 'success', title: 'Файл готовий', subtitle: 'Збережено у завантаження' })
+
+      } else if (format === 'pdf') {
+        // Fetch db name for heading
+        const { data: dbRow } = await supabase.from('databases').select('name').eq('id', dbId ?? '').single()
+        const dbName = dbRow?.name ?? 'Об\'єкти'
+
+        const printDiv = document.createElement('div')
+        printDiv.id = '__print_area'
+        printDiv.innerHTML = `
+          <style>@media print { body > *:not(#__print_area) { display: none !important; } #__print_area { display: block !important; } }</style>
+          <h1 style="font-family: sans-serif">${dbName}</h1>
+          <table style="border-collapse:collapse; width:100%; font-family:sans-serif; font-size:13px">
+            <thead><tr style="background:#f5f5f5">${CSV_HEADERS.map((h) => `<th style="border:1px solid #ddd; padding:6px 10px; text-align:left">${h}</th>`).join('')}</tr></thead>
+            <tbody>${rows.map((p) => `<tr>${propertyToRow(p).map((c) => `<td style="border:1px solid #ddd; padding:6px 10px">${c}</td>`).join('')}</tr>`).join('')}</tbody>
+          </table>
+        `
+        document.body.appendChild(printDiv)
+        window.print()
+        setTimeout(() => document.body.removeChild(printDiv), 1000)
+        showToast({ type: 'success', title: 'Відправлено на друк' })
+
+      } else {
+        // LUN / OLX — share as text via Telegram
+        const text = rows.map((p) => {
+          const rent = p.rent_rate
+            ? (p.rent_type === 'per_m2' && p.area_useful
+              ? (p.rent_rate * p.area_useful).toFixed(0)
+              : p.rent_rate)
+            : '?'
+          return `🏢 ${p.name}\n📐 ${p.area_useful ?? '?'} м²\n💰 ${rent}/міс`
+        }).join('\n\n')
+
+        window.Telegram?.WebApp?.openTelegramLink(
+          `https://t.me/share/url?url=${encodeURIComponent(text)}`
+        )
+        showToast({ type: 'success', title: 'Відкрито в Telegram' })
+      }
+    } catch (e) {
+      showToast({ type: 'error', title: 'Помилка експорту', subtitle: (e as Error).message })
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -121,7 +209,7 @@ export default function ExportScreen() {
         disabled={loading}
       >
         {!loading && <IconFileExport size={18} />}
-        {!loading && `Створити ${FORMATS.find(f => f.id === format)?.label}`}
+        {!loading && `Створити ${FORMATS.find((f) => f.id === format)?.label}`}
       </button>
     </div>
   )

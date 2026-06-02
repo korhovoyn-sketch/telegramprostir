@@ -66,5 +66,31 @@ export function useNotifications() {
     }
   }, [setNotifications, showToast])
 
-  return { loading, notifications, loadNotifications, markRead, markAllAsRead, deleteNotification }
+  const subscribeToNotifications = useCallback(() => {
+    if (!user) return () => {}
+    const channel = supabase
+      .channel('notifications_' + user.id)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          const newNotif = payload.new as Notification
+          const store = useAppStore.getState()
+          const current = store.notifications
+          store.setNotifications([newNotif, ...current])
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [user])
+
+  return { loading, notifications, loadNotifications, markRead, markAllAsRead, deleteNotification, subscribeToNotifications }
 }

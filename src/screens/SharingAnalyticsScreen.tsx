@@ -150,6 +150,38 @@ export default function SharingAnalyticsScreen() {
           </div>
         </div>
 
+        {/* QR code + share link */}
+        {(() => {
+          const shareToken = screenParams.dbId
+            ? 'db_' + screenParams.dbId.slice(0, 8)
+            : 'prop_' + (screenParams.propertyId ?? '').slice(0, 8)
+          const shareLink = `https://t.me/propspacebot?start=${shareToken}`
+          const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(shareLink)}`
+          return (
+            <div className="glass-s" style={{ margin: '0 12px 16px', padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+              <div style={{ color: 'rgba(255,255,255,.6)', fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>QR-код для ріелтора</div>
+              <img
+                src={qrUrl}
+                alt="QR code"
+                width={180}
+                height={180}
+                style={{ borderRadius: 12, background: '#fff', padding: 8 }}
+              />
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,.45)', wordBreak: 'break-all', textAlign: 'center' }}>{shareLink}</div>
+              <button
+                className="glass-s"
+                style={{ padding: '8px 20px', borderRadius: 20, fontSize: 13, fontWeight: 600, color: '#fff', border: '.5px solid rgba(255,255,255,.2)', cursor: 'pointer', background: 'rgba(255,255,255,.08)' }}
+                onClick={() => {
+                  navigator.clipboard.writeText(shareLink)
+                  showToast({ type: 'success', title: 'Посилання скопійовано' })
+                }}
+              >
+                Скопіювати посилання
+              </button>
+            </div>
+          )
+        })()}
+
         {/* Recent viewers */}
         <div className="over">
           <span>Останні перегляди</span>

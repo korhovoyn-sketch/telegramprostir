@@ -10,7 +10,7 @@ import { formatPrice, calcRent, calcUtilities } from '@/lib/utils'
 import type { PropertyStatus, RentType } from '@/types'
 
 export default function PropertyFormScreen() {
-  const { screenParams, navigate } = useAppStore()
+  const { screenParams, navigate, showToast } = useAppStore()
   const { properties, loadProperties, createProperty, updateProperty, deleteProperty, loading } = useProperties(screenParams.dbId)
 
   const editId = screenParams.propertyId
@@ -66,6 +66,10 @@ export default function PropertyFormScreen() {
 
   async function handleSave() {
     if (!canSave || !screenParams.dbId) return
+    if (parseFloat(areaUseful) < 0 || parseFloat(areaTotal) < 0 || parseFloat(rentRate) < 0 || parseFloat(utilitiesRate) < 0) {
+      showToast({ type: 'error', title: 'Значення не може бути від\'ємним' })
+      return
+    }
     window.Telegram?.WebApp?.HapticFeedback.notificationOccurred('success')
     const payload = {
       db_id: screenParams.dbId!,
@@ -139,12 +143,12 @@ export default function PropertyFormScreen() {
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div className="fr">
             <span className="fr-l">Корисна</span>
-            <input className="fr-i" type="number" placeholder="47" value={areaUseful} onChange={e => setAreaUseful(e.target.value)} />
+            <input className="fr-i" type="number" min="0" placeholder="47" value={areaUseful} onChange={e => setAreaUseful(e.target.value)} />
             <span className="fr-u">м²</span>
           </div>
           <div className="fr">
             <span className="fr-l">Загальна</span>
-            <input className="fr-i" type="number" placeholder="52" value={areaTotal} onChange={e => setAreaTotal(e.target.value)} />
+            <input className="fr-i" type="number" min="0" placeholder="52" value={areaTotal} onChange={e => setAreaTotal(e.target.value)} />
             <span className="fr-u">м²</span>
           </div>
         </div>
@@ -161,7 +165,7 @@ export default function PropertyFormScreen() {
           </div>
           <div className="fr hi-row">
             <span className="fr-l">{rentType === 'per_m2' ? 'Ставка' : 'Сума'}</span>
-            <input className="fr-i" type="number" placeholder="18" value={rentRate} onChange={e => setRentRate(e.target.value)} />
+            <input className="fr-i" type="number" min="0" placeholder="18" value={rentRate} onChange={e => setRentRate(e.target.value)} />
             <span className="fr-u">{rentType === 'per_m2' ? '$/м²' : '$/міс'}</span>
           </div>
           {rentCalc > 0 && (
@@ -179,7 +183,7 @@ export default function PropertyFormScreen() {
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div className="fr">
             <span className="fr-l">Ставка</span>
-            <input className="fr-i" type="number" placeholder="2.5" value={utilitiesRate} onChange={e => setUtilitiesRate(e.target.value)} />
+            <input className="fr-i" type="number" min="0" placeholder="2.5" value={utilitiesRate} onChange={e => setUtilitiesRate(e.target.value)} />
             <span className="fr-u">$/м²</span>
           </div>
           {utilsCalc > 0 && (

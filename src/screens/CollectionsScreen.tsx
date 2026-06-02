@@ -1,38 +1,482 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { supabase } from '@/lib/supabase'
 import TabBar from '@/components/ui/TabBar'
-import { IconPlus, IconShare } from '@/components/Icons'
-import { formatDate } from '@/lib/utils'
-import type { Collection } from '@/types'
+import { StatusBadge } from '@/components/ui/Badge'
+import Modal from '@/components/ui/Modal'
+import { IconPlus, IconShare, IconX, IconChevronLeft } from '@/components/Icons'
+import { formatPrice, calcRent, formatDate } from '@/lib/utils'
+import type { Property, Collection } from '@/types'
+
+// ─── Extended types ────────────────────────────────────────────────────────────
+
+interface CollectionWithCount extends Collection {
+  property_count: number
+  thumb_urls: string[]
+}
+
+interface CollectionProperty {
+  property_id: string
+  property: Property & { photos: { storage_path: string }[] }
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function getPhotoUrl(storagePath: string): string {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
+  return `${url}/storage/v1/object/public/property-photos/${storagePath}`
+}
+
+function getRentLabel(p: Property, currency = 'USD'): string {
+  if (!p.rent_rate) return '—'
+  const rent = calcRent(p.area_useful ?? 0, p.rent_rate, p.rent_type)
+  return formatPrice(rent, currency)
+}
+
+// ─── Collection List View ─────────────────────────────────────────────────────
+
+function CollectionCard({
+  col,
+  onClick,
+  onShare,
+}: {
+  col: CollectionWithCount
+  onClick: () => void
+  onShare: (e: React.MouseEvent) => void
+}) {
+  return (
+    <div className="collection-c glass-s" onClick={onClick} style={{ cursor: 'pointer' }}>
+      <div className="collection-h">
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="collection-n">{col.name}</div>
+          <div className="collection-meta">
+            {col.is_draft && <span className="bdg bdg-info">Чернетка</span>}
+            <span>·</span>
+            <span>{formatDate(col.updated_at)}</span>
+            <span>·</span>
+            <span>{col.property_count} об&apos;єктів</span>
+          </div>
+        </div>
+        <button
+          className="owner-act"
+          onClick={onShare}
+        >
+          <IconShare size={14} />
+        </button>
+      </div>
+
+      <div className="collection-thumbs">
+        {col.thumb_urls.length > 0 ? (
+          col.thumb_urls.map((url, i) => (
+            <div
+              key={i}
+              className="collection-thumb"
+              style={{
+                backgroundImage: `url(${url})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }}
+            />
+          ))
+        ) : (
+          <>
+            <div className="collection-thumb" style={{ color: 'var(--t3)', fontSize: 20 }}>🏢</div>
+            <div className="collection-thumb" style={{ color: 'var(--t3)', fontSize: 20 }}>🏢</div>
+          </>
+        )}
+        {col.property_count > col.thumb_urls.length && col.thumb_urls.length > 0 && (
+          <div className="collection-thumb more">+{col.property_count - col.thumb_urls.length}</div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Collection Detail View ───────────────────────────────────────────────────
+
+function CollectionDetail({
+  collection,
+  onBack,
+  onUpdate,
+}: {
+  collection: CollectionWithCount
+  onBack: () => void
+  onUpdate: (updated: CollectionWithCount) => void
+}) {
+  const { user, showToast } = useAppStore()
+
+  const [collectionProps, setCollectionProps] = useState<CollectionProperty[]>([])
+  const [loadingProps, setLoadingProps] = useState(true)
+
+  // Available properties to add
+  const [availableProps, setAvailableProps] = useState<Property[]>([])
+  const [loadingAvail, setLoadingAvail] = useState(false)
+  const [showAddModal, setShowAddModal] = useState(false)
+
+  const loadCollectionProperties = useCallback(async () => {
+    setLoadingProps(true)
+    try {
+      const { data, error } = await supabase
+        .from('collection_properties')
+        .select('property_id, property:properties(*, photos:property_photos(*))')
+        .eq('collection_id', collection.id)
+      if (error) throw error
+      setCollectionProps((data ?? []) as unknown as CollectionProperty[])
+    } catch (e) {
+      showToast({ type: 'error', title: 'Помилка завантаження', subtitle: (e as Error).message })
+    } finally {
+      setLoadingProps(false)
+    }
+  }, [collection.id, showToast])
+
+  useEffect(() => {
+    loadCollectionProperties()
+  }, [loadCollectionProperties])
+
+  async function loadAvailableProperties() {
+    if (!user) return
+    setLoadingAvail(true)
+    try {
+      // Get subscribed db ids
+      const { data: subs, error: subsErr } = await supabase
+        .from('realtor_subscriptions')
+        .select('db_id')
+        .eq('realtor_id', user.id)
+      if (subsErr) throw subsErr
+
+      const dbIds = (subs ?? []).map((s: { db_id: string }) => s.db_id)
+      if (dbIds.length === 0) {
+        setAvailableProps([])
+        return
+      }
+
+      const { data: props, error: propsErr } = await supabase
+        .from('properties')
+        .select('*, photos:property_photos(*)')
+        .in('db_id', dbIds)
+        .order('created_at', { ascending: false })
+      if (propsErr) throw propsErr
+
+      // Filter out already-added properties
+      const addedIds = new Set(collectionProps.map((cp) => cp.property_id))
+      const available = ((props ?? []) as Property[]).filter((p) => !addedIds.has(p.id))
+      setAvailableProps(available)
+    } catch (e) {
+      showToast({ type: 'error', title: 'Помилка завантаження', subtitle: (e as Error).message })
+    } finally {
+      setLoadingAvail(false)
+    }
+  }
+
+  function openAddModal() {
+    setShowAddModal(true)
+    loadAvailableProperties()
+  }
+
+  async function addProperty(propertyId: string) {
+    try {
+      const { error } = await supabase
+        .from('collection_properties')
+        .insert({ collection_id: collection.id, property_id: propertyId })
+      if (error) throw error
+
+      // Reload
+      await loadCollectionProperties()
+      setAvailableProps((prev) => prev.filter((p) => p.id !== propertyId))
+
+      // Update count in parent
+      onUpdate({ ...collection, property_count: collection.property_count + 1 })
+      showToast({ type: 'success', title: 'Об\'єкт додано' })
+    } catch (e) {
+      showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
+    }
+  }
+
+  async function removeProperty(propertyId: string) {
+    try {
+      const { error } = await supabase
+        .from('collection_properties')
+        .delete()
+        .eq('collection_id', collection.id)
+        .eq('property_id', propertyId)
+      if (error) throw error
+
+      setCollectionProps((prev) => prev.filter((cp) => cp.property_id !== propertyId))
+      onUpdate({ ...collection, property_count: Math.max(0, collection.property_count - 1) })
+      showToast({ type: 'success', title: 'Об\'єкт видалено' })
+    } catch (e) {
+      showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
+    }
+  }
+
+  async function shareCollection() {
+    // Mark as active (not draft) when sharing
+    if (collection.is_draft) {
+      try {
+        const { error } = await supabase
+          .from('collections')
+          .update({ is_draft: false, updated_at: new Date().toISOString() })
+          .eq('id', collection.id)
+        if (error) throw error
+        onUpdate({ ...collection, is_draft: false })
+      } catch (e) {
+        showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
+        return
+      }
+    }
+
+    const link = `https://t.me/propspacebot?start=col_${collection.id.slice(0, 8)}`
+    if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
+      window.Telegram.WebApp.openTelegramLink(
+        `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(collection.name)}`
+      )
+    } else {
+      showToast({ type: 'info', title: 'Посилання', subtitle: link })
+    }
+  }
+
+  const currency = user ? (user as unknown as { currency?: string }).currency ?? 'USD' : 'USD'
+
+  return (
+    <div className="scr bg-violet">
+      {/* Header */}
+      <div className="hdr">
+        <button
+          className="hdr-a"
+          onClick={onBack}
+          style={{ background: 'none', border: 'var(--bd)' }}
+        >
+          <IconChevronLeft size={16} />
+        </button>
+        <div className="hdr-t" style={{ flex: 1, textAlign: 'center' }}>
+          <div style={{ fontSize: 15, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {collection.name}
+          </div>
+          {collection.is_draft && (
+            <div style={{ fontSize: 11, color: 'var(--t3)' }}>Чернетка</div>
+          )}
+        </div>
+        <button
+          className="hdr-a"
+          onClick={shareCollection}
+          style={{ background: 'none', border: 'var(--bd)' }}
+        >
+          <IconShare size={16} />
+        </button>
+      </div>
+
+      {/* Body */}
+      <div className="body has-fab">
+        {loadingProps ? (
+          <div className="loader-wrap"><div className="loader" /></div>
+        ) : collectionProps.length === 0 ? (
+          <div className="empty-state" style={{ paddingTop: 32 }}>
+            <div className="empty-ic">🏢</div>
+            <div className="empty-h">Немає об&apos;єктів</div>
+            <div className="empty-s">Додай перший об&apos;єкт до підбірки</div>
+          </div>
+        ) : (
+          <div className="list">
+            {collectionProps.map((cp) => {
+              const p = cp.property
+              if (!p) return null
+              const firstPhoto = p.photos?.[0]
+              const thumbUrl = firstPhoto ? getPhotoUrl(firstPhoto.storage_path) : null
+
+              return (
+                <div key={cp.property_id} className="row glass-s" style={{ alignItems: 'flex-start', gap: 10 }}>
+                  {/* Thumbnail */}
+                  <div
+                    className="row-ic"
+                    style={{
+                      backgroundImage: thumbUrl ? `url(${thumbUrl})` : undefined,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                      background: thumbUrl ? undefined : 'rgba(123,48,235,.18)',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {!thumbUrl && <span style={{ fontSize: 20 }}>🏢</span>}
+                  </div>
+
+                  {/* Info */}
+                  <div className="row-mn" style={{ flex: 1, minWidth: 0 }}>
+                    <div className="row-t">{p.name}</div>
+                    <div className="row-s" style={{ gap: 6, flexWrap: 'wrap' }}>
+                      <StatusBadge status={p.status} />
+                      {p.area_useful && (
+                        <span>{p.area_useful} м²</span>
+                      )}
+                      {p.rent_rate && (
+                        <span>{getRentLabel(p, currency)}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Remove button */}
+                  <button
+                    className="owner-act"
+                    onClick={() => removeProperty(cp.property_id)}
+                    style={{ flexShrink: 0, marginTop: 2 }}
+                  >
+                    <IconX size={14} />
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Add button */}
+      <button className="fab" onClick={openAddModal}>
+        <IconPlus size={20} />
+      </button>
+
+      {/* Add property modal */}
+      {showAddModal && (
+        <Modal
+          title="Додати об'єкт"
+          subtitle="Оберіть об'єкт із підписаних баз"
+          onClose={() => setShowAddModal(false)}
+        >
+          <div style={{ maxHeight: 340, overflowY: 'auto', marginTop: 8 }}>
+            {loadingAvail ? (
+              <div className="loader-wrap" style={{ padding: '24px 0' }}>
+                <div className="loader" />
+              </div>
+            ) : availableProps.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--t3)', fontSize: 13 }}>
+                Немає доступних об&apos;єктів
+              </div>
+            ) : (
+              <div className="list" style={{ gap: 6 }}>
+                {availableProps.map((p) => {
+                  const firstPhoto = p.photos?.[0]
+                  const thumbUrl = firstPhoto ? getPhotoUrl(firstPhoto.storage_path) : null
+
+                  return (
+                    <div key={p.id} className="row glass-s" style={{ alignItems: 'center', gap: 8 }}>
+                      <div
+                        className="row-ic"
+                        style={{
+                          backgroundImage: thumbUrl ? `url(${thumbUrl})` : undefined,
+                          backgroundSize: 'cover',
+                          backgroundPosition: 'center',
+                          background: thumbUrl ? undefined : 'rgba(123,48,235,.18)',
+                          flexShrink: 0,
+                          width: 36,
+                          height: 36,
+                        }}
+                      >
+                        {!thumbUrl && <span style={{ fontSize: 16 }}>🏢</span>}
+                      </div>
+                      <div className="row-mn" style={{ flex: 1, minWidth: 0 }}>
+                        <div className="row-t" style={{ fontSize: 13 }}>{p.name}</div>
+                        <div className="row-s" style={{ gap: 4 }}>
+                          <StatusBadge status={p.status} />
+                          {p.area_useful && <span>{p.area_useful} м²</span>}
+                        </div>
+                      </div>
+                      <button
+                        className="owner-act"
+                        onClick={() => addProperty(p.id)}
+                        style={{ flexShrink: 0, background: 'rgba(123,48,235,.28)' }}
+                      >
+                        <IconPlus size={14} />
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </Modal>
+      )}
+    </div>
+  )
+}
+
+// ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function CollectionsScreen() {
   const { user, showToast } = useAppStore()
-  const [collections, setCollections] = useState<Collection[]>([])
+  const [collections, setCollections] = useState<CollectionWithCount[]>([])
   const [loading, setLoading] = useState(true)
+  const [selectedCollection, setSelectedCollection] = useState<CollectionWithCount | null>(null)
+
+  const loadCollections = useCallback(async () => {
+    if (!user) return
+    setLoading(true)
+    try {
+      // Load collections with property count via join
+      const { data, error } = await supabase
+        .from('collections')
+        .select('*, collection_properties(count)')
+        .eq('realtor_id', user.id)
+        .order('created_at', { ascending: false })
+      if (error) throw error
+
+      const cols = data ?? []
+
+      // For each collection load first 3 property thumbnails
+      const enriched: CollectionWithCount[] = await Promise.all(
+        cols.map(async (col) => {
+          // Supabase returns count as array: [{count: N}]
+          const countArr = (col as unknown as { collection_properties: { count: number }[] }).collection_properties
+          const property_count = Array.isArray(countArr) && countArr.length > 0 ? countArr[0].count : 0
+
+          // Load up to 3 thumbnail photos
+          let thumb_urls: string[] = []
+          if (property_count > 0) {
+            const { data: cpData } = await supabase
+              .from('collection_properties')
+              .select('property_id')
+              .eq('collection_id', col.id)
+              .limit(3)
+
+            if (cpData && cpData.length > 0) {
+              const propIds = cpData.map((cp: { property_id: string }) => cp.property_id)
+              const { data: photosData } = await supabase
+                .from('property_photos')
+                .select('property_id, storage_path')
+                .in('property_id', propIds)
+                .order('sort_order', { ascending: true })
+
+              if (photosData) {
+                // Take first photo per property, up to 3
+                const seen = new Set<string>()
+                for (const ph of photosData as { property_id: string; storage_path: string }[]) {
+                  if (!seen.has(ph.property_id) && seen.size < 3) {
+                    seen.add(ph.property_id)
+                    thumb_urls.push(getPhotoUrl(ph.storage_path))
+                  }
+                }
+              }
+            }
+          }
+
+          return {
+            ...col,
+            property_count,
+            thumb_urls,
+          } as CollectionWithCount
+        })
+      )
+
+      setCollections(enriched)
+    } catch (e) {
+      showToast({ type: 'error', title: 'Помилка завантаження', subtitle: (e as Error).message })
+    } finally {
+      setLoading(false)
+    }
+  }, [user, showToast])
 
   useEffect(() => {
-    async function load() {
-      if (!user) return
-      setLoading(true)
-      try {
-        const { data, error } = await supabase
-          .from('collections')
-          .select('*')
-          .eq('realtor_id', user.id)
-          .order('created_at', { ascending: false })
-        if (error) throw error
-        setCollections((data ?? []) as Collection[])
-      } catch (e) {
-        showToast({ type: 'error', title: 'Помилка завантаження', subtitle: (e as Error).message })
-      } finally {
-        setLoading(false)
-      }
-    }
-    load()
-  }, [user, showToast])
+    loadCollections()
+  }, [loadCollections])
 
   async function createCollection() {
     if (!user) return
@@ -44,13 +488,47 @@ export default function CollectionsScreen() {
         .select()
         .single()
       if (error) throw error
-      setCollections([data as Collection, ...collections])
+      const newCol: CollectionWithCount = {
+        ...(data as Collection),
+        property_count: 0,
+        thumb_urls: [],
+      }
+      setCollections([newCol, ...collections])
       showToast({ type: 'success', title: 'Підбірку створено' })
     } catch (e) {
       showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
     }
   }
 
+  function handleShare(e: React.MouseEvent, col: CollectionWithCount) {
+    e.stopPropagation()
+    const link = `https://t.me/propspacebot?start=col_${col.id.slice(0, 8)}`
+    if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
+      window.Telegram.WebApp.openTelegramLink(
+        `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(col.name)}`
+      )
+    }
+  }
+
+  function handleCollectionUpdate(updated: CollectionWithCount) {
+    setCollections((prev) =>
+      prev.map((c) => (c.id === updated.id ? updated : c))
+    )
+    setSelectedCollection(updated)
+  }
+
+  // ── Detail view ──
+  if (selectedCollection) {
+    return (
+      <CollectionDetail
+        collection={selectedCollection}
+        onBack={() => setSelectedCollection(null)}
+        onUpdate={handleCollectionUpdate}
+      />
+    )
+  }
+
+  // ── List view ──
   return (
     <div className="scr bg-violet">
       <div className="hdr">
@@ -73,35 +551,13 @@ export default function CollectionsScreen() {
           </div>
         ) : (
           <div className="list">
-            {collections.map((c) => (
-              <div key={c.id} className="collection-c glass-s">
-                <div className="collection-h">
-                  <div>
-                    <div className="collection-n">{c.name}</div>
-                    <div className="collection-meta">
-                      {c.is_draft && <span className="bdg bdg-info">Чернетка</span>}
-                      <span>·</span>
-                      <span>{formatDate(c.updated_at)}</span>
-                    </div>
-                  </div>
-                  <button
-                    className="owner-act"
-                    onClick={() => {
-                      const link = `https://t.me/propspacebot?start=col_${c.id?.slice(0, 8)}`
-                      if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-                        window.Telegram.WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(link)}`)
-                      }
-                    }}
-                  >
-                    <IconShare size={14} />
-                  </button>
-                </div>
-                <div className="collection-thumbs">
-                  <div className="collection-thumb" style={{ color: 'var(--t3)', fontSize: 20 }}>🏢</div>
-                  <div className="collection-thumb" style={{ color: 'var(--t3)', fontSize: 20 }}>🏢</div>
-                  <div className="collection-thumb more">+</div>
-                </div>
-              </div>
+            {collections.map((col) => (
+              <CollectionCard
+                key={col.id}
+                col={col}
+                onClick={() => setSelectedCollection(col)}
+                onShare={(e) => handleShare(e, col)}
+              />
             ))}
           </div>
         )}
