@@ -211,3 +211,12 @@ export function IconKey(p: IconProps) {
 export function IconLayoutGrid(p: IconProps) {
   return <Icon {...p}><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></Icon>
 }
+export function IconRuler(p: IconProps) {
+  return <Icon {...p}><rect x="3" y="9" width="18" height="6" rx="1"/><path d="M7 9v4"/><path d="M12 9v2"/><path d="M17 9v4"/></Icon>
+}
+export function IconLayers(p: IconProps) {
+  return <Icon {...p}><path d="M12 2l9 4.5l-9 4.5l-9 -4.5z"/><path d="M3 11l9 4.5l9 -4.5"/><path d="M3 16l9 4.5l9 -4.5"/></Icon>
+}
+export function IconActivity(p: IconProps) {
+  return <Icon {...p}><path d="M3 12h4l3 -9l4 18l3 -9h4"/></Icon>
+}

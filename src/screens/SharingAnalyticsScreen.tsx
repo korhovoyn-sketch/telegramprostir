@@ -16,12 +16,23 @@ export default function SharingAnalyticsScreen() {
   const [views, setViews] = useState<PropertyView[]>([])
   const [loading, setLoading] = useState(true)
   const [chartData, setChartData] = useState<number[]>(Array(7).fill(0))
+  const [dbShareToken, setDbShareToken] = useState<string>('')
 
   useEffect(() => {
     async function load() {
       if (!screenParams.propertyId && !screenParams.dbId) return
       setLoading(true)
       try {
+        // Fetch actual share_token from DB when dbId is present
+        if (screenParams.dbId) {
+          const { data: dbData } = await supabase
+            .from('databases')
+            .select('share_token')
+            .eq('id', screenParams.dbId)
+            .single()
+          if (dbData?.share_token) setDbShareToken(dbData.share_token)
+        }
+
         let query = supabase.from('property_views').select('*').order('created_at', { ascending: false }).limit(20)
 
         if (screenParams.propertyId) {
@@ -54,8 +65,10 @@ export default function SharingAnalyticsScreen() {
 
   function handleShare() {
     if (!user) return
-    const shareToken = screenParams.dbId ? 'db_' + screenParams.dbId?.slice(0, 8) : 'prop_' + screenParams.propertyId?.slice(0, 8)
-    const link = `https://t.me/propspacebot?start=${shareToken}`
+    const token = screenParams.dbId
+      ? 'db_' + (dbShareToken || screenParams.dbId).slice(0, 8)
+      : 'prop_' + (screenParams.propertyId ?? '').slice(0, 8)
+    const link = `https://t.me/propspacebot?start=${token}`
 
     if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
       window.Telegram.WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(link)}`)
@@ -154,7 +167,7 @@ export default function SharingAnalyticsScreen() {
         {/* QR code + share link */}
         {(() => {
           const shareToken = screenParams.dbId
-            ? 'db_' + screenParams.dbId.slice(0, 8)
+            ? 'db_' + (dbShareToken || screenParams.dbId).slice(0, 8)
             : 'prop_' + (screenParams.propertyId ?? '').slice(0, 8)
           const shareLink = `https://t.me/propspacebot?start=${shareToken}`
           const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(shareLink)}`

@@ -6,7 +6,7 @@ import { useAppStore } from '@/store/appStore'
 import { useProperties } from '@/hooks/useProperties'
 import Header from '@/components/ui/Header'
 import { StatusBadge } from '@/components/ui/Badge'
-import { IconEdit, IconShare, IconMapPin, IconPhoto, IconX } from '@/components/Icons'
+import { IconEdit, IconShare, IconMapPin, IconPhoto, IconX, IconCamera } from '@/components/Icons'
 import { formatPrice, calcRent, calcUtilities, STATUS_LABELS } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 
@@ -192,7 +192,10 @@ export default function PropertyDetailScreen() {
         )}
 
         {/* Photo strip with real images + delete + add */}
-        <div className="over">Фотографії</div>
+        <div className="over" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <IconCamera size={13} color="var(--t3)" />
+          Фотографії
+        </div>
         <div className="photos-strip">
           {photos.map((photo, i) => (
             <div key={photo.id} className="photo-t" style={{ position: 'relative' }}>

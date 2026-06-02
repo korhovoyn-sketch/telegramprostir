@@ -6,6 +6,7 @@ import { useProperties } from '@/hooks/useProperties'
 import Header from '@/components/ui/Header'
 import Toggle from '@/components/ui/Toggle'
 import Modal from '@/components/ui/Modal'
+import { IconRuler, IconLayers, IconActivity } from '@/components/Icons'
 import { formatPrice, calcRent, calcUtilities } from '@/lib/utils'
 import type { PropertyStatus, RentType } from '@/types'
 
@@ -121,11 +122,11 @@ export default function PropertyFormScreen() {
             <input className="fr-i" placeholder="Офіс 101" value={name} onChange={e => setName(e.target.value)} autoFocus={!isEdit} />
           </div>
           <div className="fr">
-            <span className="fr-l">Поверх</span>
+            <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconLayers size={13} color="var(--t3)" />Поверх</span>
             <input className="fr-i" type="number" placeholder="1" value={floor} onChange={e => setFloor(e.target.value)} />
           </div>
           <div className="fr">
-            <span className="fr-l">Статус</span>
+            <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconActivity size={13} color="var(--t3)" />Статус</span>
             <div className="fr-seg" style={{ maxWidth: 200 }}>
               {([
                 { v: 'free', l: 'Вільно' },
@@ -142,12 +143,12 @@ export default function PropertyFormScreen() {
         <div className="over">Площа</div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div className="fr">
-            <span className="fr-l">Корисна</span>
+            <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconRuler size={13} color="var(--t3)" />Корисна</span>
             <input className="fr-i" type="number" min="0" placeholder="47" value={areaUseful} onChange={e => setAreaUseful(e.target.value)} />
             <span className="fr-u">м²</span>
           </div>
           <div className="fr">
-            <span className="fr-l">Загальна</span>
+            <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconRuler size={13} color="var(--t3)" />Загальна</span>
             <input className="fr-i" type="number" min="0" placeholder="52" value={areaTotal} onChange={e => setAreaTotal(e.target.value)} />
             <span className="fr-u">м²</span>
           </div>

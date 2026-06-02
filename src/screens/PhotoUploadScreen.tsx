@@ -49,8 +49,14 @@ export default function PhotoUploadScreen() {
 
       if (error) {
         setQueue((q) => q.map((x, i) => i === idx ? { ...x, status: 'error', progress: 0 } : x))
+        showToast({ type: 'error', title: 'Помилка завантаження', subtitle: error.message })
       } else {
-        await supabase.from('property_photos').insert({ property_id: propertyId, storage_path: path, sort_order: idx })
+        const { error: dbErr } = await supabase
+          .from('property_photos')
+          .insert({ property_id: propertyId, storage_path: path, sort_order: idx })
+        if (dbErr) {
+          showToast({ type: 'error', title: 'Помилка збереження фото', subtitle: dbErr.message })
+        }
         setQueue((q) => q.map((x, i) => i === idx ? { ...x, status: 'done', progress: 100, path } : x))
       }
       idx++
