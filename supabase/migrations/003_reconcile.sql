@@ -95,6 +95,8 @@ ALTER TABLE databases ADD COLUMN IF NOT EXISTS type TEXT;
 ALTER TABLE databases ADD COLUMN IF NOT EXISTS color TEXT;
 ALTER TABLE databases ADD COLUMN IF NOT EXISTS share_token TEXT;
 ALTER TABLE databases ADD COLUMN IF NOT EXISTS share_expires_at TIMESTAMPTZ;
+-- Remove legacy columns that block INSERTs (app never uses them)
+ALTER TABLE databases DROP COLUMN IF EXISTS slug;
 DO $$ BEGIN
   ALTER TABLE databases ADD CONSTRAINT databases_type_check
     CHECK (type IN ('business_center','residential','retail','warehouse','individual','parking'));
