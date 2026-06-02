@@ -6,7 +6,7 @@ import { useAppStore } from '@/store/appStore'
 import { useProperties } from '@/hooks/useProperties'
 import Header from '@/components/ui/Header'
 import { StatusBadge } from '@/components/ui/Badge'
-import { IconEdit, IconShare, IconMapPin, IconPhoto, IconX, IconCamera } from '@/components/Icons'
+import { IconEdit, IconShare, IconMapPin, IconPhoto, IconX, IconCamera, IconRuler, IconLayers, IconActivity, IconCurrencyDollar, IconCarGarage } from '@/components/Icons'
 import { formatPrice, calcRent, calcUtilities, STATUS_LABELS } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 
@@ -135,41 +135,53 @@ export default function PropertyDetailScreen() {
         </div>
 
         {/* Details grid */}
-        <div className="obj-body">
+        <div className="glass-s" style={{ margin: '0 12px 12px', borderRadius: 'var(--r-md)', padding: '14px' }}>
           <div className="obj-grid">
             {property.area_useful && (
               <div className="obj-f">
-                <div className="obj-fl">Корисна площа</div>
+                <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <IconRuler size={11} color="var(--t3)" />Корисна площа
+                </div>
                 <div className="obj-fv">{property.area_useful} м²</div>
               </div>
             )}
             {property.area_total && (
               <div className="obj-f">
-                <div className="obj-fl">Загальна площа</div>
+                <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <IconRuler size={11} color="var(--t3)" />Загальна площа
+                </div>
                 <div className="obj-fv">{property.area_total} м²</div>
               </div>
             )}
             {property.floor && (
               <div className="obj-f">
-                <div className="obj-fl">Поверх</div>
+                <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <IconLayers size={11} color="var(--t3)" />Поверх
+                </div>
                 <div className="obj-fv">{property.floor}</div>
               </div>
             )}
             <div className="obj-f">
-              <div className="obj-fl">Статус</div>
+              <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <IconActivity size={11} color="var(--t3)" />Статус
+              </div>
               <div className="obj-fv">
                 <StatusBadge status={property.status} />
               </div>
             </div>
             {property.has_parking && (
               <div className="obj-f">
-                <div className="obj-fl">Паркінг</div>
+                <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <IconCarGarage size={11} color="var(--t3)" />Паркінг
+                </div>
                 <div className="obj-fv">{property.parking_spaces} місць</div>
               </div>
             )}
             {rent > 0 && (
               <div className="obj-f">
-                <div className="obj-fl">Оренда</div>
+                <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <IconCurrencyDollar size={11} color="var(--t3)" />Оренда
+                </div>
                 <div className="obj-fv">{formatPrice(rent)}/міс</div>
               </div>
             )}
