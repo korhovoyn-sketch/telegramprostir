@@ -6,7 +6,7 @@ import { useAppStore } from '@/store/appStore'
 import { useProperties } from '@/hooks/useProperties'
 import Header from '@/components/ui/Header'
 import { StatusBadge } from '@/components/ui/Badge'
-import { IconEdit, IconShare, IconMapPin, IconPhoto, IconX, IconCamera, IconRuler, IconLayers, IconActivity, IconCurrencyDollar, IconCarGarage } from '@/components/Icons'
+import { IconEdit, IconShare, IconMapPin, IconPhoto, IconX, IconCamera, IconRuler, IconBuildingSkyscraper, IconCircleCheck, IconCurrencyDollar, IconCarGarage } from '@/components/Icons'
 import { formatPrice, calcRent, calcUtilities, STATUS_LABELS } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 
@@ -140,7 +140,7 @@ export default function PropertyDetailScreen() {
             {property.area_useful && (
               <div className="obj-f">
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <IconRuler size={11} color="var(--t3)" />Корисна площа
+                  <IconRuler size={13} color="#7AB3FF" />Корисна площа
                 </div>
                 <div className="obj-fv">{property.area_useful} м²</div>
               </div>
@@ -148,7 +148,7 @@ export default function PropertyDetailScreen() {
             {property.area_total && (
               <div className="obj-f">
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <IconRuler size={11} color="var(--t3)" />Загальна площа
+                  <IconRuler size={13} color="#7AB3FF" />Загальна площа
                 </div>
                 <div className="obj-fv">{property.area_total} м²</div>
               </div>
@@ -156,14 +156,14 @@ export default function PropertyDetailScreen() {
             {property.floor && (
               <div className="obj-f">
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <IconLayers size={11} color="var(--t3)" />Поверх
+                  <IconBuildingSkyscraper size={13} color="#a78bfa" />Поверх
                 </div>
                 <div className="obj-fv">{property.floor}</div>
               </div>
             )}
             <div className="obj-f">
               <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <IconActivity size={11} color="var(--t3)" />Статус
+                <IconCircleCheck size={13} color="#4ade80" />Статус
               </div>
               <div className="obj-fv">
                 <StatusBadge status={property.status} />
@@ -172,7 +172,7 @@ export default function PropertyDetailScreen() {
             {property.has_parking && (
               <div className="obj-f">
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <IconCarGarage size={11} color="var(--t3)" />Паркінг
+                  <IconCarGarage size={13} color="#fb923c" />Паркінг
                 </div>
                 <div className="obj-fv">{property.parking_spaces} місць</div>
               </div>
@@ -180,7 +180,7 @@ export default function PropertyDetailScreen() {
             {rent > 0 && (
               <div className="obj-f">
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <IconCurrencyDollar size={11} color="var(--t3)" />Оренда
+                  <IconCurrencyDollar size={13} color="#4ade80" />Оренда
                 </div>
                 <div className="obj-fv">{formatPrice(rent)}/міс</div>
               </div>
@@ -204,9 +204,11 @@ export default function PropertyDetailScreen() {
         )}
 
         {/* Photo strip with real images + delete + add */}
-        <div className="over" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-          <IconCamera size={13} color="var(--t3)" />
-          Фотографії
+        <div className="over">
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <IconCamera size={13} color="var(--t3)" />
+            Фотографії
+          </span>
         </div>
         <div className="photos-strip">
           {photos.map((photo, i) => (
