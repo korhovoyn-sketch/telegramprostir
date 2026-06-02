@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { useDatabases } from '@/hooks/useDatabases'
 import Header from '@/components/ui/Header'
-import { IconMapPin } from '@/components/Icons'
+import { IconMapPin, IconBuilding, IconLayoutGrid, IconAdjustments, IconEye } from '@/components/Icons'
 import { DB_COLORS } from '@/lib/utils'
 import type { DatabaseType } from '@/types'
 
@@ -66,7 +66,7 @@ export default function CreateDatabaseScreen() {
 
       <div className="body">
         {/* Name & address */}
-        <div className="over">Основне</div>
+        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconBuilding size={13} color="#7AB3FF" />Основне</span></div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div className="fr">
             <span className="fr-l">Назва</span>
@@ -91,7 +91,7 @@ export default function CreateDatabaseScreen() {
         </div>
 
         {/* Type selection */}
-        <div className="over">Тип нерухомості</div>
+        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconLayoutGrid size={13} color="#a78bfa" />Тип нерухомості</span></div>
         <div className="type-grid">
           {TYPES.map((t) => (
             <div
@@ -107,7 +107,7 @@ export default function CreateDatabaseScreen() {
         </div>
 
         {/* Color */}
-        <div className="over">Колір мітки</div>
+        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconAdjustments size={13} color="#fb923c" />Колір мітки</span></div>
         <div className="color-row">
           {COLOR_NAMES.map((c) => (
             <div
@@ -122,7 +122,7 @@ export default function CreateDatabaseScreen() {
         {/* Preview */}
         {name && type && (
           <div style={{ margin: '8px 12px 80px' }}>
-            <div className="over" style={{ paddingTop: 12 }}>Попередній вигляд</div>
+            <div className="over" style={{ paddingTop: 12 }}><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconEye size={13} color="#4ade80" />Попередній вигляд</span></div>
             <div className="row glass-s">
               <div className="row-ic" style={{ background: DB_COLORS[color] }}>
                 <span style={{ fontSize: 18 }}>{TYPES.find(t => t.id === type)?.emoji}</span>

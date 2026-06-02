@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { useAuth } from '@/hooks/useAuth'
-import { IconMail, IconPhone } from '@/components/Icons'
+import { IconMail, IconPhone, IconTelegram } from '@/components/Icons'
 
 export default function ProfileSetupScreen() {
   const user = useAppStore((s) => s.user)
@@ -50,7 +50,7 @@ export default function ProfileSetupScreen() {
 
       {/* Telegram data (locked) */}
       <div style={{ margin: '0 12px 16px' }}>
-        <div className="over">Дані Telegram</div>
+        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconTelegram size={13} color="#7AB3FF" />Дані Telegram</span></div>
         <div className="fg glass-s">
           <div className="fr">
             <span className="fr-l">Ім&apos;я</span>
@@ -72,7 +72,7 @@ export default function ProfileSetupScreen() {
 
       {/* Optional contacts */}
       <div style={{ margin: '0 12px 16px' }}>
-        <div className="over">Додаткові контакти</div>
+        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconPhone size={13} color="#4ade80" />Додаткові контакти</span></div>
         <div className="fg glass-s">
           <div className="fr">
             <IconMail size={16} color="var(--t3)" />

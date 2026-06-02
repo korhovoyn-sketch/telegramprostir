@@ -5,7 +5,7 @@ import { useAppStore } from '@/store/appStore'
 import { supabase } from '@/lib/supabase'
 import Header from '@/components/ui/Header'
 import Toggle from '@/components/ui/Toggle'
-import { IconFileExport } from '@/components/Icons'
+import { IconFileExport, IconFile, IconAdjustments } from '@/components/Icons'
 import type { Property } from '@/types'
 
 const FORMATS = [
@@ -131,7 +131,7 @@ export default function ExportScreen() {
 
       <div className="body">
         {/* Format */}
-        <div className="over">Формат файлу</div>
+        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconFileExport size={13} color="#7AB3FF" />Формат файлу</span></div>
         <div className="format-list">
           {FORMATS.map((f) => (
             <div
@@ -156,7 +156,7 @@ export default function ExportScreen() {
         {/* Template (PDF only) */}
         {format === 'pdf' && (
           <>
-            <div className="over" style={{ marginTop: 8 }}>Шаблон PDF</div>
+            <div className="over" style={{ marginTop: 8 }}><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconFile size={13} color="#fb923c" />Шаблон PDF</span></div>
             <div className="tmpl-row">
               {TEMPLATES.map((t) => (
                 <div key={t.id} className={`tmpl ${template === t.id ? 'sel' : ''}`} onClick={() => setTemplate(t.id)}>
@@ -176,7 +176,7 @@ export default function ExportScreen() {
         )}
 
         {/* Options */}
-        <div className="over" style={{ marginTop: 8 }}>Налаштування</div>
+        <div className="over" style={{ marginTop: 8 }}><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconAdjustments size={13} color="#a78bfa" />Налаштування</span></div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div className="fr">
             <span className="fr-l">Включити фото</span>

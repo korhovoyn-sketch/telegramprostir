@@ -6,7 +6,7 @@ import { useProperties } from '@/hooks/useProperties'
 import Header from '@/components/ui/Header'
 import Toggle from '@/components/ui/Toggle'
 import Modal from '@/components/ui/Modal'
-import { IconRuler, IconLayers, IconActivity } from '@/components/Icons'
+import { IconRuler, IconLayers, IconActivity, IconBuilding, IconCurrencyDollar, IconBolt, IconCarGarage, IconFile } from '@/components/Icons'
 import { formatPrice, calcRent, calcUtilities } from '@/lib/utils'
 import type { PropertyStatus, RentType } from '@/types'
 
@@ -115,7 +115,7 @@ export default function PropertyFormScreen() {
 
       <div className="body">
         {/* Basic */}
-        <div className="over">Основне</div>
+        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconBuilding size={13} color="#7AB3FF" />Основне</span></div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div className="fr">
             <span className="fr-l">Назва</span>
@@ -140,7 +140,7 @@ export default function PropertyFormScreen() {
         </div>
 
         {/* Area */}
-        <div className="over">Площа</div>
+        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconRuler size={13} color="#7AB3FF" />Площа</span></div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div className="fr">
             <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconRuler size={13} color="var(--t3)" />Корисна</span>
@@ -155,7 +155,7 @@ export default function PropertyFormScreen() {
         </div>
 
         {/* Rent */}
-        <div className="over">Орендна ставка</div>
+        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconCurrencyDollar size={13} color="#4ade80" />Орендна ставка</span></div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div className="fr">
             <span className="fr-l">Тип</span>
@@ -180,7 +180,7 @@ export default function PropertyFormScreen() {
         </div>
 
         {/* Utilities */}
-        <div className="over">Комунальні</div>
+        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconBolt size={13} color="#fbbf24" />Комунальні</span></div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div className="fr">
             <span className="fr-l">Ставка</span>
@@ -198,7 +198,7 @@ export default function PropertyFormScreen() {
         </div>
 
         {/* Parking */}
-        <div className="over">Паркінг</div>
+        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconCarGarage size={13} color="#fb923c" />Паркінг</span></div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div className="fr">
             <span className="fr-l">Є паркінг</span>
@@ -213,7 +213,7 @@ export default function PropertyFormScreen() {
         </div>
 
         {/* Description */}
-        <div className="over">Опис</div>
+        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconFile size={13} color="#a78bfa" />Опис</span></div>
         <div className="glass-s" style={{ margin: '0 12px 16px', borderRadius: 'var(--r-md)', padding: '10px 14px' }}>
           <textarea
             className="fr-textarea"
@@ -264,7 +264,7 @@ export default function PropertyFormScreen() {
           subtitle={`Об'єкт "${name}" буде видалено. Це незворотно.`}
           onClose={() => setShowDeleteModal(false)}
           actions={[
-            { label: 'Видалити', variant: 'danger', onClick: async () => { await deleteProperty(editId, screenParams.dbId!); setShowDeleteModal(false) } },
+            { label: 'Видалити', variant: 'danger', onClick: async () => { window.Telegram?.WebApp?.HapticFeedback.notificationOccurred('warning'); await deleteProperty(editId, screenParams.dbId!); setShowDeleteModal(false) } },
             { label: 'Скасувати', variant: 'secondary', onClick: () => setShowDeleteModal(false) },
           ]}
         />
