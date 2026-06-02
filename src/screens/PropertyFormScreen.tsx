@@ -27,6 +27,7 @@ export default function PropertyFormScreen() {
   const [utilitiesRate, setUtilitiesRate] = useState('')
   const [hasParking, setHasParking] = useState(false)
   const [parkingSpaces, setParkingSpaces] = useState('1')
+  const [description, setDescription] = useState('')
   const [showDeleteModal, setShowDeleteModal] = useState(false)
 
   useEffect(() => {
@@ -47,6 +48,7 @@ export default function PropertyFormScreen() {
       setUtilitiesRate(String(existing.utilities_rate ?? ''))
       setHasParking(existing.has_parking)
       setParkingSpaces(String(existing.parking_spaces))
+      setDescription(existing.description ?? '')
     } else if (isEdit) {
       loadProperties(screenParams.dbId)
     }
@@ -77,6 +79,7 @@ export default function PropertyFormScreen() {
       utilities_rate: parseFloat(utilitiesRate) || undefined,
       has_parking: hasParking,
       parking_spaces: hasParking ? parseInt(parkingSpaces) : 0,
+      description: description.trim() || undefined,
     }
 
     if (isEdit && editId) {
@@ -202,6 +205,19 @@ export default function PropertyFormScreen() {
               <input className="fr-i" type="number" min="1" value={parkingSpaces} onChange={e => setParkingSpaces(e.target.value)} />
             </div>
           )}
+        </div>
+
+        {/* Description */}
+        <div className="over">Опис</div>
+        <div className="glass-s" style={{ margin: '0 12px 16px', borderRadius: 'var(--r-md)', padding: '10px 14px' }}>
+          <textarea
+            className="fr-textarea"
+            placeholder="Додатковий опис об'єкту..."
+            value={description}
+            onChange={e => setDescription(e.target.value)}
+            rows={4}
+            style={{ resize: 'none' }}
+          />
         </div>
 
         {/* Sum */}

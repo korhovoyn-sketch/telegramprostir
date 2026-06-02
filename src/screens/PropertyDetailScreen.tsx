@@ -1,13 +1,14 @@
 'use client'
 
 /* eslint-disable @next/next/no-img-element */
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { useProperties } from '@/hooks/useProperties'
 import Header from '@/components/ui/Header'
 import { StatusBadge } from '@/components/ui/Badge'
 import { IconEdit, IconShare, IconMapPin, IconPhoto, IconX } from '@/components/Icons'
 import { formatPrice, calcRent, calcUtilities, STATUS_LABELS } from '@/lib/utils'
+import { supabase } from '@/lib/supabase'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
 
@@ -16,14 +17,27 @@ function photoUrl(path: string) {
 }
 
 export default function PropertyDetailScreen() {
-  const { screenParams, navigate } = useAppStore()
+  const { screenParams, navigate, user } = useAppStore()
   const { properties, loadProperties, deletePhoto } = useProperties(screenParams.dbId)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const property = properties.find(p => p.id === screenParams.propertyId)
 
   useEffect(() => {
     if (!property && screenParams.dbId) loadProperties(screenParams.dbId)
   }, [property, screenParams.dbId, loadProperties])
+
+  // Record a view once when the property first loads
+  useEffect(() => {
+    if (!property) return
+    supabase.from('property_views').insert({
+      property_id: property.id,
+      viewer_id: user?.id ?? null,
+      viewer_name: user ? `${user.first_name}${user.last_name ? ' ' + user.last_name : ''}` : null,
+      action: 'view',
+    }).then(() => {})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [property?.id])
 
   if (!property) return (
     <div className="scr bg-blue">
@@ -48,11 +62,14 @@ export default function PropertyDetailScreen() {
   }
 
   async function handleDeletePhoto(photoId: string, storagePath: string) {
-    if (!window.confirm) {
-      await deletePhoto(photoId, storagePath)
-      return
-    }
     await deletePhoto(photoId, storagePath)
+  }
+
+  function handleAddPhotos(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? [])
+    if (files.length === 0) return
+    e.target.value = ''
+    navigate('photo-upload', { propertyId: property!.id, files })
   }
 
   return (
@@ -185,7 +202,6 @@ export default function PropertyDetailScreen() {
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 onClick={() => openGallery(i)}
               />
-              {/* Delete button */}
               <button
                 onClick={(e) => { e.stopPropagation(); handleDeletePhoto(photo.id, photo.storage_path) }}
                 style={{
@@ -200,15 +216,34 @@ export default function PropertyDetailScreen() {
               </button>
             </div>
           ))}
-          {/* Add photo button */}
           <div
             className="photo-t"
-            onClick={() => navigate('photo-upload', { propertyId: property.id })}
-            style={{ border: '.5px dashed rgba(255,255,255,.28)', fontSize: 28, color: 'rgba(255,255,255,.4)' }}
+            onClick={() => fileInputRef.current?.click()}
+            style={{ border: '.5px dashed rgba(255,255,255,.28)', fontSize: 28, color: 'rgba(255,255,255,.4)', cursor: 'pointer' }}
           >
             +
           </div>
         </div>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          style={{ display: 'none' }}
+          onChange={handleAddPhotos}
+        />
+
+        {property.description && (
+          <>
+            <div className="over">Опис</div>
+            <div className="glass-s" style={{ margin: '0 12px 12px', borderRadius: 'var(--r-md)', padding: '12px 14px' }}>
+              <p style={{ margin: 0, fontSize: 14, color: 'var(--t2)', lineHeight: 1.55 }}>
+                {property.description}
+              </p>
+            </div>
+          </>
+        )}
 
         <div style={{ height: 100 }} />
       </div>
