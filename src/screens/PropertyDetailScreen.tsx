@@ -18,16 +18,14 @@ function photoUrl(path: string) {
 
 function Building3DHero() {
   return (
-    <svg viewBox="0 0 160 150" width="136" height="126" style={{ overflow: 'visible', filter: 'drop-shadow(0 14px 32px rgba(60,80,255,0.45))' }}>
+    <svg viewBox="0 0 160 150" width="136" height="126" style={{ overflow: 'visible' }}>
       <style>{`
         @keyframes b3dFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-9px)} }
-        @keyframes b3dGlow  { 0%,100%{opacity:.4} 50%{opacity:.75} }
         @keyframes b3dWinA  { 0%,82%,100%{opacity:.78} 88%{opacity:.15} }
         @keyframes b3dWinB  { 0%,68%,100%{opacity:.48} 74%{opacity:.92} }
         @keyframes b3dWinC  { 0%,56%,100%{opacity:.65} 62%{opacity:.18} }
         @keyframes b3dSpark { 0%,100%{opacity:0} 50%{opacity:1} }
         .b3d-g{animation:b3dFloat 3.8s ease-in-out infinite;transform-origin:80px 112px}
-        .b3d-gl{animation:b3dGlow 3.8s ease-in-out infinite}
         .b3d-wa{animation:b3dWinA 5.2s .3s ease-in-out infinite}
         .b3d-wb{animation:b3dWinB 5.2s 1.1s ease-in-out infinite}
         .b3d-wc{animation:b3dWinC 5.2s 2.0s ease-in-out infinite}
@@ -46,14 +44,7 @@ function Building3DHero() {
         <linearGradient id="b3dTp" x1="0" y1="1" x2="1" y2="0">
           <stop offset="0%" stopColor="#3A70D4"/><stop offset="100%" stopColor="#61A0F0"/>
         </linearGradient>
-        <radialGradient id="b3dSh" cx="50%" cy="20%" r="65%">
-          <stop offset="0%" stopColor="#5030FF" stopOpacity=".55"/>
-          <stop offset="100%" stopColor="#5030FF" stopOpacity="0"/>
-        </radialGradient>
       </defs>
-
-      {/* Ground glow */}
-      <ellipse className="b3d-gl" cx="89" cy="126" rx="50" ry="11" fill="url(#b3dSh)"/>
 
       <g className="b3d-g">
         {/* Top face */}
