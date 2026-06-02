@@ -511,10 +511,124 @@ svg.ico{overflow:visible}
 @keyframes pingFx{0%{transform:scale(1)}50%{transform:scale(1.16)}100%{transform:scale(1)}}
 @keyframes drawLine{to{stroke-dashoffset:0}}
 
-/* Cascade in for list items */
-.scr .list .row:nth-child(1){animation:cascadeIn .4s var(--ease) .05s both}
-.scr .list .row:nth-child(2){animation:cascadeIn .4s var(--ease) .10s both}
-.scr .list .row:nth-child(3){animation:cascadeIn .4s var(--ease) .15s both}
-.scr .list .row:nth-child(4){animation:cascadeIn .4s var(--ease) .20s both}
-.scr .list .row:nth-child(5){animation:cascadeIn .4s var(--ease) .25s both}
-.scr .stat-g{animation:cascadeIn .4s var(--ease) .03s both}
+/* ── MICRO-ANIMATION SYSTEM ── */
+
+/* New keyframes */
+@keyframes screenEnter{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
+@keyframes statPop{from{opacity:0;transform:scale(.72) translateY(8px)}to{opacity:1;transform:scale(1) translateY(0)}}
+@keyframes segPop{0%{transform:scale(.86)}55%{transform:scale(1.07)}100%{transform:scale(1)}}
+@keyframes inputRing{0%{box-shadow:0 0 0 0 rgba(122,179,255,.55)}100%{box-shadow:0 0 0 5px rgba(122,179,255,0)}}
+@keyframes dotPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.55);opacity:.6}}
+@keyframes checkIn{from{transform:scale(0) rotate(-20deg);opacity:0}60%{transform:scale(1.18) rotate(4deg);opacity:1}to{transform:scale(1) rotate(0deg);opacity:1}}
+@keyframes slideRight{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:translateX(0)}}
+
+/* ── Screen entrance ── */
+.scr{animation:screenEnter .34s var(--ease-out) both}
+
+/* ── Active / press states (feel native on mobile) ── */
+.mbtn:active{transform:scale(.962);transition:transform .1s,box-shadow .1s}
+.row:active{transform:scale(.982);background:var(--glass-3) !important;transition:transform .1s,background .1s}
+.obj-card:active{transform:scale(.968);transition:transform .1s}
+.hdr-a:active{transform:scale(.86);transition:transform .08s}
+.hdr-back:active{transform:scale(.92);transition:transform .08s}
+.fab:active{transform:scale(.86) !important;box-shadow:0 3px 10px rgba(196,35,120,.22) !important;transition:transform .1s,box-shadow .1s !important}
+.format-card:active{transform:scale(.97);transition:transform .1s}
+.type-card:active{transform:scale(.95);transition:transform .1s}
+.share-i:active{transform:scale(.88);transition:transform .1s}
+.collection-c:active{transform:scale(.979);transition:transform .1s}
+.color-c:active{transform:scale(.80);transition:transform .08s}
+.photo-t:active{transform:scale(.90);transition:transform .1s}
+.cta:active{transform:scale(.968);transition:transform .1s}
+.owner-act:active{transform:scale(.86);transition:transform .08s}
+.notif-tab:active{transform:scale(.93);transition:transform .1s}
+.stat:active{transform:scale(.94);transition:transform .1s}
+.pstat:active{transform:scale(.94);transition:transform .1s}
+.pro-card:active{transform:scale(.978);transition:transform .1s}
+.profile-c:active{transform:scale(.982);transition:transform .1s}
+.tmpl:active{transform:scale(.92);transition:transform .1s}
+.view-i:active{background:var(--glass-2);transition:background .1s}
+.notif-i:active{background:var(--glass-2) !important}
+
+/* ── Segment selected pop ── */
+.seg-b.on{animation:segPop .22s var(--ease-spr) both}
+.fr-seg-b.on{animation:segPop .20s var(--ease-spr) both}
+
+/* ── Tab icon bounce on activate ── */
+.tab.on > svg{animation:segPop .25s var(--ease-spr) both}
+
+/* ── Unread notification dot heartbeat ── */
+.hdr-a-dot{animation:dotPulse 1.9s ease-in-out infinite}
+
+/* ── Input focus glow ── */
+.fr-i:focus,.fr-textarea:focus{animation:inputRing .42s ease-out;outline:none}
+.fg:focus-within{background:rgba(255,255,255,.07) !important}
+.search-inline:focus-within{border-color:rgba(255,255,255,.28) !important;background:var(--glass-3) !important}
+
+/* ── Stat cards individual stagger ── */
+.stat-g .stat:nth-child(1){animation:statPop .38s var(--ease-spr) .04s both}
+.stat-g .stat:nth-child(2){animation:statPop .38s var(--ease-spr) .11s both}
+.stat-g .stat:nth-child(3){animation:statPop .38s var(--ease-spr) .18s both}
+.profile-stats .pstat:nth-child(1){animation:statPop .38s var(--ease-spr) .06s both}
+.profile-stats .pstat:nth-child(2){animation:statPop .38s var(--ease-spr) .13s both}
+.profile-stats .pstat:nth-child(3){animation:statPop .38s var(--ease-spr) .20s both}
+
+/* ── Extended list cascades ── */
+/* Row (already exists — keep for rows, extend to 8) */
+.scr .list .row:nth-child(1){animation:cascadeIn .38s var(--ease) .04s both}
+.scr .list .row:nth-child(2){animation:cascadeIn .38s var(--ease) .09s both}
+.scr .list .row:nth-child(3){animation:cascadeIn .38s var(--ease) .14s both}
+.scr .list .row:nth-child(4){animation:cascadeIn .38s var(--ease) .19s both}
+.scr .list .row:nth-child(5){animation:cascadeIn .38s var(--ease) .24s both}
+.scr .list .row:nth-child(6){animation:cascadeIn .38s var(--ease) .28s both}
+.scr .list .row:nth-child(7){animation:cascadeIn .38s var(--ease) .31s both}
+.scr .list .row:nth-child(n+8){animation:cascadeIn .38s var(--ease) .33s both}
+/* Obj-cards */
+.list .obj-card:nth-child(1){animation:cascadeIn .36s var(--ease) .04s both}
+.list .obj-card:nth-child(2){animation:cascadeIn .36s var(--ease) .09s both}
+.list .obj-card:nth-child(3){animation:cascadeIn .36s var(--ease) .14s both}
+.list .obj-card:nth-child(4){animation:cascadeIn .36s var(--ease) .19s both}
+.list .obj-card:nth-child(5){animation:cascadeIn .36s var(--ease) .24s both}
+.list .obj-card:nth-child(n+6){animation:cascadeIn .36s var(--ease) .28s both}
+/* Collection cards */
+.list .collection-c:nth-child(1){animation:cascadeIn .36s var(--ease) .04s both}
+.list .collection-c:nth-child(2){animation:cascadeIn .36s var(--ease) .09s both}
+.list .collection-c:nth-child(3){animation:cascadeIn .36s var(--ease) .14s both}
+.list .collection-c:nth-child(n+4){animation:cascadeIn .36s var(--ease) .19s both}
+/* Format cards */
+.format-list .format-card:nth-child(1){animation:cascadeIn .34s var(--ease) .03s both}
+.format-list .format-card:nth-child(2){animation:cascadeIn .34s var(--ease) .08s both}
+.format-list .format-card:nth-child(3){animation:cascadeIn .34s var(--ease) .13s both}
+.format-list .format-card:nth-child(4){animation:cascadeIn .34s var(--ease) .18s both}
+
+/* ── Stat-g block entrance (overridden by child statPop) ── */
+.scr .stat-g{animation:none}
+
+/* ── Notification items cascade ── */
+.notif-l .notif-i:nth-child(1){animation:cascadeIn .34s var(--ease) .03s both}
+.notif-l .notif-i:nth-child(2){animation:cascadeIn .34s var(--ease) .08s both}
+.notif-l .notif-i:nth-child(3){animation:cascadeIn .34s var(--ease) .13s both}
+.notif-l .notif-i:nth-child(n+4){animation:cascadeIn .34s var(--ease) .17s both}
+
+/* ── View list items cascade (SharingAnalytics) ── */
+.view-l .view-i:nth-child(1){animation:slideRight .32s var(--ease) .05s both}
+.view-l .view-i:nth-child(2){animation:slideRight .32s var(--ease) .10s both}
+.view-l .view-i:nth-child(3){animation:slideRight .32s var(--ease) .15s both}
+.view-l .view-i:nth-child(n+4){animation:slideRight .32s var(--ease) .19s both}
+
+/* ── Check icon pop for success/done states ── */
+.icon-check-pop{animation:checkIn .36s var(--ease-spr) both}
+
+/* ── Glass card section entrance in forms ── */
+.body > .over:nth-child(1) + .glass-s,.body > .over:nth-child(1) + .fg{animation:cascadeIn .32s var(--ease-out) .08s both}
+.body > .over:nth-child(3) + .glass-s,.body > .over:nth-child(3) + .fg{animation:cascadeIn .32s var(--ease-out) .14s both}
+.body > .over:nth-child(5) + .glass-s,.body > .over:nth-child(5) + .fg{animation:cascadeIn .32s var(--ease-out) .20s both}
+.body > .over:nth-child(7) + .glass-s,.body > .over:nth-child(7) + .fg{animation:cascadeIn .32s var(--ease-out) .26s both}
+
+/* ── Hover lift for desktop/iPad ── */
+@media(hover:hover){
+  .row:hover{background:var(--glass-2);transform:none}
+  .obj-card:hover{transform:translateY(-1px)}
+  .format-card:hover{background:var(--glass-2)}
+  .collection-c:hover{background:var(--glass-2)}
+  .type-card:hover{background:var(--glass-2)}
+}

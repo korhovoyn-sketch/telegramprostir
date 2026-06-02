@@ -91,7 +91,9 @@ export default function PhotoUploadScreen() {
             display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
           }}>
             {done ? (
-              <IconCheck size={28} color="#4ade80" />
+              <span className="icon-check-pop">
+                <IconCheck size={28} color="#4ade80" />
+              </span>
             ) : (
               <>
                 <div style={{ fontSize: 20, fontWeight: 700, color: '#fff' }}>{overallPct}%</div>
