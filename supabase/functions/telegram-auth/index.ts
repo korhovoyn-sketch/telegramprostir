@@ -205,7 +205,7 @@ Deno.serve(async (req) => {
     if (!fullUser) throw new Error('User not found after session creation')
 
     return new Response(
-      JSON.stringify({ access_token, refresh_token, user: fullUser }),
+      JSON.stringify({ access_token, refresh_token, user: fullUser, is_new: !existing }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     )
   } catch (err) {

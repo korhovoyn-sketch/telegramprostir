@@ -20,6 +20,8 @@ interface AppState {
   isOnline: boolean
 
   navigate: (screen: ScreenName, params?: ScreenParams) => void
+  /** Replace current screen and clear history stack (use after deep link or fresh auth) */
+  navigateRoot: (screen: ScreenName, params?: ScreenParams) => void
   back: () => boolean
   setUser: (user: User | null) => void
   showToast: (toast: Toast) => void
@@ -51,6 +53,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       screenParams: params,
       history: [...history, { screen: current, params: currentParams }],
     })
+  },
+
+  navigateRoot: (screen, params = {}) => {
+    set({ screen, screenParams: params, history: [] })
   },
 
   back: () => {

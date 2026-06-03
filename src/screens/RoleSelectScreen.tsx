@@ -16,8 +16,8 @@ export default function RoleSelectScreen() {
     if (!role) return
     setLoading(true)
     await updateProfile({ role })
-    navigate('profile-setup')
     setLoading(false)
+    navigate('profile-setup')
   }
 
   return (

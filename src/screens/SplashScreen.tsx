@@ -47,7 +47,10 @@ export default function SplashScreen() {
           navigate('welcome')
           return
         }
-        // useDeepLink will handle the rest if a sharing link is present
+        // If there's a deep link, don't navigate — useDeepLink takes over.
+        // Navigating here would race with useDeepLink's async DB query (350 ms window).
+        const startParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param
+        if (startParam?.startsWith('db_') || startParam?.startsWith('prop_')) return
         navigate(user.role === 'owner' ? 'db-list' : 'realtor-dashboard')
       }, 350)
     })

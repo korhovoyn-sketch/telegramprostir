@@ -85,6 +85,7 @@ export function useAuth() {
       const access_token = body?.access_token
       const refresh_token = body?.refresh_token
       const user = body?.user
+      const is_new: boolean = body?.is_new === true
 
       if (!access_token) throw new Error('No access_token in response')
       if (!refresh_token) throw new Error('No refresh_token in response')
@@ -103,20 +104,22 @@ export function useAuth() {
       const dbUser: User = user
       setUser(dbUser)
 
-      // If a sharing deep link is present, let useDeepLink handle navigation
-      // (it will auto-assign role and open the database directly)
       const startParam = typeof window !== 'undefined'
         ? window?.Telegram?.WebApp?.initDataUnsafe?.start_param
         : null
+
+      // Deep link present — useDeepLink handles all navigation
       if (startParam?.startsWith('db_') || startParam?.startsWith('prop_')) {
         return
       }
 
-      if (!dbUser.role) {
+      // New user → onboarding (role-select → profile-setup → home)
+      if (is_new) {
         navigate('role-select')
-      } else {
-        navigate(dbUser.role === 'owner' ? 'db-list' : 'realtor-dashboard')
+        return
       }
+
+      navigate(dbUser.role === 'owner' ? 'db-list' : 'realtor-dashboard')
     } catch (e) {
       const errorMsg = (e as Error).message || 'Unknown error'
       console.error('[useAuth] loginViaTelegram error:', errorMsg, e)
