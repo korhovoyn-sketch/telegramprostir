@@ -227,7 +227,7 @@ function CollectionDetail({
       }
     }
 
-    const link = `https://t.me/propspacebot?start=col_${collection.id.slice(0, 8)}`
+    const link = `https://t.me/propspacebot?startapp=col_${collection.id}`
     if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
       window.Telegram.WebApp.openTelegramLink(
         `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(collection.name)}`
@@ -502,7 +502,7 @@ export default function CollectionsScreen() {
 
   function handleShare(e: React.MouseEvent, col: CollectionWithCount) {
     e.stopPropagation()
-    const link = `https://t.me/propspacebot?start=col_${col.id.slice(0, 8)}`
+    const link = `https://t.me/propspacebot?startapp=col_${col.id}`
     if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
       window.Telegram.WebApp.openTelegramLink(
         `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(col.name)}`

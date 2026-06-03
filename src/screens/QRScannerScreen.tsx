@@ -6,6 +6,24 @@ import { supabase } from '@/lib/supabase'
 import Header from '@/components/ui/Header'
 import { IconBolt } from '@/components/Icons'
 
+// Parse db token from scanned QR content:
+// Handles both URL format: https://t.me/propspacebot?startapp=db_<token>
+// and raw token: db_<token>  or  just <token>
+function extractDbToken(raw: string): string | null {
+  try {
+    const url = new URL(raw)
+    const startapp = url.searchParams.get('startapp') ?? url.searchParams.get('start') ?? ''
+    if (startapp.startsWith('db_')) return startapp.slice(3)
+  } catch {
+    // Not a URL — try raw token formats
+  }
+  const match = raw.match(/db_([a-f0-9]+)/i)
+  if (match) return match[1]
+  // Accept plain hex token (24 chars = share_token length)
+  if (/^[a-f0-9]{24}$/i.test(raw.trim())) return raw.trim()
+  return null
+}
+
 export default function QRScannerScreen() {
   const { user, navigate, showToast } = useAppStore()
   const [scanning, setScanning] = useState(false)
@@ -13,72 +31,63 @@ export default function QRScannerScreen() {
   const [manualToken, setManualToken] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
+  async function subscribeByToken(token: string) {
+    if (!user) return
+    const { data: db } = await supabase
+      .from('databases')
+      .select('id, share_expires_at')
+      .eq('share_token', token)
+      .single()
+
+    if (!db) {
+      showToast({ type: 'error', title: 'Базу не знайдено', subtitle: 'Перевірте посилання або QR-код' })
+      return
+    }
+    if (db.share_expires_at && new Date(db.share_expires_at) < new Date()) {
+      showToast({ type: 'error', title: 'Посилання застаріло', subtitle: 'Попросіть власника оновити посилання' })
+      return
+    }
+    const { error } = await supabase
+      .from('realtor_subscriptions')
+      .upsert({ realtor_id: user.id, db_id: db.id }, { onConflict: 'realtor_id,db_id' })
+    if (!error) {
+      window.Telegram?.WebApp?.HapticFeedback.notificationOccurred('success')
+      showToast({ type: 'success', title: 'Базу підключено! 🎉' })
+      navigate('realtor-database', { dbId: db.id })
+    } else {
+      showToast({ type: 'error', title: 'Помилка підписки', subtitle: error.message })
+    }
+  }
+
   useEffect(() => {
     if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
       const tg = window.Telegram.WebApp as unknown as Record<string, unknown>
       if (typeof tg.showScanQrPopup === 'function') {
         setScanning(true)
-        ;(tg.showScanQrPopup as (opts: { text: string }, cb: (r: string | null) => boolean | Promise<boolean>) => void)({ text: 'Відскануй QR-код бази' }, async (result) => {
-          if (!result) return false
-          const match = result.match(/db_([a-f0-9]{8})/)
-          if (!match) {
-            showToast({ type: 'error', title: 'Невірний QR-код' })
+        ;(tg.showScanQrPopup as (opts: { text: string }, cb: (r: string | null) => boolean | Promise<boolean>) => void)(
+          { text: 'Відскануй QR-код бази PropSpace' },
+          async (result) => {
+            if (!result) return false
+            const token = extractDbToken(result)
+            if (!token) {
+              showToast({ type: 'error', title: 'Невірний QR-код', subtitle: 'Відскануйте QR від PropSpace' })
+              return true
+            }
+            await subscribeByToken(token)
             return true
           }
-          const token = match[1]
-          const { data: db } = await supabase
-            .from('databases')
-            .select('id, share_expires_at')
-            .ilike('share_token', `${token}%`)
-            .single()
-          if (!db || !user) {
-            showToast({ type: 'error', title: 'Базу не знайдено' })
-            return true
-          }
-          // Check expiry
-          if (db.share_expires_at && new Date(db.share_expires_at) < new Date()) {
-            showToast({ type: 'error', title: 'Посилання застаріло' })
-            return true
-          }
-          const { error } = await supabase
-            .from('realtor_subscriptions')
-            .upsert({ realtor_id: user.id, db_id: db.id }, { onConflict: 'realtor_id,db_id' })
-          if (!error) {
-            showToast({ type: 'success', title: 'Підписку додано!' })
-            navigate('realtor-database', { dbId: db.id })
-          }
-          return true
-        })
+        )
       }
     }
-  }, [user, navigate, showToast])
+  }, [user, navigate, showToast]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleManualSubmit() {
     if (!manualToken.trim() || !user) return
     setSubmitting(true)
     try {
-      const token = manualToken.trim()
-      const { data: db } = await supabase
-        .from('databases')
-        .select('id, share_expires_at')
-        .ilike('share_token', `${token}%`)
-        .single()
-      if (!db) {
-        showToast({ type: 'error', title: 'Базу не знайдено' })
-        return
-      }
-      // Check expiry
-      if (db.share_expires_at && new Date(db.share_expires_at) < new Date()) {
-        showToast({ type: 'error', title: 'Посилання застаріло' })
-        return
-      }
-      const { error } = await supabase
-        .from('realtor_subscriptions')
-        .upsert({ realtor_id: user.id, db_id: db.id }, { onConflict: 'realtor_id,db_id' })
-      if (!error) {
-        showToast({ type: 'success', title: 'Підписку додано!' })
-        navigate('realtor-database', { dbId: db.id })
-      }
+      // Accept full URL, db_ prefix, or raw token
+      const token = extractDbToken(manualToken.trim()) ?? manualToken.trim()
+      await subscribeByToken(token)
     } finally {
       setSubmitting(false)
     }
@@ -117,7 +126,6 @@ export default function QRScannerScreen() {
               }}
             />
           ))}
-          {/* Scan line */}
           {scanning && (
             <div style={{
               position: 'absolute',
@@ -139,15 +147,15 @@ export default function QRScannerScreen() {
           </div>
         </div>
 
-        {/* Manual token input */}
+        {/* Manual input — accepts URL, db_ prefix, or raw token */}
         <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={{ color: 'rgba(255,255,255,.45)', fontSize: 12, textAlign: 'center' }}>або введіть токен вручну</div>
+          <div style={{ color: 'rgba(255,255,255,.45)', fontSize: 12, textAlign: 'center' }}>або вставте посилання / токен</div>
           <div style={{ display: 'flex', gap: 8 }}>
             <input
               type="text"
               value={manualToken}
               onChange={(e) => setManualToken(e.target.value)}
-              placeholder="Токен бази (напр. a1b2c3d4)"
+              placeholder="https://t.me/propspacebot?startapp=..."
               onKeyDown={(e) => { if (e.key === 'Enter') handleManualSubmit() }}
               style={{
                 flex: 1,
@@ -156,7 +164,7 @@ export default function QRScannerScreen() {
                 border: '1px solid rgba(255,255,255,.15)',
                 background: 'rgba(255,255,255,.08)',
                 color: '#fff',
-                fontSize: 14,
+                fontSize: 13,
                 padding: '0 14px',
                 outline: 'none',
               }}

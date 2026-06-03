@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import { useAppStore } from '@/store/appStore'
 import { useAuth } from '@/hooks/useAuth'
+import { useDeepLink } from '@/hooks/useDeepLink'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 const screenFallback = (
@@ -43,6 +44,7 @@ export default function Page() {
   const setOnline = useAppStore((s) => s.setOnline)
   const showToast = useAppStore((s) => s.showToast)
   const { setupAuthListener } = useAuth()
+  useDeepLink()
 
   useEffect(() => {
     const tg = window.Telegram?.WebApp
