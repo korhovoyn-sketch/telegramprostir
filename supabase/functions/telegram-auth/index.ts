@@ -175,13 +175,13 @@ Deno.serve(async (req) => {
     const email = `${tgUser.id}@telegram.propspace.app`
     const password = await derivePassword(SERVICE_KEY, email)
 
-    // Create auth user (ignore "already registered" error — user exists)
+    // Create auth user (ignore "already registered/exists" — user exists, proceed to sign-in)
     const { error: createErr } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
     })
-    if (createErr && !createErr.message?.toLowerCase().includes('already registered')) {
+    if (createErr && !createErr.message?.toLowerCase().includes('already')) {
       throw new Error(`Auth user creation failed: ${createErr.message}`)
     }
 
