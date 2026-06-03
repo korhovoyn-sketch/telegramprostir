@@ -1,18 +1,27 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { useAuth } from '@/hooks/useAuth'
 import { useTelegram } from '@/hooks/useTelegram'
+
+// Hard ceiling: if restoreSession hangs longer than this, navigate away anyway
+const SESSION_TIMEOUT_MS = 6000
 
 export default function SplashScreen() {
   const [progress, setProgress] = useState(0)
   const navigate = useAppStore((s) => s.navigate)
   const { restoreSession } = useAuth()
   const { isReady } = useTelegram()
+  // Guard against double-execution if isReady / deps change mid-flight
+  const startedRef = useRef(false)
 
   useEffect(() => {
     if (!isReady) return
+    if (startedRef.current) return
+    startedRef.current = true
+
+    let cancelled = false
 
     const interval = setInterval(() => {
       setProgress((p) => {
@@ -21,24 +30,31 @@ export default function SplashScreen() {
       })
     }, 100)
 
-    restoreSession().then((hasSession) => {
+    // Race the session check against a hard timeout so the app never hangs
+    const sessionPromise = restoreSession()
+    const timeoutPromise = new Promise<false>((resolve) =>
+      setTimeout(() => resolve(false), SESSION_TIMEOUT_MS)
+    )
+
+    Promise.race([sessionPromise, timeoutPromise]).then((hasSession) => {
+      if (cancelled) return
       clearInterval(interval)
       setProgress(100)
       setTimeout(() => {
+        if (cancelled) return
         const user = useAppStore.getState().user
         if (!hasSession || !user) {
           navigate('welcome')
         } else {
           navigate(user.role === 'owner' ? 'db-list' : 'realtor-dashboard')
         }
-      }, 400)
-    }).catch(() => {
-      clearInterval(interval)
-      setProgress(100)
-      setTimeout(() => navigate('welcome'), 400)
+      }, 350)
     })
 
-    return () => clearInterval(interval)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
   }, [isReady, navigate, restoreSession])
 
   return (
