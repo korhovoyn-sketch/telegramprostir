@@ -16,7 +16,7 @@ export default function RoleSelectScreen() {
     if (!role) return
     setLoading(true)
     await updateProfile({ role })
-    navigate(role === 'owner' ? 'profile-setup' : 'profile-setup')
+    navigate('profile-setup')
     setLoading(false)
   }
 

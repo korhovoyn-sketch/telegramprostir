@@ -6,12 +6,12 @@ import Toast from '@/components/ui/Toast'
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
+    // tg.ready() and tg.expand() are called in useTelegram hook (SplashScreen).
+    // Here we only set colors — these must run early before any screen renders.
     if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-      const tg = window.Telegram.WebApp
-      tg.ready()
-      tg.expand()
-      ;(tg as unknown as Record<string, (c: string) => void>).setHeaderColor?.('#1a0533')
-      ;(tg as unknown as Record<string, (c: string) => void>).setBackgroundColor?.('#1a0533')
+      const tg = window.Telegram.WebApp as unknown as Record<string, (c: string) => void>
+      tg.setHeaderColor?.('#1a0533')
+      tg.setBackgroundColor?.('#1a0533')
     }
   }, [])
 

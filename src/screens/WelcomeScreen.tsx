@@ -1,17 +1,19 @@
 'use client'
 
 import { useAuth } from '@/hooks/useAuth'
+import { useAppStore } from '@/store/appStore'
 import { useTelegram } from '@/hooks/useTelegram'
 import ProxMascot from '@/components/ProxMascot'
 import { IconTelegram, IconShield, IconBolt } from '@/components/Icons'
 
 export default function WelcomeScreen() {
   const { loginViaTelegram, loading } = useAuth()
+  const { showToast } = useAppStore()
   const { tg, user: tgUser } = useTelegram()
 
   async function handleLogin() {
     if (!tg?.initData) {
-      console.warn('Telegram WebApp not available — dev mode')
+      showToast({ type: 'error', title: 'Потрібен Telegram', subtitle: 'Відкрийте додаток через Telegram Mini App' })
       return
     }
     await loginViaTelegram(tg.initData)

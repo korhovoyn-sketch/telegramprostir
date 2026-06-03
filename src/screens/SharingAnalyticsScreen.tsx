@@ -33,22 +33,51 @@ export default function SharingAnalyticsScreen() {
           if (dbData?.share_token) setDbShareToken(dbData.share_token)
         }
 
-        let query = supabase.from('property_views').select('*').order('created_at', { ascending: false }).limit(20)
+        // Use a 30-day window for the viewer list; chart is last 7 days
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString()
+        let viewData: PropertyView[] = []
 
         if (screenParams.propertyId) {
-          query = query.eq('property_id', screenParams.propertyId)
+          // Property-level: filter directly by property_id
+          const { data, error } = await supabase
+            .from('property_views')
+            .select('*')
+            .eq('property_id', screenParams.propertyId)
+            .gte('created_at', thirtyDaysAgo)
+            .order('created_at', { ascending: false })
+            .limit(200)
+          if (error) throw error
+          viewData = (data ?? []) as PropertyView[]
+        } else if (screenParams.dbId) {
+          // DB-level: resolve property IDs first, then filter views
+          const { data: props, error: propsErr } = await supabase
+            .from('properties')
+            .select('id')
+            .eq('db_id', screenParams.dbId)
+          if (propsErr) throw propsErr
+          const propIds = (props ?? []).map((p: { id: string }) => p.id)
+
+          if (propIds.length > 0) {
+            const { data, error } = await supabase
+              .from('property_views')
+              .select('*')
+              .in('property_id', propIds)
+              .gte('created_at', thirtyDaysAgo)
+              .order('created_at', { ascending: false })
+              .limit(200)
+            if (error) throw error
+            viewData = (data ?? []) as PropertyView[]
+          }
         }
 
-        const { data, error } = await query
-        if (error) throw error
-        setViews((data ?? []) as PropertyView[])
+        setViews(viewData)
 
-        // Build chart data (last 7 days)
+        // Chart: count per day for the last 7 days only
         const now = Date.now()
         const dayData = Array(7).fill(0)
-        ;(data ?? []).forEach((v: PropertyView) => {
+        viewData.forEach((v) => {
           const diff = Math.floor((now - new Date(v.created_at).getTime()) / 86400000)
-          if (diff < 7) dayData[6 - diff]++
+          if (diff >= 0 && diff < 7) dayData[6 - diff]++
         })
         setChartData(dayData)
       } catch (e) {
@@ -61,19 +90,32 @@ export default function SharingAnalyticsScreen() {
   }, [screenParams.propertyId, screenParams.dbId, showToast])
 
   const maxVal = Math.max(...chartData, 1)
-  const totalViews = views.length
+
+  // Stats are based on the last 7 days only (matches chart label)
+  const now = Date.now()
+  const last7Views = views.filter((v) =>
+    Math.floor((now - new Date(v.created_at).getTime()) / 86400000) < 7
+  )
+  const todayViews = views.filter((v) =>
+    Math.floor((now - new Date(v.created_at).getTime()) / 86400000) === 0
+  )
+
+  // Full token — never slice; Telegram start= supports up to 64 chars
+  function buildShareToken() {
+    if (screenParams.dbId) return 'db_' + (dbShareToken || screenParams.dbId)
+    return 'prop_' + (screenParams.propertyId ?? '')
+  }
 
   function handleShare() {
     if (!user) return
-    const token = screenParams.dbId
-      ? 'db_' + (dbShareToken || screenParams.dbId).slice(0, 8)
-      : 'prop_' + (screenParams.propertyId ?? '').slice(0, 8)
-    const link = `https://t.me/propspacebot?start=${token}`
-
+    const link = `https://t.me/propspacebot?start=${buildShareToken()}`
     if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
       window.Telegram.WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(link)}`)
     }
   }
+
+  const shareLink = `https://t.me/propspacebot?start=${buildShareToken()}`
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(shareLink)}`
 
   return (
     <div className="scr bg-teal">
@@ -83,14 +125,11 @@ export default function SharingAnalyticsScreen() {
         {/* Views count */}
         <div className="stat-g">
           <div className="stat glass-s" style={{ gridColumn: 'span 2' }}>
-            <div className="stat-n">{totalViews}</div>
+            <div className="stat-n">{last7Views.length}</div>
             <div className="stat-l">Переглядів за 7 днів</div>
           </div>
           <div className="stat glass-s">
-            <div className="stat-n">{views.filter(v => {
-              const d = Math.floor((Date.now() - new Date(v.created_at).getTime()) / 86400000)
-              return d === 0
-            }).length}</div>
+            <div className="stat-n">{todayViews.length}</div>
             <div className="stat-l">Сьогодні</div>
           </div>
         </div>
@@ -106,12 +145,9 @@ export default function SharingAnalyticsScreen() {
           </div>
 
           <svg width="100%" height="80" viewBox="0 0 280 80" style={{ display: 'block' }}>
-            {/* Grid lines */}
             {[0, 1, 2, 3].map(i => (
               <line key={i} x1="0" y1={i * 20 + 10} x2="280" y2={i * 20 + 10} stroke="rgba(255,255,255,.06)" strokeWidth="1" />
             ))}
-
-            {/* Line */}
             <polyline
               fill="none"
               stroke="url(#chartGrad)"
@@ -124,8 +160,6 @@ export default function SharingAnalyticsScreen() {
                 return `${x},${y}`
               }).join(' ')}
             />
-
-            {/* Area fill */}
             <polygon
               fill="url(#areaGrad)"
               points={[
@@ -137,14 +171,11 @@ export default function SharingAnalyticsScreen() {
                 '270,70', '10,70'
               ].join(' ')}
             />
-
-            {/* Dots */}
             {chartData.map((v, i) => {
               const x = (i / 6) * 260 + 10
               const y = 70 - (v / maxVal) * 55
               return v > 0 ? <circle key={i} cx={x} cy={y} r="3" fill="#7AB3FF" /> : null
             })}
-
             <defs>
               <linearGradient id="chartGrad" x1="0" y1="0" x2="280" y2="0" gradientUnits="userSpaceOnUse">
                 <stop offset="0%" stopColor="#7AB3FF" />
@@ -164,47 +195,38 @@ export default function SharingAnalyticsScreen() {
           </div>
         </div>
 
-        {/* QR code + share link */}
-        {(() => {
-          const shareToken = screenParams.dbId
-            ? 'db_' + (dbShareToken || screenParams.dbId).slice(0, 8)
-            : 'prop_' + (screenParams.propertyId ?? '').slice(0, 8)
-          const shareLink = `https://t.me/propspacebot?start=${shareToken}`
-          const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(shareLink)}`
-          return (
-            <div className="qr-hero glass-s">
-              <div className="qr-wrap">
-                <img
-                  src={qrUrl}
-                  alt="QR code"
-                  width={124}
-                  height={124}
-                  style={{ display: 'block', width: '100%', height: '100%' }}
-                />
-              </div>
-              <div className="qr-meta">
-                <div className="qr-name">QR-код для ріелтора</div>
-                <div className="qr-link" style={{ wordBreak: 'break-all' }}>{shareLink}</div>
-              </div>
-              <button
-                className="glass-s"
-                style={{ marginTop: 8, padding: '8px 20px', borderRadius: 20, fontSize: 13, fontWeight: 600, color: '#fff', border: '.5px solid rgba(255,255,255,.2)', cursor: 'pointer', background: 'rgba(255,255,255,.08)' }}
-                onClick={() => {
-                  navigator.clipboard.writeText(shareLink)
-                  showToast({ type: 'success', title: 'Посилання скопійовано' })
-                }}
-              >
-                Скопіювати посилання
-              </button>
-            </div>
-          )
-        })()}
+        {/* QR + share link */}
+        <div className="qr-hero glass-s">
+          <div className="qr-wrap">
+            <img
+              src={qrUrl}
+              alt="QR code"
+              width={124}
+              height={124}
+              style={{ display: 'block', width: '100%', height: '100%' }}
+            />
+          </div>
+          <div className="qr-meta">
+            <div className="qr-name">QR-код для ріелтора</div>
+            <div className="qr-link" style={{ wordBreak: 'break-all' }}>{shareLink}</div>
+          </div>
+          <button
+            className="glass-s"
+            style={{ marginTop: 8, padding: '8px 20px', borderRadius: 20, fontSize: 13, fontWeight: 600, color: '#fff', border: '.5px solid rgba(255,255,255,.2)', cursor: 'pointer', background: 'rgba(255,255,255,.08)' }}
+            onClick={() => {
+              navigator.clipboard?.writeText(shareLink)
+              showToast({ type: 'success', title: 'Посилання скопійовано' })
+            }}
+          >
+            Скопіювати посилання
+          </button>
+        </div>
 
         {/* Recent viewers */}
         <div className="over">
           <span>Останні перегляди</span>
           <span className="over-a">
-            <IconEye size={12} /> {totalViews} всього
+            <IconEye size={12} /> {last7Views.length} за 7 днів
           </span>
         </div>
 
@@ -216,11 +238,11 @@ export default function SharingAnalyticsScreen() {
           <div className="empty-state" style={{ paddingTop: 24 }}>
             <div className="empty-ic">👁️</div>
             <div className="empty-h">Немає переглядів</div>
-            <div className="empty-s">Поділись посиланням, щоб ріелтори побачили об&apos;єкт</div>
+            <div className="empty-s">Поділись посиланням, щоб ріелтори побачили об&apos;єкти</div>
           </div>
         ) : (
           <div className="view-l glass-s" style={{ margin: '0 12px 16px' }}>
-            {views.slice(0, 10).map((v) => (
+            {views.slice(0, 15).map((v) => (
               <div key={v.id} className="view-i">
                 <div className="view-av av-grad-2">
                   {(v.viewer_name ?? '?').charAt(0).toUpperCase()}

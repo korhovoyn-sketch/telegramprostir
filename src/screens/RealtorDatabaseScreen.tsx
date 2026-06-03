@@ -165,7 +165,8 @@ export default function RealtorDatabaseScreen() {
       </div>
 
       <button className="mbtn" onClick={() => {
-        const token = db.share_token?.slice(0, 8) ?? db.id?.slice(0, 8)
+        // Use full share_token (never slice — Telegram start= supports 64 chars)
+        const token = db.share_token ?? db.id
         const link = `https://t.me/propspacebot?start=db_${token}`
         if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
           window.Telegram.WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(link)}`)
