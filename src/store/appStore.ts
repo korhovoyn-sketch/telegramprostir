@@ -44,7 +44,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   databases: [],
   notifications: [],
   unreadCount: 0,
-  isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
+  // Start as online — SSR/client hydration safe (event listeners in page.tsx update this)
+  isOnline: true,
 
   navigate: (screen, params = {}) => {
     const { screen: current, screenParams: currentParams, history } = get()

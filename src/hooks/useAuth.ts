@@ -10,6 +10,7 @@ export function useAuth() {
   const { setUser, navigate, showToast } = useAppStore()
 
   const setupAuthListener = useCallback(() => {
+    if (!supabase.auth) return { unsubscribe: () => {} }
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'TOKEN_REFRESHED' && session) {
         try {
