@@ -6,33 +6,42 @@ import { useAppStore } from '@/store/appStore'
 import { useAuth } from '@/hooks/useAuth'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 
-const SplashScreen = dynamic(() => import('@/screens/SplashScreen'))
-const WelcomeScreen = dynamic(() => import('@/screens/WelcomeScreen'))
-const RoleSelectScreen = dynamic(() => import('@/screens/RoleSelectScreen'))
-const ProfileSetupScreen = dynamic(() => import('@/screens/ProfileSetupScreen'))
-const EmptyStateScreen = dynamic(() => import('@/screens/EmptyStateScreen'))
-const DatabaseListScreen = dynamic(() => import('@/screens/DatabaseListScreen'))
-const CreateDatabaseScreen = dynamic(() => import('@/screens/CreateDatabaseScreen'))
-const DatabaseObjectsScreen = dynamic(() => import('@/screens/DatabaseObjectsScreen'))
-const PropertyFormScreen = dynamic(() => import('@/screens/PropertyFormScreen'))
-const PropertyDetailScreen = dynamic(() => import('@/screens/PropertyDetailScreen'))
-const SharingAnalyticsScreen = dynamic(() => import('@/screens/SharingAnalyticsScreen'))
-const ExportScreen = dynamic(() => import('@/screens/ExportScreen'))
-const RealtorDashboardScreen = dynamic(() => import('@/screens/RealtorDashboardScreen'))
-const RealtorDatabaseScreen = dynamic(() => import('@/screens/RealtorDatabaseScreen'))
-const CollectionsScreen = dynamic(() => import('@/screens/CollectionsScreen'))
-const ProfileScreen = dynamic(() => import('@/screens/ProfileScreen'))
-const NotificationsScreen = dynamic(() => import('@/screens/NotificationsScreen'))
-const ErrorScreen = dynamic(() => import('@/screens/ErrorScreen'))
-const SuccessScreen = dynamic(() => import('@/screens/SuccessScreen'))
-const PhotoUploadScreen = dynamic(() => import('@/screens/PhotoUploadScreen'))
-const PhotoGalleryScreen = dynamic(() => import('@/screens/PhotoGalleryScreen'))
-const QRScannerScreen = dynamic(() => import('@/screens/QRScannerScreen'))
+const screenFallback = (
+  <div className="scr bg-purple" style={{ alignItems: 'center', justifyContent: 'center' }}>
+    <div className="loader" />
+  </div>
+)
+
+const SplashScreen = dynamic(() => import('@/screens/SplashScreen'), { loading: () => screenFallback })
+const WelcomeScreen = dynamic(() => import('@/screens/WelcomeScreen'), { loading: () => screenFallback })
+const RoleSelectScreen = dynamic(() => import('@/screens/RoleSelectScreen'), { loading: () => screenFallback })
+const ProfileSetupScreen = dynamic(() => import('@/screens/ProfileSetupScreen'), { loading: () => screenFallback })
+const EmptyStateScreen = dynamic(() => import('@/screens/EmptyStateScreen'), { loading: () => screenFallback })
+const DatabaseListScreen = dynamic(() => import('@/screens/DatabaseListScreen'), { loading: () => screenFallback })
+const CreateDatabaseScreen = dynamic(() => import('@/screens/CreateDatabaseScreen'), { loading: () => screenFallback })
+const DatabaseObjectsScreen = dynamic(() => import('@/screens/DatabaseObjectsScreen'), { loading: () => screenFallback })
+const PropertyFormScreen = dynamic(() => import('@/screens/PropertyFormScreen'), { loading: () => screenFallback })
+const PropertyDetailScreen = dynamic(() => import('@/screens/PropertyDetailScreen'), { loading: () => screenFallback })
+const SharingAnalyticsScreen = dynamic(() => import('@/screens/SharingAnalyticsScreen'), { loading: () => screenFallback })
+const ExportScreen = dynamic(() => import('@/screens/ExportScreen'), { loading: () => screenFallback })
+const RealtorDashboardScreen = dynamic(() => import('@/screens/RealtorDashboardScreen'), { loading: () => screenFallback })
+const RealtorDatabaseScreen = dynamic(() => import('@/screens/RealtorDatabaseScreen'), { loading: () => screenFallback })
+const CollectionsScreen = dynamic(() => import('@/screens/CollectionsScreen'), { loading: () => screenFallback })
+const ProfileScreen = dynamic(() => import('@/screens/ProfileScreen'), { loading: () => screenFallback })
+const NotificationsScreen = dynamic(() => import('@/screens/NotificationsScreen'), { loading: () => screenFallback })
+const ErrorScreen = dynamic(() => import('@/screens/ErrorScreen'), { loading: () => screenFallback })
+const SuccessScreen = dynamic(() => import('@/screens/SuccessScreen'), { loading: () => screenFallback })
+const PhotoUploadScreen = dynamic(() => import('@/screens/PhotoUploadScreen'), { loading: () => screenFallback })
+const PhotoGalleryScreen = dynamic(() => import('@/screens/PhotoGalleryScreen'), { loading: () => screenFallback })
+const QRScannerScreen = dynamic(() => import('@/screens/QRScannerScreen'), { loading: () => screenFallback })
 
 export default function Page() {
   const screen = useAppStore((s) => s.screen)
   const historyLength = useAppStore((s) => s.history.length)
   const back = useAppStore((s) => s.back)
+  const isOnline = useAppStore((s) => s.isOnline)
+  const setOnline = useAppStore((s) => s.setOnline)
+  const showToast = useAppStore((s) => s.showToast)
   const { setupAuthListener } = useAuth()
 
   useEffect(() => {
@@ -53,6 +62,24 @@ export default function Page() {
     return () => subscription.unsubscribe()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Network status monitoring
+  useEffect(() => {
+    const handleOffline = () => {
+      setOnline(false)
+      window.Telegram?.WebApp?.HapticFeedback.notificationOccurred('warning')
+    }
+    const handleOnline = () => {
+      setOnline(true)
+      showToast({ type: 'success', title: 'З\'єднання відновлено' })
+    }
+    window.addEventListener('offline', handleOffline)
+    window.addEventListener('online', handleOnline)
+    return () => {
+      window.removeEventListener('offline', handleOffline)
+      window.removeEventListener('online', handleOnline)
+    }
+  }, [setOnline, showToast])
 
   function renderScreen() {
     switch (screen) {
@@ -83,5 +110,15 @@ export default function Page() {
     }
   }
 
-  return <ErrorBoundary>{renderScreen()}</ErrorBoundary>
+  return (
+    <ErrorBoundary>
+      {!isOnline && (
+        <div className="offline-banner">
+          <span>📡</span>
+          Немає інтернету — дані можуть бути застарілими
+        </div>
+      )}
+      {renderScreen()}
+    </ErrorBoundary>
+  )
 }

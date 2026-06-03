@@ -78,6 +78,15 @@ export const DB_TYPE_ICONS: Record<string, string> = {
   parking: 'ti-car-garage',
 }
 
+export const DB_TYPE_EMOJI: Record<string, string> = {
+  business_center: '🏢',
+  residential: '🏘',
+  retail: '🏪',
+  warehouse: '🏭',
+  individual: '🏠',
+  parking: '🅿️',
+}
+
 export const STATUS_LABELS: Record<string, string> = {
   free: 'Вільно',
   occupied: 'Зайнято',

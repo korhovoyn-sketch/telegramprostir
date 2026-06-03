@@ -45,15 +45,28 @@ export function useAuth() {
       if (!supabaseUrl) throw new Error('Supabase URL not configured')
       if (!supabaseAnonKey) throw new Error('Supabase anon key not configured')
 
-      const res = await fetch(`${supabaseUrl}/functions/v1/telegram-auth`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabaseAnonKey}`,
-          'apikey': supabaseAnonKey,
-        },
-        body: JSON.stringify({ initData }),
-      })
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 15000)
+      let res: Response
+      try {
+        res = await fetch(`${supabaseUrl}/functions/v1/telegram-auth`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseAnonKey}`,
+            'apikey': supabaseAnonKey,
+          },
+          body: JSON.stringify({ initData }),
+          signal: controller.signal,
+        })
+      } catch (fetchErr) {
+        if ((fetchErr as Error).name === 'AbortError') {
+          throw new Error('Сервер не відповідає (15 сек). Перевірте інтернет і спробуйте ще раз.')
+        }
+        throw new Error('Немає з\'єднання з сервером. Перевірте інтернет.')
+      } finally {
+        clearTimeout(timeoutId)
+      }
 
       if (!res.ok) {
         if (res.status === 404) {

@@ -7,11 +7,13 @@ import type { Database } from '@/types'
 
 export function useDatabases() {
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const { user, setDatabases, databases, showToast, navigate } = useAppStore()
 
   const loadDatabases = useCallback(async () => {
     if (!user) return
     setLoading(true)
+    setError(null)
     try {
       const { data, error } = await supabase
         .from('databases')
@@ -34,7 +36,9 @@ export function useDatabases() {
 
       setDatabases(dbs as unknown as Database[])
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка завантаження', subtitle: (e as Error).message })
+      const msg = (e as Error).message
+      setError(msg)
+      showToast({ type: 'error', title: 'Помилка завантаження', subtitle: msg })
     } finally {
       setLoading(false)
     }
@@ -117,5 +121,5 @@ export function useDatabases() {
     }
   }, [databases, setDatabases, showToast, navigate])
 
-  return { loading, databases, loadDatabases, createDatabase, updateDatabase, deleteDatabase }
+  return { loading, error, databases, loadDatabases, createDatabase, updateDatabase, deleteDatabase }
 }

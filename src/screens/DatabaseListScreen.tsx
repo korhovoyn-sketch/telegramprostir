@@ -8,11 +8,11 @@ import SearchBar from '@/components/ui/SearchBar'
 import { FreshnessBadge } from '@/components/ui/Badge'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import { IconBell, IconChevronRight, IconPlus } from '@/components/Icons'
-import { DB_COLORS, DB_TYPE_LABELS } from '@/lib/utils'
+import { DB_COLORS, DB_TYPE_LABELS, DB_TYPE_EMOJI } from '@/lib/utils'
 
 export default function DatabaseListScreen() {
   const { user, navigate, unreadCount } = useAppStore()
-  const { databases, loading, loadDatabases } = useDatabases()
+  const { databases, loading, error, loadDatabases } = useDatabases()
   const [search, setSearch] = useState('')
 
   useEffect(() => {
@@ -72,6 +72,13 @@ export default function DatabaseListScreen() {
         {/* List */}
         {loading ? (
           <SkeletonLoader />
+        ) : error && databases.length === 0 ? (
+          <div className="retry-wrap">
+            <div className="retry-ic">📡</div>
+            <div className="retry-h">Не вдалося завантажити</div>
+            <div className="retry-s">{error}</div>
+            <button className="retry-btn" onClick={loadDatabases}>Спробувати ще раз</button>
+          </div>
         ) : filtered.length === 0 && search ? (
           <div className="empty-state" style={{ paddingTop: 32 }}>
             <div className="empty-ic">🔍</div>
@@ -102,7 +109,7 @@ export default function DatabaseListScreen() {
                   onClick={() => navigate('db-objects', { dbId: db.id })}
                 >
                   <div className="row-ic" style={colorStyle}>
-                    <span style={{ fontSize: 18 }}>🏢</span>
+                    <span style={{ fontSize: 18 }}>{DB_TYPE_EMOJI[db.type] ?? '🏢'}</span>
                   </div>
                   <div className="row-mn">
                     <div className="row-t">{db.name}</div>

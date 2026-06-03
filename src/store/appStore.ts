@@ -17,6 +17,7 @@ interface AppState {
   databases: Database[]
   notifications: Notification[]
   unreadCount: number
+  isOnline: boolean
 
   navigate: (screen: ScreenName, params?: ScreenParams) => void
   back: () => boolean
@@ -26,7 +27,11 @@ interface AppState {
   setDatabases: (dbs: Database[]) => void
   setNotifications: (notifs: Notification[]) => void
   markAllRead: () => void
+  setOnline: (online: boolean) => void
 }
+
+// Module-level timer so we can clear it across calls without storing in Zustand state
+let _toastTimer: ReturnType<typeof setTimeout> | null = null
 
 export const useAppStore = create<AppState>((set, get) => ({
   screen: 'splash',
@@ -37,6 +42,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   databases: [],
   notifications: [],
   unreadCount: 0,
+  isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
 
   navigate: (screen, params = {}) => {
     const { screen: current, screenParams: currentParams, history } = get()
@@ -62,11 +68,20 @@ export const useAppStore = create<AppState>((set, get) => ({
   setUser: (user) => set({ user }),
 
   showToast: (toast) => {
+    if (_toastTimer) clearTimeout(_toastTimer)
     set({ toast })
-    setTimeout(() => set({ toast: null }), 3500)
+    _toastTimer = setTimeout(() => {
+      set({ toast: null })
+      _toastTimer = null
+    }, 3500)
   },
 
-  hideToast: () => set({ toast: null }),
+  hideToast: () => {
+    if (_toastTimer) { clearTimeout(_toastTimer); _toastTimer = null }
+    set({ toast: null })
+  },
+
+  setOnline: (online) => set({ isOnline: online }),
 
   setDatabases: (databases) => set({ databases }),
 

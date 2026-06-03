@@ -11,13 +11,13 @@ import { StatusBadge, FreshnessBadge } from '@/components/ui/Badge'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import Modal from '@/components/ui/Modal'
 import { IconPlus, IconDots, IconEye, IconPhoto, IconShare } from '@/components/Icons'
-import { formatPrice, calcRent, calcUtilities, DB_TYPE_LABELS } from '@/lib/utils'
+import { formatPrice, calcRent, calcUtilities, DB_TYPE_LABELS, DB_TYPE_EMOJI } from '@/lib/utils'
 import type { PropertyStatus } from '@/types'
 
 export default function DatabaseObjectsScreen() {
   const { screenParams, navigate, databases } = useAppStore()
   const { deleteDatabase } = useDatabases()
-  const { properties, loading, loadProperties } = useProperties(screenParams.dbId)
+  const { properties, loading, error, loadProperties } = useProperties(screenParams.dbId)
 
   const [search, setSearch] = useState('')
   const [tab, setTab] = useState<'all' | PropertyStatus>('all')
@@ -65,7 +65,7 @@ export default function DatabaseObjectsScreen() {
       <div className="body has-fab">
         {/* DB info card */}
         <div className="info-card glass-s" style={{ margin: '0 12px 12px' }}>
-          <div className="info-ic">🏢</div>
+          <div className="info-ic">{DB_TYPE_EMOJI[db.type] ?? '🏢'}</div>
           <div className="info-mn">
             <div className="info-t">{db.name}</div>
             <div className="info-s">
@@ -107,6 +107,13 @@ export default function DatabaseObjectsScreen() {
         {/* Property cards */}
         {loading ? (
           <SkeletonLoader />
+        ) : error && properties.length === 0 ? (
+          <div className="retry-wrap">
+            <div className="retry-ic">📡</div>
+            <div className="retry-h">Не вдалося завантажити</div>
+            <div className="retry-s">{error}</div>
+            <button className="retry-btn" onClick={() => loadProperties(screenParams.dbId)}>Спробувати ще раз</button>
+          </div>
         ) : filtered.length === 0 && properties.length === 0 ? (
           <div className="empty-state" style={{ paddingTop: 24 }}>
             <div className="empty-ic">🏢</div>

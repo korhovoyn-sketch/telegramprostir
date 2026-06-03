@@ -7,6 +7,7 @@ import type { Property, PropertyStatus } from '@/types'
 
 export function useProperties(dbId?: string) {
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [properties, setProperties] = useState<Property[]>([])
   const { user, showToast, navigate } = useAppStore()
 
@@ -14,6 +15,7 @@ export function useProperties(dbId?: string) {
     const targetDbId = id || dbId
     if (!targetDbId) return
     setLoading(true)
+    setError(null)
     try {
       const { data, error } = await supabase
         .from('properties')
@@ -28,7 +30,9 @@ export function useProperties(dbId?: string) {
       })
       setProperties(mapped as unknown as Property[])
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка завантаження', subtitle: (e as Error).message })
+      const msg = (e as Error).message
+      setError(msg)
+      showToast({ type: 'error', title: 'Помилка завантаження', subtitle: msg })
     } finally {
       setLoading(false)
     }
@@ -156,6 +160,7 @@ export function useProperties(dbId?: string) {
 
   return {
     loading,
+    error,
     properties,
     loadProperties,
     createProperty,

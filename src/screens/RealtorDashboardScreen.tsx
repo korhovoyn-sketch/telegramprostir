@@ -8,46 +8,52 @@ import SearchBar from '@/components/ui/SearchBar'
 import { FreshnessBadge } from '@/components/ui/Badge'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import { IconBell, IconChevronRight } from '@/components/Icons'
-import { DB_TYPE_LABELS, DB_COLORS } from '@/lib/utils'
+import { DB_TYPE_LABELS, DB_COLORS, DB_TYPE_EMOJI } from '@/lib/utils'
 import type { Database, RealtorSubscription } from '@/types'
 
 export default function RealtorDashboardScreen() {
   const { user, navigate, unreadCount, showToast } = useAppStore()
   const [subscriptions, setSubscriptions] = useState<RealtorSubscription[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [propertyCount, setPropertyCount] = useState<number>(0)
 
-  useEffect(() => {
-    async function load() {
-      if (!user) return
-      setLoading(true)
-      try {
-        const { data, error } = await supabase
-          .from('realtor_subscriptions')
-          .select('*, database:databases(*)')
-          .eq('realtor_id', user.id)
-          .order('created_at', { ascending: false })
-        if (error) throw error
-        setSubscriptions((data ?? []) as RealtorSubscription[])
+  async function load() {
+    if (!user) return
+    setLoading(true)
+    setLoadError(null)
+    try {
+      const { data, error } = await supabase
+        .from('realtor_subscriptions')
+        .select('*, database:databases(*)')
+        .eq('realtor_id', user.id)
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      setSubscriptions((data ?? []) as RealtorSubscription[])
 
-        // Load real property count across all subscribed databases
-        const dbIds = (data ?? []).map((s) => (s as RealtorSubscription & { database?: { id: string } }).database?.id).filter((id): id is string => Boolean(id))
-        if (dbIds.length > 0) {
-          const { count } = await supabase
-            .from('properties')
-            .select('id', { count: 'exact', head: true })
-            .in('db_id', dbIds)
-          setPropertyCount(count ?? 0)
-        }
-      } catch (e) {
-        showToast({ type: 'error', title: 'Помилка завантаження', subtitle: (e as Error).message })
-      } finally {
-        setLoading(false)
+      // Load real property count across all subscribed databases
+      const dbIds = (data ?? []).map((s) => (s as RealtorSubscription & { database?: { id: string } }).database?.id).filter((id): id is string => Boolean(id))
+      if (dbIds.length > 0) {
+        const { count } = await supabase
+          .from('properties')
+          .select('id', { count: 'exact', head: true })
+          .in('db_id', dbIds)
+        setPropertyCount(count ?? 0)
       }
+    } catch (e) {
+      const msg = (e as Error).message
+      setLoadError(msg)
+      showToast({ type: 'error', title: 'Помилка завантаження', subtitle: msg })
+    } finally {
+      setLoading(false)
     }
+  }
+
+  useEffect(() => {
     load()
-  }, [user, showToast])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user])
 
   const filtered = subscriptions.filter((s) =>
     s.database?.name.toLowerCase().includes(search.toLowerCase()) ?? false
@@ -95,6 +101,13 @@ export default function RealtorDashboardScreen() {
 
         {loading ? (
           <SkeletonLoader />
+        ) : loadError && subscriptions.length === 0 ? (
+          <div className="retry-wrap">
+            <div className="retry-ic">📡</div>
+            <div className="retry-h">Не вдалося завантажити</div>
+            <div className="retry-s">{loadError}</div>
+            <button className="retry-btn" onClick={load}>Спробувати ще раз</button>
+          </div>
         ) : filtered.length === 0 ? (
           <div className="empty-state" style={{ paddingTop: 32 }}>
             <div className="empty-ic">🏢</div>
@@ -117,7 +130,7 @@ export default function RealtorDashboardScreen() {
                   onClick={() => navigate('realtor-database', { dbId: db.id })}
                 >
                   <div className="row-ic" style={{ background: DB_COLORS[db.color] ?? DB_COLORS.purple }}>
-                    🏢
+                    {DB_TYPE_EMOJI[db.type] ?? '🏢'}
                   </div>
                   <div className="row-mn">
                     <div className="row-t">{db.name}</div>
