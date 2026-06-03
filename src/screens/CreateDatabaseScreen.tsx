@@ -97,7 +97,7 @@ export default function CreateDatabaseScreen() {
             <div
               key={t.id}
               className={`type-card ${type === t.id ? 'sel' : ''}`}
-              onClick={() => setType(t.id)}
+              onClick={() => { window.Telegram?.WebApp?.HapticFeedback.selectionChanged(); setType(t.id) }}
             >
               <div className="type-ic">{t.emoji}</div>
               <div className="type-n">{t.label}</div>
@@ -114,7 +114,7 @@ export default function CreateDatabaseScreen() {
               key={c}
               className={`color-c ${color === c ? 'sel' : ''}`}
               style={{ background: DB_COLORS[c] }}
-              onClick={() => setColor(c)}
+              onClick={() => { window.Telegram?.WebApp?.HapticFeedback.selectionChanged(); setColor(c) }}
             />
           ))}
         </div>

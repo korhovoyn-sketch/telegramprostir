@@ -83,6 +83,13 @@ export default function DatabaseListScreen() {
             <div className="empty-ic">🏢</div>
             <div className="empty-h">Немає баз</div>
             <div className="empty-s">Створи першу базу об&apos;єктів</div>
+            <button
+              className="mbtn success"
+              style={{ position: 'relative', bottom: 'auto', left: 'auto', right: 'auto', marginTop: 24, width: 'auto', minWidth: 200 }}
+              onClick={() => navigate('create-db')}
+            >
+              Створити першу базу
+            </button>
           </div>
         ) : (
           <div className="list">

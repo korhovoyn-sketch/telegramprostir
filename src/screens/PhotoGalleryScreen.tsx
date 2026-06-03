@@ -1,7 +1,7 @@
 'use client'
 
 /* eslint-disable @next/next/no-img-element */
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { IconX, IconShare, IconChevronLeft, IconChevronRight } from '@/components/Icons'
 import type { PropertyPhoto } from '@/types'
@@ -12,8 +12,40 @@ export default function PhotoGalleryScreen() {
   const initialIndex = (screenParams.initialIndex as number) ?? 0
   const [current, setCurrent] = useState(initialIndex)
 
+  const touchStartX = useRef(0)
+  const touchStartY = useRef(0)
+
   function prev() { setCurrent((i) => (i > 0 ? i - 1 : photos.length - 1)) }
   function next() { setCurrent((i) => (i < photos.length - 1 ? i + 1 : 0)) }
+
+  function handleTouchStart(e: React.TouchEvent) {
+    touchStartX.current = e.touches[0].clientX
+    touchStartY.current = e.touches[0].clientY
+  }
+
+  function handleTouchEnd(e: React.TouchEvent) {
+    const dx = e.changedTouches[0].clientX - touchStartX.current
+    const dy = Math.abs(e.changedTouches[0].clientY - touchStartY.current)
+    if (dy > 60) return // vertical scroll, ignore
+    if (dx < -50) {
+      // swipe left → next
+      window.Telegram?.WebApp?.HapticFeedback.impactOccurred('light')
+      setCurrent((i) => Math.min(i + 1, photos.length - 1))
+    } else if (dx > 50) {
+      // swipe right → prev
+      window.Telegram?.WebApp?.HapticFeedback.impactOccurred('light')
+      setCurrent((i) => Math.max(i - 1, 0))
+    }
+  }
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'ArrowRight') setCurrent((i) => Math.min(i + 1, photos.length - 1))
+      if (e.key === 'ArrowLeft') setCurrent((i) => Math.max(i - 1, 0))
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [photos.length])
 
   const photo = photos[current]
   const url = photo
@@ -75,7 +107,20 @@ export default function PhotoGalleryScreen() {
       </div>
 
       {/* Main image */}
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+      <div
+        style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
+        {/* Counter badge */}
+        <div style={{
+          position: 'absolute', top: 16, right: 16, zIndex: 10,
+          background: 'rgba(0,0,0,.55)', backdropFilter: 'blur(8px)',
+          padding: '4px 10px', borderRadius: 'var(--r-pill)',
+          fontSize: 13, fontWeight: 600, color: '#fff',
+        }}>
+          {current + 1} / {photos.length}
+        </div>
         {url ? (
           <img
             src={url}

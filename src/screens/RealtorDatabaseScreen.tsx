@@ -105,7 +105,7 @@ export default function RealtorDatabaseScreen() {
             { id: 'all', label: `Всі (${counts.all})` },
             { id: 'free', label: `Вільно (${counts.free})` },
           ] as const).map((t) => (
-            <div key={t.id} className={`seg-b ${tab === t.id ? 'on' : ''}`} onClick={() => setTab(t.id)}>
+            <div key={t.id} className={`seg-b ${tab === t.id ? 'on' : ''}`} onClick={() => { window.Telegram?.WebApp?.HapticFeedback.selectionChanged(); setTab(t.id) }}>
               {t.label}
             </div>
           ))}
@@ -119,6 +119,12 @@ export default function RealtorDatabaseScreen() {
           <div className="empty-state" style={{ paddingTop: 24 }}>
             <div className="empty-ic">🔍</div>
             <div className="empty-h">Нічого не знайдено</div>
+            <button
+              style={{ marginTop: 16, padding: '8px 20px', borderRadius: 'var(--r-pill)', background: 'var(--glass-2)', border: 'var(--bd)', color: 'var(--t2)', fontSize: 13, cursor: 'pointer' }}
+              onClick={() => setSearch('')}
+            >
+              Очистити пошук
+            </button>
           </div>
         ) : (
           <div className="list" style={{ marginBottom: 80 }}>

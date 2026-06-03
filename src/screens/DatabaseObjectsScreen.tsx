@@ -94,7 +94,7 @@ export default function DatabaseObjectsScreen() {
             <div
               key={t.id}
               className={`seg-b ${tab === t.id ? 'on' : ''}`}
-              onClick={() => setTab(t.id)}
+              onClick={() => { window.Telegram?.WebApp?.HapticFeedback.selectionChanged(); setTab(t.id) }}
             >
               {t.label}
             </div>
@@ -107,15 +107,30 @@ export default function DatabaseObjectsScreen() {
         {/* Property cards */}
         {loading ? (
           <SkeletonLoader />
+        ) : filtered.length === 0 && properties.length === 0 ? (
+          <div className="empty-state" style={{ paddingTop: 24 }}>
+            <div className="empty-ic">🏢</div>
+            <div className="empty-h">Немає об&apos;єктів</div>
+            <div className="empty-s">Натисни + щоб додати перший об&apos;єкт</div>
+            <button
+              className="mbtn success"
+              style={{ position: 'relative', bottom: 'auto', left: 'auto', right: 'auto', marginTop: 24, width: 'auto', minWidth: 200 }}
+              onClick={() => navigate('property-form', { dbId: screenParams.dbId })}
+            >
+              Додати перший об&apos;єкт
+            </button>
+          </div>
         ) : filtered.length === 0 ? (
           <div className="empty-state" style={{ paddingTop: 24 }}>
             <div className="empty-ic">🔍</div>
-            <div className="empty-h">
-              {search ? 'Нічого не знайдено' : 'Немає об\'єктів'}
-            </div>
-            <div className="empty-s">
-              {search ? `Немає результатів для "${search}"` : 'Натисни + щоб додати перший об\'єкт'}
-            </div>
+            <div className="empty-h">Нічого не знайдено</div>
+            <div className="empty-s">Немає результатів для &quot;{search}&quot;</div>
+            <button
+              style={{ marginTop: 16, padding: '8px 20px', borderRadius: 'var(--r-pill)', background: 'var(--glass-2)', border: 'var(--bd)', color: 'var(--t2)', fontSize: 13, cursor: 'pointer' }}
+              onClick={() => setSearch('')}
+            >
+              Очистити пошук
+            </button>
           </div>
         ) : (
           <div className="list">
