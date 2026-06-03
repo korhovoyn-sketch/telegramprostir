@@ -10,6 +10,7 @@ export function useAuth() {
   const { setUser, navigate, showToast } = useAppStore()
 
   const setupAuthListener = useCallback(() => {
+    if (!supabase.auth) return { unsubscribe: () => {} }
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'TOKEN_REFRESHED' && session) {
         try {
@@ -85,6 +86,7 @@ export function useAuth() {
       const access_token = body?.access_token
       const refresh_token = body?.refresh_token
       const user = body?.user
+      const is_new: boolean = body?.is_new === true
 
       if (!access_token) throw new Error('No access_token in response')
       if (!refresh_token) throw new Error('No refresh_token in response')
@@ -103,7 +105,13 @@ export function useAuth() {
       const dbUser: User = user
       setUser(dbUser)
 
-      if (!dbUser.role) {
+      // If the user arrived via a share link, let useDeepLink handle navigation
+      const startParam = typeof window !== 'undefined'
+        ? window?.Telegram?.WebApp?.initDataUnsafe?.start_param
+        : null
+      if (startParam?.startsWith('db_') || startParam?.startsWith('prop_')) return
+
+      if (is_new || !dbUser.role) {
         navigate('role-select')
       } else {
         navigate(dbUser.role === 'owner' ? 'db-list' : 'realtor-dashboard')

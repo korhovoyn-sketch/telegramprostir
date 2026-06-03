@@ -46,6 +46,9 @@ export default function SplashScreen() {
         if (!hasSession || !user) {
           navigate('welcome')
         } else {
+          // If the app was opened via a share link, let useDeepLink handle routing
+          const startParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param
+          if (startParam?.startsWith('db_') || startParam?.startsWith('prop_')) return
           navigate(user.role === 'owner' ? 'db-list' : 'realtor-dashboard')
         }
       }, 350)

@@ -20,6 +20,7 @@ interface AppState {
   isOnline: boolean
 
   navigate: (screen: ScreenName, params?: ScreenParams) => void
+  navigateRoot: (screen: ScreenName, params?: ScreenParams) => void
   back: () => boolean
   setUser: (user: User | null) => void
   showToast: (toast: Toast) => void
@@ -42,7 +43,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   databases: [],
   notifications: [],
   unreadCount: 0,
-  isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
+  isOnline: true,
 
   navigate: (screen, params = {}) => {
     const { screen: current, screenParams: currentParams, history } = get()
@@ -51,6 +52,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       screenParams: params,
       history: [...history, { screen: current, params: currentParams }],
     })
+  },
+
+  navigateRoot: (screen, params = {}) => {
+    set({ screen, screenParams: params, history: [] })
   },
 
   back: () => {
