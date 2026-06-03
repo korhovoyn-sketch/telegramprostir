@@ -45,9 +45,10 @@ export default function SplashScreen() {
         const user = useAppStore.getState().user
         if (!hasSession || !user) {
           navigate('welcome')
-        } else {
-          navigate(user.role === 'owner' ? 'db-list' : 'realtor-dashboard')
+          return
         }
+        // useDeepLink will handle the rest if a sharing link is present
+        navigate(user.role === 'owner' ? 'db-list' : 'realtor-dashboard')
       }, 350)
     })
 

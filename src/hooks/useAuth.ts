@@ -103,6 +103,15 @@ export function useAuth() {
       const dbUser: User = user
       setUser(dbUser)
 
+      // If a sharing deep link is present, let useDeepLink handle navigation
+      // (it will auto-assign role and open the database directly)
+      const startParam = typeof window !== 'undefined'
+        ? window?.Telegram?.WebApp?.initDataUnsafe?.start_param
+        : null
+      if (startParam?.startsWith('db_') || startParam?.startsWith('prop_')) {
+        return
+      }
+
       if (!dbUser.role) {
         navigate('role-select')
       } else {
