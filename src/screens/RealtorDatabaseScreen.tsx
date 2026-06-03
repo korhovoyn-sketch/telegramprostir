@@ -8,6 +8,7 @@ import SearchBar from '@/components/ui/SearchBar'
 import { StatusBadge } from '@/components/ui/Badge'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import { IconShare, IconBookmark, IconPhoto } from '@/components/Icons'
+import { shareDeepLink } from '@/lib/telegram'
 import { formatPrice, calcRent, calcUtilities, DB_TYPE_LABELS } from '@/lib/utils'
 import type { Database, Property, PropertyStatus } from '@/types'
 
@@ -165,12 +166,7 @@ export default function RealtorDatabaseScreen() {
       </div>
 
       <button className="mbtn" onClick={() => {
-        // Use full share_token (never slice — Telegram start= supports 64 chars)
-        const token = db.share_token ?? db.id
-        const link = `https://t.me/propspacebot?startapp=db_${token}`
-        if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-          window.Telegram.WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(link)}`)
-        }
+        shareDeepLink(`db_${db.share_token ?? db.id}`)
       }}>
         <IconShare size={18} /> Поділитись базою
       </button>
