@@ -10,15 +10,40 @@ import { calcRent, calcUtilities, DB_TYPE_LABELS, STATUS_LABELS, formatDate } fr
 import type { Property, Database } from '@/types'
 
 const FORMATS = [
-  { id: 'pdf',   label: 'PDF Документ',   desc: 'Презентація з таблицею для клієнта', emoji: '📄' },
-  { id: 'excel', label: 'Excel таблиця',   desc: 'Аналітика, розрахунки — .xlsx',      emoji: '📊' },
+  { id: 'pdf',   label: 'PDF Документ',   desc: 'Брендований PDF — зберігається та шериться', emoji: '📄' },
+  { id: 'excel', label: 'Excel таблиця',   desc: 'Аналітика, розрахунки — .xlsx',               emoji: '📊' },
 ]
 
 const TEMPLATES = [
-  { id: 'classic', label: 'Класик',  accent: '#3478F6' },
-  { id: 'modern',  label: 'Модерн',  accent: '#7B30EB' },
-  { id: 'minimal', label: 'Мінімал', accent: '#1a1a2e' },
+  { id: 'classic', label: 'Класик',  accent: '#7AB3FF', accentDark: '#2255CC' },
+  { id: 'modern',  label: 'Модерн',  accent: '#A87CFF', accentDark: '#5B1FD4' },
+  { id: 'dark',    label: 'Нічний',  accent: '#5AC8FA', accentDark: '#1A6A8A' },
 ]
+
+// ── save / share PDF blob on mobile ──────────────────────────────────────────
+
+async function sharePDF(blob: Blob, fileName: string) {
+  // iOS/Android: use native Web Share API so user can save to Files or send anywhere
+  const file = new File([blob], fileName, { type: 'application/pdf' })
+  if (
+    typeof navigator !== 'undefined' &&
+    typeof navigator.share === 'function' &&
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (navigator as any).canShare?.({ files: [file] })
+  ) {
+    await navigator.share({ files: [file], title: fileName.replace('.pdf', '') })
+    return
+  }
+  // Fallback: direct download (desktop / unsupported)
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = fileName
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  setTimeout(() => URL.revokeObjectURL(url), 5000)
+}
 
 // ── PDF generation ────────────────────────────────────────────────────────────
 
@@ -37,85 +62,116 @@ async function generatePDF(
   applyPlugin(jsPDF)
 
   const rows = onlyFree ? properties.filter(p => p.status === 'free') : properties
-  const tpl = TEMPLATES.find(t => t.id === template) ?? TEMPLATES[0]
-  const accent = tpl.accent
+  const tpl  = TEMPLATES.find(t => t.id === template) ?? TEMPLATES[1]
 
-  // Hex → rgb tuple
-  const hexRgb = (hex: string): [number, number, number] => {
+  // ── Design tokens (dark-themed, matches the app) ──────────────────────────
+  const BG:      [number,number,number] = [9,  8,  31]   // #09081f
+  const CARD:    [number,number,number] = [20, 18, 52]   // #141234
+  const BORDER:  [number,number,number] = [42, 38, 96]   // #2a2660
+  const TXPRI:   [number,number,number] = [232,232,248]  // near-white
+  const TXSEC:   [number,number,number] = [140,140,180]  // muted
+  const TXMUT:   [number,number,number] = [80, 80, 120]  // very muted
+
+  const hexRgb = (hex: string): [number,number,number] => {
     const n = parseInt(hex.slice(1), 16)
     return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
   }
-  const [ar, ag, ab] = hexRgb(accent)
+  const ACC = hexRgb(tpl.accent)      // accent bright
+  const ACD = hexRgb(tpl.accentDark)  // accent dark (for fills)
+
+  const STATUS_STYLE: Record<string, { bg: [number,number,number]; fg: [number,number,number] }> = {
+    free:     { bg: [20, 60, 30],  fg: [52,  199, 89]  },
+    occupied: { bg: [60, 35,  8],  fg: [255, 149,  0]  },
+    for_sale: { bg: [10, 40, 70],  fg: [90,  200, 250] },
+  }
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const W = doc.internal.pageSize.getWidth()
-
-  // ── Header band ──────────────────────────────────────────────────────────
-  doc.setFillColor(ar, ag, ab)
-  doc.rect(0, 0, W, 38, 'F')
-
-  // PropSpace label
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(9)
-  doc.setTextColor(255, 255, 255)
-  doc.setGState(new GState({ opacity: 0.65 }))
-  doc.text('PropSpace', 14, 10)
-  doc.setGState(new GState({ opacity: 1 }))
-
-  // DB name
-  doc.setFontSize(18)
-  doc.text(db.name, 14, 22)
-
-  // Subtitle row
-  doc.setFontSize(9)
-  doc.setFont('helvetica', 'normal')
-  doc.setGState(new GState({ opacity: 0.8 }))
-  const typeLabel = DB_TYPE_LABELS[db.type] ?? db.type
-  const dateStr = new Date().toLocaleDateString('uk-UA', { day: 'numeric', month: 'long', year: 'numeric' })
-  doc.text(`${typeLabel}  ·  ${rows.length} об'єктів  ·  ${dateStr}`, 14, 30)
-  doc.setGState(new GState({ opacity: 1 }))
-
-  // ── Summary row ───────────────────────────────────────────────────────────
-  const freeCount    = rows.filter(p => p.status === 'free').length
-  const occupiedCount = rows.filter(p => p.status === 'occupied').length
-  const saleCount    = rows.filter(p => p.status === 'for_sale').length
-
-  const stats: [string, string, string][] = [
-    ['Вільно', String(freeCount), '#34C759'],
-    ['Зайнято', String(occupiedCount), '#FF9500'],
-    ['Продаж', String(saleCount), '#5AC8FA'],
-  ]
-  const boxW = (W - 28) / 3
-  stats.forEach(([label, val, color], i) => {
-    const x = 14 + i * (boxW + 4)
-    const [cr, cg, cb] = hexRgb(color)
-    doc.setFillColor(245, 245, 250)
-    doc.roundedRect(x, 44, boxW, 16, 2, 2, 'F')
-    doc.setFillColor(cr, cg, cb)
-    doc.rect(x, 44, 3, 16, 'F')
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(13)
-    doc.setTextColor(30, 30, 50)
-    doc.text(val, x + 8, 54)
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(7.5)
-    doc.setTextColor(100, 100, 120)
-    doc.text(label, x + 8, 58)
-  })
-
   const H = doc.internal.pageSize.getHeight()
-  const MARGIN = 14
-  const COL_L = MARGIN           // left column x
-  const COL_R = W / 2 + 2        // right column x
-  const COL_W = W / 2 - MARGIN - 2
+  const M = 14  // margin
 
-  const statusColor = (s: string): [number, number, number] => {
-    if (s === 'free')     return [52,  199,  89]
-    if (s === 'occupied') return [255, 149,   0]
-    return                       [90,  200, 250]
+  // Fill every new page with dark background via hook
+  const fillBg = () => {
+    doc.setFillColor(...BG)
+    doc.rect(0, 0, W, H, 'F')
   }
 
-  // ── Page 1: compact summary table ─────────────────────────────────────────
+  // ── PAGE 1: cover + summary table ────────────────────────────────────────
+  fillBg()
+
+  // Header gradient band
+  doc.setFillColor(...ACD)
+  doc.rect(0, 0, W, 44, 'F')
+  // Diagonal accent stripe inside header
+  doc.setFillColor(...ACC)
+  doc.setGState(new GState({ opacity: 0.12 }))
+  doc.triangle(W - 60, 0, W, 0, W, 44, 'F')
+  doc.setGState(new GState({ opacity: 1 }))
+
+  // "PropSpace" wordmark
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(8)
+  doc.setTextColor(...TXMUT)
+  doc.text('PROPSPACE', M, 11)
+
+  // DB name
+  doc.setFontSize(20)
+  doc.setTextColor(...TXPRI)
+  const dbNameLines = doc.splitTextToSize(db.name, W - M * 2 - 20)
+  doc.text(dbNameLines[0] as string, M, 26)
+
+  // Subtitle
+  doc.setFontSize(8.5)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(...TXSEC)
+  const typeLabel = DB_TYPE_LABELS[db.type] ?? db.type
+  const dateStr   = new Date().toLocaleDateString('uk-UA', { day: 'numeric', month: 'long', year: 'numeric' })
+  doc.text(`${typeLabel}  ·  ${rows.length} об'єктів  ·  ${dateStr}`, M, 38)
+
+  // Address (if any)
+  if (db.address) {
+    doc.setFontSize(7.5)
+    doc.setTextColor(...TXMUT)
+    doc.text('📍 ' + db.address, M, 50)
+  }
+
+  // ── Summary stat cards ─────────────────────────────────────────────────
+  const freeCount     = rows.filter(p => p.status === 'free').length
+  const occupiedCount = rows.filter(p => p.status === 'occupied').length
+  const saleCount     = rows.filter(p => p.status === 'for_sale').length
+  const totalRent     = rows.reduce((s, p) => {
+    const r = p.rent_rate && p.area_useful ? calcRent(p.area_useful, p.rent_rate, p.rent_type) : 0
+    return s + r
+  }, 0)
+
+  const cardY = db.address ? 56 : 48
+  const cards: [string, string, [number,number,number]][] = [
+    ['Вільно',  String(freeCount),     STATUS_STYLE.free.fg],
+    ['Зайнято', String(occupiedCount), STATUS_STYLE.occupied.fg],
+    ['Продаж',  String(saleCount),     STATUS_STYLE.for_sale.fg],
+    ['Оренда',  `$${totalRent.toLocaleString('uk-UA')}`, ACC],
+  ]
+  const cardW = (W - M * 2 - 9) / 4
+  cards.forEach(([label, val, color], i) => {
+    const cx = M + i * (cardW + 3)
+    doc.setFillColor(...CARD)
+    doc.roundedRect(cx, cardY, cardW, 18, 2, 2, 'F')
+    doc.setDrawColor(...BORDER)
+    doc.setLineWidth(0.3)
+    doc.roundedRect(cx, cardY, cardW, 18, 2, 2, 'S')
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(14)
+    doc.setTextColor(...color)
+    doc.text(val, cx + cardW / 2, cardY + 11, { align: 'center' })
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(7)
+    doc.setTextColor(...TXSEC)
+    doc.text(label, cx + cardW / 2, cardY + 16, { align: 'center' })
+  })
+
+  // ── Summary table ─────────────────────────────────────────────────────
+  const tableY = cardY + 24
+
   const tableRows = rows.map(p => {
     const rent  = p.rent_rate && p.area_useful ? calcRent(p.area_useful, p.rent_rate, p.rent_type) : 0
     const utils = p.utilities_rate && p.area_total ? calcUtilities(p.area_total, p.utilities_rate) : 0
@@ -123,24 +179,38 @@ async function generatePDF(
       p.name,
       p.floor ?? '—',
       STATUS_LABELS[p.status] ?? p.status,
-      p.area_useful  ? `${p.area_useful} м²`  : '—',
-      p.area_total   ? `${p.area_total} м²`   : '—',
-      p.rent_rate    ? (p.rent_type === 'per_m2' ? `${p.rent_rate} $/м²` : `${p.rent_rate} $/міс`) : '—',
-      utils          ? `$${utils}`  : '—',
-      rent + utils   ? `$${rent + utils}` : '—',
+      p.area_useful ? `${p.area_useful}` : '—',
+      p.area_total  ? `${p.area_total}`  : '—',
+      p.rent_rate   ? `${p.rent_rate}${p.rent_type === 'per_m2' ? '/м²' : ''}` : '—',
+      utils ? `$${utils}`  : '—',
+      rent + utils ? `$${rent + utils}` : '—',
     ]
   })
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ;(doc as unknown as any).autoTable({
-    startY: 68,
+    startY: tableY,
     head: [['Назва', 'Пов.', 'Статус', 'Корисна', 'Загальна', 'Ставка', 'Комун.', 'Разом/міс']],
     body: tableRows,
-    styles:     { font: 'helvetica', fontSize: 8, cellPadding: 2.5, textColor: [30, 30, 50], lineColor: [220, 220, 235], lineWidth: 0.2 },
-    headStyles: { fillColor: [ar, ag, ab], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 7.5, halign: 'center' },
-    alternateRowStyles: { fillColor: [248, 248, 252] },
+    styles: {
+      font: 'helvetica',
+      fontSize: 8,
+      cellPadding: 2.8,
+      textColor: TXPRI,
+      lineColor: BORDER,
+      lineWidth: 0.2,
+      fillColor: BG,
+    },
+    headStyles: {
+      fillColor: ACD,
+      textColor: [255, 255, 255],
+      fontStyle: 'bold',
+      fontSize: 7.5,
+      halign: 'center',
+    },
+    alternateRowStyles: { fillColor: CARD },
     columnStyles: {
-      0: { cellWidth: 42 },
+      0: { cellWidth: 40 },
       2: { halign: 'center' },
       3: { halign: 'right' },
       4: { halign: 'right' },
@@ -148,200 +218,207 @@ async function generatePDF(
       6: { halign: 'right' },
       7: { halign: 'right', fontStyle: 'bold' },
     },
-    didParseCell: (data: { section: string; column: { index: number }; row: { index: number }; cell: { styles: { fillColor: [number,number,number]; textColor: [number,number,number] } } }) => {
+    didParseCell: (data: {
+      section: string; column: { index: number }; row: { index: number }
+      cell: { styles: { fillColor: [number,number,number]; textColor: [number,number,number]; fontStyle: string } }
+    }) => {
       if (data.section === 'body' && data.column.index === 2) {
-        const [r, g, b] = statusColor(rows[data.row.index]?.status)
-        data.cell.styles.fillColor = [r, g, b]
-        data.cell.styles.textColor = [255, 255, 255]
+        const s  = rows[data.row.index]?.status
+        const st = STATUS_STYLE[s] ?? STATUS_STYLE.free
+        data.cell.styles.fillColor = st.bg
+        data.cell.styles.textColor = st.fg
+        data.cell.styles.fontStyle = 'bold'
+      }
+      if (data.section === 'body' && data.column.index === 7) {
+        data.cell.styles.textColor = ACC
       }
     },
   })
 
-  // ── Pages 2+: detailed card per property ──────────────────────────────────
-  const drawPageHeader = (title: string) => {
-    doc.setFillColor(ar, ag, ab)
-    doc.rect(0, 0, W, 14, 'F')
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(8)
-    doc.setTextColor(255, 255, 255)
-    doc.text('PropSpace  ·  ' + db.name, MARGIN, 9)
-    doc.setFont('helvetica', 'normal')
-    doc.text(title, W - MARGIN, 9, { align: 'right' })
-  }
-
-  const drawFieldRow = (label: string, value: string, x: number, y: number, w: number) => {
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(7)
-    doc.setTextColor(120, 120, 140)
-    doc.text(label, x, y)
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(9)
-    doc.setTextColor(20, 20, 40)
-    const lines = doc.splitTextToSize(value, w - 2)
-    doc.text(lines.slice(0, 2), x, y + 5)
-    return y + 5 + (lines.length > 1 ? 5 : 0)
-  }
-
-  rows.forEach((p, idx) => {
+  // ── PAGES 2+: full detail card per property ───────────────────────────────
+  const drawDetailPage = (p: Property, idx: number) => {
     doc.addPage()
-    drawPageHeader(`Детальна картка об'єкту`)
+    fillBg()
 
     const rent  = p.rent_rate && p.area_useful ? calcRent(p.area_useful, p.rent_rate, p.rent_type) : 0
     const utils = p.utilities_rate && p.area_total ? calcUtilities(p.area_total, p.utilities_rate) : 0
     const total = rent + utils
+    const st    = STATUS_STYLE[p.status] ?? STATUS_STYLE.free
 
-    // ── Object title bar ──────────────────────────────────────────────────
-    let y = 22
-    doc.setFillColor(245, 245, 252)
-    doc.roundedRect(MARGIN, y, W - MARGIN * 2, 18, 2, 2, 'F')
+    // Slim top bar
+    doc.setFillColor(...ACD)
+    doc.rect(0, 0, W, 12, 'F')
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(7.5)
+    doc.setTextColor(255, 255, 255)
+    doc.text('PROPSPACE  ·  ' + db.name.toUpperCase(), M, 8)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(...TXSEC)
+    doc.text(`${idx + 1} / ${rows.length}`, W - M, 8, { align: 'right' })
 
-    // Status badge
-    const [sr, sg, sb] = statusColor(p.status)
-    doc.setFillColor(sr, sg, sb)
-    doc.roundedRect(MARGIN + 2, y + 4, 22, 10, 2, 2, 'F')
+    let y = 20
+
+    // ── Object title card ────────────────────────────────────────────────
+    doc.setFillColor(...CARD)
+    doc.roundedRect(M, y, W - M * 2, 22, 3, 3, 'F')
+    doc.setDrawColor(...BORDER)
+    doc.setLineWidth(0.3)
+    doc.roundedRect(M, y, W - M * 2, 22, 3, 3, 'S')
+
+    // Status pill
+    doc.setFillColor(...st.bg)
+    doc.roundedRect(M + 4, y + 6, 24, 10, 2, 2, 'F')
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(7)
-    doc.setTextColor(255, 255, 255)
-    doc.text(STATUS_LABELS[p.status] ?? p.status, MARGIN + 13, y + 10.5, { align: 'center' })
+    doc.setTextColor(...st.fg)
+    doc.text(STATUS_LABELS[p.status] ?? p.status, M + 16, y + 12.5, { align: 'center' })
 
     // Object name
     doc.setFont('helvetica', 'bold')
-    doc.setFontSize(13)
-    doc.setTextColor(20, 20, 40)
-    doc.text(p.name, MARGIN + 28, y + 12)
+    doc.setFontSize(14)
+    doc.setTextColor(...TXPRI)
+    const objNameLines = doc.splitTextToSize(p.name, W - M * 2 - 40)
+    doc.text((objNameLines[0] as string), M + 32, y + 13)
 
-    // Object number
+    // Updated date
     doc.setFont('helvetica', 'normal')
-    doc.setFontSize(8)
-    doc.setTextColor(160, 160, 180)
-    doc.text(`#${idx + 1}  ·  База: ${db.name}`, W - MARGIN, y + 8, { align: 'right' })
-    doc.text(new Date(p.updated_at).toLocaleDateString('uk-UA'), W - MARGIN, y + 14, { align: 'right' })
+    doc.setFontSize(7.5)
+    doc.setTextColor(...TXMUT)
+    doc.text(new Date(p.updated_at).toLocaleDateString('uk-UA'), W - M - 4, y + 8, { align: 'right' })
 
-    y += 26
+    y += 28
 
-    // ── Section: Площа ───────────────────────────────────────────────────
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(8)
-    doc.setTextColor(ar, ag, ab)
-    doc.text('ПЛОЩА', MARGIN, y)
-    doc.setDrawColor(ar, ag, ab)
-    doc.setLineWidth(0.3)
-    doc.line(MARGIN + 22, y - 1, W - MARGIN, y - 1)
-    y += 5
-
-    const areaLeft = p.area_useful ? `${p.area_useful} м²` : '—'
-    const areaRight = p.area_total  ? `${p.area_total} м²`  : '—'
-    const floorVal  = p.floor       ? `${p.floor} поверх`   : '—'
-
-    let yL = drawFieldRow('Корисна площа', areaLeft,  COL_L, y, COL_W)
-    let yR = drawFieldRow('Загальна площа', areaRight, COL_R, y, COL_W)
-    y = Math.max(yL, yR) + 4
-    yL = drawFieldRow('Поверх', floorVal, COL_L, y, COL_W)
-    y = yL + 4
-
-    // ── Section: Фінанси ─────────────────────────────────────────────────
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(8)
-    doc.setTextColor(ar, ag, ab)
-    doc.text('ФІНАНСИ', MARGIN, y)
-    doc.setLineWidth(0.3)
-    doc.line(MARGIN + 26, y - 1, W - MARGIN, y - 1)
-    y += 5
-
-    const rentTypeLabel = p.rent_type === 'per_m2' ? '$/м²/міс' : 'фіксована $/міс'
-    const rentRateVal   = p.rent_rate ? `${p.rent_rate} ${rentTypeLabel}` : '—'
-    const monthlyRent   = rent  ? `$${rent}`  : '—'
-    const monthlyUtils  = utils ? `$${utils}` : '—'
-    const monthlyTotal  = total ? `$${total}` : '—'
-    const utilsRate     = p.utilities_rate ? `${p.utilities_rate} $/м²/міс` : '—'
-
-    yL = drawFieldRow('Ставка оренди', rentRateVal,  COL_L, y, COL_W)
-    yR = drawFieldRow('Оренда на місяць', monthlyRent, COL_R, y, COL_W)
-    y = Math.max(yL, yR) + 4
-
-    yL = drawFieldRow('Ставка комунальних', utilsRate,   COL_L, y, COL_W)
-    yR = drawFieldRow('Комунальні на місяць', monthlyUtils, COL_R, y, COL_W)
-    y = Math.max(yL, yR) + 4
-
-    // Total highlight box
-    doc.setFillColor(ar, ag, ab)
-    doc.setGState(new GState({ opacity: 0.08 }))
-    doc.roundedRect(MARGIN, y, W - MARGIN * 2, 14, 2, 2, 'F')
-    doc.setGState(new GState({ opacity: 1 }))
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(8)
-    doc.setTextColor(80, 80, 100)
-    doc.text('Разом на місяць (оренда + комунальні):', MARGIN + 4, y + 9)
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(13)
-    doc.setTextColor(ar, ag, ab)
-    doc.text(monthlyTotal, W - MARGIN - 4, y + 9, { align: 'right' })
-    y += 20
-
-    // ── Section: Паркінг ─────────────────────────────────────────────────
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(8)
-    doc.setTextColor(ar, ag, ab)
-    doc.text('ПАРКІНГ', MARGIN, y)
-    doc.setLineWidth(0.3)
-    doc.line(MARGIN + 26, y - 1, W - MARGIN, y - 1)
-    y += 5
-
-    yL = drawFieldRow('Паркінг', p.has_parking ? 'Так' : 'Ні', COL_L, y, COL_W)
-    yR = p.has_parking
-      ? drawFieldRow('Кількість місць', String(p.parking_spaces || 0), COL_R, y, COL_W)
-      : y
-    y = Math.max(yL, yR) + 4
-
-    // ── Section: Опис ────────────────────────────────────────────────────
-    if (p.description) {
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(8)
-      doc.setTextColor(ar, ag, ab)
-      doc.text('ОПИС', MARGIN, y)
-      doc.setLineWidth(0.3)
-      doc.line(MARGIN + 16, y - 1, W - MARGIN, y - 1)
-      y += 5
-
+    // helper: draw a labelled field in a two-column grid
+    const drawField = (label: string, value: string, x: number, fy: number, w: number): number => {
       doc.setFont('helvetica', 'normal')
-      doc.setFontSize(9)
-      doc.setTextColor(40, 40, 60)
-      const descLines = doc.splitTextToSize(p.description, W - MARGIN * 2)
-      doc.text(descLines.slice(0, 8), MARGIN, y)
-      y += descLines.slice(0, 8).length * 5 + 4
+      doc.setFontSize(7)
+      doc.setTextColor(...TXMUT)
+      doc.text(label.toUpperCase(), x, fy)
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(9.5)
+      doc.setTextColor(...TXPRI)
+      const lines = doc.splitTextToSize(value || '—', w - 2)
+      doc.text(lines.slice(0, 2) as string[], x, fy + 5.5)
+      return fy + 5.5 + (lines.length > 1 ? 5 : 0)
     }
 
-    // ── Contacts footer ───────────────────────────────────────────────────
-    if (showContacts && (ownerPhone || ownerEmail)) {
-      const fY = Math.max(y + 6, H - 28)
-      doc.setDrawColor(200, 200, 220)
-      doc.setLineWidth(0.3)
-      doc.line(MARGIN, fY, W - MARGIN, fY)
+    // helper: section label with accent line
+    const drawSection = (label: string, sy: number) => {
       doc.setFont('helvetica', 'bold')
       doc.setFontSize(7.5)
-      doc.setTextColor(ar, ag, ab)
-      doc.text('Контакти власника:', MARGIN, fY + 6)
-      doc.setFont('helvetica', 'normal')
-      doc.setTextColor(60, 60, 80)
-      const parts = [ownerName, ownerPhone, ownerEmail].filter(Boolean)
-      doc.text(parts.join('  ·  '), MARGIN + 40, fY + 6)
+      doc.setTextColor(...ACC)
+      doc.text(label, M, sy)
+      doc.setDrawColor(...ACC)
+      doc.setGState(new GState({ opacity: 0.35 }))
+      doc.setLineWidth(0.3)
+      doc.line(M + doc.getTextWidth(label) + 3, sy - 1, W - M, sy - 1)
+      doc.setGState(new GState({ opacity: 1 }))
     }
-  })
 
-  // ── Page numbers on every page ─────────────────────────────────────────────
+    const CL = M           // left col x
+    const CR = W / 2 + 2   // right col x
+    const CW = W / 2 - M - 2
+
+    // ── ПЛОЩА ─────────────────────────────────────────────────────────
+    drawSection('ПЛОЩА', y)
+    y += 5
+    const yL1 = drawField('Корисна площа', p.area_useful ? `${p.area_useful} м²` : '—', CL, y, CW)
+    const yR1 = drawField('Загальна площа', p.area_total  ? `${p.area_total} м²`  : '—', CR, y, CW)
+    y = Math.max(yL1, yR1) + 3
+    const yL2 = drawField('Поверх', p.floor ? `${p.floor} поверх` : '—', CL, y, CW)
+    y = yL2 + 6
+
+    // ── ОРЕНДА ────────────────────────────────────────────────────────
+    drawSection('ОРЕНДА', y)
+    y += 5
+    const rentRateStr = p.rent_rate
+      ? `${p.rent_rate} ${p.rent_type === 'per_m2' ? '$ / м² / міс' : '$ / міс (фіксована)'}`
+      : '—'
+    const yL3 = drawField('Ставка оренди',    rentRateStr,            CL, y, CW)
+    const yR3 = drawField('Оренда на місяць', rent  ? `$${rent}`  : '—', CR, y, CW)
+    y = Math.max(yL3, yR3) + 3
+    const utilsRateStr = p.utilities_rate ? `${p.utilities_rate} $ / м² / міс` : '—'
+    const yL4 = drawField('Ставка комунальних',    utilsRateStr,          CL, y, CW)
+    const yR4 = drawField('Комунальні на місяць',  utils ? `$${utils}` : '—', CR, y, CW)
+    y = Math.max(yL4, yR4) + 4
+
+    // Total highlight box
+    doc.setFillColor(...ACD)
+    doc.setGState(new GState({ opacity: 0.22 }))
+    doc.roundedRect(M, y, W - M * 2, 16, 3, 3, 'F')
+    doc.setGState(new GState({ opacity: 1 }))
+    doc.setDrawColor(...ACC)
+    doc.setGState(new GState({ opacity: 0.4 }))
+    doc.setLineWidth(0.3)
+    doc.roundedRect(M, y, W - M * 2, 16, 3, 3, 'S')
+    doc.setGState(new GState({ opacity: 1 }))
+
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8.5)
+    doc.setTextColor(...TXSEC)
+    doc.text('Разом на місяць (оренда + комунальні)', M + 5, y + 10)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(16)
+    doc.setTextColor(...ACC)
+    doc.text(total ? `$${total.toLocaleString('uk-UA')}` : '—', W - M - 4, y + 11, { align: 'right' })
+    y += 22
+
+    // ── ПАРКІНГ ───────────────────────────────────────────────────────
+    drawSection('ПАРКІНГ', y)
+    y += 5
+    const yL5 = drawField('Наявність',      p.has_parking ? 'Так ✓' : 'Немає', CL, y, CW)
+    const yR5 = p.has_parking
+      ? drawField('Кількість місць', String(p.parking_spaces || 0),    CR, y, CW)
+      : y
+    y = Math.max(yL5, yR5) + 6
+
+    // ── ОПИС ──────────────────────────────────────────────────────────
+    if (p.description) {
+      drawSection('ОПИС', y)
+      y += 5
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(9)
+      doc.setTextColor(...TXSEC)
+      const descLines = doc.splitTextToSize(p.description, W - M * 2)
+      doc.text(descLines.slice(0, 10) as string[], M, y)
+      y += descLines.slice(0, 10).length * 5 + 6
+    }
+
+    // ── Contacts ──────────────────────────────────────────────────────
+    if (showContacts && (ownerPhone || ownerEmail)) {
+      const fY = Math.max(y + 4, H - 26)
+      doc.setDrawColor(...BORDER)
+      doc.setLineWidth(0.3)
+      doc.line(M, fY, W - M, fY)
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(7.5)
+      doc.setTextColor(...ACC)
+      doc.text('Контакти власника:', M, fY + 7)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(...TXSEC)
+      const parts = [ownerName, ownerPhone, ownerEmail].filter(Boolean)
+      doc.text(parts.join('  ·  '), M + 42, fY + 7)
+    }
+  }
+
+  rows.forEach((p, idx) => drawDetailPage(p, idx))
+
+  // ── Page numbers ──────────────────────────────────────────────────────────
   const pageCount = doc.getNumberOfPages()
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i)
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(7)
-    doc.setTextColor(160, 160, 180)
-    doc.text(`${i} / ${pageCount}`, W - MARGIN, H - 5, { align: 'right' })
-    if (i > 1) doc.text('PropSpace', MARGIN, H - 5)
+    doc.setTextColor(...TXMUT)
+    doc.text(`${i} / ${pageCount}`, W - M, H - 5, { align: 'right' })
+    doc.text('PropSpace', M, H - 5)
   }
 
-  doc.save(`${db.name}_${new Date().toISOString().slice(0,10)}.pdf`)
+  // ── Save: use Web Share API on mobile, fallback to download ───────────────
+  const fileName = `${db.name.replace(/[^a-zA-Zа-яА-ЯіІїЇєЄ0-9]/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`
+  const blob = new Blob([doc.output('arraybuffer')], { type: 'application/pdf' })
+  await sharePDF(blob, fileName)
 }
-
 // ── Excel generation ──────────────────────────────────────────────────────────
 
 async function generateExcel(
