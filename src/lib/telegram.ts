@@ -1,7 +1,7 @@
 /**
  * Telegram bot username used for share links.
  * Set NEXT_PUBLIC_TELEGRAM_BOT_USERNAME in Vercel environment variables.
- * Example: prostirappbot  (no @, no https)
+ * Example: prostirapplbot  (no @, no https)
  */
 export const TG_BOT = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME ?? 'prostirapplbot'
 
