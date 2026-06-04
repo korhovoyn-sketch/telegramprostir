@@ -29,11 +29,11 @@ export default function PhotoGalleryScreen() {
     if (dy > 60) return // vertical scroll, ignore
     if (dx < -50) {
       // swipe left → next
-      window.Telegram?.WebApp?.HapticFeedback.impactOccurred('light')
+      window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('light')
       setCurrent((i) => Math.min(i + 1, photos.length - 1))
     } else if (dx > 50) {
       // swipe right → prev
-      window.Telegram?.WebApp?.HapticFeedback.impactOccurred('light')
+      window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('light')
       setCurrent((i) => Math.max(i - 1, 0))
     }
   }

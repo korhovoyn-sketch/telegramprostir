@@ -105,22 +105,17 @@ export function useAuth() {
       const dbUser: User = user
       setUser(dbUser)
 
+      // If the user arrived via a share link, let useDeepLink handle navigation
       const startParam = typeof window !== 'undefined'
         ? window?.Telegram?.WebApp?.initDataUnsafe?.start_param
         : null
+      if (startParam?.startsWith('db_') || startParam?.startsWith('prop_')) return
 
-      // Deep link present — useDeepLink handles all navigation
-      if (startParam?.startsWith('db_') || startParam?.startsWith('prop_')) {
-        return
-      }
-
-      // New user → onboarding (role-select → profile-setup → home)
-      if (is_new) {
+      if (is_new || !dbUser.role) {
         navigate('role-select')
-        return
+      } else {
+        navigate(dbUser.role === 'owner' ? 'db-list' : 'realtor-dashboard')
       }
-
-      navigate(dbUser.role === 'owner' ? 'db-list' : 'realtor-dashboard')
     } catch (e) {
       const errorMsg = (e as Error).message || 'Unknown error'
       console.error('[useAuth] loginViaTelegram error:', errorMsg, e)

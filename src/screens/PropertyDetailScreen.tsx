@@ -107,7 +107,7 @@ function Building3DHero() {
 }
 
 export default function PropertyDetailScreen() {
-  const { screenParams, navigate, user } = useAppStore()
+  const { screenParams, navigate, user, showToast } = useAppStore()
   const { properties, loadProperties, deletePhoto } = useProperties(screenParams.dbId)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -117,9 +117,11 @@ export default function PropertyDetailScreen() {
     if (!property && screenParams.dbId) loadProperties(screenParams.dbId)
   }, [property, screenParams.dbId, loadProperties])
 
-  // Record a view once when the property first loads
+  // Record a view exactly once per session mount
+  const viewRecorded = useRef(false)
   useEffect(() => {
-    if (!property) return
+    if (!property || viewRecorded.current) return
+    viewRecorded.current = true
     supabase.from('property_views').insert({
       property_id: property.id,
       viewer_id: user?.id ?? null,
@@ -152,7 +154,11 @@ export default function PropertyDetailScreen() {
   }
 
   async function handleDeletePhoto(photoId: string, storagePath: string) {
-    await deletePhoto(photoId, storagePath)
+    try {
+      await deletePhoto(photoId, storagePath)
+    } catch {
+      showToast({ type: 'error', title: 'Не вдалося видалити фото' })
+    }
   }
 
   function handleAddPhotos(e: React.ChangeEvent<HTMLInputElement>) {
@@ -272,7 +278,7 @@ export default function PropertyDetailScreen() {
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                   <IconCurrencyDollar size={13} color="#4ade80" />Оренда
                 </div>
-                <div className="obj-fv">{formatPrice(rent)}/міс</div>
+                <div className="obj-fv">{formatPrice(rent, user?.currency)}/міс</div>
               </div>
             )}
           </div>
@@ -287,7 +293,7 @@ export default function PropertyDetailScreen() {
                 <div style={{ fontSize: 11, color: 'var(--t4)', marginTop: 2 }}>оренда + комунальні</div>
               </div>
               <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--t1)', letterSpacing: '-.02em' }}>
-                {formatPrice(total)}
+                {formatPrice(total, user?.currency)}
               </div>
             </div>
           </div>

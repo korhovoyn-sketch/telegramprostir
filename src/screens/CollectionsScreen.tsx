@@ -8,6 +8,7 @@ import { StatusBadge } from '@/components/ui/Badge'
 import Modal from '@/components/ui/Modal'
 import { IconPlus, IconShare, IconX, IconChevronLeft } from '@/components/Icons'
 import { formatPrice, calcRent, formatDate } from '@/lib/utils'
+import { shareDeepLink } from '@/lib/telegram'
 import type { Property, Collection } from '@/types'
 
 // ─── Extended types ────────────────────────────────────────────────────────────
@@ -227,14 +228,7 @@ function CollectionDetail({
       }
     }
 
-    const link = `https://t.me/propspacebot?startapp=col_${collection.id}`
-    if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-      window.Telegram.WebApp.openTelegramLink(
-        `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(collection.name)}`
-      )
-    } else {
-      showToast({ type: 'info', title: 'Посилання', subtitle: link })
-    }
+    shareDeepLink(`col_${collection.id}`, collection.name)
   }
 
   const currency = user ? (user as unknown as { currency?: string }).currency ?? 'USD' : 'USD'
@@ -502,12 +496,7 @@ export default function CollectionsScreen() {
 
   function handleShare(e: React.MouseEvent, col: CollectionWithCount) {
     e.stopPropagation()
-    const link = `https://t.me/propspacebot?startapp=col_${col.id}`
-    if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-      window.Telegram.WebApp.openTelegramLink(
-        `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(col.name)}`
-      )
-    }
+    shareDeepLink(`col_${col.id}`, col.name)
   }
 
   function handleCollectionUpdate(updated: CollectionWithCount) {

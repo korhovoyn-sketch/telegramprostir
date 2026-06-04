@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAppStore } from '@/store/appStore'
-import type { ScreenName, User } from '@/types'
+import type { ScreenName } from '@/types'
 
 export function useDeepLink() {
   const user = useAppStore((s) => s.user)
@@ -20,71 +20,61 @@ export function useDeepLink() {
     handled.current = true
 
     async function process() {
-      const effectiveUser: User = user!
+      const homeScreen: ScreenName = user!.role === 'owner' ? 'db-list' : 'realtor-dashboard'
 
-      // Determine the home screen for this user (used in fallback + history reset)
-      const homeScreen: ScreenName = effectiveUser.role === 'owner' ? 'db-list' : 'realtor-dashboard'
+      // Rescue: if we're stuck on an auth screen, go home first
+      function navigateFallback() {
+        const { screen } = useAppStore.getState()
+        if (screen === 'splash' || screen === 'welcome' || screen === 'role-select') {
+          useAppStore.getState().navigateRoot(homeScreen)
+        }
+      }
 
       try {
-        if (!startParam!.startsWith('db_')) {
-          // Unknown deep link format — nothing to do
-          return
-        }
+        if (!startParam!.startsWith('db_')) return
 
         const token = startParam!.slice(3)
-
-        const { data: db } = await supabase
+        const { data: db, error: dbErr } = await supabase
           .from('databases')
           .select('id, share_expires_at, owner_id')
           .eq('share_token', token)
           .single()
 
         if (!db) {
-          showToast({ type: 'error', title: 'Базу не знайдено', subtitle: 'Перевірте посилання або QR-код' })
-          navigateFallback(homeScreen)
+          showToast({ type: 'error', title: 'Базу не знайдено', subtitle: dbErr?.message ?? 'Перевірте посилання або QR-код' })
+          navigateFallback()
           return
         }
         if (db.share_expires_at && new Date(db.share_expires_at) < new Date()) {
           showToast({ type: 'error', title: 'Посилання застаріло', subtitle: 'Попросіть власника оновити посилання' })
-          navigateFallback(homeScreen)
+          navigateFallback()
           return
         }
 
-        // Owner opened their own share link — go to objects list
-        if (db.owner_id === effectiveUser.id) {
-          navigateFallback('db-list')
+        // Owner tapped their own share link — reset history to db-list then open objects
+        if (db.owner_id === user!.id) {
+          useAppStore.getState().navigateRoot('db-list')
           navigate('db-objects', { dbId: db.id })
           return
         }
 
-        // Subscribe the current user to this database
+        // Realtor — subscribe then open the database with clean history
         const { error } = await supabase
           .from('realtor_subscriptions')
-          .upsert({ realtor_id: effectiveUser.id, db_id: db.id }, { onConflict: 'realtor_id,db_id' })
+          .upsert({ realtor_id: user!.id, db_id: db.id }, { onConflict: 'realtor_id,db_id' })
 
-        if (error) {
+        if (!error) {
+          window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
+          showToast({ type: 'success', title: 'Базу підключено! 🎉' })
+          useAppStore.getState().navigateRoot('realtor-dashboard')
+          navigate('realtor-database', { dbId: db.id })
+        } else {
           showToast({ type: 'error', title: 'Помилка підписки', subtitle: error.message })
-          navigateFallback(homeScreen)
-          return
+          navigateFallback()
         }
-
-        window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
-        showToast({ type: 'success', title: 'Базу підключено! 🎉' })
-
-        // Reset history so "back" goes to the realtor dashboard, not auth screens
-        useAppStore.getState().navigateRoot('realtor-dashboard')
-        navigate('realtor-database', { dbId: db.id })
       } catch (e) {
         console.error('[useDeepLink]', e)
-        navigateFallback(homeScreen)
-      }
-    }
-
-    function navigateFallback(home: ScreenName) {
-      const { screen } = useAppStore.getState()
-      // Only redirect if the user is stuck on an auth screen
-      if (screen === 'splash' || screen === 'welcome' || screen === 'role-select') {
-        useAppStore.getState().navigateRoot(home)
+        navigateFallback()
       }
     }
 

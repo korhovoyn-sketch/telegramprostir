@@ -5,10 +5,11 @@ import { useAppStore } from '@/store/appStore'
 import { supabase } from '@/lib/supabase'
 import Header from '@/components/ui/Header'
 import { IconBolt } from '@/components/Icons'
+import { TG_BOT } from '@/lib/telegram'
 
-// Parse db token from scanned QR content:
-// Handles both URL format: https://t.me/propspacebot?startapp=db_<token>
-// and raw token: db_<token>  or  just <token>
+// Parse db token from scanned QR content.
+// Handles URL format: https://t.me/<bot>?startapp=db_<token>
+// and raw formats: db_<token>  or  just <token>
 function extractDbToken(raw: string): string | null {
   try {
     const url = new URL(raw)
@@ -51,7 +52,7 @@ export default function QRScannerScreen() {
       .from('realtor_subscriptions')
       .upsert({ realtor_id: user.id, db_id: db.id }, { onConflict: 'realtor_id,db_id' })
     if (!error) {
-      window.Telegram?.WebApp?.HapticFeedback.notificationOccurred('success')
+      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
       showToast({ type: 'success', title: 'Базу підключено! 🎉' })
       navigate('realtor-database', { dbId: db.id })
     } else {
@@ -155,7 +156,7 @@ export default function QRScannerScreen() {
               type="text"
               value={manualToken}
               onChange={(e) => setManualToken(e.target.value)}
-              placeholder="https://t.me/propspacebot?startapp=..."
+              placeholder={`https://t.me/${TG_BOT}?startapp=...`}
               onKeyDown={(e) => { if (e.key === 'Enter') handleManualSubmit() }}
               style={{
                 flex: 1,

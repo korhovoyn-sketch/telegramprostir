@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase'
 import Header from '@/components/ui/Header'
 import { IconShare, IconEye, IconChartLine } from '@/components/Icons'
 import { formatDate } from '@/lib/utils'
+import { buildDeepLink, shareDeepLink } from '@/lib/telegram'
 import type { PropertyView } from '@/types'
 
 const DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд']
@@ -108,13 +109,10 @@ export default function SharingAnalyticsScreen() {
 
   function handleShare() {
     if (!user) return
-    const link = `https://t.me/propspacebot?startapp=${buildShareToken()}`
-    if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-      window.Telegram.WebApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(link)}`)
-    }
+    shareDeepLink(buildShareToken())
   }
 
-  const shareLink = `https://t.me/propspacebot?startapp=${buildShareToken()}`
+  const shareLink = buildDeepLink(buildShareToken())
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(shareLink)}`
 
   return (

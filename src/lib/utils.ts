@@ -20,7 +20,8 @@ export function formatDate(iso: string): string {
   if (mins < 60) return `${mins} хв тому`
   if (hours < 24) return `${hours} год тому`
   if (days === 1) return 'вчора'
-  if (days < 7) return `${days} дні тому`
+  if (days < 5) return `${days} дні тому`
+  if (days < 7) return `${days} днів тому`
 
   return d.toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' })
 }

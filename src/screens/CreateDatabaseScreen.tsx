@@ -51,7 +51,7 @@ export default function CreateDatabaseScreen() {
 
   async function handleSave() {
     if (!canCreate || !type) return
-    window.Telegram?.WebApp?.HapticFeedback.notificationOccurred('success')
+    window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
     if (isEdit && editId) {
       await updateDatabase(editId, { name: name.trim(), address: address.trim() || undefined, type, color })
       navigate('db-objects', { dbId: editId })
@@ -97,7 +97,7 @@ export default function CreateDatabaseScreen() {
             <div
               key={t.id}
               className={`type-card ${type === t.id ? 'sel' : ''}`}
-              onClick={() => { window.Telegram?.WebApp?.HapticFeedback.selectionChanged(); setType(t.id) }}
+              onClick={() => { window.Telegram?.WebApp?.HapticFeedback?.selectionChanged(); setType(t.id) }}
             >
               <div className="type-ic">{t.emoji}</div>
               <div className="type-n">{t.label}</div>
@@ -114,7 +114,7 @@ export default function CreateDatabaseScreen() {
               key={c}
               className={`color-c ${color === c ? 'sel' : ''}`}
               style={{ background: DB_COLORS[c] }}
-              onClick={() => { window.Telegram?.WebApp?.HapticFeedback.selectionChanged(); setColor(c) }}
+              onClick={() => { window.Telegram?.WebApp?.HapticFeedback?.selectionChanged(); setColor(c) }}
             />
           ))}
         </div>
