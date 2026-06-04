@@ -90,6 +90,26 @@ async function generatePDF(
   const H = doc.internal.pageSize.getHeight()
   const M = 14  // margin
 
+  // ── Embed Roboto for Cyrillic support ────────────────────────────────────────
+  const toBase64 = (buf: ArrayBuffer): string => {
+    const bytes = new Uint8Array(buf)
+    const chunks: string[] = []
+    const SZ = 8192
+    for (let i = 0; i < bytes.length; i += SZ) {
+      chunks.push(String.fromCharCode(...Array.from(bytes.subarray(i, i + SZ))))
+    }
+    return btoa(chunks.join(''))
+  }
+  const [regBuf, boldBuf] = await Promise.all([
+    fetch('/fonts/Roboto-Regular.ttf').then(r => r.arrayBuffer()),
+    fetch('/fonts/Roboto-Bold.ttf').then(r => r.arrayBuffer()),
+  ])
+  doc.addFileToVFS('Roboto-Regular.ttf', toBase64(regBuf))
+  doc.addFont('Roboto-Regular.ttf', 'Roboto', 'normal')
+  doc.addFileToVFS('Roboto-Bold.ttf', toBase64(boldBuf))
+  doc.addFont('Roboto-Bold.ttf', 'Roboto', 'bold')
+  doc.setFont('Roboto', 'normal')
+
   // Fill every new page with dark background via hook
   const fillBg = () => {
     doc.setFillColor(...BG)
@@ -109,7 +129,7 @@ async function generatePDF(
   doc.setGState(new GState({ opacity: 1 }))
 
   // "PropSpace" wordmark
-  doc.setFont('helvetica', 'bold')
+  doc.setFont('Roboto', 'bold')
   doc.setFontSize(8)
   doc.setTextColor(...TXMUT)
   doc.text('PROPSPACE', M, 11)
@@ -122,7 +142,7 @@ async function generatePDF(
 
   // Subtitle
   doc.setFontSize(8.5)
-  doc.setFont('helvetica', 'normal')
+  doc.setFont('Roboto', 'normal')
   doc.setTextColor(...TXSEC)
   const typeLabel = DB_TYPE_LABELS[db.type] ?? db.type
   const dateStr   = new Date().toLocaleDateString('uk-UA', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -159,11 +179,11 @@ async function generatePDF(
     doc.setDrawColor(...BORDER)
     doc.setLineWidth(0.3)
     doc.roundedRect(cx, cardY, cardW, 18, 2, 2, 'S')
-    doc.setFont('helvetica', 'bold')
+    doc.setFont('Roboto', 'bold')
     doc.setFontSize(14)
     doc.setTextColor(...color)
     doc.text(val, cx + cardW / 2, cardY + 11, { align: 'center' })
-    doc.setFont('helvetica', 'normal')
+    doc.setFont('Roboto', 'normal')
     doc.setFontSize(7)
     doc.setTextColor(...TXSEC)
     doc.text(label, cx + cardW / 2, cardY + 16, { align: 'center' })
@@ -193,7 +213,7 @@ async function generatePDF(
     head: [['Назва', 'Пов.', 'Статус', 'Корисна', 'Загальна', 'Ставка', 'Комун.', 'Разом/міс']],
     body: tableRows,
     styles: {
-      font: 'helvetica',
+      font: 'Roboto',
       fontSize: 8,
       cellPadding: 2.8,
       textColor: TXPRI,
@@ -248,11 +268,11 @@ async function generatePDF(
     // Slim top bar
     doc.setFillColor(...ACD)
     doc.rect(0, 0, W, 12, 'F')
-    doc.setFont('helvetica', 'bold')
+    doc.setFont('Roboto', 'bold')
     doc.setFontSize(7.5)
     doc.setTextColor(255, 255, 255)
     doc.text('PROPSPACE  ·  ' + db.name.toUpperCase(), M, 8)
-    doc.setFont('helvetica', 'normal')
+    doc.setFont('Roboto', 'normal')
     doc.setTextColor(...TXSEC)
     doc.text(`${idx + 1} / ${rows.length}`, W - M, 8, { align: 'right' })
 
@@ -268,20 +288,20 @@ async function generatePDF(
     // Status pill
     doc.setFillColor(...st.bg)
     doc.roundedRect(M + 4, y + 6, 24, 10, 2, 2, 'F')
-    doc.setFont('helvetica', 'bold')
+    doc.setFont('Roboto', 'bold')
     doc.setFontSize(7)
     doc.setTextColor(...st.fg)
     doc.text(STATUS_LABELS[p.status] ?? p.status, M + 16, y + 12.5, { align: 'center' })
 
     // Object name
-    doc.setFont('helvetica', 'bold')
+    doc.setFont('Roboto', 'bold')
     doc.setFontSize(14)
     doc.setTextColor(...TXPRI)
     const objNameLines = doc.splitTextToSize(p.name, W - M * 2 - 40)
     doc.text((objNameLines[0] as string), M + 32, y + 13)
 
     // Updated date
-    doc.setFont('helvetica', 'normal')
+    doc.setFont('Roboto', 'normal')
     doc.setFontSize(7.5)
     doc.setTextColor(...TXMUT)
     doc.text(new Date(p.updated_at).toLocaleDateString('uk-UA'), W - M - 4, y + 8, { align: 'right' })
@@ -290,11 +310,11 @@ async function generatePDF(
 
     // helper: draw a labelled field in a two-column grid
     const drawField = (label: string, value: string, x: number, fy: number, w: number): number => {
-      doc.setFont('helvetica', 'normal')
+      doc.setFont('Roboto', 'normal')
       doc.setFontSize(7)
       doc.setTextColor(...TXMUT)
       doc.text(label.toUpperCase(), x, fy)
-      doc.setFont('helvetica', 'bold')
+      doc.setFont('Roboto', 'bold')
       doc.setFontSize(9.5)
       doc.setTextColor(...TXPRI)
       const lines = doc.splitTextToSize(value || '—', w - 2)
@@ -304,7 +324,7 @@ async function generatePDF(
 
     // helper: section label with accent line
     const drawSection = (label: string, sy: number) => {
-      doc.setFont('helvetica', 'bold')
+      doc.setFont('Roboto', 'bold')
       doc.setFontSize(7.5)
       doc.setTextColor(...ACC)
       doc.text(label, M, sy)
@@ -353,11 +373,11 @@ async function generatePDF(
     doc.roundedRect(M, y, W - M * 2, 16, 3, 3, 'S')
     doc.setGState(new GState({ opacity: 1 }))
 
-    doc.setFont('helvetica', 'normal')
+    doc.setFont('Roboto', 'normal')
     doc.setFontSize(8.5)
     doc.setTextColor(...TXSEC)
     doc.text('Разом на місяць (оренда + комунальні)', M + 5, y + 10)
-    doc.setFont('helvetica', 'bold')
+    doc.setFont('Roboto', 'bold')
     doc.setFontSize(16)
     doc.setTextColor(...ACC)
     doc.text(total ? `$${total.toLocaleString('uk-UA')}` : '—', W - M - 4, y + 11, { align: 'right' })
@@ -376,7 +396,7 @@ async function generatePDF(
     if (p.description) {
       drawSection('ОПИС', y)
       y += 5
-      doc.setFont('helvetica', 'normal')
+      doc.setFont('Roboto', 'normal')
       doc.setFontSize(9)
       doc.setTextColor(...TXSEC)
       const descLines = doc.splitTextToSize(p.description, W - M * 2)
@@ -390,11 +410,11 @@ async function generatePDF(
       doc.setDrawColor(...BORDER)
       doc.setLineWidth(0.3)
       doc.line(M, fY, W - M, fY)
-      doc.setFont('helvetica', 'bold')
+      doc.setFont('Roboto', 'bold')
       doc.setFontSize(7.5)
       doc.setTextColor(...ACC)
       doc.text('Контакти власника:', M, fY + 7)
-      doc.setFont('helvetica', 'normal')
+      doc.setFont('Roboto', 'normal')
       doc.setTextColor(...TXSEC)
       const parts = [ownerName, ownerPhone, ownerEmail].filter(Boolean)
       doc.text(parts.join('  ·  '), M + 42, fY + 7)
@@ -407,7 +427,7 @@ async function generatePDF(
   const pageCount = doc.getNumberOfPages()
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i)
-    doc.setFont('helvetica', 'normal')
+    doc.setFont('Roboto', 'normal')
     doc.setFontSize(7)
     doc.setTextColor(...TXMUT)
     doc.text(`${i} / ${pageCount}`, W - M, H - 5, { align: 'right' })

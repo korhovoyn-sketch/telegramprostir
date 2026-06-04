@@ -226,7 +226,7 @@ export default function PhotoGalleryScreen() {
                   transition: 'border-color .2s ease',
                 }}
               >
-                <img src={thumbUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <img src={thumbUrl} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               </div>
             )
           })}

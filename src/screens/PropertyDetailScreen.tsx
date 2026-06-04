@@ -320,6 +320,7 @@ export default function PropertyDetailScreen() {
               <img
                 src={photoUrl(photo.storage_path)}
                 alt=""
+                loading="lazy"
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 onClick={() => openGallery(i)}
               />
