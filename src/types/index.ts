@@ -17,6 +17,9 @@ export interface User {
   language_code: string
   currency: string
   plan: UserPlan
+  notification_push?: boolean
+  notification_weekly?: boolean
+  notification_views?: boolean
   created_at: string
   updated_at: string
 }

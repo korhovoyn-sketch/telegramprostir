@@ -278,7 +278,7 @@ export default function PropertyDetailScreen() {
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                   <IconCurrencyDollar size={13} color="#4ade80" />Оренда
                 </div>
-                <div className="obj-fv">{formatPrice(rent)}/міс</div>
+                <div className="obj-fv">{formatPrice(rent, user?.currency)}/міс</div>
               </div>
             )}
           </div>
@@ -293,7 +293,7 @@ export default function PropertyDetailScreen() {
                 <div style={{ fontSize: 11, color: 'var(--t4)', marginTop: 2 }}>оренда + комунальні</div>
               </div>
               <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--t1)', letterSpacing: '-.02em' }}>
-                {formatPrice(total)}
+                {formatPrice(total, user?.currency)}
               </div>
             </div>
           </div>

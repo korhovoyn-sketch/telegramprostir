@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { supabase } from '@/lib/supabase'
 import Header from '@/components/ui/Header'
@@ -13,7 +13,7 @@ import { formatPrice, calcRent, calcUtilities, DB_TYPE_LABELS } from '@/lib/util
 import type { Database, Property, PropertyStatus } from '@/types'
 
 export default function RealtorDatabaseScreen() {
-  const { screenParams, navigate, showToast } = useAppStore()
+  const { screenParams, navigate, showToast, user } = useAppStore()
   const [db, setDb] = useState<Database | null>(null)
   const [properties, setProperties] = useState<Property[]>([])
   const [loading, setLoading] = useState(true)
@@ -45,16 +45,18 @@ export default function RealtorDatabaseScreen() {
     load()
   }, [screenParams.dbId, showToast])
 
-  const filtered = properties.filter((p) => {
-    const matchSearch = p.name.toLowerCase().includes(search.toLowerCase())
-    const matchTab = tab === 'all' || p.status === tab
-    return matchSearch && matchTab
-  })
+  const filtered = useMemo(() =>
+    properties.filter((p) => {
+      const matchSearch = p.name.toLowerCase().includes(search.toLowerCase())
+      const matchTab = tab === 'all' || p.status === tab
+      return matchSearch && matchTab
+    }),
+  [properties, search, tab])
 
-  const counts = {
+  const counts = useMemo(() => ({
     all: properties.length,
     free: properties.filter(p => p.status === 'free').length,
-  }
+  }), [properties])
 
   if (!db) return (
     <div className="scr bg-cyan">
@@ -155,7 +157,7 @@ export default function RealtorDatabaseScreen() {
                   {total > 0 && (
                     <div className="obj-tot">
                       <div className="obj-tot-l">На місяць</div>
-                      <div className="obj-tot-v">{formatPrice(total)}</div>
+                      <div className="obj-tot-v">{formatPrice(total, user?.currency)}</div>
                     </div>
                   )}
                 </div>

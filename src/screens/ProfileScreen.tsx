@@ -12,32 +12,23 @@ export default function ProfileScreen() {
   const { user, databases, showToast } = useAppStore()
   const { logout, updateProfile } = useAuth()
 
-  const [pushEnabled, setPushEnabled] = useState(() => {
-    if (typeof window === 'undefined') return true
-    return localStorage.getItem('pref_push') !== 'false'
-  })
-  const [weeklyReport, setWeeklyReport] = useState(() => {
-    if (typeof window === 'undefined') return true
-    return localStorage.getItem('pref_weekly') !== 'false'
-  })
-  const [newViews, setNewViews] = useState(() => {
-    if (typeof window === 'undefined') return true
-    return localStorage.getItem('pref_views') !== 'false'
-  })
+  const [pushEnabled, setPushEnabled] = useState(user?.notification_push ?? true)
+  const [weeklyReport, setWeeklyReport] = useState(user?.notification_weekly ?? true)
+  const [newViews, setNewViews] = useState(user?.notification_views ?? true)
 
   function handlePushToggle(v: boolean) {
     setPushEnabled(v)
-    localStorage.setItem('pref_push', String(v))
+    updateProfile({ notification_push: v }).catch(() => {})
   }
 
   function handleWeeklyToggle(v: boolean) {
     setWeeklyReport(v)
-    localStorage.setItem('pref_weekly', String(v))
+    updateProfile({ notification_weekly: v }).catch(() => {})
   }
 
   function handleNewViewsToggle(v: boolean) {
     setNewViews(v)
-    localStorage.setItem('pref_views', String(v))
+    updateProfile({ notification_views: v }).catch(() => {})
   }
 
   if (!user) return null

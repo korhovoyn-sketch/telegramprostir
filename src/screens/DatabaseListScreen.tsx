@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { useDatabases } from '@/hooks/useDatabases'
 import TabBar from '@/components/ui/TabBar'
@@ -19,13 +19,17 @@ export default function DatabaseListScreen() {
     loadDatabases()
   }, [loadDatabases])
 
-  const filtered = databases.filter((db) =>
-    (db.name ?? '').toLowerCase().includes(search.toLowerCase()) ||
-    (db.address ?? '').toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = useMemo(() =>
+    databases.filter((db) =>
+      (db.name ?? '').toLowerCase().includes(search.toLowerCase()) ||
+      (db.address ?? '').toLowerCase().includes(search.toLowerCase())
+    ),
+  [databases, search])
 
-  const totalProps = databases.reduce((s, d) => s + (d._property_count ?? 0), 0)
-  const freeProps = databases.reduce((s, d) => s + (d._free_count ?? 0), 0)
+  const { totalProps, freeProps } = useMemo(() => ({
+    totalProps: databases.reduce((s, d) => s + (d._property_count ?? 0), 0),
+    freeProps: databases.reduce((s, d) => s + (d._free_count ?? 0), 0),
+  }), [databases])
 
   const hour = new Date().getHours()
   const greet = hour < 12 ? 'Доброго ранку' : hour < 17 ? 'Добрий день' : 'Добрий вечір'

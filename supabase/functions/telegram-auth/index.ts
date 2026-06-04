@@ -7,18 +7,43 @@ const corsHeaders = {
   'Access-Control-Max-Age': '86400',
 }
 
-const RATE_LIMIT = new Map<string, { count: number; reset: number }>()
+// DB-backed rate limiter — survives cold starts unlike an in-memory Map.
+// Fails open: if the DB is unreachable we allow the request through.
+async function checkRateLimit(
+  // deno-lint-ignore no-explicit-any
+  adminClient: any,
+  ip: string,
+  maxRequests = 10,
+  windowMs = 60_000,
+): Promise<boolean> {
+  try {
+    const now = new Date().toISOString()
+    const { data } = await adminClient
+      .from('rate_limits')
+      .select('count, reset_at')
+      .eq('ip', ip)
+      .maybeSingle()
 
-function checkRateLimit(ip: string): boolean {
-  const now = Date.now()
-  const entry = RATE_LIMIT.get(ip)
-  if (!entry || entry.reset < now) {
-    RATE_LIMIT.set(ip, { count: 1, reset: now + 60_000 })
+    if (!data || data.reset_at < now) {
+      // New or expired window — reset counter
+      await adminClient.from('rate_limits').upsert({
+        ip,
+        count: 1,
+        reset_at: new Date(Date.now() + windowMs).toISOString(),
+      })
+      return true
+    }
+
+    if (data.count >= maxRequests) return false
+
+    await adminClient
+      .from('rate_limits')
+      .update({ count: data.count + 1 })
+      .eq('ip', ip)
     return true
+  } catch {
+    return true // fail open
   }
-  if (entry.count >= 10) return false
-  entry.count++
-  return true
 }
 
 async function validateInitData(
@@ -83,14 +108,6 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
-  const ip = req.headers.get('x-forwarded-for') ?? 'unknown'
-  if (!checkRateLimit(ip)) {
-    return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
-      status: 429,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
-  }
-
   try {
     const body = await req.json().catch(() => null)
     if (!body?.initData) {
@@ -110,6 +127,20 @@ Deno.serve(async (req) => {
       throw new Error('Missing Supabase env vars')
     }
 
+    // Admin client needed for rate limiting + user management
+    const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_KEY)
+
+    // ── Rate limiting (DB-backed, 10 req/min per IP) ─────────────────────────
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+    const allowed = await checkRateLimit(supabaseAdmin, ip)
+    if (!allowed) {
+      return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
+        status: 429,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
+    // ── Validate Telegram initData (HMAC-SHA256) ─────────────────────────────
     const validated = await validateInitData(body.initData, botToken)
     if (!validated) {
       return new Response(JSON.stringify({ error: 'Invalid initData' }), {
@@ -134,7 +165,6 @@ Deno.serve(async (req) => {
       })
     }
 
-    const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_KEY)
     const tgId = parseInt(tgUser.id, 10)
     if (isNaN(tgId)) throw new Error('Invalid Telegram user id')
 

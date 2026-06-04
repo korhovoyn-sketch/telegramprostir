@@ -11,7 +11,7 @@ import { formatPrice, calcRent, calcUtilities } from '@/lib/utils'
 import type { PropertyStatus, RentType } from '@/types'
 
 export default function PropertyFormScreen() {
-  const { screenParams, navigate, showToast } = useAppStore()
+  const { screenParams, navigate, showToast, user } = useAppStore()
   const { properties, loadProperties, createProperty, updateProperty, deleteProperty, loading } = useProperties(screenParams.dbId)
 
   const editId = screenParams.propertyId
@@ -173,7 +173,7 @@ export default function PropertyFormScreen() {
             <div className="fr" style={{ background: 'rgba(34,158,217,.08)' }}>
               <span className="fr-l" style={{ color: 'var(--t3)', fontSize: 12 }}>Розрахунок</span>
               <span style={{ flex: 1, textAlign: 'right', fontWeight: 700, fontSize: 15, color: 'var(--info-fg)' }}>
-                {formatPrice(rentCalc)}/міс
+                {formatPrice(rentCalc, user?.currency)}/міс
               </span>
             </div>
           )}
@@ -191,7 +191,7 @@ export default function PropertyFormScreen() {
             <div className="fr" style={{ background: 'rgba(34,158,217,.08)' }}>
               <span className="fr-l" style={{ color: 'var(--t3)', fontSize: 12 }}>Розрахунок</span>
               <span style={{ flex: 1, textAlign: 'right', fontWeight: 700, fontSize: 15, color: 'var(--info-fg)' }}>
-                {formatPrice(utilsCalc)}/міс
+                {formatPrice(utilsCalc, user?.currency)}/міс
               </span>
             </div>
           )}
@@ -231,18 +231,18 @@ export default function PropertyFormScreen() {
             {rentCalc > 0 && (
               <div className="sum-r">
                 <span>Оренда</span>
-                <span>{formatPrice(rentCalc)}/міс</span>
+                <span>{formatPrice(rentCalc, user?.currency)}/міс</span>
               </div>
             )}
             {utilsCalc > 0 && (
               <div className="sum-r">
                 <span>Комунальні</span>
-                <span>{formatPrice(utilsCalc)}/міс</span>
+                <span>{formatPrice(utilsCalc, user?.currency)}/міс</span>
               </div>
             )}
             <div className="sum-tot">
               <span className="sum-tot-l">Разом на місяць</span>
-              <span className="sum-tot-v">{formatPrice(total)}</span>
+              <span className="sum-tot-v">{formatPrice(total, user?.currency)}</span>
             </div>
           </div>
         )}

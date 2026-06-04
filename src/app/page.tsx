@@ -49,6 +49,23 @@ export default function Page() {
   useEffect(() => {
     const tg = window.Telegram?.WebApp
     if (!tg) return
+    tg.ready()
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const tgAny = tg as any
+      tgAny.setHeaderColor?.('#0a0a14')
+      tgAny.setBackgroundColor?.('#0a0a14')
+    } catch { /* older TMA versions may not support setHeaderColor */ }
+    if (tg.colorScheme) {
+      document.documentElement.dataset.tgTheme = tg.colorScheme
+    }
+    tg.expand()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    const tg = window.Telegram?.WebApp
+    if (!tg) return
     if (historyLength > 0) {
       tg.BackButton.show()
     } else {

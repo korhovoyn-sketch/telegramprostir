@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { useDatabases } from '@/hooks/useDatabases'
 import { useProperties } from '@/hooks/useProperties'
@@ -15,7 +15,7 @@ import { formatPrice, calcRent, calcUtilities, DB_TYPE_LABELS, DB_TYPE_EMOJI } f
 import type { PropertyStatus } from '@/types'
 
 export default function DatabaseObjectsScreen() {
-  const { screenParams, navigate, databases } = useAppStore()
+  const { screenParams, navigate, databases, user } = useAppStore()
   const { deleteDatabase } = useDatabases()
   const { properties, loading, error, loadProperties } = useProperties(screenParams.dbId)
 
@@ -30,18 +30,20 @@ export default function DatabaseObjectsScreen() {
     if (screenParams.dbId) loadProperties(screenParams.dbId)
   }, [screenParams.dbId, loadProperties])
 
-  const filtered = properties.filter((p) => {
-    const matchSearch = p.name.toLowerCase().includes(search.toLowerCase())
-    const matchTab = tab === 'all' || p.status === tab
-    return matchSearch && matchTab
-  })
+  const filtered = useMemo(() =>
+    properties.filter((p) => {
+      const matchSearch = p.name.toLowerCase().includes(search.toLowerCase())
+      const matchTab = tab === 'all' || p.status === tab
+      return matchSearch && matchTab
+    }),
+  [properties, search, tab])
 
-  const counts = {
+  const counts = useMemo(() => ({
     all: properties.length,
     free: properties.filter(p => p.status === 'free').length,
     occupied: properties.filter(p => p.status === 'occupied').length,
     for_sale: properties.filter(p => p.status === 'for_sale').length,
-  }
+  }), [properties])
 
   if (!db) return (
     <div className="scr bg-blue">
@@ -197,7 +199,7 @@ export default function DatabaseObjectsScreen() {
                         <div className="obj-tot-l">На місяць</div>
                         <div className="obj-tot-sub">оренда + комунальні</div>
                       </div>
-                      <div className="obj-tot-v">{formatPrice(total)}</div>
+                      <div className="obj-tot-v">{formatPrice(total, user?.currency)}</div>
                     </div>
                   )}
                 </div>
