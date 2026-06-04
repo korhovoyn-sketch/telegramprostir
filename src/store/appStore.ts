@@ -18,6 +18,7 @@ interface AppState {
   notifications: Notification[]
   unreadCount: number
   isOnline: boolean
+  lastDbId: string | null
 
   navigate: (screen: ScreenName, params?: ScreenParams) => void
   /** Replace current screen and clear history stack (use after deep link or fresh auth) */
@@ -44,15 +45,18 @@ export const useAppStore = create<AppState>((set, get) => ({
   databases: [],
   notifications: [],
   unreadCount: 0,
-  // Start as online — SSR/client hydration safe (event listeners in page.tsx update this)
   isOnline: true,
+  lastDbId: null,
 
   navigate: (screen, params = {}) => {
     const { screen: current, screenParams: currentParams, history } = get()
+    // Track the last visited database so the analytics tab always has a target
+    const nextLastDbId = (params as ScreenParams).dbId as string | undefined
     set({
       screen,
       screenParams: params,
       history: [...history, { screen: current, params: currentParams }],
+      ...(nextLastDbId ? { lastDbId: nextLastDbId } : {}),
     })
   },
 

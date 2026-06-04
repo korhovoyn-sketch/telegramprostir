@@ -377,7 +377,7 @@ export default function PropertyDetailScreen() {
       {isOwner && (
         <button
           className="mbtn"
-          onClick={() => navigate('sharing-analytics', { propertyId: property.id, dbId: screenParams.dbId })}
+          onClick={() => navigate('sharing-analytics', { propertyId: property.id })}
         >
           <IconShare size={18} />
           Поділитись

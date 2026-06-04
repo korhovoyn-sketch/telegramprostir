@@ -101,15 +101,18 @@ export default function SharingAnalyticsScreen() {
     Math.floor((now - new Date(v.created_at).getTime()) / 86400000) === 0
   )
 
-  // Full token — never slice; Telegram start= supports up to 64 chars
+  const isPropertyShare = Boolean(screenParams.propertyId)
+
+  // Prioritise propertyId — if set we're sharing a single property, not a database.
   function buildShareToken() {
-    if (screenParams.dbId) return 'db_' + (dbShareToken || screenParams.dbId)
-    return 'prop_' + (screenParams.propertyId ?? '')
+    if (screenParams.propertyId) return 'prop_' + (screenParams.propertyId as string)
+    return 'db_' + (dbShareToken || (screenParams.dbId as string) || '')
   }
 
   function handleShare() {
     if (!user) return
-    shareDeepLink(buildShareToken())
+    const text = isPropertyShare ? 'Перегляньте цей об\'єкт у PropSpace' : 'Перегляньте базу нерухомості у PropSpace'
+    shareDeepLink(buildShareToken(), text)
   }
 
   const shareLink = buildDeepLink(buildShareToken())
@@ -117,7 +120,7 @@ export default function SharingAnalyticsScreen() {
 
   return (
     <div className="scr bg-teal">
-      <Header title="Аналітика" backLabel="Назад" />
+      <Header title={isPropertyShare ? 'Поділитись об\'єктом' : 'Аналітика бази'} backLabel="Назад" />
 
       <div className="body">
         {/* Views count */}
@@ -205,7 +208,7 @@ export default function SharingAnalyticsScreen() {
             />
           </div>
           <div className="qr-meta">
-            <div className="qr-name">QR-код для ріелтора</div>
+            <div className="qr-name">{isPropertyShare ? 'QR-код об\'єкта' : 'QR-код для ріелтора'}</div>
             <div className="qr-link" style={{ wordBreak: 'break-all' }}>{shareLink}</div>
           </div>
           <button
