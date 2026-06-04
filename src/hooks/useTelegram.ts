@@ -71,13 +71,16 @@ export function useTelegram() {
 
   useEffect(() => {
     const webApp = window.Telegram?.WebApp
-    if (webApp) {
-      webApp.ready()
-      webApp.expand()
-      setTg(webApp)
-      setUser(webApp.initDataUnsafe?.user ?? null)
-      setIsReady(true)
-    } else {
+    try {
+      if (webApp) {
+        webApp.ready()
+        webApp.expand()
+        setTg(webApp)
+        setUser(webApp.initDataUnsafe?.user ?? null)
+      }
+    } catch {
+      // Older TMA versions may throw on ready()/expand() — still mark as ready
+    } finally {
       setIsReady(true)
     }
   }, [])
