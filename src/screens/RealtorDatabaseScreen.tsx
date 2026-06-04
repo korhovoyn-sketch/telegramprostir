@@ -7,14 +7,15 @@ import Header from '@/components/ui/Header'
 import SearchBar from '@/components/ui/SearchBar'
 import { StatusBadge } from '@/components/ui/Badge'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
-import { IconShare, IconBookmark, IconPhoto } from '@/components/Icons'
+import { IconShare, IconPhoto, IconMessage } from '@/components/Icons'
 import { shareDeepLink } from '@/lib/telegram'
-import { formatPrice, calcRent, calcUtilities, DB_TYPE_LABELS } from '@/lib/utils'
-import type { Database, Property, PropertyStatus } from '@/types'
+import { formatPrice, calcRent, calcUtilities, DB_TYPE_LABELS, getInitials } from '@/lib/utils'
+import type { Database, Property, PropertyStatus, User } from '@/types'
 
 export default function RealtorDatabaseScreen() {
   const { screenParams, navigate, showToast, user } = useAppStore()
   const [db, setDb] = useState<Database | null>(null)
+  const [owner, setOwner] = useState<User | null>(null)
   const [properties, setProperties] = useState<Property[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
@@ -33,8 +34,16 @@ export default function RealtorDatabaseScreen() {
         ])
         if (dbRes.error) throw dbRes.error
         if (propsRes.error) throw propsRes.error
-        setDb(dbRes.data as Database)
+        const dbData = dbRes.data as Database
+        setDb(dbData)
         setProperties((propsRes.data ?? []) as Property[])
+
+        // Load owner info for contact card
+        if (dbData.owner_id) {
+          const { data: ownerData } = await supabase
+            .from('users').select('*').eq('id', dbData.owner_id).single()
+          if (ownerData) setOwner(ownerData as User)
+        }
       } catch (e) {
         setError(true)
         showToast({ type: 'error', title: 'Помилка завантаження', subtitle: (e as Error).message })
@@ -75,31 +84,34 @@ export default function RealtorDatabaseScreen() {
 
   return (
     <div className="scr bg-cyan">
-      <Header
-        title={db.name}
-        subtitle={DB_TYPE_LABELS[db.type]}
-        backLabel="Бази"
-        right={
-          <button className="hdr-a" style={{ background: 'none', border: 'var(--bd)' }}>
-            <IconBookmark size={16} />
-          </button>
-        }
-      />
+      <Header title={db.name} subtitle={DB_TYPE_LABELS[db.type]} backLabel="Бази" />
 
       <div className="body">
         {/* Owner card */}
         <div className="owner-c glass-s" style={{ margin: '0 12px 12px' }}>
-          <div className="owner-av av-grad-2">О</div>
+          <div className="owner-av av-grad-2">
+            {owner ? getInitials(owner.first_name, owner.last_name ?? undefined) : 'В'}
+          </div>
           <div className="owner-mn">
-            <div className="owner-n">Власник</div>
+            <div className="owner-n">
+              {owner ? `${owner.first_name}${owner.last_name ? ' ' + owner.last_name : ''}` : 'Власник'}
+            </div>
             <div className="owner-s">
-              <span>🟢</span>
-              <span>Онлайн</span>
+              {owner?.tg_username
+                ? <span>@{owner.tg_username}</span>
+                : <span>Власник бази</span>
+              }
             </div>
           </div>
-          <button className="owner-act">
-            <span>💬</span>
-          </button>
+          {owner?.tg_username && (
+            <button
+              className="owner-act"
+              onClick={() => window.Telegram?.WebApp?.openTelegramLink(`https://t.me/${owner.tg_username}`)}
+              title="Написати власнику"
+            >
+              <IconMessage size={15} />
+            </button>
+          )}
         </div>
 
         {/* Tabs */}

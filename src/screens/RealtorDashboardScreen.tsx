@@ -81,19 +81,14 @@ export default function RealtorDashboardScreen() {
         <div className="greet">{greet}, {user?.first_name}</div>
         <div className="display">Робочі бази</div>
 
-        <div className="stat-g">
+        <div className="stat-g" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
           <div className="stat glass-s">
             <div className="stat-n">{subscriptions.length}</div>
-            <div className="stat-l">Власників</div>
+            <div className="stat-l">Баз</div>
           </div>
           <div className="stat glass-s">
             <div className="stat-n">{propertyCount}</div>
             <div className="stat-l">Об&apos;єктів</div>
-          </div>
-          <div className="stat glass-s" style={{ background: 'rgba(255,80,180,.18)', border: '.5px solid rgba(255,80,180,.28)' }}>
-            {/* Favorites count not yet implemented */}
-            <div className="stat-n" style={{ color: '#ffb8e0' }}>-</div>
-            <div className="stat-l" style={{ color: '#ffb8e0' }}>Обраних</div>
           </div>
         </div>
 

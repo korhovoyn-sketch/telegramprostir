@@ -27,7 +27,7 @@ interface CollectionProperty {
 
 function getPhotoUrl(storagePath: string): string {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
-  return `${url}/storage/v1/object/public/property-photos/${storagePath}`
+  return `${url}/storage/v1/object/public/photos/${storagePath}`
 }
 
 function getRentLabel(p: Property, currency = 'USD'): string {

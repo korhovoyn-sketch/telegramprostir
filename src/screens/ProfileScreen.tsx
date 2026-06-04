@@ -5,7 +5,8 @@ import { useAppStore } from '@/store/appStore'
 import { useAuth } from '@/hooks/useAuth'
 import TabBar from '@/components/ui/TabBar'
 import Toggle from '@/components/ui/Toggle'
-import { IconMail, IconPhone, IconLanguage, IconCurrencyDollar, IconMoon, IconLogout, IconCrown } from '@/components/Icons'
+import Modal from '@/components/ui/Modal'
+import { IconMail, IconPhone, IconLanguage, IconCurrencyDollar, IconLogout, IconCrown } from '@/components/Icons'
 import { getInitials } from '@/lib/utils'
 
 export default function ProfileScreen() {
@@ -15,6 +16,9 @@ export default function ProfileScreen() {
   const [pushEnabled, setPushEnabled] = useState(user?.notification_push ?? true)
   const [weeklyReport, setWeeklyReport] = useState(user?.notification_weekly ?? true)
   const [newViews, setNewViews] = useState(user?.notification_views ?? true)
+  const [showLogoutModal, setShowLogoutModal] = useState(false)
+  const [savingLang, setSavingLang] = useState(false)
+  const [savingCur, setSavingCur] = useState(false)
 
   function handlePushToggle(v: boolean) {
     setPushEnabled(v)
@@ -29,6 +33,20 @@ export default function ProfileScreen() {
   function handleNewViewsToggle(v: boolean) {
     setNewViews(v)
     updateProfile({ notification_views: v }).catch(() => {})
+  }
+
+  async function handleLangChange(lang: 'uk' | 'en') {
+    if ((user?.language_code ?? 'uk') === lang) return
+    setSavingLang(true)
+    await updateProfile({ language_code: lang }).catch(() => {})
+    setSavingLang(false)
+  }
+
+  async function handleCurrencyChange(cur: 'USD' | 'UAH' | 'EUR') {
+    if ((user?.currency ?? 'USD') === cur) return
+    setSavingCur(true)
+    await updateProfile({ currency: cur }).catch(() => {})
+    setSavingCur(false)
   }
 
   if (!user) return null
@@ -56,7 +74,6 @@ export default function ProfileScreen() {
               <span className="bdg bdg-info">{roleLabel}</span>
             </div>
           </div>
-          <button className="profile-edit">✏️</button>
         </div>
 
         {/* Stats */}
@@ -112,14 +129,14 @@ export default function ProfileScreen() {
           <div className="fr">
             <IconLanguage size={15} color="var(--t3)" />
             <span className="fr-l" style={{ marginLeft: 6 }}>Мова</span>
-            <div className="fr-seg" style={{ maxWidth: 130 }}>
+            <div className="fr-seg" style={{ maxWidth: 130, opacity: savingLang ? 0.5 : 1, pointerEvents: savingLang ? 'none' : 'auto' }}>
               {(['uk', 'en'] as const).map(lang => (
                 <div
                   key={lang}
                   className={`fr-seg-b ${(user.language_code ?? 'uk') === lang ? 'on' : ''}`}
-                  onClick={() => updateProfile({ language_code: lang })}
+                  onClick={() => handleLangChange(lang)}
                 >
-                  {lang === 'uk' ? 'Укр' : 'Eng'}
+                  {savingLang && (user.language_code ?? 'uk') !== lang ? '...' : lang === 'uk' ? 'Укр' : 'Eng'}
                 </div>
               ))}
             </div>
@@ -127,22 +144,17 @@ export default function ProfileScreen() {
           <div className="fr">
             <IconCurrencyDollar size={15} color="var(--t3)" />
             <span className="fr-l" style={{ marginLeft: 6 }}>Валюта</span>
-            <div className="fr-seg" style={{ maxWidth: 180 }}>
+            <div className="fr-seg" style={{ maxWidth: 180, opacity: savingCur ? 0.5 : 1, pointerEvents: savingCur ? 'none' : 'auto' }}>
               {(['USD', 'UAH', 'EUR'] as const).map(cur => (
                 <div
                   key={cur}
                   className={`fr-seg-b ${(user.currency ?? 'USD') === cur ? 'on' : ''}`}
-                  onClick={() => updateProfile({ currency: cur })}
+                  onClick={() => handleCurrencyChange(cur)}
                 >
                   {cur}
                 </div>
               ))}
             </div>
-          </div>
-          <div className="fr">
-            <IconMoon size={15} color="var(--t3)" />
-            <span className="fr-l" style={{ marginLeft: 6 }}>Тема</span>
-            <span style={{ flex: 1, textAlign: 'right', color: 'var(--t3)', fontSize: 14 }}>Темна</span>
           </div>
         </div>
 
@@ -166,31 +178,17 @@ export default function ProfileScreen() {
         {/* Support */}
         <div className="over">Підтримка</div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
-          <div className="fr" style={{ cursor: 'pointer' }}>
-            <span className="fr-l">Допомога</span>
-            <span className="chev">›</span>
-          </div>
-          <div className="fr" style={{ cursor: 'pointer' }}>
+          <div
+            className="fr" style={{ cursor: 'pointer' }}
+            onClick={() => window.Telegram?.WebApp?.openTelegramLink('https://t.me/propspaceapp')}
+          >
             <span className="fr-l">Написати нам</span>
             <span className="chev">›</span>
           </div>
         </div>
 
-        {/* Legal */}
-        <div className="over">Правові документи</div>
-        <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
-          <div className="fr" style={{ cursor: 'pointer' }}>
-            <span className="fr-l">Умови використання</span>
-            <span className="chev">›</span>
-          </div>
-          <div className="fr" style={{ cursor: 'pointer' }}>
-            <span className="fr-l">Конфіденційність</span>
-            <span className="chev">›</span>
-          </div>
-        </div>
-
         {/* Logout */}
-        <div className="logout" onClick={logout}>
+        <div className="logout" onClick={() => setShowLogoutModal(true)}>
           <IconLogout size={16} />
           {' '}Вийти з акаунту
         </div>
@@ -201,6 +199,18 @@ export default function ProfileScreen() {
       </div>
 
       <TabBar />
+
+      {showLogoutModal && (
+        <Modal
+          title="Вийти з акаунту?"
+          subtitle="Для повторного входу знадобиться Telegram"
+          onClose={() => setShowLogoutModal(false)}
+          actions={[
+            { label: 'Вийти', variant: 'danger', onClick: logout },
+            { label: 'Скасувати', variant: 'secondary', onClick: () => setShowLogoutModal(false) },
+          ]}
+        />
+      )}
     </div>
   )
 }
