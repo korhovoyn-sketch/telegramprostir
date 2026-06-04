@@ -1,4 +1,10 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
+import { z } from 'https://esm.sh/zod@3.23.8'
+
+// Schema for request body — rejects malformed payloads before any processing
+const RequestSchema = z.object({
+  initData: z.string().min(10).max(4096),
+})
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -113,13 +119,15 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const body = await req.json().catch(() => null)
-    if (!body?.initData) {
-      return new Response(JSON.stringify({ error: 'Missing initData' }), {
+    const rawBody = await req.json().catch(() => null)
+    const parsed = RequestSchema.safeParse(rawBody)
+    if (!parsed.success) {
+      return new Response(JSON.stringify({ error: 'Invalid request body' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
+    const body = parsed.data
 
     const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN')
     if (!botToken) throw new Error('Bot token not configured')

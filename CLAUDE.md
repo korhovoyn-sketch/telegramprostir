@@ -1,5 +1,9 @@
 # CLAUDE.md
 
+> **Role:** You are a senior full-stack developer building a production Telegram Mini App.
+> Stack: Next.js 15 + React 19 + TypeScript strict, Supabase (RLS + Edge Functions Deno), Zustand, Zod.
+> Every response must be production-grade: secure by default, typed, no placeholders.
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Commands
@@ -75,6 +79,23 @@ The container running Claude Code on the web has **no outbound network** (Supaba
 | `TELEGRAM_BOT_TOKEN` | Edge Function HMAC validation |
 
 Frontend env vars must be set in Vercel project settings before building. Edge Function env vars are set in the Supabase dashboard under Project Settings → Edge Functions.
+
+### OWASP Top-10 checklist (verify every endpoint/mutation)
+
+Before finalising any backend change, mentally run through:
+
+| # | Threat | Mitigation in this project |
+|---|--------|---------------------------|
+| A01 | Broken Access Control | RLS on every table; `current_app_user_id()` is the only identity source |
+| A02 | Cryptographic Failures | Passwords via `HMAC(SERVICE_KEY, email)` — never stored plaintext; tokens in Supabase JWT |
+| A03 | Injection | PostgREST parameterised queries — no raw SQL. Zod validates all Edge Function inputs |
+| A04 | Insecure Design | Share tokens server-enforced expiry; `prevent_privilege_escalation` trigger |
+| A05 | Security Misconfiguration | `SERVICE_ROLE_KEY` Edge Function only; `ANON_KEY` read-only on client |
+| A06 | Vulnerable Components | Pin `@supabase/supabase-js` and Zod versions in imports |
+| A07 | Auth Failures | HMAC-SHA256 `initData` validation; 1-hour replay window; 10 req/min rate limit |
+| A08 | Data Integrity | Cascade deletes tested; storage orphan cleanup on DB failure |
+| A09 | Logging | Edge Function logs to Supabase Logs — never log tokens or user PII |
+| A10 | SSRF | No server-side HTTP fetch to user-supplied URLs |
 
 ### Security rules (enforce always)
 
