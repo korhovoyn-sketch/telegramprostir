@@ -114,12 +114,12 @@ export default function ProfileScreen() {
           <div className="fr">
             <IconMail size={15} color="var(--t3)" />
             <span className="fr-l" style={{ marginLeft: 6 }}>Email</span>
-            <input className="fr-i" type="email" placeholder="Не вказано" defaultValue={user.email ?? ''} onBlur={async e => { try { await updateProfile({ email: e.target.value }) } catch { showToast({ type: 'error', title: 'Помилка збереження email' }) } }} />
+            <input className="fr-i" type="email" placeholder="Не вказано" defaultValue={user.email ?? ''} onBlur={async e => { if (e.target.value === (user.email ?? '')) return; try { await updateProfile({ email: e.target.value }) } catch { showToast({ type: 'error', title: 'Помилка збереження email' }) } }} />
           </div>
           <div className="fr">
             <IconPhone size={15} color="var(--t3)" />
             <span className="fr-l" style={{ marginLeft: 6 }}>Телефон</span>
-            <input className="fr-i" type="tel" placeholder="Не вказано" defaultValue={user.phone ?? ''} onBlur={async e => { try { await updateProfile({ phone: e.target.value }) } catch { showToast({ type: 'error', title: 'Помилка збереження телефону' }) } }} />
+            <input className="fr-i" type="tel" placeholder="Не вказано" defaultValue={user.phone ?? ''} onBlur={async e => { if (e.target.value === (user.phone ?? '')) return; try { await updateProfile({ phone: e.target.value }) } catch { showToast({ type: 'error', title: 'Помилка збереження телефону' }) } }} />
           </div>
         </div>
 

@@ -1,7 +1,7 @@
 'use client'
 
 import { useAppStore } from '@/store/appStore'
-import { IconDatabase, IconChartBar, IconBell, IconUser } from '@/components/Icons'
+import { IconDatabase, IconBookmark, IconBell, IconUser } from '@/components/Icons'
 import type { ScreenName } from '@/types'
 
 interface Tab {
@@ -13,14 +13,13 @@ interface Tab {
 
 const OWNER_TABS: Tab[] = [
   { id: 'db-list', label: 'Бази', screen: 'db-list', icon: <IconDatabase size={22} /> },
-  { id: 'analytics', label: 'Аналітика', screen: 'sharing-analytics', icon: <IconChartBar size={22} /> },
   { id: 'notifications', label: 'Сповіщення', screen: 'notifications', icon: <IconBell size={22} /> },
   { id: 'profile', label: 'Профіль', screen: 'profile', icon: <IconUser size={22} /> },
 ]
 
 const REALTOR_TABS: Tab[] = [
   { id: 'realtor-dashboard', label: 'Бази', screen: 'realtor-dashboard', icon: <IconDatabase size={22} /> },
-  { id: 'collections', label: 'Підбірки', screen: 'collections', icon: <IconChartBar size={22} /> },
+  { id: 'collections', label: 'Підбірки', screen: 'collections', icon: <IconBookmark size={22} /> },
   { id: 'notifications', label: 'Сповіщення', screen: 'notifications', icon: <IconBell size={22} /> },
   { id: 'profile', label: 'Профіль', screen: 'profile', icon: <IconUser size={22} /> },
 ]

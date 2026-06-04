@@ -146,9 +146,11 @@ export function useAuth() {
       const tgId = parseInt(tgIdStr, 10)
       if (!tgId) throw new Error('Cannot determine tg_id from session')
 
-      // Strip server-controlled fields — defence-in-depth alongside the DB trigger
+      // Strip plan on the client — the DB trigger enforces it server-side too.
+      // role is intentionally allowed through so onboarding (role-select) works;
+      // the DB trigger blocks realtor→owner escalation.
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { plan: _plan, role: _role, id: _id, tg_id: _tg_id, ...safeUpdates } = updates as Partial<User> & { plan?: string; role?: string }
+      const { plan: _plan, id: _id, tg_id: _tg_id, ...safeUpdates } = updates as Partial<User> & { plan?: string }
 
       const { data, error } = await supabase
         .from('users')

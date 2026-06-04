@@ -36,7 +36,7 @@ export default function QRScannerScreen() {
     if (!user) return
     const { data: db } = await supabase
       .from('databases')
-      .select('id, share_expires_at')
+      .select('id, owner_id, share_expires_at')
       .eq('share_token', token)
       .single()
 
@@ -46,6 +46,11 @@ export default function QRScannerScreen() {
     }
     if (db.share_expires_at && new Date(db.share_expires_at) < new Date()) {
       showToast({ type: 'error', title: 'Посилання застаріло', subtitle: 'Попросіть власника оновити посилання' })
+      return
+    }
+    if (db.owner_id === user.id) {
+      showToast({ type: 'info', title: 'Це ваша база', subtitle: 'QR-код для ріелторів — не для власника' })
+      navigate('db-objects', { dbId: db.id })
       return
     }
     const { error } = await supabase

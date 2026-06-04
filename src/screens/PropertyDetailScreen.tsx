@@ -1,10 +1,11 @@
 'use client'
 
 /* eslint-disable @next/next/no-img-element */
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { useProperties } from '@/hooks/useProperties'
 import Header from '@/components/ui/Header'
+import Modal from '@/components/ui/Modal'
 import { StatusBadge } from '@/components/ui/Badge'
 import { IconEdit, IconShare, IconMapPin, IconPhoto, IconX, IconCamera, IconRuler, IconBuildingSkyscraper, IconCircleCheck, IconCurrencyDollar, IconCarGarage } from '@/components/Icons'
 import { formatPrice, calcRent, calcUtilities, STATUS_LABELS } from '@/lib/utils'
@@ -110,8 +111,10 @@ export default function PropertyDetailScreen() {
   const { screenParams, navigate, user, showToast } = useAppStore()
   const { properties, loadProperties, deletePhoto } = useProperties(screenParams.dbId)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [photoToDelete, setPhotoToDelete] = useState<{ id: string; path: string } | null>(null)
 
   const property = properties.find(p => p.id === screenParams.propertyId)
+  const isOwner = user?.role === 'owner'
 
   useEffect(() => {
     if (!property && screenParams.dbId) loadProperties(screenParams.dbId)
@@ -153,11 +156,14 @@ export default function PropertyDetailScreen() {
     navigate('photo-gallery', { photos, initialIndex: index })
   }
 
-  async function handleDeletePhoto(photoId: string, storagePath: string) {
+  async function confirmDeletePhoto() {
+    if (!photoToDelete) return
     try {
-      await deletePhoto(photoId, storagePath)
+      await deletePhoto(photoToDelete.id, photoToDelete.path)
     } catch {
       showToast({ type: 'error', title: 'Не вдалося видалити фото' })
+    } finally {
+      setPhotoToDelete(null)
     }
   }
 
@@ -173,7 +179,7 @@ export default function PropertyDetailScreen() {
       <Header
         title={property.name}
         backLabel="Назад"
-        right={
+        right={isOwner ? (
           <button
             className="hdr-a"
             onClick={() => navigate('property-form', { propertyId: property.id, dbId: screenParams.dbId, editMode: true })}
@@ -181,7 +187,7 @@ export default function PropertyDetailScreen() {
           >
             <IconEdit size={15} />
           </button>
-        }
+        ) : <div className="hdr-sp" />}
       />
 
       <div className="body">
@@ -202,14 +208,16 @@ export default function PropertyDetailScreen() {
             {STATUS_LABELS[property.status]}
           </div>
 
-          <div className="obj-hero-r">
-            <button
-              className="obj-hero-a"
-              onClick={(e) => { e.stopPropagation(); navigate('sharing-analytics', { propertyId: property.id, dbId: screenParams.dbId }) }}
-            >
-              <IconShare size={14} />
-            </button>
-          </div>
+          {isOwner && (
+            <div className="obj-hero-r">
+              <button
+                className="obj-hero-a"
+                onClick={(e) => { e.stopPropagation(); navigate('sharing-analytics', { propertyId: property.id, dbId: screenParams.dbId }) }}
+              >
+                <IconShare size={14} />
+              </button>
+            </div>
+          )}
 
           <div className="obj-hero-meta">
             <div>
@@ -315,37 +323,43 @@ export default function PropertyDetailScreen() {
                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 onClick={() => openGallery(i)}
               />
-              <button
-                onClick={(e) => { e.stopPropagation(); handleDeletePhoto(photo.id, photo.storage_path) }}
-                style={{
-                  position: 'absolute', top: 3, right: 3,
-                  width: 20, height: 20, borderRadius: '50%',
-                  background: 'rgba(0,0,0,.65)', border: 'none',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: '#fff', cursor: 'pointer', zIndex: 2,
-                }}
-              >
-                <IconX size={10} />
-              </button>
+              {isOwner && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); setPhotoToDelete({ id: photo.id, path: photo.storage_path }) }}
+                  style={{
+                    position: 'absolute', top: 3, right: 3,
+                    width: 20, height: 20, borderRadius: '50%',
+                    background: 'rgba(0,0,0,.65)', border: 'none',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: '#fff', cursor: 'pointer', zIndex: 2,
+                  }}
+                >
+                  <IconX size={10} />
+                </button>
+              )}
             </div>
           ))}
-          <div
-            className="photo-t"
-            onClick={() => fileInputRef.current?.click()}
-            style={{ border: '.5px dashed rgba(255,255,255,.28)', fontSize: 28, color: 'rgba(255,255,255,.4)', cursor: 'pointer' }}
-          >
-            +
-          </div>
+          {isOwner && (
+            <div
+              className="photo-t"
+              onClick={() => fileInputRef.current?.click()}
+              style={{ border: '.5px dashed rgba(255,255,255,.28)', fontSize: 28, color: 'rgba(255,255,255,.4)', cursor: 'pointer' }}
+            >
+              +
+            </div>
+          )}
         </div>
 
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          multiple
-          style={{ display: 'none' }}
-          onChange={handleAddPhotos}
-        />
+        {isOwner && (
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            style={{ display: 'none' }}
+            onChange={handleAddPhotos}
+          />
+        )}
 
         {property.description && (
           <>
@@ -359,13 +373,27 @@ export default function PropertyDetailScreen() {
         <div style={{ height: 100 }} />
       </div>
 
-      <button
-        className="mbtn"
-        onClick={() => navigate('sharing-analytics', { propertyId: property.id, dbId: screenParams.dbId })}
-      >
-        <IconShare size={18} />
-        Поділитись
-      </button>
+      {isOwner && (
+        <button
+          className="mbtn"
+          onClick={() => navigate('sharing-analytics', { propertyId: property.id, dbId: screenParams.dbId })}
+        >
+          <IconShare size={18} />
+          Поділитись
+        </button>
+      )}
+
+      {photoToDelete && (
+        <Modal
+          title="Видалити фото?"
+          subtitle="Фото буде видалено назавжди. Це незворотно."
+          onClose={() => setPhotoToDelete(null)}
+          actions={[
+            { label: 'Видалити', variant: 'danger', onClick: confirmDeletePhoto },
+            { label: 'Скасувати', variant: 'secondary', onClick: () => setPhotoToDelete(null) },
+          ]}
+        />
+      )}
     </div>
   )
 }
