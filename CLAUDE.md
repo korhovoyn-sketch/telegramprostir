@@ -76,6 +76,25 @@ The container running Claude Code on the web has **no outbound network** (Supaba
 
 Frontend env vars must be set in Vercel project settings before building. Edge Function env vars are set in the Supabase dashboard under Project Settings → Edge Functions.
 
+### Security rules (enforce always)
+
+1. **Never expose internal errors to clients.** Edge Function 500 responses must not include stack traces or `detail` fields — log server-side only.
+2. **RLS on every table.** Every `CREATE TABLE` must be followed by `ALTER TABLE … ENABLE ROW LEVEL SECURITY`. Use `current_app_user_id()` (not `auth.uid()`) — the JWT email claim is the identity source.
+3. **No self-escalation.** The `prevent_privilege_escalation` trigger blocks users from modifying their own `plan`/`role`. Never call `updateProfile({ plan, role })` from the client — strip those fields before the query.
+4. **initData must be HMAC-validated server-side.** Never trust `initDataUnsafe` alone. The Edge Function validates the full Telegram HMAC-SHA256 signature before issuing any JWT.
+5. **Share tokens expire server-side.** The `db_share_lookup` RLS policy enforces `share_expires_at > now()`. Client-side expiry checks are UX only.
+6. **Storage paths are per-property.** Upload paths are `{propertyId}/{timestamp}_{rand}.{ext}`. Never allow user-controlled path segments.
+7. **SQL injections are impossible** via PostgREST parameterised queries — never build raw SQL strings with user input.
+
+### Code style
+
+- **TypeScript strict** — no `any` except where Telegram SDK types are unavailable (annotate with `// deno-lint-ignore no-explicit-any`).
+- **No inline Supabase client construction** — always import from `@/lib/supabase`.
+- **Explicit column lists in SELECT** — avoid `select('*')` in list views; fetch only columns the screen renders.
+- **Derive state, don't sync it** — prefer computed values from existing state over extra `useState` booleans (e.g. `done = queue.every(...)`).
+- **No comments that describe what code does** — only comments that explain non-obvious WHY (hidden constraints, workarounds).
+- **Error handling at boundaries only** — validate at API/user-input boundaries; trust internal code and RLS.
+
 ### Remote session (Claude Code on the web)
 
 The session-start hook (`.claude/hooks/session-start.sh`) runs `npm install` and, if `GH_PAT` env var is set, rewrites the git remote to embed the token so pushes work. Set `GH_PAT` in session Environment Variables via the Claude Code web UI.
