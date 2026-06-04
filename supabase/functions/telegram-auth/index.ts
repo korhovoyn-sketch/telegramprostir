@@ -247,8 +247,9 @@ Deno.serve(async (req) => {
   } catch (err) {
     const msg = serializeError(err)
     console.error('[telegram-auth] error:', msg)
+    // Never expose internal detail to the client in production — log only
     return new Response(
-      JSON.stringify({ error: 'Internal error', detail: msg }),
+      JSON.stringify({ error: 'Internal error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     )
   }
