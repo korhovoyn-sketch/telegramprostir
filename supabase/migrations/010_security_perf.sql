@@ -144,7 +144,7 @@ UNION ALL
 SELECT tablename || '.' || policyname, cmd
 FROM pg_policies WHERE schemaname = 'public'
   AND tablename IN ('users', 'databases', 'property_photos', 'property_views', 'collection_properties')
-ORDER BY section, detail;
+ORDER BY 1, 2;
 
 SELECT '=== INDEX CHECK ===' AS section, '' AS detail
 UNION ALL
@@ -157,4 +157,4 @@ WHERE schemaname = 'public'
     'idx_databases_share_token',
     'users_tg_id_unique'
   )
-ORDER BY section, indexname;
+ORDER BY 1, 2;
