@@ -60,7 +60,6 @@ export default function Page() {
       document.documentElement.dataset.tgTheme = tg.colorScheme
     }
     tg.expand()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
