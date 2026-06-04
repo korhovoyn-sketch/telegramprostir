@@ -20,6 +20,7 @@ interface AppState {
   isOnline: boolean
 
   navigate: (screen: ScreenName, params?: ScreenParams) => void
+  /** Replace current screen and clear history stack (use after deep link or fresh auth) */
   navigateRoot: (screen: ScreenName, params?: ScreenParams) => void
   back: () => boolean
   setUser: (user: User | null) => void
@@ -43,6 +44,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   databases: [],
   notifications: [],
   unreadCount: 0,
+  // Start as online — SSR/client hydration safe (event listeners in page.tsx update this)
   isOnline: true,
 
   navigate: (screen, params = {}) => {
