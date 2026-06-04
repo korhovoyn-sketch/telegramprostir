@@ -214,31 +214,42 @@ Deno.serve(async (req) => {
     }
 
     // ── Create Supabase auth session ─────────────────────────────────────────
-    // We use createUser + signInWithPassword instead of generateLink/verifyOtp
-    // to avoid dependency on Supabase's email sending infrastructure.
+    // Strategy:
+    //   - New users  (existing == null): createUser then signIn
+    //   - Returning users (existing != null): skip createUser, go straight to signIn
+    //   - Recovery: if signIn fails for a returning user (e.g. auth.users row was
+    //     manually deleted), recreate the auth account and retry once
     const email = `${tgUser.id}@telegram.propspace.app`
     const password = await derivePassword(SERVICE_KEY, email)
 
-    // Create auth user (ignore "already registered/exists" — user exists, proceed to sign-in)
-    const { error: createErr } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-    })
-    if (createErr && !createErr.message?.toLowerCase().includes('already')) {
-      throw new Error(`Auth user creation failed: ${createErr.message}`)
+    if (!existing) {
+      const { error: createErr } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+      })
+      if (createErr) throw new Error(`Auth user creation failed: ${createErr.message}`)
     }
 
-    // Sign in to get JWT tokens
     const supabaseAnon = createClient(SUPABASE_URL, ANON_KEY)
-    const { data: signInData, error: signInErr } = await supabaseAnon.auth.signInWithPassword({
-      email,
-      password,
-    })
-    if (signInErr) throw new Error(`Sign in failed: ${signInErr.message}`)
-    if (!signInData?.session) throw new Error('Sign in returned no session')
+    let signInResult = await supabaseAnon.auth.signInWithPassword({ email, password })
 
-    const { access_token, refresh_token } = signInData.session
+    // Recovery path: returning user whose auth.users row was deleted externally
+    if (signInResult.error && existing) {
+      console.warn('[telegram-auth] sign-in failed for existing user — recreating auth account:', signInResult.error.message)
+      const { error: reCreateErr } = await supabaseAdmin.auth.admin.createUser({
+        email, password, email_confirm: true,
+      })
+      if (reCreateErr && !reCreateErr.message?.toLowerCase().includes('already')) {
+        throw new Error(`Auth account recreation failed: ${reCreateErr.message}`)
+      }
+      signInResult = await supabaseAnon.auth.signInWithPassword({ email, password })
+    }
+
+    if (signInResult.error) throw new Error(`Sign in failed: ${signInResult.error.message}`)
+    if (!signInResult.data?.session) throw new Error('Sign in returned no session')
+
+    const { access_token, refresh_token } = signInResult.data.session
     if (!access_token || access_token.split('.').length !== 3) {
       throw new Error(`Invalid JWT: "${access_token?.substring(0, 20)}"`)
     }
