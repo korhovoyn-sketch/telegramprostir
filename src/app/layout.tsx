@@ -20,7 +20,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         {/* eslint-disable-next-line @next/next/no-sync-scripts */}
         <script src="https://telegram.org/js/telegram-web-app.js"></script>
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" />
         <meta name="theme-color" content="#1a0533" />
         <title>PropSpace</title>
       </head>

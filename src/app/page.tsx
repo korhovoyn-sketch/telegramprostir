@@ -60,6 +60,25 @@ export default function Page() {
       document.documentElement.dataset.tgTheme = tg.colorScheme
     }
     tg.expand()
+
+    // Sync app height with Telegram's viewport (handles keyboard appear/hide and restore)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const tgAny = tg as any
+    function applyViewportHeight() {
+      const vh = tgAny.viewportHeight
+      if (vh && vh > 0) {
+        document.documentElement.style.setProperty('--tg-vh', `${vh}px`)
+      }
+    }
+    applyViewportHeight()
+    tgAny.onEvent?.('viewportChanged', applyViewportHeight)
+    // Re-expand when app is restored from minimized state
+    tgAny.onEvent?.('activated', () => { tg.expand(); applyViewportHeight() })
+
+    return () => {
+      tgAny.offEvent?.('viewportChanged', applyViewportHeight)
+      tgAny.offEvent?.('activated', applyViewportHeight)
+    }
   }, [])
 
   useEffect(() => {

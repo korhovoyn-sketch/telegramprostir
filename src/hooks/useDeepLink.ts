@@ -31,7 +31,31 @@ export function useDeepLink() {
       }
 
       try {
-        if (!startParam!.startsWith('db_')) return
+        // ── prop_<propertyId> — direct property share link ──────────────────
+        if (startParam!.startsWith('prop_')) {
+          const propertyId = startParam!.slice(5)
+          const { data: prop } = await supabase
+            .from('properties')
+            .select('id, db_id')
+            .eq('id', propertyId)
+            .single()
+
+          if (!prop) {
+            showToast({ type: 'error', title: 'Об\'єкт не знайдено', subtitle: 'Посилання недійсне або об\'єкт видалено' })
+            navigateFallback()
+            return
+          }
+
+          useAppStore.getState().navigateRoot(homeScreen)
+          navigate('property-detail', { propertyId: prop.id, dbId: prop.db_id })
+          return
+        }
+
+        // ── db_<shareToken> — database share link ────────────────────────────
+        if (!startParam!.startsWith('db_')) {
+          navigateFallback()
+          return
+        }
 
         const token = startParam!.slice(3)
         const { data: db, error: dbErr } = await supabase

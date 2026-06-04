@@ -7,6 +7,7 @@ import TabBar from '@/components/ui/TabBar'
 import Toggle from '@/components/ui/Toggle'
 import Modal from '@/components/ui/Modal'
 import { IconMail, IconPhone, IconLanguage, IconCurrencyDollar, IconLogout, IconCrown } from '@/components/Icons'
+import { TG_BOT } from '@/lib/telegram'
 import { getInitials } from '@/lib/utils'
 
 export default function ProfileScreen() {
@@ -180,7 +181,7 @@ export default function ProfileScreen() {
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div
             className="fr" style={{ cursor: 'pointer' }}
-            onClick={() => window.Telegram?.WebApp?.openTelegramLink('https://t.me/propspaceapp')}
+            onClick={() => window.Telegram?.WebApp?.openTelegramLink(`https://t.me/${TG_BOT}`)}
           >
             <span className="fr-l">Написати нам</span>
             <span className="chev">›</span>
