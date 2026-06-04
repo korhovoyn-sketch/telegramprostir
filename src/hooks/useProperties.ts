@@ -19,7 +19,14 @@ export function useProperties(dbId?: string) {
     try {
       const { data, error } = await supabase
         .from('properties')
-        .select(`*, photos:property_photos(*), views:property_views(id)`)
+        .select(`
+          id, db_id, owner_id, name, floor, status,
+          area_useful, area_total, rent_type, rent_rate, utilities_rate,
+          has_parking, parking_spaces, description,
+          created_at, updated_at,
+          photos:property_photos(id, property_id, storage_path, sort_order, created_at),
+          views:property_views(id)
+        `)
         .eq('db_id', targetDbId)
         .order('created_at', { ascending: false })
 
@@ -154,7 +161,11 @@ export function useProperties(dbId?: string) {
       property_id: propertyId,
       storage_path: path,
     })
-    if (dbErr) throw dbErr
+    if (dbErr) {
+      // Clean up the orphaned storage file so it doesn't accumulate
+      await supabase.storage.from('photos').remove([path]).catch(() => {})
+      throw dbErr
+    }
 
     return path
   }, [])

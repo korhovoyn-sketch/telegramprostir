@@ -4,13 +4,16 @@ import { useEffect, useState } from 'react'
 import { useAppStore } from '@/store/appStore'
 import Header from '@/components/ui/Header'
 import { supabase } from '@/lib/supabase'
-import { IconCheck, IconX, IconCloudUpload } from '@/components/Icons'
+import { IconCheck, IconX } from '@/components/Icons'
+
+/* eslint-disable @next/next/no-img-element */
 
 interface UploadItem {
   file: File
   status: 'pending' | 'uploading' | 'done' | 'error'
   progress: number
   path?: string
+  errorMsg?: string
 }
 
 export default function PhotoUploadScreen() {
@@ -23,6 +26,11 @@ export default function PhotoUploadScreen() {
     (ALLOWED.test(f.name) || f.type.startsWith('image/')) &&
     f.size <= MAX_MB * 1024 * 1024
   )
+
+  // Stable preview URLs — created once, revoked on unmount
+  const [previews] = useState<string[]>(() => files.map((f) => URL.createObjectURL(f)))
+  useEffect(() => () => previews.forEach((u) => URL.revokeObjectURL(u)), [previews])
+
   const [queue, setQueue] = useState<UploadItem[]>(
     files.map((f) => ({ file: f, status: 'pending', progress: 0 }))
   )
@@ -46,22 +54,30 @@ export default function PhotoUploadScreen() {
       const rawExt = item.file.name.split('.').pop() ?? ''
       const ext = /^[a-z0-9]{2,5}$/i.test(rawExt) ? rawExt.toLowerCase() : 'jpg'
       const path = `${propertyId}/${Date.now()}_${idx}.${ext}`
-      const { error } = await supabase.storage
-        .from('photos')
-        .upload(path, item.file, { upsert: true })
 
-      if (cancelled) return
-      if (error) {
-        setQueue((q) => q.map((x, i) => i === idx ? { ...x, status: 'error', progress: 0 } : x))
-        showToast({ type: 'error', title: 'Помилка завантаження', subtitle: error.message })
-      } else {
-        const { error: dbErr } = await supabase
-          .from('property_photos')
-          .insert({ property_id: propertyId, storage_path: path, sort_order: idx })
-        if (dbErr) {
-          showToast({ type: 'error', title: 'Помилка збереження фото', subtitle: dbErr.message })
+      try {
+        const { error } = await supabase.storage
+          .from('photos')
+          .upload(path, item.file)
+
+        if (cancelled) return
+        if (error) {
+          setQueue((q) => q.map((x, i) => i === idx ? { ...x, status: 'error', progress: 0, errorMsg: error.message } : x))
+          showToast({ type: 'error', title: 'Помилка завантаження', subtitle: error.message })
+        } else {
+          const { error: dbErr } = await supabase
+            .from('property_photos')
+            .insert({ property_id: propertyId, storage_path: path, sort_order: idx })
+          if (dbErr) {
+            showToast({ type: 'error', title: 'Помилка збереження фото', subtitle: dbErr.message })
+          }
+          setQueue((q) => q.map((x, i) => i === idx ? { ...x, status: 'done', progress: 100, path } : x))
         }
-        setQueue((q) => q.map((x, i) => i === idx ? { ...x, status: 'done', progress: 100, path } : x))
+      } catch (e) {
+        if (cancelled) return
+        const msg = (e as Error).message ?? 'Невідома помилка'
+        setQueue((q) => q.map((x, i) => i === idx ? { ...x, status: 'error', progress: 0, errorMsg: msg } : x))
+        showToast({ type: 'error', title: 'Помилка завантаження', subtitle: msg })
       }
       idx++
       uploadNext()
@@ -134,13 +150,22 @@ export default function PhotoUploadScreen() {
                 borderBottom: i < queue.length - 1 ? '1px solid rgba(255,255,255,.06)' : 'none',
               }}
             >
+              {/* Thumbnail preview */}
               <div style={{
-                width: 36, height: 36, borderRadius: 8,
+                width: 44, height: 44, borderRadius: 8,
                 background: 'rgba(255,255,255,.08)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                flexShrink: 0,
+                flexShrink: 0, overflow: 'hidden',
+                border: item.status === 'error' ? '1.5px solid #f87171' : '1.5px solid rgba(255,255,255,.1)',
               }}>
-                <IconCloudUpload size={16} color="var(--t3)" />
+                {previews[i] ? (
+                  <img
+                    src={previews[i]}
+                    alt=""
+                    style={{ width: '100%', height: '100%', objectFit: 'cover',
+                      opacity: item.status === 'pending' ? 0.5 : 1 }}
+                  />
+                ) : null}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, color: 'var(--t2)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -149,6 +174,16 @@ export default function PhotoUploadScreen() {
                 {item.status === 'uploading' && (
                   <div style={{ marginTop: 4, height: 3, background: 'rgba(255,255,255,.1)', borderRadius: 2, overflow: 'hidden' }}>
                     <div style={{ height: '100%', width: `${item.progress}%`, background: '#a78bfa', transition: 'width .3s ease' }} />
+                  </div>
+                )}
+                {item.status === 'error' && item.errorMsg && (
+                  <div style={{ marginTop: 2, fontSize: 11, color: '#f87171', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {item.errorMsg}
+                  </div>
+                )}
+                {item.status === 'pending' && (
+                  <div style={{ marginTop: 2, fontSize: 11, color: 'var(--t4)' }}>
+                    {(item.file.size / 1024 / 1024).toFixed(1)} MB
                   </div>
                 )}
               </div>

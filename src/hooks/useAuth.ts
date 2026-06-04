@@ -146,9 +146,13 @@ export function useAuth() {
       const tgId = parseInt(tgIdStr, 10)
       if (!tgId) throw new Error('Cannot determine tg_id from session')
 
+      // Strip server-controlled fields — defence-in-depth alongside the DB trigger
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { plan: _plan, role: _role, id: _id, tg_id: _tg_id, ...safeUpdates } = updates as Partial<User> & { plan?: string; role?: string }
+
       const { data, error } = await supabase
         .from('users')
-        .update({ ...updates, updated_at: new Date().toISOString() })
+        .update({ ...safeUpdates, updated_at: new Date().toISOString() })
         .eq('tg_id', tgId)
         .select()
         .single()

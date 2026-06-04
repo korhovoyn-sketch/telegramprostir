@@ -1,3 +1,24 @@
+/**
+ * Retry wrapper for Supabase queries in Telegram's unreliable network.
+ * Retries up to `attempts` times with exponential back-off on network errors.
+ * Does NOT retry on 4xx / auth errors — those are deterministic failures.
+ */
+export async function withRetry<T>(
+  fn: () => Promise<{ data: T | null; error: { message: string; status?: number } | null }>,
+  attempts = 3,
+): Promise<{ data: T | null; error: { message: string; status?: number } | null }> {
+  let last: { data: T | null; error: { message: string; status?: number } | null } = { data: null, error: { message: 'Unknown' } }
+  for (let i = 0; i < attempts; i++) {
+    last = await fn()
+    if (!last.error) return last
+    const status = last.error.status ?? 0
+    // Don't retry auth / bad-request errors
+    if (status >= 400 && status < 500) return last
+    if (i < attempts - 1) await new Promise((r) => setTimeout(r, 400 * 2 ** i))
+  }
+  return last
+}
+
 export function formatPrice(amount: number, currency = 'USD'): string {
   if (currency === 'USD') return `$${amount.toLocaleString('uk-UA')}`
   if (currency === 'EUR') return `€${amount.toLocaleString('uk-UA')}`
