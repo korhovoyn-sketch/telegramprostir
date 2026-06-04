@@ -11,7 +11,7 @@ import { formatPrice, calcRent, calcUtilities } from '@/lib/utils'
 import type { PropertyStatus, RentType } from '@/types'
 
 export default function PropertyFormScreen() {
-  const { screenParams, navigate, showToast, user } = useAppStore()
+  const { screenParams, navigate, back, showToast, user } = useAppStore()
   const { properties, loadProperties, createProperty, updateProperty, deleteProperty, loading } = useProperties(screenParams.dbId)
 
   const editId = screenParams.propertyId
@@ -89,6 +89,8 @@ export default function PropertyFormScreen() {
 
     if (isEdit && editId) {
       await updateProperty(editId, payload)
+      // Remove property-form from history so pressing back from detail goes to the right screen
+      back()
       navigate('property-detail', { propertyId: editId, dbId: screenParams.dbId })
     } else {
       await createProperty(payload)

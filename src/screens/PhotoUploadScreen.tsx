@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useAppStore } from '@/store/appStore'
 import Header from '@/components/ui/Header'
 import { supabase } from '@/lib/supabase'
@@ -34,63 +34,82 @@ export default function PhotoUploadScreen() {
   const [queue, setQueue] = useState<UploadItem[]>(
     files.map((f) => ({ file: f, status: 'pending', progress: 0 }))
   )
-  const [done, setDone] = useState(false)
+
+  // Derive done from queue — no separate boolean that can get stuck
+  const total = queue.length
+  const doneCount = queue.filter((x) => x.status === 'done').length
+  const errorCount = queue.filter((x) => x.status === 'error').length
+  const done = total > 0 && (doneCount + errorCount) === total
+  const overallPct = total > 0 ? Math.round((doneCount / total) * 100) : 0
+
+  // Auto-navigate back 1.5s after all uploads finish
+  const backedRef = useRef(false)
+  useEffect(() => {
+    if (!done || backedRef.current) return
+    if (doneCount > 0) {
+      showToast({ type: 'success', title: `${doneCount} фото завантажено` })
+    }
+    const timer = setTimeout(() => {
+      backedRef.current = true
+      back()
+    }, 1500)
+    return () => clearTimeout(timer)
+  }, [done, doneCount, showToast, back])
 
   useEffect(() => {
     if (files.length === 0) return
     let idx = 0
-    let cancelled = false
 
     async function uploadNext() {
-      if (cancelled) return
-      if (idx >= queue.length) {
-        setDone(true)
-        showToast({ type: 'success', title: `${queue.length} фото завантажено` })
-        return
-      }
-      const item = queue[idx]
-      setQueue((q) => q.map((x, i) => i === idx ? { ...x, status: 'uploading', progress: 10 } : x))
+      if (idx >= files.length) return
 
-      const rawExt = item.file.name.split('.').pop() ?? ''
+      const file = files[idx]
+      const currentIdx = idx
+      setQueue((q) => q.map((x, i) => i === currentIdx ? { ...x, status: 'uploading', progress: 10 } : x))
+
+      const rawExt = file.name.split('.').pop() ?? ''
       const ext = /^[a-z0-9]{2,5}$/i.test(rawExt) ? rawExt.toLowerCase() : 'jpg'
-      const path = `${propertyId}/${Date.now()}_${idx}.${ext}`
+      const path = `${propertyId}/${Date.now()}_${currentIdx}_${Math.random().toString(36).slice(2)}.${ext}`
 
       try {
-        const { error } = await supabase.storage
+        const { error: upErr } = await supabase.storage
           .from('photos')
-          .upload(path, item.file)
+          .upload(path, file)
 
-        if (cancelled) return
-        if (error) {
-          setQueue((q) => q.map((x, i) => i === idx ? { ...x, status: 'error', progress: 0, errorMsg: error.message } : x))
-          showToast({ type: 'error', title: 'Помилка завантаження', subtitle: error.message })
+        if (upErr) {
+          setQueue((q) => q.map((x, i) => i === currentIdx
+            ? { ...x, status: 'error', progress: 0, errorMsg: upErr.message } : x))
+          showToast({ type: 'error', title: 'Помилка завантаження', subtitle: upErr.message })
         } else {
           const { error: dbErr } = await supabase
             .from('property_photos')
-            .insert({ property_id: propertyId, storage_path: path, sort_order: idx })
+            .insert({ property_id: propertyId, storage_path: path, sort_order: currentIdx })
           if (dbErr) {
-            showToast({ type: 'error', title: 'Помилка збереження фото', subtitle: dbErr.message })
+            // File uploaded but DB record failed — clean up storage
+            await supabase.storage.from('photos').remove([path]).catch(() => {})
+            setQueue((q) => q.map((x, i) => i === currentIdx
+              ? { ...x, status: 'error', progress: 0, errorMsg: dbErr.message } : x))
+            showToast({ type: 'error', title: 'Помилка збереження', subtitle: dbErr.message })
+          } else {
+            setQueue((q) => q.map((x, i) => i === currentIdx
+              ? { ...x, status: 'done', progress: 100, path } : x))
           }
-          setQueue((q) => q.map((x, i) => i === idx ? { ...x, status: 'done', progress: 100, path } : x))
         }
       } catch (e) {
-        if (cancelled) return
         const msg = (e as Error).message ?? 'Невідома помилка'
-        setQueue((q) => q.map((x, i) => i === idx ? { ...x, status: 'error', progress: 0, errorMsg: msg } : x))
+        setQueue((q) => q.map((x, i) => i === currentIdx
+          ? { ...x, status: 'error', progress: 0, errorMsg: msg } : x))
         showToast({ type: 'error', title: 'Помилка завантаження', subtitle: msg })
       }
+
       idx++
       uploadNext()
     }
 
     uploadNext()
-    return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const total = queue.length
-  const doneCount = queue.filter((x) => x.status === 'done').length
-  const overallPct = total > 0 ? Math.round((doneCount / total) * 100) : 0
   const radius = 44
   const circ = 2 * Math.PI * radius
   const offset = circ * (1 - overallPct / 100)
@@ -106,11 +125,13 @@ export default function PhotoUploadScreen() {
             <circle cx="56" cy="56" r={radius} fill="none" stroke="rgba(255,255,255,.1)" strokeWidth="8" />
             <circle
               cx="56" cy="56" r={radius}
-              fill="none" stroke="#a78bfa" strokeWidth="8"
+              fill="none"
+              stroke={done && errorCount === 0 ? '#4ade80' : done && doneCount === 0 ? '#f87171' : '#a78bfa'}
+              strokeWidth="8"
               strokeLinecap="round"
               strokeDasharray={circ}
-              strokeDashoffset={offset}
-              style={{ transition: 'stroke-dashoffset 0.4s ease' }}
+              strokeDashoffset={done ? 0 : offset}
+              style={{ transition: 'stroke-dashoffset 0.4s ease, stroke 0.3s ease' }}
             />
           </svg>
           <div style={{
@@ -132,10 +153,13 @@ export default function PhotoUploadScreen() {
 
         <div style={{ textAlign: 'center' }}>
           <div style={{ color: '#fff', fontWeight: 600, fontSize: 16 }}>
-            {done ? 'Завантажено!' : 'Завантаження...'}
+            {done ? (errorCount > 0 && doneCount === 0 ? 'Помилка завантаження' : 'Завантажено!') : 'Завантаження...'}
           </div>
           <div style={{ color: 'var(--t3)', fontSize: 13, marginTop: 4 }}>
-            {doneCount} з {total} фото
+            {done
+              ? (errorCount > 0 ? `${doneCount} успішно, ${errorCount} з помилкою` : `${doneCount} фото збережено`)
+              : `${doneCount} з ${total} фото`
+            }
           </div>
         </div>
 
@@ -156,14 +180,20 @@ export default function PhotoUploadScreen() {
                 background: 'rgba(255,255,255,.08)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 flexShrink: 0, overflow: 'hidden',
-                border: item.status === 'error' ? '1.5px solid #f87171' : '1.5px solid rgba(255,255,255,.1)',
+                border: item.status === 'error'
+                  ? '1.5px solid #f87171'
+                  : item.status === 'done'
+                  ? '1.5px solid #4ade80'
+                  : '1.5px solid rgba(255,255,255,.1)',
+                transition: 'border-color .3s ease',
               }}>
                 {previews[i] ? (
                   <img
                     src={previews[i]}
                     alt=""
                     style={{ width: '100%', height: '100%', objectFit: 'cover',
-                      opacity: item.status === 'pending' ? 0.5 : 1 }}
+                      opacity: item.status === 'pending' ? 0.5 : 1,
+                      transition: 'opacity .3s ease' }}
                   />
                 ) : null}
               </div>
@@ -186,6 +216,9 @@ export default function PhotoUploadScreen() {
                     {(item.file.size / 1024 / 1024).toFixed(1)} MB
                   </div>
                 )}
+                {item.status === 'done' && (
+                  <div style={{ marginTop: 2, fontSize: 11, color: '#4ade80' }}>Збережено</div>
+                )}
               </div>
               <div style={{ flexShrink: 0 }}>
                 {item.status === 'done' && <IconCheck size={16} color="#4ade80" />}
@@ -199,7 +232,11 @@ export default function PhotoUploadScreen() {
         </div>
 
         {done && (
-          <button className="mbtn" onClick={back} style={{ position: 'relative', bottom: 'auto', left: 'auto', right: 'auto', width: 'auto', minWidth: 200 }}>
+          <button
+            className="mbtn"
+            onClick={back}
+            style={{ position: 'relative', bottom: 'auto', left: 'auto', right: 'auto', width: 'auto', minWidth: 200 }}
+          >
             Готово
           </button>
         )}

@@ -405,60 +405,41 @@ export default function CollectionsScreen() {
     if (!user) return
     setLoading(true)
     try {
-      // Load collections with property count via join
-      const { data, error } = await supabase
+      // Single query for counts + one batch query for thumbnails — no N+1
+      const { data: colsData, error } = await supabase
         .from('collections')
         .select('*, collection_properties(count)')
         .eq('realtor_id', user.id)
         .order('created_at', { ascending: false })
       if (error) throw error
 
-      const cols = data ?? []
+      const cols = colsData ?? []
+      if (cols.length === 0) { setCollections([]); return }
 
-      // For each collection load first 3 property thumbnails
-      const enriched: CollectionWithCount[] = await Promise.all(
-        cols.map(async (col) => {
-          // Supabase returns count as array: [{count: N}]
-          const countArr = (col as unknown as { collection_properties: { count: number }[] }).collection_properties
-          const property_count = Array.isArray(countArr) && countArr.length > 0 ? countArr[0].count : 0
+      // Batch-fetch up to 3 thumbnail paths per collection in one round-trip
+      const colIds = cols.map(c => c.id)
+      const { data: cpRows } = await supabase
+        .from('collection_properties')
+        .select('collection_id, property:properties(id, photos:property_photos(storage_path))')
+        .in('collection_id', colIds)
 
-          // Load up to 3 thumbnail photos
-          const thumb_urls: string[] = []
-          if (property_count > 0) {
-            const { data: cpData } = await supabase
-              .from('collection_properties')
-              .select('property_id')
-              .eq('collection_id', col.id)
-              .limit(3)
+      // Build map: collectionId → first 3 photo URLs
+      const thumbMap: Record<string, string[]> = {}
+      for (const row of (cpRows ?? []) as unknown as Array<{
+        collection_id: string
+        property: { id: string; photos: { storage_path: string }[] } | null
+      }>) {
+        const urls = (thumbMap[row.collection_id] ??= [])
+        if (urls.length < 3 && row.property?.photos?.[0]?.storage_path) {
+          urls.push(getPhotoUrl(row.property.photos[0].storage_path))
+        }
+      }
 
-            if (cpData && cpData.length > 0) {
-              const propIds = cpData.map((cp: { property_id: string }) => cp.property_id)
-              const { data: photosData } = await supabase
-                .from('property_photos')
-                .select('property_id, storage_path')
-                .in('property_id', propIds)
-                .order('sort_order', { ascending: true })
-
-              if (photosData) {
-                // Take first photo per property, up to 3
-                const seen = new Set<string>()
-                for (const ph of photosData as { property_id: string; storage_path: string }[]) {
-                  if (!seen.has(ph.property_id) && seen.size < 3) {
-                    seen.add(ph.property_id)
-                    thumb_urls.push(getPhotoUrl(ph.storage_path))
-                  }
-                }
-              }
-            }
-          }
-
-          return {
-            ...col,
-            property_count,
-            thumb_urls,
-          } as CollectionWithCount
-        })
-      )
+      const enriched: CollectionWithCount[] = cols.map(col => {
+        const countArr = (col as unknown as { collection_properties: { count: number }[] }).collection_properties
+        const property_count = Array.isArray(countArr) && countArr.length > 0 ? countArr[0].count : 0
+        return { ...col, property_count, thumb_urls: thumbMap[col.id] ?? [] } as CollectionWithCount
+      })
 
       setCollections(enriched)
     } catch (e) {

@@ -30,7 +30,8 @@
       "Bash(echo:*)",
       "Bash(cp:*)",
       "Bash(mv:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "mcp__github__pull_request_read"
     ]
   }
 }

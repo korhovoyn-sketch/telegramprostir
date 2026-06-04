@@ -7,6 +7,7 @@ import TabBar from '@/components/ui/TabBar'
 import Toggle from '@/components/ui/Toggle'
 import Modal from '@/components/ui/Modal'
 import { IconMail, IconPhone, IconLanguage, IconCurrencyDollar, IconLogout, IconCrown } from '@/components/Icons'
+import { TG_BOT } from '@/lib/telegram'
 import { getInitials } from '@/lib/utils'
 
 export default function ProfileScreen() {
@@ -114,12 +115,12 @@ export default function ProfileScreen() {
           <div className="fr">
             <IconMail size={15} color="var(--t3)" />
             <span className="fr-l" style={{ marginLeft: 6 }}>Email</span>
-            <input className="fr-i" type="email" placeholder="Не вказано" defaultValue={user.email ?? ''} onBlur={async e => { try { await updateProfile({ email: e.target.value }) } catch { showToast({ type: 'error', title: 'Помилка збереження email' }) } }} />
+            <input className="fr-i" type="email" placeholder="Не вказано" defaultValue={user.email ?? ''} onBlur={async e => { if (e.target.value === (user.email ?? '')) return; try { await updateProfile({ email: e.target.value }) } catch { showToast({ type: 'error', title: 'Помилка збереження email' }) } }} />
           </div>
           <div className="fr">
             <IconPhone size={15} color="var(--t3)" />
             <span className="fr-l" style={{ marginLeft: 6 }}>Телефон</span>
-            <input className="fr-i" type="tel" placeholder="Не вказано" defaultValue={user.phone ?? ''} onBlur={async e => { try { await updateProfile({ phone: e.target.value }) } catch { showToast({ type: 'error', title: 'Помилка збереження телефону' }) } }} />
+            <input className="fr-i" type="tel" placeholder="Не вказано" defaultValue={user.phone ?? ''} onBlur={async e => { if (e.target.value === (user.phone ?? '')) return; try { await updateProfile({ phone: e.target.value }) } catch { showToast({ type: 'error', title: 'Помилка збереження телефону' }) } }} />
           </div>
         </div>
 
@@ -180,7 +181,7 @@ export default function ProfileScreen() {
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div
             className="fr" style={{ cursor: 'pointer' }}
-            onClick={() => window.Telegram?.WebApp?.openTelegramLink('https://t.me/propspaceapp')}
+            onClick={() => window.Telegram?.WebApp?.openTelegramLink(`https://t.me/${TG_BOT}`)}
           >
             <span className="fr-l">Написати нам</span>
             <span className="chev">›</span>

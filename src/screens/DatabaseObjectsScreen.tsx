@@ -92,6 +92,7 @@ export default function DatabaseObjectsScreen() {
             { id: 'all', label: `Всі (${counts.all})` },
             { id: 'free', label: `Вільно (${counts.free})` },
             { id: 'occupied', label: `Зайнято (${counts.occupied})` },
+            { id: 'for_sale', label: `Продаж (${counts.for_sale})` },
           ] as const).map((t) => (
             <div
               key={t.id}

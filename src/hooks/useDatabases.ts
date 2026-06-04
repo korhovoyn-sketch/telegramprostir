@@ -17,7 +17,7 @@ export function useDatabases() {
     try {
       const { data, error } = await supabase
         .from('databases')
-        .select('*, properties(id, status)')
+        .select('*, properties(status)')
         .eq('owner_id', user.id)
         .order('created_at', { ascending: false })
 
@@ -25,7 +25,7 @@ export function useDatabases() {
 
       const dbs = (data || []).map((d) => {
         const row = d as Record<string, unknown>
-        const props = (row.properties as Array<{ id: string; status: string }>) ?? []
+        const props = (row.properties as Array<{ status: string }>) ?? []
         return {
           ...row,
           properties: undefined,
