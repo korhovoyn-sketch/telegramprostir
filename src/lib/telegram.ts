@@ -3,7 +3,7 @@
  * Set NEXT_PUBLIC_TELEGRAM_BOT_USERNAME in Vercel environment variables.
  * Example: prostirappbot  (no @, no https)
  */
-export const TG_BOT = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME ?? 'prostirappbot'
+export const TG_BOT = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME ?? 'prostirapplbot'
 
 /** Build a deep-link that opens the Mini App with start_param */
 export function buildDeepLink(startParam: string): string {
