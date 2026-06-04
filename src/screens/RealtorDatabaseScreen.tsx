@@ -106,7 +106,7 @@ export default function RealtorDatabaseScreen() {
             { id: 'all', label: `Всі (${counts.all})` },
             { id: 'free', label: `Вільно (${counts.free})` },
           ] as const).map((t) => (
-            <div key={t.id} className={`seg-b ${tab === t.id ? 'on' : ''}`} onClick={() => { window.Telegram?.WebApp?.HapticFeedback.selectionChanged(); setTab(t.id) }}>
+            <div key={t.id} className={`seg-b ${tab === t.id ? 'on' : ''}`} onClick={() => { window.Telegram?.WebApp?.HapticFeedback?.selectionChanged(); setTab(t.id) }}>
               {t.label}
             </div>
           ))}

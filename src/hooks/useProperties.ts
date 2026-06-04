@@ -137,14 +137,15 @@ export function useProperties(dbId?: string) {
   const uploadPhoto = useCallback(async (propertyId: string, file: File) => {
     const MAX_MB = 10
     const ALLOWED = /\.(jpe?g|png|webp|heic|heif)$/i
-    if (!ALLOWED.test(file.name) && !file.type.startsWith('image/')) {
+    if (!ALLOWED.test(file.name) || !file.type.startsWith('image/')) {
       throw new Error('Дозволені лише зображення (JPG, PNG, WEBP, HEIC)')
     }
     if (file.size > MAX_MB * 1024 * 1024) {
       throw new Error(`Файл занадто великий (макс. ${MAX_MB}МБ)`)
     }
 
-    const ext = file.name.split('.').pop() ?? 'jpg'
+    const rawExt = file.name.split('.').pop() ?? ''
+    const ext = /^[a-z0-9]{2,5}$/i.test(rawExt) ? rawExt.toLowerCase() : 'jpg'
     const path = `${propertyId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
     const { error: upErr } = await supabase.storage.from('photos').upload(path, file)
     if (upErr) throw upErr

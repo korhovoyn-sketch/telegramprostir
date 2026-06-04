@@ -94,7 +94,7 @@ export default function DatabaseObjectsScreen() {
             <div
               key={t.id}
               className={`seg-b ${tab === t.id ? 'on' : ''}`}
-              onClick={() => { window.Telegram?.WebApp?.HapticFeedback.selectionChanged(); setTab(t.id) }}
+              onClick={() => { window.Telegram?.WebApp?.HapticFeedback?.selectionChanged(); setTab(t.id) }}
             >
               {t.label}
             </div>
@@ -236,7 +236,7 @@ export default function DatabaseObjectsScreen() {
           subtitle={`База "${db.name}" і всі ${properties.length} об'єктів будуть видалені. Це незворотно.`}
           onClose={() => setShowDeleteModal(false)}
           actions={[
-            { label: 'Видалити', variant: 'danger', onClick: async () => { window.Telegram?.WebApp?.HapticFeedback.notificationOccurred('warning'); await deleteDatabase(db.id); setShowDeleteModal(false) } },
+            { label: 'Видалити', variant: 'danger', onClick: async () => { window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('warning'); await deleteDatabase(db.id); setShowDeleteModal(false) } },
             { label: 'Скасувати', variant: 'secondary', onClick: () => setShowDeleteModal(false) },
           ]}
         />

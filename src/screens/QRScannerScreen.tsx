@@ -52,7 +52,7 @@ export default function QRScannerScreen() {
       .from('realtor_subscriptions')
       .upsert({ realtor_id: user.id, db_id: db.id }, { onConflict: 'realtor_id,db_id' })
     if (!error) {
-      window.Telegram?.WebApp?.HapticFeedback.notificationOccurred('success')
+      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
       showToast({ type: 'success', title: 'Базу підключено! 🎉' })
       navigate('realtor-database', { dbId: db.id })
     } else {

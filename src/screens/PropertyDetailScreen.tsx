@@ -107,7 +107,7 @@ function Building3DHero() {
 }
 
 export default function PropertyDetailScreen() {
-  const { screenParams, navigate, user } = useAppStore()
+  const { screenParams, navigate, user, showToast } = useAppStore()
   const { properties, loadProperties, deletePhoto } = useProperties(screenParams.dbId)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -117,9 +117,11 @@ export default function PropertyDetailScreen() {
     if (!property && screenParams.dbId) loadProperties(screenParams.dbId)
   }, [property, screenParams.dbId, loadProperties])
 
-  // Record a view once when the property first loads
+  // Record a view exactly once per session mount
+  const viewRecorded = useRef(false)
   useEffect(() => {
-    if (!property) return
+    if (!property || viewRecorded.current) return
+    viewRecorded.current = true
     supabase.from('property_views').insert({
       property_id: property.id,
       viewer_id: user?.id ?? null,
@@ -152,7 +154,11 @@ export default function PropertyDetailScreen() {
   }
 
   async function handleDeletePhoto(photoId: string, storagePath: string) {
-    await deletePhoto(photoId, storagePath)
+    try {
+      await deletePhoto(photoId, storagePath)
+    } catch {
+      showToast({ type: 'error', title: 'Не вдалося видалити фото' })
+    }
   }
 
   function handleAddPhotos(e: React.ChangeEvent<HTMLInputElement>) {

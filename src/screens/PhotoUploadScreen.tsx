@@ -31,8 +31,10 @@ export default function PhotoUploadScreen() {
   useEffect(() => {
     if (files.length === 0) return
     let idx = 0
+    let cancelled = false
 
     async function uploadNext() {
+      if (cancelled) return
       if (idx >= queue.length) {
         setDone(true)
         showToast({ type: 'success', title: `${queue.length} фото завантажено` })
@@ -41,12 +43,14 @@ export default function PhotoUploadScreen() {
       const item = queue[idx]
       setQueue((q) => q.map((x, i) => i === idx ? { ...x, status: 'uploading', progress: 10 } : x))
 
-      const ext = (item.file.name.split('.').pop() ?? 'jpg').replace(/[^a-z0-9]/gi, '')
+      const rawExt = item.file.name.split('.').pop() ?? ''
+      const ext = /^[a-z0-9]{2,5}$/i.test(rawExt) ? rawExt.toLowerCase() : 'jpg'
       const path = `${propertyId}/${Date.now()}_${idx}.${ext}`
       const { error } = await supabase.storage
         .from('photos')
         .upload(path, item.file, { upsert: true })
 
+      if (cancelled) return
       if (error) {
         setQueue((q) => q.map((x, i) => i === idx ? { ...x, status: 'error', progress: 0 } : x))
         showToast({ type: 'error', title: 'Помилка завантаження', subtitle: error.message })
@@ -64,6 +68,7 @@ export default function PhotoUploadScreen() {
     }
 
     uploadNext()
+    return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

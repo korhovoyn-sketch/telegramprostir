@@ -71,7 +71,7 @@ export default function PropertyFormScreen() {
       showToast({ type: 'error', title: 'Значення не може бути від\'ємним' })
       return
     }
-    window.Telegram?.WebApp?.HapticFeedback.notificationOccurred('success')
+    window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
     const payload = {
       db_id: screenParams.dbId!,
       name: name.trim(),
@@ -264,7 +264,7 @@ export default function PropertyFormScreen() {
           subtitle={`Об'єкт "${name}" буде видалено. Це незворотно.`}
           onClose={() => setShowDeleteModal(false)}
           actions={[
-            { label: 'Видалити', variant: 'danger', onClick: async () => { window.Telegram?.WebApp?.HapticFeedback.notificationOccurred('warning'); await deleteProperty(editId, screenParams.dbId!); setShowDeleteModal(false) } },
+            { label: 'Видалити', variant: 'danger', onClick: async () => { window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('warning'); await deleteProperty(editId, screenParams.dbId!); setShowDeleteModal(false) } },
             { label: 'Скасувати', variant: 'secondary', onClick: () => setShowDeleteModal(false) },
           ]}
         />

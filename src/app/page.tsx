@@ -69,7 +69,7 @@ export default function Page() {
   useEffect(() => {
     const handleOffline = () => {
       setOnline(false)
-      window.Telegram?.WebApp?.HapticFeedback.notificationOccurred('warning')
+      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('warning')
     }
     const handleOnline = () => {
       setOnline(true)

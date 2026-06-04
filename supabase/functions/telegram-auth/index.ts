@@ -52,7 +52,9 @@ async function validateInitData(
   if (expectedHash !== hash) return null
 
   const authDate = parseInt(params.get('auth_date') ?? '')
-  if (!authDate || Date.now() / 1000 - authDate > 86400) return null
+  const age = Date.now() / 1000 - authDate
+  // Reject missing, future (>10s clock drift), and stale (>5 min) timestamps
+  if (!authDate || age < -10 || age > 300) return null
 
   return Object.fromEntries(params.entries())
 }
