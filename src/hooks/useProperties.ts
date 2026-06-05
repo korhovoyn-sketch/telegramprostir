@@ -23,6 +23,7 @@ export function useProperties(dbId?: string) {
           id, db_id, owner_id, name, floor, status,
           area_useful, area_total, rent_type, rent_rate, utilities_rate,
           has_parking, parking_spaces, description,
+          sale_price, tenant_name, lease_start_date, lease_end_date,
           created_at, updated_at,
           photos:property_photos(id, storage_path, sort_order),
           views:property_views(id)

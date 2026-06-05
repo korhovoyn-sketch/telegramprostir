@@ -93,10 +93,10 @@ export default function PropertyFormScreen() {
       has_parking: hasParking,
       parking_spaces: hasParking ? parseInt(parkingSpaces) : 0,
       description: description.trim() || undefined,
-      sale_price: status === 'for_sale' ? (parseFloat(salePrice) || undefined) : undefined,
-      tenant_name: status === 'occupied' ? (tenantName.trim() || undefined) : undefined,
-      lease_start_date: status === 'occupied' ? (leaseStartDate || undefined) : undefined,
-      lease_end_date: status === 'occupied' ? (leaseEndDate || undefined) : undefined,
+      sale_price: status === 'for_sale' ? (parseFloat(salePrice) || undefined) : null,
+      tenant_name: status === 'occupied' ? (tenantName.trim() || undefined) : null,
+      lease_start_date: status === 'occupied' ? (leaseStartDate || undefined) : null,
+      lease_end_date: status === 'occupied' ? (leaseEndDate || undefined) : null,
     }
 
     if (isEdit && editId) {

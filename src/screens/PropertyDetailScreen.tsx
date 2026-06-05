@@ -118,6 +118,8 @@ export default function PropertyDetailScreen() {
   const [rentLeaseStart, setRentLeaseStart] = useState('')
   const [rentLeaseEnd, setRentLeaseEnd] = useState('')
   const [rentSaving, setRentSaving] = useState(false)
+  const [showFreeModal, setShowFreeModal] = useState(false)
+  const [freeSaving, setFreeSaving] = useState(false)
 
   const property = properties.find(p => p.id === screenParams.propertyId)
   const isOwner = user?.role === 'owner'
@@ -177,6 +179,21 @@ export default function PropertyDetailScreen() {
     setRentTenantName('')
     setRentLeaseEnd('')
     setRentSaving(false)
+  }
+
+  async function handleFreeProperty() {
+    if (!property) return
+    setFreeSaving(true)
+    await updateProperty(property.id, {
+      status: 'free',
+      tenant_name: null,
+      lease_start_date: null,
+      lease_end_date: null,
+    })
+    window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
+    showToast({ type: 'success', title: 'Об\'єкт звільнено' })
+    setShowFreeModal(false)
+    setFreeSaving(false)
   }
 
   async function confirmDeletePhoto() {
@@ -431,10 +448,18 @@ export default function PropertyDetailScreen() {
           Здати в оренду
         </button>
       )}
-      {isOwner && property.status !== 'free' && (
+      {isOwner && property.status === 'occupied' && (
+        <button
+          className="mbtn danger"
+          onClick={() => setShowFreeModal(true)}
+        >
+          Звільнити об&apos;єкт
+        </button>
+      )}
+      {isOwner && property.status === 'for_sale' && (
         <button
           className="mbtn"
-          onClick={() => navigate('sharing-analytics', { propertyId: property.id })}
+          onClick={() => navigate('sharing-analytics', { propertyId: property.id, dbId: screenParams.dbId })}
         >
           <IconShare size={18} />
           Поділитись
@@ -449,6 +474,18 @@ export default function PropertyDetailScreen() {
           actions={[
             { label: 'Видалити', variant: 'danger', onClick: confirmDeletePhoto },
             { label: 'Скасувати', variant: 'secondary', onClick: () => setPhotoToDelete(null) },
+          ]}
+        />
+      )}
+
+      {showFreeModal && (
+        <Modal
+          title="Звільнити об'єкт?"
+          subtitle={property.tenant_name ? `Орендар "${property.tenant_name}" та дати договору будуть видалені.` : 'Об\'єкт отримає статус "Вільно".'}
+          onClose={() => setShowFreeModal(false)}
+          actions={[
+            { label: freeSaving ? 'Збереження...' : 'Звільнити', variant: 'danger', onClick: handleFreeProperty },
+            { label: 'Скасувати', variant: 'secondary', onClick: () => setShowFreeModal(false) },
           ]}
         />
       )}
