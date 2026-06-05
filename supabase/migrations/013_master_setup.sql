@@ -284,6 +284,33 @@ $$;
 REVOKE ALL ON FUNCTION lookup_shared_db(TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION lookup_shared_db(TEXT) TO authenticated, service_role;
 
+-- Public preview: returns DB + properties for any caller (including anon) given a valid token.
+-- Exposes only read-safe fields — no owner contacts, no share_token.
+CREATE OR REPLACE FUNCTION get_public_db_preview(p_token TEXT)
+RETURNS TABLE (
+  db_id UUID, db_name TEXT, db_type TEXT, db_color TEXT,
+  share_expires_at TIMESTAMPTZ,
+  property_id UUID, property_name TEXT, property_status TEXT,
+  property_floor TEXT, property_area_useful FLOAT,
+  property_area_total FLOAT, property_rent_type TEXT,
+  property_rent_rate FLOAT, property_description TEXT
+)
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT
+    d.id, d.name, d.type, d.color, d.share_expires_at,
+    p.id, p.name, p.status, p.floor, p.area_useful,
+    p.area_total, p.rent_type, p.rent_rate, p.description
+  FROM databases d
+  LEFT JOIN properties p ON p.db_id = d.id
+  WHERE d.share_token = p_token
+    AND (d.share_expires_at IS NULL OR d.share_expires_at > now())
+  ORDER BY p.name;
+$$;
+REVOKE ALL ON FUNCTION get_public_db_preview(TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION get_public_db_preview(TEXT) TO anon, authenticated, service_role;
+
 -- Fires on every UPDATE to users (updated_at auto-maintenance)
 CREATE OR REPLACE FUNCTION update_updated_at()
 RETURNS TRIGGER

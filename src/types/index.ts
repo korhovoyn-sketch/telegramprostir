@@ -136,6 +136,7 @@ export type ScreenName =
   | 'photo-upload'
   | 'photo-gallery'
   | 'qr-scanner'
+  | 'guest-database'
   | 'success'
   | 'error'
 
