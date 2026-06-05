@@ -70,26 +70,44 @@ export function useAuth() {
       }
 
       if (!res.ok) {
+        const rawText = await res.text().catch(() => '')
+        let body: Record<string, string> = {}
+        try { body = JSON.parse(rawText) } catch { /* rawText wasn't JSON */ }
+        const code = body?.code ?? ''
+
         if (res.status === 404) {
           throw new Error('Сервіс авторизації не знайдено (404). Функція не задеплоєна на Supabase.')
         }
         if (res.status === 401) {
-          // Stale/cached initData — Telegram reused an old launch token.
-          throw new Error('Сесія Telegram застаріла. Повністю закрийте додаток і відкрийте його знову з меню бота.')
+          if (code === 'INIT_DATA_EXPIRED') {
+            throw new Error('Сесія Telegram застаріла. Повністю закрийте додаток і відкрийте його знову з меню бота.')
+          }
+          throw new Error('Помилка перевірки даних Telegram. Перезапустіть додаток.')
         }
         if (res.status === 429) {
           throw new Error('Забагато спроб входу. Зачекайте хвилину і спробуйте ще раз.')
         }
-        const rawText = await res.text().catch(() => '')
-        let errMsg = `HTTP ${res.status}`
-        try {
-          const parsed = JSON.parse(rawText)
-          errMsg = parsed.detail || parsed.message || parsed.error || errMsg
-        } catch { /* rawText wasn't JSON */ }
-        if (res.status >= 500) {
-          errMsg = 'Помилка сервера авторизації. Перевірте налаштування Edge Function у Supabase.'
+
+        // Map safe error codes from the Edge Function to actionable Ukrainian messages
+        if (code === 'CONFIG_ERROR') {
+          throw new Error('Не налаштовані змінні середовища Edge Function. Додайте TELEGRAM_BOT_TOKEN та SUPABASE_SERVICE_ROLE_KEY в Supabase → Settings → Edge Functions.')
         }
-        throw new Error(errMsg)
+        if (code === 'DB_SETUP') {
+          throw new Error('Таблиці бази даних не створені. Запустіть файл 013_master_setup.sql у Supabase → SQL Editor.')
+        }
+        if (code === 'TRIGGER_CONFLICT') {
+          throw new Error('Застарілий тригер handle_new_user блокує реєстрацію. Запустіть 013_master_setup.sql або 003_reconcile.sql у Supabase → SQL Editor.')
+        }
+        if (code === 'AUTH_CONFLICT') {
+          throw new Error('Помилка сесії авторизації. Спробуйте знову або зверніться до адміністратора.')
+        }
+
+        // Generic fallback for any other 500
+        if (res.status >= 500) {
+          throw new Error('Помилка сервера авторизації. Перевірте налаштування Edge Function у Supabase.')
+        }
+
+        throw new Error(body?.error || body?.message || `HTTP ${res.status}`)
       }
 
       const body = await res.json()

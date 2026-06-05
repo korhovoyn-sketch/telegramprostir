@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { useAppStore } from '@/store/appStore'
 import { useTelegram } from '@/hooks/useTelegram'
@@ -10,6 +11,7 @@ export default function WelcomeScreen() {
   const { loginViaTelegram, loading } = useAuth()
   const { showToast } = useAppStore()
   const { tg, user: tgUser } = useTelegram()
+  const [diagLoading, setDiagLoading] = useState(false)
 
   async function handleLogin() {
     if (!tg?.initData) {
@@ -17,6 +19,45 @@ export default function WelcomeScreen() {
       return
     }
     await loginViaTelegram(tg.initData)
+  }
+
+  async function handleDiag() {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    if (!supabaseUrl) {
+      showToast({ type: 'error', title: 'NEXT_PUBLIC_SUPABASE_URL не вказано', subtitle: 'Перевірте налаштування Vercel' })
+      return
+    }
+    setDiagLoading(true)
+    try {
+      const res = await fetch(`${supabaseUrl}/functions/v1/telegram-auth`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${anonKey ?? ''}`,
+          'apikey': anonKey ?? '',
+        },
+      })
+      const data = await res.json()
+      if (data.ok) {
+        showToast({ type: 'success', title: '✓ Підключення OK', subtitle: 'Edge Function і БД налаштовані' })
+      } else {
+        const checks = data.checks ?? {}
+        const bad = (Object.entries(checks) as [string, boolean][])
+          .filter(([, v]) => !v)
+          .map(([k]) => k)
+        showToast({
+          type: 'error',
+          title: 'Проблема конфігурації',
+          subtitle: bad.length
+            ? `Не налаштовано: ${bad.join(', ')}`
+            : 'Edge Function недоступна',
+        })
+      }
+    } catch {
+      showToast({ type: 'error', title: 'Edge Function недоступна', subtitle: 'Перевірте, що функцію задеплоєно у Supabase' })
+    } finally {
+      setDiagLoading(false)
+    }
   }
 
   const greeting = tgUser?.first_name ? `Привіт, ${tgUser.first_name}!` : 'Привіт!'
@@ -80,9 +121,25 @@ export default function WelcomeScreen() {
         {!loading && 'Вхід через Telegram'}
       </button>
 
-      <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--t4)', padding: '12px 24px 32px' }}>
+      <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--t4)', padding: '12px 24px 8px' }}>
         Натискаючи «Вхід», ви погоджуєтесь з Умовами використання та Політикою конфіденційності
       </div>
+
+      <button
+        onClick={handleDiag}
+        disabled={diagLoading}
+        style={{
+          background: 'none',
+          border: 'none',
+          color: 'var(--t4)',
+          fontSize: 11,
+          cursor: 'pointer',
+          padding: '4px 16px 32px',
+          opacity: diagLoading ? 0.5 : 1,
+        }}
+      >
+        {diagLoading ? 'Перевірка...' : '⚙ Діагностика підключення'}
+      </button>
     </div>
   )
 }
