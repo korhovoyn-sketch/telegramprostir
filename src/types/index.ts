@@ -54,6 +54,9 @@ export interface Property {
   has_parking: boolean
   parking_spaces: number
   description?: string
+  sale_price?: number
+  tenant_name?: string
+  lease_end_date?: string
   created_at: string
   updated_at: string
   photos?: PropertyPhoto[]

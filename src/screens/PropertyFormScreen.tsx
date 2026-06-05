@@ -6,7 +6,7 @@ import { useProperties } from '@/hooks/useProperties'
 import Header from '@/components/ui/Header'
 import Toggle from '@/components/ui/Toggle'
 import Modal from '@/components/ui/Modal'
-import { IconRuler, IconLayers, IconActivity, IconBuilding, IconCurrencyDollar, IconBolt, IconCarGarage, IconFile } from '@/components/Icons'
+import { IconRuler, IconLayers, IconActivity, IconBuilding, IconCurrencyDollar, IconBolt, IconCarGarage, IconFile, IconUser, IconKey } from '@/components/Icons'
 import { formatPrice, calcRent, calcUtilities } from '@/lib/utils'
 import type { PropertyStatus, RentType } from '@/types'
 
@@ -29,6 +29,9 @@ export default function PropertyFormScreen() {
   const [hasParking, setHasParking] = useState(false)
   const [parkingSpaces, setParkingSpaces] = useState('1')
   const [description, setDescription] = useState('')
+  const [salePrice, setSalePrice] = useState('')
+  const [tenantName, setTenantName] = useState('')
+  const [leaseEndDate, setLeaseEndDate] = useState('')
   const [showDeleteModal, setShowDeleteModal] = useState(false)
 
   useEffect(() => {
@@ -50,6 +53,9 @@ export default function PropertyFormScreen() {
       setHasParking(existing.has_parking)
       setParkingSpaces(String(existing.parking_spaces))
       setDescription(existing.description ?? '')
+      setSalePrice(String(existing.sale_price ?? ''))
+      setTenantName(existing.tenant_name ?? '')
+      setLeaseEndDate(existing.lease_end_date ?? '')
     } else if (isEdit) {
       loadProperties(screenParams.dbId)
     }
@@ -85,6 +91,9 @@ export default function PropertyFormScreen() {
       has_parking: hasParking,
       parking_spaces: hasParking ? parseInt(parkingSpaces) : 0,
       description: description.trim() || undefined,
+      sale_price: status === 'for_sale' ? (parseFloat(salePrice) || undefined) : undefined,
+      tenant_name: status === 'occupied' ? (tenantName.trim() || undefined) : undefined,
+      lease_end_date: status === 'occupied' ? (leaseEndDate || undefined) : undefined,
     }
 
     if (isEdit && editId) {
@@ -140,6 +149,38 @@ export default function PropertyFormScreen() {
             </div>
           </div>
         </div>
+
+        {/* Sale price — shown only when for_sale */}
+        {status === 'for_sale' && (
+          <>
+            <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconCurrencyDollar size={13} color="#fbbf24" />Продаж</span></div>
+            <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
+              <div className="fr">
+                <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconCurrencyDollar size={13} color="var(--t3)" />Ціна продажу</span>
+                <input className="fr-i" type="number" min="0" placeholder="150000" value={salePrice} onChange={e => setSalePrice(e.target.value)} />
+                <span className="fr-u">$</span>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Tenant info — shown only when occupied */}
+        {status === 'occupied' && (
+          <>
+            <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconUser size={13} color="#a78bfa" />Орендар</span></div>
+            <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
+              <div className="fr">
+                <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconUser size={13} color="var(--t3)" />Найменування</span>
+                <input className="fr-i" placeholder="ТОВ «Назва» або ФОП Іванов" value={tenantName} onChange={e => setTenantName(e.target.value)} />
+              </div>
+              <div className="fr">
+                <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconKey size={13} color="var(--t3)" />Договір до</span>
+                <input className="fr-i" type="date" value={leaseEndDate} onChange={e => setLeaseEndDate(e.target.value)}
+                  style={{ colorScheme: 'dark' }} />
+              </div>
+            </div>
+          </>
+        )}
 
         {/* Area */}
         <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconRuler size={13} color="#7AB3FF" />Площа</span></div>

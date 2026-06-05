@@ -83,6 +83,9 @@ ALTER TABLE databases ADD COLUMN IF NOT EXISTS color            TEXT;
 ALTER TABLE databases ADD COLUMN IF NOT EXISTS share_token      TEXT;
 ALTER TABLE databases ADD COLUMN IF NOT EXISTS share_expires_at TIMESTAMPTZ;
 ALTER TABLE databases DROP COLUMN IF EXISTS slug;
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS sale_price     FLOAT;
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS tenant_name    TEXT;
+ALTER TABLE properties ADD COLUMN IF NOT EXISTS lease_end_date DATE;
 
 -- properties
 CREATE TABLE IF NOT EXISTS properties (
@@ -102,6 +105,9 @@ CREATE TABLE IF NOT EXISTS properties (
   has_parking     BOOLEAN DEFAULT false,
   parking_spaces  INT     DEFAULT 0,
   description     TEXT,
+  sale_price      FLOAT,
+  tenant_name     TEXT,
+  lease_end_date  DATE,
   created_at      TIMESTAMPTZ DEFAULT now(),
   updated_at      TIMESTAMPTZ DEFAULT now()
 );
