@@ -7,8 +7,8 @@ import { useProperties } from '@/hooks/useProperties'
 import Header from '@/components/ui/Header'
 import Modal from '@/components/ui/Modal'
 import { StatusBadge } from '@/components/ui/Badge'
-import { IconEdit, IconShare, IconMapPin, IconPhoto, IconX, IconCamera, IconRuler, IconBuildingSkyscraper, IconCircleCheck, IconCurrencyDollar, IconCarGarage } from '@/components/Icons'
-import { formatPrice, calcRent, calcUtilities, STATUS_LABELS } from '@/lib/utils'
+import { IconEdit, IconShare, IconMapPin, IconPhoto, IconX, IconCamera, IconRuler, IconBuildingSkyscraper, IconCircleCheck, IconCurrencyDollar, IconCarGarage, IconUser, IconKey } from '@/components/Icons'
+import { formatPrice, calcRent, calcUtilities, STATUS_LABELS, formatLeasePeriod } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
@@ -109,16 +109,26 @@ function Building3DHero() {
 
 export default function PropertyDetailScreen() {
   const { screenParams, navigate, user, showToast } = useAppStore()
-  const { properties, loadProperties, deletePhoto } = useProperties(screenParams.dbId)
+  const { properties, loadSingleProperty, deletePhoto, updateProperty } = useProperties(screenParams.dbId)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [photoToDelete, setPhotoToDelete] = useState<{ id: string; path: string } | null>(null)
+  const [showRentModal, setShowRentModal] = useState(false)
+  const [rentTenantName, setRentTenantName] = useState('')
+  const [rentLeaseStart, setRentLeaseStart] = useState('')
+  const [rentLeaseEnd, setRentLeaseEnd] = useState('')
+  const [rentSaving, setRentSaving] = useState(false)
+  const [showFreeModal, setShowFreeModal] = useState(false)
+  const [freeSaving, setFreeSaving] = useState(false)
 
   const property = properties.find(p => p.id === screenParams.propertyId)
   const isOwner = user?.role === 'owner'
 
+  // Fetch only this property on every mount — avoids loading the entire DB for detail view.
+  // Component is remounted on every navigation so this fires exactly once per visit.
   useEffect(() => {
-    if (!property && screenParams.dbId) loadProperties(screenParams.dbId)
-  }, [property, screenParams.dbId, loadProperties])
+    if (screenParams.propertyId) loadSingleProperty(screenParams.propertyId)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screenParams.propertyId])
 
   // Record a view exactly once per session mount
   const viewRecorded = useRef(false)
@@ -154,6 +164,38 @@ export default function PropertyDetailScreen() {
 
   function openGallery(index: number) {
     navigate('photo-gallery', { photos, initialIndex: index })
+  }
+
+  async function handleRentOut() {
+    if (!rentTenantName.trim() || !property) return
+    setRentSaving(true)
+    await updateProperty(property.id, {
+      status: 'occupied',
+      tenant_name: rentTenantName.trim(),
+      lease_start_date: rentLeaseStart || undefined,
+      lease_end_date: rentLeaseEnd || undefined,
+    })
+    window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
+    showToast({ type: 'success', title: 'Об\'єкт здано в оренду' })
+    setShowRentModal(false)
+    setRentTenantName('')
+    setRentLeaseEnd('')
+    setRentSaving(false)
+  }
+
+  async function handleFreeProperty() {
+    if (!property) return
+    setFreeSaving(true)
+    await updateProperty(property.id, {
+      status: 'free',
+      tenant_name: null,
+      lease_start_date: null,
+      lease_end_date: null,
+    })
+    window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
+    showToast({ type: 'success', title: 'Об\'єкт звільнено' })
+    setShowFreeModal(false)
+    setFreeSaving(false)
   }
 
   async function confirmDeletePhoto() {
@@ -289,6 +331,32 @@ export default function PropertyDetailScreen() {
                 <div className="obj-fv">{formatPrice(rent, user?.currency)}/міс</div>
               </div>
             )}
+            {property.sale_price != null && (
+              <div className="obj-f">
+                <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <IconCurrencyDollar size={13} color="#fbbf24" />Ціна продажу
+                </div>
+                <div className="obj-fv">{formatPrice(property.sale_price, user?.currency)}</div>
+              </div>
+            )}
+            {property.tenant_name && (
+              <div className="obj-f" style={{ gridColumn: '1 / -1' }}>
+                <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <IconUser size={13} color="#a78bfa" />Орендар
+                </div>
+                <div className="obj-fv">{property.tenant_name}</div>
+              </div>
+            )}
+            {(property.lease_start_date || property.lease_end_date) && (
+              <div className="obj-f" style={{ gridColumn: '1 / -1' }}>
+                <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <IconKey size={13} color="#a78bfa" />Строк договору
+                </div>
+                <div className="obj-fv">
+                  {formatLeasePeriod(property.lease_start_date, property.lease_end_date)}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -374,7 +442,23 @@ export default function PropertyDetailScreen() {
         <div style={{ height: 100 }} />
       </div>
 
-      {isOwner && (
+      {isOwner && property.status === 'free' && (
+        <button
+          className="mbtn success"
+          onClick={() => { setRentTenantName(''); setRentLeaseStart(''); setRentLeaseEnd(''); setShowRentModal(true) }}
+        >
+          Здати в оренду
+        </button>
+      )}
+      {isOwner && property.status === 'occupied' && (
+        <button
+          className="mbtn danger"
+          onClick={() => setShowFreeModal(true)}
+        >
+          Звільнити об&apos;єкт
+        </button>
+      )}
+      {isOwner && property.status === 'for_sale' && (
         <button
           className="mbtn"
           onClick={() => navigate('sharing-analytics', { propertyId: property.id })}
@@ -394,6 +478,73 @@ export default function PropertyDetailScreen() {
             { label: 'Скасувати', variant: 'secondary', onClick: () => setPhotoToDelete(null) },
           ]}
         />
+      )}
+
+      {showFreeModal && (
+        <Modal
+          title="Звільнити об'єкт?"
+          subtitle={property.tenant_name ? `Орендар "${property.tenant_name}" та дати договору будуть видалені.` : 'Об\'єкт отримає статус "Вільно".'}
+          onClose={() => setShowFreeModal(false)}
+          actions={[
+            { label: freeSaving ? 'Збереження...' : 'Звільнити', variant: 'danger', onClick: handleFreeProperty },
+            { label: 'Скасувати', variant: 'secondary', onClick: () => setShowFreeModal(false) },
+          ]}
+        />
+      )}
+
+      {showRentModal && (
+        <Modal
+          title="Здати в оренду"
+          subtitle={property.name}
+          onClose={() => setShowRentModal(false)}
+          actions={[
+            {
+              label: rentSaving ? 'Збереження...' : 'Здати',
+              variant: 'primary',
+              onClick: handleRentOut,
+            },
+            { label: 'Скасувати', variant: 'secondary', onClick: () => setShowRentModal(false) },
+          ]}
+        >
+          <div className="fg" style={{ margin: '12px 0 4px' }}>
+            <div className="fr">
+              <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <IconUser size={13} color="var(--t3)" />Орендар
+              </span>
+              <input
+                className="fr-i"
+                placeholder="ТОВ «Назва» або ФОП Іванов"
+                value={rentTenantName}
+                onChange={e => setRentTenantName(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <div className="fr">
+              <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <IconKey size={13} color="var(--t3)" />Договір з
+              </span>
+              <input
+                className="fr-i"
+                type="date"
+                value={rentLeaseStart}
+                onChange={e => setRentLeaseStart(e.target.value)}
+                style={{ colorScheme: 'dark' }}
+              />
+            </div>
+            <div className="fr">
+              <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <IconKey size={13} color="var(--t3)" />Договір до
+              </span>
+              <input
+                className="fr-i"
+                type="date"
+                value={rentLeaseEnd}
+                onChange={e => setRentLeaseEnd(e.target.value)}
+                style={{ colorScheme: 'dark' }}
+              />
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   )

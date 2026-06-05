@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { useAuth } from '@/hooks/useAuth'
 import { IconMail, IconPhone, IconTelegram } from '@/components/Icons'
@@ -12,6 +12,12 @@ export default function ProfileSetupScreen() {
 
   const [email, setEmail] = useState(user?.email ?? '')
   const [phone, setPhone] = useState(user?.phone ?? '')
+
+  useEffect(() => {
+    const tg = window.Telegram?.WebApp
+    tg?.enableClosingConfirmation()
+    return () => { tg?.disableClosingConfirmation() }
+  }, [])
 
   async function handleContinue() {
     if (email || phone) {

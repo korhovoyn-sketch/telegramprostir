@@ -29,6 +29,17 @@ export function formatArea(m2: number): string {
   return `${m2} м²`
 }
 
+export function formatLeaseDate(d: string): string {
+  return new Date(d).toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric' })
+}
+
+export function formatLeasePeriod(start?: string | null, end?: string | null): string | null {
+  if (!start && !end) return null
+  if (start && end) return `${formatLeaseDate(start)} — ${formatLeaseDate(end)}`
+  if (start) return `від ${formatLeaseDate(start)}`
+  return `до ${formatLeaseDate(end!)}`
+}
+
 export function formatDate(iso: string): string {
   const d = new Date(iso)
   const now = new Date()

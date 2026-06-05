@@ -85,8 +85,8 @@ async function validateInitData(
   const authDate = parseInt(params.get('auth_date') ?? '')
   const age = Date.now() / 1000 - authDate
   // Reject missing or future (>10s clock drift) timestamps.
-  // Allow up to 1 hour — Telegram caches initData so strict 5-min windows break returning users.
-  if (!authDate || age < -10 || age > 3600) {
+  // 15-minute window balances security with Telegram caching of initData.
+  if (!authDate || age < -10 || age > 900) {
     console.warn(`[telegram-auth] auth_date rejected: authDate=${authDate} age=${Math.round(age)}s`)
     return null
   }

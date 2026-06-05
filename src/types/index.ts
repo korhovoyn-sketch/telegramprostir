@@ -54,6 +54,10 @@ export interface Property {
   has_parking: boolean
   parking_spaces: number
   description?: string
+  sale_price?: number | null
+  tenant_name?: string | null
+  lease_start_date?: string | null
+  lease_end_date?: string | null
   created_at: string
   updated_at: string
   photos?: PropertyPhoto[]
@@ -136,6 +140,7 @@ export type ScreenName =
   | 'photo-upload'
   | 'photo-gallery'
   | 'qr-scanner'
+  | 'guest-database'
   | 'success'
   | 'error'
 

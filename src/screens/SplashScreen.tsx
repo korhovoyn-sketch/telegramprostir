@@ -56,7 +56,18 @@ export default function SplashScreen() {
         return
       }
 
-      // Step 2: no stored session — try silent auto-login via Telegram initData.
+      // Step 2: no stored session — if startParam is db_<token>, show guest view
+      // (skip auto-login so anonymous users can browse without registering first).
+      const startParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param ?? ''
+      if (startParam.startsWith('db_')) {
+        clearInterval(interval)
+        setProgress(100)
+        const token = startParam.slice(3)
+        navigate('guest-database', { token })
+        return
+      }
+
+      // Step 3: no stored session — try silent auto-login via Telegram initData.
       // Telegram always provides initData when the app is opened inside Telegram,
       // so returning users never need to press the login button again.
       const initData = window.Telegram?.WebApp?.initData

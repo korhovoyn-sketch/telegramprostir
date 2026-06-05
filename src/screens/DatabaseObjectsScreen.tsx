@@ -11,7 +11,7 @@ import { StatusBadge, FreshnessBadge } from '@/components/ui/Badge'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import Modal from '@/components/ui/Modal'
 import { IconPlus, IconDots, IconEye, IconPhoto, IconShare } from '@/components/Icons'
-import { formatPrice, calcRent, calcUtilities, DB_TYPE_LABELS, DB_TYPE_EMOJI } from '@/lib/utils'
+import { formatPrice, calcRent, calcUtilities, DB_TYPE_LABELS, DB_TYPE_EMOJI, formatLeasePeriod } from '@/lib/utils'
 import type { PropertyStatus } from '@/types'
 
 export default function DatabaseObjectsScreen() {
@@ -191,6 +191,12 @@ export default function DatabaseObjectsScreen() {
                       <div className="obj-mt">
                         <IconEye size={11} />
                         <span>{p._view_count}</span>
+                      </div>
+                    )}
+                    {p.status === 'occupied' && formatLeasePeriod(p.lease_start_date, p.lease_end_date) && (
+                      <div className="obj-mt" style={{ gridColumn: '1 / -1', color: 'var(--t3)' }}>
+                        <span>📅</span>
+                        <span>{formatLeasePeriod(p.lease_start_date, p.lease_end_date)}</span>
                       </div>
                     )}
                   </div>

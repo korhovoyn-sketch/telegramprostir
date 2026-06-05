@@ -35,6 +35,7 @@ const SuccessScreen = dynamic(() => import('@/screens/SuccessScreen'), { loading
 const PhotoUploadScreen = dynamic(() => import('@/screens/PhotoUploadScreen'), { loading: () => screenFallback })
 const PhotoGalleryScreen = dynamic(() => import('@/screens/PhotoGalleryScreen'), { loading: () => screenFallback })
 const QRScannerScreen = dynamic(() => import('@/screens/QRScannerScreen'), { loading: () => screenFallback })
+const GuestDatabaseScreen = dynamic(() => import('@/screens/GuestDatabaseScreen'), { loading: () => screenFallback })
 
 export default function Page() {
   const screen = useAppStore((s) => s.screen)
@@ -55,7 +56,9 @@ export default function Page() {
       const tgAny = tg as any
       tgAny.setHeaderColor?.('#0a0a14')
       tgAny.setBackgroundColor?.('#0a0a14')
-    } catch { /* older TMA versions may not support setHeaderColor */ }
+      // Prevent accidental app close via vertical swipe on scroll-heavy screens (TMA 7.7+)
+      tgAny.disableVerticalSwipes?.()
+    } catch { /* older TMA versions may not support these APIs */ }
     if (tg.colorScheme) {
       document.documentElement.dataset.tgTheme = tg.colorScheme
     }
@@ -143,6 +146,7 @@ export default function Page() {
       case 'photo-upload': return <PhotoUploadScreen />
       case 'photo-gallery': return <PhotoGalleryScreen />
       case 'qr-scanner': return <QRScannerScreen />
+      case 'guest-database': return <GuestDatabaseScreen />
       default: return <SplashScreen />
     }
   }
