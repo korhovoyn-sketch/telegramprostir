@@ -73,12 +73,22 @@ export function useAuth() {
         if (res.status === 404) {
           throw new Error('Сервіс авторизації не знайдено (404). Функція не задеплоєна на Supabase.')
         }
+        if (res.status === 401) {
+          // Stale/cached initData — Telegram reused an old launch token.
+          throw new Error('Сесія Telegram застаріла. Повністю закрийте додаток і відкрийте його знову з меню бота.')
+        }
+        if (res.status === 429) {
+          throw new Error('Забагато спроб входу. Зачекайте хвилину і спробуйте ще раз.')
+        }
         const rawText = await res.text().catch(() => '')
         let errMsg = `HTTP ${res.status}`
         try {
           const parsed = JSON.parse(rawText)
           errMsg = parsed.detail || parsed.message || parsed.error || errMsg
         } catch { /* rawText wasn't JSON */ }
+        if (res.status >= 500) {
+          errMsg = 'Помилка сервера авторизації. Перевірте налаштування Edge Function у Supabase.'
+        }
         throw new Error(errMsg)
       }
 

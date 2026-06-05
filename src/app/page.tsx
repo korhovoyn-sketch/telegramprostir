@@ -73,14 +73,20 @@ export default function Page() {
         document.documentElement.style.setProperty('--tg-vh', `${vh}px`)
       }
     }
+    // Re-expand and re-measure when the app is restored from a minimized state.
+    // Named handler so the cleanup below removes the same reference (an inline
+    // arrow here would leak and re-stack a listener on every remount).
+    function onActivated() {
+      tg!.expand()
+      applyViewportHeight()
+    }
     applyViewportHeight()
     tgAny.onEvent?.('viewportChanged', applyViewportHeight)
-    // Re-expand when app is restored from minimized state
-    tgAny.onEvent?.('activated', () => { tg.expand(); applyViewportHeight() })
+    tgAny.onEvent?.('activated', onActivated)
 
     return () => {
       tgAny.offEvent?.('viewportChanged', applyViewportHeight)
-      tgAny.offEvent?.('activated', applyViewportHeight)
+      tgAny.offEvent?.('activated', onActivated)
     }
   }, [])
 
