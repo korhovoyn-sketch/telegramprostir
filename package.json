@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "engines": {
-    "node": ">=20.0.0"
+    "node": "20.x"
   },
   "scripts": {
     "dev": "next dev",
@@ -14,13 +14,11 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
-    "@telegram-apps/sdk-react": "^3.0.0",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
     "next": "^15.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "roboto-font": "^0.1.0",
     "xlsx": "^0.18.5",
     "zustand": "^5.0.0"
   },
