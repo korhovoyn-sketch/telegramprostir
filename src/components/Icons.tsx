@@ -220,3 +220,15 @@ export function IconLayers(p: IconProps) {
 export function IconActivity(p: IconProps) {
   return <Icon {...p}><path d="M3 12h4l3 -9l4 18l3 -9h4"/></Icon>
 }
+export function IconDroplet(p: IconProps) {
+  return <Icon {...p}><path d="M12 3c-4.418 4.821 -6 7.679 -6 10a6 6 0 0 0 12 0c0 -2.321 -1.582 -5.179 -6 -10z"/></Icon>
+}
+export function IconFlame(p: IconProps) {
+  return <Icon {...p}><path d="M12 12c2 -2.96 0 -7 -1 -8c0 3.038 -1.773 4.741 -3 6c-1.226 1.26 -2 3.24 -2 5a6 6 0 1 0 12 0c0 -1.532 -1.056 -3.94 -2 -5c-1.786 3 -2.791 3 -4 2z"/></Icon>
+}
+export function IconThermometer(p: IconProps) {
+  return <Icon {...p}><path d="M10 13.5a4 4 0 1 0 4 0v-8.5a2 2 0 0 0 -4 0v8.5"/><line x1="10" y1="9" x2="14" y2="9"/></Icon>
+}
+export function IconBatteryCharging(p: IconProps) {
+  return <Icon {...p}><path d="M16 7h1a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-1"/><path d="M10 7h-5a2 2 0 0 0 -2 2v6c0 1.1 .9 2 2 2h5"/><path d="M12 15l1 -4h-3l1 -4"/><path d="M20 11v2"/></Icon>
+}

@@ -187,6 +187,11 @@ body{
 .fr-seg{display:flex;background:var(--glass-2);border-radius:10px;padding:2px;gap:2px;width:100%;border:var(--bd)}
 .fr-seg-b{flex:1;padding:6px 4px;border-radius:8px;font-size:11px;font-weight:600;text-align:center;color:var(--t3);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;transition:all .22s var(--ease)}
 .fr-seg-b.on{background:var(--glass-3);color:var(--t1);box-shadow:0 1.5px 6px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.3)}
+/* ── Utility tags ── */
+.util-tags{display:flex;flex-wrap:wrap;gap:8px;padding:10px var(--pad-card) 6px}
+.util-tag{display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--r-pill);font-size:13px;font-weight:500;cursor:pointer;border:.5px solid var(--glass-2);background:var(--glass-1);color:var(--t3);transition:background var(--dur-sm) var(--ease),border-color var(--dur-sm) var(--ease),color var(--dur-sm) var(--ease);user-select:none;-webkit-tap-highlight-color:transparent}
+.util-tag:active{transform:scale(.97)}
+.util-tag.on{background:rgba(167,139,250,.18);border-color:rgba(167,139,250,.5);color:var(--t1)}
 .hi-row{background:linear-gradient(90deg,rgba(34,158,217,.18),rgba(120,80,235,.12))}
 .hi-row .fr-l{color:var(--info-fg);font-weight:600;font-size:13px}
 .hi-row .fr-i{font-weight:700;font-size:16px;color:var(--t1)}
