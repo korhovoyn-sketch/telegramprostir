@@ -213,7 +213,7 @@ export default function SharingAnalyticsScreen() {
           </div>
           <button
             className="glass-s"
-            style={{ marginTop: 8, padding: '8px 20px', borderRadius: 20, fontSize: 13, fontWeight: 600, color: '#fff', border: '.5px solid rgba(255,255,255,.2)', cursor: 'pointer', background: 'rgba(255,255,255,.08)' }}
+            style={{ marginTop: 8, padding: '8px 20px', borderRadius: 20, fontSize: 13, fontWeight: 600, color: 'var(--t1)', border: '.5px solid rgba(255,255,255,.2)', cursor: 'pointer', background: 'rgba(255,255,255,.08)' }}
             onClick={() => {
               navigator.clipboard?.writeText(shareLink)
               showToast({ type: 'success', title: 'Посилання скопійовано' })
@@ -263,7 +263,7 @@ export default function SharingAnalyticsScreen() {
                     className="view-dot"
                     style={{
                       color: Math.floor((Date.now() - new Date(v.created_at).getTime()) / 86400000) === 0
-                        ? '#34C759' : 'var(--t4)'
+                        ? 'var(--ok)' : 'var(--t4)'
                     }}
                   />
                   <span className="view-t">{formatDate(v.created_at)}</span>

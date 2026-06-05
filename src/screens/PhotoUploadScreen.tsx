@@ -144,7 +144,7 @@ export default function PhotoUploadScreen() {
               </span>
             ) : (
               <>
-                <div style={{ fontSize: 20, fontWeight: 700, color: '#fff' }}>{overallPct}%</div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--t1)' }}>{overallPct}%</div>
                 <div style={{ fontSize: 10, color: 'var(--t3)' }}>{doneCount}/{total}</div>
               </>
             )}
@@ -152,7 +152,7 @@ export default function PhotoUploadScreen() {
         </div>
 
         <div style={{ textAlign: 'center' }}>
-          <div style={{ color: '#fff', fontWeight: 600, fontSize: 16 }}>
+          <div style={{ color: 'var(--t1)', fontWeight: 600, fontSize: 16 }}>
             {done ? (errorCount > 0 && doneCount === 0 ? 'Помилка завантаження' : 'Завантажено!') : 'Завантаження...'}
           </div>
           <div style={{ color: 'var(--t3)', fontSize: 13, marginTop: 4 }}>
