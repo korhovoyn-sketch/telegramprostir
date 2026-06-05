@@ -56,6 +56,7 @@ export interface Property {
   description?: string
   sale_price?: number
   tenant_name?: string
+  lease_start_date?: string
   lease_end_date?: string
   created_at: string
   updated_at: string

@@ -31,6 +31,7 @@ export default function PropertyFormScreen() {
   const [description, setDescription] = useState('')
   const [salePrice, setSalePrice] = useState('')
   const [tenantName, setTenantName] = useState('')
+  const [leaseStartDate, setLeaseStartDate] = useState('')
   const [leaseEndDate, setLeaseEndDate] = useState('')
   const [showDeleteModal, setShowDeleteModal] = useState(false)
 
@@ -55,6 +56,7 @@ export default function PropertyFormScreen() {
       setDescription(existing.description ?? '')
       setSalePrice(String(existing.sale_price ?? ''))
       setTenantName(existing.tenant_name ?? '')
+      setLeaseStartDate(existing.lease_start_date ?? '')
       setLeaseEndDate(existing.lease_end_date ?? '')
     } else if (isEdit) {
       loadProperties(screenParams.dbId)
@@ -93,6 +95,7 @@ export default function PropertyFormScreen() {
       description: description.trim() || undefined,
       sale_price: status === 'for_sale' ? (parseFloat(salePrice) || undefined) : undefined,
       tenant_name: status === 'occupied' ? (tenantName.trim() || undefined) : undefined,
+      lease_start_date: status === 'occupied' ? (leaseStartDate || undefined) : undefined,
       lease_end_date: status === 'occupied' ? (leaseEndDate || undefined) : undefined,
     }
 
@@ -172,6 +175,11 @@ export default function PropertyFormScreen() {
               <div className="fr">
                 <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconUser size={13} color="var(--t3)" />Найменування</span>
                 <input className="fr-i" placeholder="ТОВ «Назва» або ФОП Іванов" value={tenantName} onChange={e => setTenantName(e.target.value)} />
+              </div>
+              <div className="fr">
+                <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconKey size={13} color="var(--t3)" />Договір з</span>
+                <input className="fr-i" type="date" value={leaseStartDate} onChange={e => setLeaseStartDate(e.target.value)}
+                  style={{ colorScheme: 'dark' }} />
               </div>
               <div className="fr">
                 <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconKey size={13} color="var(--t3)" />Договір до</span>

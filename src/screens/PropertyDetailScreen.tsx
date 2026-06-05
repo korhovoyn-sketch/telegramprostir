@@ -8,7 +8,7 @@ import Header from '@/components/ui/Header'
 import Modal from '@/components/ui/Modal'
 import { StatusBadge } from '@/components/ui/Badge'
 import { IconEdit, IconShare, IconMapPin, IconPhoto, IconX, IconCamera, IconRuler, IconBuildingSkyscraper, IconCircleCheck, IconCurrencyDollar, IconCarGarage, IconUser, IconKey } from '@/components/Icons'
-import { formatPrice, calcRent, calcUtilities, STATUS_LABELS } from '@/lib/utils'
+import { formatPrice, calcRent, calcUtilities, STATUS_LABELS, formatLeasePeriod } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
@@ -115,6 +115,7 @@ export default function PropertyDetailScreen() {
   const [photoToDelete, setPhotoToDelete] = useState<{ id: string; path: string } | null>(null)
   const [showRentModal, setShowRentModal] = useState(false)
   const [rentTenantName, setRentTenantName] = useState('')
+  const [rentLeaseStart, setRentLeaseStart] = useState('')
   const [rentLeaseEnd, setRentLeaseEnd] = useState('')
   const [rentSaving, setRentSaving] = useState(false)
 
@@ -167,6 +168,7 @@ export default function PropertyDetailScreen() {
     await updateProperty(property.id, {
       status: 'occupied',
       tenant_name: rentTenantName.trim(),
+      lease_start_date: rentLeaseStart || undefined,
       lease_end_date: rentLeaseEnd || undefined,
     })
     window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
@@ -326,13 +328,13 @@ export default function PropertyDetailScreen() {
                 <div className="obj-fv">{property.tenant_name}</div>
               </div>
             )}
-            {property.lease_end_date && (
-              <div className="obj-f">
+            {(property.lease_start_date || property.lease_end_date) && (
+              <div className="obj-f" style={{ gridColumn: '1 / -1' }}>
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <IconKey size={13} color="#a78bfa" />Договір до
+                  <IconKey size={13} color="#a78bfa" />Строк договору
                 </div>
                 <div className="obj-fv">
-                  {new Date(property.lease_end_date).toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                  {formatLeasePeriod(property.lease_start_date, property.lease_end_date)}
                 </div>
               </div>
             )}
@@ -424,7 +426,7 @@ export default function PropertyDetailScreen() {
       {isOwner && property.status === 'free' && (
         <button
           className="mbtn success"
-          onClick={() => { setRentTenantName(''); setRentLeaseEnd(''); setShowRentModal(true) }}
+          onClick={() => { setRentTenantName(''); setRentLeaseStart(''); setRentLeaseEnd(''); setShowRentModal(true) }}
         >
           Здати в оренду
         </button>
@@ -476,6 +478,18 @@ export default function PropertyDetailScreen() {
                 value={rentTenantName}
                 onChange={e => setRentTenantName(e.target.value)}
                 autoFocus
+              />
+            </div>
+            <div className="fr">
+              <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <IconKey size={13} color="var(--t3)" />Договір з
+              </span>
+              <input
+                className="fr-i"
+                type="date"
+                value={rentLeaseStart}
+                onChange={e => setRentLeaseStart(e.target.value)}
+                style={{ colorScheme: 'dark' }}
               />
             </div>
             <div className="fr">

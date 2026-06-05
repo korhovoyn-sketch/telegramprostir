@@ -9,7 +9,7 @@ import { StatusBadge } from '@/components/ui/Badge'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import { IconShare, IconPhoto, IconMessage } from '@/components/Icons'
 import { shareDeepLink } from '@/lib/telegram'
-import { formatPrice, calcRent, calcUtilities, DB_TYPE_LABELS, getInitials } from '@/lib/utils'
+import { formatPrice, calcRent, calcUtilities, DB_TYPE_LABELS, getInitials, formatLeasePeriod } from '@/lib/utils'
 import type { Database, Property, PropertyStatus, User } from '@/types'
 
 export default function RealtorDatabaseScreen() {
@@ -165,6 +165,12 @@ export default function RealtorDatabaseScreen() {
                     {p.area_useful && <div className="obj-mt">📐 {p.area_useful}/{p.area_total ?? p.area_useful} м²</div>}
                     {p.has_parking && <div className="obj-mt">🅿️ {p.parking_spaces}</div>}
                     {(p.photos?.length ?? 0) > 0 && <div className="obj-mt"><IconPhoto size={11} /> {p.photos!.length}</div>}
+                    {p.status === 'occupied' && formatLeasePeriod(p.lease_start_date, p.lease_end_date) && (
+                      <div className="obj-mt" style={{ gridColumn: '1 / -1', color: 'var(--t3)' }}>
+                        <span>📅</span>
+                        <span>{formatLeasePeriod(p.lease_start_date, p.lease_end_date)}</span>
+                      </div>
+                    )}
                   </div>
                   {total > 0 && (
                     <div className="obj-tot">
