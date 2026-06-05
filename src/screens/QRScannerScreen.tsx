@@ -34,11 +34,11 @@ export default function QRScannerScreen() {
 
   async function subscribeByToken(token: string) {
     if (!user) return
-    const { data: db } = await supabase
-      .from('databases')
-      .select('id, owner_id, share_expires_at')
-      .eq('share_token', token)
-      .single()
+    // Resolve via SECURITY DEFINER RPC — no blanket share_token SELECT policy,
+    // so a row only returns for the exact secret token (no enumeration).
+    const { data: rows } = await supabase
+      .rpc('lookup_shared_db', { p_token: token })
+    const db = (rows as { id: string; owner_id: string; share_expires_at: string | null }[] | null)?.[0]
 
     if (!db) {
       showToast({ type: 'error', title: 'Базу не знайдено', subtitle: 'Перевірте посилання або QR-код' })

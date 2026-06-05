@@ -58,11 +58,11 @@ export function useDeepLink() {
         }
 
         const token = startParam!.slice(3)
-        const { data: db, error: dbErr } = await supabase
-          .from('databases')
-          .select('id, share_expires_at, owner_id')
-          .eq('share_token', token)
-          .single()
+        // Resolve via SECURITY DEFINER RPC — the table has no blanket share_token
+        // SELECT policy, so a row only comes back for the exact secret token.
+        const { data: rows, error: dbErr } = await supabase
+          .rpc('lookup_shared_db', { p_token: token })
+        const db = (rows as { id: string; owner_id: string; share_expires_at: string | null }[] | null)?.[0]
 
         if (!db) {
           showToast({ type: 'error', title: 'Базу не знайдено', subtitle: dbErr?.message ?? 'Перевірте посилання або QR-код' })
