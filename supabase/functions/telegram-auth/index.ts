@@ -8,17 +8,35 @@ const RequestSchema = z.object({
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Max-Age': '86400',
 }
 
+// ── Safe error codes (exposed to client — no internal detail) ────────────────
+// These let the client show an actionable Ukrainian message without leaking
+// stack traces, SQL, or secret names.
+type ErrCode =
+  | 'INVALID_REQUEST'
+  | 'INIT_DATA_INVALID'
+  | 'INIT_DATA_EXPIRED'
+  | 'RATE_LIMIT'
+  | 'DB_SETUP'          // tables not created (run migration)
+  | 'TRIGGER_CONFLICT'  // handle_new_user trigger blocks new user creation
+  | 'AUTH_CONFLICT'     // auth.users issue not caused by known triggers
+  | 'CONFIG_ERROR'      // missing env var
+  | 'INTERNAL'
+
+function errResponse(status: number, message: string, code: ErrCode) {
+  return new Response(
+    JSON.stringify({ error: message, code }),
+    { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+  )
+}
+
 // DB-backed rate limiter — survives cold starts unlike an in-memory Map.
 // Fails open: if the DB is unreachable we allow the request through.
-// Rate limit keyed by a caller-supplied identifier (we use the Telegram user id,
-// resolved only after HMAC validation, so it can't be forged or shared across users).
-// Keying by IP was unsafe: Supabase doesn't always populate x-forwarded-for, so every
-// caller collapsed into a single "unknown" bucket and shared one global 10 req/min cap.
+// Keyed by tg:<userId> so it can't be forged and each user gets their own cap.
 async function checkRateLimit(
   // deno-lint-ignore no-explicit-any
   adminClient: any,
@@ -35,7 +53,6 @@ async function checkRateLimit(
       .maybeSingle()
 
     if (!data || data.reset_at < now) {
-      // New or expired window — reset counter
       await adminClient.from('rate_limits').upsert({
         ip: key,
         count: 1,
@@ -56,13 +73,18 @@ async function checkRateLimit(
   }
 }
 
+// Returns { ok, data } on success or { ok: false, code } on failure.
+// Splitting HMAC vs expiry lets us return different 401 codes to the client.
 async function validateInitData(
   initData: string,
   botToken: string,
-): Promise<Record<string, string> | null> {
+): Promise<
+  | { ok: true; data: Record<string, string> }
+  | { ok: false; code: 'INIT_DATA_INVALID' | 'INIT_DATA_EXPIRED' }
+> {
   const params = new URLSearchParams(initData)
   const hash = params.get('hash')
-  if (!hash) return null
+  if (!hash) return { ok: false, code: 'INIT_DATA_INVALID' }
 
   params.delete('hash')
   const dataCheckString = [...params.entries()]
@@ -84,20 +106,19 @@ async function validateInitData(
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('')
 
-  if (expectedHash !== hash) return null
+  if (expectedHash !== hash) return { ok: false, code: 'INIT_DATA_INVALID' }
 
   const authDate = parseInt(params.get('auth_date') ?? '')
   const age = Date.now() / 1000 - authDate
-  // Telegram caches and reuses initData across app restarts, so a tight window
-  // rejected legitimate returning users on reopen. Authenticity is already
-  // guaranteed by the HMAC check above; auth_date only guards gross replay.
+  // Telegram caches and reuses initData across app restarts; a tight window
+  // rejects legitimate returning users on re-open.
   // 24h window + 60s future-drift tolerance for client/server clock skew.
   if (!authDate || age < -60 || age > 86400) {
     console.warn(`[telegram-auth] auth_date rejected: authDate=${authDate} age=${Math.round(age)}s`)
-    return null
+    return { ok: false, code: 'INIT_DATA_EXPIRED' }
   }
 
-  return Object.fromEntries(params.entries())
+  return { ok: true, data: Object.fromEntries(params.entries()) }
 }
 
 // Derive a deterministic password from SERVICE_KEY + email.
@@ -119,96 +140,137 @@ function serializeError(err: unknown): string {
   return JSON.stringify(err)
 }
 
+// Classify a caught error message into a safe ErrCode for the client.
+// None of the raw messages are returned to the client — only the code.
+function classifyError(msg: string): ErrCode {
+  const m = msg.toLowerCase()
+  if (m.includes('not configured') || m.includes('missing supabase env')) return 'CONFIG_ERROR'
+  if (m.includes('relation') && m.includes('does not exist')) return 'DB_SETUP'
+  if (m.includes('database error creating new user') || m.includes('handle_new_user')) return 'TRIGGER_CONFLICT'
+  if (m.includes('user insert failed') || m.includes('user update failed')) return 'DB_SETUP'
+  if (m.includes('auth user creation failed') || m.includes('auth account recreation failed')) {
+    return m.includes('database error') ? 'TRIGGER_CONFLICT' : 'AUTH_CONFLICT'
+  }
+  if (m.includes('sign in failed') || m.includes('no session')) return 'AUTH_CONFLICT'
+  return 'INTERNAL'
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  // ── GET: lightweight health / config check ──────────────────────────────
+  // Returns which env vars are configured (not their values).
+  // Useful for diagnosing why auth is broken without exposing secrets.
+  if (req.method === 'GET') {
+    const checks = {
+      bot_token:   !!Deno.env.get('TELEGRAM_BOT_TOKEN'),
+      supabase_url: !!Deno.env.get('SUPABASE_URL'),
+      service_key:  !!Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'),
+      anon_key:     !!Deno.env.get('SUPABASE_ANON_KEY'),
+    }
+    const allOk = Object.values(checks).every(Boolean)
+
+    // Optionally probe DB connectivity when config looks good
+    let db = false
+    if (allOk) {
+      try {
+        const admin = createClient(
+          Deno.env.get('SUPABASE_URL')!,
+          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+        )
+        const { error } = await admin.from('users').select('id').limit(1)
+        db = !error
+      } catch { /* ignore — db check is best-effort */ }
+    }
+
+    return new Response(
+      JSON.stringify({ ok: allOk && db, checks: { ...checks, db } }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    )
+  }
+
+  // ── POST: auth ───────────────────────────────────────────────────────────
   try {
     const rawBody = await req.json().catch(() => null)
     const parsed = RequestSchema.safeParse(rawBody)
     if (!parsed.success) {
-      return new Response(JSON.stringify({ error: 'Invalid request body' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+      return errResponse(400, 'Invalid request body', 'INVALID_REQUEST')
     }
     const body = parsed.data
 
     const botToken = Deno.env.get('TELEGRAM_BOT_TOKEN')
-    if (!botToken) throw new Error('Bot token not configured')
+    if (!botToken) throw new Error('TELEGRAM_BOT_TOKEN not configured')
 
-    const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
-    const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+    const SUPABASE_URL  = Deno.env.get('SUPABASE_URL') ?? ''
+    const SERVICE_KEY   = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    const ANON_KEY      = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
     if (!SUPABASE_URL || !SERVICE_KEY || !ANON_KEY) {
       throw new Error('Missing Supabase env vars')
     }
 
-    // Admin client needed for rate limiting + user management
-    const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_KEY)
+    const adminClient = createClient(SUPABASE_URL, SERVICE_KEY)
 
-    // ── Validate Telegram initData (HMAC-SHA256) ─────────────────────────────
-    const validated = await validateInitData(body.initData, botToken)
-    if (!validated) {
-      return new Response(JSON.stringify({ error: 'Invalid initData' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+    // ── Validate Telegram initData (HMAC-SHA256) ─────────────────────────
+    const validation = await validateInitData(body.initData, botToken)
+    if (!validation.ok) {
+      return errResponse(
+        401,
+        validation.code === 'INIT_DATA_EXPIRED' ? 'Session expired' : 'Invalid initData',
+        validation.code,
+      )
     }
+    const validated = validation.data
 
     let tgUser: Record<string, string>
     try {
       tgUser = JSON.parse(validated.user ?? '{}')
     } catch {
-      return new Response(JSON.stringify({ error: 'Invalid user data' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+      return errResponse(400, 'Invalid user data', 'INVALID_REQUEST')
     }
     if (!tgUser.id) {
-      return new Response(JSON.stringify({ error: 'Missing user id' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+      return errResponse(400, 'Missing user id', 'INVALID_REQUEST')
     }
 
     const tgId = parseInt(tgUser.id, 10)
     if (isNaN(tgId)) throw new Error('Invalid Telegram user id')
 
-    // ── Rate limiting (DB-backed, per Telegram user, 20 req/min) ─────────────
-    const allowed = await checkRateLimit(supabaseAdmin, `tg:${tgId}`)
+    // ── Rate limiting (DB-backed, per Telegram user) ──────────────────────
+    const allowed = await checkRateLimit(adminClient, `tg:${tgId}`)
     if (!allowed) {
-      return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
-        status: 429,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+      return errResponse(429, 'Rate limit exceeded', 'RATE_LIMIT')
     }
 
-    // ── Upsert user in public.users ──────────────────────────────────────────
-    const { data: existing } = await supabaseAdmin
+    // ── Upsert user in public.users ───────────────────────────────────────
+    const { data: existing, error: selectErr } = await adminClient
       .from('users')
       .select('id, role')
       .eq('tg_id', tgId)
       .maybeSingle()
 
+    if (selectErr && selectErr.code === '42P01') {
+      // "undefined table" — migrations have not been applied yet
+      throw new Error(`relation "users" does not exist`)
+    }
+
     const userPayload = {
-      tg_id: tgId,
-      tg_username: tgUser.username ?? null,
-      first_name: tgUser.first_name ?? 'User',
-      last_name: tgUser.last_name ?? null,
+      tg_id:         tgId,
+      tg_username:   tgUser.username ?? null,
+      first_name:    tgUser.first_name ?? 'User',
+      last_name:     tgUser.last_name ?? null,
       language_code: tgUser.language_code ?? 'uk',
-      updated_at: new Date().toISOString(),
+      updated_at:    new Date().toISOString(),
     }
 
     let userId: string
     if (existing) {
-      const { error: updateErr } = await supabaseAdmin
+      const { error: updateErr } = await adminClient
         .from('users').update(userPayload).eq('tg_id', tgId)
       if (updateErr) throw new Error(`User update failed: ${updateErr.message}`)
       userId = existing.id
     } else {
-      const { data: newUser, error: insertErr } = await supabaseAdmin
+      const { data: newUser, error: insertErr } = await adminClient
         .from('users')
         .insert({ ...userPayload, role: 'owner' })
         .select('id')
@@ -218,17 +280,19 @@ Deno.serve(async (req) => {
       userId = newUser.id
     }
 
-    // ── Create Supabase auth session ─────────────────────────────────────────
+    // ── Create Supabase auth session ──────────────────────────────────────
     // Strategy:
     //   - New users  (existing == null): createUser then signIn
     //   - Returning users (existing != null): skip createUser, go straight to signIn
-    //   - Recovery: if signIn fails for a returning user (e.g. auth.users row was
-    //     manually deleted), recreate the auth account and retry once
-    const email = `${tgUser.id}@telegram.propspace.app`
+    //   - Recovery: if signIn fails for a returning user (auth.users deleted externally),
+    //     recreate the auth account and retry once
+    //   - Recovery 2: if signIn fails due to password mismatch (SERVICE_KEY rotated),
+    //     update the password via admin and retry
+    const email    = `${tgUser.id}@telegram.propspace.app`
     const password = await derivePassword(SERVICE_KEY, email)
 
     if (!existing) {
-      const { error: createErr } = await supabaseAdmin.auth.admin.createUser({
+      const { error: createErr } = await adminClient.auth.admin.createUser({
         email,
         password,
         email_confirm: true,
@@ -236,19 +300,38 @@ Deno.serve(async (req) => {
       if (createErr) throw new Error(`Auth user creation failed: ${createErr.message}`)
     }
 
-    const supabaseAnon = createClient(SUPABASE_URL, ANON_KEY)
-    let signInResult = await supabaseAnon.auth.signInWithPassword({ email, password })
+    const anonClient   = createClient(SUPABASE_URL, ANON_KEY)
+    let signInResult   = await anonClient.auth.signInWithPassword({ email, password })
 
-    // Recovery path: returning user whose auth.users row was deleted externally
+    // Recovery path A: returning user whose auth.users row was deleted externally
     if (signInResult.error && existing) {
-      console.warn('[telegram-auth] sign-in failed for existing user — recreating auth account:', signInResult.error.message)
-      const { error: reCreateErr } = await supabaseAdmin.auth.admin.createUser({
-        email, password, email_confirm: true,
-      })
-      if (reCreateErr && !reCreateErr.message?.toLowerCase().includes('already')) {
-        throw new Error(`Auth account recreation failed: ${reCreateErr.message}`)
+      const errMsg = signInResult.error.message ?? ''
+      console.warn('[telegram-auth] signIn failed for existing user:', errMsg)
+
+      if (errMsg.toLowerCase().includes('invalid login credentials')) {
+        // Could be: (a) auth.users row missing, or (b) password hash mismatch (key rotated)
+        // Try admin password update first (handles key rotation without a full recreate)
+        const { data: authUser } = await adminClient.auth.admin.listUsers()
+        // deno-lint-ignore no-explicit-any
+        const existingAuthUser = (authUser?.users as any[])?.find(
+          (u: { email?: string }) => u.email === email,
+        )
+
+        if (existingAuthUser) {
+          // Row exists but password is wrong (SERVICE_KEY changed) — update password
+          await adminClient.auth.admin.updateUserById(existingAuthUser.id, { password })
+          signInResult = await anonClient.auth.signInWithPassword({ email, password })
+        } else {
+          // Row truly missing — recreate
+          const { error: reCreateErr } = await adminClient.auth.admin.createUser({
+            email, password, email_confirm: true,
+          })
+          if (reCreateErr && !reCreateErr.message?.toLowerCase().includes('already')) {
+            throw new Error(`Auth account recreation failed: ${reCreateErr.message}`)
+          }
+          signInResult = await anonClient.auth.signInWithPassword({ email, password })
+        }
       }
-      signInResult = await supabaseAnon.auth.signInWithPassword({ email, password })
     }
 
     if (signInResult.error) throw new Error(`Sign in failed: ${signInResult.error.message}`)
@@ -259,8 +342,8 @@ Deno.serve(async (req) => {
       throw new Error(`Invalid JWT: "${access_token?.substring(0, 20)}"`)
     }
 
-    // ── Return ───────────────────────────────────────────────────────────────
-    const { data: fullUser } = await supabaseAdmin
+    // ── Return ────────────────────────────────────────────────────────────
+    const { data: fullUser } = await adminClient
       .from('users').select('*').eq('id', userId).single()
     if (!fullUser) throw new Error('User not found after session creation')
 
@@ -271,10 +354,7 @@ Deno.serve(async (req) => {
   } catch (err) {
     const msg = serializeError(err)
     console.error('[telegram-auth] error:', msg)
-    // Never expose internal detail to the client in production — log only
-    return new Response(
-      JSON.stringify({ error: 'Internal error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-    )
+    const code = classifyError(msg)
+    return errResponse(500, 'Internal error', code)
   }
 })
