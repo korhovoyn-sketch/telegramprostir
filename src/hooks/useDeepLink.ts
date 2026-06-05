@@ -51,6 +51,15 @@ export function useDeepLink() {
           return
         }
 
+        // ── col_<collectionId> — shared collection link ─────────────────────
+        // No read-only collection viewer exists yet; route home with a notice
+        // instead of leaving the user on a dead screen.
+        if (startParam!.startsWith('col_')) {
+          useAppStore.getState().navigateRoot(homeScreen)
+          showToast({ type: 'info', title: 'Підбірка', subtitle: 'Перегляд спільних підбірок буде доступний незабаром' })
+          return
+        }
+
         // ── db_<shareToken> — database share link ────────────────────────────
         if (!startParam!.startsWith('db_')) {
           navigateFallback()

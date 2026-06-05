@@ -7,7 +7,7 @@ import Header from '@/components/ui/Header'
 import Toggle from '@/components/ui/Toggle'
 import Modal from '@/components/ui/Modal'
 import { IconRuler, IconLayers, IconActivity, IconBuilding, IconCurrencyDollar, IconBolt, IconCarGarage, IconFile, IconUser, IconKey, IconMapPin, IconDroplet, IconFlame, IconThermometer, IconBatteryCharging } from '@/components/Icons'
-import { formatPrice, calcRent, calcUtilities } from '@/lib/utils'
+import { formatPrice, calcRent, calcUtilities, scrollFocusedIntoView } from '@/lib/utils'
 import type { PropertyStatus, RentType } from '@/types'
 
 export default function PropertyFormScreen() {
@@ -161,7 +161,7 @@ export default function PropertyFormScreen() {
         }
       />
 
-      <div className="body">
+      <div className="body" onFocusCapture={scrollFocusedIntoView}>
         {/* Basic */}
         <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconBuilding size={13} color="#7AB3FF" />Основне</span></div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { useNotifications } from '@/hooks/useNotifications'
 import TabBar from '@/components/ui/TabBar'
+import { IconX } from '@/components/Icons'
 import { formatDate } from '@/lib/utils'
 import type { Notification } from '@/types'
 
@@ -11,7 +12,7 @@ type NotifTab = 'all' | 'views' | 'chats' | 'system'
 
 export default function NotificationsScreen() {
   const unreadCount = useAppStore((s) => s.unreadCount)
-  const { notifications, loading, loadNotifications, markRead, markAllAsRead, subscribeToNotifications } = useNotifications()
+  const { notifications, loading, loadNotifications, markRead, markAllAsRead, deleteNotification, subscribeToNotifications } = useNotifications()
   const [tab, setTab] = useState<NotifTab>('all')
 
   useEffect(() => {
@@ -113,6 +114,13 @@ export default function NotificationsScreen() {
                       {n.body && <div className="notif-s">{n.body}</div>}
                     </div>
                     <span className="notif-t">{formatDate(n.created_at)}</span>
+                    <button
+                      className="notif-del"
+                      aria-label="Видалити сповіщення"
+                      onClick={(e) => { e.stopPropagation(); deleteNotification(n.id) }}
+                    >
+                      <IconX size={13} />
+                    </button>
                   </div>
                 ))}
               </div>

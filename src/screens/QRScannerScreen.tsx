@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import Header from '@/components/ui/Header'
 import { IconBolt } from '@/components/Icons'
 import { TG_BOT } from '@/lib/telegram'
+import { scrollFocusedIntoView } from '@/lib/utils'
 
 // Parse db token from scanned QR content.
 // Handles URL format: https://t.me/<bot>?startapp=db_<token>
@@ -103,7 +104,7 @@ export default function QRScannerScreen() {
     <div className="scr" style={{ background: '#000' }}>
       <Header title="Сканер QR" backLabel="Назад" />
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 32px', gap: 24 }}>
+      <div onFocusCapture={scrollFocusedIntoView} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 32px', gap: 24 }}>
         {/* Scanner frame */}
         <div style={{ position: 'relative', width: 240, height: 240 }}>
           <div style={{

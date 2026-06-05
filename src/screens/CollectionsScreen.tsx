@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase'
 import TabBar from '@/components/ui/TabBar'
 import { StatusBadge } from '@/components/ui/Badge'
 import Modal from '@/components/ui/Modal'
-import { IconPlus, IconShare, IconX, IconChevronLeft } from '@/components/Icons'
+import { IconPlus, IconShare, IconX, IconChevronLeft, IconTrash } from '@/components/Icons'
 import { formatPrice, calcRent, formatDate } from '@/lib/utils'
 import { shareDeepLink } from '@/lib/telegram'
 import type { Property, Collection } from '@/types'
@@ -102,10 +102,12 @@ function CollectionDetail({
   collection,
   onBack,
   onUpdate,
+  onDelete,
 }: {
   collection: CollectionWithCount
   onBack: () => void
   onUpdate: (updated: CollectionWithCount) => void
+  onDelete: (id: string) => void
 }) {
   const { user, showToast } = useAppStore()
 
@@ -116,6 +118,7 @@ function CollectionDetail({
   const [availableProps, setAvailableProps] = useState<Property[]>([])
   const [loadingAvail, setLoadingAvail] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
 
   const loadCollectionProperties = useCallback(async () => {
     setLoadingProps(true)
@@ -232,6 +235,23 @@ function CollectionDetail({
     shareDeepLink(`col_${collection.id}`, collection.name)
   }
 
+  async function deleteCollection() {
+    try {
+      const { error } = await supabase
+        .from('collections')
+        .delete()
+        .eq('id', collection.id)
+      if (error) throw error
+      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
+      showToast({ type: 'success', title: 'Підбірку видалено' })
+      onDelete(collection.id)
+    } catch (e) {
+      showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
+    } finally {
+      setShowDeleteModal(false)
+    }
+  }
+
   const currency = user ? (user as unknown as { currency?: string }).currency ?? 'USD' : 'USD'
 
   return (
@@ -254,14 +274,24 @@ function CollectionDetail({
             <div style={{ fontSize: 11, color: 'var(--t3)' }}>Чернетка</div>
           )}
         </div>
-        <button
-          className="hdr-a"
-          aria-label="Поділитись підбіркою"
-          onClick={shareCollection}
-          style={{ background: 'none', border: 'var(--bd)' }}
-        >
-          <IconShare size={16} />
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            className="hdr-a"
+            aria-label="Видалити підбірку"
+            onClick={() => setShowDeleteModal(true)}
+            style={{ background: 'none', border: 'var(--bd)', color: 'var(--err)' }}
+          >
+            <IconTrash size={16} />
+          </button>
+          <button
+            className="hdr-a"
+            aria-label="Поділитись підбіркою"
+            onClick={shareCollection}
+            style={{ background: 'none', border: 'var(--bd)' }}
+          >
+            <IconShare size={16} />
+          </button>
+        </div>
       </div>
 
       {/* Body */}
@@ -394,6 +424,18 @@ function CollectionDetail({
           </div>
         </Modal>
       )}
+
+      {showDeleteModal && (
+        <Modal
+          title="Видалити підбірку?"
+          subtitle={`Підбірку "${collection.name}" буде видалено. Це незворотно.`}
+          onClose={() => setShowDeleteModal(false)}
+          actions={[
+            { label: 'Видалити', variant: 'danger', onClick: deleteCollection },
+            { label: 'Скасувати', variant: 'secondary', onClick: () => setShowDeleteModal(false) },
+          ]}
+        />
+      )}
     </div>
   )
 }
@@ -492,6 +534,11 @@ export default function CollectionsScreen() {
     setSelectedCollection(updated)
   }
 
+  function handleCollectionDelete(id: string) {
+    setCollections((prev) => prev.filter((c) => c.id !== id))
+    setSelectedCollection(null)
+  }
+
   // ── Detail view ──
   if (selectedCollection) {
     return (
@@ -499,6 +546,7 @@ export default function CollectionsScreen() {
         collection={selectedCollection}
         onBack={() => setSelectedCollection(null)}
         onUpdate={handleCollectionUpdate}
+        onDelete={handleCollectionDelete}
       />
     )
   }

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { useAuth } from '@/hooks/useAuth'
 import { IconMail, IconPhone, IconTelegram } from '@/components/Icons'
+import { scrollFocusedIntoView } from '@/lib/utils'
 
 export default function ProfileSetupScreen() {
   const user = useAppStore((s) => s.user)
@@ -31,7 +32,7 @@ export default function ProfileSetupScreen() {
   }
 
   return (
-    <div className="scr bg-purple">
+    <div className="scr bg-purple" onFocusCapture={scrollFocusedIntoView}>
       <div style={{ padding: 'calc(24px + var(--safe-top)) 0 0', textAlign: 'center' }}>
         <div style={{
           display: 'inline-block',
