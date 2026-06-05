@@ -65,14 +65,14 @@ export default function TabBar() {
                 width: 16,
                 height: 16,
                 borderRadius: '50%',
-                background: '#FF3B30',
-                border: '1.5px solid #06051a',
+                background: 'var(--err)',
+                border: '1.5px solid var(--bg)',
                 fontSize: 9,
                 fontWeight: 700,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#fff',
+                color: 'var(--t1)',
               }}>
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>

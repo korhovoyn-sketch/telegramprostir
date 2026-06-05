@@ -58,7 +58,7 @@ export default function DatabaseObjectsScreen() {
         subtitle={DB_TYPE_LABELS[db.type]}
         backLabel="Бази"
         right={
-          <button className="hdr-a" onClick={() => setShowMenu(true)} style={{ background: 'none', border: 'var(--bd)' }}>
+          <button className="hdr-a" aria-label="Меню бази" onClick={() => setShowMenu(true)} style={{ background: 'none', border: 'var(--bd)' }}>
             <IconDots size={16} />
           </button>
         }
@@ -80,6 +80,7 @@ export default function DatabaseObjectsScreen() {
           </div>
           <button
             className="info-act"
+            aria-label="Аналітика та поширення"
             onClick={() => navigate('sharing-analytics', { dbId: db.id })}
           >
             <IconShare size={14} />
@@ -217,7 +218,7 @@ export default function DatabaseObjectsScreen() {
       </div>
 
       {/* FAB */}
-      <button className="fab" onClick={() => navigate('property-form', { dbId: db.id })}>
+      <button className="fab" aria-label="Додати об'єкт" onClick={() => navigate('property-form', { dbId: db.id })}>
         <IconPlus size={20} />
       </button>
 

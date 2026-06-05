@@ -95,41 +95,44 @@ export default function PhotoGalleryScreen() {
         position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2,
       }}>
         <button
+          aria-label="Закрити"
           onClick={back}
           style={{
             width: 36, height: 36, borderRadius: '50%',
             background: 'rgba(255,255,255,.15)',
             border: '1px solid rgba(255,255,255,.2)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#fff',
+            color: 'var(--t1)',
           }}
         >
           <IconX size={18} />
         </button>
-        <div style={{ color: 'rgba(255,255,255,.7)', fontSize: 14 }}>
+        <div style={{ color: 'var(--t2)', fontSize: 14 }}>
           {current + 1} / {photos.length}
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button
+            aria-label="Завантажити фото"
             onClick={handleDownload}
             style={{
               width: 36, height: 36, borderRadius: '50%',
               background: 'rgba(255,255,255,.15)',
               border: '1px solid rgba(255,255,255,.2)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#fff',
+              color: 'var(--t1)',
             }}
           >
             <IconDownload size={18} />
           </button>
           <button
+            aria-label="Поділитись фото"
             onClick={handleShare}
             style={{
               width: 36, height: 36, borderRadius: '50%',
               background: 'rgba(255,255,255,.15)',
               border: '1px solid rgba(255,255,255,.2)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#fff',
+              color: 'var(--t1)',
             }}
           >
             <IconShare size={18} />
@@ -148,7 +151,7 @@ export default function PhotoGalleryScreen() {
           position: 'absolute', top: 16, right: 16, zIndex: 10,
           background: 'rgba(0,0,0,.55)', backdropFilter: 'blur(8px)',
           padding: '4px 10px', borderRadius: 'var(--r-pill)',
-          fontSize: 13, fontWeight: 600, color: '#fff',
+          fontSize: 13, fontWeight: 600, color: 'var(--t1)',
         }}>
           {current + 1} / {photos.length}
         </div>
@@ -166,6 +169,7 @@ export default function PhotoGalleryScreen() {
         {photos.length > 1 && (
           <>
             <button
+              aria-label="Попереднє фото"
               onClick={prev}
               style={{
                 position: 'absolute', left: 16,
@@ -173,12 +177,13 @@ export default function PhotoGalleryScreen() {
                 background: 'rgba(255,255,255,.15)',
                 border: '1px solid rgba(255,255,255,.2)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: '#fff',
+                color: 'var(--t1)',
               }}
             >
               <IconChevronLeft size={20} />
             </button>
             <button
+              aria-label="Наступне фото"
               onClick={next}
               style={{
                 position: 'absolute', right: 16,
@@ -186,7 +191,7 @@ export default function PhotoGalleryScreen() {
                 background: 'rgba(255,255,255,.15)',
                 border: '1px solid rgba(255,255,255,.2)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: '#fff',
+                color: 'var(--t1)',
               }}
             >
               <IconChevronRight size={20} />

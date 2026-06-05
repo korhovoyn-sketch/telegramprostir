@@ -6,7 +6,7 @@ import { useProperties } from '@/hooks/useProperties'
 import Header from '@/components/ui/Header'
 import Toggle from '@/components/ui/Toggle'
 import Modal from '@/components/ui/Modal'
-import { IconRuler, IconLayers, IconActivity, IconBuilding, IconCurrencyDollar, IconBolt, IconCarGarage, IconFile, IconUser, IconKey } from '@/components/Icons'
+import { IconRuler, IconLayers, IconActivity, IconBuilding, IconCurrencyDollar, IconBolt, IconCarGarage, IconFile, IconUser, IconKey, IconMapPin, IconDroplet, IconFlame, IconThermometer, IconBatteryCharging } from '@/components/Icons'
 import { formatPrice, calcRent, calcUtilities } from '@/lib/utils'
 import type { PropertyStatus, RentType } from '@/types'
 
@@ -33,6 +33,8 @@ export default function PropertyFormScreen() {
   const [tenantName, setTenantName] = useState('')
   const [leaseStartDate, setLeaseStartDate] = useState('')
   const [leaseEndDate, setLeaseEndDate] = useState('')
+  const [address, setAddress] = useState('')
+  const [utilities, setUtilities] = useState<string[]>([])
   const [showDeleteModal, setShowDeleteModal] = useState(false)
 
   useEffect(() => {
@@ -54,6 +56,8 @@ export default function PropertyFormScreen() {
       setHasParking(existing.has_parking)
       setParkingSpaces(String(existing.parking_spaces))
       setDescription(existing.description ?? '')
+      setAddress(existing.address ?? '')
+      setUtilities(existing.utilities ?? [])
       setSalePrice(String(existing.sale_price ?? ''))
       setTenantName(existing.tenant_name ?? '')
       setLeaseStartDate(existing.lease_start_date ?? '')
@@ -70,6 +74,21 @@ export default function PropertyFormScreen() {
     ? calcUtilities(parseFloat(areaTotal), parseFloat(utilitiesRate))
     : 0
   const total = rentCalc + utilsCalc
+
+  const UTILITY_TAGS = [
+    { id: 'electricity', label: 'Електропостачання', icon: <IconBolt size={14} />, color: '#fbbf24' },
+    { id: 'water',       label: 'Водопостачання',    icon: <IconDroplet size={14} />, color: '#7AB3FF' },
+    { id: 'heating',     label: 'Теплопостачання',   icon: <IconThermometer size={14} />, color: '#fb923c' },
+    { id: 'gas',         label: 'Газопостачання',    icon: <IconFlame size={14} />, color: '#4ade80' },
+    { id: 'backup',      label: 'Резервне живлення', icon: <IconBatteryCharging size={14} />, color: '#a78bfa' },
+  ] as const
+
+  function toggleUtility(id: string) {
+    window.Telegram?.WebApp?.HapticFeedback?.selectionChanged()
+    setUtilities(prev =>
+      prev.includes(id) ? prev.filter(u => u !== id) : [...prev, id]
+    )
+  }
 
   const canSave = name.trim().length > 0
 
@@ -96,6 +115,7 @@ export default function PropertyFormScreen() {
       db_id: screenParams.dbId!,
       name: name.trim(),
       floor: floor.trim() || undefined,
+      address: address.trim() || undefined,
       status,
       area_useful: numOrUndef(areaUseful),
       area_total: numOrUndef(areaTotal),
@@ -104,6 +124,7 @@ export default function PropertyFormScreen() {
       utilities_rate: numOrUndef(utilitiesRate),
       has_parking: hasParking,
       parking_spaces: hasParking ? parseInt(parkingSpaces) : 0,
+      utilities: utilities.length > 0 ? utilities : null,
       description: description.trim() || undefined,
       sale_price: status === 'for_sale' ? numOrUndef(salePrice) : null,
       tenant_name: status === 'occupied' ? (tenantName.trim() || undefined) : null,
@@ -130,6 +151,7 @@ export default function PropertyFormScreen() {
           isEdit ? (
             <button
               className="hdr-a"
+              aria-label="Видалити об'єкт"
               onClick={() => setShowDeleteModal(true)}
               style={{ background: 'none', border: 'var(--bd)', color: 'var(--err)' }}
             >
@@ -150,6 +172,10 @@ export default function PropertyFormScreen() {
           <div className="fr">
             <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconLayers size={13} color="var(--t3)" />Поверх</span>
             <input className="fr-i" type="text" inputMode="text" placeholder="1, 2, B-1, МП" value={floor} onChange={e => setFloor(e.target.value)} />
+          </div>
+          <div className="fr">
+            <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconMapPin size={13} color="var(--t3)" />Адреса</span>
+            <input className="fr-i" type="text" placeholder="вул. Хрещатик, 1" value={address} onChange={e => setAddress(e.target.value)} />
           </div>
           <div className="fr">
             <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconActivity size={13} color="var(--t3)" />Статус</span>
@@ -273,6 +299,27 @@ export default function PropertyFormScreen() {
               <input className="fr-i" type="number" min="1" value={parkingSpaces} onChange={e => setParkingSpaces(e.target.value)} />
             </div>
           )}
+        </div>
+
+        {/* Utilities */}
+        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconBolt size={13} color="#fbbf24" />Комунальні послуги</span></div>
+        <div className="glass-s" style={{ margin: '0 12px 16px', borderRadius: 'var(--r-md)' }}>
+          <div className="util-tags">
+            {UTILITY_TAGS.map(({ id, label, icon, color }) => {
+              const on = utilities.includes(id)
+              return (
+                <button
+                  key={id}
+                  className={`util-tag${on ? ' on' : ''}`}
+                  onClick={() => toggleUtility(id)}
+                  style={on ? { color } : undefined}
+                >
+                  {icon}
+                  {label}
+                </button>
+              )
+            })}
+          </div>
         </div>
 
         {/* Description */}

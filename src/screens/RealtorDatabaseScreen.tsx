@@ -106,8 +106,8 @@ export default function RealtorDatabaseScreen() {
           {owner?.tg_username && (
             <button
               className="owner-act"
+              aria-label="Написати власнику"
               onClick={() => window.Telegram?.WebApp?.openTelegramLink(`https://t.me/${owner.tg_username}`)}
-              title="Написати власнику"
             >
               <IconMessage size={15} />
             </button>

@@ -38,13 +38,13 @@ export default function DatabaseListScreen() {
     <div className="scr bg-purple">
       {/* Header */}
       <div className="hdr">
-        <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg,#7AB3FF,#A87CFF)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 15, color: '#fff', border: 'var(--bd)', flexShrink: 0 }}>
+        <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg,#7AB3FF,#A87CFF)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 15, color: 'var(--t1)', border: 'var(--bd)', flexShrink: 0 }}>
           {(user?.first_name ?? 'U').charAt(0).toUpperCase()}
         </div>
         <div className="hdr-t">
           <div style={{ fontSize: 16, fontWeight: 700 }}>PropSpace</div>
         </div>
-        <button className="hdr-a" onClick={() => navigate('notifications')} style={{ background: 'none', border: 'var(--bd)', position: 'relative' }}>
+        <button className="hdr-a" aria-label="Сповіщення" onClick={() => navigate('notifications')} style={{ background: 'none', border: 'var(--bd)', position: 'relative' }}>
           <IconBell size={16} />
           {unreadCount > 0 && <span className="hdr-a-dot" />}
         </button>

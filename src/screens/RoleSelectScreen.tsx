@@ -74,7 +74,7 @@ export default function RoleSelectScreen() {
               <IconBuildingSkyscraper size={22} color="#fff" />
             </div>
             <div>
-              <div style={{ fontSize: 17, fontWeight: 700, color: '#fff', letterSpacing: '-.01em' }}>
+              <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--t1)', letterSpacing: '-.01em' }}>
                 Власник
               </div>
               <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 2 }}>
@@ -83,7 +83,7 @@ export default function RoleSelectScreen() {
             </div>
             {role === 'owner' && (
               <div style={{ marginLeft: 'auto', width: 24, height: 24, borderRadius: '50%', background: '#7AB3FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontSize: 14, color: '#fff' }}>✓</span>
+                <span style={{ fontSize: 14, color: 'var(--t1)' }}>✓</span>
               </div>
             )}
           </div>
@@ -125,7 +125,7 @@ export default function RoleSelectScreen() {
               <IconUser size={22} color="#fff" />
             </div>
             <div>
-              <div style={{ fontSize: 17, fontWeight: 700, color: '#fff', letterSpacing: '-.01em' }}>
+              <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--t1)', letterSpacing: '-.01em' }}>
                 Ріелтор
               </div>
               <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 2 }}>
@@ -134,7 +134,7 @@ export default function RoleSelectScreen() {
             </div>
             {role === 'realtor' && (
               <div style={{ marginLeft: 'auto', width: 24, height: 24, borderRadius: '50%', background: '#FF7AB8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontSize: 14, color: '#fff' }}>✓</span>
+                <span style={{ fontSize: 14, color: 'var(--t1)' }}>✓</span>
               </div>
             )}
           </div>

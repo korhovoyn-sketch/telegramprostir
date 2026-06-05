@@ -65,13 +65,13 @@ export default function RealtorDashboardScreen() {
   return (
     <div className="scr bg-cyan">
       <div className="hdr">
-        <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg,#FF7AB8,#C42378)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 15, color: '#fff', border: 'var(--bd)', flexShrink: 0 }}>
+        <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg,#FF7AB8,#C42378)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 15, color: 'var(--t1)', border: 'var(--bd)', flexShrink: 0 }}>
           {(user?.first_name ?? 'R').charAt(0).toUpperCase()}
         </div>
         <div className="hdr-t">
           <div style={{ fontSize: 16, fontWeight: 700 }}>PropSpace</div>
         </div>
-        <button className="hdr-a" onClick={() => navigate('notifications')} style={{ background: 'none', border: 'var(--bd)', position: 'relative' }}>
+        <button className="hdr-a" aria-label="Сповіщення" onClick={() => navigate('notifications')} style={{ background: 'none', border: 'var(--bd)', position: 'relative' }}>
           <IconBell size={16} />
           {unreadCount > 0 && <span className="hdr-a-dot" />}
         </button>

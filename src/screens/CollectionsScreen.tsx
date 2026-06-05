@@ -62,6 +62,7 @@ function CollectionCard({
         </div>
         <button
           className="owner-act"
+          aria-label="Поділитись підбіркою"
           onClick={onShare}
         >
           <IconShare size={14} />
@@ -239,6 +240,7 @@ function CollectionDetail({
       <div className="hdr">
         <button
           className="hdr-a"
+          aria-label="Назад"
           onClick={onBack}
           style={{ background: 'none', border: 'var(--bd)' }}
         >
@@ -254,6 +256,7 @@ function CollectionDetail({
         </div>
         <button
           className="hdr-a"
+          aria-label="Поділитись підбіркою"
           onClick={shareCollection}
           style={{ background: 'none', border: 'var(--bd)' }}
         >
@@ -312,6 +315,7 @@ function CollectionDetail({
                   {/* Remove button */}
                   <button
                     className="owner-act"
+                    aria-label="Видалити з підбірки"
                     onClick={() => removeProperty(cp.property_id)}
                     style={{ flexShrink: 0, marginTop: 2 }}
                   >
@@ -325,7 +329,7 @@ function CollectionDetail({
       </div>
 
       {/* Add button */}
-      <button className="fab" onClick={openAddModal}>
+      <button className="fab" aria-label="Додати об'єкт" onClick={openAddModal}>
         <IconPlus size={20} />
       </button>
 
@@ -376,6 +380,7 @@ function CollectionDetail({
                       </div>
                       <button
                         className="owner-act"
+                        aria-label="Додати до підбірки"
                         onClick={() => addProperty(p.id)}
                         style={{ flexShrink: 0, background: 'rgba(123,48,235,.28)' }}
                       >
@@ -534,7 +539,7 @@ export default function CollectionsScreen() {
       </div>
 
       {/* FAB */}
-      <button className="fab" onClick={createCollection}>
+      <button className="fab" aria-label="Створити підбірку" onClick={createCollection}>
         <IconPlus size={20} />
       </button>
 

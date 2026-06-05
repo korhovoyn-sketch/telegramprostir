@@ -145,17 +145,17 @@ export default function QRScannerScreen() {
         </div>
 
         <div style={{ textAlign: 'center' }}>
-          <div style={{ color: '#fff', fontWeight: 600, fontSize: 16, marginBottom: 6 }}>
+          <div style={{ color: 'var(--t1)', fontWeight: 600, fontSize: 16, marginBottom: 6 }}>
             Відскануйте QR-код
           </div>
-          <div style={{ color: 'rgba(255,255,255,.5)', fontSize: 13 }}>
+          <div style={{ color: 'var(--t3)', fontSize: 13 }}>
             Направте камеру на QR-код від власника бази
           </div>
         </div>
 
         {/* Manual input — accepts URL, db_ prefix, or raw token */}
         <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={{ color: 'rgba(255,255,255,.45)', fontSize: 12, textAlign: 'center' }}>або вставте посилання / токен</div>
+          <div style={{ color: 'var(--t3)', fontSize: 12, textAlign: 'center' }}>або вставте посилання / токен</div>
           <div style={{ display: 'flex', gap: 8 }}>
             <input
               type="text"
@@ -169,7 +169,7 @@ export default function QRScannerScreen() {
                 borderRadius: 12,
                 border: '1px solid rgba(255,255,255,.15)',
                 background: 'rgba(255,255,255,.08)',
-                color: '#fff',
+                color: 'var(--t1)',
                 fontSize: 13,
                 padding: '0 14px',
                 outline: 'none',
@@ -184,7 +184,7 @@ export default function QRScannerScreen() {
                 borderRadius: 12,
                 background: submitting ? 'rgba(167,139,250,.3)' : 'rgba(167,139,250,.85)',
                 border: 'none',
-                color: '#fff',
+                color: 'var(--t1)',
                 fontWeight: 600,
                 fontSize: 14,
                 cursor: submitting ? 'default' : 'pointer',
@@ -197,6 +197,7 @@ export default function QRScannerScreen() {
         </div>
 
         <button
+          aria-label={flashOn ? 'Вимкнути спалах' : 'Ввімкнути спалах'}
           style={{
             width: 52, height: 52,
             borderRadius: '50%',
@@ -204,7 +205,7 @@ export default function QRScannerScreen() {
             border: `1px solid ${flashOn ? 'rgba(255,220,0,.5)' : 'rgba(255,255,255,.2)'}`,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             cursor: 'pointer',
-            color: flashOn ? '#FFD700' : 'rgba(255,255,255,.6)',
+            color: flashOn ? 'var(--warn)' : 'var(--t2)',
           }}
           onClick={() => setFlashOn(!flashOn)}
         >

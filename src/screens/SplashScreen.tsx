@@ -121,7 +121,7 @@ export default function SplashScreen() {
         justifyContent: 'center',
         fontSize: 40,
         fontWeight: 700,
-        color: '#fff',
+        color: 'var(--t1)',
         marginBottom: 24,
         boxShadow: '0 12px 40px rgba(168,124,255,.4),inset 0 1.5px 0 rgba(255,255,255,.36)',
         letterSpacing: '-.02em',
@@ -129,7 +129,7 @@ export default function SplashScreen() {
         P
       </div>
 
-      <div style={{ fontSize: 28, fontWeight: 700, color: '#fff', letterSpacing: '-.03em', marginBottom: 8 }}>
+      <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--t1)', letterSpacing: '-.03em', marginBottom: 8 }}>
         PropSpace
       </div>
       <div style={{ fontSize: 13, color: 'var(--t3)', marginBottom: 48 }}>

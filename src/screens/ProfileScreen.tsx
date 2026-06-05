@@ -105,7 +105,7 @@ export default function ProfileScreen() {
               <div className="pro-t">PropSpace Pro</div>
               <div className="pro-s">Експорт у LUN, розширена аналітика</div>
             </div>
-            <span style={{ fontSize: 14, color: '#FFD700' }}>→</span>
+            <span style={{ fontSize: 14, color: 'var(--warn)' }}>→</span>
           </div>
         )}
 

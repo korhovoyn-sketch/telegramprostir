@@ -24,14 +24,14 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <div style={{
           position: 'fixed', inset: 0,
-          background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+          background: 'var(--bg)',
           display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center',
-          padding: 32, gap: 20, color: '#fff', textAlign: 'center'
+          padding: 32, gap: 20, color: 'var(--t1)', textAlign: 'center'
         }}>
           <div style={{ fontSize: 64 }}>⚠️</div>
           <div style={{ fontSize: 20, fontWeight: 700 }}>Щось пішло не так</div>
-          <div style={{ fontSize: 14, color: 'rgba(255,255,255,.6)', maxWidth: 280, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 14, color: 'var(--t2)', maxWidth: 280, lineHeight: 1.5 }}>
             {this.state.error?.message ?? 'Невідома помилка'}
           </div>
           <button
@@ -42,7 +42,7 @@ export class ErrorBoundary extends Component<Props, State> {
             style={{
               marginTop: 8, padding: '12px 28px', borderRadius: 14,
               background: 'linear-gradient(135deg, #7B30EB, #3478F6)',
-              border: 'none', color: '#fff', fontSize: 15, fontWeight: 600,
+              border: 'none', color: 'var(--t1)', fontSize: 15, fontWeight: 600,
               cursor: 'pointer'
             }}
           >

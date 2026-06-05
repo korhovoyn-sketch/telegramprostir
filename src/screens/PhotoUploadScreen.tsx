@@ -144,7 +144,7 @@ export default function PhotoUploadScreen() {
               </span>
             ) : (
               <>
-                <div style={{ fontSize: 20, fontWeight: 700, color: '#fff' }}>{overallPct}%</div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--t1)' }}>{overallPct}%</div>
                 <div style={{ fontSize: 10, color: 'var(--t3)' }}>{doneCount}/{total}</div>
               </>
             )}
@@ -152,7 +152,7 @@ export default function PhotoUploadScreen() {
         </div>
 
         <div style={{ textAlign: 'center' }}>
-          <div style={{ color: '#fff', fontWeight: 600, fontSize: 16 }}>
+          <div style={{ color: 'var(--t1)', fontWeight: 600, fontSize: 16 }}>
             {done ? (errorCount > 0 && doneCount === 0 ? 'Помилка завантаження' : 'Завантажено!') : 'Завантаження...'}
           </div>
           <div style={{ color: 'var(--t3)', fontSize: 13, marginTop: 4 }}>
@@ -203,7 +203,7 @@ export default function PhotoUploadScreen() {
                 </div>
                 {item.status === 'uploading' && (
                   <div style={{ marginTop: 4, height: 3, background: 'rgba(255,255,255,.1)', borderRadius: 2, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${item.progress}%`, background: '#a78bfa', transition: 'width .3s ease' }} />
+                    <div style={{ height: '100%', width: '100%', background: 'var(--info)', transformOrigin: 'left', transform: `scaleX(${item.progress / 100})`, transition: 'transform .3s var(--ease)' }} />
                   </div>
                 )}
                 {item.status === 'error' && item.errorMsg && (

@@ -25,10 +25,10 @@ export default function SuccessScreen() {
       <ProxMascot mood="happy" />
 
       <div style={{ marginTop: 24, textAlign: 'center', padding: '0 32px' }}>
-        <div style={{ fontSize: 30, fontWeight: 800, color: '#fff', marginBottom: 8 }}>
+        <div style={{ fontSize: 30, fontWeight: 700, color: 'var(--t1)', marginBottom: 8 }}>
           {title}
         </div>
-        <div style={{ fontSize: 15, color: 'rgba(255,255,255,.8)', lineHeight: 1.5 }}>
+        <div style={{ fontSize: 15, color: 'var(--t2)', lineHeight: 1.5 }}>
           {message}
         </div>
       </div>

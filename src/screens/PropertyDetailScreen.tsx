@@ -7,7 +7,7 @@ import { useProperties } from '@/hooks/useProperties'
 import Header from '@/components/ui/Header'
 import Modal from '@/components/ui/Modal'
 import { StatusBadge } from '@/components/ui/Badge'
-import { IconEdit, IconShare, IconMapPin, IconPhoto, IconX, IconCamera, IconRuler, IconBuildingSkyscraper, IconCircleCheck, IconCurrencyDollar, IconCarGarage, IconUser, IconKey } from '@/components/Icons'
+import { IconEdit, IconShare, IconMapPin, IconPhoto, IconX, IconCamera, IconRuler, IconBuildingSkyscraper, IconCircleCheck, IconCurrencyDollar, IconCarGarage, IconUser, IconKey, IconBolt, IconDroplet, IconFlame, IconThermometer, IconBatteryCharging } from '@/components/Icons'
 import { formatPrice, calcRent, calcUtilities, STATUS_LABELS, formatLeasePeriod } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 
@@ -224,6 +224,7 @@ export default function PropertyDetailScreen() {
         right={isOwner ? (
           <button
             className="hdr-a"
+            aria-label="Редагувати об'єкт"
             onClick={() => navigate('property-form', { propertyId: property.id, dbId: screenParams.dbId, editMode: true })}
             style={{ background: 'none', border: 'var(--bd)' }}
           >
@@ -254,6 +255,7 @@ export default function PropertyDetailScreen() {
             <div className="obj-hero-r">
               <button
                 className="obj-hero-a"
+                aria-label="Поділитись об'єктом"
                 onClick={(e) => { e.stopPropagation(); navigate('sharing-analytics', { propertyId: property.id, dbId: screenParams.dbId }) }}
               >
                 <IconShare size={14} />
@@ -360,6 +362,42 @@ export default function PropertyDetailScreen() {
           </div>
         </div>
 
+        {/* Address */}
+        {property.address && (
+          <div className="glass-s" style={{ margin: '0 12px 12px', borderRadius: 'var(--r-md)', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <IconMapPin size={14} color="#7AB3FF" />
+            <span style={{ fontSize: 13, color: 'var(--t2)' }}>{property.address}</span>
+          </div>
+        )}
+
+        {/* Utilities */}
+        {(property.utilities ?? []).length > 0 && (() => {
+          const UTIL_META: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
+            electricity: { label: 'Електропостачання', icon: <IconBolt size={13} />, color: '#fbbf24' },
+            water:       { label: 'Водопостачання',    icon: <IconDroplet size={13} />, color: '#7AB3FF' },
+            heating:     { label: 'Теплопостачання',   icon: <IconThermometer size={13} />, color: '#fb923c' },
+            gas:         { label: 'Газопостачання',    icon: <IconFlame size={13} />, color: '#4ade80' },
+            backup:      { label: 'Резервне живлення', icon: <IconBatteryCharging size={13} />, color: '#a78bfa' },
+          }
+          return (
+            <div style={{ margin: '0 12px 12px' }}>
+              <div style={{ fontSize: 11, color: 'var(--t3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 8 }}>Комунальні послуги</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {(property.utilities ?? []).map(uid => {
+                  const meta = UTIL_META[uid]
+                  if (!meta) return null
+                  return (
+                    <div key={uid} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 'var(--r-pill)', background: 'var(--glass-2)', border: '.5px solid var(--glass-3)', fontSize: 12, fontWeight: 500, color: meta.color }}>
+                      {meta.icon}
+                      {meta.label}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })()}
+
         {/* Total */}
         {total > 0 && (
           <div className="glass-s" style={{ margin: '0 12px 12px', borderRadius: 'var(--r-md)', padding: '11px 14px' }}>
@@ -394,13 +432,14 @@ export default function PropertyDetailScreen() {
               />
               {isOwner && (
                 <button
+                  aria-label="Видалити фото"
                   onClick={(e) => { e.stopPropagation(); setPhotoToDelete({ id: photo.id, path: photo.storage_path }) }}
                   style={{
                     position: 'absolute', top: 3, right: 3,
                     width: 20, height: 20, borderRadius: '50%',
                     background: 'rgba(0,0,0,.65)', border: 'none',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: '#fff', cursor: 'pointer', zIndex: 2,
+                    color: 'var(--t1)', cursor: 'pointer', zIndex: 2,
                   }}
                 >
                   <IconX size={10} />
