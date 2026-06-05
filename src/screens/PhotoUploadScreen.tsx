@@ -203,7 +203,7 @@ export default function PhotoUploadScreen() {
                 </div>
                 {item.status === 'uploading' && (
                   <div style={{ marginTop: 4, height: 3, background: 'rgba(255,255,255,.1)', borderRadius: 2, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${item.progress}%`, background: '#a78bfa', transition: 'width .3s ease' }} />
+                    <div style={{ height: '100%', width: '100%', background: 'var(--info)', transformOrigin: 'left', transform: `scaleX(${item.progress / 100})`, transition: 'transform .3s var(--ease)' }} />
                   </div>
                 )}
                 {item.status === 'error' && item.errorMsg && (
