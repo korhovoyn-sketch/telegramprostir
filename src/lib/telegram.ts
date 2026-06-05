@@ -3,11 +3,17 @@
  * Set NEXT_PUBLIC_TELEGRAM_BOT_USERNAME in Vercel environment variables.
  * Example: prostirapplbot  (no @, no https)
  */
-export const TG_BOT = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME ?? 'prostirapplbot'
+function getTgBot(): string {
+  const bot = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME
+  if (!bot) throw new Error('[PropSpace] Missing NEXT_PUBLIC_TELEGRAM_BOT_USERNAME env var')
+  return bot
+}
+
+export const TG_BOT = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME ?? ''
 
 /** Build a deep-link that opens the Mini App with start_param */
 export function buildDeepLink(startParam: string): string {
-  return `https://t.me/${TG_BOT}?startapp=${encodeURIComponent(startParam)}`
+  return `https://t.me/${getTgBot()}?startapp=${encodeURIComponent(startParam)}`
 }
 
 /** Open Telegram's native share sheet for a deep-link */

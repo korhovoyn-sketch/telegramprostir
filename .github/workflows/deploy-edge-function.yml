@@ -4,7 +4,7 @@ on:
   push:
     paths:
       - 'supabase/functions/**'
-    branches: [main, claude/lucid-planck-Hjo1u]
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -13,16 +13,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Verify SUPABASE_ACCESS_TOKEN is set
+      - name: Verify secrets
         run: |
           if [ -z "${{ secrets.SUPABASE_ACCESS_TOKEN }}" ]; then
-            echo "::error::SUPABASE_ACCESS_TOKEN secret is not set in GitHub repository settings."
+            echo "::error::SUPABASE_ACCESS_TOKEN secret is not set."
             echo "Go to Settings → Secrets and variables → Actions → New repository secret"
-            echo "Name: SUPABASE_ACCESS_TOKEN"
-            echo "Value: your Supabase personal access token from https://supabase.com/dashboard/account/tokens"
             exit 1
           fi
-          echo "SUPABASE_ACCESS_TOKEN is configured."
+          if [ -z "${{ secrets.SUPABASE_PROJECT_REF }}" ]; then
+            echo "::error::SUPABASE_PROJECT_REF secret is not set."
+            echo "Set it to your Supabase project reference ID."
+            exit 1
+          fi
+          echo "All required secrets are configured."
 
       - uses: supabase/setup-cli@v1
         with:
@@ -33,5 +36,5 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           supabase functions deploy telegram-auth \
-            --project-ref cjsuuzynpuimgndudzka \
+            --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} \
             --no-verify-jwt
