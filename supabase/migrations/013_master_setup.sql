@@ -265,6 +265,25 @@ AS $$
   SELECT id FROM collections WHERE realtor_id = p_uid;
 $$;
 
+-- Share-link / QR resolution. Returns a DB ONLY when the caller supplies the
+-- exact share_token (a 24-char secret). SECURITY DEFINER so it works before a
+-- subscription exists, without a blanket RLS SELECT policy that would otherwise
+-- let any authenticated user enumerate every shared database (and its token).
+-- Expiry is returned (not filtered) so the client can show a precise message;
+-- actual data access after subscribing is still gated by db_realtor_select.
+CREATE OR REPLACE FUNCTION lookup_shared_db(p_token TEXT)
+RETURNS TABLE (id UUID, owner_id UUID, share_expires_at TIMESTAMPTZ)
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT d.id, d.owner_id, d.share_expires_at
+  FROM databases d
+  WHERE d.share_token = p_token
+  LIMIT 1;
+$$;
+REVOKE ALL ON FUNCTION lookup_shared_db(TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION lookup_shared_db(TEXT) TO authenticated, service_role;
+
 -- Fires on every UPDATE to users (updated_at auto-maintenance)
 CREATE OR REPLACE FUNCTION update_updated_at()
 RETURNS TRIGGER
@@ -371,15 +390,12 @@ CREATE POLICY "db_realtor_select" ON databases
   FOR SELECT
   USING (id IN (SELECT get_realtor_db_ids(current_app_user_id())));
 
--- Share-link / QR scan: any authenticated user can look up a DB by share_token
--- (needed BEFORE subscription exists; server enforces expiry).
-CREATE POLICY "db_share_lookup" ON databases
-  FOR SELECT
-  USING (
-    share_token IS NOT NULL
-    AND auth.role() = 'authenticated'
-    AND (share_expires_at IS NULL OR share_expires_at > now())
-  );
+-- NOTE: there is intentionally NO blanket "lookup by share_token" SELECT policy.
+-- A USING clause cannot see the caller's WHERE filter, so such a policy would
+-- expose EVERY active-shared database (and its share_token) to any authenticated
+-- user via an unfiltered SELECT. Share-link resolution goes through the
+-- SECURITY DEFINER function lookup_shared_db(token) instead, which only returns
+-- a row when the exact secret token is supplied.
 
 CREATE POLICY "db_service" ON databases
   FOR ALL TO service_role
