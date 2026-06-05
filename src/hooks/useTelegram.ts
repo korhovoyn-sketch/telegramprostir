@@ -70,18 +70,47 @@ export function useTelegram() {
   const [isReady, setIsReady] = useState(false)
 
   useEffect(() => {
-    const webApp = window.Telegram?.WebApp
-    try {
-      if (webApp) {
+    let cancelled = false
+
+    function init(webApp: TelegramWebApp) {
+      try {
         webApp.ready()
         webApp.expand()
         setTg(webApp)
         setUser(webApp.initDataUnsafe?.user ?? null)
+      } catch {
+        // Older TMA versions may throw on ready()/expand() — still mark as ready
+      } finally {
+        setIsReady(true)
       }
-    } catch {
-      // Older TMA versions may throw on ready()/expand() — still mark as ready
-    } finally {
-      setIsReady(true)
+    }
+
+    // The Telegram SDK loads via a deferred external <script>, so it may not be
+    // present on first mount. Poll briefly for it instead of giving up immediately —
+    // otherwise initData is empty and login fails inside Telegram.
+    const existing = window.Telegram?.WebApp
+    if (existing) {
+      init(existing)
+      return
+    }
+
+    const start = Date.now()
+    const pollId = setInterval(() => {
+      if (cancelled) return
+      const webApp = window.Telegram?.WebApp
+      if (webApp) {
+        clearInterval(pollId)
+        init(webApp)
+      } else if (Date.now() - start > 3000) {
+        // SDK never loaded (opened outside Telegram) — unblock the splash anyway
+        clearInterval(pollId)
+        setIsReady(true)
+      }
+    }, 50)
+
+    return () => {
+      cancelled = true
+      clearInterval(pollId)
     }
   }, [])
 
