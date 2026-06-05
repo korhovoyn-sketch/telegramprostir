@@ -147,10 +147,10 @@ body{
 .fdot{width:5px;height:5px;border-radius:50%;background:currentColor;animation:pls 2s ease-in-out infinite}
 
 /* ── BADGES ── */
-.bdg{font-size:10px;font-weight:600;padding:2.5px 8px;border-radius:var(--r-xs);white-space:nowrap}
-.bdg-ok{background:var(--ok-bg);color:var(--ok-fg);border:.5px solid var(--ok-bd);transition:background 0.3s ease,color 0.3s ease}
-.bdg-busy{background:var(--err-bg);color:var(--err-fg);border:.5px solid var(--err-bd);transition:background 0.3s ease,color 0.3s ease}
-.bdg-sale{background:var(--warn-bg);color:var(--warn-fg);border:.5px solid var(--warn-bd);transition:background 0.3s ease,color 0.3s ease}
+.bdg{font-size:10px;font-weight:600;padding:2.5px 8px;border-radius:var(--r-xs);white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
+.bdg-ok{background:var(--ok-bg);color:var(--ok-fg);border:.5px solid var(--ok-bd);box-shadow:0 0 8px rgba(52,199,89,.25),inset 0 1px 0 rgba(52,199,89,.12);transition:box-shadow 0.3s ease}
+.bdg-busy{background:var(--err-bg);color:var(--err-fg);border:.5px solid var(--err-bd);box-shadow:0 0 8px rgba(255,59,48,.22),inset 0 1px 0 rgba(255,59,48,.12);transition:box-shadow 0.3s ease}
+.bdg-sale{background:var(--warn-bg);color:var(--warn-fg);border:.5px solid var(--warn-bd);box-shadow:0 0 8px rgba(255,149,0,.22),inset 0 1px 0 rgba(255,149,0,.12);transition:box-shadow 0.3s ease}
 .bdg-fav{background:rgba(255,80,180,.2);color:#ffb8e0;border:.5px solid rgba(255,80,180,.32)}
 .bdg-info{background:var(--info-bg);color:var(--info-fg);border:.5px solid rgba(122,179,255,.32)}
 .bdg-new{background:linear-gradient(135deg,rgba(255,200,100,.3),rgba(255,80,170,.22));color:#FFD700;border:.5px solid rgba(255,200,100,.4)}
@@ -256,7 +256,7 @@ input,textarea,select{font-size:16px;touch-action:manipulation}
 .obj-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px 14px;margin-bottom:10px}
 .obj-f{display:flex;flex-direction:column;gap:1px}
 .obj-fl{font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.04em;font-weight:600}
-.obj-fv{font-size:13px;font-weight:600;color:var(--t1)}
+.obj-fv{font-size:13px;font-weight:600;color:var(--t1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* ── INFO CARD ── */
 .info-card{margin:0 var(--g3) var(--g3);border-radius:var(--r-md);padding:var(--pad-card);display:flex;align-items:center;gap:11px}

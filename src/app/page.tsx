@@ -56,7 +56,9 @@ export default function Page() {
       const tgAny = tg as any
       tgAny.setHeaderColor?.('#0a0a14')
       tgAny.setBackgroundColor?.('#0a0a14')
-    } catch { /* older TMA versions may not support setHeaderColor */ }
+      // Prevent accidental app close via vertical swipe on scroll-heavy screens (TMA 7.7+)
+      tgAny.disableVerticalSwipes?.()
+    } catch { /* older TMA versions may not support these APIs */ }
     if (tg.colorScheme) {
       document.documentElement.dataset.tgTheme = tg.colorScheme
     }

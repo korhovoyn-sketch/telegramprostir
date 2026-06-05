@@ -109,8 +109,7 @@ function Building3DHero() {
 
 export default function PropertyDetailScreen() {
   const { screenParams, navigate, user, showToast } = useAppStore()
-  const { properties, loadProperties, deletePhoto } = useProperties(screenParams.dbId)
-  const { updateProperty } = useProperties(screenParams.dbId)
+  const { properties, loadSingleProperty, deletePhoto, updateProperty } = useProperties(screenParams.dbId)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [photoToDelete, setPhotoToDelete] = useState<{ id: string; path: string } | null>(null)
   const [showRentModal, setShowRentModal] = useState(false)
@@ -124,9 +123,12 @@ export default function PropertyDetailScreen() {
   const property = properties.find(p => p.id === screenParams.propertyId)
   const isOwner = user?.role === 'owner'
 
+  // Fetch only this property on every mount — avoids loading the entire DB for detail view.
+  // Component is remounted on every navigation so this fires exactly once per visit.
   useEffect(() => {
-    if (!property && screenParams.dbId) loadProperties(screenParams.dbId)
-  }, [property, screenParams.dbId, loadProperties])
+    if (screenParams.propertyId) loadSingleProperty(screenParams.propertyId)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screenParams.propertyId])
 
   // Record a view exactly once per session mount
   const viewRecorded = useRef(false)

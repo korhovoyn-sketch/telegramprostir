@@ -73,9 +73,21 @@ export default function PropertyFormScreen() {
 
   const canSave = name.trim().length > 0
 
+  // Returns the numeric value, or undefined if string is empty/invalid.
+  // Avoids the `parseFloat('0') || undefined` pitfall where 0 is silently dropped.
+  function numOrUndef(s: string): number | undefined {
+    if (s.trim() === '') return undefined
+    const n = parseFloat(s)
+    return isNaN(n) ? undefined : n
+  }
+
   async function handleSave() {
     if (!canSave || !screenParams.dbId) return
-    if (parseFloat(areaUseful) < 0 || parseFloat(areaTotal) < 0 || parseFloat(rentRate) < 0 || parseFloat(utilitiesRate) < 0) {
+    const au = numOrUndef(areaUseful) ?? 0
+    const at = numOrUndef(areaTotal) ?? 0
+    const rr = numOrUndef(rentRate) ?? 0
+    const ur = numOrUndef(utilitiesRate) ?? 0
+    if (au < 0 || at < 0 || rr < 0 || ur < 0) {
       showToast({ type: 'error', title: 'Значення не може бути від\'ємним' })
       return
     }
@@ -83,17 +95,17 @@ export default function PropertyFormScreen() {
     const payload = {
       db_id: screenParams.dbId!,
       name: name.trim(),
-      floor: floor || undefined,
+      floor: floor.trim() || undefined,
       status,
-      area_useful: parseFloat(areaUseful) || undefined,
-      area_total: parseFloat(areaTotal) || undefined,
+      area_useful: numOrUndef(areaUseful),
+      area_total: numOrUndef(areaTotal),
       rent_type: rentType,
-      rent_rate: parseFloat(rentRate) || undefined,
-      utilities_rate: parseFloat(utilitiesRate) || undefined,
+      rent_rate: numOrUndef(rentRate),
+      utilities_rate: numOrUndef(utilitiesRate),
       has_parking: hasParking,
       parking_spaces: hasParking ? parseInt(parkingSpaces) : 0,
       description: description.trim() || undefined,
-      sale_price: status === 'for_sale' ? (parseFloat(salePrice) || undefined) : null,
+      sale_price: status === 'for_sale' ? numOrUndef(salePrice) : null,
       tenant_name: status === 'occupied' ? (tenantName.trim() || undefined) : null,
       lease_start_date: status === 'occupied' ? (leaseStartDate || undefined) : null,
       lease_end_date: status === 'occupied' ? (leaseEndDate || undefined) : null,
@@ -137,7 +149,7 @@ export default function PropertyFormScreen() {
           </div>
           <div className="fr">
             <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconLayers size={13} color="var(--t3)" />Поверх</span>
-            <input className="fr-i" type="number" placeholder="1" value={floor} onChange={e => setFloor(e.target.value)} />
+            <input className="fr-i" type="text" inputMode="text" placeholder="1, 2, B-1, МП" value={floor} onChange={e => setFloor(e.target.value)} />
           </div>
           <div className="fr">
             <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconActivity size={13} color="var(--t3)" />Статус</span>

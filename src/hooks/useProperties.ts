@@ -46,6 +46,37 @@ export function useProperties(dbId?: string) {
     }
   }, [dbId, showToast])
 
+  const loadSingleProperty = useCallback(async (propertyId: string) => {
+    setLoading(true)
+    setError(null)
+    try {
+      const { data, error } = await supabase
+        .from('properties')
+        .select(`
+          id, db_id, owner_id, name, floor, status,
+          area_useful, area_total, rent_type, rent_rate, utilities_rate,
+          has_parking, parking_spaces, description,
+          sale_price, tenant_name, lease_start_date, lease_end_date,
+          created_at, updated_at,
+          photos:property_photos(id, storage_path, sort_order),
+          views:property_views(id)
+        `)
+        .eq('id', propertyId)
+        .single()
+
+      if (error) throw error
+      const { views, ...rest } = data as Record<string, unknown>
+      const mapped = { ...rest, _view_count: (views as unknown[])?.length ?? 0 } as unknown as Property
+      setProperties([mapped])
+    } catch (e) {
+      const msg = (e as Error).message
+      setError(msg)
+      showToast({ type: 'error', title: 'Помилка завантаження', subtitle: msg })
+    } finally {
+      setLoading(false)
+    }
+  }, [showToast])
+
   const createProperty = useCallback(async (
     payload: Omit<Property, 'id' | 'owner_id' | 'created_at' | 'updated_at' | 'photos'>
   ) => {
@@ -176,6 +207,7 @@ export function useProperties(dbId?: string) {
     error,
     properties,
     loadProperties,
+    loadSingleProperty,
     createProperty,
     updateProperty,
     cycleStatus,
