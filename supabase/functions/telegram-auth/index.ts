@@ -15,11 +15,15 @@ const corsHeaders = {
 
 // DB-backed rate limiter — survives cold starts unlike an in-memory Map.
 // Fails open: if the DB is unreachable we allow the request through.
+// Rate limit keyed by a caller-supplied identifier (we use the Telegram user id,
+// resolved only after HMAC validation, so it can't be forged or shared across users).
+// Keying by IP was unsafe: Supabase doesn't always populate x-forwarded-for, so every
+// caller collapsed into a single "unknown" bucket and shared one global 10 req/min cap.
 async function checkRateLimit(
   // deno-lint-ignore no-explicit-any
   adminClient: any,
-  ip: string,
-  maxRequests = 10,
+  key: string,
+  maxRequests = 20,
   windowMs = 60_000,
 ): Promise<boolean> {
   try {
@@ -27,13 +31,13 @@ async function checkRateLimit(
     const { data } = await adminClient
       .from('rate_limits')
       .select('count, reset_at')
-      .eq('ip', ip)
+      .eq('ip', key)
       .maybeSingle()
 
     if (!data || data.reset_at < now) {
       // New or expired window — reset counter
       await adminClient.from('rate_limits').upsert({
-        ip,
+        ip: key,
         count: 1,
         reset_at: new Date(Date.now() + windowMs).toISOString(),
       })
@@ -45,7 +49,7 @@ async function checkRateLimit(
     await adminClient
       .from('rate_limits')
       .update({ count: data.count + 1 })
-      .eq('ip', ip)
+      .eq('ip', key)
     return true
   } catch {
     return true // fail open
@@ -84,9 +88,11 @@ async function validateInitData(
 
   const authDate = parseInt(params.get('auth_date') ?? '')
   const age = Date.now() / 1000 - authDate
-  // Reject missing or future (>10s clock drift) timestamps.
-  // 15-minute window balances security with Telegram caching of initData.
-  if (!authDate || age < -10 || age > 900) {
+  // Telegram caches and reuses initData across app restarts, so a tight window
+  // rejected legitimate returning users on reopen. Authenticity is already
+  // guaranteed by the HMAC check above; auth_date only guards gross replay.
+  // 24h window + 60s future-drift tolerance for client/server clock skew.
+  if (!authDate || age < -60 || age > 86400) {
     console.warn(`[telegram-auth] auth_date rejected: authDate=${authDate} age=${Math.round(age)}s`)
     return null
   }
@@ -142,16 +148,6 @@ Deno.serve(async (req) => {
     // Admin client needed for rate limiting + user management
     const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_KEY)
 
-    // ── Rate limiting (DB-backed, 10 req/min per IP) ─────────────────────────
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
-    const allowed = await checkRateLimit(supabaseAdmin, ip)
-    if (!allowed) {
-      return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
-        status: 429,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
-    }
-
     // ── Validate Telegram initData (HMAC-SHA256) ─────────────────────────────
     const validated = await validateInitData(body.initData, botToken)
     if (!validated) {
@@ -179,6 +175,15 @@ Deno.serve(async (req) => {
 
     const tgId = parseInt(tgUser.id, 10)
     if (isNaN(tgId)) throw new Error('Invalid Telegram user id')
+
+    // ── Rate limiting (DB-backed, per Telegram user, 20 req/min) ─────────────
+    const allowed = await checkRateLimit(supabaseAdmin, `tg:${tgId}`)
+    if (!allowed) {
+      return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
+        status: 429,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
 
     // ── Upsert user in public.users ──────────────────────────────────────────
     const { data: existing } = await supabaseAdmin

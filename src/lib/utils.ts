@@ -140,3 +140,17 @@ export const DB_COLORS: Record<string, string> = {
   pink: 'linear-gradient(135deg,#FF7AB8,#C42378)',
   teal: 'linear-gradient(135deg,#5AC8FA,#2A8AB0)',
 }
+
+/**
+ * onFocusCapture handler: scrolls the focused input/textarea into view once the
+ * on-screen keyboard has opened. Telegram's webview overlays the keyboard without
+ * always resizing the layout, so mid-form fields would otherwise sit hidden behind it.
+ */
+export function scrollFocusedIntoView(e: import('react').FocusEvent<HTMLElement>): void {
+  const el = e.target as HTMLElement
+  const tag = el?.tagName
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+    // Wait for the keyboard animation before measuring/scrolling.
+    setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300)
+  }
+}

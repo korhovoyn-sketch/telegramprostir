@@ -8,7 +8,7 @@ import Toggle from '@/components/ui/Toggle'
 import Modal from '@/components/ui/Modal'
 import { IconMail, IconPhone, IconLanguage, IconCurrencyDollar, IconLogout, IconCrown } from '@/components/Icons'
 import { TG_BOT } from '@/lib/telegram'
-import { getInitials } from '@/lib/utils'
+import { getInitials, scrollFocusedIntoView } from '@/lib/utils'
 
 export default function ProfileScreen() {
   const { user, databases, showToast } = useAppStore()
@@ -64,7 +64,7 @@ export default function ProfileScreen() {
         <div className="hdr-sp" />
       </div>
 
-      <div className="body">
+      <div className="body" onFocusCapture={scrollFocusedIntoView}>
         {/* Profile card */}
         <div className="profile-c glass-s" style={{ margin: '0 12px 12px' }}>
           <div className="profile-av">{initials}</div>
@@ -95,17 +95,17 @@ export default function ProfileScreen() {
           </div>
         )}
 
-        {/* Pro card */}
+        {/* Pro card — upgrade flow not yet available; shown as a teaser, not a button */}
         {user.plan !== 'pro' && (
-          <div className="pro-card">
+          <div className="pro-card" style={{ cursor: 'default' }}>
             <div className="pro-ic">
               <IconCrown size={18} />
             </div>
             <div className="pro-mn">
               <div className="pro-t">PropSpace Pro</div>
-              <div className="pro-s">Експорт у LUN, розширена аналітика</div>
+              <div className="pro-s">Розширені можливості у розробці</div>
             </div>
-            <span style={{ fontSize: 14, color: 'var(--warn)' }}>→</span>
+            <span className="bdg bdg-info">Скоро</span>
           </div>
         )}
 

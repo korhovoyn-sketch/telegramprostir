@@ -1,5 +1,7 @@
 'use client'
 
+import { scrollFocusedIntoView } from '@/lib/utils'
+
 interface ModalProps {
   title: string
   subtitle?: string
@@ -15,7 +17,7 @@ interface ModalProps {
 export default function Modal({ title, subtitle, onClose, children, actions }: ModalProps) {
   return (
     <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="modal">
+      <div className="modal" onFocusCapture={scrollFocusedIntoView}>
         <div className="modal-h">{title}</div>
         {subtitle && <div className="modal-s">{subtitle}</div>}
         {children}

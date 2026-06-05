@@ -5,7 +5,7 @@ import { useAppStore } from '@/store/appStore'
 import { useDatabases } from '@/hooks/useDatabases'
 import Header from '@/components/ui/Header'
 import { IconMapPin, IconBuilding, IconLayoutGrid, IconAdjustments, IconEye } from '@/components/Icons'
-import { DB_COLORS } from '@/lib/utils'
+import { DB_COLORS, scrollFocusedIntoView } from '@/lib/utils'
 import type { DatabaseType } from '@/types'
 
 const TYPES: { id: DatabaseType; label: string; desc: string; emoji: string }[] = [
@@ -64,7 +64,7 @@ export default function CreateDatabaseScreen() {
     <div className="scr bg-purple">
       <Header title={isEdit ? 'Редагувати базу' : 'Нова база'} backLabel={isEdit ? 'Назад' : 'Бази'} />
 
-      <div className="body">
+      <div className="body" onFocusCapture={scrollFocusedIntoView}>
         {/* Name & address */}
         <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconBuilding size={13} color="#7AB3FF" />Основне</span></div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
