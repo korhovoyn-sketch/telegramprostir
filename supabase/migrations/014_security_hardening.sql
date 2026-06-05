@@ -23,15 +23,18 @@ DROP POLICY IF EXISTS "photos_upload_owner"      ON storage.objects;
 DROP POLICY IF EXISTS "photos_delete_owner"      ON storage.objects;
 DROP POLICY IF EXISTS "photos_update_owner"      ON storage.objects;
 
--- INSERT: caller must own the property referenced in the first path segment
+-- INSERT: caller must own the property referenced in the first path segment.
+-- SPLIT_PART(name, ...) is kept OUTSIDE the EXISTS subquery so `name` is
+-- unambiguously storage.objects.name — not properties.name — preventing the
+-- "cannot alter type of a column used in a policy definition" error that fires
+-- when SEC-6 later changes properties.name to VARCHAR.
 CREATE POLICY "storage_photos_insert" ON storage.objects
   FOR INSERT TO authenticated
   WITH CHECK (
     bucket_id = 'photos'
-    AND EXISTS (
-      SELECT 1 FROM public.properties p
-      WHERE p.id::text = SPLIT_PART(name, '/', 1)
-        AND p.owner_id = current_app_user_id()
+    AND SPLIT_PART(name, '/', 1) IN (
+      SELECT p.id::text FROM public.properties p
+      WHERE p.owner_id = current_app_user_id()
     )
   );
 
@@ -40,10 +43,9 @@ CREATE POLICY "storage_photos_delete" ON storage.objects
   FOR DELETE TO authenticated
   USING (
     bucket_id = 'photos'
-    AND EXISTS (
-      SELECT 1 FROM public.properties p
-      WHERE p.id::text = SPLIT_PART(name, '/', 1)
-        AND p.owner_id = current_app_user_id()
+    AND SPLIT_PART(name, '/', 1) IN (
+      SELECT p.id::text FROM public.properties p
+      WHERE p.owner_id = current_app_user_id()
     )
   );
 
