@@ -97,8 +97,8 @@ export default function DatabaseStatsPanel({ properties, currency = 'USD' }: Pro
     const totalUtils = occupied.reduce((sum, p) =>
       sum + (p.utilities_rate && p.area_total ? calcUtilities(p.area_total, p.utilities_rate) : 0), 0)
 
-    const totalUseful = properties.reduce((sum, p) => sum + (p.area_useful ?? 0), 0)
-    const totalArea = properties.reduce((sum, p) => sum + (p.area_total ?? 0), 0)
+    const occupiedUseful = occupied.reduce((sum, p) => sum + (p.area_useful ?? 0), 0)
+    const occupiedTotal = occupied.reduce((sum, p) => sum + (p.area_total ?? 0), 0)
     const freeUseful = free.reduce((sum, p) => sum + (p.area_useful ?? 0), 0)
 
     return {
@@ -107,8 +107,8 @@ export default function DatabaseStatsPanel({ properties, currency = 'USD' }: Pro
       total: properties.length,
       totalRent,
       totalUtils,
-      totalUseful: Math.round(totalUseful),
-      totalArea: Math.round(totalArea),
+      occupiedUseful: Math.round(occupiedUseful),
+      occupiedTotal: Math.round(occupiedTotal),
       freeUseful: Math.round(freeUseful),
       ratio: properties.length > 0 ? occupied.length / properties.length : 0,
     }
@@ -116,7 +116,7 @@ export default function DatabaseStatsPanel({ properties, currency = 'USD' }: Pro
 
   const animRent = useCountUp(stats.totalRent)
   const animUtils = useCountUp(stats.totalUtils)
-  const animUseful = useCountUp(stats.totalUseful)
+  const animUseful = useCountUp(stats.occupiedUseful)
   const animFree = useCountUp(stats.freeUseful)
 
   if (properties.length === 0) return null
@@ -148,11 +148,11 @@ export default function DatabaseStatsPanel({ properties, currency = 'USD' }: Pro
       accentBg: 'rgba(255,149,0,.13)',
       accentBorder: 'rgba(255,149,0,.26)',
     } satisfies CardData] : []),
-    ...(stats.totalUseful > 0 ? [{
+    ...(stats.occupiedUseful > 0 ? [{
       icon: '📐',
-      label: 'Корисна площа',
+      label: 'Площа зайнятих',
       value: `${animUseful.toLocaleString('uk-UA')} м²`,
-      sub: stats.totalArea > 0 ? `заг: ${stats.totalArea.toLocaleString('uk-UA')} м²` : undefined,
+      sub: stats.occupiedTotal > 0 ? `заг: ${stats.occupiedTotal.toLocaleString('uk-UA')} м²` : undefined,
       accentBg: 'rgba(180,80,240,.13)',
       accentBorder: 'rgba(180,80,240,.26)',
     } satisfies CardData] : []),
