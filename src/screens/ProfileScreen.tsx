@@ -194,7 +194,7 @@ export default function ProfileScreen() {
           {' '}Вийти з акаунту
         </div>
 
-        <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--t4)', paddingBottom: 80 }}>
+        <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--t4)', paddingBottom: 80 }}>
           PropSpace v1.0.0
         </div>
       </div>

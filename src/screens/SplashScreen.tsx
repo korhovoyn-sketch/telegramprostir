@@ -151,7 +151,7 @@ export default function SplashScreen() {
           transition: 'width .12s linear',
         }} />
       </div>
-      <div style={{ fontSize: 12, color: 'var(--t4)' }}>
+      <div style={{ fontSize: 12, color: 'var(--t3)' }}>
         {statusText} {Math.round(Math.min(progress, 100))}%
       </div>
 
