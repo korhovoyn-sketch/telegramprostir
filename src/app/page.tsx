@@ -67,9 +67,13 @@ export default function Page() {
     }
 
     function applyViewportHeight() {
-      // viewportStableHeight = height excluding keyboard; falls back to viewportHeight
-      const vh = tgAny.viewportStableHeight ?? tgAny.viewportHeight
-      if (vh && vh > 0) document.documentElement.style.setProperty('--tg-vh', `${vh}px`)
+      const stable = tgAny.viewportStableHeight ?? tgAny.viewportHeight ?? 0
+      const current = tgAny.viewportHeight ?? stable
+      if (stable > 0) document.documentElement.style.setProperty('--tg-vh', `${stable}px`)
+      // Keyboard height = difference between stable and current viewport heights.
+      // Zero when keyboard is closed; positive when keyboard is open.
+      const kbH = Math.max(0, Math.round(stable - current))
+      document.documentElement.style.setProperty('--keyboard-h', `${kbH}px`)
     }
     function onActivated() {
       tg!.expand()
@@ -78,9 +82,23 @@ export default function Page() {
     applyViewportHeight()
     tgAny.onEvent?.('viewportChanged', applyViewportHeight)
     tgAny.onEvent?.('activated', onActivated)
+
+    // Fallback for non-Telegram environments (dev browser): track keyboard via visualViewport.
+    function applyKeyboardFromVV() {
+      if (window.Telegram?.WebApp) return
+      const vv = window.visualViewport
+      if (!vv) return
+      const kbH = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop))
+      document.documentElement.style.setProperty('--keyboard-h', `${kbH}px`)
+    }
+    window.visualViewport?.addEventListener('resize', applyKeyboardFromVV)
+    window.visualViewport?.addEventListener('scroll', applyKeyboardFromVV)
+
     return () => {
       tgAny.offEvent?.('viewportChanged', applyViewportHeight)
       tgAny.offEvent?.('activated', onActivated)
+      window.visualViewport?.removeEventListener('resize', applyKeyboardFromVV)
+      window.visualViewport?.removeEventListener('scroll', applyKeyboardFromVV)
     }
   }, [])
 

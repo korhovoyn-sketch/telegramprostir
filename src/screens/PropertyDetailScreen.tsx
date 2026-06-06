@@ -186,6 +186,7 @@ export default function PropertyDetailScreen() {
     showToast({ type: 'success', title: 'Об\'єкт здано в оренду' })
     setShowRentModal(false)
     setRentTenantName('')
+    setRentLeaseStart('')
     setRentLeaseEnd('')
     setRentRentRate('')
     setRentUtilitiesRate('')
@@ -495,33 +496,74 @@ export default function PropertyDetailScreen() {
 
       {isOwner && property.status === 'free' && (
         <button
-          className="mbtn success"
+          style={{
+            position: 'absolute', bottom: 'calc(14px + var(--safe-bottom))',
+            left: '50%', transform: 'translateX(-50%)',
+            height: 'var(--btn-h)', padding: '0 32px', minWidth: 200,
+            borderRadius: 'var(--r-pill)', whiteSpace: 'nowrap',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            fontSize: 15, fontWeight: 600, color: '#fff', cursor: 'pointer',
+            background: 'rgba(74,219,122,.18)',
+            border: '.5px solid rgba(74,219,122,.42)',
+            backdropFilter: 'blur(16px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(16px) saturate(180%)',
+            boxShadow: '0 4px 24px rgba(74,219,122,.22), inset 0 1px 0 rgba(255,255,255,.18)',
+            zIndex: 20,
+          }}
           onClick={() => {
-          setRentTenantName('')
-          setRentLeaseStart('')
-          setRentLeaseEnd('')
-          setRentRentRate(property.rent_rate != null ? String(property.rent_rate) : '')
-          setRentUtilitiesRate(property.utilities_rate != null ? String(property.utilities_rate) : '')
-          setShowRentModal(true)
-        }}
+            setRentTenantName('')
+            setRentLeaseStart('')
+            setRentLeaseEnd('')
+            setRentRentRate(property.rent_rate != null ? String(property.rent_rate) : '')
+            setRentUtilitiesRate(property.utilities_rate != null ? String(property.utilities_rate) : '')
+            setShowRentModal(true)
+          }}
         >
+          <IconKey size={16} />
           Здати в оренду
         </button>
       )}
       {isOwner && property.status === 'occupied' && (
         <button
-          className="mbtn danger"
+          style={{
+            position: 'absolute', bottom: 'calc(14px + var(--safe-bottom))',
+            left: '50%', transform: 'translateX(-50%)',
+            height: 'var(--btn-h)', padding: '0 32px', minWidth: 200,
+            borderRadius: 'var(--r-pill)', whiteSpace: 'nowrap',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            fontSize: 15, fontWeight: 600, color: '#fff', cursor: 'pointer',
+            background: 'rgba(255,107,97,.16)',
+            border: '.5px solid rgba(255,107,97,.38)',
+            backdropFilter: 'blur(16px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(16px) saturate(180%)',
+            boxShadow: '0 4px 24px rgba(255,107,97,.18), inset 0 1px 0 rgba(255,255,255,.15)',
+            zIndex: 20,
+          }}
           onClick={() => setShowFreeModal(true)}
         >
+          <IconCircleCheck size={16} />
           Звільнити об&apos;єкт
         </button>
       )}
       {isOwner && property.status === 'for_sale' && (
         <button
-          className="mbtn"
+          style={{
+            position: 'absolute', bottom: 'calc(14px + var(--safe-bottom))',
+            left: '50%', transform: 'translateX(-50%)',
+            height: 'var(--btn-h)', padding: '0 32px', minWidth: 200,
+            borderRadius: 'var(--r-pill)', whiteSpace: 'nowrap',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            fontSize: 15, fontWeight: 600, color: '#fff', cursor: 'pointer',
+            background: 'rgba(42,171,238,.15)',
+            border: '.5px solid rgba(42,171,238,.35)',
+            backdropFilter: 'blur(16px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(16px) saturate(180%)',
+            boxShadow: '0 4px 24px rgba(42,171,238,.18), inset 0 1px 0 rgba(255,255,255,.18)',
+            zIndex: 20,
+          }}
           onClick={() => navigate('sharing-analytics', { propertyId: property.id })}
         >
-          <IconShare size={18} />
+          <IconShare size={16} />
           Поділитись
         </button>
       )}
@@ -542,10 +584,10 @@ export default function PropertyDetailScreen() {
         <Modal
           title="Звільнити об'єкт?"
           subtitle={property.tenant_name ? `Орендар "${property.tenant_name}" та дати договору будуть видалені.` : 'Об\'єкт отримає статус "Вільно".'}
-          onClose={() => setShowFreeModal(false)}
+          onClose={() => !freeSaving && setShowFreeModal(false)}
           actions={[
-            { label: freeSaving ? 'Збереження...' : 'Звільнити', variant: 'danger', onClick: handleFreeProperty },
-            { label: 'Скасувати', variant: 'secondary', onClick: () => setShowFreeModal(false) },
+            { label: freeSaving ? 'Збереження...' : 'Звільнити', variant: 'danger', disabled: freeSaving, onClick: handleFreeProperty },
+            { label: 'Скасувати', variant: 'secondary', disabled: freeSaving, onClick: () => setShowFreeModal(false) },
           ]}
         />
       )}
@@ -559,9 +601,10 @@ export default function PropertyDetailScreen() {
             {
               label: rentSaving ? 'Збереження...' : 'Здати',
               variant: 'primary',
+              disabled: rentSaving || !rentTenantName.trim(),
               onClick: handleRentOut,
             },
-            { label: 'Скасувати', variant: 'secondary', onClick: () => setShowRentModal(false) },
+            { label: 'Скасувати', variant: 'secondary', disabled: rentSaving, onClick: () => setShowRentModal(false) },
           ]}
         >
           {(() => {

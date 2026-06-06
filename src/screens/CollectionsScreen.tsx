@@ -369,8 +369,11 @@ function CollectionDetail({
           title="Додати об'єкт"
           subtitle="Оберіть об'єкт із підписаних баз"
           onClose={() => setShowAddModal(false)}
+          actions={[
+            { label: 'Закрити', variant: 'secondary', onClick: () => setShowAddModal(false) },
+          ]}
         >
-          <div style={{ maxHeight: 340, overflowY: 'auto', marginTop: 8 }}>
+          <div style={{ marginTop: 4 }}>
             {loadingAvail ? (
               <div className="loader-wrap" style={{ padding: '24px 0' }}>
                 <div className="loader" />
