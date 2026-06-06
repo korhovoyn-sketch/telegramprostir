@@ -145,7 +145,7 @@ export default function PhotoUploadScreen() {
             ) : (
               <>
                 <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--t1)' }}>{overallPct}%</div>
-                <div style={{ fontSize: 10, color: 'var(--t3)' }}>{doneCount}/{total}</div>
+                <div style={{ fontSize: 12, color: 'var(--t3)' }}>{doneCount}/{total}</div>
               </>
             )}
           </div>
@@ -207,17 +207,17 @@ export default function PhotoUploadScreen() {
                   </div>
                 )}
                 {item.status === 'error' && item.errorMsg && (
-                  <div style={{ marginTop: 2, fontSize: 11, color: '#f87171', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <div style={{ marginTop: 2, fontSize: 12, color: '#f87171', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {item.errorMsg}
                   </div>
                 )}
                 {item.status === 'pending' && (
-                  <div style={{ marginTop: 2, fontSize: 11, color: 'var(--t4)' }}>
+                  <div style={{ marginTop: 2, fontSize: 12, color: 'var(--t3)' }}>
                     {(item.file.size / 1024 / 1024).toFixed(1)} MB
                   </div>
                 )}
                 {item.status === 'done' && (
-                  <div style={{ marginTop: 2, fontSize: 11, color: '#4ade80' }}>Збережено</div>
+                  <div style={{ marginTop: 2, fontSize: 12, color: '#4ade80' }}>Збережено</div>
                 )}
               </div>
               <div style={{ flexShrink: 0 }}>

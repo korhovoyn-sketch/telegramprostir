@@ -40,7 +40,7 @@ export default function ProfileSetupScreen() {
           background: 'var(--glass-1)',
           border: 'var(--bd)',
           borderRadius: 'var(--r-pill)',
-          fontSize: 11,
+          fontSize: 12,
           color: 'var(--t3)',
           fontWeight: 600,
           letterSpacing: '.06em',

@@ -381,7 +381,7 @@ export default function PropertyDetailScreen() {
           }
           return (
             <div style={{ margin: '0 12px 12px' }}>
-              <div style={{ fontSize: 11, color: 'var(--t3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 8 }}>Комунальні послуги</div>
+              <div style={{ fontSize: 12, color: 'var(--t3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 8 }}>Комунальні послуги</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {(property.utilities ?? []).map(uid => {
                   const meta = UTIL_META[uid]
@@ -403,8 +403,8 @@ export default function PropertyDetailScreen() {
           <div className="glass-s" style={{ margin: '0 12px 12px', borderRadius: 'var(--r-md)', padding: '11px 14px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <div style={{ fontSize: 11, color: 'var(--t3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>Разом на місяць</div>
-                <div style={{ fontSize: 11, color: 'var(--t4)', marginTop: 2 }}>оренда + комунальні</div>
+                <div style={{ fontSize: 12, color: 'var(--t3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>Разом на місяць</div>
+                <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 2 }}>оренда + комунальні</div>
               </div>
               <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--t1)', letterSpacing: '-.02em' }}>
                 {formatPrice(total, user?.currency)}

@@ -271,7 +271,7 @@ function CollectionDetail({
             {collection.name}
           </div>
           {collection.is_draft && (
-            <div style={{ fontSize: 11, color: 'var(--t3)' }}>Чернетка</div>
+            <div style={{ fontSize: 12, color: 'var(--t3)' }}>Чернетка</div>
           )}
         </div>
         <div style={{ display: 'flex', gap: 8 }}>

@@ -121,7 +121,7 @@ export default function WelcomeScreen() {
         {!loading && 'Вхід через Telegram'}
       </button>
 
-      <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--t4)', padding: '12px 24px 8px' }}>
+      <div style={{ textAlign: 'center', fontSize: 13, color: 'var(--t3)', padding: '12px 24px 8px', lineHeight: 1.5 }}>
         Натискаючи «Вхід», ви погоджуєтесь з Умовами використання та Політикою конфіденційності
       </div>
 

@@ -150,7 +150,7 @@ export default function GuestDatabaseScreen() {
             </div>
             <div style={{ marginLeft: 'auto' }}>
               <span style={{
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: 600,
                 color: 'var(--accent)',
                 background: 'rgba(168,124,255,.15)',
