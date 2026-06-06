@@ -11,6 +11,7 @@ import { StatusBadge, FreshnessBadge } from '@/components/ui/Badge'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import Modal from '@/components/ui/Modal'
 import { IconPlus, IconDots, IconEye, IconPhoto, IconShare, IconChevronUp, IconChevronDown } from '@/components/Icons'
+import DatabaseStatsPanel from '@/components/ui/DatabaseStatsPanel'
 import { formatPrice, calcRent, calcUtilities, DB_TYPE_LABELS, DB_TYPE_EMOJI, formatLeasePeriod } from '@/lib/utils'
 import type { PropertyStatus } from '@/types'
 
@@ -165,6 +166,11 @@ export default function DatabaseObjectsScreen() {
         {/* Search — hidden while reordering */}
         {!reorderMode && (
           <SearchBar value={search} onChange={setSearch} placeholder="Пошук об&apos;єкту..." />
+        )}
+
+        {/* Stats dashboard */}
+        {!reorderMode && !selectMode && (
+          <DatabaseStatsPanel properties={properties} currency={user?.currency} />
         )}
 
         {/* Mode hints */}
