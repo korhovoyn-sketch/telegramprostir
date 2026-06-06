@@ -99,6 +99,8 @@ export default function DatabaseStatsPanel({ properties, currency = 'USD' }: Pro
 
     const occupiedUseful = occupied.reduce((sum, p) => sum + (p.area_useful ?? 0), 0)
     const occupiedTotal = occupied.reduce((sum, p) => sum + (p.area_total ?? 0), 0)
+    const totalUseful = properties.reduce((sum, p) => sum + (p.area_useful ?? 0), 0)
+    const totalArea = properties.reduce((sum, p) => sum + (p.area_total ?? 0), 0)
     const freeUseful = free.reduce((sum, p) => sum + (p.area_useful ?? 0), 0)
 
     return {
@@ -109,6 +111,8 @@ export default function DatabaseStatsPanel({ properties, currency = 'USD' }: Pro
       totalUtils,
       occupiedUseful: Math.round(occupiedUseful),
       occupiedTotal: Math.round(occupiedTotal),
+      totalUseful: Math.round(totalUseful),
+      totalArea: Math.round(totalArea),
       freeUseful: Math.round(freeUseful),
       ratio: properties.length > 0 ? occupied.length / properties.length : 0,
     }
@@ -116,7 +120,8 @@ export default function DatabaseStatsPanel({ properties, currency = 'USD' }: Pro
 
   const animRent = useCountUp(stats.totalRent)
   const animUtils = useCountUp(stats.totalUtils)
-  const animUseful = useCountUp(stats.occupiedUseful)
+  const animOccupiedUseful = useCountUp(stats.occupiedUseful)
+  const animTotalUseful = useCountUp(stats.totalUseful)
   const animFree = useCountUp(stats.freeUseful)
 
   if (properties.length === 0) return null
@@ -151,10 +156,18 @@ export default function DatabaseStatsPanel({ properties, currency = 'USD' }: Pro
     ...(stats.occupiedUseful > 0 ? [{
       icon: '📐',
       label: 'Площа зайнятих',
-      value: `${animUseful.toLocaleString('uk-UA')} м²`,
+      value: `${animOccupiedUseful.toLocaleString('uk-UA')} м²`,
       sub: stats.occupiedTotal > 0 ? `заг: ${stats.occupiedTotal.toLocaleString('uk-UA')} м²` : undefined,
       accentBg: 'rgba(180,80,240,.13)',
       accentBorder: 'rgba(180,80,240,.26)',
+    } satisfies CardData] : []),
+    ...(stats.totalUseful > 0 ? [{
+      icon: '🏢',
+      label: 'Вся корисна площа',
+      value: `${animTotalUseful.toLocaleString('uk-UA')} м²`,
+      sub: stats.totalArea > 0 ? `заг: ${stats.totalArea.toLocaleString('uk-UA')} м²` : undefined,
+      accentBg: 'rgba(90,90,200,.13)',
+      accentBorder: 'rgba(90,90,200,.26)',
     } satisfies CardData] : []),
     ...(stats.freeUseful > 0 ? [{
       icon: '✅',
