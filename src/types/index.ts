@@ -60,6 +60,7 @@ export interface Property {
   tenant_name?: string | null
   lease_start_date?: string | null
   lease_end_date?: string | null
+  sort_order?: number
   created_at: string
   updated_at: string
   photos?: PropertyPhoto[]

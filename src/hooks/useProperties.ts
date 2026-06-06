@@ -25,12 +25,13 @@ export function useProperties(dbId?: string) {
           has_parking, parking_spaces, description,
           address, utilities,
           sale_price, tenant_name, lease_start_date, lease_end_date,
-          created_at, updated_at,
+          sort_order, created_at, updated_at,
           photos:property_photos(id, storage_path, sort_order),
           views:property_views(id)
         `)
         .eq('db_id', targetDbId)
-        .order('created_at', { ascending: false })
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true })
 
       if (error) throw error
       const mapped = (data ?? []).map((p) => {
@@ -59,7 +60,7 @@ export function useProperties(dbId?: string) {
           has_parking, parking_spaces, description,
           address, utilities,
           sale_price, tenant_name, lease_start_date, lease_end_date,
-          created_at, updated_at,
+          sort_order, created_at, updated_at,
           photos:property_photos(id, storage_path, sort_order),
           views:property_views(id)
         `)
@@ -157,6 +158,44 @@ export function useProperties(dbId?: string) {
     }
   }, [showToast, navigate])
 
+  const reorderProperty = useCallback(async (id: string, direction: 'up' | 'down') => {
+    const idx = properties.findIndex(p => p.id === id)
+    if (idx === -1) return
+    const neighborIdx = direction === 'up' ? idx - 1 : idx + 1
+    if (neighborIdx < 0 || neighborIdx >= properties.length) return
+
+    try {
+      // If any item lacks a real sort_order, initialise all before swapping
+      let base = properties
+      if (properties.some(p => !p.sort_order)) {
+        base = properties.map((p, i) => ({ ...p, sort_order: (i + 1) * 100 }))
+        await Promise.all(
+          base.map(p => supabase.from('properties').update({ sort_order: p.sort_order }).eq('id', p.id))
+        )
+      }
+
+      const a = base[idx]
+      const b = base[neighborIdx]
+
+      // Optimistic swap
+      const next = base
+        .map(p =>
+          p.id === a.id ? { ...p, sort_order: b.sort_order } :
+          p.id === b.id ? { ...p, sort_order: a.sort_order } : p
+        )
+        .sort((x, y) => (x.sort_order ?? 0) - (y.sort_order ?? 0) || x.created_at.localeCompare(y.created_at))
+      setProperties(next)
+
+      await Promise.all([
+        supabase.from('properties').update({ sort_order: b.sort_order }).eq('id', a.id),
+        supabase.from('properties').update({ sort_order: a.sort_order }).eq('id', b.id),
+      ])
+    } catch {
+      setProperties(properties) // rollback
+      showToast({ type: 'error', title: 'Не вдалося зберегти порядок' })
+    }
+  }, [properties, showToast])
+
   const deletePhoto = useCallback(async (photoId: string, storagePath: string) => {
     try {
       // Remove from storage first, then the DB record
@@ -213,6 +252,7 @@ export function useProperties(dbId?: string) {
     createProperty,
     updateProperty,
     cycleStatus,
+    reorderProperty,
     deleteProperty,
     deletePhoto,
     uploadPhoto,

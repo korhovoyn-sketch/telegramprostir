@@ -10,19 +10,27 @@ import SearchBar from '@/components/ui/SearchBar'
 import { StatusBadge, FreshnessBadge } from '@/components/ui/Badge'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import Modal from '@/components/ui/Modal'
-import { IconPlus, IconDots, IconEye, IconPhoto, IconShare } from '@/components/Icons'
+import { IconPlus, IconDots, IconEye, IconPhoto, IconShare, IconChevronUp, IconChevronDown } from '@/components/Icons'
 import { formatPrice, calcRent, calcUtilities, DB_TYPE_LABELS, DB_TYPE_EMOJI, formatLeasePeriod } from '@/lib/utils'
 import type { PropertyStatus } from '@/types'
 
 export default function DatabaseObjectsScreen() {
   const { screenParams, navigate, databases, user } = useAppStore()
   const { deleteDatabase } = useDatabases()
-  const { properties, loading, error, loadProperties } = useProperties(screenParams.dbId)
+  const { properties, loading, error, loadProperties, reorderProperty } = useProperties(screenParams.dbId)
 
   const [search, setSearch] = useState('')
   const [tab, setTab] = useState<'all' | PropertyStatus>('all')
   const [showMenu, setShowMenu] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [reorderMode, setReorderMode] = useState(false)
+
+  function enterReorderMode() {
+    setShowMenu(false)
+    setSearch('')
+    setTab('all')
+    setReorderMode(true)
+  }
 
   const db = databases.find((d) => d.id === screenParams.dbId)
 
@@ -58,9 +66,15 @@ export default function DatabaseObjectsScreen() {
         subtitle={DB_TYPE_LABELS[db.type]}
         backLabel="Бази"
         right={
-          <button className="hdr-a" aria-label="Меню бази" onClick={() => setShowMenu(true)} style={{ background: 'none', border: 'var(--bd)' }}>
-            <IconDots size={16} />
-          </button>
+          reorderMode ? (
+            <button className="hdr-a" onClick={() => setReorderMode(false)} style={{ background: 'rgba(34,199,89,.18)', border: 'none', color: '#22c759', fontWeight: 600, fontSize: 13 }}>
+              Готово
+            </button>
+          ) : (
+            <button className="hdr-a" aria-label="Меню бази" onClick={() => setShowMenu(true)} style={{ background: 'none', border: 'var(--bd)' }}>
+              <IconDots size={16} />
+            </button>
+          )
         }
       />
 
@@ -87,26 +101,37 @@ export default function DatabaseObjectsScreen() {
           </button>
         </div>
 
-        {/* Segment tabs */}
-        <div className="seg">
-          {([
-            { id: 'all', label: `Всі (${counts.all})` },
-            { id: 'free', label: `Вільно (${counts.free})` },
-            { id: 'occupied', label: `Зайнято (${counts.occupied})` },
-            { id: 'for_sale', label: `Продаж (${counts.for_sale})` },
-          ] as const).map((t) => (
-            <div
-              key={t.id}
-              className={`seg-b ${tab === t.id ? 'on' : ''}`}
-              onClick={() => { window.Telegram?.WebApp?.HapticFeedback?.selectionChanged(); setTab(t.id) }}
-            >
-              {t.label}
-            </div>
-          ))}
-        </div>
+        {/* Segment tabs — hidden while reordering */}
+        {!reorderMode && (
+          <div className="seg">
+            {([
+              { id: 'all', label: `Всі (${counts.all})` },
+              { id: 'free', label: `Вільно (${counts.free})` },
+              { id: 'occupied', label: `Зайнято (${counts.occupied})` },
+              { id: 'for_sale', label: `Продаж (${counts.for_sale})` },
+            ] as const).map((t) => (
+              <div
+                key={t.id}
+                className={`seg-b ${tab === t.id ? 'on' : ''}`}
+                onClick={() => { window.Telegram?.WebApp?.HapticFeedback?.selectionChanged(); setTab(t.id) }}
+              >
+                {t.label}
+              </div>
+            ))}
+          </div>
+        )}
 
-        {/* Search */}
-        <SearchBar value={search} onChange={setSearch} placeholder="Пошук об&apos;єкту..." />
+        {/* Search — hidden while reordering */}
+        {!reorderMode && (
+          <SearchBar value={search} onChange={setSearch} placeholder="Пошук об&apos;єкту..." />
+        )}
+
+        {/* Reorder hint */}
+        {reorderMode && (
+          <div style={{ padding: '8px 16px', fontSize: 12, color: 'var(--t3)', textAlign: 'center' }}>
+            Натисніть ↑ або ↓ щоб змінити позицію об&apos;єкта
+          </div>
+        )}
 
         {/* Property cards */}
         {loading ? (
@@ -145,7 +170,7 @@ export default function DatabaseObjectsScreen() {
           </div>
         ) : (
           <div className="list">
-            {filtered.map((p) => {
+            {filtered.map((p, idx) => {
               const rent = p.rent_rate && p.area_useful
                 ? calcRent(p.area_useful, p.rent_rate, p.rent_type)
                 : 0
@@ -158,58 +183,83 @@ export default function DatabaseObjectsScreen() {
                 <div
                   key={p.id}
                   className="obj-card glass-s"
-                  onClick={() => navigate('property-detail', { propertyId: p.id, dbId: db.id })}
+                  style={{ display: 'flex', alignItems: 'stretch', gap: 0, padding: reorderMode ? 0 : undefined, overflow: 'hidden' }}
+                  onClick={!reorderMode ? () => navigate('property-detail', { propertyId: p.id, dbId: db.id }) : undefined}
                 >
-                  <div className="obj-hd">
-                    <div>
-                      <div className="obj-t">{p.name}</div>
-                      <div className="obj-s">
-                        {p.floor && <><span>🏢</span><span>{p.floor} поверх</span></>}
-                      </div>
-                    </div>
-                    <StatusBadge status={p.status} />
-                  </div>
-                  <div className="obj-met">
-                    {p.area_useful && (
-                      <div className="obj-mt">
-                        <span>📐</span>
-                        <span>{p.area_useful}/{p.area_total ?? p.area_useful} м²</span>
-                      </div>
-                    )}
-                    {p.has_parking && (
-                      <div className="obj-mt">
-                        <span>🅿️</span>
-                        <span>{p.parking_spaces} місць</span>
-                      </div>
-                    )}
-                    {(p.photos?.length ?? 0) > 0 && (
-                      <div className="obj-mt">
-                        <IconPhoto size={11} />
-                        <span>{p.photos!.length}</span>
-                      </div>
-                    )}
-                    {(p._view_count ?? 0) > 0 && (
-                      <div className="obj-mt">
-                        <IconEye size={11} />
-                        <span>{p._view_count}</span>
-                      </div>
-                    )}
-                    {p.status === 'occupied' && formatLeasePeriod(p.lease_start_date, p.lease_end_date) && (
-                      <div className="obj-mt" style={{ gridColumn: '1 / -1', color: 'var(--t3)' }}>
-                        <span>📅</span>
-                        <span>{formatLeasePeriod(p.lease_start_date, p.lease_end_date)}</span>
-                      </div>
-                    )}
-                  </div>
-                  {total > 0 && (
-                    <div className="obj-tot">
-                      <div>
-                        <div className="obj-tot-l">На місяць</div>
-                        <div className="obj-tot-sub">оренда + комунальні</div>
-                      </div>
-                      <div className="obj-tot-v">{formatPrice(total, user?.currency)}</div>
+                  {/* Reorder controls */}
+                  {reorderMode && (
+                    <div style={{ display: 'flex', flexDirection: 'column', width: 44, flexShrink: 0, borderRight: 'var(--bd)' }}>
+                      <button
+                        onClick={() => { window.Telegram?.WebApp?.HapticFeedback?.selectionChanged(); reorderProperty(p.id, 'up') }}
+                        disabled={idx === 0}
+                        aria-label="Вгору"
+                        style={{ flex: 1, background: 'none', border: 'none', color: idx === 0 ? 'var(--t4)' : 'var(--t2)', cursor: idx === 0 ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: 'var(--bd)' }}
+                      >
+                        <IconChevronUp size={16} />
+                      </button>
+                      <button
+                        onClick={() => { window.Telegram?.WebApp?.HapticFeedback?.selectionChanged(); reorderProperty(p.id, 'down') }}
+                        disabled={idx === filtered.length - 1}
+                        aria-label="Вниз"
+                        style={{ flex: 1, background: 'none', border: 'none', color: idx === filtered.length - 1 ? 'var(--t4)' : 'var(--t2)', cursor: idx === filtered.length - 1 ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        <IconChevronDown size={16} />
+                      </button>
                     </div>
                   )}
+
+                  <div style={{ flex: 1, padding: reorderMode ? '12px 14px' : undefined }}>
+                    <div className="obj-hd">
+                      <div>
+                        <div className="obj-t">{p.name}</div>
+                        <div className="obj-s">
+                          {p.floor && <><span>🏢</span><span>{p.floor} поверх</span></>}
+                        </div>
+                      </div>
+                      <StatusBadge status={p.status} />
+                    </div>
+                    <div className="obj-met">
+                      {p.area_useful && (
+                        <div className="obj-mt">
+                          <span>📐</span>
+                          <span>{p.area_useful}/{p.area_total ?? p.area_useful} м²</span>
+                        </div>
+                      )}
+                      {p.has_parking && (
+                        <div className="obj-mt">
+                          <span>🅿️</span>
+                          <span>{p.parking_spaces} місць</span>
+                        </div>
+                      )}
+                      {(p.photos?.length ?? 0) > 0 && (
+                        <div className="obj-mt">
+                          <IconPhoto size={11} />
+                          <span>{p.photos!.length}</span>
+                        </div>
+                      )}
+                      {(p._view_count ?? 0) > 0 && (
+                        <div className="obj-mt">
+                          <IconEye size={11} />
+                          <span>{p._view_count}</span>
+                        </div>
+                      )}
+                      {p.status === 'occupied' && formatLeasePeriod(p.lease_start_date, p.lease_end_date) && (
+                        <div className="obj-mt" style={{ gridColumn: '1 / -1', color: 'var(--t3)' }}>
+                          <span>📅</span>
+                          <span>{formatLeasePeriod(p.lease_start_date, p.lease_end_date)}</span>
+                        </div>
+                      )}
+                    </div>
+                    {total > 0 && (
+                      <div className="obj-tot">
+                        <div>
+                          <div className="obj-tot-l">На місяць</div>
+                          <div className="obj-tot-sub">оренда + комунальні</div>
+                        </div>
+                        <div className="obj-tot-v">{formatPrice(total, user?.currency)}</div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )
             })}
@@ -217,10 +267,12 @@ export default function DatabaseObjectsScreen() {
         )}
       </div>
 
-      {/* FAB */}
-      <button className="fab" aria-label="Додати об'єкт" onClick={() => navigate('property-form', { dbId: db.id })}>
-        <IconPlus size={20} />
-      </button>
+      {/* FAB — hidden while reordering */}
+      {!reorderMode && (
+        <button className="fab" aria-label="Додати об'єкт" onClick={() => navigate('property-form', { dbId: db.id })}>
+          <IconPlus size={20} />
+        </button>
+      )}
 
       <TabBar />
 
@@ -233,6 +285,7 @@ export default function DatabaseObjectsScreen() {
           actions={[
             { label: '📊 Аналітика і поширення', variant: 'secondary', onClick: () => { setShowMenu(false); navigate('sharing-analytics', { dbId: db.id }) } },
             { label: '📤 Експорт', variant: 'secondary', onClick: () => { setShowMenu(false); navigate('export', { dbId: db.id }) } },
+            { label: '↕ Змінити порядок об\'єктів', variant: 'secondary', onClick: enterReorderMode },
             { label: '✏️ Редагувати базу', variant: 'secondary', onClick: () => { setShowMenu(false); navigate('edit-db', { dbId: db.id }) } },
             { label: '🗑️ Видалити базу', variant: 'danger', onClick: () => { setShowMenu(false); setShowDeleteModal(true) } },
           ]}
