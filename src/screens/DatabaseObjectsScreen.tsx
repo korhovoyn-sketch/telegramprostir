@@ -236,17 +236,18 @@ export default function DatabaseObjectsScreen() {
                 ? calcUtilities(p.area_total, p.utilities_rate)
                 : 0
               const total = rent + utils
+              const inMode = reorderMode || selectMode
 
               return (
                 <div
                   key={p.id}
                   className="obj-card glass-s"
-                  style={{
-                    display: 'flex', alignItems: 'stretch', gap: 0,
-                    padding: (reorderMode || selectMode) ? 0 : undefined,
+                  style={inMode ? {
+                    display: 'flex',
+                    alignItems: 'stretch',
                     overflow: 'hidden',
                     outline: selectMode && selectedIds.has(p.id) ? '2px solid var(--accent)' : undefined,
-                  }}
+                  } : undefined}
                   onClick={
                     selectMode ? () => toggleSelect(p.id) :
                     !reorderMode ? () => navigate('property-detail', { propertyId: p.id, dbId: db.id }) :
@@ -255,17 +256,22 @@ export default function DatabaseObjectsScreen() {
                 >
                   {/* Select checkbox */}
                   {selectMode && (
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 44, flexShrink: 0, borderRight: 'var(--bd)' }}>
+                    <div style={{
+                      width: 48, flexShrink: 0,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      borderRight: 'var(--bd)',
+                    }}>
                       <div style={{
-                        width: 20, height: 20, borderRadius: 10,
+                        width: 22, height: 22, borderRadius: 11,
                         border: `2px solid ${selectedIds.has(p.id) ? 'var(--accent)' : 'var(--t4)'}`,
                         background: selectedIds.has(p.id) ? 'var(--accent)' : 'transparent',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        transition: 'all .15s',
+                        transition: 'background .15s, border-color .15s',
+                        flexShrink: 0,
                       }}>
                         {selectedIds.has(p.id) && (
                           <svg width="11" height="8" viewBox="0 0 11 8" fill="none">
-                            <path d="M1 4l3 3 6-6" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                            <path d="M1 4l3 3 6-6" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                           </svg>
                         )}
                       </div>
@@ -274,35 +280,55 @@ export default function DatabaseObjectsScreen() {
 
                   {/* Reorder controls */}
                   {reorderMode && (
-                    <div style={{ display: 'flex', flexDirection: 'column', width: 44, flexShrink: 0, borderRight: 'var(--bd)' }}>
+                    <div style={{
+                      width: 48, flexShrink: 0,
+                      display: 'flex', flexDirection: 'column',
+                      borderRight: 'var(--bd)',
+                    }}>
                       <button
-                        onClick={() => { window.Telegram?.WebApp?.HapticFeedback?.selectionChanged(); reorderProperty(p.id, 'up') }}
+                        onClick={(e) => { e.stopPropagation(); window.Telegram?.WebApp?.HapticFeedback?.selectionChanged(); reorderProperty(p.id, 'up') }}
                         disabled={idx === 0}
                         aria-label="Вгору"
-                        style={{ flex: 1, background: 'none', border: 'none', color: idx === 0 ? 'var(--t4)' : 'var(--t2)', cursor: idx === 0 ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: 'var(--bd)' }}
+                        style={{
+                          flex: 1, background: 'none', border: 'none',
+                          color: idx === 0 ? 'var(--t4)' : 'var(--t2)',
+                          cursor: idx === 0 ? 'default' : 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          borderBottom: 'var(--bd)',
+                        }}
                       >
-                        <IconChevronUp size={16} />
+                        <IconChevronUp size={15} />
                       </button>
                       <button
-                        onClick={() => { window.Telegram?.WebApp?.HapticFeedback?.selectionChanged(); reorderProperty(p.id, 'down') }}
+                        onClick={(e) => { e.stopPropagation(); window.Telegram?.WebApp?.HapticFeedback?.selectionChanged(); reorderProperty(p.id, 'down') }}
                         disabled={idx === filtered.length - 1}
                         aria-label="Вниз"
-                        style={{ flex: 1, background: 'none', border: 'none', color: idx === filtered.length - 1 ? 'var(--t4)' : 'var(--t2)', cursor: idx === filtered.length - 1 ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        style={{
+                          flex: 1, background: 'none', border: 'none',
+                          color: idx === filtered.length - 1 ? 'var(--t4)' : 'var(--t2)',
+                          cursor: idx === filtered.length - 1 ? 'default' : 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}
                       >
-                        <IconChevronDown size={16} />
+                        <IconChevronDown size={15} />
                       </button>
                     </div>
                   )}
 
-                  <div style={{ flex: 1, padding: (reorderMode || selectMode) ? '12px 14px' : undefined }}>
+                  {/* Card content — same markup as normal mode, just wrapped in flex child */}
+                  <div style={inMode ? { flex: 1, minWidth: 0 } : undefined}>
                     <div className="obj-hd">
-                      <div>
-                        <div className="obj-t">{p.name}</div>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div className="obj-t" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {p.name}
+                        </div>
                         <div className="obj-s">
                           {p.floor && <><span>🏢</span><span>{p.floor} поверх</span></>}
                         </div>
                       </div>
-                      <StatusBadge status={p.status} />
+                      <div style={{ flexShrink: 0 }}>
+                        <StatusBadge status={p.status} />
+                      </div>
                     </div>
                     <div className="obj-met">
                       {p.area_useful && (
