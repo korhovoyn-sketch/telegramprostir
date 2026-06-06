@@ -67,8 +67,16 @@ body{
   overflow:hidden;
   display:flex;flex-direction:column;
   position:relative;
-  will-change:transform;
 }
+
+/* ── SCREEN TRANSITIONS ── */
+.nav-wrap{position:absolute;inset:0;display:flex;flex-direction:column;overflow:hidden;will-change:transform,opacity}
+@keyframes navRight{from{transform:translateX(48px);opacity:0}}
+@keyframes navLeft{from{transform:translateX(-48px);opacity:0}}
+@keyframes navFade{from{opacity:0}}
+.nav-forward{animation:navRight .28s cubic-bezier(.16,1,.3,1) both}
+.nav-back{animation:navLeft .24s cubic-bezier(.16,1,.3,1) both}
+.nav-root{animation:navFade .2s ease both}
 
 /* ── BACKGROUNDS ── */
 .bg-purple{background:radial-gradient(ellipse at 12% 8%,rgba(140,30,235,.78),transparent 52%),radial-gradient(ellipse at 92% 88%,rgba(0,100,255,.72),transparent 52%),#06051a}

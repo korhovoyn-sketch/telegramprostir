@@ -40,6 +40,8 @@ const SharedCollectionScreen = dynamic(() => import('@/screens/SharedCollectionS
 
 export default function Page() {
   const screen = useAppStore((s) => s.screen)
+  const navKey = useAppStore((s) => s.navKey)
+  const navDirection = useAppStore((s) => s.navDirection)
   const historyLength = useAppStore((s) => s.history.length)
   const back = useAppStore((s) => s.back)
   const isOnline = useAppStore((s) => s.isOnline)
@@ -48,35 +50,27 @@ export default function Page() {
   const { setupAuthListener } = useAuth()
   useDeepLink()
 
+  // TG SDK setup — runs once on mount
   useEffect(() => {
     const tg = window.Telegram?.WebApp
     if (!tg) return
     tg.ready()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const tgAny = tg as any
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const tgAny = tg as any
       tgAny.setHeaderColor?.('#0a0a14')
       tgAny.setBackgroundColor?.('#0a0a14')
-      // Prevent accidental app close via vertical swipe on scroll-heavy screens (TMA 7.7+)
       tgAny.disableVerticalSwipes?.()
     } catch { /* older TMA versions may not support these APIs */ }
     if (tg.colorScheme) {
       document.documentElement.dataset.tgTheme = tg.colorScheme
     }
-    tg.expand()
 
-    // Sync app height with Telegram's viewport (handles keyboard appear/hide and restore)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const tgAny = tg as any
     function applyViewportHeight() {
-      const vh = tgAny.viewportHeight
-      if (vh && vh > 0) {
-        document.documentElement.style.setProperty('--tg-vh', `${vh}px`)
-      }
+      // viewportStableHeight = height excluding keyboard; falls back to viewportHeight
+      const vh = tgAny.viewportStableHeight ?? tgAny.viewportHeight
+      if (vh && vh > 0) document.documentElement.style.setProperty('--tg-vh', `${vh}px`)
     }
-    // Re-expand and re-measure when the app is restored from a minimized state.
-    // Named handler so the cleanup below removes the same reference (an inline
-    // arrow here would leak and re-stack a listener on every remount).
     function onActivated() {
       tg!.expand()
       applyViewportHeight()
@@ -84,24 +78,27 @@ export default function Page() {
     applyViewportHeight()
     tgAny.onEvent?.('viewportChanged', applyViewportHeight)
     tgAny.onEvent?.('activated', onActivated)
-
     return () => {
       tgAny.offEvent?.('viewportChanged', applyViewportHeight)
       tgAny.offEvent?.('activated', onActivated)
     }
   }, [])
 
+  // BackButton: register handler once (back is a stable Zustand function)
   useEffect(() => {
     const tg = window.Telegram?.WebApp
     if (!tg) return
-    if (historyLength > 0) {
-      tg.BackButton.show()
-    } else {
-      tg.BackButton.hide()
-    }
     tg.BackButton.onClick(back)
-    return () => { tg.BackButton.offClick(back) }
-  }, [historyLength, back])
+    return () => tg.BackButton.offClick(back)
+  }, [back])
+
+  // BackButton: show/hide independently of handler registration
+  useEffect(() => {
+    const tg = window.Telegram?.WebApp
+    if (!tg) return
+    if (historyLength > 0) tg.BackButton.show()
+    else tg.BackButton.hide()
+  }, [historyLength])
 
   // Wire JWT auto-refresh and SIGNED_OUT redirect
   useEffect(() => {
@@ -167,7 +164,9 @@ export default function Page() {
           Немає інтернету — дані можуть бути застарілими
         </div>
       )}
-      {renderScreen()}
+      <div key={navKey} className={`nav-wrap nav-${navDirection}`}>
+        {renderScreen()}
+      </div>
     </ErrorBoundary>
   )
 }

@@ -101,7 +101,7 @@ export function useTelegram() {
       if (webApp) {
         clearInterval(pollId)
         init(webApp)
-      } else if (Date.now() - start > 3000) {
+      } else if (Date.now() - start > 1500) {
         // SDK never loaded (opened outside Telegram) — unblock the splash anyway
         clearInterval(pollId)
         setIsReady(true)

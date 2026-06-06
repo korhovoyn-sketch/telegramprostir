@@ -5,22 +5,24 @@ import { useAppStore } from '@/store/appStore'
 import { useAuth } from '@/hooks/useAuth'
 import { useTelegram } from '@/hooks/useTelegram'
 
-// Hard ceiling: if restoreSession hangs longer than this, try auto-login
-const SESSION_TIMEOUT_MS = 2000
+const SESSION_TIMEOUT_MS = 1800
 
 export default function SplashScreen() {
   const [progress, setProgress] = useState(0)
-  const navigate = useAppStore((s) => s.navigate)
+  const [statusText, setStatusText] = useState('Завантажуємо...')
+  const navigateRoot = useAppStore((s) => s.navigateRoot)
   const { restoreSession, loginViaTelegram } = useAuth()
   const { isReady } = useTelegram()
-  // Guard against double-execution if isReady / deps change mid-flight
   const startedRef = useRef(false)
 
-  // Prefetch screens the user will land on immediately after splash
+  // Prefetch screens the user will land on right after splash
   useEffect(() => {
     import('@/screens/WelcomeScreen')
     import('@/screens/DatabaseListScreen')
     import('@/screens/RealtorDashboardScreen')
+    import('@/screens/DatabaseObjectsScreen')
+    import('@/screens/ProfileScreen')
+    import('@/screens/NotificationsScreen')
   }, [])
 
   useEffect(() => {
@@ -29,91 +31,80 @@ export default function SplashScreen() {
     startedRef.current = true
 
     let cancelled = false
+    let ticker: ReturnType<typeof setInterval> | null = null
 
-    const interval = setInterval(() => {
-      setProgress((p) => {
-        if (p >= 85) { clearInterval(interval); return p }
-        return p + Math.random() * 12
-      })
-    }, 100)
+    // Smoothly animate progress toward a ceiling, stopping short of it
+    function animateTo(ceiling: number) {
+      if (ticker) clearInterval(ticker)
+      ticker = setInterval(() => {
+        setProgress(p => {
+          if (p >= ceiling) { clearInterval(ticker!); return p }
+          return Math.min(p + 1.8, ceiling)
+        })
+      }, 55)
+    }
 
     async function init() {
-      // Step 1: try to restore existing session from localStorage
-      const sessionPromise = restoreSession()
-      const timeoutPromise = new Promise<false>((resolve) =>
-        setTimeout(() => resolve(false), SESSION_TIMEOUT_MS)
-      )
+      // SDK is ready
+      setProgress(14)
+      setStatusText('Перевіряємо сесію...')
+      animateTo(58)
 
-      const hasSession = await Promise.race([sessionPromise, timeoutPromise])
+      const hasSession = await Promise.race([
+        restoreSession(),
+        new Promise<false>(r => setTimeout(() => r(false), SESSION_TIMEOUT_MS)),
+      ])
 
       if (cancelled) return
+      if (ticker) clearInterval(ticker)
 
       if (hasSession) {
-        // Existing session restored — go straight to the app
-        clearInterval(interval)
         setProgress(100)
-        setTimeout(() => {
-          if (cancelled) return
-          const user = useAppStore.getState().user
-          if (!user) { navigate('welcome'); return }
-          const startParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param
-          if (startParam?.startsWith('db_') || startParam?.startsWith('prop_')) return
-          navigate(user.role === 'owner' ? 'db-list' : 'realtor-dashboard')
-        }, 300)
+        const user = useAppStore.getState().user
+        if (!user) { navigateRoot('welcome'); return }
+        const startParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param
+        if (startParam?.startsWith('db_') || startParam?.startsWith('prop_') || startParam?.startsWith('col_')) return
+        navigateRoot(user.role === 'owner' ? 'db-list' : 'realtor-dashboard')
         return
       }
 
-      // Step 2: no stored session — if startParam is db_<token>, show guest view
-      // (skip auto-login so anonymous users can browse without registering first).
+      setProgress(62)
+
+      // No session — check for guest share link (db_ without login)
       const startParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param ?? ''
       if (startParam.startsWith('db_')) {
-        clearInterval(interval)
         setProgress(100)
-        const token = startParam.slice(3)
-        navigate('guest-database', { token })
+        navigateRoot('guest-database', { token: startParam.slice(3) })
         return
       }
 
-      // Step 3: no stored session — try silent auto-login via Telegram initData.
-      // Telegram always provides initData when the app is opened inside Telegram,
-      // so returning users never need to press the login button again.
+      // Try silent auto-login via Telegram initData
       const initData = window.Telegram?.WebApp?.initData
       if (initData) {
-        setProgress(70)
+        setProgress(68)
+        setStatusText('Авторизація...')
+        animateTo(90)
         try {
-          // loginViaTelegram navigates on success, so we only need to handle failure
           await loginViaTelegram(initData)
           if (cancelled) return
-          // If user is now set, loginViaTelegram already navigated — we're done
-          const user = useAppStore.getState().user
-          if (user) {
-            clearInterval(interval)
-            setProgress(100)
-            return
-          }
-        } catch {
-          // Auto-login failed — fall through to WelcomeScreen
-        }
+          // loginViaTelegram navigates on success — check if we're still on splash
+          if (useAppStore.getState().screen !== 'splash') return
+        } catch { /* auto-login failed — fall through to WelcomeScreen */ }
       }
 
       if (cancelled) return
-
-      // Step 3: no initData or auto-login failed — show manual login screen
-      clearInterval(interval)
+      if (ticker) clearInterval(ticker)
       setProgress(100)
-      setTimeout(() => {
-        if (cancelled) return
-        navigate('welcome')
-      }, 300)
+      navigateRoot('welcome')
     }
 
     init()
 
     return () => {
       cancelled = true
-      clearInterval(interval)
+      if (ticker) clearInterval(ticker)
     }
-  }, [isReady, navigate, restoreSession, loginViaTelegram])
+  }, [isReady, navigateRoot, restoreSession, loginViaTelegram])
 
   return (
     <div className="scr bg-purple" style={{ alignItems: 'center', justifyContent: 'center' }}>
@@ -157,12 +148,11 @@ export default function SplashScreen() {
           width: `${Math.min(progress, 100)}%`,
           background: 'linear-gradient(90deg,#7AB3FF,#A87CFF)',
           borderRadius: 2,
-          transition: 'width .1s linear',
+          transition: 'width .12s linear',
         }} />
       </div>
       <div style={{ fontSize: 12, color: 'var(--t4)' }}>
-        {progress < 70 ? 'Завантажуємо...' : progress < 90 ? 'Перевіряємо сесію...' : 'Готово'}
-        {' '}{Math.round(Math.min(progress, 100))}%
+        {statusText} {Math.round(Math.min(progress, 100))}%
       </div>
 
       <div style={{ position: 'absolute', bottom: 32, fontSize: 11, color: 'var(--t4)' }}>

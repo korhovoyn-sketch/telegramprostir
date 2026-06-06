@@ -7,7 +7,7 @@ import type { User } from '@/types'
 
 export function useAuth() {
   const [loading, setLoading] = useState(false)
-  const { setUser, navigate, showToast } = useAppStore()
+  const { setUser, navigateRoot, showToast } = useAppStore()
 
   const setupAuthListener = useCallback(() => {
     if (!supabase.auth) return { unsubscribe: () => {} }
@@ -32,7 +32,7 @@ export function useAuth() {
         }
       } else if (event === 'SIGNED_OUT') {
         useAppStore.getState().setUser(null)
-        useAppStore.getState().navigate('welcome')
+        useAppStore.getState().navigateRoot('welcome')
       }
     })
     return subscription
@@ -140,9 +140,9 @@ export function useAuth() {
       if (startParam?.startsWith('db_') || startParam?.startsWith('prop_')) return
 
       if (is_new || !dbUser.role) {
-        navigate('role-select')
+        navigateRoot('role-select')
       } else {
-        navigate(dbUser.role === 'owner' ? 'db-list' : 'realtor-dashboard')
+        navigateRoot(dbUser.role === 'owner' ? 'db-list' : 'realtor-dashboard')
       }
     } catch (e) {
       const errorMsg = (e as Error).message || 'Unknown error'
@@ -151,7 +151,7 @@ export function useAuth() {
     } finally {
       setLoading(false)
     }
-  }, [setUser, navigate, showToast])
+  }, [setUser, navigateRoot, showToast])
 
   const logout = useCallback(async () => {
     try {
@@ -160,8 +160,8 @@ export function useAuth() {
       // ignore signOut errors — clear local state regardless
     }
     setUser(null)
-    navigate('welcome')
-  }, [setUser, navigate])
+    navigateRoot('welcome')
+  }, [setUser, navigateRoot])
 
   const updateProfile = useCallback(async (updates: Partial<User>) => {
     setLoading(true)

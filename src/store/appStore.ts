@@ -12,6 +12,8 @@ interface AppState {
   screen: ScreenName
   screenParams: ScreenParams
   history: NavEntry[]
+  navKey: number
+  navDirection: 'forward' | 'back' | 'root'
   user: User | null
   toast: Toast | null
   databases: Database[]
@@ -40,6 +42,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   screen: 'splash',
   screenParams: {},
   history: [],
+  navKey: 0,
+  navDirection: 'root' as const,
   user: null,
   toast: null,
   databases: [],
@@ -49,29 +53,37 @@ export const useAppStore = create<AppState>((set, get) => ({
   lastDbId: null,
 
   navigate: (screen, params = {}) => {
-    const { screen: current, screenParams: currentParams, history } = get()
-    // Track the last visited database so the analytics tab always has a target
+    const { screen: current, screenParams: currentParams, history, navKey } = get()
     const nextLastDbId = (params as ScreenParams).dbId as string | undefined
     set({
       screen,
       screenParams: params,
-      history: [...history, { screen: current, params: currentParams }],
+      // Cap stack at 12 to prevent unbounded growth
+      history: [...history, { screen: current, params: currentParams }].slice(-12),
+      navKey: navKey + 1,
+      navDirection: 'forward',
       ...(nextLastDbId ? { lastDbId: nextLastDbId } : {}),
     })
   },
 
   navigateRoot: (screen, params = {}) => {
-    set({ screen, screenParams: params, history: [] })
+    set({ screen, screenParams: params, history: [], navKey: get().navKey + 1, navDirection: 'root' })
   },
 
   back: () => {
-    const { history } = get()
+    const { history, navKey } = get()
     if (history.length === 0) return false
-    const prev = history[history.length - 1]
+    // Filter out auth screens that should never appear when pressing Back
+    const AUTH_SCREENS: ScreenName[] = ['splash', 'welcome', 'role-select']
+    const filtered = history.filter(e => !AUTH_SCREENS.includes(e.screen))
+    if (filtered.length === 0) return false
+    const prev = filtered[filtered.length - 1]
     set({
       screen: prev.screen,
       screenParams: prev.params,
-      history: history.slice(0, -1),
+      history: filtered.slice(0, -1),
+      navKey: navKey + 1,
+      navDirection: 'back',
     })
     return true
   },

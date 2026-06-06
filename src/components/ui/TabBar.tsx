@@ -20,7 +20,7 @@ const REALTOR_TABS: Tab[] = [
 ]
 
 export default function TabBar() {
-  const { screen, navigate, user, unreadCount, lastDbId, showToast } = useAppStore()
+  const { screen, navigateRoot, user, unreadCount, lastDbId, showToast } = useAppStore()
 
   const OWNER_TABS: Tab[] = [
     { id: 'db-list', label: 'Бази', screen: 'db-list', icon: <IconDatabase size={22} /> },
@@ -31,10 +31,10 @@ export default function TabBar() {
       icon: <IconChartBar size={22} />,
       onPress: () => {
         if (lastDbId) {
-          navigate('sharing-analytics', { dbId: lastDbId })
+          navigateRoot('sharing-analytics', { dbId: lastDbId })
         } else {
           showToast({ type: 'info', title: 'Відкрийте базу спочатку', subtitle: 'Аналітика доступна після відкриття бази' })
-          navigate('db-list')
+          navigateRoot('db-list')
         }
       },
     },
@@ -52,7 +52,7 @@ export default function TabBar() {
         <button
           key={tab.id}
           className={`tab ${activeId === tab.id ? 'on' : ''}`}
-          onClick={() => tab.onPress ? tab.onPress() : navigate(tab.screen)}
+          onClick={() => tab.onPress ? tab.onPress() : navigateRoot(tab.screen)}
           style={{ background: 'none', border: 'none' }}
         >
           <div style={{ position: 'relative', display: 'inline-flex' }}>
