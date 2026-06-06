@@ -232,3 +232,9 @@ export function IconThermometer(p: IconProps) {
 export function IconBatteryCharging(p: IconProps) {
   return <Icon {...p}><path d="M16 7h1a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-1"/><path d="M10 7h-5a2 2 0 0 0 -2 2v6c0 1.1 .9 2 2 2h5"/><path d="M12 15l1 -4h-3l1 -4"/><path d="M20 11v2"/></Icon>
 }
+export function IconChevronUp(p: IconProps) {
+  return <Icon {...p}><polyline points="6 15 12 9 18 15"/></Icon>
+}
+export function IconChevronDown(p: IconProps) {
+  return <Icon {...p}><polyline points="6 9 12 15 18 9"/></Icon>
+}

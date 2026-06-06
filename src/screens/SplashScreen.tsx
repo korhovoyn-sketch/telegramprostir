@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useTelegram } from '@/hooks/useTelegram'
 
 // Hard ceiling: if restoreSession hangs longer than this, try auto-login
-const SESSION_TIMEOUT_MS = 5000
+const SESSION_TIMEOUT_MS = 2000
 
 export default function SplashScreen() {
   const [progress, setProgress] = useState(0)
@@ -15,6 +15,13 @@ export default function SplashScreen() {
   const { isReady } = useTelegram()
   // Guard against double-execution if isReady / deps change mid-flight
   const startedRef = useRef(false)
+
+  // Prefetch screens the user will land on immediately after splash
+  useEffect(() => {
+    import('@/screens/WelcomeScreen')
+    import('@/screens/DatabaseListScreen')
+    import('@/screens/RealtorDashboardScreen')
+  }, [])
 
   useEffect(() => {
     if (!isReady) return

@@ -25,12 +25,13 @@ export function useProperties(dbId?: string) {
           has_parking, parking_spaces, description,
           address, utilities,
           sale_price, tenant_name, lease_start_date, lease_end_date,
-          created_at, updated_at,
+          sort_order, created_at, updated_at,
           photos:property_photos(id, storage_path, sort_order),
           views:property_views(id)
         `)
         .eq('db_id', targetDbId)
-        .order('created_at', { ascending: false })
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true })
 
       if (error) throw error
       const mapped = (data ?? []).map((p) => {
@@ -59,7 +60,7 @@ export function useProperties(dbId?: string) {
           has_parking, parking_spaces, description,
           address, utilities,
           sale_price, tenant_name, lease_start_date, lease_end_date,
-          created_at, updated_at,
+          sort_order, created_at, updated_at,
           photos:property_photos(id, storage_path, sort_order),
           views:property_views(id)
         `)
@@ -157,6 +158,83 @@ export function useProperties(dbId?: string) {
     }
   }, [showToast, navigate])
 
+  const batchDeleteProperties = useCallback(async (ids: string[]) => {
+    if (ids.length === 0) return
+    setLoading(true)
+    try {
+      // Collect all photo paths before deleting rows
+      const { data: photos } = await supabase
+        .from('property_photos')
+        .select('storage_path')
+        .in('property_id', ids)
+      if (photos && photos.length > 0) {
+        await supabase.storage.from('photos').remove(photos.map(p => p.storage_path))
+      }
+      const { error } = await supabase.from('properties').delete().in('id', ids)
+      if (error) throw error
+      setProperties(prev => prev.filter(p => !ids.includes(p.id)))
+      showToast({ type: 'success', title: `Видалено ${ids.length} об'єктів` })
+    } catch (e) {
+      showToast({ type: 'error', title: 'Помилка видалення', subtitle: (e as Error).message })
+    } finally {
+      setLoading(false)
+    }
+  }, [showToast])
+
+  const batchUpdateStatus = useCallback(async (ids: string[], status: PropertyStatus) => {
+    if (ids.length === 0) return
+    try {
+      const { error } = await supabase
+        .from('properties')
+        .update({ status, updated_at: new Date().toISOString() })
+        .in('id', ids)
+      if (error) throw error
+      setProperties(prev => prev.map(p => ids.includes(p.id) ? { ...p, status } : p))
+      const label: Record<PropertyStatus, string> = { free: 'Вільно', occupied: 'Зайнято', for_sale: 'Продаж' }
+      showToast({ type: 'success', title: `${ids.length} об'єктів — ${label[status]}` })
+    } catch (e) {
+      showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
+    }
+  }, [showToast])
+
+  const reorderProperty = useCallback(async (id: string, direction: 'up' | 'down') => {
+    const idx = properties.findIndex(p => p.id === id)
+    if (idx === -1) return
+    const neighborIdx = direction === 'up' ? idx - 1 : idx + 1
+    if (neighborIdx < 0 || neighborIdx >= properties.length) return
+
+    try {
+      // If any item lacks a real sort_order, initialise all before swapping
+      let base = properties
+      if (properties.some(p => !p.sort_order)) {
+        base = properties.map((p, i) => ({ ...p, sort_order: (i + 1) * 100 }))
+        await Promise.all(
+          base.map(p => supabase.from('properties').update({ sort_order: p.sort_order }).eq('id', p.id))
+        )
+      }
+
+      const a = base[idx]
+      const b = base[neighborIdx]
+
+      // Optimistic swap
+      const next = base
+        .map(p =>
+          p.id === a.id ? { ...p, sort_order: b.sort_order } :
+          p.id === b.id ? { ...p, sort_order: a.sort_order } : p
+        )
+        .sort((x, y) => (x.sort_order ?? 0) - (y.sort_order ?? 0) || x.created_at.localeCompare(y.created_at))
+      setProperties(next)
+
+      await Promise.all([
+        supabase.from('properties').update({ sort_order: b.sort_order }).eq('id', a.id),
+        supabase.from('properties').update({ sort_order: a.sort_order }).eq('id', b.id),
+      ])
+    } catch {
+      setProperties(properties) // rollback
+      showToast({ type: 'error', title: 'Не вдалося зберегти порядок' })
+    }
+  }, [properties, showToast])
+
   const deletePhoto = useCallback(async (photoId: string, storagePath: string) => {
     try {
       // Remove from storage first, then the DB record
@@ -213,6 +291,9 @@ export function useProperties(dbId?: string) {
     createProperty,
     updateProperty,
     cycleStatus,
+    reorderProperty,
+    batchDeleteProperties,
+    batchUpdateStatus,
     deleteProperty,
     deletePhoto,
     uploadPhoto,

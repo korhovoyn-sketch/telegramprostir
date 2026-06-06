@@ -47,7 +47,7 @@ export function useAuth() {
       if (!supabaseAnonKey) throw new Error('Supabase anon key not configured')
 
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 15000)
+      const timeoutId = setTimeout(() => controller.abort(), 8000)
       let res: Response
       try {
         res = await fetch(`${supabaseUrl}/functions/v1/telegram-auth`, {

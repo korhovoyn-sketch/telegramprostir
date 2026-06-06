@@ -6,6 +6,7 @@ import { useAppStore } from '@/store/appStore'
 import { useAuth } from '@/hooks/useAuth'
 import { useDeepLink } from '@/hooks/useDeepLink'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import SplashScreen from '@/screens/SplashScreen'
 
 const screenFallback = (
   <div className="scr bg-purple" style={{ alignItems: 'center', justifyContent: 'center' }}>
@@ -13,7 +14,6 @@ const screenFallback = (
   </div>
 )
 
-const SplashScreen = dynamic(() => import('@/screens/SplashScreen'), { loading: () => screenFallback })
 const WelcomeScreen = dynamic(() => import('@/screens/WelcomeScreen'), { loading: () => screenFallback })
 const RoleSelectScreen = dynamic(() => import('@/screens/RoleSelectScreen'), { loading: () => screenFallback })
 const ProfileSetupScreen = dynamic(() => import('@/screens/ProfileSetupScreen'), { loading: () => screenFallback })
@@ -36,6 +36,7 @@ const PhotoUploadScreen = dynamic(() => import('@/screens/PhotoUploadScreen'), {
 const PhotoGalleryScreen = dynamic(() => import('@/screens/PhotoGalleryScreen'), { loading: () => screenFallback })
 const QRScannerScreen = dynamic(() => import('@/screens/QRScannerScreen'), { loading: () => screenFallback })
 const GuestDatabaseScreen = dynamic(() => import('@/screens/GuestDatabaseScreen'), { loading: () => screenFallback })
+const SharedCollectionScreen = dynamic(() => import('@/screens/SharedCollectionScreen'), { loading: () => screenFallback })
 
 export default function Page() {
   const screen = useAppStore((s) => s.screen)
@@ -153,6 +154,7 @@ export default function Page() {
       case 'photo-gallery': return <PhotoGalleryScreen />
       case 'qr-scanner': return <QRScannerScreen />
       case 'guest-database': return <GuestDatabaseScreen />
+      case 'shared-collection': return <SharedCollectionScreen />
       default: return <SplashScreen />
     }
   }

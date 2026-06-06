@@ -52,11 +52,25 @@ export function useDeepLink() {
         }
 
         // ── col_<collectionId> — shared collection link ─────────────────────
-        // No read-only collection viewer exists yet; route home with a notice
-        // instead of leaving the user on a dead screen.
         if (startParam!.startsWith('col_')) {
-          useAppStore.getState().navigateRoot(homeScreen)
-          showToast({ type: 'info', title: 'Підбірка', subtitle: 'Перегляд спільних підбірок буде доступний незабаром' })
+          const collectionId = startParam!.slice(4)
+
+          // Check if the current user owns this collection (realtor who shared it)
+          const { data: ownCol } = await supabase
+            .from('collections')
+            .select('id')
+            .eq('id', collectionId)
+            .maybeSingle()
+
+          if (ownCol) {
+            // Open directly in the user's own collections screen
+            useAppStore.getState().navigateRoot(homeScreen)
+            navigate('collections', { collectionId })
+          } else {
+            // Show the read-only shared view (works for any logged-in user)
+            useAppStore.getState().navigateRoot(homeScreen)
+            navigate('shared-collection', { collectionId })
+          }
           return
         }
 

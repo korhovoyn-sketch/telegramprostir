@@ -36,6 +36,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="uk">
       <head>
+        {process.env.NEXT_PUBLIC_SUPABASE_URL && (
+          <>
+            <link rel="preconnect" href={process.env.NEXT_PUBLIC_SUPABASE_URL} />
+            <link rel="dns-prefetch" href={process.env.NEXT_PUBLIC_SUPABASE_URL} />
+          </>
+        )}
+        <link rel="preconnect" href="https://telegram.org" />
         <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content, content-safe-area-inset=128" />
         <meta name="theme-color" content="#1a0533" />
