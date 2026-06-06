@@ -149,6 +149,7 @@ export function useAuth() {
 
       const dbUser: User = user
       setUser(dbUser)
+      try { localStorage.setItem('ps_user', JSON.stringify(dbUser)) } catch { /* quota */ }
 
       // If the user arrived via a share link, let useDeepLink handle navigation
       const startParam = typeof window !== 'undefined'
@@ -176,6 +177,7 @@ export function useAuth() {
     } catch {
       // ignore signOut errors — clear local state regardless
     }
+    try { localStorage.removeItem('ps_user') } catch { /* ignore */ }
     setUser(null)
     navigateRoot('welcome')
   }, [setUser, navigateRoot])
@@ -206,6 +208,7 @@ export function useAuth() {
 
       if (error) throw error
       setUser(data as User)
+      try { localStorage.setItem('ps_user', JSON.stringify(data)) } catch { /* quota */ }
       showToast({ type: 'success', title: 'Профіль оновлено' })
     } catch (e) {
       showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
@@ -226,18 +229,38 @@ export function useAuth() {
       const tgId = parseInt(tgIdStr, 10)
       if (isNaN(tgId)) return false
 
-      // Valid JWT exists — navigate immediately, fetch profile in parallel.
-      // If the DB is slow (cold start) we still unblock navigation rather than
-      // re-running the full Edge Function login.
+      // Fast path: use locally-cached profile so we never block on DB cold-start.
+      // The cache is written on every successful login and profile update.
+      try {
+        const raw = localStorage.getItem('ps_user')
+        if (raw) {
+          const cached = JSON.parse(raw) as User
+          if (cached.tg_id === tgId) {
+            setUser(cached)
+            // Refresh silently in background — update cache when done.
+            supabase.from('users').select('*').eq('tg_id', tgId).single()
+              .then(({ data }) => {
+                if (data) {
+                  useAppStore.getState().setUser(data as User)
+                  try { localStorage.setItem('ps_user', JSON.stringify(data)) } catch { /* quota */ }
+                }
+              })
+            return true
+          }
+        }
+      } catch { /* corrupt cache — fall through to DB fetch */ }
+
+      // No valid cache — fetch from DB (first-ever restore after login).
       const { data } = await supabase
         .from('users')
         .select('*')
         .eq('tg_id', tgId)
         .single()
 
-      if (data) setUser(data as User)
-      // Return true even when profile fetch was empty — the JWT is valid,
-      // and the target screen will re-fetch on mount.
+      if (data) {
+        setUser(data as User)
+        try { localStorage.setItem('ps_user', JSON.stringify(data)) } catch { /* quota */ }
+      }
       return true
     } catch {
       return false
