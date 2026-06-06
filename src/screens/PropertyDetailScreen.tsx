@@ -8,6 +8,7 @@ import Header from '@/components/ui/Header'
 import Modal from '@/components/ui/Modal'
 import { StatusBadge } from '@/components/ui/Badge'
 import { IconEdit, IconShare, IconMapPin, IconPhoto, IconX, IconCamera, IconRuler, IconBuildingSkyscraper, IconCircleCheck, IconCurrencyDollar, IconCarGarage, IconUser, IconKey, IconBolt, IconDroplet, IconFlame, IconThermometer, IconBatteryCharging } from '@/components/Icons'
+import FilesList from '@/components/ui/FilesList'
 import { formatPrice, calcRent, calcUtilities, STATUS_LABELS, formatLeasePeriod } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 
@@ -468,6 +469,9 @@ export default function PropertyDetailScreen() {
             onChange={handleAddPhotos}
           />
         )}
+
+        {/* Files section */}
+        <FilesList propertyId={property.id} isOwner={isOwner} />
 
         {property.description && (
           <>

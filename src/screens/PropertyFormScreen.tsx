@@ -7,6 +7,7 @@ import Header from '@/components/ui/Header'
 import Toggle from '@/components/ui/Toggle'
 import Modal from '@/components/ui/Modal'
 import { IconRuler, IconLayers, IconActivity, IconBuilding, IconCurrencyDollar, IconBolt, IconCarGarage, IconFile, IconUser, IconKey, IconMapPin, IconDroplet, IconFlame, IconThermometer, IconBatteryCharging } from '@/components/Icons'
+import FilesList from '@/components/ui/FilesList'
 import { formatPrice, calcRent, calcUtilities, scrollFocusedIntoView } from '@/lib/utils'
 import type { PropertyStatus, RentType } from '@/types'
 
@@ -334,6 +335,11 @@ export default function PropertyFormScreen() {
             style={{ resize: 'none' }}
           />
         </div>
+
+        {/* Files — only in edit mode (property exists in DB) */}
+        {isEdit && editId && (
+          <FilesList propertyId={editId} isOwner={true} />
+        )}
 
         {/* Sum */}
         {total > 0 && (

@@ -75,6 +75,18 @@ export interface PropertyPhoto {
   created_at: string
 }
 
+export interface PropertyFile {
+  id: string
+  property_id: string
+  owner_id: string
+  storage_path: string
+  file_name: string
+  file_size: number
+  mime_type: string
+  sort_order: number
+  created_at: string
+}
+
 export interface RealtorSubscription {
   id: string
   realtor_id: string
