@@ -1,6 +1,3 @@
--- Returns full collection data (including properties) for any non-draft
--- collection, regardless of who calls it. SECURITY DEFINER bypasses RLS so
--- a realtor's client can view the shared link without owning the collection.
 CREATE OR REPLACE FUNCTION get_shared_collection(p_collection_id UUID)
 RETURNS JSONB
 SECURITY DEFINER
