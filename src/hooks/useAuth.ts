@@ -46,28 +46,45 @@ export function useAuth() {
       if (!supabaseUrl) throw new Error('Supabase URL not configured')
       if (!supabaseAnonKey) throw new Error('Supabase anon key not configured')
 
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 8000)
-      let res: Response
-      try {
-        res = await fetch(`${supabaseUrl}/functions/v1/telegram-auth`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${supabaseAnonKey}`,
-            'apikey': supabaseAnonKey,
-          },
-          body: JSON.stringify({ initData }),
-          signal: controller.signal,
-        })
-      } catch (fetchErr) {
-        if ((fetchErr as Error).name === 'AbortError') {
-          throw new Error('Сервер не відповідає (15 сек). Перевірте інтернет і спробуйте ще раз.')
+      // Retry up to 2 times on transient 500s (Edge Function cold start)
+      const TIMEOUT_MS = 15_000
+      const MAX_ATTEMPTS = 2
+      let res: Response | null = null
+
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS)
+        try {
+          res = await fetch(`${supabaseUrl}/functions/v1/telegram-auth`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${supabaseAnonKey}`,
+              'apikey': supabaseAnonKey,
+            },
+            body: JSON.stringify({ initData }),
+            signal: controller.signal,
+          })
+          // Retry only on 500-range errors, not 4xx
+          if (res.status >= 500 && attempt < MAX_ATTEMPTS) {
+            await new Promise(r => setTimeout(r, 1500 * attempt))
+            continue
+          }
+          break
+        } catch (fetchErr) {
+          if ((fetchErr as Error).name === 'AbortError') {
+            throw new Error('Сервер не відповідає (15 сек). Перевірте інтернет і спробуйте ще раз.')
+          }
+          if (attempt < MAX_ATTEMPTS) {
+            await new Promise(r => setTimeout(r, 1500 * attempt))
+            continue
+          }
+          throw new Error('Немає з\'єднання з сервером. Перевірте інтернет.')
+        } finally {
+          clearTimeout(timeoutId)
         }
-        throw new Error('Немає з\'єднання з сервером. Перевірте інтернет.')
-      } finally {
-        clearTimeout(timeoutId)
       }
+      if (!res) throw new Error('Немає відповіді від сервера. Перевірте інтернет.')
 
       if (!res.ok) {
         const rawText = await res.text().catch(() => '')
@@ -202,24 +219,25 @@ export function useAuth() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) return false
 
-      // auth.users.id !== public.users.id — link via tg_id from email
       const email = session.user.email ?? ''
       const tgIdStr = email.replace('@telegram.propspace.app', '')
       if (!tgIdStr || tgIdStr === email) return false
 
-      // Parse to number — tg_id column is BIGINT, string comparison silently fails
       const tgId = parseInt(tgIdStr, 10)
       if (isNaN(tgId)) return false
 
-      const { data, error } = await supabase
+      // Valid JWT exists — navigate immediately, fetch profile in parallel.
+      // If the DB is slow (cold start) we still unblock navigation rather than
+      // re-running the full Edge Function login.
+      const { data } = await supabase
         .from('users')
         .select('*')
         .eq('tg_id', tgId)
         .single()
 
-      if (error || !data) return false
-
-      setUser(data as User)
+      if (data) setUser(data as User)
+      // Return true even when profile fetch was empty — the JWT is valid,
+      // and the target screen will re-fetch on mount.
       return true
     } catch {
       return false

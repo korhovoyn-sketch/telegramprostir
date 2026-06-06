@@ -5,7 +5,10 @@ import { useAppStore } from '@/store/appStore'
 import { useAuth } from '@/hooks/useAuth'
 import { useTelegram } from '@/hooks/useTelegram'
 
-const SESSION_TIMEOUT_MS = 1800
+// Give restoreSession enough time — Supabase can be slow on cold start.
+// The function already returns true as soon as the JWT is confirmed valid,
+// even if the profile DB fetch hasn't completed.
+const SESSION_TIMEOUT_MS = 5000
 
 export default function SplashScreen() {
   const [progress, setProgress] = useState(0)

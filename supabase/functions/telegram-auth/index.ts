@@ -309,17 +309,19 @@ Deno.serve(async (req) => {
       console.warn('[telegram-auth] signIn failed for existing user:', errMsg)
 
       if (errMsg.toLowerCase().includes('invalid login credentials')) {
-        // Could be: (a) auth.users row missing, or (b) password hash mismatch (key rotated)
-        // Try admin password update first (handles key rotation without a full recreate)
-        const { data: authUser } = await adminClient.auth.admin.listUsers()
+        // Could be: (a) auth.users row missing, or (b) password hash mismatch (key rotated).
+        // Use schema('auth') to do a targeted email lookup instead of scanning all users.
         // deno-lint-ignore no-explicit-any
-        const existingAuthUser = (authUser?.users as any[])?.find(
-          (u: { email?: string }) => u.email === email,
-        )
+        const { data: authRow } = await (adminClient as any)
+          .schema('auth')
+          .from('users')
+          .select('id')
+          .eq('email', email)
+          .maybeSingle()
 
-        if (existingAuthUser) {
+        if (authRow?.id) {
           // Row exists but password is wrong (SERVICE_KEY changed) — update password
-          await adminClient.auth.admin.updateUserById(existingAuthUser.id, { password })
+          await adminClient.auth.admin.updateUserById(authRow.id, { password })
           signInResult = await anonClient.auth.signInWithPassword({ email, password })
         } else {
           // Row truly missing — recreate
