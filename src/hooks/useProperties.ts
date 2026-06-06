@@ -158,6 +158,45 @@ export function useProperties(dbId?: string) {
     }
   }, [showToast, navigate])
 
+  const batchDeleteProperties = useCallback(async (ids: string[]) => {
+    if (ids.length === 0) return
+    setLoading(true)
+    try {
+      // Collect all photo paths before deleting rows
+      const { data: photos } = await supabase
+        .from('property_photos')
+        .select('storage_path')
+        .in('property_id', ids)
+      if (photos && photos.length > 0) {
+        await supabase.storage.from('photos').remove(photos.map(p => p.storage_path))
+      }
+      const { error } = await supabase.from('properties').delete().in('id', ids)
+      if (error) throw error
+      setProperties(prev => prev.filter(p => !ids.includes(p.id)))
+      showToast({ type: 'success', title: `Видалено ${ids.length} об'єктів` })
+    } catch (e) {
+      showToast({ type: 'error', title: 'Помилка видалення', subtitle: (e as Error).message })
+    } finally {
+      setLoading(false)
+    }
+  }, [showToast])
+
+  const batchUpdateStatus = useCallback(async (ids: string[], status: PropertyStatus) => {
+    if (ids.length === 0) return
+    try {
+      const { error } = await supabase
+        .from('properties')
+        .update({ status, updated_at: new Date().toISOString() })
+        .in('id', ids)
+      if (error) throw error
+      setProperties(prev => prev.map(p => ids.includes(p.id) ? { ...p, status } : p))
+      const label: Record<PropertyStatus, string> = { free: 'Вільно', occupied: 'Зайнято', for_sale: 'Продаж' }
+      showToast({ type: 'success', title: `${ids.length} об'єктів — ${label[status]}` })
+    } catch (e) {
+      showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
+    }
+  }, [showToast])
+
   const reorderProperty = useCallback(async (id: string, direction: 'up' | 'down') => {
     const idx = properties.findIndex(p => p.id === id)
     if (idx === -1) return
@@ -253,6 +292,8 @@ export function useProperties(dbId?: string) {
     updateProperty,
     cycleStatus,
     reorderProperty,
+    batchDeleteProperties,
+    batchUpdateStatus,
     deleteProperty,
     deletePhoto,
     uploadPhoto,

@@ -443,7 +443,7 @@ function CollectionDetail({
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function CollectionsScreen() {
-  const { user, showToast } = useAppStore()
+  const { user, showToast, screenParams } = useAppStore()
   const [collections, setCollections] = useState<CollectionWithCount[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedCollection, setSelectedCollection] = useState<CollectionWithCount | null>(null)
@@ -499,6 +499,14 @@ export default function CollectionsScreen() {
   useEffect(() => {
     loadCollections()
   }, [loadCollections])
+
+  // Auto-open a collection when navigated here via deep link
+  useEffect(() => {
+    const id = screenParams.collectionId as string | undefined
+    if (!id || selectedCollection) return
+    const match = collections.find(c => c.id === id)
+    if (match) setSelectedCollection(match)
+  }, [screenParams.collectionId, collections, selectedCollection])
 
   async function createCollection() {
     if (!user) return

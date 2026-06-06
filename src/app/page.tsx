@@ -36,6 +36,7 @@ const PhotoUploadScreen = dynamic(() => import('@/screens/PhotoUploadScreen'), {
 const PhotoGalleryScreen = dynamic(() => import('@/screens/PhotoGalleryScreen'), { loading: () => screenFallback })
 const QRScannerScreen = dynamic(() => import('@/screens/QRScannerScreen'), { loading: () => screenFallback })
 const GuestDatabaseScreen = dynamic(() => import('@/screens/GuestDatabaseScreen'), { loading: () => screenFallback })
+const SharedCollectionScreen = dynamic(() => import('@/screens/SharedCollectionScreen'), { loading: () => screenFallback })
 
 export default function Page() {
   const screen = useAppStore((s) => s.screen)
@@ -153,6 +154,7 @@ export default function Page() {
       case 'photo-gallery': return <PhotoGalleryScreen />
       case 'qr-scanner': return <QRScannerScreen />
       case 'guest-database': return <GuestDatabaseScreen />
+      case 'shared-collection': return <SharedCollectionScreen />
       default: return <SplashScreen />
     }
   }

@@ -144,6 +144,7 @@ export type ScreenName =
   | 'photo-gallery'
   | 'qr-scanner'
   | 'guest-database'
+  | 'shared-collection'
   | 'success'
   | 'error'
 
