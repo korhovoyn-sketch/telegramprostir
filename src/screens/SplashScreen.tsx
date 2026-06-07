@@ -5,10 +5,11 @@ import { useAppStore } from '@/store/appStore'
 import { useAuth } from '@/hooks/useAuth'
 import { useTelegram } from '@/hooks/useTelegram'
 
-// Give restoreSession enough time — Supabase can be slow on cold start.
-// The function already returns true as soon as the JWT is confirmed valid,
-// even if the profile DB fetch hasn't completed.
-const SESSION_TIMEOUT_MS = 5000
+// Give restoreSession enough time — it may re-hydrate the session from Telegram
+// CloudStorage and refresh the JWT, which costs a round-trip or two on slow LTE.
+// Falling through to the Edge Function login is far slower, so we'd rather wait
+// here. A genuinely session-less user still returns false well before this.
+const SESSION_TIMEOUT_MS = 8000
 
 export default function SplashScreen() {
   const [progress, setProgress] = useState(0)

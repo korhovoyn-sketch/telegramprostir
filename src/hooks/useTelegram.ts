@@ -44,6 +44,11 @@ interface TelegramWebApp {
     notificationOccurred: (type: 'error' | 'success' | 'warning') => void
     selectionChanged: () => void
   }
+  CloudStorage?: {
+    setItem: (key: string, value: string, callback?: (err: Error | null, stored?: boolean) => void) => void
+    getItem: (key: string, callback: (err: Error | null, value?: string) => void) => void
+    removeItem: (key: string, callback?: (err: Error | null, removed?: boolean) => void) => void
+  }
   enableClosingConfirmation: () => void
   disableClosingConfirmation: () => void
   showPopup: (params: { title?: string; message: string; buttons?: { type: string; text?: string }[] }) => void
