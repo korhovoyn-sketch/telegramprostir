@@ -248,11 +248,11 @@ export default function DatabaseObjectsScreen() {
                 <div
                   key={p.id}
                   className="obj-card glass-s"
-                  style={inMode ? {
-                    display: 'flex',
-                    alignItems: 'stretch',
-                    overflow: 'hidden',
-                    outline: selectMode && selectedIds.has(p.id) ? '2px solid var(--accent)' : undefined,
+                  style={reorderMode ? {
+                    display: 'flex', alignItems: 'stretch', overflow: 'hidden', cursor: 'default',
+                  } : selectMode ? {
+                    display: 'flex', alignItems: 'stretch', overflow: 'hidden',
+                    outline: selectedIds.has(p.id) ? '2px solid var(--accent)' : undefined,
                   } : undefined}
                   onClick={
                     selectMode ? () => toggleSelect(p.id) :
@@ -287,97 +287,119 @@ export default function DatabaseObjectsScreen() {
                   {/* Reorder controls */}
                   {reorderMode && (
                     <div style={{
-                      width: 48, flexShrink: 0,
+                      width: 44, flexShrink: 0,
                       display: 'flex', flexDirection: 'column',
-                      borderRight: 'var(--bd)',
+                      borderRight: '.5px solid rgba(255,255,255,.10)',
+                      background: 'rgba(255,255,255,.04)',
                     }}>
                       <button
                         onClick={(e) => { e.stopPropagation(); window.Telegram?.WebApp?.HapticFeedback?.selectionChanged(); reorderProperty(p.id, 'up') }}
                         disabled={idx === 0}
                         aria-label="Вгору"
                         style={{
-                          flex: 1, background: 'none', border: 'none',
-                          color: idx === 0 ? 'var(--t4)' : 'var(--t2)',
+                          flex: 1, background: 'none', border: 'none', minHeight: 26,
+                          color: idx === 0 ? 'rgba(255,255,255,.18)' : 'var(--t2)',
                           cursor: idx === 0 ? 'default' : 'pointer',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          borderBottom: 'var(--bd)',
+                          borderBottom: '.5px solid rgba(255,255,255,.08)',
+                          transition: 'color .15s',
                         }}
                       >
-                        <IconChevronUp size={15} />
+                        <IconChevronUp size={14} />
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); window.Telegram?.WebApp?.HapticFeedback?.selectionChanged(); reorderProperty(p.id, 'down') }}
                         disabled={idx === filtered.length - 1}
                         aria-label="Вниз"
                         style={{
-                          flex: 1, background: 'none', border: 'none',
-                          color: idx === filtered.length - 1 ? 'var(--t4)' : 'var(--t2)',
+                          flex: 1, background: 'none', border: 'none', minHeight: 26,
+                          color: idx === filtered.length - 1 ? 'rgba(255,255,255,.18)' : 'var(--t2)',
                           cursor: idx === filtered.length - 1 ? 'default' : 'pointer',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          transition: 'color .15s',
                         }}
                       >
-                        <IconChevronDown size={15} />
+                        <IconChevronDown size={14} />
                       </button>
                     </div>
                   )}
 
-                  {/* Card content — same markup as normal mode, just wrapped in flex child */}
-                  <div style={inMode ? { flex: 1, minWidth: 0 } : undefined}>
-                    <div className="obj-hd">
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        <div className="obj-t" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {/* Card content */}
+                  {reorderMode ? (
+                    /* Simplified row in reorder mode */
+                    <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', padding: '0 12px', gap: 8, height: 52 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--t1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.2 }}>
                           {p.name}
                         </div>
-                        <div className="obj-s">
-                          {p.floor && <><span>🏢</span><span>{p.floor} поверх</span></>}
-                        </div>
+                        {p.floor && (
+                          <div style={{ fontSize: 11, color: 'var(--t3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            🏢 {p.floor} поверх
+                          </div>
+                        )}
                       </div>
                       <div style={{ flexShrink: 0 }}>
                         <StatusBadge status={p.status} />
                       </div>
                     </div>
-                    <div className="obj-met">
-                      {p.area_useful && (
-                        <div className="obj-mt">
-                          <span>📐</span>
-                          <span>{p.area_useful}/{p.area_total ?? p.area_useful} м²</span>
+                  ) : (
+                    <div style={selectMode ? { flex: 1, minWidth: 0 } : undefined}>
+                      <div className="obj-hd">
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div className="obj-t" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {p.name}
+                          </div>
+                          <div className="obj-s">
+                            {p.floor && <><span>🏢</span><span>{p.floor} поверх</span></>}
+                          </div>
                         </div>
-                      )}
-                      {p.has_parking && (
-                        <div className="obj-mt">
-                          <span>🅿️</span>
-                          <span>{p.parking_spaces} місць</span>
+                        <div style={{ flexShrink: 0 }}>
+                          <StatusBadge status={p.status} />
                         </div>
-                      )}
-                      {(p.photos?.length ?? 0) > 0 && (
-                        <div className="obj-mt">
-                          <IconPhoto size={11} />
-                          <span>{p.photos!.length}</span>
-                        </div>
-                      )}
-                      {(p._view_count ?? 0) > 0 && (
-                        <div className="obj-mt">
-                          <IconEye size={11} />
-                          <span>{p._view_count}</span>
-                        </div>
-                      )}
-                      {p.status === 'occupied' && formatLeasePeriod(p.lease_start_date, p.lease_end_date) && (
-                        <div className="obj-mt" style={{ gridColumn: '1 / -1', color: 'var(--t3)' }}>
-                          <span>📅</span>
-                          <span>{formatLeasePeriod(p.lease_start_date, p.lease_end_date)}</span>
+                      </div>
+                      <div className="obj-met">
+                        {p.area_useful && (
+                          <div className="obj-mt">
+                            <span>📐</span>
+                            <span>{p.area_useful}/{p.area_total ?? p.area_useful} м²</span>
+                          </div>
+                        )}
+                        {p.has_parking && (
+                          <div className="obj-mt">
+                            <span>🅿️</span>
+                            <span>{p.parking_spaces} місць</span>
+                          </div>
+                        )}
+                        {(p.photos?.length ?? 0) > 0 && (
+                          <div className="obj-mt">
+                            <IconPhoto size={11} />
+                            <span>{p.photos!.length}</span>
+                          </div>
+                        )}
+                        {(p._view_count ?? 0) > 0 && (
+                          <div className="obj-mt">
+                            <IconEye size={11} />
+                            <span>{p._view_count}</span>
+                          </div>
+                        )}
+                        {p.status === 'occupied' && formatLeasePeriod(p.lease_start_date, p.lease_end_date) && (
+                          <div className="obj-mt" style={{ gridColumn: '1 / -1', color: 'var(--t3)' }}>
+                            <span>📅</span>
+                            <span>{formatLeasePeriod(p.lease_start_date, p.lease_end_date)}</span>
+                          </div>
+                        )}
+                      </div>
+                      {total > 0 && (
+                        <div className="obj-tot">
+                          <div>
+                            <div className="obj-tot-l">На місяць</div>
+                            <div className="obj-tot-sub">оренда + комунальні</div>
+                          </div>
+                          <div className="obj-tot-v">{formatPrice(total, user?.currency)}</div>
                         </div>
                       )}
                     </div>
-                    {total > 0 && (
-                      <div className="obj-tot">
-                        <div>
-                          <div className="obj-tot-l">На місяць</div>
-                          <div className="obj-tot-sub">оренда + комунальні</div>
-                        </div>
-                        <div className="obj-tot-v">{formatPrice(total, user?.currency)}</div>
-                      </div>
-                    )}
-                  </div>
+                  )}
                 </div>
               )
             })}

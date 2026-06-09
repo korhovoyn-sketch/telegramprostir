@@ -163,6 +163,31 @@ export type ScreenName =
   | 'shared-collection'
   | 'success'
   | 'error'
+  | 'payment-calendar'
+
+export interface RentPayment {
+  id: string
+  property_id: string
+  owner_id: string
+  due_day: number
+  notify_days_before: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface RentPaymentRecord {
+  id: string
+  property_id: string
+  owner_id: string
+  due_date: string
+  paid_at?: string | null
+  amount?: number | null
+  status: 'pending' | 'paid' | 'overdue'
+  notes?: string | null
+  created_at: string
+  updated_at: string
+}
 
 export interface ScreenParams {
   dbId?: string
