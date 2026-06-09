@@ -25,7 +25,7 @@ export function useProperties(dbId?: string) {
           has_parking, parking_spaces, description,
           address, utilities,
           sale_price, tenant_name, lease_start_date, lease_end_date,
-          sort_order, created_at, updated_at,
+          sort_order, share_token, share_expires_at, created_at, updated_at,
           photos:property_photos(id, storage_path, sort_order),
           views:property_views(id)
         `)
@@ -60,7 +60,7 @@ export function useProperties(dbId?: string) {
           has_parking, parking_spaces, description,
           address, utilities,
           sale_price, tenant_name, lease_start_date, lease_end_date,
-          sort_order, created_at, updated_at,
+          sort_order, share_token, share_expires_at, created_at, updated_at,
           photos:property_photos(id, storage_path, sort_order),
           views:property_views(id)
         `)

@@ -22,7 +22,6 @@ export function useDeepLink() {
     async function process() {
       const homeScreen: ScreenName = user!.role === 'owner' ? 'db-list' : 'realtor-dashboard'
 
-      // Rescue: if we're stuck on an auth screen, go home first
       function navigateFallback() {
         const { screen } = useAppStore.getState()
         if (screen === 'splash' || screen === 'welcome' || screen === 'role-select') {
@@ -31,14 +30,14 @@ export function useDeepLink() {
       }
 
       try {
-        // ── prop_<propertyId> — direct property share link ──────────────────
+        // ── prop_<share_token> — property share link ────────────────────────
+        // Lookup via SECURITY DEFINER RPC — handles both new share_token (24-char hex)
+        // and legacy UUID format for backward compatibility.
         if (startParam!.startsWith('prop_')) {
-          const propertyId = startParam!.slice(5)
-          const { data: prop } = await supabase
-            .from('properties')
-            .select('id, db_id')
-            .eq('id', propertyId)
-            .single()
+          const token = startParam!.slice(5)
+          const { data: rows } = await supabase
+            .rpc('lookup_shared_property', { p_token: token })
+          const prop = (rows as { id: string; db_id: string }[] | null)?.[0]
 
           if (!prop) {
             showToast({ type: 'error', title: 'Об\'єкт не знайдено', subtitle: 'Посилання недійсне або об\'єкт видалено' })
@@ -51,23 +50,27 @@ export function useDeepLink() {
           return
         }
 
-        // ── col_<collectionId> — shared collection link ─────────────────────
+        // ── col_<share_token> — collection share link ───────────────────────
+        // Handles both new share_token and legacy UUID.
         if (startParam!.startsWith('col_')) {
-          const collectionId = startParam!.slice(4)
+          const token = startParam!.slice(4)
+          const { data: rows } = await supabase
+            .rpc('lookup_shared_collection', { p_token: token })
+          const col = (rows as { id: string; realtor_id: string }[] | null)?.[0]
 
-          // Check if the current user owns this collection (realtor who shared it)
-          const { data: ownCol } = await supabase
-            .from('collections')
-            .select('id')
-            .eq('id', collectionId)
-            .maybeSingle()
+          if (!col) {
+            showToast({ type: 'error', title: 'Підбірку не знайдено', subtitle: 'Посилання недійсне або підбірку видалено' })
+            navigateFallback()
+            return
+          }
 
-          if (ownCol) {
-            // Open directly in the user's own collections screen
+          const collectionId = col.id
+          if (col.realtor_id === user!.id) {
+            // Current user owns this collection — open it directly
             useAppStore.getState().navigateRoot(homeScreen)
             navigate('collections', { collectionId })
           } else {
-            // Show the read-only shared view (works for any logged-in user)
+            // Another user's collection — show read-only view
             useAppStore.getState().navigateRoot(homeScreen)
             navigate('shared-collection', { collectionId })
           }
@@ -81,8 +84,6 @@ export function useDeepLink() {
         }
 
         const token = startParam!.slice(3)
-        // Resolve via SECURITY DEFINER RPC — the table has no blanket share_token
-        // SELECT policy, so a row only comes back for the exact secret token.
         const { data: rows, error: dbErr } = await supabase
           .rpc('lookup_shared_db', { p_token: token })
         const db = (rows as { id: string; owner_id: string; share_expires_at: string | null }[] | null)?.[0]
@@ -111,7 +112,6 @@ export function useDeepLink() {
           .upsert({ realtor_id: user!.id, db_id: db.id }, { onConflict: 'realtor_id,db_id' })
 
         if (!error) {
-          // If user came from guest view (share link before registration), set role to realtor
           const isGuestJoin = localStorage.getItem('ps_guest_join') === '1'
           if (isGuestJoin) {
             localStorage.removeItem('ps_guest_join')

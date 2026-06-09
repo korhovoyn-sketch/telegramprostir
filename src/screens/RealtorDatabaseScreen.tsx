@@ -8,7 +8,7 @@ import SearchBar from '@/components/ui/SearchBar'
 import { StatusBadge } from '@/components/ui/Badge'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import { IconShare, IconPhoto, IconMessage } from '@/components/Icons'
-import { shareDeepLink } from '@/lib/telegram'
+import { sharePublicUrl } from '@/lib/telegram'
 import { formatPrice, calcRent, calcUtilities, DB_TYPE_LABELS, getInitials, formatLeasePeriod } from '@/lib/utils'
 import type { Database, Property, PropertyStatus, User } from '@/types'
 
@@ -186,7 +186,7 @@ export default function RealtorDatabaseScreen() {
       </div>
 
       <button className="mbtn" onClick={() => {
-        shareDeepLink(`db_${db.share_token ?? db.id}`)
+        sharePublicUrl('db', db.share_token ?? db.id)
       }}>
         <IconShare size={18} /> Поділитись базою
       </button>

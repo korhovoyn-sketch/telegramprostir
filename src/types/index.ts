@@ -61,6 +61,8 @@ export interface Property {
   lease_start_date?: string | null
   lease_end_date?: string | null
   sort_order?: number
+  share_token?: string
+  share_expires_at?: string | null
   created_at: string
   updated_at: string
   photos?: PropertyPhoto[]
@@ -100,6 +102,8 @@ export interface Collection {
   realtor_id: string
   name: string
   is_draft: boolean
+  share_token?: string
+  share_expires_at?: string | null
   created_at: string
   updated_at: string
   properties?: Property[]

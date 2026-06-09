@@ -8,7 +8,7 @@ import { StatusBadge } from '@/components/ui/Badge'
 import Modal from '@/components/ui/Modal'
 import { IconPlus, IconShare, IconX, IconChevronLeft, IconTrash } from '@/components/Icons'
 import { formatPrice, calcRent, formatDate } from '@/lib/utils'
-import { shareDeepLink } from '@/lib/telegram'
+import { sharePublicUrl } from '@/lib/telegram'
 import type { Property, Collection } from '@/types'
 
 // ─── Extended types ────────────────────────────────────────────────────────────
@@ -232,7 +232,7 @@ function CollectionDetail({
       }
     }
 
-    shareDeepLink(`col_${collection.id}`, collection.name)
+    sharePublicUrl('col', collection.share_token || collection.id, collection.name)
   }
 
   async function deleteCollection() {
@@ -535,7 +535,7 @@ export default function CollectionsScreen() {
 
   function handleShare(e: React.MouseEvent, col: CollectionWithCount) {
     e.stopPropagation()
-    shareDeepLink(`col_${col.id}`, col.name)
+    sharePublicUrl('col', col.share_token || col.id, col.name)
   }
 
   function handleCollectionUpdate(updated: CollectionWithCount) {

@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase'
 import Header from '@/components/ui/Header'
 import { IconShare, IconEye, IconChartLine } from '@/components/Icons'
 import { formatDate } from '@/lib/utils'
-import { buildDeepLink, shareDeepLink } from '@/lib/telegram'
+import { buildPublicUrl, sharePublicUrl } from '@/lib/telegram'
 import type { PropertyView } from '@/types'
 
 const DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд']
@@ -18,20 +18,23 @@ export default function SharingAnalyticsScreen() {
   const [loading, setLoading] = useState(true)
   const [chartData, setChartData] = useState<number[]>(Array(7).fill(0))
   const [dbShareToken, setDbShareToken] = useState<string>('')
+  const [propShareToken, setPropShareToken] = useState<string>('')
 
   useEffect(() => {
     async function load() {
       if (!screenParams.propertyId && !screenParams.dbId) return
       setLoading(true)
       try {
-        // Fetch actual share_token from DB when dbId is present
+        // Fetch share_tokens for QR / copy-link URL
         if (screenParams.dbId) {
           const { data: dbData } = await supabase
-            .from('databases')
-            .select('share_token')
-            .eq('id', screenParams.dbId)
-            .single()
+            .from('databases').select('share_token').eq('id', screenParams.dbId).single()
           if (dbData?.share_token) setDbShareToken(dbData.share_token)
+        }
+        if (screenParams.propertyId) {
+          const { data: propData } = await supabase
+            .from('properties').select('share_token').eq('id', screenParams.propertyId).single()
+          if (propData?.share_token) setPropShareToken(propData.share_token)
         }
 
         // Use a 30-day window for the viewer list; chart is last 7 days
@@ -103,19 +106,28 @@ export default function SharingAnalyticsScreen() {
 
   const isPropertyShare = Boolean(screenParams.propertyId)
 
-  // Prioritise propertyId — if set we're sharing a single property, not a database.
-  function buildShareToken() {
-    if (screenParams.propertyId) return 'prop_' + (screenParams.propertyId as string)
-    return 'db_' + (dbShareToken || (screenParams.dbId as string) || '')
+  // Build the public /v URL — what QR codes, copy, and Telegram share all use.
+  // Falls back to id if share_token hasn't loaded yet (edge case on slow network).
+  function getPublicUrl(): string {
+    if (isPropertyShare) {
+      const token = propShareToken || (screenParams.propertyId as string)
+      return buildPublicUrl('prop', token)
+    }
+    const token = dbShareToken || (screenParams.dbId as string) || ''
+    return buildPublicUrl('db', token)
   }
 
   function handleShare() {
     if (!user) return
-    const text = isPropertyShare ? 'Перегляньте цей об\'єкт у PropSpace' : 'Перегляньте базу нерухомості у PropSpace'
-    shareDeepLink(buildShareToken(), text)
+    const text = isPropertyShare ? 'Перегляньте цей об\'єкт нерухомості' : 'Перегляньте базу нерухомості'
+    if (isPropertyShare) {
+      sharePublicUrl('prop', propShareToken || (screenParams.propertyId as string), text)
+    } else {
+      sharePublicUrl('db', dbShareToken || (screenParams.dbId as string) || '', text)
+    }
   }
 
-  const shareLink = buildDeepLink(buildShareToken())
+  const shareLink = getPublicUrl()
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(shareLink)}`
 
   return (

@@ -11,12 +11,35 @@ function getTgBot(): string {
 
 export const TG_BOT = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME ?? ''
 
-/** Build a deep-link that opens the Mini App with start_param */
+/** Build a Telegram Mini App deep-link (opens the bot + launches Mini App) */
 export function buildDeepLink(startParam: string): string {
   return `https://t.me/${getTgBot()}?startapp=${encodeURIComponent(startParam)}`
 }
 
-/** Open Telegram's native share sheet for a deep-link */
+/**
+ * Build the public web viewer URL for an object, database, or collection.
+ * Recipients open this in any browser — no Telegram required.
+ * Format: https://<origin>/v/?prop=<share_token>
+ */
+export function buildPublicUrl(type: 'prop' | 'db' | 'col', token: string): string {
+  const origin = typeof window !== 'undefined' ? window.location.origin : ''
+  return `${origin}/v/?${type}=${encodeURIComponent(token)}`
+}
+
+/**
+ * Open Telegram's native share sheet with the public viewer URL.
+ * The recipient sees the beautiful /v page in any browser; the page
+ * has an "Відкрити в Telegram" button that deep-links back to the Mini App.
+ */
+export function sharePublicUrl(type: 'prop' | 'db' | 'col', token: string, text?: string): void {
+  const url = buildPublicUrl(type, token)
+  const shareUrl = text
+    ? `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`
+    : `https://t.me/share/url?url=${encodeURIComponent(url)}`
+  window.Telegram?.WebApp?.openTelegramLink(shareUrl)
+}
+
+/** @deprecated Use sharePublicUrl for new share flows */
 export function shareDeepLink(startParam: string, text?: string): void {
   const link = buildDeepLink(startParam)
   const shareUrl = text
