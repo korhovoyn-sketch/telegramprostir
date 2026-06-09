@@ -5,6 +5,11 @@ import { useAppStore } from '@/store/appStore'
 import { useAuth } from '@/hooks/useAuth'
 import { useTelegram } from '@/hooks/useTelegram'
 
+// How long to wait for a stored session to restore before giving up and
+// showing WelcomeScreen. Auto-login (Edge Function) is intentionally NOT done
+// here — it hangs the splash at 90% on cold starts. WelcomeScreen handles it.
+
+
 // Give restoreSession enough time — it may re-hydrate the session from Telegram
 // CloudStorage and refresh the JWT, which costs a round-trip or two on slow LTE.
 // Falling through to the Edge Function login is far slower, so we'd rather wait
@@ -15,7 +20,7 @@ export default function SplashScreen() {
   const [progress, setProgress] = useState(0)
   const [statusText, setStatusText] = useState('Завантажуємо...')
   const navigateRoot = useAppStore((s) => s.navigateRoot)
-  const { restoreSession, loginViaTelegram } = useAuth()
+  const { restoreSession } = useAuth()
   const { isReady } = useTelegram()
   const startedRef = useRef(false)
 
@@ -72,8 +77,6 @@ export default function SplashScreen() {
         return
       }
 
-      setProgress(62)
-
       // No session — check for guest share link (db_ without login)
       const startParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param ?? ''
       if (startParam.startsWith('db_')) {
@@ -82,20 +85,9 @@ export default function SplashScreen() {
         return
       }
 
-      // Try silent auto-login via Telegram initData
-      const initData = window.Telegram?.WebApp?.initData
-      if (initData) {
-        setProgress(68)
-        setStatusText('Авторизація...')
-        animateTo(90)
-        try {
-          await loginViaTelegram(initData)
-          if (cancelled) return
-          // loginViaTelegram navigates on success — check if we're still on splash
-          if (useAppStore.getState().screen !== 'splash') return
-        } catch { /* auto-login failed — fall through to WelcomeScreen */ }
-      }
-
+      // No session → go to WelcomeScreen which handles auto-login via Edge Function.
+      // We intentionally don't call loginViaTelegram here — the Edge Function cold
+      // start (10-30 s) would freeze the splash at 90% with no feedback to the user.
       if (cancelled) return
       if (ticker) clearInterval(ticker)
       setProgress(100)
@@ -108,7 +100,7 @@ export default function SplashScreen() {
       cancelled = true
       if (ticker) clearInterval(ticker)
     }
-  }, [isReady, navigateRoot, restoreSession, loginViaTelegram])
+  }, [isReady, navigateRoot, restoreSession])
 
   return (
     <div className="scr bg-purple" style={{ alignItems: 'center', justifyContent: 'center' }}>

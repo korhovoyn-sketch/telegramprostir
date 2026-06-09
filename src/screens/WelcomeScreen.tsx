@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { useAppStore } from '@/store/appStore'
 import { useTelegram } from '@/hooks/useTelegram'
@@ -12,6 +12,17 @@ export default function WelcomeScreen() {
   const { showToast } = useAppStore()
   const { tg, user: tgUser } = useTelegram()
   const [diagLoading, setDiagLoading] = useState(false)
+  const autoLoginAttempted = useRef(false)
+
+  // Silent auto-login: attempt immediately if Telegram initData is available.
+  // This runs here (not in SplashScreen) so the user sees a proper loading UI
+  // instead of a frozen progress bar when the Edge Function is cold.
+  useEffect(() => {
+    if (autoLoginAttempted.current) return
+    if (!tg?.initData) return
+    autoLoginAttempted.current = true
+    loginViaTelegram(tg.initData)
+  }, [tg, loginViaTelegram])
 
   async function handleLogin() {
     if (!tg?.initData) {
@@ -119,6 +130,7 @@ export default function WelcomeScreen() {
       >
         {!loading && <IconTelegram size={18} />}
         {!loading && 'Вхід через Telegram'}
+        {loading && <span style={{ fontSize: 13, opacity: 0.8 }}>Авторизуємось...</span>}
       </button>
 
       <div style={{ textAlign: 'center', fontSize: 13, color: 'var(--t3)', padding: '12px 24px 8px', lineHeight: 1.5 }}>

@@ -23,9 +23,14 @@ function cloudGet(key: string): Promise<string | null> {
   const cs = cloudStorage()
   if (!cs) return Promise.resolve(null)
   return new Promise((resolve) => {
+    // CloudStorage callback may never fire on some Telegram versions — guard with 3s cap
+    const t = setTimeout(() => resolve(null), 3000)
     try {
-      cs.getItem(key, (err: unknown, val: string) => resolve(err ? null : (val || null)))
-    } catch { resolve(null) }
+      cs.getItem(key, (err: unknown, val: string) => {
+        clearTimeout(t)
+        resolve(err ? null : (val || null))
+      })
+    } catch { clearTimeout(t); resolve(null) }
   })
 }
 
