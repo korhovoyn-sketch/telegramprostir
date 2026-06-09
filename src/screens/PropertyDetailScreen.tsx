@@ -7,7 +7,7 @@ import { useProperties } from '@/hooks/useProperties'
 import Header from '@/components/ui/Header'
 import Modal from '@/components/ui/Modal'
 import { StatusBadge } from '@/components/ui/Badge'
-import { IconEdit, IconShare, IconMapPin, IconPhoto, IconX, IconCamera, IconRuler, IconBuildingSkyscraper, IconCircleCheck, IconCurrencyDollar, IconCarGarage, IconUser, IconKey, IconBolt, IconDroplet, IconFlame, IconThermometer, IconBatteryCharging } from '@/components/Icons'
+import { IconEdit, IconShare, IconMapPin, IconPhoto, IconX, IconCamera, IconRuler, IconBuildingSkyscraper, IconCircleCheck, IconCurrencyDollar, IconCarGarage, IconUser, IconKey, IconBolt, IconDroplet, IconFlame, IconThermometer, IconBatteryCharging, IconCalendar } from '@/components/Icons'
 import FilesList from '@/components/ui/FilesList'
 import { formatPrice, calcRent, calcUtilities, STATUS_LABELS, formatLeasePeriod } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
@@ -420,6 +420,22 @@ export default function PropertyDetailScreen() {
                 {formatPrice(total, user?.currency)}
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Payment calendar shortcut — owner only, occupied property */}
+        {isOwner && property.status === 'occupied' && (
+          <div
+            className="glass-s"
+            style={{ margin: '0 12px 12px', borderRadius: 'var(--r-md)', padding: '11px 14px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}
+            onClick={() => navigate('payment-calendar', { propertyId: property.id, dbId: screenParams.dbId })}
+          >
+            <IconCalendar size={16} color="#7AB3FF" />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--t1)' }}>Календар платежів</div>
+              <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 1 }}>Відстежувати та відмічати оплати</div>
+            </div>
+            <svg width="7" height="12" viewBox="0 0 7 12" fill="none"><path d="M1 1l5 5-5 5" stroke="rgba(255,255,255,.3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
           </div>
         )}
 

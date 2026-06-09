@@ -37,6 +37,7 @@ const PhotoGalleryScreen = dynamic(() => import('@/screens/PhotoGalleryScreen'),
 const QRScannerScreen = dynamic(() => import('@/screens/QRScannerScreen'), { loading: () => screenFallback })
 const GuestDatabaseScreen = dynamic(() => import('@/screens/GuestDatabaseScreen'), { loading: () => screenFallback })
 const SharedCollectionScreen = dynamic(() => import('@/screens/SharedCollectionScreen'), { loading: () => screenFallback })
+const PaymentCalendarScreen = dynamic(() => import('@/screens/PaymentCalendarScreen'), { loading: () => screenFallback })
 
 export default function Page() {
   const screen = useAppStore((s) => s.screen)
@@ -170,6 +171,7 @@ export default function Page() {
       case 'qr-scanner': return <QRScannerScreen />
       case 'guest-database': return <GuestDatabaseScreen />
       case 'shared-collection': return <SharedCollectionScreen />
+      case 'payment-calendar': return <PaymentCalendarScreen />
       default: return <SplashScreen />
     }
   }

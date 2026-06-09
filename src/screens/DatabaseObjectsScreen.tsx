@@ -242,7 +242,6 @@ export default function DatabaseObjectsScreen() {
                 ? calcUtilities(p.area_total, p.utilities_rate)
                 : 0
               const total = rent + utils
-              const inMode = reorderMode || selectMode
 
               return (
                 <div
@@ -463,6 +462,7 @@ export default function DatabaseObjectsScreen() {
           onClose={() => setShowMenu(false)}
           actions={[
             { label: '📊 Аналітика і поширення', variant: 'secondary', onClick: () => { setShowMenu(false); navigate('sharing-analytics', { dbId: db.id }) } },
+            { label: '📅 Календар платежів', variant: 'secondary', onClick: () => { setShowMenu(false); navigate('payment-calendar', { dbId: db.id }) } },
             { label: '📤 Експорт', variant: 'secondary', onClick: () => { setShowMenu(false); navigate('export', { dbId: db.id }) } },
             { label: '☑ Виділити об\'єкти', variant: 'secondary', onClick: enterSelectMode },
             { label: '↕ Змінити порядок об\'єктів', variant: 'secondary', onClick: enterReorderMode },

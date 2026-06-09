@@ -49,7 +49,9 @@ CREATE INDEX IF NOT EXISTS idx_payment_records_owner_status ON rent_payment_reco
 -- Called by the Edge Function (SECURITY DEFINER so it can access all rows)
 CREATE OR REPLACE FUNCTION get_due_reminders_today()
 RETURNS TABLE(
+  owner_id UUID,
   tg_id BIGINT,
+  property_id UUID,
   property_name TEXT,
   due_day INT,
   tenant_name TEXT,
@@ -61,11 +63,13 @@ DECLARE
 BEGIN
   RETURN QUERY
   SELECT
+    rp.owner_id,
     u.tg_id,
+    rp.property_id,
     p.name AS property_name,
     rp.due_day::INT,
     p.tenant_name,
-    -- The due date this month
+    -- Compute the actual due date for this month (today + notify_days lands on due_day)
     make_date(
       EXTRACT(YEAR FROM (v_today + rp.notify_days_before * INTERVAL '1 day'))::INT,
       EXTRACT(MONTH FROM (v_today + rp.notify_days_before * INTERVAL '1 day'))::INT,
@@ -76,9 +80,9 @@ BEGIN
   JOIN users u ON u.id = rp.owner_id
   WHERE rp.is_active = true
     AND p.status = 'occupied'
-    -- Today + notify_days_before = due_day in its month
+    -- Fire when: today + notify_days_before lands on the due_day of the month
     AND EXTRACT(DAY FROM (v_today + rp.notify_days_before * INTERVAL '1 day'))::INT = rp.due_day
-    -- Avoid duplicate notifications: check no notification sent this month for this property
+    -- Deduplication: skip if notification already inserted this month for this property
     AND NOT EXISTS (
       SELECT 1 FROM notifications n
       WHERE n.user_id = rp.owner_id
