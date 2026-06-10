@@ -270,3 +270,65 @@ export function IconClock(p: IconProps) {
     </svg>
   )
 }
+
+/* ── Tab bar icons — Telegram-style: outline when idle, filled silhouette when active.
+   Both variants are always rendered; CSS cross-fades them so the fill "pours in"
+   instead of the icon being swapped (matches Telegram iOS tab behaviour). */
+
+interface TabIconProps {
+  size?: number
+  active?: boolean
+}
+
+function TabIcon({ size = 24, active = false, outline, filled }: TabIconProps & { outline: React.ReactNode; filled: React.ReactNode }) {
+  return (
+    <span className={`tabico ${active ? 'is-on' : ''}`} style={{ width: size, height: size }}>
+      <svg className="tabico-o" xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+        {outline}
+      </svg>
+      <svg className="tabico-f" xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="currentColor" stroke="none">
+        {filled}
+      </svg>
+    </span>
+  )
+}
+
+export function IconTabHome(p: TabIconProps) {
+  return (
+    <TabIcon
+      {...p}
+      outline={<><path d="M5 12l-2 0l9 -8.5l9 8.5l-2 0"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7"/><path d="M9 21v-6a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v6"/></>}
+      filled={<path d="M11.04 2.6a1.5 1.5 0 0 1 1.92 0l8.5 7.08a1 1 0 0 1-.64 1.77h-.82v7.3A2.25 2.25 0 0 1 17.75 21H15a.75.75 0 0 1-.75-.75V15a1.5 1.5 0 0 0-1.5-1.5h-1.5a1.5 1.5 0 0 0-1.5 1.5v5.25A.75.75 0 0 1 9 21H6.25A2.25 2.25 0 0 1 4 18.75v-7.3h-.82a1 1 0 0 1-.64-1.77l8.5-7.08Z"/>}
+    />
+  )
+}
+
+export function IconTabBookmark(p: TabIconProps) {
+  return (
+    <TabIcon
+      {...p}
+      outline={<path d="M9 4h6a2 2 0 0 1 2 2v14l-5 -3l-5 3v-14a2 2 0 0 1 2 -2"/>}
+      filled={<path d="M8.5 3h7A2.5 2.5 0 0 1 18 5.5v14.7a.8.8 0 0 1-1.21.69L12 18.07l-4.79 2.82A.8.8 0 0 1 6 20.2V5.5A2.5 2.5 0 0 1 8.5 3Z"/>}
+    />
+  )
+}
+
+export function IconTabBell(p: TabIconProps) {
+  return (
+    <TabIcon
+      {...p}
+      outline={<><path d="M10 5a2 2 0 1 1 4 0a7 7 0 0 1 4 6v3a4 4 0 0 0 2 3h-16a4 4 0 0 0 2 -3v-3a7 7 0 0 1 4 -6"/><path d="M9 17v1a3 3 0 0 0 6 0v-1"/></>}
+      filled={<><path d="M12 2.2c.83 0 1.5.67 1.5 1.5v.34A6.75 6.75 0 0 1 18.75 10.6v3.05c0 .47.18.93.51 1.27l1.07 1.1c.81.83.22 2.23-.94 2.23H4.61c-1.16 0-1.75-1.4-.94-2.23l1.07-1.1c.33-.34.51-.8.51-1.27V10.6a6.75 6.75 0 0 1 5.25-6.58v-.32c0-.83.67-1.5 1.5-1.5Z"/><path d="M9.3 20a2.9 2.9 0 0 0 5.4 0H9.3Z"/></>}
+    />
+  )
+}
+
+export function IconTabUser(p: TabIconProps) {
+  return (
+    <TabIcon
+      {...p}
+      outline={<><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2"/></>}
+      filled={<><circle cx="12" cy="7.2" r="4.4"/><path d="M12 13.4c-3.87 0-7 2.42-7 5.4 0 1.2.97 2.2 2.17 2.2h9.66c1.2 0 2.17-1 2.17-2.2 0-2.98-3.13-5.4-7-5.4Z"/></>}
+    />
+  )
+}
