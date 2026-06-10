@@ -9,10 +9,24 @@ import { IconTelegram, IconShield, IconBolt } from '@/components/Icons'
 
 export default function WelcomeScreen() {
   const { loginViaTelegram, loading } = useAuth()
-  const { showToast, screenParams } = useAppStore()
+  const { showToast, screenParams, user, navigateRoot } = useAppStore()
   const { tg, user: tgUser } = useTelegram()
   const [diagLoading, setDiagLoading] = useState(false)
   const autoLoginAttempted = useRef(false)
+
+  // SplashScreen abandons restoreSession after its timeout, but the restore keeps
+  // running and may set the user seconds later. Without this watcher the user
+  // would be stuck on Welcome with a valid session until they restart the app.
+  useEffect(() => {
+    if (!user) return
+    const startParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param
+    if (startParam?.startsWith('db_') || startParam?.startsWith('prop_') || startParam?.startsWith('col_')) return
+    if (!user.role) {
+      navigateRoot('role-select')
+    } else {
+      navigateRoot(user.role === 'owner' ? 'db-list' : 'realtor-dashboard')
+    }
+  }, [user, navigateRoot])
 
   // Silent auto-login: attempt immediately if Telegram initData is available.
   // This runs here (not in SplashScreen) so the user sees a proper loading UI
@@ -22,6 +36,7 @@ export default function WelcomeScreen() {
     if (autoLoginAttempted.current) return
     if (!tg?.initData) return
     if (screenParams.fromLogout) return
+    if (useAppStore.getState().user) return
     autoLoginAttempted.current = true
     loginViaTelegram(tg.initData)
   }, [tg, loginViaTelegram, screenParams.fromLogout])

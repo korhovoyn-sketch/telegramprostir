@@ -633,92 +633,74 @@ export default function PropertyDetailScreen() {
               ? calcUtilities(property.area_total, utilVal)
               : 0
             const previewTotal = previewRent + previewUtils
-            const rateLabel = property.rent_type === 'fixed' ? 'Ставка оренди ($/міс)' : 'Ставка оренди ($/м²)'
+            const rateUnit = property.rent_type === 'fixed' ? '$/міс' : '$/м²'
 
             return (
-              <div className="fg" style={{ margin: '12px 0 4px' }}>
-                <div className="fr">
-                  <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <IconUser size={13} color="var(--t3)" />Орендар
-                  </span>
-                  <input
-                    className="fr-i"
-                    placeholder="ТОВ «Назва» або ФОП Іванов"
-                    value={rentTenantName}
-                    onChange={e => setRentTenantName(e.target.value)}
-                    autoFocus
-                  />
+              <div style={{ paddingTop: 4 }}>
+                <div className="fld-row">
+                  <div className="fld">
+                    <div className="fld-l"><IconUser size={11} />Орендар</div>
+                    <input
+                      placeholder="ТОВ «Назва» або ФОП"
+                      value={rentTenantName}
+                      onChange={e => setRentTenantName(e.target.value)}
+                      autoFocus
+                    />
+                  </div>
                 </div>
-                <div className="fr">
-                  <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <IconCurrencyDollar size={13} color="var(--t3)" />{rateLabel}
-                  </span>
-                  <input
-                    className="fr-i"
-                    type="number"
-                    inputMode="decimal"
-                    placeholder="0"
-                    value={rentRentRate}
-                    onChange={e => setRentRentRate(e.target.value)}
-                  />
+                <div className="fld-row">
+                  <div className="fld">
+                    <div className="fld-l"><IconCurrencyDollar size={11} />Оренда, {rateUnit}</div>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      placeholder="0"
+                      value={rentRentRate}
+                      onChange={e => setRentRentRate(e.target.value)}
+                    />
+                  </div>
+                  <div className="fld">
+                    <div className="fld-l"><IconBolt size={11} />Комунальні, $/м²</div>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      placeholder="0"
+                      value={rentUtilitiesRate}
+                      onChange={e => setRentUtilitiesRate(e.target.value)}
+                    />
+                  </div>
                 </div>
-                <div className="fr">
-                  <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <IconBolt size={13} color="var(--t3)" />Комунальні ($/м²)
-                  </span>
-                  <input
-                    className="fr-i"
-                    type="number"
-                    inputMode="decimal"
-                    placeholder="0"
-                    value={rentUtilitiesRate}
-                    onChange={e => setRentUtilitiesRate(e.target.value)}
-                  />
+                <div className="fld-row">
+                  <div className="fld">
+                    <div className="fld-l"><IconKey size={11} />Договір з</div>
+                    <input
+                      type="date"
+                      value={rentLeaseStart}
+                      onChange={e => setRentLeaseStart(e.target.value)}
+                      style={{ colorScheme: 'dark' }}
+                    />
+                  </div>
+                  <div className="fld">
+                    <div className="fld-l"><IconKey size={11} />Договір до</div>
+                    <input
+                      type="date"
+                      value={rentLeaseEnd}
+                      onChange={e => setRentLeaseEnd(e.target.value)}
+                      style={{ colorScheme: 'dark' }}
+                    />
+                  </div>
                 </div>
                 {previewTotal > 0 && (
                   <div style={{
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    padding: '8px 12px', borderRadius: 'var(--r-sm)',
-                    background: 'rgba(74,222,128,.08)', border: '.5px solid rgba(74,222,128,.2)',
-                    marginTop: 4,
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+                    padding: '2px 4px 0', fontSize: 13, color: 'var(--t3)',
                   }}>
-                    <span style={{ fontSize: 12, color: 'var(--t3)' }}>
-                      Разом на місяць
-                      {previewRent > 0 && previewUtils > 0 && (
-                        <span style={{ display: 'block', fontSize: 11, color: 'var(--t4)' }}>
-                          оренда + комунальні
-                        </span>
-                      )}
-                    </span>
-                    <span style={{ fontSize: 18, fontWeight: 700, color: '#4ade80' }}>
+                    <span>Разом на місяць</span>
+                    <span style={{ fontSize: 17, fontWeight: 700, color: '#4ade80' }}>
                       {formatPrice(previewTotal, user?.currency)}
                     </span>
                   </div>
                 )}
-                <div className="fr">
-                  <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <IconKey size={13} color="var(--t3)" />Договір з
-                  </span>
-                  <input
-                    className="fr-i"
-                    type="date"
-                    value={rentLeaseStart}
-                    onChange={e => setRentLeaseStart(e.target.value)}
-                    style={{ colorScheme: 'dark' }}
-                  />
-                </div>
-                <div className="fr">
-                  <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <IconKey size={13} color="var(--t3)" />Договір до
-                  </span>
-                  <input
-                    className="fr-i"
-                    type="date"
-                    value={rentLeaseEnd}
-                    onChange={e => setRentLeaseEnd(e.target.value)}
-                    style={{ colorScheme: 'dark' }}
-                  />
-                </div>
               </div>
             )
           })()}

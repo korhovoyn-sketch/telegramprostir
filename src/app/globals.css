@@ -418,6 +418,19 @@ input,textarea,select{font-size:16px;touch-action:manipulation}
 .modal-s{font-size:13px;color:var(--t2);margin-bottom:12px;line-height:1.45}
 /* Actions sticky to bottom of scroll container — always visible, never covers inputs above */
 .modal-actions{position:sticky;bottom:0;display:flex;flex-direction:column;gap:8px;margin-top:14px;padding:14px 0 calc(20px + var(--safe-bottom));background:linear-gradient(0deg,rgba(14,11,32,.97) 0%,rgba(14,11,32,.97) 82%,transparent 100%)}
+/* Exactly two actions → side-by-side (cancel left, primary right) — half the footer height */
+.modal-actions.two{flex-direction:row-reverse}
+.modal-actions.two .modal-btn{flex:1;min-width:0}
+
+/* ── COMPACT FIELD (modal forms) — label above, input below, pairs in .fld-row ── */
+.fld-row{display:flex;gap:8px;margin-bottom:8px}
+.fld{flex:1;min-width:0;background:var(--glass-1);border:var(--bd);border-radius:var(--r-sm);padding:8px 12px 9px;transition:border-color .18s,background .18s}
+.fld-l{font-size:11px;color:var(--t3);font-weight:600;letter-spacing:.02em;margin-bottom:3px;display:flex;align-items:center;gap:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fld input{width:100%;background:transparent;border:none;outline:none;font-size:16px;color:var(--t1);font-family:inherit;text-align:left;-moz-appearance:textfield;padding:0;min-height:24px}
+.fld input::-webkit-outer-spin-button,.fld input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.fld input::placeholder{color:var(--t4)}
+.fld:focus-within{border-color:rgba(122,179,255,.45);background:rgba(34,158,217,.07)}
+.fld:focus-within .fld-l{color:var(--info-fg)}
 .modal-btn{height:var(--btn-h);border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;cursor:pointer;gap:7px;border:none;width:100%;transition:opacity .15s,transform .12s}
 .modal-btn:active{transform:scale(.97)}
 .modal-btn:disabled{opacity:.45;cursor:default}

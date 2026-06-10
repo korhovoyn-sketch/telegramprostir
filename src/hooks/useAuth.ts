@@ -12,6 +12,13 @@ const PROFILE_KEY = 'ps_user'
 // to welcome and trigger another auto-login cycle.
 let _intentionalLogout = false
 
+// Singleton: SplashScreen races restoreSession against a timeout, then navigates
+// away — but the restore keeps running. If WelcomeScreen then fired loginViaTelegram
+// immediately, two auth flows would interleave setSession calls (Supabase serialises
+// them on an internal lock — the visible symptom is a login button that hangs
+// forever). Sharing one promise lets the login path await the in-flight restore.
+let _restorePromise: Promise<boolean> | null = null
+
 // Telegram CloudStorage persists on Telegram's servers, so it survives the
 // WebView wiping localStorage between full app restarts (common on iOS). We mirror
 // the Supabase session here so returning users restore instantly via setSession()
@@ -87,6 +94,26 @@ export function useAuth() {
   const loginViaTelegram = useCallback(async (initData: string) => {
     setLoading(true)
     try {
+      // A restore may still be running after SplashScreen's timeout navigated us
+      // here. Wait for it briefly — if it succeeds we already have a session and
+      // can skip the slow Edge Function login (and avoid two interleaved setSession
+      // flows deadlocking on Supabase's auth lock).
+      if (_restorePromise) {
+        const restored = await Promise.race([
+          _restorePromise.catch(() => false),
+          new Promise<false>(r => setTimeout(() => r(false), 4000)),
+        ])
+        const restoredUser = useAppStore.getState().user
+        if (restored && restoredUser) {
+          if (!restoredUser.role) {
+            navigateRoot('role-select')
+          } else {
+            navigateRoot(restoredUser.role === 'owner' ? 'db-list' : 'realtor-dashboard')
+          }
+          return
+        }
+      }
+
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
       const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
       if (!supabaseUrl) throw new Error('Supabase URL not configured')
@@ -220,6 +247,7 @@ export function useAuth() {
 
   const logout = useCallback(() => {
     _intentionalLogout = true
+    _restorePromise = null
     clearPersistedSession()
     setUser(null)
     navigateRoot('welcome', { fromLogout: true })
@@ -262,7 +290,16 @@ export function useAuth() {
     }
   }, [setUser, showToast])
 
-  const restoreSession = useCallback(async () => {
+  const restoreSession = useCallback(() => {
+    if (!_restorePromise) _restorePromise = doRestoreSession()
+    return _restorePromise
+  }, [])
+
+  return { loading, loginViaTelegram, logout, updateProfile, restoreSession, setupAuthListener }
+}
+
+async function doRestoreSession(): Promise<boolean> {
+    const setUser = (u: User | null) => useAppStore.getState().setUser(u)
     try {
       let session = (await supabase.auth.getSession()).data.session
 
@@ -332,7 +369,4 @@ export function useAuth() {
     } catch {
       return false
     }
-  }, [setUser])
-
-  return { loading, loginViaTelegram, logout, updateProfile, restoreSession, setupAuthListener }
 }

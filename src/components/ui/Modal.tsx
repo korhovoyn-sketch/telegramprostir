@@ -31,7 +31,7 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
           <div className="modal-body" onFocusCapture={scrollFocusedIntoView}>
             {children}
             {actions && (
-              <div className="modal-actions">
+              <div className={`modal-actions ${actions.length === 2 ? 'two' : ''}`}>
                 {actions.map((a) => (
                   <button
                     key={a.label}

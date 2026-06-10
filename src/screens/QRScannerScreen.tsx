@@ -9,13 +9,16 @@ import { TG_BOT } from '@/lib/telegram'
 import { scrollFocusedIntoView } from '@/lib/utils'
 
 // Parse db token from scanned QR content.
-// Handles URL format: https://t.me/<bot>?startapp=db_<token>
-// and raw formats: db_<token>  or  just <token>
+// Handles deep-link: https://t.me/<bot>?startapp=db_<token>
+// public viewer:     https://<domain>/v/?db=<token>   ← what our QR codes encode
+// and raw formats:   db_<token>  or  just <token>
 function extractDbToken(raw: string): string | null {
   try {
     const url = new URL(raw)
     const startapp = url.searchParams.get('startapp') ?? url.searchParams.get('start') ?? ''
     if (startapp.startsWith('db_')) return startapp.slice(3)
+    const dbParam = url.searchParams.get('db')
+    if (dbParam) return dbParam
   } catch {
     // Not a URL — try raw token formats
   }

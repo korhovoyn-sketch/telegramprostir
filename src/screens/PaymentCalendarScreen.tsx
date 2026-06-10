@@ -412,31 +412,23 @@ export default function PaymentCalendarScreen() {
             { label: 'Скасувати', variant: 'secondary', disabled: setupSaving, onClick: () => setSetupProp(null) },
           ]}
         >
-          <div style={{ padding: '8px 0 4px' }}>
-            <div className="fg" style={{ margin: '0 0 12px' }}>
-              <div className="fr" style={{ borderBottom: '.5px solid rgba(255,255,255,.08)' }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 3 }}>День місяця (1–28)</div>
-                  <input
-                    type="number" min={1} max={28}
-                    value={setupDueDay}
-                    onChange={e => setSetupDueDay(e.target.value)}
-                    style={{ background: 'none', border: 'none', outline: 'none', fontSize: 16, color: 'var(--t1)', fontFamily: 'inherit', width: '100%' }}
-                  />
-                </div>
-                <IconCalendar size={16} color="#7AB3FF" />
+          <div style={{ paddingTop: 4 }}>
+            <div className="fld-row">
+              <div className="fld">
+                <div className="fld-l"><IconCalendar size={11} />День місяця (1–28)</div>
+                <input
+                  type="number" min={1} max={28} inputMode="numeric"
+                  value={setupDueDay}
+                  onChange={e => setSetupDueDay(e.target.value)}
+                />
               </div>
-              <div className="fr">
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 3 }}>Нагадати за (днів)</div>
-                  <input
-                    type="number" min={0} max={14}
-                    value={setupNotify}
-                    onChange={e => setSetupNotify(e.target.value)}
-                    style={{ background: 'none', border: 'none', outline: 'none', fontSize: 16, color: 'var(--t1)', fontFamily: 'inherit', width: '100%' }}
-                  />
-                </div>
-                <IconBellRing size={16} color="#a78bfa" />
+              <div className="fld">
+                <div className="fld-l"><IconBellRing size={11} />Нагадати за, днів</div>
+                <input
+                  type="number" min={0} max={14} inputMode="numeric"
+                  value={setupNotify}
+                  onChange={e => setSetupNotify(e.target.value)}
+                />
               </div>
             </div>
             <div style={{ fontSize: 12, color: 'var(--t3)', padding: '0 4px' }}>
