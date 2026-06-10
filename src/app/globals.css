@@ -97,28 +97,32 @@ body{
 .glass-s{background:var(--glass-1);backdrop-filter:blur(28px) saturate(170%);-webkit-backdrop-filter:blur(28px) saturate(170%);border:var(--bd)}
 .glass-d{background:var(--glass-3);backdrop-filter:blur(36px) saturate(190%);-webkit-backdrop-filter:blur(36px) saturate(190%);border:var(--bd-s)}
 
-/* ── HEADER ── */
-.hdr{padding:calc(14px + var(--safe-top)) var(--g3) 10px;display:flex;align-items:center;gap:var(--g2);flex-shrink:0;position:relative;z-index:8;min-height:54px}
-.hdr-back{display:flex;align-items:center;gap:2px;padding:6px var(--g3) 6px var(--g2);border-radius:var(--r-pill);color:var(--t1);font-size:14px;font-weight:500;background:var(--glass-2);backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%);border:var(--bd);cursor:pointer;transition:background .18s}
+/* ── HEADER — Liquid Glass floating bar ── */
+/* The bar blurs content scrolling beneath it; top-edge specular mimics curved glass lit from above */
+.hdr{padding:calc(14px + var(--safe-top)) var(--g3) 10px;display:flex;align-items:center;gap:var(--g2);flex-shrink:0;position:relative;z-index:8;min-height:54px;background:rgba(10,8,22,.50);backdrop-filter:blur(44px) saturate(210%) brightness(1.08);-webkit-backdrop-filter:blur(44px) saturate(210%) brightness(1.08);border-bottom:.5px solid rgba(255,255,255,.11);box-shadow:inset 0 .5px 0 rgba(255,255,255,.26),0 4px 28px rgba(0,0,0,.24)}
+/* Top-edge specular streak — brightest at centre, fades to edges like curved glass */
+.hdr::before{content:'';position:absolute;left:0;right:0;top:0;height:1.5px;background:linear-gradient(90deg,transparent 6%,rgba(255,255,255,.28) 28%,rgba(255,255,255,.44) 50%,rgba(255,255,255,.28) 72%,transparent 94%);pointer-events:none;z-index:1}
+/* Header controls — Liquid Glass lensed pills/circles */
+.hdr-back{display:flex;align-items:center;gap:4px;padding:7px var(--g3) 7px 10px;border-radius:var(--r-pill);color:var(--t1);font-size:14px;font-weight:500;background:rgba(255,255,255,.10);backdrop-filter:blur(30px) saturate(210%) brightness(1.14);-webkit-backdrop-filter:blur(30px) saturate(210%) brightness(1.14);border:.5px solid rgba(255,255,255,.22);box-shadow:inset 0 1.5px 0 rgba(255,255,255,.36),inset 0 .5px 0 rgba(255,255,255,.18),inset 0 -1px 1px rgba(255,255,255,.05),0 4px 18px rgba(0,0,0,.30);cursor:pointer;transition:background .18s,box-shadow .18s,transform .12s}
 .hdr-back:active{transform:scale(.92)}
-.hdr-back:hover{background:var(--glass-3)}
+.hdr-back:hover{background:rgba(255,255,255,.14)}
 .hdr-t{flex:1;text-align:center;font-size:15px;font-weight:600;color:var(--t1);letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .hdr-t-sub{font-size:12px;color:var(--t3);font-weight:400;margin-top:1px}
 /* 44×44 tap target (WCAG 2.5.8): visual size stays 32×32, padding compensates */
-.hdr-a{width:32px;height:32px;display:flex;align-items:center;justify-content:center;color:var(--t1);font-size:16px;border-radius:50%;background:var(--glass-2);backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%);border:var(--bd);cursor:pointer;position:relative;transition:background var(--dur-sm),transform var(--dur-xs) ease,filter var(--dur-xs) ease,opacity var(--dur-xs) ease;min-width:44px;min-height:44px;padding:6px}
+.hdr-a{width:32px;height:32px;display:flex;align-items:center;justify-content:center;color:var(--t1);font-size:16px;border-radius:50%;background:rgba(255,255,255,.10);backdrop-filter:blur(30px) saturate(210%) brightness(1.14);-webkit-backdrop-filter:blur(30px) saturate(210%) brightness(1.14);border:.5px solid rgba(255,255,255,.22);box-shadow:inset 0 1.5px 0 rgba(255,255,255,.36),inset 0 .5px 0 rgba(255,255,255,.18),inset 0 -1px 1px rgba(255,255,255,.05),0 4px 18px rgba(0,0,0,.30);cursor:pointer;position:relative;transition:background var(--dur-sm),transform var(--dur-xs) ease,filter var(--dur-xs) ease,opacity var(--dur-xs) ease;min-width:44px;min-height:44px;padding:6px}
 .hdr-a.txt{width:auto;padding:0 12px;font-size:12px;border-radius:16px;font-weight:500}
 .hdr-a-dot{position:absolute;top:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:#FF3B30;border:1.5px solid #06051a}
 .hdr-sp{width:44px;flex-shrink:0}
-.hdr-a:hover{background:var(--glass-3)}
+.hdr-a:hover{background:rgba(255,255,255,.14)}
 .hdr-a:active{transform:scale(.92)}
 
 /* ── BODY ── */
-.body{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding-bottom:calc(80px + var(--safe-bottom));position:relative;z-index:5}
+.body{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding-bottom:calc(92px + var(--safe-bottom));position:relative;z-index:5}
 .body::-webkit-scrollbar{display:none}
-/* Screens with TabBar (64px) + FAB (48px at 74px from bottom = top at 122px) need more clearance */
-.body.has-fab{padding-bottom:calc(160px + var(--safe-bottom))}
-/* Screens with TabBar + mbtn above TabBar (mbtn at 78px, height 50px = top at 128px) */
-.body.has-tabbar-btn{padding-bottom:calc(148px + var(--safe-bottom))}
+/* Floating TabBar top edge at 76px; FAB (48px at 90px from bottom = top at 138px) needs more clearance */
+.body.has-fab{padding-bottom:calc(176px + var(--safe-bottom))}
+/* Screens with TabBar + mbtn above TabBar (mbtn at 92px, height 50px = top at 142px) */
+.body.has-tabbar-btn{padding-bottom:calc(164px + var(--safe-bottom))}
 
 /* ── MAIN BUTTON ── */
 .mbtn{position:absolute;left:var(--g3);right:var(--g3);bottom:calc(14px + var(--safe-bottom));height:var(--btn-h);background:linear-gradient(180deg,var(--tg-blue-light),var(--tg-blue));border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;color:var(--t1);font-size:15px;font-weight:600;letter-spacing:.005em;cursor:pointer;box-shadow:var(--shadow-btn-blue);z-index:20;gap:8px;transition:transform var(--dur-xs) var(--ease),box-shadow var(--dur-xs) var(--ease),opacity var(--dur-xs),filter var(--dur-xs) ease;border:none;width:calc(100% - 24px);will-change:transform}
@@ -453,18 +457,25 @@ input,textarea,select{font-size:16px;touch-action:manipulation}
 .collection-thumb{width:46px;height:46px;border-radius:9px;border:var(--bd);overflow:hidden;background:var(--glass-2);display:flex;align-items:center;justify-content:center;font-size:18px}
 .collection-thumb.more{font-size:11px;color:var(--t2);font-weight:600}
 
-/* ── TAB BAR ── */
-.tabbar{position:absolute;left:0;right:0;bottom:0;height:calc(64px + var(--safe-bottom));padding-bottom:var(--safe-bottom);background:rgba(8,6,24,.68);backdrop-filter:blur(40px) saturate(200%);-webkit-backdrop-filter:blur(40px) saturate(200%);box-shadow:0 -0.5px 0 rgba(255,255,255,.22),inset 0 0.5px 0 rgba(255,255,255,.1),0 -16px 40px rgba(0,0,0,.18);display:flex;z-index:15;animation:tabbarIn .4s var(--ease-spr) both}
-.tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:rgba(255,255,255,.38);cursor:pointer;padding-top:6px;transition:color .22s var(--ease),filter .22s var(--ease),transform 0.12s ease,opacity 0.12s ease;position:relative}
-.tab.on{color:#8fd8f8}
-.tab.on svg{filter:drop-shadow(0 0 5px rgba(143,216,248,.6))}
-/* Glowing top-edge indicator on active tab */
-.tab.on::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:28px;height:3px;border-radius:0 0 4px 4px;background:linear-gradient(90deg,transparent,#8fd8f8 20%,#8fd8f8 80%,transparent);box-shadow:0 2px 10px rgba(143,216,248,.9);animation:tabIndIn .3s var(--ease-spr) both}
-@keyframes tabIndIn{from{width:0;opacity:0}to{width:28px;opacity:1}}
-.tab-l{font-size:11px;font-weight:500}
+/* ── TAB BAR — Apple Liquid Glass floating pill (iOS 26 HIG) ──
+   Layered composition: backdrop blur/saturate (refraction layer) → tinted glass skin
+   → diagonal specular sheen → top-edge bright rim (specular highlight).
+   Active icon gets its own raised glass capsule — the "bubble" treatment. */
+.tabbar{position:absolute;left:14px;right:14px;bottom:calc(12px + var(--safe-bottom));height:64px;border-radius:32px;background:rgba(10,8,22,.56);backdrop-filter:blur(48px) saturate(220%) brightness(1.14);-webkit-backdrop-filter:blur(48px) saturate(220%) brightness(1.14);border:.5px solid rgba(255,255,255,.18);box-shadow:inset 0 1.5px 0 rgba(255,255,255,.32),inset 0 .5px 0 rgba(255,255,255,.14),inset 1.5px 0 2px -1px rgba(255,255,255,.10),inset -1.5px 0 2px -1px rgba(255,255,255,.10),inset 0 -1px 2px rgba(0,0,0,.18),0 28px 64px rgba(0,0,0,.60),0 8px 22px rgba(0,0,0,.38),0 2px 6px rgba(0,0,0,.22);display:flex;align-items:stretch;padding:6px;gap:2px;z-index:15;overflow:hidden;animation:tabbarIn .5s var(--ease-spr) both}
+/* Diagonal specular sheen — light angle sweeping from top-left across the curved glass surface */
+.tabbar::before{content:'';position:absolute;inset:0;border-radius:inherit;background:linear-gradient(118deg,rgba(255,255,255,.15) 0%,rgba(255,255,255,.06) 30%,transparent 55%);pointer-events:none;z-index:0}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:rgba(255,255,255,.42);cursor:pointer;border-radius:26px;position:relative;z-index:1;transition:color .25s var(--ease),transform .15s var(--ease)}
+.tab.on{color:#aae2ff}
+/* Icon capsule — inactive state (no bg, just sizing) */
+.tab-ic{position:relative;display:flex;align-items:center;justify-content:center;width:44px;height:30px;border-radius:15px;transition:background .30s var(--ease-spr),box-shadow .30s var(--ease-spr),border-color .30s var(--ease-spr)}
+/* Active icon capsule — Liquid Glass bubble: tinted glass + specular rim */
+.tab.on .tab-ic{background:rgba(140,214,255,.16);border:.5px solid rgba(180,232,255,.24);box-shadow:inset 0 1.5px 0 rgba(255,255,255,.38),inset 0 .5px 0 rgba(200,242,255,.20),inset 0 -1px 1px rgba(0,0,0,.10),0 3px 12px rgba(0,0,0,.32),0 0 18px rgba(140,214,255,.10);animation:tabCapIn .30s var(--ease-spr) both}
+.tab.on .tab-ic svg{filter:drop-shadow(0 0 5px rgba(160,228,255,.65))}
+@keyframes tabCapIn{from{transform:scale(.5) translateY(3px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
+.tab-l{font-size:10.5px;font-weight:500;letter-spacing:.01em}
 
 /* ── FAB ── */
-.fab{position:absolute;right:14px;bottom:calc(74px + var(--safe-bottom));width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#FF7AB8,#C42378);display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;box-shadow:0 8px 22px rgba(196,35,120,.42),inset 0 1px 0 rgba(255,255,255,.3);z-index:18;cursor:pointer;border:none;animation:fabPop .5s var(--ease-spr) .3s both;transition:transform .2s var(--ease-spr),box-shadow .2s}
+.fab{position:absolute;right:14px;bottom:calc(90px + var(--safe-bottom));width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#FF7AB8,#C42378);display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;box-shadow:0 8px 22px rgba(196,35,120,.42),inset 0 1px 0 rgba(255,255,255,.3);z-index:18;cursor:pointer;border:none;animation:fabPop .5s var(--ease-spr) .3s both;transition:transform .2s var(--ease-spr),box-shadow .2s}
 .fab:hover{transform:scale(1.08);box-shadow:0 12px 28px rgba(196,35,120,.55),inset 0 1px 0 rgba(255,255,255,.35)}
 .fab:active{transform:scale(.94)}
 
@@ -566,7 +577,7 @@ svg.ico{overflow:visible}
 @keyframes modalSlideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
 @keyframes cascadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 @keyframes fabPop{from{transform:scale(0);opacity:0}50%{transform:scale(1.15)}to{transform:scale(1);opacity:1}}
-@keyframes tabbarIn{from{transform:translateY(100%)}to{transform:translateY(0)}}
+@keyframes tabbarIn{from{transform:translateY(140%) scale(.92);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
 @keyframes bounce{0%,100%{transform:translateY(0) rotate(-2deg) scale(1)}50%{transform:translateY(-10px) rotate(2deg) scale(1.04)}}
 @keyframes sparkleFloat{0%,100%{transform:translate(0,0) scale(.8) rotate(0deg);opacity:.3}25%{transform:translate(5px,-8px) scale(1.1) rotate(90deg);opacity:.9}50%{transform:translate(-3px,-15px) scale(1) rotate(180deg);opacity:.7}75%{transform:translate(-8px,-5px) scale(1.2) rotate(270deg);opacity:.9}}
 @keyframes shimmerSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
@@ -601,7 +612,7 @@ svg.ico{overflow:visible}
 .hdr-a:active{transform:scale(.92);opacity:0.7}
 .row:active{transform:scale(.99);opacity:0.85;background:var(--glass-3) !important}
 .obj-card:active{transform:scale(.985)}
-.tab:active{opacity:0.7}
+.tab:active{transform:scale(.92);opacity:0.75}
 .color-c:active{transform:scale(1.15)}
 .hdr-back:active{transform:scale(.92)}
 .fab:active{transform:scale(.86) !important;box-shadow:0 3px 10px rgba(196,35,120,.22) !important}
@@ -624,7 +635,7 @@ svg.ico{overflow:visible}
 .fr-seg-b.on{animation:segPop .20s var(--ease-spr) both}
 
 /* ── Tab icon bounce on activate ── */
-.tab.on > svg{animation:segPop .25s var(--ease-spr) both}
+.tab.on .tab-ic svg{animation:segPop .25s var(--ease-spr) both}
 
 /* ── Unread notification dot heartbeat ── */
 .hdr-a-dot{animation:dotPulse 1.9s ease-in-out infinite}

@@ -55,28 +55,30 @@ export default function TabBar() {
           onClick={() => tab.onPress ? tab.onPress() : navigateRoot(tab.screen)}
           style={{ background: 'none', border: 'none' }}
         >
-          <div style={{ position: 'relative', display: 'inline-flex' }}>
-            {tab.icon}
-            {tab.id === 'notifications' && unreadCount > 0 && (
-              <span style={{
-                position: 'absolute',
-                top: -4,
-                right: -4,
-                width: 17,
-                height: 17,
-                borderRadius: '50%',
-                background: 'var(--err)',
-                border: '1.5px solid var(--bg)',
-                fontSize: 10,
-                fontWeight: 700,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#fff',
-              }}>
-                {unreadCount > 9 ? '9+' : unreadCount}
-              </span>
-            )}
+          <div className="tab-ic">
+            <div style={{ position: 'relative', display: 'inline-flex' }}>
+              {tab.icon}
+              {tab.id === 'notifications' && unreadCount > 0 && (
+                <span style={{
+                  position: 'absolute',
+                  top: -4,
+                  right: -4,
+                  width: 17,
+                  height: 17,
+                  borderRadius: '50%',
+                  background: 'var(--err)',
+                  border: '1.5px solid rgba(16,13,36,.9)',
+                  fontSize: 10,
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#fff',
+                }}>
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </div>
           </div>
           <span className="tab-l">{tab.label}</span>
         </button>
