@@ -47,6 +47,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content, content-safe-area-inset=128" />
         <meta name="theme-color" content="#1a0533" />
         <title>prostir</title>
+        <meta name="description" content="prostir — платформа управління нерухомістю в Telegram. Бази об'єктів, аналітика переглядів, підбірки для ріелторів." />
+        <meta property="og:title" content="prostir" />
+        <meta property="og:description" content="Платформа управління нерухомістю в Telegram" />
+        <meta property="og:type" content="website" />
       </head>
       <body>
         <div id="app-root">

@@ -6,8 +6,11 @@ const RequestSchema = z.object({
   initData: z.string().min(10).max(4096),
 })
 
+// Restrict CORS to the Mini App origin when ALLOWED_ORIGIN is set in
+// Supabase → Edge Functions → Secrets (e.g. https://your-app.vercel.app).
+// Falls back to '*' so login keeps working until the secret is configured.
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Max-Age': '86400',
