@@ -144,7 +144,7 @@ export default function RealtorDashboardScreen() {
 
       </div>
 
-      <button className="mbtn" onClick={() => navigate('qr-scanner')} style={{ bottom: 'calc(78px + var(--safe-bottom))' }}>
+      <button className="mbtn" onClick={() => navigate('qr-scanner')} style={{ bottom: 'calc(92px + var(--safe-bottom))' }}>
         Додати базу за QR
       </button>
 
