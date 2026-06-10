@@ -25,30 +25,27 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
           {subtitle && <div className="modal-s">{subtitle}</div>}
         </div>
 
-        {/* Scrollable body — form fields, lists, etc. */}
-        {children && (
+        {/* Scrollable body — inputs scroll freely; action buttons are sticky at the bottom
+            so they never overlap inputs when the keyboard is open */}
+        {(children || actions) && (
           <div className="modal-body" onFocusCapture={scrollFocusedIntoView}>
             {children}
+            {actions && (
+              <div className="modal-actions">
+                {actions.map((a) => (
+                  <button
+                    key={a.label}
+                    className={`modal-btn ${a.variant}`}
+                    onClick={a.onClick}
+                    disabled={a.disabled}
+                  >
+                    {a.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
-
-        {/* Fixed footer — action buttons always visible */}
-        <div className="modal-foot">
-          {actions && (
-            <div className="modal-actions">
-              {actions.map((a) => (
-                <button
-                  key={a.label}
-                  className={`modal-btn ${a.variant}`}
-                  onClick={a.onClick}
-                  disabled={a.disabled}
-                >
-                  {a.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
       </div>
     </div>
   )
