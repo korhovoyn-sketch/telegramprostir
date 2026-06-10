@@ -93,9 +93,9 @@ body{
 .bg-empty{background:radial-gradient(ellipse at 50% 50%,rgba(120,120,180,.18),transparent 65%),#06061a}
 
 /* ── GLASS ── */
-.glass{background:var(--glass-2);backdrop-filter:blur(32px) saturate(180%);-webkit-backdrop-filter:blur(32px) saturate(180%);border:var(--bd)}
-.glass-s{background:var(--glass-1);backdrop-filter:blur(28px) saturate(170%);-webkit-backdrop-filter:blur(28px) saturate(170%);border:var(--bd)}
-.glass-d{background:var(--glass-3);backdrop-filter:blur(36px) saturate(190%);-webkit-backdrop-filter:blur(36px) saturate(190%);border:var(--bd-s)}
+.glass{background:var(--glass-2);backdrop-filter:blur(32px) saturate(180%) brightness(1.06);-webkit-backdrop-filter:blur(32px) saturate(180%) brightness(1.06);border:var(--bd)}
+.glass-s{background:var(--glass-1);backdrop-filter:blur(28px) saturate(170%) brightness(1.04);-webkit-backdrop-filter:blur(28px) saturate(170%) brightness(1.04);border:var(--bd)}
+.glass-d{background:var(--glass-3);backdrop-filter:blur(36px) saturate(190%) brightness(1.08);-webkit-backdrop-filter:blur(36px) saturate(190%) brightness(1.08);border:var(--bd-s)}
 
 /* ── HEADER — Liquid Glass floating bar ── */
 /* The bar blurs content scrolling beneath it; top-edge specular mimics curved glass lit from above */
@@ -127,7 +127,7 @@ body{
 /* ── MAIN BUTTON ── */
 .mbtn{position:absolute;left:var(--g3);right:var(--g3);bottom:calc(14px + var(--safe-bottom));height:var(--btn-h);background:linear-gradient(180deg,var(--tg-blue-light),var(--tg-blue));border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;color:var(--t1);font-size:15px;font-weight:600;letter-spacing:.005em;cursor:pointer;box-shadow:var(--shadow-btn-blue);z-index:20;gap:8px;transition:transform var(--dur-xs) var(--ease),box-shadow var(--dur-xs) var(--ease),opacity var(--dur-xs),filter var(--dur-xs) ease;border:none;width:calc(100% - 24px);will-change:transform}
 .mbtn:hover{transform:translateY(-1px);box-shadow:var(--shadow-btn-blue-hover)}
-.mbtn:active{transform:scale(.97);box-shadow:0 4px 14px rgba(34,158,217,.5);filter:brightness(0.92)}
+.mbtn:active{animation:btnPress .28s var(--ease-spr) both;box-shadow:0 4px 14px rgba(34,158,217,.5);filter:brightness(0.92)}
 .mbtn.danger{background:linear-gradient(180deg,#FF6B61,#E24B4A);box-shadow:var(--shadow-btn-danger)}
 .mbtn.success{background:linear-gradient(180deg,#4ADB7A,var(--ok));box-shadow:var(--shadow-btn-success)}
 .mbtn.disabled{background:var(--glass-3);color:var(--t3);box-shadow:none;cursor:not-allowed;pointer-events:none}
@@ -325,7 +325,7 @@ input,textarea,select{font-size:16px;touch-action:manipulation}
 
 /* ── COLOR PICKER ── */
 .color-row{display:flex;gap:9px;padding:0 var(--g3) var(--g3);flex-wrap:wrap}
-.color-c{width:34px;height:34px;border-radius:50%;border:2px solid transparent;position:relative;cursor:pointer;transition:transform .15s var(--ease)}
+.color-c{width:40px;height:40px;border-radius:50%;border:2px solid transparent;position:relative;cursor:pointer;transition:transform .15s var(--ease)}
 .color-c.sel{border-color:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.2)}
 .color-c:hover{transform:scale(1.1)}
 .color-c:active{transform:scale(.92)}
@@ -404,12 +404,12 @@ input,textarea,select{font-size:16px;touch-action:manipulation}
 .notif-n{font-size:13px;font-weight:600;color:var(--t1);line-height:1.3}
 .notif-s{font-size:12px;color:var(--t3);margin-top:2px;line-height:1.35}
 .notif-t{font-size:11px;color:var(--t4);flex-shrink:0;padding-top:2px;white-space:nowrap}
-.notif-del{flex-shrink:0;width:28px;height:28px;min-width:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:none;border:none;color:var(--t4);cursor:pointer;margin-left:2px;transition:background var(--dur-sm) var(--ease),color var(--dur-sm) var(--ease)}
+.notif-del{flex-shrink:0;width:40px;height:40px;min-width:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:none;border:none;color:var(--t4);cursor:pointer;margin-left:2px;transition:background var(--dur-sm) var(--ease),color var(--dur-sm) var(--ease)}
 .notif-del:active{background:var(--glass-2);color:var(--err)}
 
 /* ── MODAL ── */
 .modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:50;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-end;padding-bottom:var(--keyboard-h,0px)}
-.modal{width:100%;background:#161630;backdrop-filter:blur(40px) saturate(200%);-webkit-backdrop-filter:blur(40px) saturate(200%);border-top:.5px solid rgba(255,255,255,.18);border-radius:20px 20px 0 0;position:relative;animation:modalSlideUp .38s var(--ease-spr) both;max-height:min(80vh,calc(var(--tg-vh,100svh) - var(--keyboard-h,0px) - 40px));display:flex;flex-direction:column;overflow:hidden;will-change:transform}
+.modal{width:100%;background:rgba(14,11,32,.72);backdrop-filter:blur(48px) saturate(220%) brightness(1.10);-webkit-backdrop-filter:blur(48px) saturate(220%) brightness(1.10);border-top:.5px solid rgba(255,255,255,.18);border-radius:20px 20px 0 0;position:relative;animation:modalSlideUp .38s var(--ease-spr) both;max-height:min(80vh,calc(var(--tg-vh,100svh) - var(--keyboard-h,0px) - 40px));display:flex;flex-direction:column;overflow:hidden;will-change:transform;box-shadow:inset 0 1.5px 0 rgba(255,255,255,.22),inset 0 .5px 0 rgba(255,255,255,.10)}
 .modal::before{content:'';position:absolute;top:6px;left:50%;transform:translateX(-50%);width:36px;height:4px;border-radius:2px;background:rgba(255,255,255,.2);z-index:1;pointer-events:none}
 .modal-head{padding:20px 16px 0;flex-shrink:0}
 .modal-body{overflow-y:auto;-webkit-overflow-scrolling:touch;flex:1 1 auto;min-height:0;padding:0 16px}
@@ -461,13 +461,13 @@ input,textarea,select{font-size:16px;touch-action:manipulation}
    Layered composition: backdrop blur/saturate (refraction layer) → tinted glass skin
    → diagonal specular sheen → top-edge bright rim (specular highlight).
    Active icon gets its own raised glass capsule — the "bubble" treatment. */
-.tabbar{position:absolute;left:14px;right:14px;bottom:calc(10px + var(--safe-bottom));height:54px;border-radius:27px;background:rgba(10,8,22,.30);backdrop-filter:blur(52px) saturate(240%) brightness(1.18);-webkit-backdrop-filter:blur(52px) saturate(240%) brightness(1.18);border:.5px solid rgba(255,255,255,.14);box-shadow:inset 0 1.5px 0 rgba(255,255,255,.28),inset 0 .5px 0 rgba(255,255,255,.10),inset 0 -1px 2px rgba(0,0,0,.12),0 18px 48px rgba(0,0,0,.48),0 5px 16px rgba(0,0,0,.28);display:flex;align-items:stretch;padding:5px;gap:2px;z-index:15;overflow:hidden;animation:tabbarIn .5s var(--ease-spr) both}
+.tabbar{position:absolute;left:14px;right:14px;bottom:calc(10px + var(--safe-bottom));height:54px;border-radius:27px;background:rgba(10,8,22,.30);backdrop-filter:blur(52px) saturate(200%) brightness(1.14);-webkit-backdrop-filter:blur(52px) saturate(200%) brightness(1.14);border:.5px solid rgba(255,255,255,.14);box-shadow:inset 0 1.5px 0 rgba(255,255,255,.28),inset 0 .5px 0 rgba(255,255,255,.10),inset 0 -1px 2px rgba(0,0,0,.12),0 18px 48px rgba(0,0,0,.48),0 5px 16px rgba(0,0,0,.28);display:flex;align-items:stretch;padding:5px;gap:2px;z-index:15;overflow:hidden;animation:tabbarIn .5s var(--ease-spr) both}
 /* Diagonal specular sheen — light angle sweeping from top-left across the curved glass surface */
 .tabbar::before{content:'';position:absolute;inset:0;border-radius:inherit;background:linear-gradient(118deg,rgba(255,255,255,.15) 0%,rgba(255,255,255,.06) 30%,transparent 55%);pointer-events:none;z-index:0}
 .tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:rgba(255,255,255,.42);cursor:pointer;border-radius:26px;position:relative;z-index:1;transition:color .25s var(--ease),transform .15s var(--ease)}
 .tab.on{color:#aae2ff}
 /* Icon capsule — inactive state (no bg, just sizing) */
-.tab-ic{position:relative;display:flex;align-items:center;justify-content:center;width:44px;height:30px;border-radius:15px;transition:background .30s var(--ease-spr),box-shadow .30s var(--ease-spr),border-color .30s var(--ease-spr)}
+.tab-ic{position:relative;display:flex;align-items:center;justify-content:center;width:44px;height:40px;border-radius:20px;transition:background .30s var(--ease-spr),box-shadow .30s var(--ease-spr),border-color .30s var(--ease-spr)}
 /* Active icon capsule — Liquid Glass bubble: tinted glass + specular rim */
 .tab.on .tab-ic{background:rgba(140,214,255,.16);border:.5px solid rgba(180,232,255,.24);box-shadow:inset 0 1.5px 0 rgba(255,255,255,.38),inset 0 .5px 0 rgba(200,242,255,.20),inset 0 -1px 1px rgba(0,0,0,.10),0 3px 12px rgba(0,0,0,.32),0 0 18px rgba(140,214,255,.10);animation:tabCapIn .30s var(--ease-spr) both}
 .tab.on .tab-ic svg{filter:drop-shadow(0 0 5px rgba(160,228,255,.65))}
@@ -578,6 +578,7 @@ svg.ico{overflow:visible}
 @keyframes cascadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 @keyframes fabPop{from{transform:scale(0);opacity:0}50%{transform:scale(1.15)}to{transform:scale(1);opacity:1}}
 @keyframes tabbarIn{from{transform:translateY(140%) scale(.92);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
+@keyframes btnPress{0%{transform:scale(1)}40%{transform:scale(.94)}70%{transform:scale(1.02)}100%{transform:scale(1)}}
 @keyframes bounce{0%,100%{transform:translateY(0) rotate(-2deg) scale(1)}50%{transform:translateY(-10px) rotate(2deg) scale(1.04)}}
 @keyframes sparkleFloat{0%,100%{transform:translate(0,0) scale(.8) rotate(0deg);opacity:.3}25%{transform:translate(5px,-8px) scale(1.1) rotate(90deg);opacity:.9}50%{transform:translate(-3px,-15px) scale(1) rotate(180deg);opacity:.7}75%{transform:translate(-8px,-5px) scale(1.2) rotate(270deg);opacity:.9}}
 @keyframes shimmerSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
@@ -605,7 +606,7 @@ svg.ico{overflow:visible}
 .scr{animation:screenEnter .34s var(--ease-out) both}
 
 /* ── Active / press states (feel native on mobile) ── */
-.mbtn:active{transform:scale(.97);filter:brightness(0.92);box-shadow:0 4px 14px rgba(34,158,217,.5)}
+.mbtn:active{animation:btnPress .28s var(--ease-spr) both;filter:brightness(0.92);box-shadow:0 4px 14px rgba(34,158,217,.5)}
 .seg-b:active{transform:scale(.95)}
 .type-card:active{transform:scale(.97)}
 .format-card:active{transform:scale(.97)}
