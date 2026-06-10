@@ -645,6 +645,28 @@ svg.ico{overflow:visible}
 .fg:focus-within{background:rgba(255,255,255,.07) !important}
 .search-inline:focus-within{border-color:rgba(255,255,255,.28) !important;background:var(--glass-3) !important}
 
+/* ── COACH MARKS — onboarding spotlight system ──
+   The root has pointer-events:none; each interactive child opts back in.
+   This lets clicks reach the spotlighted element beneath the overlay. */
+.cmark-root{position:fixed;inset:0;z-index:9990;pointer-events:none}
+.cmark-panel{position:absolute;background:rgba(0,0,0,.72);pointer-events:auto;cursor:pointer}
+/* Pulsing glow ring draws the eye to the target element */
+.cmark-ring{position:absolute;border-radius:14px;border:1.5px solid rgba(148,214,255,.72);box-shadow:0 0 0 3px rgba(148,214,255,.14),0 0 22px rgba(148,214,255,.38);pointer-events:none;animation:cmarkPulse 2s ease-in-out infinite}
+@keyframes cmarkPulse{0%,100%{box-shadow:0 0 0 3px rgba(148,214,255,.14),0 0 22px rgba(148,214,255,.38)}50%{box-shadow:0 0 0 6px rgba(148,214,255,.24),0 0 38px rgba(148,214,255,.58)}}
+/* Tooltip bubble — Liquid Glass dark glass card */
+.cmark-bubble{background:rgba(16,12,34,.95);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border:.5px solid rgba(255,255,255,.18);border-radius:16px;padding:14px 16px 12px;box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 16px 44px rgba(0,0,0,.64);pointer-events:auto;animation:cmarkIn .28s var(--ease-spr) both}
+@keyframes cmarkIn{from{opacity:0;transform:scale(.90)}to{opacity:1;transform:scale(1)}}
+.cmark-ttl{font-size:14px;font-weight:700;color:var(--t1);margin-bottom:5px;line-height:1.35}
+.cmark-bdy{font-size:12.5px;color:var(--t2);line-height:1.5;margin-bottom:12px}
+.cmark-acts{display:flex;align-items:center;gap:8px}
+.cmark-skip{background:none;border:none;color:var(--t4);font-size:12px;cursor:pointer;padding:4px 0;flex-shrink:0;pointer-events:auto}
+.cmark-ok{background:rgba(148,214,255,.14);border:.5px solid rgba(148,214,255,.28);border-radius:10px;color:#aae2ff;font-size:13px;font-weight:600;cursor:pointer;padding:7px 14px;box-shadow:inset 0 1px 0 rgba(255,255,255,.10);flex:1;pointer-events:auto}
+.cmark-ok:active{transform:scale(.95);opacity:.85}
+/* CSS triangle arrows connecting bubble to spotlight */
+.cmark-arr{position:absolute;width:0;height:0;pointer-events:none}
+.cmark-arr-up{border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:7px solid rgba(16,12,34,.95);top:-7px}
+.cmark-arr-dn{border-left:7px solid transparent;border-right:7px solid transparent;border-top:7px solid rgba(16,12,34,.95);bottom:-7px}
+
 /* ── Stat cards individual stagger ── */
 .stat-g .stat:nth-child(1){animation:statPop .38s var(--ease-spr) .04s both}
 .stat-g .stat:nth-child(2){animation:statPop .38s var(--ease-spr) .11s both}

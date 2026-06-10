@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { supabase } from '@/lib/supabase'
 import TabBar from '@/components/ui/TabBar'
@@ -10,6 +10,8 @@ import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import { IconBell, IconChevronRight } from '@/components/Icons'
 import { DB_TYPE_LABELS, DB_COLORS, DB_TYPE_EMOJI } from '@/lib/utils'
 import type { Database, RealtorSubscription } from '@/types'
+import CoachMark from '@/components/ui/CoachMark'
+import { useOnboarding } from '@/hooks/useOnboarding'
 
 export default function RealtorDashboardScreen() {
   const { user, navigate, unreadCount, showToast } = useAppStore()
@@ -18,6 +20,8 @@ export default function RealtorDashboardScreen() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [propertyCount, setPropertyCount] = useState<number>(0)
+  const qrBtnRef = useRef<HTMLButtonElement>(null)
+  const { isDone: qrSeen, markDone: markQrSeen } = useOnboarding('realtor-qr')
 
   async function load() {
     if (!user) return
@@ -144,9 +148,19 @@ export default function RealtorDashboardScreen() {
 
       </div>
 
-      <button className="mbtn" onClick={() => navigate('qr-scanner')} style={{ bottom: 'calc(92px + var(--safe-bottom))' }}>
+      <button ref={qrBtnRef} className="mbtn" onClick={() => navigate('qr-scanner')} style={{ bottom: 'calc(92px + var(--safe-bottom))' }}>
         Додати базу за QR
       </button>
+
+      {!qrSeen && !loading && (
+        <CoachMark
+          title="Підключіться до бази"
+          body="Попросіть власника надіслати QR-код або посилання, потім натисніть цю кнопку."
+          targetRef={qrBtnRef}
+          placement="above"
+          onDone={markQrSeen}
+        />
+      )}
 
       <TabBar />
     </div>

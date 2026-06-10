@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { supabase } from '@/lib/supabase'
 import TabBar from '@/components/ui/TabBar'
@@ -10,6 +10,8 @@ import { IconPlus, IconShare, IconX, IconChevronLeft, IconTrash } from '@/compon
 import { formatPrice, calcRent, formatDate } from '@/lib/utils'
 import { sharePublicUrl } from '@/lib/telegram'
 import type { Property, Collection } from '@/types'
+import CoachMark from '@/components/ui/CoachMark'
+import { useOnboarding } from '@/hooks/useOnboarding'
 
 // ─── Extended types ────────────────────────────────────────────────────────────
 
@@ -450,6 +452,8 @@ export default function CollectionsScreen() {
   const [collections, setCollections] = useState<CollectionWithCount[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedCollection, setSelectedCollection] = useState<CollectionWithCount | null>(null)
+  const fabRef = useRef<HTMLButtonElement>(null)
+  const { isDone: fabSeen, markDone: markFabSeen } = useOnboarding('col-fab')
 
   const loadCollections = useCallback(async () => {
     if (!user) return
@@ -598,9 +602,19 @@ export default function CollectionsScreen() {
       </div>
 
       {/* FAB */}
-      <button className="fab" aria-label="Створити підбірку" onClick={createCollection}>
+      <button ref={fabRef} className="fab" aria-label="Створити підбірку" onClick={createCollection}>
         <IconPlus size={20} />
       </button>
+
+      {!fabSeen && !loading && (
+        <CoachMark
+          title="Створіть підбірку"
+          body="Натисніть +, щоб зібрати підбірку об'єктів для клієнта та поділитися посиланням."
+          targetRef={fabRef}
+          placement="above"
+          onDone={markFabSeen}
+        />
+      )}
 
       <TabBar />
     </div>

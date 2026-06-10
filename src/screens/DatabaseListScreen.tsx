@@ -1,12 +1,14 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { useDatabases } from '@/hooks/useDatabases'
 import TabBar from '@/components/ui/TabBar'
 import SearchBar from '@/components/ui/SearchBar'
 import { FreshnessBadge } from '@/components/ui/Badge'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
+import CoachMark from '@/components/ui/CoachMark'
+import { useOnboarding } from '@/hooks/useOnboarding'
 import { IconBell, IconChevronRight, IconPlus } from '@/components/Icons'
 import { DB_COLORS, DB_TYPE_LABELS, DB_TYPE_EMOJI } from '@/lib/utils'
 
@@ -25,6 +27,9 @@ export default function DatabaseListScreen() {
       (db.address ?? '').toLowerCase().includes(search.toLowerCase())
     ),
   [databases, search])
+
+  const fabRef = useRef<HTMLButtonElement>(null)
+  const { isDone: fabSeen, markDone: markFabSeen } = useOnboarding('owner-fab')
 
   const { totalProps, freeProps } = useMemo(() => ({
     totalProps: databases.reduce((s, d) => s + (d._property_count ?? 0), 0),
@@ -50,7 +55,7 @@ export default function DatabaseListScreen() {
         </button>
       </div>
 
-      <div className="body">
+      <div className="body has-fab">
         <div className="greet">{greet}, {user?.first_name}</div>
         <div className="display">Мої бази</div>
 
@@ -143,6 +148,25 @@ export default function DatabaseListScreen() {
           Створити нову базу
         </div>
       </div>
+
+      <button
+        ref={fabRef}
+        className="fab"
+        aria-label="Створити базу"
+        onClick={() => navigate('create-db')}
+      >
+        <IconPlus size={20} />
+      </button>
+
+      {!fabSeen && !loading && (
+        <CoachMark
+          title="Створіть першу базу"
+          body="Натисніть +, щоб додати базу нерухомості — офісний центр, житловий комплекс або склад."
+          targetRef={fabRef}
+          placement="above"
+          onDone={markFabSeen}
+        />
+      )}
 
       <TabBar />
     </div>

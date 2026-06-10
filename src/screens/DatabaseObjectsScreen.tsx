@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { useDatabases } from '@/hooks/useDatabases'
 import { useProperties } from '@/hooks/useProperties'
@@ -14,6 +14,8 @@ import { IconPlus, IconDots, IconEye, IconPhoto, IconShare, IconChevronUp, IconC
 import DatabaseStatsPanel from '@/components/ui/DatabaseStatsPanel'
 import { formatPrice, calcRent, calcUtilities, DB_TYPE_LABELS, DB_TYPE_EMOJI, formatLeasePeriod } from '@/lib/utils'
 import type { PropertyStatus } from '@/types'
+import CoachMark from '@/components/ui/CoachMark'
+import { useOnboarding } from '@/hooks/useOnboarding'
 
 export default function DatabaseObjectsScreen() {
   const { screenParams, navigate, databases, user } = useAppStore()
@@ -69,6 +71,9 @@ export default function DatabaseObjectsScreen() {
     await batchUpdateStatus([...selectedIds], status)
     exitSelectMode()
   }
+
+  const fabRef = useRef<HTMLButtonElement>(null)
+  const { isDone: fabSeen, markDone: markFabSeen } = useOnboarding('obj-fab')
 
   const db = databases.find((d) => d.id === screenParams.dbId)
 
@@ -408,9 +413,19 @@ export default function DatabaseObjectsScreen() {
 
       {/* FAB — hidden while reordering or selecting */}
       {!reorderMode && !selectMode && (
-        <button className="fab" aria-label="Додати об'єкт" onClick={() => navigate('property-form', { dbId: db.id })}>
+        <button ref={fabRef} className="fab" aria-label="Додати об'єкт" onClick={() => navigate('property-form', { dbId: db.id })}>
           <IconPlus size={20} />
         </button>
+      )}
+
+      {!fabSeen && !reorderMode && !selectMode && !loading && (
+        <CoachMark
+          title="Додайте перший об'єкт"
+          body="Натисніть +, щоб внести квартиру, офіс або приміщення з площею, статусом та орендою."
+          targetRef={fabRef}
+          placement="above"
+          onDone={markFabSeen}
+        />
       )}
 
       {/* Batch action bar */}
