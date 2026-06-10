@@ -67,14 +67,21 @@ export default function Page() {
       document.documentElement.dataset.tgTheme = tg.colorScheme
     }
 
+    // Keyboard height comes from two independent signals and we take the max:
+    // - Telegram viewportChanged (works on Android where the webview resizes)
+    // - visualViewport (works on iOS where the keyboard overlays the webview and
+    //   Telegram's stable/current heights move together, reading as 0)
+    let tgKbH = 0
+    let vvKbH = 0
+    function applyKeyboardHeight() {
+      document.documentElement.style.setProperty('--keyboard-h', `${Math.max(tgKbH, vvKbH)}px`)
+    }
     function applyViewportHeight() {
       const stable = tgAny.viewportStableHeight ?? tgAny.viewportHeight ?? 0
       const current = tgAny.viewportHeight ?? stable
       if (stable > 0) document.documentElement.style.setProperty('--tg-vh', `${stable}px`)
-      // Keyboard height = difference between stable and current viewport heights.
-      // Zero when keyboard is closed; positive when keyboard is open.
-      const kbH = Math.max(0, Math.round(stable - current))
-      document.documentElement.style.setProperty('--keyboard-h', `${kbH}px`)
+      tgKbH = Math.max(0, Math.round(stable - current))
+      applyKeyboardHeight()
     }
     function onActivated() {
       tg!.expand()
@@ -84,13 +91,11 @@ export default function Page() {
     tgAny.onEvent?.('viewportChanged', applyViewportHeight)
     tgAny.onEvent?.('activated', onActivated)
 
-    // Fallback for non-Telegram environments (dev browser): track keyboard via visualViewport.
     function applyKeyboardFromVV() {
-      if (window.Telegram?.WebApp) return
       const vv = window.visualViewport
       if (!vv) return
-      const kbH = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop))
-      document.documentElement.style.setProperty('--keyboard-h', `${kbH}px`)
+      vvKbH = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop))
+      applyKeyboardHeight()
     }
     window.visualViewport?.addEventListener('resize', applyKeyboardFromVV)
     window.visualViewport?.addEventListener('scroll', applyKeyboardFromVV)

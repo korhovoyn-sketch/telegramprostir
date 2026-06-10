@@ -1,5 +1,7 @@
 'use client'
 
+import { scrollFocusedIntoView } from '@/lib/utils'
+
 interface ModalProps {
   title: string
   subtitle?: string
@@ -25,7 +27,7 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
 
         {/* Scrollable body — form fields, lists, etc. */}
         {children && (
-          <div className="modal-body">
+          <div className="modal-body" onFocusCapture={scrollFocusedIntoView}>
             {children}
           </div>
         )}
