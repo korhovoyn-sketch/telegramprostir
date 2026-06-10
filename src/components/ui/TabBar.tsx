@@ -12,16 +12,16 @@ interface Tab {
 }
 
 const REALTOR_TABS: Tab[] = [
-  { id: 'realtor-dashboard', label: 'Бази', screen: 'realtor-dashboard', icon: (a) => <IconTabHome size={23} active={a} /> },
-  { id: 'collections', label: 'Підбірки', screen: 'collections', icon: (a) => <IconTabBookmark size={23} active={a} /> },
-  { id: 'notifications', label: 'Сповіщення', screen: 'notifications', icon: (a) => <IconTabBell size={23} active={a} /> },
-  { id: 'profile', label: 'Профіль', screen: 'profile', icon: (a) => <IconTabUser size={23} active={a} /> },
+  { id: 'realtor-dashboard', label: 'Бази', screen: 'realtor-dashboard', icon: (a) => <IconTabHome size={26} active={a} /> },
+  { id: 'collections', label: 'Підбірки', screen: 'collections', icon: (a) => <IconTabBookmark size={26} active={a} /> },
+  { id: 'notifications', label: 'Сповіщення', screen: 'notifications', icon: (a) => <IconTabBell size={26} active={a} /> },
+  { id: 'profile', label: 'Профіль', screen: 'profile', icon: (a) => <IconTabUser size={26} active={a} /> },
 ]
 
 const OWNER_TABS: Tab[] = [
-  { id: 'db-list', label: 'Бази', screen: 'db-list', icon: (a) => <IconTabHome size={23} active={a} /> },
-  { id: 'notifications', label: 'Сповіщення', screen: 'notifications', icon: (a) => <IconTabBell size={23} active={a} /> },
-  { id: 'profile', label: 'Профіль', screen: 'profile', icon: (a) => <IconTabUser size={23} active={a} /> },
+  { id: 'db-list', label: 'Бази', screen: 'db-list', icon: (a) => <IconTabHome size={26} active={a} /> },
+  { id: 'notifications', label: 'Сповіщення', screen: 'notifications', icon: (a) => <IconTabBell size={26} active={a} /> },
+  { id: 'profile', label: 'Профіль', screen: 'profile', icon: (a) => <IconTabUser size={26} active={a} /> },
 ]
 
 export default function TabBar() {
@@ -40,6 +40,7 @@ export default function TabBar() {
             key={tab.id}
             className={`tab ${active ? 'on' : ''}`}
             data-t={tab.id}
+            aria-label={tab.label}
             onClick={() => navigateRoot(tab.screen)}
             style={{ background: 'none', border: 'none' }}
           >

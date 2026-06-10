@@ -97,24 +97,22 @@ body{
 .glass-s{background:var(--glass-1);backdrop-filter:blur(28px) saturate(170%) brightness(1.04);-webkit-backdrop-filter:blur(28px) saturate(170%) brightness(1.04);border:var(--bd)}
 .glass-d{background:var(--glass-3);backdrop-filter:blur(36px) saturate(190%) brightness(1.08);-webkit-backdrop-filter:blur(36px) saturate(190%) brightness(1.08);border:var(--bd-s)}
 
-/* ── HEADER — Liquid Glass floating bar ── */
-/* The bar blurs content scrolling beneath it; top-edge specular mimics curved glass lit from above */
-.hdr{padding:calc(10px + var(--safe-top)) var(--g3) 8px;display:flex;align-items:center;gap:var(--g2);flex-shrink:0;position:relative;z-index:8;min-height:44px;background:rgba(10,8,22,.10);backdrop-filter:blur(14px) saturate(160%);-webkit-backdrop-filter:blur(14px) saturate(160%);border-bottom:.5px solid rgba(255,255,255,.04)}
-/* Top-edge specular streak — barely-there hint of curved glass */
-.hdr::before{content:'';position:absolute;left:0;right:0;top:0;height:1px;background:linear-gradient(90deg,transparent 10%,rgba(255,255,255,.12) 50%,transparent 90%);pointer-events:none;z-index:1}
-/* Header controls — Liquid Glass lensed pills/circles */
-.hdr-back{display:flex;align-items:center;gap:4px;padding:7px var(--g3) 7px 10px;border-radius:var(--r-pill);color:var(--t1);font-size:14px;font-weight:500;background:rgba(255,255,255,.10);backdrop-filter:blur(30px) saturate(210%) brightness(1.14);-webkit-backdrop-filter:blur(30px) saturate(210%) brightness(1.14);border:.5px solid rgba(255,255,255,.22);box-shadow:inset 0 1.5px 0 rgba(255,255,255,.36),inset 0 .5px 0 rgba(255,255,255,.18),inset 0 -1px 1px rgba(255,255,255,.05),0 4px 18px rgba(0,0,0,.30);cursor:pointer;transition:background .18s,box-shadow .18s,transform .12s}
-.hdr-back:active{transform:scale(.92)}
-.hdr-back:hover{background:rgba(255,255,255,.14)}
-.hdr-t{flex:1;text-align:center;font-size:15px;font-weight:600;color:var(--t1);letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* ── HEADER — bare floating controls, no bar ──
+   Content never scrolls under it (screens are flex columns), so the header
+   needs no backdrop at all: just icons + title with a soft glow over the bg. */
+.hdr{padding:calc(10px + var(--safe-top)) var(--g3) 8px;display:flex;align-items:center;gap:var(--g2);flex-shrink:0;position:relative;z-index:8;min-height:44px}
+.hdr-back{display:flex;align-items:center;gap:4px;padding:7px var(--g3) 7px 10px;color:var(--t1);font-size:14px;font-weight:500;background:none;border:none;filter:drop-shadow(0 1px 5px rgba(0,0,0,.40)) drop-shadow(0 0 9px rgba(170,226,255,.14));cursor:pointer;transition:transform .12s,filter .18s,opacity .15s}
+.hdr-back:active{transform:scale(.9)}
+.hdr-back:hover{filter:drop-shadow(0 1px 5px rgba(0,0,0,.40)) drop-shadow(0 0 12px rgba(170,226,255,.38))}
+.hdr-t{flex:1;text-align:center;font-size:15px;font-weight:600;color:var(--t1);letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-shadow:0 1px 8px rgba(0,0,0,.35)}
 .hdr-t-sub{font-size:12px;color:var(--t3);font-weight:400;margin-top:1px}
-/* 44×44 tap target (WCAG 2.5.8): visual size stays 32×32, padding compensates */
-.hdr-a{width:32px;height:32px;display:flex;align-items:center;justify-content:center;color:var(--t1);font-size:16px;border-radius:50%;background:rgba(255,255,255,.10);backdrop-filter:blur(30px) saturate(210%) brightness(1.14);-webkit-backdrop-filter:blur(30px) saturate(210%) brightness(1.14);border:.5px solid rgba(255,255,255,.22);box-shadow:inset 0 1.5px 0 rgba(255,255,255,.36),inset 0 .5px 0 rgba(255,255,255,.18),inset 0 -1px 1px rgba(255,255,255,.05),0 4px 18px rgba(0,0,0,.30);cursor:pointer;position:relative;transition:background var(--dur-sm),transform var(--dur-xs) ease,filter var(--dur-xs) ease,opacity var(--dur-xs) ease;min-width:44px;min-height:44px;padding:6px}
-.hdr-a.txt{width:auto;padding:0 12px;font-size:12px;border-radius:16px;font-weight:500}
+/* 44×44 tap target (WCAG 2.5.8): visual icon stays small, padding compensates */
+.hdr-a{width:32px;height:32px;display:flex;align-items:center;justify-content:center;color:var(--t1);font-size:16px;background:none;border:none;filter:drop-shadow(0 1px 5px rgba(0,0,0,.40)) drop-shadow(0 0 9px rgba(170,226,255,.14));cursor:pointer;position:relative;transition:transform var(--dur-xs) ease,filter var(--dur-sm) ease,opacity var(--dur-xs) ease;min-width:44px;min-height:44px;padding:6px}
+.hdr-a.txt{width:auto;padding:0 12px;font-size:13px;font-weight:600;color:#aae2ff}
 .hdr-a-dot{position:absolute;top:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:#FF3B30;border:1.5px solid #06051a}
 .hdr-sp{width:44px;flex-shrink:0}
-.hdr-a:hover{background:rgba(255,255,255,.14)}
-.hdr-a:active{transform:scale(.92)}
+.hdr-a:hover{filter:drop-shadow(0 1px 5px rgba(0,0,0,.40)) drop-shadow(0 0 12px rgba(170,226,255,.38))}
+.hdr-a:active{transform:scale(.9)}
 
 /* ── BODY ── */
 .body{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding-bottom:calc(80px + var(--safe-bottom));position:relative;z-index:5}
@@ -457,22 +455,19 @@ input,textarea,select{font-size:16px;touch-action:manipulation}
 .collection-thumb{width:46px;height:46px;border-radius:9px;border:var(--bd);overflow:hidden;background:var(--glass-2);display:flex;align-items:center;justify-content:center;font-size:18px}
 .collection-thumb.more{font-size:11px;color:var(--t2);font-weight:600}
 
-/* ── TAB BAR — Apple Liquid Glass floating pill (iOS 26 HIG) ──
-   Layered composition: backdrop blur/saturate (refraction layer) → tinted glass skin
-   → diagonal specular sheen → top-edge bright rim (specular highlight).
-   Active icon gets its own raised glass capsule — the "bubble" treatment. */
-.tabbar{position:absolute;left:14px;right:14px;bottom:calc(10px + var(--safe-bottom));height:54px;border-radius:27px;background:rgba(10,8,22,.30);backdrop-filter:blur(52px) saturate(200%) brightness(1.14);-webkit-backdrop-filter:blur(52px) saturate(200%) brightness(1.14);border:.5px solid rgba(255,255,255,.14);box-shadow:inset 0 1.5px 0 rgba(255,255,255,.28),inset 0 .5px 0 rgba(255,255,255,.10),inset 0 -1px 2px rgba(0,0,0,.12),0 18px 48px rgba(0,0,0,.48),0 5px 16px rgba(0,0,0,.28);display:flex;align-items:stretch;padding:5px;gap:2px;z-index:15;overflow:hidden;animation:tabbarIn .5s var(--ease-spr) both}
-/* Diagonal specular sheen — light angle sweeping from top-left across the curved glass surface */
-.tabbar::before{content:'';position:absolute;inset:0;border-radius:inherit;background:linear-gradient(118deg,rgba(255,255,255,.15) 0%,rgba(255,255,255,.06) 30%,transparent 55%);pointer-events:none;z-index:0}
-.tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:rgba(255,255,255,.42);cursor:pointer;border-radius:26px;position:relative;z-index:1;transition:color .25s var(--ease),transform .15s var(--ease)}
+/* ── TAB BAR — bare icons, no pill ──
+   No container: just the four tappable icons floating above the content.
+   A soft bottom fade (not a visible element) keeps them legible when bright
+   content (photos, cards) scrolls underneath. */
+.tabbar{position:absolute;left:0;right:0;bottom:0;height:calc(56px + var(--safe-bottom));padding:0 10px var(--safe-bottom);display:flex;align-items:stretch;gap:2px;z-index:15;animation:tabbarIn .5s var(--ease-spr) both}
+.tabbar::before{content:'';position:absolute;left:0;right:0;top:-22px;bottom:0;background:linear-gradient(180deg,transparent 0%,rgba(6,5,18,.35) 45%,rgba(6,5,18,.62) 100%);pointer-events:none}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:rgba(255,255,255,.50);cursor:pointer;position:relative;z-index:1;transition:color .25s var(--ease),transform .15s var(--ease);filter:drop-shadow(0 1px 5px rgba(0,0,0,.40))}
 .tab.on{color:#aae2ff}
-/* Icon capsule — inactive state (no bg, just sizing) */
-.tab-ic{position:relative;display:flex;align-items:center;justify-content:center;width:44px;height:40px;border-radius:20px;transition:background .30s var(--ease-spr),box-shadow .30s var(--ease-spr),border-color .30s var(--ease-spr)}
-/* Active icon capsule — Liquid Glass bubble: tinted glass + specular rim */
-.tab.on .tab-ic{background:rgba(140,214,255,.16);border:.5px solid rgba(180,232,255,.24);box-shadow:inset 0 1.5px 0 rgba(255,255,255,.38),inset 0 .5px 0 rgba(200,242,255,.20),inset 0 -1px 1px rgba(0,0,0,.10),0 3px 12px rgba(0,0,0,.32),0 0 18px rgba(140,214,255,.10);animation:tabCapIn .30s var(--ease-spr) both}
-.tab.on .tab-ic svg{filter:drop-shadow(0 0 5px rgba(160,228,255,.65))}
-@keyframes tabCapIn{from{transform:scale(.5) translateY(3px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
-.tab-l{font-size:10.5px;font-weight:500;letter-spacing:.01em}
+/* Icon hit zone — sizing only, no visual container */
+.tab-ic{position:relative;display:flex;align-items:center;justify-content:center;width:44px;height:44px}
+.tab.on .tab-ic svg{filter:drop-shadow(0 0 7px rgba(160,228,255,.60)) drop-shadow(0 0 16px rgba(140,214,255,.25))}
+/* Labels removed visually — tabs carry aria-labels for accessibility */
+.tab-l{display:none}
 
 /* ── Tab icons — Telegram-style outline→fill cross-fade + per-icon micro-animations ── */
 .tabico{position:relative;display:inline-flex;align-items:center;justify-content:center}
