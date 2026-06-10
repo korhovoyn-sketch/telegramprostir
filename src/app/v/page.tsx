@@ -248,7 +248,7 @@ function PageHeader({ deepLink }: { deepLink: string }) {
     <header style={s.hdr}>
       <div style={s.logo}>
         <div style={s.logoBox}>P</div>
-        <span style={s.logoName}>PropSpace</span>
+        <span style={s.logoName}>prostir</span>
       </div>
       <a href={deepLink} style={s.tgBtn}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
@@ -647,7 +647,7 @@ function ErrorView({ msg }: { msg: string }) {
       <div style={{ fontSize: 14, color: 'rgba(255,255,255,.5)', lineHeight: 1.5 }}>{msg}</div>
       {TG_BOT && (
         <a href={`https://t.me/${TG_BOT}`} style={{ ...s.tgBtn, marginTop: 24 }}>
-          Відкрити PropSpace
+          Відкрити prostir
         </a>
       )}
     </div>

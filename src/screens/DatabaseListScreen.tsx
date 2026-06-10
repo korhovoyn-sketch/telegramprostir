@@ -47,7 +47,7 @@ export default function DatabaseListScreen() {
           {(user?.first_name ?? 'U').charAt(0).toUpperCase()}
         </div>
         <div className="hdr-t">
-          <div style={{ fontSize: 16, fontWeight: 700 }}>PropSpace</div>
+          <div style={{ fontSize: 16, fontWeight: 700 }}>prostir</div>
         </div>
         <button className="hdr-a" aria-label="Сповіщення" onClick={() => navigate('notifications')} style={{ background: 'none', border: 'var(--bd)', position: 'relative' }}>
           <IconBell size={16} />

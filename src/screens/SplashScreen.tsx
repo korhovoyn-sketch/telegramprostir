@@ -104,31 +104,50 @@ export default function SplashScreen() {
 
   return (
     <div className="scr bg-purple" style={{ alignItems: 'center', justifyContent: 'center' }}>
-      {/* Logo */}
+      {/* 3D Liquid Glass App Icon */}
       <div style={{
-        width: 88,
-        height: 88,
-        borderRadius: 24,
-        background: 'linear-gradient(135deg,#7AB3FF 0%,#A87CFF 50%,#FF7AB8 100%)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: 40,
-        fontWeight: 700,
-        color: 'var(--t1)',
-        marginBottom: 24,
-        boxShadow: '0 12px 40px rgba(168,124,255,.4),inset 0 1.5px 0 rgba(255,255,255,.36)',
-        letterSpacing: '-.02em',
+        width: 96, height: 96, borderRadius: 28, marginBottom: 28,
+        position: 'relative', overflow: 'hidden',
+        // 3-stop gradient: cool sky at top-left → deep violet at bottom-right (simulates 3D light)
+        background: 'linear-gradient(140deg,#b8e0ff 0%,#7ab3ff 18%,#9b6cf8 48%,#c040ff 74%,#6d18c4 100%)',
+        boxShadow: [
+          '0 28px 72px rgba(110,72,240,.60)',
+          '0 8px 24px rgba(110,72,240,.38)',
+          'inset 0 2.5px 0 rgba(255,255,255,.48)',  // top rim specular
+          'inset 0 -4px 10px rgba(0,0,0,.22)',       // bottom depth
+          '0 0 0 1px rgba(255,255,255,.16)',          // outer glass rim
+        ].join(','),
       }}>
-        P
+        {/* Specular highlight — radial white spot mimics 3D light source at top-left */}
+        <div style={{
+          position: 'absolute', top: 6, left: 8,
+          width: 56, height: 34,
+          background: 'radial-gradient(ellipse at 38% 32%, rgba(255,255,255,.62) 0%, transparent 70%)',
+          filter: 'blur(3px)', borderRadius: '50%', pointerEvents: 'none',
+        }} />
+        {/* Bottom-right depth shadow for 3D volume */}
+        <div style={{
+          position: 'absolute', bottom: 0, right: 0,
+          width: 60, height: 52,
+          background: 'radial-gradient(ellipse at 65% 68%, rgba(0,0,0,.30) 0%, transparent 68%)',
+          pointerEvents: 'none',
+        }} />
+        {/* П — Cyrillic for Простір, with 3D text shadow stack */}
+        <span style={{
+          position: 'relative', zIndex: 1,
+          fontSize: 46, fontWeight: 900, color: '#fff', lineHeight: 1,
+          letterSpacing: -2,
+          textShadow: [
+            '0 1px 0 rgba(255,255,255,.55)',   // top edge highlight
+            '0 3px 6px rgba(0,0,0,.32)',        // near shadow
+            '0 8px 18px rgba(0,0,0,.22)',       // far shadow
+            '0 0 32px rgba(255,255,255,.18)',   // inner glow
+          ].join(','),
+        }}>П</span>
       </div>
 
-      <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--t1)', letterSpacing: '-.03em', marginBottom: 8 }}>
-        PropSpace
-      </div>
-      <div style={{ fontSize: 13, color: 'var(--t3)', marginBottom: 48 }}>
-        Управління нерухомістю
-      </div>
+      <div className="splash-name">prostir</div>
+      <div className="splash-sub">платформа нерухомості</div>
 
       {/* Progress bar */}
       <div style={{
@@ -152,7 +171,7 @@ export default function SplashScreen() {
       </div>
 
       <div style={{ position: 'absolute', bottom: 32, fontSize: 11, color: 'var(--t4)' }}>
-        v1.0.0 · powered by Telegram
+        prostir v1.0.0 · powered by Telegram
       </div>
     </div>
   )

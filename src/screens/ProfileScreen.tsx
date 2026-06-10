@@ -102,7 +102,7 @@ export default function ProfileScreen() {
               <IconCrown size={18} />
             </div>
             <div className="pro-mn">
-              <div className="pro-t">PropSpace Pro</div>
+              <div className="pro-t">prostir Pro</div>
               <div className="pro-s">Розширені можливості у розробці</div>
             </div>
             <span className="bdg bdg-info">Скоро</span>
@@ -195,7 +195,7 @@ export default function ProfileScreen() {
         </div>
 
         <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--t4)', paddingBottom: 80 }}>
-          PropSpace v1.0.0
+          prostir v1.0.0
         </div>
       </div>
 

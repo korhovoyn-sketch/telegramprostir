@@ -431,7 +431,7 @@ async function generatePDF(
     doc.setFontSize(7)
     doc.setTextColor(...TXMUT)
     doc.text(`${i} / ${pageCount}`, W - M, H - 5, { align: 'right' })
-    doc.text('PropSpace', M, H - 5)
+    doc.text('prostir', M, H - 5)
   }
 
   // ── Save: use Web Share API on mobile, fallback to download ───────────────

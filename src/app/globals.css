@@ -645,6 +645,17 @@ svg.ico{overflow:visible}
 .fg:focus-within{background:rgba(255,255,255,.07) !important}
 .search-inline:focus-within{border-color:rgba(255,255,255,.28) !important;background:var(--glass-3) !important}
 
+/* ── SPLASH SCREEN — 3D Liquid Glass logo + name ── */
+/* App icon: rounded square with layered gradient + specular overlay in JSX.
+   These classes handle the Liquid Glass typography for the name. */
+.splash-name{
+  font-size:36px;font-weight:800;letter-spacing:-.04em;line-height:1;margin-bottom:6px;
+  background:linear-gradient(130deg,#e2f4ff 0%,#fff 22%,#eddeff 52%,#c6a8ff 78%,#f0e8ff 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;
+  filter:drop-shadow(0 0 22px rgba(168,140,255,.52)) drop-shadow(0 2px 5px rgba(0,0,0,.28))
+}
+.splash-sub{font-size:12px;color:rgba(255,255,255,.48);letter-spacing:.10em;text-transform:uppercase;margin-bottom:48px}
+
 /* ── COACH MARKS — onboarding spotlight system ──
    The root has pointer-events:none; each interactive child opts back in.
    This lets clicks reach the spotlighted element beneath the overlay. */

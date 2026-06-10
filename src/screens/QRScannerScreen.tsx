@@ -72,12 +72,12 @@ export default function QRScannerScreen() {
       if (typeof tg.showScanQrPopup === 'function') {
         setScanning(true)
         ;(tg.showScanQrPopup as (opts: { text: string }, cb: (r: string | null) => boolean | Promise<boolean>) => void)(
-          { text: 'Відскануй QR-код бази PropSpace' },
+          { text: 'Відскануй QR-код бази prostir' },
           async (result) => {
             if (!result) return false
             const token = extractDbToken(result)
             if (!token) {
-              showToast({ type: 'error', title: 'Невірний QR-код', subtitle: 'Відскануйте QR від PropSpace' })
+              showToast({ type: 'error', title: 'Невірний QR-код', subtitle: 'Відскануйте QR від prostir' })
               return true
             }
             await subscribeByToken(token)
