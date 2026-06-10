@@ -64,7 +64,7 @@ export default function PaymentCalendarScreen() {
         // Load occupied properties
         let propsQuery = supabase
           .from('properties')
-          .select('id, db_id, owner_id, name, floor, status, rent_type, rent_rate, utilities_rate, tenant_name, lease_start_date, lease_end_date, area_useful, area_total, sort_order, share_token, share_expires_at, has_parking, parking_spaces, created_at, updated_at')
+          .select('id, db_id, owner_id, name, floor, status, rent_type, rent_rate, utilities_rate, tenant_name, lease_start_date, lease_end_date, area_useful, area_total, sort_order, has_parking, parking_spaces, created_at, updated_at')
           .eq('status', 'occupied')
           .eq('owner_id', user.id)
 

@@ -8,6 +8,10 @@ import type { User } from '@/types'
 const SESSION_KEY = 'ps_session'
 const PROFILE_KEY = 'ps_user'
 
+// Set true before calling signOut so the SIGNED_OUT listener doesn't re-navigate
+// to welcome and trigger another auto-login cycle.
+let _intentionalLogout = false
+
 // Telegram CloudStorage persists on Telegram's servers, so it survives the
 // WebView wiping localStorage between full app restarts (common on iOS). We mirror
 // the Supabase session here so returning users restore instantly via setSession()
@@ -72,6 +76,7 @@ export function useAuth() {
           // silently ignore token refresh fetch errors
         }
       } else if (event === 'SIGNED_OUT') {
+        if (_intentionalLogout) { _intentionalLogout = false; return }
         useAppStore.getState().setUser(null)
         useAppStore.getState().navigateRoot('welcome')
       }
@@ -213,15 +218,13 @@ export function useAuth() {
     }
   }, [setUser, navigateRoot, showToast])
 
-  const logout = useCallback(async () => {
-    try {
-      await supabase.auth.signOut()
-    } catch {
-      // ignore signOut errors — clear local state regardless
-    }
+  const logout = useCallback(() => {
+    _intentionalLogout = true
     clearPersistedSession()
     setUser(null)
-    navigateRoot('welcome')
+    navigateRoot('welcome', { fromLogout: true })
+    // Fire-and-forget — SIGNED_OUT listener is suppressed by _intentionalLogout
+    supabase.auth.signOut().catch(() => {})
   }, [setUser, navigateRoot])
 
   const updateProfile = useCallback(async (updates: Partial<User>) => {

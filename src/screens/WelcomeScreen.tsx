@@ -9,7 +9,7 @@ import { IconTelegram, IconShield, IconBolt } from '@/components/Icons'
 
 export default function WelcomeScreen() {
   const { loginViaTelegram, loading } = useAuth()
-  const { showToast } = useAppStore()
+  const { showToast, screenParams } = useAppStore()
   const { tg, user: tgUser } = useTelegram()
   const [diagLoading, setDiagLoading] = useState(false)
   const autoLoginAttempted = useRef(false)
@@ -17,12 +17,14 @@ export default function WelcomeScreen() {
   // Silent auto-login: attempt immediately if Telegram initData is available.
   // This runs here (not in SplashScreen) so the user sees a proper loading UI
   // instead of a frozen progress bar when the Edge Function is cold.
+  // Skip when the user explicitly logged out — they want to stay on this screen.
   useEffect(() => {
     if (autoLoginAttempted.current) return
     if (!tg?.initData) return
+    if (screenParams.fromLogout) return
     autoLoginAttempted.current = true
     loginViaTelegram(tg.initData)
-  }, [tg, loginViaTelegram])
+  }, [tg, loginViaTelegram, screenParams.fromLogout])
 
   async function handleLogin() {
     if (!tg?.initData) {
