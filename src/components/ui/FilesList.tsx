@@ -4,19 +4,12 @@ import { useEffect, useRef, useState } from 'react'
 import { usePropertyFiles } from '@/hooks/usePropertyFiles'
 import { useAppStore } from '@/store/appStore'
 import Modal from '@/components/ui/Modal'
-import FilePreviewModal from '@/components/ui/FilePreviewModal'
 import { IconFile, IconPlus, IconTrash, IconEye, IconCloudUpload } from '@/components/Icons'
 import type { PropertyFile } from '@/types'
 
 interface FilesListProps {
   propertyId: string
   isOwner: boolean
-}
-
-interface PreviewData {
-  url: string
-  mime: string
-  name: string
 }
 
 function formatBytes(bytes: number): string {
@@ -48,13 +41,12 @@ function FileBadge({ mime }: { mime: string }) {
 }
 
 export default function FilesList({ propertyId, isOwner }: FilesListProps) {
-  const { files, loading, uploading, fetchFiles, uploadFiles, deleteFile, getSignedUrl, maxFiles } =
+  const { files, loading, uploading, uploadProgress, currentUploadFile, fetchFiles, uploadFiles, deleteFile, getSignedUrl, maxFiles } =
     usePropertyFiles(propertyId)
   const { showToast } = useAppStore()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [toDelete, setToDelete]     = useState<PropertyFile | null>(null)
   const [openingId, setOpeningId]   = useState<string | null>(null)
-  const [preview, setPreview]       = useState<PreviewData | null>(null)
 
   useEffect(() => { fetchFiles() }, [fetchFiles])
 
@@ -73,7 +65,9 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
     try {
       const url = await getSignedUrl(file.storage_path)
       if (!url) { showToast({ type: 'error', title: 'Не вдалося відкрити файл' }); return }
-      setPreview({ url, mime: file.mime_type, name: file.file_name })
+      const tg = window.Telegram?.WebApp
+      if (tg?.openLink) tg.openLink(url)
+      else window.open(url, '_blank', 'noopener')
     } finally {
       setOpeningId(null)
     }
@@ -219,8 +213,39 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
             </div>
           ))}
 
+          {/* Upload progress row */}
+          {uploading && uploadProgress && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '10px 12px', borderRadius: 'var(--r-sm)',
+              background: 'rgba(122,179,255,.08)',
+              border: '.5px solid rgba(122,179,255,.25)',
+            }}>
+              <div className="loader" style={{ width: 16, height: 16, borderWidth: 2, flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#7AB3FF', marginBottom: 4 }}>
+                  Завантаження {uploadProgress.done + 1}/{uploadProgress.total}
+                </div>
+                {currentUploadFile && (
+                  <div style={{ fontSize: 11, color: 'var(--t3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {currentUploadFile}
+                  </div>
+                )}
+                {/* Progress bar */}
+                <div style={{ marginTop: 6, height: 3, borderRadius: 2, background: 'rgba(255,255,255,.1)' }}>
+                  <div style={{
+                    height: '100%', borderRadius: 2,
+                    background: 'linear-gradient(90deg,#7AB3FF,#a78bfa)',
+                    width: `${Math.round((uploadProgress.done / uploadProgress.total) * 100)}%`,
+                    transition: 'width .25s ease',
+                  }} />
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Add more row */}
-          {isOwner && files.length < maxFiles && (
+          {isOwner && files.length < maxFiles && !uploading && (
             <button
               onClick={() => fileInputRef.current?.click()}
               style={{
@@ -231,10 +256,7 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
                 fontSize: 13, fontWeight: 500, cursor: 'pointer',
               }}
             >
-              {uploading
-                ? <><div className="loader" style={{ width: 14, height: 14, borderWidth: 2 }} />Завантаження...</>
-                : <><IconPlus size={14} />Додати ще файл</>
-              }
+              <IconPlus size={14} />Додати ще файл
             </button>
           )}
 
@@ -255,16 +277,6 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
           multiple
           style={{ display: 'none' }}
           onChange={handleUpload}
-        />
-      )}
-
-      {/* ── In-app preview modal ── */}
-      {preview && (
-        <FilePreviewModal
-          url={preview.url}
-          mime={preview.mime}
-          name={preview.name}
-          onClose={() => setPreview(null)}
         />
       )}
 

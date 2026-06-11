@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect } from 'react'
 import { IconX, IconDownload } from '@/components/Icons'
 
 interface FilePreviewModalProps {
@@ -10,111 +10,77 @@ interface FilePreviewModalProps {
   onClose: () => void
 }
 
-export default function FilePreviewModal({ url, mime, name, onClose }: FilePreviewModalProps) {
-  const [loaded, setLoaded] = useState(false)
+export default function FilePreviewModal({ url, name, onClose }: FilePreviewModalProps) {
+  useEffect(() => {
+    const tg = window.Telegram?.WebApp
+    if (tg?.openLink) tg.openLink(url)
+    else window.open(url, '_blank', 'noopener')
+  }, [url])
 
-  // DOC/DOCX need Google Docs Viewer; PDF renders natively in WebView
-  const isDoc = mime.includes('word') || mime.includes('officedocument')
-  const iframeSrc = isDoc
-    ? `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`
-    : url
-
-  // Fallback: open outside TMA (download button)
-  function handleOpenExternal() {
+  function handleOpen() {
     const tg = window.Telegram?.WebApp
     if (tg?.openLink) tg.openLink(url)
     else window.open(url, '_blank', 'noopener')
   }
 
   return (
-    <div style={{
-      position: 'fixed',
-      inset: 0,
-      zIndex: 200,
-      background: '#08081a',
-      display: 'flex',
-      flexDirection: 'column',
-    }}>
-      {/* ── Header ── */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        padding: 'calc(12px + var(--safe-top)) 12px 12px',
-        borderBottom: '.5px solid rgba(255,255,255,.1)',
-        background: 'rgba(8,8,26,.96)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        flexShrink: 0,
-      }}>
-        {/* Close */}
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 200,
+        background: 'rgba(0,0,0,.6)',
+        display: 'flex', alignItems: 'flex-end',
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          width: '100%',
+          background: 'var(--glass-bg, #1a0a2e)',
+          borderRadius: '20px 20px 0 0',
+          padding: '20px 20px calc(24px + env(safe-area-inset-bottom))',
+          border: '.5px solid rgba(255,255,255,.12)',
+          borderBottom: 'none',
+        }}
+      >
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--t1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {name}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 3 }}>
+              Відкривається у браузері
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              width: 36, height: 36, borderRadius: '50%',
+              background: 'var(--glass-2)', border: 'var(--bd)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: 'var(--t1)', cursor: 'pointer', flexShrink: 0,
+            }}
+          >
+            <IconX size={16} />
+          </button>
+        </div>
+
+        {/* Open button */}
         <button
-          onClick={onClose}
+          onClick={handleOpen}
           style={{
-            width: 36, height: 36, borderRadius: '50%',
-            background: 'var(--glass-2)', border: 'var(--bd)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: 'var(--t1)', cursor: 'pointer', flexShrink: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            width: '100%', padding: '13px 20px', borderRadius: 14,
+            background: 'linear-gradient(135deg,rgba(122,179,255,.2),rgba(167,139,250,.2))',
+            border: '.5px solid rgba(122,179,255,.35)',
+            color: '#7AB3FF', fontSize: 15, fontWeight: 600, cursor: 'pointer',
           }}
         >
-          <IconX size={16} />
-        </button>
-
-        {/* Filename */}
-        <span style={{
-          flex: 1,
-          fontSize: 14, fontWeight: 600, color: 'var(--t1)',
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}>
-          {name}
-        </span>
-
-        {/* Download / open external fallback */}
-        <button
-          onClick={handleOpenExternal}
-          title="Завантажити"
-          style={{
-            width: 36, height: 36, borderRadius: '50%',
-            background: 'var(--glass-2)', border: 'var(--bd)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: 'var(--t2)', cursor: 'pointer', flexShrink: 0,
-          }}
-        >
-          <IconDownload size={16} />
+          <IconDownload size={17} />
+          Відкрити файл ще раз
         </button>
       </div>
-
-      {/* ── Loading spinner (hidden after iframe loads) ── */}
-      {!loaded && (
-        <div style={{
-          position: 'absolute',
-          top: '50%', left: '50%',
-          transform: 'translate(-50%, -50%)',
-          display: 'flex', flexDirection: 'column',
-          alignItems: 'center', gap: 12, zIndex: 1,
-          pointerEvents: 'none',
-        }}>
-          <div className="loader" />
-          <div style={{ fontSize: 13, color: 'var(--t3)' }}>
-            {isDoc ? 'Відкриваємо через Google Docs...' : 'Завантаження PDF...'}
-          </div>
-        </div>
-      )}
-
-      {/* ── iframe ── */}
-      <iframe
-        src={iframeSrc}
-        title={name}
-        style={{
-          flex: 1,
-          border: 'none',
-          width: '100%',
-          background: 'transparent',
-          opacity: loaded ? 1 : 0,
-          transition: 'opacity .25s ease',
-        }}
-        onLoad={() => setLoaded(true)}
-      />
     </div>
   )
 }

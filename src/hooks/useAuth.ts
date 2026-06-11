@@ -31,17 +31,26 @@ function cloudStorage(): any {
 }
 
 function cloudGet(key: string): Promise<string | null> {
-  const cs = cloudStorage()
-  if (!cs) return Promise.resolve(null)
   return new Promise((resolve) => {
-    // CloudStorage callback may never fire on some Telegram versions — guard with 3s cap
-    const t = setTimeout(() => resolve(null), 3000)
-    try {
-      cs.getItem(key, (err: unknown, val: string) => {
-        clearTimeout(t)
-        resolve(err ? null : (val || null))
-      })
-    } catch { clearTimeout(t); resolve(null) }
+    const deadline = Date.now() + 2000
+    function attempt() {
+      const cs = cloudStorage()
+      if (!cs) {
+        // SDK not ready yet — retry until deadline (cold Telegram start on iOS)
+        if (Date.now() < deadline) { setTimeout(attempt, 100); return }
+        resolve(null)
+        return
+      }
+      // CloudStorage callback may never fire on some Telegram versions — guard with 3s cap
+      const t = setTimeout(() => resolve(null), 3000)
+      try {
+        cs.getItem(key, (err: unknown, val: string) => {
+          clearTimeout(t)
+          resolve(err ? null : (val || null))
+        })
+      } catch { clearTimeout(t); resolve(null) }
+    }
+    attempt()
   })
 }
 

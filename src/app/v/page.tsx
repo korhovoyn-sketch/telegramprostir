@@ -114,7 +114,9 @@ function fmtPrice(n: number | null, suffix = '') {
 
 const s = {
   wrap: {
-    minHeight: '100vh',
+    height: '100%',
+    overflowY: 'auto',
+    WebkitOverflowScrolling: 'touch',
     background: 'linear-gradient(160deg,#0d0521 0%,#0a0a14 50%,#050d1a 100%)',
     fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif',
     color: '#fff',

@@ -17,6 +17,8 @@ export function usePropertyFiles(propertyId: string | undefined) {
   const [files, setFiles]       = useState<PropertyFile[]>([])
   const [loading, setLoading]   = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null)
+  const [currentUploadFile, setCurrentUploadFile] = useState<string | null>(null)
 
   const fetchFiles = useCallback(async () => {
     if (!propertyId) return
@@ -43,7 +45,18 @@ export function usePropertyFiles(propertyId: string | undefined) {
     // Guard: re-read fresh count to avoid race when uploading multiple
     let currentCount = files.length
 
+    // Filter out invalid files before showing progress so total is accurate
+    const valid = picked.filter(file => {
+      if (currentCount >= MAX_FILES) return false
+      if (!ALLOWED_MIME.has(file.type)) { onError(`«${file.name}» — формат не підтримується (тільки PDF, DOC, DOCX)`); return false }
+      if (file.size > MAX_SIZE)         { onError(`«${file.name}» перевищує 20 МБ`); return false }
+      return true
+    })
+
+    if (!valid.length) return
+
     setUploading(true)
+    setUploadProgress({ done: 0, total: valid.length })
     try {
       // Get owner_id from the property once
       const { data: propRow } = await supabase
@@ -52,19 +65,14 @@ export function usePropertyFiles(propertyId: string | undefined) {
         .eq('id', propertyId)
         .single()
 
-      for (const file of picked) {
+      for (let i = 0; i < valid.length; i++) {
+        const file = valid[i]
         if (currentCount >= MAX_FILES) {
           onError(`Максимум ${MAX_FILES} файлів на об'єкт`)
           break
         }
-        if (!ALLOWED_MIME.has(file.type)) {
-          onError(`«${file.name}» — формат не підтримується (тільки PDF, DOC, DOCX)`)
-          continue
-        }
-        if (file.size > MAX_SIZE) {
-          onError(`«${file.name}» перевищує 20 МБ`)
-          continue
-        }
+        setCurrentUploadFile(file.name)
+        setUploadProgress({ done: i, total: valid.length })
 
         const ext  = file.name.split('.').pop()?.toLowerCase() ?? 'bin'
         const rand = Math.random().toString(36).slice(2, 8)
@@ -94,10 +102,13 @@ export function usePropertyFiles(propertyId: string | undefined) {
         }
 
         setFiles(prev => [...prev, row as PropertyFile])
+        setUploadProgress({ done: i + 1, total: valid.length })
         currentCount++
       }
     } finally {
       setUploading(false)
+      setCurrentUploadFile(null)
+      setUploadProgress(null)
     }
   }, [propertyId, files.length])
 
@@ -123,6 +134,8 @@ export function usePropertyFiles(propertyId: string | undefined) {
     files,
     loading,
     uploading,
+    uploadProgress,
+    currentUploadFile,
     fetchFiles,
     uploadFiles,
     deleteFile,
