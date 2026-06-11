@@ -10,7 +10,7 @@ import SearchBar from '@/components/ui/SearchBar'
 import { StatusBadge, FreshnessBadge } from '@/components/ui/Badge'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import Modal from '@/components/ui/Modal'
-import { IconPlus, IconDots, IconEye, IconPhoto, IconShare, IconChevronUp, IconChevronDown, GlassDbIcon } from '@/components/Icons'
+import { IconPlus, IconDots, IconEye, IconPhoto, IconShare, IconChevronUp, IconChevronDown, GlassDbIcon, IconBuilding, IconRuler, IconParking, IconCalendar } from '@/components/Icons'
 import DatabaseStatsPanel from '@/components/ui/DatabaseStatsPanel'
 import { formatPrice, calcRent, calcUtilities, DB_TYPE_LABELS, formatLeasePeriod } from '@/lib/utils'
 import type { PropertyStatus } from '@/types'
@@ -337,8 +337,8 @@ export default function DatabaseObjectsScreen() {
                           {p.name}
                         </div>
                         {p.floor && (
-                          <div style={{ fontSize: 11, color: 'var(--t3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            🏢 {p.floor} поверх
+                          <div style={{ fontSize: 11, color: 'var(--t3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 3 }}>
+                            <IconBuilding size={10} color="var(--t3)" />{p.floor} поверх
                           </div>
                         )}
                       </div>
@@ -354,7 +354,7 @@ export default function DatabaseObjectsScreen() {
                             {p.name}
                           </div>
                           <div className="obj-s">
-                            {p.floor && <><span>🏢</span><span>{p.floor} поверх</span></>}
+                            {p.floor && <><IconBuilding size={10} color="var(--t3)" /><span>{p.floor} поверх</span></>}
                           </div>
                         </div>
                         <div style={{ flexShrink: 0 }}>
@@ -364,13 +364,13 @@ export default function DatabaseObjectsScreen() {
                       <div className="obj-met">
                         {p.area_useful && (
                           <div className="obj-mt">
-                            <span>📐</span>
+                            <IconRuler size={10} color="var(--t3)" />
                             <span>{p.area_useful}/{p.area_total ?? p.area_useful} м²</span>
                           </div>
                         )}
                         {p.has_parking && (
                           <div className="obj-mt">
-                            <span>🅿️</span>
+                            <IconParking size={10} color="var(--t3)" />
                             <span>{p.parking_spaces} місць</span>
                           </div>
                         )}
@@ -388,7 +388,7 @@ export default function DatabaseObjectsScreen() {
                         )}
                         {p.status === 'occupied' && formatLeasePeriod(p.lease_start_date, p.lease_end_date) && (
                           <div className="obj-mt" style={{ gridColumn: '1 / -1', color: 'var(--t3)' }}>
-                            <span>📅</span>
+                            <IconCalendar size={10} color="var(--t3)" />
                             <span>{formatLeasePeriod(p.lease_start_date, p.lease_end_date)}</span>
                           </div>
                         )}

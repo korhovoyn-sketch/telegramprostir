@@ -335,6 +335,9 @@ export function IconLayoutGrid(p: IconProps) {
 export function IconRuler(p: IconProps) {
   return <Icon {...p}><rect x="3" y="9" width="18" height="6" rx="1"/><path d="M7 9v4"/><path d="M12 9v2"/><path d="M17 9v4"/></Icon>
 }
+export function IconParking(p: IconProps) {
+  return <Icon {...p}><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M9 16v-8h4a2.5 2.5 0 0 1 0 5h-4"/></Icon>
+}
 export function IconLayers(p: IconProps) {
   return <Icon {...p}><path d="M12 2l9 4.5l-9 4.5l-9 -4.5z"/><path d="M3 11l9 4.5l9 -4.5"/><path d="M3 16l9 4.5l9 -4.5"/></Icon>
 }

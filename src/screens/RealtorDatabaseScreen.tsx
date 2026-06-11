@@ -7,7 +7,7 @@ import Header from '@/components/ui/Header'
 import SearchBar from '@/components/ui/SearchBar'
 import { StatusBadge } from '@/components/ui/Badge'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
-import { IconShare, IconPhoto, IconMessage } from '@/components/Icons'
+import { IconShare, IconPhoto, IconMessage, IconBuilding, IconRuler, IconParking, IconCalendar } from '@/components/Icons'
 import { sharePublicUrl } from '@/lib/telegram'
 import { formatPrice, calcRent, calcUtilities, DB_TYPE_LABELS, getInitials, formatLeasePeriod } from '@/lib/utils'
 import type { Database, Property, PropertyStatus, User } from '@/types'
@@ -157,17 +157,17 @@ export default function RealtorDatabaseScreen() {
                   <div className="obj-hd">
                     <div>
                       <div className="obj-t">{p.name}</div>
-                      {p.floor && <div className="obj-s">🏢 {p.floor} поверх</div>}
+                      {p.floor && <div className="obj-s" style={{ display: 'flex', alignItems: 'center', gap: 3 }}><IconBuilding size={10} color="var(--t3)" />{p.floor} поверх</div>}
                     </div>
                     <StatusBadge status={p.status} />
                   </div>
                   <div className="obj-met">
-                    {p.area_useful && <div className="obj-mt">📐 {p.area_useful}/{p.area_total ?? p.area_useful} м²</div>}
-                    {p.has_parking && <div className="obj-mt">🅿️ {p.parking_spaces}</div>}
+                    {p.area_useful && <div className="obj-mt"><IconRuler size={10} color="var(--t3)" /><span>{p.area_useful}/{p.area_total ?? p.area_useful} м²</span></div>}
+                    {p.has_parking && <div className="obj-mt"><IconParking size={10} color="var(--t3)" /><span>{p.parking_spaces} м.</span></div>}
                     {(p.photos?.length ?? 0) > 0 && <div className="obj-mt"><IconPhoto size={11} /> {p.photos!.length}</div>}
                     {p.status === 'occupied' && formatLeasePeriod(p.lease_start_date, p.lease_end_date) && (
                       <div className="obj-mt" style={{ gridColumn: '1 / -1', color: 'var(--t3)' }}>
-                        <span>📅</span>
+                        <IconCalendar size={10} color="var(--t3)" />
                         <span>{formatLeasePeriod(p.lease_start_date, p.lease_end_date)}</span>
                       </div>
                     )}

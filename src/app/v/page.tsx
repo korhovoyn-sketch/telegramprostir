@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { TG_BOT, buildDeepLink } from '@/lib/telegram'
+import { IconBuilding, IconRuler, IconMapPin, IconCurrencyDollar } from '@/components/Icons'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
 
@@ -345,8 +346,8 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
             {STATUS_LABEL[status] ?? status}
           </span>
           {data.property_floor && (
-            <span style={{ fontSize: 13, color: 'rgba(255,255,255,.55)' }}>
-              🏢 {data.property_floor} поверх
+            <span style={{ fontSize: 13, color: 'rgba(255,255,255,.55)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <IconBuilding size={12} color="rgba(255,255,255,.55)" />{data.property_floor} поверх
             </span>
           )}
         </div>
@@ -354,7 +355,7 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
           {data.property_name}
         </div>
         <div style={{ fontSize: 13, color: 'rgba(255,255,255,.5)', display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span>📍</span>
+          <IconMapPin size={13} color="rgba(255,255,255,.5)" />
           {[data.db_name, DB_TYPE_LABEL[data.db_type]].filter(Boolean).join(' • ')}
         </div>
         {data.property_address && (
@@ -521,11 +522,11 @@ function DatabaseView({ rows, token }: { rows: DbRow[]; token: string }) {
                   )}
                 </div>
                 <div style={{ display: 'flex', gap: 12, marginTop: 6, flexWrap: 'wrap' }}>
-                  {p.property_floor && <span style={{ fontSize: 12, color: 'rgba(255,255,255,.5)' }}>🏢 {p.property_floor} пов.</span>}
-                  {p.property_area_useful && <span style={{ fontSize: 12, color: 'rgba(255,255,255,.5)' }}>📐 {p.property_area_useful} м²</span>}
+                  {p.property_floor && <span style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconBuilding size={11} color="rgba(255,255,255,.5)" />{p.property_floor} пов.</span>}
+                  {p.property_area_useful && <span style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconRuler size={11} color="rgba(255,255,255,.5)" />{p.property_area_useful} м²</span>}
                   {p.property_rent_rate && (
-                    <span style={{ fontSize: 12, color: 'rgba(255,255,255,.5)' }}>
-                      💵 ${p.property_rent_rate.toLocaleString('uk-UA')}{p.property_rent_type === 'per_m2' ? '/м²' : '/міс'}
+                    <span style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                      <IconCurrencyDollar size={11} color="rgba(255,255,255,.5)" />{p.property_rent_rate.toLocaleString('uk-UA')}{p.property_rent_type === 'per_m2' ? '/м²' : '/міс'}
                     </span>
                   )}
                 </div>

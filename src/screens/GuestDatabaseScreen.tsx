@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useAppStore } from '@/store/appStore'
 import { useAuth } from '@/hooks/useAuth'
 import { DB_TYPE_LABELS } from '@/lib/utils'
+import { IconBuilding, IconRuler, IconCurrencyDollar } from '@/components/Icons'
 
 interface PreviewRow {
   db_id: string
@@ -180,7 +181,7 @@ export default function GuestDatabaseScreen() {
                   <div>
                     <div className="obj-t">{p.property_name}</div>
                     {p.property_floor && (
-                      <div className="obj-s">🏢 {p.property_floor} поверх</div>
+                      <div className="obj-s" style={{ display: 'flex', alignItems: 'center', gap: 3 }}><IconBuilding size={10} color="var(--t3)" />{p.property_floor} поверх</div>
                     )}
                   </div>
                   {p.property_status && (
@@ -192,14 +193,14 @@ export default function GuestDatabaseScreen() {
                 <div className="obj-met">
                   {p.property_area_useful != null && (
                     <div className="obj-mt">
-                      📐 {p.property_area_useful}
-                      {p.property_area_total != null ? `/${p.property_area_total}` : ''} м²
+                      <IconRuler size={10} color="var(--t3)" />
+                      <span>{p.property_area_useful}{p.property_area_total != null ? `/${p.property_area_total}` : ''} м²</span>
                     </div>
                   )}
                   {p.property_rent_rate != null && (
                     <div className="obj-mt">
-                      💰 {p.property_rent_rate.toLocaleString('uk-UA')}
-                      {p.property_rent_type === 'per_m2' ? ' /м²' : ' /міс'}
+                      <IconCurrencyDollar size={10} color="var(--t3)" />
+                      <span>{p.property_rent_rate.toLocaleString('uk-UA')}{p.property_rent_type === 'per_m2' ? ' /м²' : ' /міс'}</span>
                     </div>
                   )}
                 </div>
