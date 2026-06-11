@@ -17,7 +17,7 @@ export function useDatabases() {
     try {
       const { data, error } = await supabase
         .from('databases')
-        .select('*, properties(status)')
+        .select('*, properties(status, rent_rate, area_useful, rent_type)')
         .eq('owner_id', user.id)
         .order('created_at', { ascending: false })
 
@@ -25,12 +25,21 @@ export function useDatabases() {
 
       const dbs = (data || []).map((d) => {
         const row = d as Record<string, unknown>
-        const props = (row.properties as Array<{ status: string }>) ?? []
+        type PropRow = { status: string; rent_rate?: number; area_useful?: number; rent_type?: string }
+        const props = (row.properties as PropRow[]) ?? []
+        const monthlyIncome = props
+          .filter(p => p.status === 'occupied' && p.rent_rate)
+          .reduce((sum, p) => {
+            if (!p.rent_rate) return sum
+            return sum + (p.rent_type === 'fixed' ? p.rent_rate : (p.area_useful ?? 0) * p.rent_rate)
+          }, 0)
         return {
           ...row,
           properties: undefined,
-          _property_count: props.length,
-          _free_count: props.filter((p) => p.status === 'free').length,
+          _property_count:  props.length,
+          _free_count:      props.filter(p => p.status === 'free').length,
+          _occupied_count:  props.filter(p => p.status === 'occupied').length,
+          _monthly_income:  monthlyIncome,
         }
       })
 

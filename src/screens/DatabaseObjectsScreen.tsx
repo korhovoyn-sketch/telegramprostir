@@ -10,7 +10,7 @@ import SearchBar from '@/components/ui/SearchBar'
 import { StatusBadge, FreshnessBadge } from '@/components/ui/Badge'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import Modal from '@/components/ui/Modal'
-import { IconPlus, IconDots, IconEye, IconPhoto, IconShare, IconChevronUp, IconChevronDown, GlassDbIcon, IconBuilding, IconRuler, IconParking, IconCalendar } from '@/components/Icons'
+import { IconPlus, IconDots, IconEye, IconPhoto, IconShare, IconChevronUp, IconChevronDown, GlassDbIcon, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity } from '@/components/Icons'
 import DatabaseStatsPanel from '@/components/ui/DatabaseStatsPanel'
 import { formatPrice, calcRent, calcUtilities, DB_TYPE_LABELS, formatLeasePeriod } from '@/lib/utils'
 import type { PropertyStatus } from '@/types'
@@ -24,6 +24,7 @@ export default function DatabaseObjectsScreen() {
 
   const [search, setSearch] = useState('')
   const [tab, setTab] = useState<'all' | PropertyStatus>('all')
+  const [sortBy, setSortBy] = useState<'default' | 'name' | 'status' | 'area' | 'rent'>('default')
   const [showMenu, setShowMenu] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [reorderMode, setReorderMode] = useState(false)
@@ -81,13 +82,25 @@ export default function DatabaseObjectsScreen() {
     if (screenParams.dbId) loadProperties(screenParams.dbId)
   }, [screenParams.dbId, loadProperties])
 
-  const filtered = useMemo(() =>
-    properties.filter((p) => {
+  const filtered = useMemo(() => {
+    const base = properties.filter((p) => {
       const matchSearch = p.name.toLowerCase().includes(search.toLowerCase())
       const matchTab = tab === 'all' || p.status === tab
       return matchSearch && matchTab
-    }),
-  [properties, search, tab])
+    })
+    const STATUS_ORDER: Record<string, number> = { occupied: 0, for_sale: 1, free: 2 }
+    switch (sortBy) {
+      case 'name':   return [...base].sort((a, b) => a.name.localeCompare(b.name, 'uk'))
+      case 'status': return [...base].sort((a, b) => (STATUS_ORDER[a.status] ?? 3) - (STATUS_ORDER[b.status] ?? 3))
+      case 'area':   return [...base].sort((a, b) => (b.area_useful ?? 0) - (a.area_useful ?? 0))
+      case 'rent':   return [...base].sort((a, b) => {
+        const aR = calcRent(a.area_useful ?? 0, a.rent_rate ?? 0, a.rent_type ?? 'per_m2')
+        const bR = calcRent(b.area_useful ?? 0, b.rent_rate ?? 0, b.rent_type ?? 'per_m2')
+        return bR - aR
+      })
+      default: return base
+    }
+  }, [properties, search, tab, sortBy])
 
   const counts = useMemo(() => ({
     all: properties.length,
@@ -170,7 +183,36 @@ export default function DatabaseObjectsScreen() {
 
         {/* Search — hidden while reordering */}
         {!reorderMode && (
-          <SearchBar value={search} onChange={setSearch} placeholder="Пошук об&apos;єкту..." />
+          <SearchBar value={search} onChange={setSearch} placeholder="Пошук об'єкту..." />
+        )}
+
+        {/* Sort selector — hidden while reordering/selecting */}
+        {!reorderMode && !selectMode && properties.length > 1 && (
+          <div style={{ margin: '-4px 12px 8px', display: 'flex', alignItems: 'center', gap: 6, overflowX: 'auto', paddingBottom: 2 }}>
+            <IconActivity size={12} color="var(--t4)" />
+            {([
+              { id: 'default', label: 'За порядком' },
+              { id: 'status',  label: 'За статусом' },
+              { id: 'rent',    label: 'За орендою'  },
+              { id: 'area',    label: 'За площею'   },
+              { id: 'name',    label: 'За назвою'   },
+            ] as const).map(opt => (
+              <button
+                key={opt.id}
+                onClick={() => setSortBy(opt.id)}
+                style={{
+                  flexShrink: 0,
+                  padding: '3px 9px', borderRadius: 8,
+                  background: sortBy === opt.id ? 'rgba(122,179,255,.22)' : 'var(--glass-1)',
+                  color:      sortBy === opt.id ? '#7AB3FF' : 'var(--t3)',
+                  border:     sortBy === opt.id ? '.5px solid rgba(122,179,255,.4)' : 'var(--bd)',
+                  fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
         )}
 
         {/* Stats dashboard */}

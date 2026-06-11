@@ -37,6 +37,8 @@ export interface Database {
   updated_at: string
   _property_count?: number
   _free_count?: number
+  _occupied_count?: number
+  _monthly_income?: number
 }
 
 export interface Property {
