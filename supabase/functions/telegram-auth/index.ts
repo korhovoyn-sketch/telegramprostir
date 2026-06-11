@@ -109,7 +109,13 @@ async function validateInitData(
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('')
 
-  if (expectedHash !== hash) return { ok: false, code: 'INIT_DATA_INVALID' }
+  // Constant-time comparison to prevent timing side-channel attacks
+  const expectedBytes = encoder.encode(expectedHash)
+  const actualBytes   = encoder.encode(hash)
+  if (expectedBytes.length !== actualBytes.length) return { ok: false, code: 'INIT_DATA_INVALID' }
+  let mismatch = 0
+  for (let i = 0; i < expectedBytes.length; i++) mismatch |= expectedBytes[i] ^ actualBytes[i]
+  if (mismatch !== 0) return { ok: false, code: 'INIT_DATA_INVALID' }
 
   const authDate = parseInt(params.get('auth_date') ?? '')
   const age = Date.now() / 1000 - authDate

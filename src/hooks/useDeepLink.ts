@@ -112,14 +112,7 @@ export function useDeepLink() {
           .upsert({ realtor_id: user!.id, db_id: db.id }, { onConflict: 'realtor_id,db_id' })
 
         if (!error) {
-          const isGuestJoin = localStorage.getItem('ps_guest_join') === '1'
-          if (isGuestJoin) {
-            localStorage.removeItem('ps_guest_join')
-            if (user!.role !== 'realtor') {
-              await supabase.from('users').update({ role: 'realtor' }).eq('id', user!.id)
-              useAppStore.getState().setUser({ ...user!, role: 'realtor' })
-            }
-          }
+          localStorage.removeItem('ps_guest_join')
           window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
           showToast({ type: 'success', title: 'Базу підключено! 🎉' })
           useAppStore.getState().navigateRoot('realtor-dashboard')
