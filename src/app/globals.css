@@ -79,28 +79,29 @@ body{
 .nav-root{animation:navFade .2s ease both}
 
 /* ── BACKGROUNDS — bottom-anchored glow, near-black top ──
-   Reference: color blobs live only in the bottom ~45% of the screen;
-   the upper half is plain near-black. Blobs overflow past the bottom
-   edge (y=110%) so only their upper halves are visible as a soft rise. */
+   Color rises from the bottom edge and dissolves smoothly by mid-screen.
+   Multi-stop alpha ramp (full → 45% → 18% → 0) kills the hard edge a
+   two-stop gradient produces; blob centres sit below the viewport (y≈118%)
+   so only the soft upper falloff is visible. */
 /* 1. Purple-blue */
-.bg-purple{background:radial-gradient(85% 65% at 18% 110%,rgba(125,45,255,.85) 0%,transparent 62%),radial-gradient(85% 65% at 82% 110%,rgba(0,70,255,.8) 0%,transparent 62%),#040310}
+.bg-purple{background:radial-gradient(120% 100% at 18% 118%,rgba(125,45,255,.85) 0%,rgba(125,45,255,.4) 30%,rgba(125,45,255,.14) 52%,transparent 74%),radial-gradient(120% 100% at 82% 118%,rgba(0,70,255,.8) 0%,rgba(0,70,255,.36) 30%,rgba(0,70,255,.13) 52%,transparent 74%),#040310}
 /* 2. Magenta-pink */
-.bg-pink{background:radial-gradient(85% 65% at 22% 110%,rgba(255,0,170,.8) 0%,transparent 62%),radial-gradient(85% 65% at 78% 110%,rgba(255,60,130,.7) 0%,transparent 62%),#0c0309}
-.bg-green{background:radial-gradient(85% 65% at 20% 110%,rgba(0,210,170,.75) 0%,transparent 62%),radial-gradient(85% 65% at 80% 110%,rgba(120,40,235,.65) 0%,transparent 62%),#03100c}
+.bg-pink{background:radial-gradient(120% 100% at 22% 118%,rgba(255,0,170,.8) 0%,rgba(255,0,170,.36) 30%,rgba(255,0,170,.13) 52%,transparent 74%),radial-gradient(120% 100% at 78% 118%,rgba(255,60,130,.7) 0%,rgba(255,60,130,.32) 30%,rgba(255,60,130,.11) 52%,transparent 74%),#0c0309}
+.bg-green{background:radial-gradient(120% 100% at 20% 118%,rgba(0,210,170,.75) 0%,rgba(0,210,170,.34) 30%,rgba(0,210,170,.12) 52%,transparent 74%),radial-gradient(120% 100% at 80% 118%,rgba(120,40,235,.65) 0%,rgba(120,40,235,.3) 30%,rgba(120,40,235,.1) 52%,transparent 74%),#03100c}
 /* Blue-violet */
-.bg-blue{background:radial-gradient(85% 65% at 18% 110%,rgba(0,110,255,.82) 0%,transparent 62%),radial-gradient(85% 65% at 82% 110%,rgba(160,40,255,.72) 0%,transparent 62%),#03040f}
+.bg-blue{background:radial-gradient(120% 100% at 18% 118%,rgba(0,110,255,.82) 0%,rgba(0,110,255,.38) 30%,rgba(0,110,255,.13) 52%,transparent 74%),radial-gradient(120% 100% at 82% 118%,rgba(160,40,255,.72) 0%,rgba(160,40,255,.33) 30%,rgba(160,40,255,.11) 52%,transparent 74%),#03040f}
 /* 5. Cyan-blue */
-.bg-cyan{background:radial-gradient(85% 65% at 20% 110%,rgba(0,190,255,.8) 0%,transparent 62%),radial-gradient(85% 65% at 80% 110%,rgba(0,80,255,.72) 0%,transparent 62%),#020a10}
-.bg-orange{background:radial-gradient(85% 65% at 20% 110%,rgba(255,140,30,.72) 0%,transparent 62%),radial-gradient(85% 65% at 80% 110%,rgba(255,70,140,.6) 0%,transparent 62%),#0f0703}
+.bg-cyan{background:radial-gradient(120% 100% at 20% 118%,rgba(0,190,255,.8) 0%,rgba(0,190,255,.36) 30%,rgba(0,190,255,.13) 52%,transparent 74%),radial-gradient(120% 100% at 80% 118%,rgba(0,80,255,.72) 0%,rgba(0,80,255,.33) 30%,rgba(0,80,255,.11) 52%,transparent 74%),#020a10}
+.bg-orange{background:radial-gradient(120% 100% at 20% 118%,rgba(255,140,30,.72) 0%,rgba(255,140,30,.33) 30%,rgba(255,140,30,.11) 52%,transparent 74%),radial-gradient(120% 100% at 80% 118%,rgba(255,70,140,.6) 0%,rgba(255,70,140,.27) 30%,rgba(255,70,140,.09) 52%,transparent 74%),#0f0703}
 /* 4. Rose-pink */
-.bg-violet{background:radial-gradient(85% 65% at 22% 110%,rgba(255,45,120,.8) 0%,transparent 62%),radial-gradient(85% 65% at 78% 110%,rgba(220,0,160,.7) 0%,transparent 62%),#0d0308}
+.bg-violet{background:radial-gradient(120% 100% at 22% 118%,rgba(255,45,120,.8) 0%,rgba(255,45,120,.36) 30%,rgba(255,45,120,.13) 52%,transparent 74%),radial-gradient(120% 100% at 78% 118%,rgba(220,0,160,.7) 0%,rgba(220,0,160,.32) 30%,rgba(220,0,160,.11) 52%,transparent 74%),#0d0308}
 /* 6. Teal-green */
-.bg-teal{background:radial-gradient(85% 65% at 20% 110%,rgba(0,220,170,.78) 0%,transparent 62%),radial-gradient(85% 65% at 80% 110%,rgba(0,150,90,.7) 0%,transparent 62%),#02100b}
-.bg-welcome{background:radial-gradient(95% 70% at 30% 112%,rgba(120,60,255,.6) 0%,transparent 64%),radial-gradient(95% 70% at 75% 112%,rgba(255,60,170,.45) 0%,transparent 64%),#060312}
-.bg-success{background:radial-gradient(95% 70% at 30% 112%,rgba(60,220,150,.55) 0%,transparent 64%),radial-gradient(95% 70% at 75% 112%,rgba(60,170,240,.45) 0%,transparent 64%),#02100c}
+.bg-teal{background:radial-gradient(120% 100% at 20% 118%,rgba(0,220,170,.78) 0%,rgba(0,220,170,.35) 30%,rgba(0,220,170,.12) 52%,transparent 74%),radial-gradient(120% 100% at 80% 118%,rgba(0,150,90,.7) 0%,rgba(0,150,90,.32) 30%,rgba(0,150,90,.11) 52%,transparent 74%),#02100b}
+.bg-welcome{background:radial-gradient(130% 105% at 30% 120%,rgba(120,60,255,.6) 0%,rgba(120,60,255,.27) 30%,rgba(120,60,255,.09) 52%,transparent 74%),radial-gradient(130% 105% at 75% 120%,rgba(255,60,170,.45) 0%,rgba(255,60,170,.2) 30%,rgba(255,60,170,.07) 52%,transparent 74%),#060312}
+.bg-success{background:radial-gradient(130% 105% at 30% 120%,rgba(60,220,150,.55) 0%,rgba(60,220,150,.25) 30%,rgba(60,220,150,.08) 52%,transparent 74%),radial-gradient(130% 105% at 75% 120%,rgba(60,170,240,.45) 0%,rgba(60,170,240,.2) 30%,rgba(60,170,240,.07) 52%,transparent 74%),#02100c}
 /* 3. Coral-red */
-.bg-error{background:radial-gradient(85% 65% at 22% 110%,rgba(255,70,45,.8) 0%,transparent 62%),radial-gradient(85% 65% at 78% 110%,rgba(255,140,40,.65) 0%,transparent 62%),#100404}
-.bg-empty{background:radial-gradient(95% 65% at 50% 112%,rgba(120,120,190,.3) 0%,transparent 64%),#05050f}
+.bg-error{background:radial-gradient(120% 100% at 22% 118%,rgba(255,70,45,.8) 0%,rgba(255,70,45,.36) 30%,rgba(255,70,45,.13) 52%,transparent 74%),radial-gradient(120% 100% at 78% 118%,rgba(255,140,40,.65) 0%,rgba(255,140,40,.3) 30%,rgba(255,140,40,.1) 52%,transparent 74%),#100404}
+.bg-empty{background:radial-gradient(130% 100% at 50% 120%,rgba(120,120,190,.3) 0%,rgba(120,120,190,.13) 32%,transparent 70%),#05050f}
 
 /* ── GLASS ── */
 .glass{background:var(--glass-2);backdrop-filter:blur(32px) saturate(180%) brightness(1.06);-webkit-backdrop-filter:blur(32px) saturate(180%) brightness(1.06);border:var(--bd)}

@@ -4,17 +4,17 @@ import { useState, useEffect } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { useDatabases } from '@/hooks/useDatabases'
 import Header from '@/components/ui/Header'
-import { IconMapPin, IconBuilding, IconLayoutGrid, IconAdjustments, IconEye } from '@/components/Icons'
+import { IconMapPin, IconBuilding, IconLayoutGrid, IconAdjustments, IconEye, NeonIconChip, DbTypeIcon, toNeonColor } from '@/components/Icons'
 import { DB_COLORS, scrollFocusedIntoView } from '@/lib/utils'
 import type { DatabaseType } from '@/types'
 
-const TYPES: { id: DatabaseType; label: string; desc: string; emoji: string }[] = [
-  { id: 'business_center', label: 'Бізнес-центр', desc: 'Офіси з нумерацією', emoji: '🏢' },
-  { id: 'residential', label: 'ЖК', desc: 'Квартири, пентхауси', emoji: '🏘' },
-  { id: 'retail', label: 'Рітейл', desc: 'Магазини, бутики', emoji: '🏪' },
-  { id: 'warehouse', label: 'Склади', desc: 'Логістика', emoji: '🏭' },
-  { id: 'individual', label: 'Приватне', desc: 'Будинки, ділянки', emoji: '🏠' },
-  { id: 'parking', label: 'Паркінг', desc: 'Паркувальні місця', emoji: '🅿️' },
+const TYPES: { id: DatabaseType; label: string; desc: string; neon: 'blue' | 'green' | 'pink' | 'orange' | 'teal' | 'purple' }[] = [
+  { id: 'business_center', label: 'Бізнес-центр', desc: 'Офіси з нумерацією', neon: 'blue' },
+  { id: 'residential', label: 'ЖК', desc: 'Квартири, пентхауси', neon: 'green' },
+  { id: 'retail', label: 'Рітейл', desc: 'Магазини, бутики', neon: 'pink' },
+  { id: 'warehouse', label: 'Склади', desc: 'Логістика', neon: 'orange' },
+  { id: 'individual', label: 'Приватне', desc: 'Будинки, ділянки', neon: 'teal' },
+  { id: 'parking', label: 'Паркінг', desc: 'Паркувальні місця', neon: 'purple' },
 ]
 
 const COLOR_NAMES = Object.keys(DB_COLORS)
@@ -99,7 +99,9 @@ export default function CreateDatabaseScreen() {
               className={`type-card ${type === t.id ? 'sel' : ''}`}
               onClick={() => { window.Telegram?.WebApp?.HapticFeedback?.selectionChanged(); setType(t.id) }}
             >
-              <div className="type-ic">{t.emoji}</div>
+              <NeonIconChip color={t.neon} size={36}>
+                <DbTypeIcon type={t.id} size={18} />
+              </NeonIconChip>
               <div className="type-n">{t.label}</div>
               <div className="type-s">{t.desc}</div>
             </div>
@@ -124,9 +126,9 @@ export default function CreateDatabaseScreen() {
           <div style={{ margin: '8px 12px 80px' }}>
             <div className="over" style={{ paddingTop: 12 }}><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconEye size={13} color="#4ade80" />Попередній вигляд</span></div>
             <div className="row glass-s">
-              <div className="row-ic" style={{ background: DB_COLORS[color] }}>
-                <span style={{ fontSize: 18 }}>{TYPES.find(t => t.id === type)?.emoji}</span>
-              </div>
+              <NeonIconChip color={toNeonColor(color)} size={38}>
+                <DbTypeIcon type={type ?? undefined} size={18} />
+              </NeonIconChip>
               <div className="row-mn">
                 <div className="row-t">{name}</div>
                 <div className="row-s">

@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useAppStore } from '@/store/appStore'
 import { StatusBadge } from '@/components/ui/Badge'
 import Header from '@/components/ui/Header'
+import { IconBuilding } from '@/components/Icons'
 import { formatPrice, calcRent } from '@/lib/utils'
 import type { PropertyStatus, RentType } from '@/types'
 
@@ -113,7 +114,7 @@ export default function SharedCollectionScreen() {
                       flexShrink: 0,
                     }}
                   >
-                    {!thumbUrl && <span style={{ fontSize: 20 }}>🏢</span>}
+                    {!thumbUrl && <IconBuilding size={18} color="#A87CFF" />}
                   </div>
 
                   <div className="row-mn" style={{ flex: 1, minWidth: 0 }}>

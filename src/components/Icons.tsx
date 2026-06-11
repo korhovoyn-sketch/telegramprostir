@@ -3,7 +3,13 @@
 /* ── NeonIconChip — circular dark glass disc, glyph glows in its neon color.
    Children must use currentColor (the default) — never pass color="#fff". ── */
 
-type NeonColor = 'purple' | 'blue' | 'pink' | 'red' | 'teal' | 'green' | 'orange' | 'cyan'
+export type NeonColor = 'purple' | 'blue' | 'pink' | 'red' | 'teal' | 'green' | 'orange' | 'cyan'
+
+const NEON_COLORS: readonly string[] = ['purple', 'blue', 'pink', 'red', 'teal', 'green', 'orange', 'cyan']
+
+export function toNeonColor(c?: string | null): NeonColor {
+  return c && NEON_COLORS.includes(c) ? (c as NeonColor) : 'purple'
+}
 
 interface NeonIconChipProps {
   color?: NeonColor
@@ -350,4 +356,18 @@ export function IconTabUser(p: TabIconProps) {
       filled={<><circle cx="12" cy="7.2" r="4.4"/><path d="M12 13.4c-3.87 0-7 2.42-7 5.4 0 1.2.97 2.2 2.17 2.2h9.66c1.2 0 2.17-1 2.17-2.2 0-2.98-3.13-5.4-7-5.4Z"/></>}
     />
   )
+}
+
+/* ── DbTypeIcon — SVG glyph per database type. Renders in currentColor so it
+   picks up the neon glow when placed inside a NeonIconChip. ── */
+export function DbTypeIcon({ type, size = 20 }: { type?: string | null; size?: number }) {
+  switch (type) {
+    case 'business_center': return <IconBuildingSkyscraper size={size} />
+    case 'residential': return <IconBuildingCommunity size={size} />
+    case 'retail': return <IconBuildingStore size={size} />
+    case 'warehouse': return <IconBuildingWarehouse size={size} />
+    case 'individual': return <IconHome size={size} />
+    case 'parking': return <IconCarGarage size={size} />
+    default: return <IconBuilding size={size} />
+  }
 }

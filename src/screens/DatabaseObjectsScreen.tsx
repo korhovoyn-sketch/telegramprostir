@@ -10,9 +10,9 @@ import SearchBar from '@/components/ui/SearchBar'
 import { StatusBadge, FreshnessBadge } from '@/components/ui/Badge'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import Modal from '@/components/ui/Modal'
-import { IconPlus, IconDots, IconEye, IconPhoto, IconShare, IconChevronUp, IconChevronDown } from '@/components/Icons'
+import { IconPlus, IconDots, IconEye, IconPhoto, IconShare, IconChevronUp, IconChevronDown, NeonIconChip, DbTypeIcon, toNeonColor } from '@/components/Icons'
 import DatabaseStatsPanel from '@/components/ui/DatabaseStatsPanel'
-import { formatPrice, calcRent, calcUtilities, DB_TYPE_LABELS, DB_TYPE_EMOJI, formatLeasePeriod } from '@/lib/utils'
+import { formatPrice, calcRent, calcUtilities, DB_TYPE_LABELS, formatLeasePeriod } from '@/lib/utils'
 import type { PropertyStatus } from '@/types'
 import CoachMark from '@/components/ui/CoachMark'
 import { useOnboarding } from '@/hooks/useOnboarding'
@@ -128,7 +128,9 @@ export default function DatabaseObjectsScreen() {
       <div className="body has-fab">
         {/* DB info card */}
         <div className="info-card glass-s" style={{ margin: '0 12px 12px' }}>
-          <div className="info-ic">{DB_TYPE_EMOJI[db.type] ?? '🏢'}</div>
+          <NeonIconChip color={toNeonColor(db.color)} size={44}>
+            <DbTypeIcon type={db.type} size={20} />
+          </NeonIconChip>
           <div className="info-mn">
             <div className="info-t">{db.name}</div>
             <div className="info-s">

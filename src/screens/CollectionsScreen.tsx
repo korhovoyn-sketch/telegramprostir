@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase'
 import TabBar from '@/components/ui/TabBar'
 import { StatusBadge } from '@/components/ui/Badge'
 import Modal from '@/components/ui/Modal'
-import { IconPlus, IconShare, IconX, IconChevronLeft, IconTrash } from '@/components/Icons'
+import { IconPlus, IconShare, IconX, IconChevronLeft, IconTrash, IconBuilding } from '@/components/Icons'
 import { formatPrice, calcRent, formatDate } from '@/lib/utils'
 import { sharePublicUrl } from '@/lib/telegram'
 import type { Property, Collection } from '@/types'
@@ -86,8 +86,8 @@ function CollectionCard({
           ))
         ) : (
           <>
-            <div className="collection-thumb" style={{ color: 'var(--t3)', fontSize: 20 }}>🏢</div>
-            <div className="collection-thumb" style={{ color: 'var(--t3)', fontSize: 20 }}>🏢</div>
+            <div className="collection-thumb" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><IconBuilding size={18} color="#A87CFF" /></div>
+            <div className="collection-thumb" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}><IconBuilding size={18} color="#A87CFF" /></div>
           </>
         )}
         {col.property_count > col.thumb_urls.length && col.thumb_urls.length > 0 && (
@@ -327,7 +327,7 @@ function CollectionDetail({
                       flexShrink: 0,
                     }}
                   >
-                    {!thumbUrl && <span style={{ fontSize: 20 }}>🏢</span>}
+                    {!thumbUrl && <IconBuilding size={18} color="#A87CFF" />}
                   </div>
 
                   {/* Info */}
@@ -404,7 +404,7 @@ function CollectionDetail({
                           height: 36,
                         }}
                       >
-                        {!thumbUrl && <span style={{ fontSize: 16 }}>🏢</span>}
+                        {!thumbUrl && <IconBuilding size={16} color="#A87CFF" />}
                       </div>
                       <div className="row-mn" style={{ flex: 1, minWidth: 0 }}>
                         <div className="row-t" style={{ fontSize: 13 }}>{p.name}</div>

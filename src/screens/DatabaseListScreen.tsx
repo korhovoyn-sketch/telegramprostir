@@ -9,8 +9,8 @@ import { FreshnessBadge } from '@/components/ui/Badge'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import CoachMark from '@/components/ui/CoachMark'
 import { useOnboarding } from '@/hooks/useOnboarding'
-import { IconBell, IconChevronRight, IconPlus } from '@/components/Icons'
-import { DB_COLORS, DB_TYPE_LABELS, DB_TYPE_EMOJI } from '@/lib/utils'
+import { IconBell, IconChevronRight, IconPlus, NeonIconChip, DbTypeIcon, toNeonColor } from '@/components/Icons'
+import { DB_TYPE_LABELS } from '@/lib/utils'
 
 export default function DatabaseListScreen() {
   const { user, navigate, unreadCount } = useAppStore()
@@ -110,16 +110,15 @@ export default function DatabaseListScreen() {
         ) : (
           <div className="list">
             {filtered.map((db) => {
-              const colorStyle = { background: DB_COLORS[db.color] ?? DB_COLORS.purple }
               return (
                 <div
                   key={db.id}
                   className="row glass-s"
                   onClick={() => navigate('db-objects', { dbId: db.id })}
                 >
-                  <div className="row-ic" style={colorStyle}>
-                    <span style={{ fontSize: 18 }}>{DB_TYPE_EMOJI[db.type] ?? '🏢'}</span>
-                  </div>
+                  <NeonIconChip color={toNeonColor(db.color)} size={38}>
+                    <DbTypeIcon type={db.type} size={18} />
+                  </NeonIconChip>
                   <div className="row-mn">
                     <div className="row-t">{db.name}</div>
                     <div className="row-s">
