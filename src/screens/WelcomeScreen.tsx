@@ -110,21 +110,21 @@ export default function WelcomeScreen() {
       {/* Features */}
       <div className="features-list">
         <div className="feature">
-          <NeonIconChip color="cyan" size={40}><IconTelegram size={20} color="#fff" /></NeonIconChip>
+          <NeonIconChip color="cyan" size={40}><IconTelegram size={20} /></NeonIconChip>
           <div>
             <div className="feature-t">Вхід через Telegram</div>
             <div className="feature-s">Без паролів — автоматична авторизація</div>
           </div>
         </div>
         <div className="feature">
-          <NeonIconChip color="teal" size={40}><IconShield size={20} color="#fff" /></NeonIconChip>
+          <NeonIconChip color="teal" size={40}><IconShield size={20} /></NeonIconChip>
           <div>
             <div className="feature-t">Безпека даних</div>
             <div className="feature-s">HMAC підпис, RLS, шифрування</div>
           </div>
         </div>
         <div className="feature">
-          <NeonIconChip color="purple" size={40}><IconBolt size={20} color="#fff" /></NeonIconChip>
+          <NeonIconChip color="purple" size={40}><IconBolt size={20} /></NeonIconChip>
           <div>
             <div className="feature-t">Швидкий старт</div>
             <div className="feature-s">Три кроки до першої бази</div>

@@ -50,21 +50,21 @@ export default function EmptyStateScreen() {
       {/* Tips */}
       <div className="features-list" style={{ marginBottom: 80 }}>
         <div className="feature">
-          <NeonIconChip color="blue" size={40}><IconBuildingSkyscraper size={20} color="#fff" /></NeonIconChip>
+          <NeonIconChip color="blue" size={40}><IconBuildingSkyscraper size={20} /></NeonIconChip>
           <div>
             <div className="feature-t">1. Назви базу</div>
             <div className="feature-s">Наприклад &quot;БЦ Олімп&quot; або &quot;ЖК Перемоги&quot;</div>
           </div>
         </div>
         <div className="feature">
-          <NeonIconChip color="green" size={40}><IconPhoto size={20} color="#fff" /></NeonIconChip>
+          <NeonIconChip color="green" size={40}><IconPhoto size={20} /></NeonIconChip>
           <div>
             <div className="feature-t">2. Додай об&apos;єкти</div>
             <div className="feature-s">Офіси, квартири, магазини з фото і ціною</div>
           </div>
         </div>
         <div className="feature">
-          <NeonIconChip color="pink" size={40}><IconShare size={20} color="#fff" /></NeonIconChip>
+          <NeonIconChip color="pink" size={40}><IconShare size={20} /></NeonIconChip>
           <div>
             <div className="feature-t">3. Поділись QR</div>
             <div className="feature-s">Ріелтори отримають доступ миттєво</div>

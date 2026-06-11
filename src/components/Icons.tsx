@@ -1,6 +1,7 @@
 'use client'
 
-/* ── NeonIconChip — 3D visionOS-style icon container ── */
+/* ── NeonIconChip — circular dark glass disc, glyph glows in its neon color.
+   Children must use currentColor (the default) — never pass color="#fff". ── */
 
 type NeonColor = 'purple' | 'blue' | 'pink' | 'red' | 'teal' | 'green' | 'orange' | 'cyan'
 
@@ -12,10 +13,7 @@ interface NeonIconChipProps {
 
 export function NeonIconChip({ color = 'purple', size = 48, children }: NeonIconChipProps) {
   return (
-    <span
-      className={`nic nic-${color}`}
-      style={{ width: size, height: size, borderRadius: Math.round(size * 0.24) }}
-    >
+    <span className={`nic nic-${color}`} style={{ width: size, height: size }}>
       {children}
     </span>
   )
