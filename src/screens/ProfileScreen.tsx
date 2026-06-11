@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth'
 import TabBar from '@/components/ui/TabBar'
 import Toggle from '@/components/ui/Toggle'
 import Modal from '@/components/ui/Modal'
-import { IconMail, IconPhone, IconLanguage, IconCurrencyDollar, IconLogout, IconCrown } from '@/components/Icons'
+import { IconMail, IconPhone, IconLanguage, IconCurrencyDollar, IconLogout, IconCrown, NeonIconChip } from '@/components/Icons'
 import { TG_BOT } from '@/lib/telegram'
 import { getInitials, scrollFocusedIntoView } from '@/lib/utils'
 
@@ -98,9 +98,7 @@ export default function ProfileScreen() {
         {/* Pro card — upgrade flow not yet available; shown as a teaser, not a button */}
         {user.plan !== 'pro' && (
           <div className="pro-card" style={{ cursor: 'default' }}>
-            <div className="pro-ic">
-              <IconCrown size={18} />
-            </div>
+            <NeonIconChip color="orange" size={38}><IconCrown size={18} color="#fff" /></NeonIconChip>
             <div className="pro-mn">
               <div className="pro-t">prostir Pro</div>
               <div className="pro-s">Розширені можливості у розробці</div>

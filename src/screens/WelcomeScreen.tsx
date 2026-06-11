@@ -5,7 +5,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useAppStore } from '@/store/appStore'
 import { useTelegram } from '@/hooks/useTelegram'
 import ProxMascot from '@/components/ProxMascot'
-import { IconTelegram, IconShield, IconBolt } from '@/components/Icons'
+import { IconTelegram, IconShield, IconBolt, NeonIconChip } from '@/components/Icons'
 
 export default function WelcomeScreen() {
   const { loginViaTelegram, loading } = useAuth()
@@ -110,27 +110,21 @@ export default function WelcomeScreen() {
       {/* Features */}
       <div className="features-list">
         <div className="feature">
-          <div className="feature-ic" style={{ background: 'rgba(34,158,217,.32)' }}>
-            <IconTelegram size={18} color="#fff" />
-          </div>
+          <NeonIconChip color="cyan" size={40}><IconTelegram size={20} color="#fff" /></NeonIconChip>
           <div>
             <div className="feature-t">Вхід через Telegram</div>
             <div className="feature-s">Без паролів — автоматична авторизація</div>
           </div>
         </div>
         <div className="feature">
-          <div className="feature-ic" style={{ background: 'rgba(52,199,89,.28)' }}>
-            <IconShield size={18} color="#fff" />
-          </div>
+          <NeonIconChip color="teal" size={40}><IconShield size={20} color="#fff" /></NeonIconChip>
           <div>
             <div className="feature-t">Безпека даних</div>
             <div className="feature-s">HMAC підпис, RLS, шифрування</div>
           </div>
         </div>
         <div className="feature">
-          <div className="feature-ic" style={{ background: 'rgba(168,124,255,.32)' }}>
-            <IconBolt size={18} color="#fff" />
-          </div>
+          <NeonIconChip color="purple" size={40}><IconBolt size={20} color="#fff" /></NeonIconChip>
           <div>
             <div className="feature-t">Швидкий старт</div>
             <div className="feature-s">Три кроки до першої бази</div>

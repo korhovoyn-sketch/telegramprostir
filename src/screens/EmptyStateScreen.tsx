@@ -2,7 +2,7 @@
 
 import { useAppStore } from '@/store/appStore'
 import ProxMascot from '@/components/ProxMascot'
-import { IconBuildingSkyscraper, IconPhoto, IconShare } from '@/components/Icons'
+import { IconBuildingSkyscraper, IconPhoto, IconShare, NeonIconChip } from '@/components/Icons'
 
 export default function EmptyStateScreen() {
   const { navigate, user } = useAppStore()
@@ -50,27 +50,21 @@ export default function EmptyStateScreen() {
       {/* Tips */}
       <div className="features-list" style={{ marginBottom: 80 }}>
         <div className="feature">
-          <div className="feature-ic" style={{ background: 'rgba(122,179,255,.28)' }}>
-            <IconBuildingSkyscraper size={18} color="#fff" />
-          </div>
+          <NeonIconChip color="blue" size={40}><IconBuildingSkyscraper size={20} color="#fff" /></NeonIconChip>
           <div>
             <div className="feature-t">1. Назви базу</div>
             <div className="feature-s">Наприклад &quot;БЦ Олімп&quot; або &quot;ЖК Перемоги&quot;</div>
           </div>
         </div>
         <div className="feature">
-          <div className="feature-ic" style={{ background: 'rgba(52,199,89,.28)' }}>
-            <IconPhoto size={18} color="#fff" />
-          </div>
+          <NeonIconChip color="green" size={40}><IconPhoto size={20} color="#fff" /></NeonIconChip>
           <div>
             <div className="feature-t">2. Додай об&apos;єкти</div>
             <div className="feature-s">Офіси, квартири, магазини з фото і ціною</div>
           </div>
         </div>
         <div className="feature">
-          <div className="feature-ic" style={{ background: 'rgba(255,122,184,.28)' }}>
-            <IconShare size={18} color="#fff" />
-          </div>
+          <NeonIconChip color="pink" size={40}><IconShare size={20} color="#fff" /></NeonIconChip>
           <div>
             <div className="feature-t">3. Поділись QR</div>
             <div className="feature-s">Ріелтори отримають доступ миттєво</div>

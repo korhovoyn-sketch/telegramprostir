@@ -1,5 +1,26 @@
 'use client'
 
+/* ── NeonIconChip — 3D visionOS-style icon container ── */
+
+type NeonColor = 'purple' | 'blue' | 'pink' | 'red' | 'teal' | 'green' | 'orange' | 'cyan'
+
+interface NeonIconChipProps {
+  color?: NeonColor
+  size?: number
+  children: React.ReactNode
+}
+
+export function NeonIconChip({ color = 'purple', size = 48, children }: NeonIconChipProps) {
+  return (
+    <span
+      className={`nic nic-${color}`}
+      style={{ width: size, height: size, borderRadius: Math.round(size * 0.24) }}
+    >
+      {children}
+    </span>
+  )
+}
+
 interface IconProps {
   className?: string
   size?: number
