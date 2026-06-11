@@ -1,7 +1,10 @@
 'use client'
 
-/* ── NeonIconChip — circular dark glass disc, glyph glows in its neon color.
-   Children must use currentColor (the default) — never pass color="#fff". ── */
+import { useId } from 'react'
+
+/* ── Glass icon system — reference style: filled glassy shapes with a
+   vertical gradient (light top → saturated bottom) and a soft neon glow,
+   floating directly on the dark background. No container discs. ── */
 
 export type NeonColor = 'purple' | 'blue' | 'pink' | 'red' | 'teal' | 'green' | 'orange' | 'cyan'
 
@@ -11,17 +14,110 @@ export function toNeonColor(c?: string | null): NeonColor {
   return c && NEON_COLORS.includes(c) ? (c as NeonColor) : 'purple'
 }
 
-interface NeonIconChipProps {
+const GLASS_GRADS: Record<NeonColor, { from: string; to: string; glow: string }> = {
+  purple: { from: '#D4B8FF', to: '#7330E0', glow: 'rgba(150,90,255,.55)' },
+  blue:   { from: '#8CC8FF', to: '#1D52E0', glow: 'rgba(60,130,255,.55)' },
+  pink:   { from: '#FFB0DA', to: '#D62B8C', glow: 'rgba(255,80,170,.55)' },
+  red:    { from: '#FFA898', to: '#D8232E', glow: 'rgba(255,70,60,.55)' },
+  teal:   { from: '#8FF8E4', to: '#0E9C92', glow: 'rgba(40,220,200,.55)' },
+  green:  { from: '#9FF4B4', to: '#1F9C4C', glow: 'rgba(60,220,120,.55)' },
+  orange: { from: '#FFCF8C', to: '#D9700F', glow: 'rgba(255,150,40,.55)' },
+  cyan:   { from: '#9FE9FF', to: '#1577D8', glow: 'rgba(60,190,255,.55)' },
+}
+
+interface GlassGlyphProps {
   color?: NeonColor
   size?: number
+  viewBox?: string
   children: React.ReactNode
 }
 
-export function NeonIconChip({ color = 'purple', size = 48, children }: NeonIconChipProps) {
+export function GlassGlyph({ color = 'purple', size = 32, viewBox = '0 0 24 24', children }: GlassGlyphProps) {
+  // useId returns ":r0:" — strip colons, they break url(#…) references
+  const id = useId().replace(/[^a-zA-Z0-9_-]/g, '')
+  const g = GLASS_GRADS[color]
   return (
-    <span className={`nic nic-${color}`} style={{ width: size, height: size }}>
-      {children}
-    </span>
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      viewBox={viewBox}
+      style={{ filter: `drop-shadow(0 0 5px ${g.glow}) drop-shadow(0 3px 12px ${g.glow})`, flexShrink: 0 }}
+    >
+      <defs>
+        <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={g.from} />
+          <stop offset="100%" stopColor={g.to} />
+        </linearGradient>
+      </defs>
+      <g fill={`url(#${id})`}>{children}</g>
+    </svg>
+  )
+}
+
+/* Filled building glyphs per database type */
+const DB_GLYPHS: Record<string, React.ReactNode> = {
+  business_center: <><path d="M4 21V6.5A1.5 1.5 0 0 1 5.5 5H12a1.5 1.5 0 0 1 1.5 1.5V21h-3v-3.5h-3V21H4z"/><path d="M15 21V9.6l4.5 1.55A1.4 1.4 0 0 1 20.4 12.5V21H15z" opacity=".78"/></>,
+  residential: <><path d="M3 21v-7.5a1 1 0 0 1 .38-.78L8 9.1l4.62 3.62a1 1 0 0 1 .38.78V21H9.9v-3.4H6.1V21H3z"/><rect x="14.6" y="4" width="6.4" height="17" rx="1.2" opacity=".78"/></>,
+  retail: <><path d="M3.2 8.4l1.6-3.8A1 1 0 0 1 5.7 4h12.6a1 1 0 0 1 .92.6l1.6 3.8a2.85 2.85 0 0 1-2.72 3.6 2.9 2.9 0 0 1-2.05-.85 2.9 2.9 0 0 1-4.1 0 2.9 2.9 0 0 1-4.1 0 2.9 2.9 0 0 1-2.05.85A2.85 2.85 0 0 1 3.2 8.4z"/><path d="M5 13.3a4.7 4.7 0 0 0 3-.45 4.75 4.75 0 0 0 4 .45 4.75 4.75 0 0 0 4-.45 4.7 4.7 0 0 0 3 .45V20a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-6.7z" opacity=".82"/></>,
+  warehouse: <><path d="M3 21V9.6a1 1 0 0 1 .55-.9L12 4.4l8.45 4.3a1 1 0 0 1 .55.9V21h-3.2v-7.6H6.2V21H3z"/><rect x="7.4" y="15" width="9.2" height="6" rx=".8" opacity=".78"/></>,
+  individual: <path d="M11.4 3.4a1 1 0 0 1 1.2 0l8 6.1a1 1 0 0 1 .4.8V20a1 1 0 0 1-1 1h-5v-5.4a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1V21H4a1 1 0 0 1-1-1v-9.7a1 1 0 0 1 .4-.8l8-6.1z"/>,
+  parking: <><rect x="3.5" y="3.5" width="17" height="17" rx="4.5"/><path d="M9.2 17.5V6.8h4a3.6 3.6 0 0 1 0 7.2h-1.8v3.5H9.2zm2.2-5.6h1.7a1.45 1.45 0 0 0 0-2.9h-1.7v2.9z" fill="rgba(255,255,255,.92)"/></>,
+  default: <><rect x="4" y="3.5" width="10" height="17.5" rx="1.2"/><path d="M16 21V8.7l4.3 1.45a1 1 0 0 1 .7.95V21H16z" opacity=".78"/></>,
+}
+
+export function GlassDbIcon({ type, color = 'purple', size = 34 }: { type?: string | null; color?: string | null; size?: number }) {
+  return (
+    <GlassGlyph color={toNeonColor(color)} size={size}>
+      {DB_GLYPHS[type ?? ''] ?? DB_GLYPHS.default}
+    </GlassGlyph>
+  )
+}
+
+/* Filled glass feature icons */
+export function GlassTelegram({ size = 34 }: { size?: number }) {
+  return (
+    <GlassGlyph color="cyan" size={size}>
+      <path d="M21.6 3.1c.92-.4 1.9.42 1.66 1.4l-3.1 13.66c-.2.95-1.3 1.4-2.1.83l-4.55-3.3-2.3 3.2c-.55.77-1.7.6-2-.3L7.36 13.2 2.4 11.6c-.91-.3-.95-1.56-.05-1.9L21.6 3.1z"/>
+    </GlassGlyph>
+  )
+}
+export function GlassShield({ size = 34 }: { size?: number }) {
+  return (
+    <GlassGlyph color="teal" size={size}>
+      <path d="M12 2.3l7.5 2.8a1 1 0 0 1 .65.94V11c0 5-3.2 8.6-7.8 10.6a1 1 0 0 1-.7 0C7.05 19.6 3.85 16 3.85 11V6.04a1 1 0 0 1 .65-.94L12 2.3z"/>
+    </GlassGlyph>
+  )
+}
+export function GlassBolt({ size = 34 }: { size?: number }) {
+  return (
+    <GlassGlyph color="purple" size={size}>
+      <path d="M13.55 2.3c.48-.66 1.55-.2 1.38.58L13.6 9.2h4.84a.8.8 0 0 1 .62 1.3L10.45 21.7c-.48.66-1.55.2-1.38-.58l1.33-6.32H5.56a.8.8 0 0 1-.62-1.3L13.55 2.3z"/>
+    </GlassGlyph>
+  )
+}
+export function GlassPhoto({ size = 34 }: { size?: number }) {
+  return (
+    <GlassGlyph color="green" size={size}>
+      <rect x="3" y="4" width="18" height="16" rx="3"/>
+      <circle cx="15.6" cy="8.6" r="1.7" fill="rgba(255,255,255,.85)"/>
+      <path d="M4.6 18.6l4.2-4.2a1.5 1.5 0 0 1 2.1 0l1.6 1.6 2.6-3a1.5 1.5 0 0 1 2.25.05L19.5 15.4V17a3 3 0 0 1-3 3h-9a3 3 0 0 1-2.9-1.4z" fill="rgba(255,255,255,.32)"/>
+    </GlassGlyph>
+  )
+}
+export function GlassShare({ size = 34 }: { size?: number }) {
+  return (
+    <GlassGlyph color="pink" size={size}>
+      <path d="M13 4v4c-6.575 1.028-9.02 6.788-10 12-.037.206 5.384-5.234 10-4v4l8-8-8-8z"/>
+    </GlassGlyph>
+  )
+}
+export function GlassCrown({ size = 34 }: { size?: number }) {
+  return (
+    <GlassGlyph color="orange" size={size}>
+      <path d="M12 4.6l3.55 5.33 4.72-3.78L18.6 16.6H5.4L3.73 6.15l4.72 3.78L12 4.6z"/>
+      <rect x="5.2" y="18" width="13.6" height="2.6" rx="1.3" opacity=".85"/>
+    </GlassGlyph>
   )
 }
 
@@ -305,14 +401,24 @@ interface TabIconProps {
   active?: boolean
 }
 
-function TabIcon({ size = 24, active = false, outline, filled }: TabIconProps & { outline: React.ReactNode; filled: React.ReactNode }) {
+/* Active state renders the filled silhouette with the glass gradient
+   (light top → saturated bottom), matching the reference icon style. */
+function TabIcon({ size = 24, active = false, color, outline, filled }: TabIconProps & { color: NeonColor; outline: React.ReactNode; filled: React.ReactNode }) {
+  const id = useId().replace(/[^a-zA-Z0-9_-]/g, '')
+  const g = GLASS_GRADS[color]
   return (
     <span className={`tabico ${active ? 'is-on' : ''}`} style={{ width: size, height: size }}>
       <svg className="tabico-o" xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
         {outline}
       </svg>
-      <svg className="tabico-f" xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="currentColor" stroke="none">
-        {filled}
+      <svg className="tabico-f" xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" stroke="none">
+        <defs>
+          <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={g.from} />
+            <stop offset="100%" stopColor={g.to} />
+          </linearGradient>
+        </defs>
+        <g fill={`url(#${id})`}>{filled}</g>
       </svg>
     </span>
   )
@@ -322,6 +428,7 @@ export function IconTabHome(p: TabIconProps) {
   return (
     <TabIcon
       {...p}
+      color="purple"
       outline={<><path d="M5 12l-2 0l9 -8.5l9 8.5l-2 0"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7"/><path d="M9 21v-6a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v6"/></>}
       filled={<path d="M11.04 2.6a1.5 1.5 0 0 1 1.92 0l8.5 7.08a1 1 0 0 1-.64 1.77h-.82v7.3A2.25 2.25 0 0 1 17.75 21H15a.75.75 0 0 1-.75-.75V15a1.5 1.5 0 0 0-1.5-1.5h-1.5a1.5 1.5 0 0 0-1.5 1.5v5.25A.75.75 0 0 1 9 21H6.25A2.25 2.25 0 0 1 4 18.75v-7.3h-.82a1 1 0 0 1-.64-1.77l8.5-7.08Z"/>}
     />
@@ -332,6 +439,7 @@ export function IconTabBookmark(p: TabIconProps) {
   return (
     <TabIcon
       {...p}
+      color="pink"
       outline={<path d="M9 4h6a2 2 0 0 1 2 2v14l-5 -3l-5 3v-14a2 2 0 0 1 2 -2"/>}
       filled={<path d="M8.5 3h7A2.5 2.5 0 0 1 18 5.5v14.7a.8.8 0 0 1-1.21.69L12 18.07l-4.79 2.82A.8.8 0 0 1 6 20.2V5.5A2.5 2.5 0 0 1 8.5 3Z"/>}
     />
@@ -342,6 +450,7 @@ export function IconTabBell(p: TabIconProps) {
   return (
     <TabIcon
       {...p}
+      color="orange"
       outline={<><path d="M10 5a2 2 0 1 1 4 0a7 7 0 0 1 4 6v3a4 4 0 0 0 2 3h-16a4 4 0 0 0 2 -3v-3a7 7 0 0 1 4 -6"/><path d="M9 17v1a3 3 0 0 0 6 0v-1"/></>}
       filled={<><path d="M12 2.2c.83 0 1.5.67 1.5 1.5v.34A6.75 6.75 0 0 1 18.75 10.6v3.05c0 .47.18.93.51 1.27l1.07 1.1c.81.83.22 2.23-.94 2.23H4.61c-1.16 0-1.75-1.4-.94-2.23l1.07-1.1c.33-.34.51-.8.51-1.27V10.6a6.75 6.75 0 0 1 5.25-6.58v-.32c0-.83.67-1.5 1.5-1.5Z"/><path d="M9.3 20a2.9 2.9 0 0 0 5.4 0H9.3Z"/></>}
     />
@@ -352,22 +461,9 @@ export function IconTabUser(p: TabIconProps) {
   return (
     <TabIcon
       {...p}
+      color="teal"
       outline={<><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2"/></>}
       filled={<><circle cx="12" cy="7.2" r="4.4"/><path d="M12 13.4c-3.87 0-7 2.42-7 5.4 0 1.2.97 2.2 2.17 2.2h9.66c1.2 0 2.17-1 2.17-2.2 0-2.98-3.13-5.4-7-5.4Z"/></>}
     />
   )
-}
-
-/* ── DbTypeIcon — SVG glyph per database type. Renders in currentColor so it
-   picks up the neon glow when placed inside a NeonIconChip. ── */
-export function DbTypeIcon({ type, size = 20 }: { type?: string | null; size?: number }) {
-  switch (type) {
-    case 'business_center': return <IconBuildingSkyscraper size={size} />
-    case 'residential': return <IconBuildingCommunity size={size} />
-    case 'retail': return <IconBuildingStore size={size} />
-    case 'warehouse': return <IconBuildingWarehouse size={size} />
-    case 'individual': return <IconHome size={size} />
-    case 'parking': return <IconCarGarage size={size} />
-    default: return <IconBuilding size={size} />
-  }
 }

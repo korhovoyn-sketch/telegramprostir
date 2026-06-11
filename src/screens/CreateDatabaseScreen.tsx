@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { useDatabases } from '@/hooks/useDatabases'
 import Header from '@/components/ui/Header'
-import { IconMapPin, IconBuilding, IconLayoutGrid, IconAdjustments, IconEye, NeonIconChip, DbTypeIcon, toNeonColor } from '@/components/Icons'
+import { IconMapPin, IconBuilding, IconLayoutGrid, IconAdjustments, IconEye, GlassDbIcon } from '@/components/Icons'
 import { DB_COLORS, scrollFocusedIntoView } from '@/lib/utils'
 import type { DatabaseType } from '@/types'
 
@@ -99,9 +99,7 @@ export default function CreateDatabaseScreen() {
               className={`type-card ${type === t.id ? 'sel' : ''}`}
               onClick={() => { window.Telegram?.WebApp?.HapticFeedback?.selectionChanged(); setType(t.id) }}
             >
-              <NeonIconChip color={t.neon} size={36}>
-                <DbTypeIcon type={t.id} size={18} />
-              </NeonIconChip>
+              <GlassDbIcon type={t.id} color={t.neon} size={30} />
               <div className="type-n">{t.label}</div>
               <div className="type-s">{t.desc}</div>
             </div>
@@ -126,9 +124,7 @@ export default function CreateDatabaseScreen() {
           <div style={{ margin: '8px 12px 80px' }}>
             <div className="over" style={{ paddingTop: 12 }}><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconEye size={13} color="#4ade80" />Попередній вигляд</span></div>
             <div className="row glass-s">
-              <NeonIconChip color={toNeonColor(color)} size={38}>
-                <DbTypeIcon type={type ?? undefined} size={18} />
-              </NeonIconChip>
+              <GlassDbIcon type={type ?? undefined} color={color} size={32} />
               <div className="row-mn">
                 <div className="row-t">{name}</div>
                 <div className="row-s">

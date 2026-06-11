@@ -9,7 +9,7 @@ import { FreshnessBadge } from '@/components/ui/Badge'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import CoachMark from '@/components/ui/CoachMark'
 import { useOnboarding } from '@/hooks/useOnboarding'
-import { IconBell, IconChevronRight, IconPlus, NeonIconChip, DbTypeIcon, toNeonColor } from '@/components/Icons'
+import { IconBell, IconChevronRight, IconPlus, GlassDbIcon } from '@/components/Icons'
 import { DB_TYPE_LABELS } from '@/lib/utils'
 
 export default function DatabaseListScreen() {
@@ -116,9 +116,7 @@ export default function DatabaseListScreen() {
                   className="row glass-s"
                   onClick={() => navigate('db-objects', { dbId: db.id })}
                 >
-                  <NeonIconChip color={toNeonColor(db.color)} size={38}>
-                    <DbTypeIcon type={db.type} size={18} />
-                  </NeonIconChip>
+                  <GlassDbIcon type={db.type} color={db.color} size={32} />
                   <div className="row-mn">
                     <div className="row-t">{db.name}</div>
                     <div className="row-s">

@@ -5,7 +5,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useAppStore } from '@/store/appStore'
 import { useTelegram } from '@/hooks/useTelegram'
 import ProxMascot from '@/components/ProxMascot'
-import { IconTelegram, IconShield, IconBolt, NeonIconChip } from '@/components/Icons'
+import { IconTelegram, GlassTelegram, GlassShield, GlassBolt } from '@/components/Icons'
 
 export default function WelcomeScreen() {
   const { loginViaTelegram, loading } = useAuth()
@@ -110,21 +110,21 @@ export default function WelcomeScreen() {
       {/* Features */}
       <div className="features-list">
         <div className="feature">
-          <NeonIconChip color="cyan" size={40}><IconTelegram size={20} /></NeonIconChip>
+          <GlassTelegram size={32} />
           <div>
             <div className="feature-t">Вхід через Telegram</div>
             <div className="feature-s">Без паролів — автоматична авторизація</div>
           </div>
         </div>
         <div className="feature">
-          <NeonIconChip color="teal" size={40}><IconShield size={20} /></NeonIconChip>
+          <GlassShield size={32} />
           <div>
             <div className="feature-t">Безпека даних</div>
             <div className="feature-s">HMAC підпис, RLS, шифрування</div>
           </div>
         </div>
         <div className="feature">
-          <NeonIconChip color="purple" size={40}><IconBolt size={20} /></NeonIconChip>
+          <GlassBolt size={32} />
           <div>
             <div className="feature-t">Швидкий старт</div>
             <div className="feature-s">Три кроки до першої бази</div>

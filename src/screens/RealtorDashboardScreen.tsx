@@ -7,7 +7,7 @@ import TabBar from '@/components/ui/TabBar'
 import SearchBar from '@/components/ui/SearchBar'
 import { FreshnessBadge } from '@/components/ui/Badge'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
-import { IconBell, IconChevronRight, NeonIconChip, DbTypeIcon, toNeonColor } from '@/components/Icons'
+import { IconBell, IconChevronRight, GlassDbIcon } from '@/components/Icons'
 import { DB_TYPE_LABELS } from '@/lib/utils'
 import type { Database, RealtorSubscription } from '@/types'
 import CoachMark from '@/components/ui/CoachMark'
@@ -128,9 +128,7 @@ export default function RealtorDashboardScreen() {
                   className="row glass-s"
                   onClick={() => navigate('realtor-database', { dbId: db.id })}
                 >
-                  <NeonIconChip color={toNeonColor(db.color)} size={38}>
-                    <DbTypeIcon type={db.type} size={18} />
-                  </NeonIconChip>
+                  <GlassDbIcon type={db.type} color={db.color} size={32} />
                   <div className="row-mn">
                     <div className="row-t">{db.name}</div>
                     <div className="row-s">
