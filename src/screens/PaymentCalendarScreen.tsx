@@ -9,20 +9,15 @@ import { IconCalendar, IconBellRing, IconCheckCircle, IconClock, IconPlus, IconT
 import { formatPrice } from '@/lib/utils'
 import type { Property, RentPayment, RentPaymentRecord } from '@/types'
 
-// Format date as "5 червня"
 function fmtDueDate(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00')
   return d.toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' })
 }
 
-// Compute due date string (YYYY-MM-DD) for a given due_day in year/month.
-// Must NOT use Date.toISOString() — it converts local midnight to UTC which
-// shifts the date by -1 in timezones east of UTC (e.g. Ukraine UTC+3).
 function dueDateStr(year: number, month: number, dueDay: number): string {
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(dueDay).padStart(2, '0')}`
 }
 
-// Days until a date (negative = overdue)
 function daysUntil(dateStr: string): number {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -36,78 +31,68 @@ interface PaymentItem {
   dueDate: string
   record: RentPaymentRecord | null
   daysUntilDue: number
-  isCurrentMonth: boolean
+  monthOffset: number
 }
+
+type MonthCount = 1 | 2 | 3 | 6
 
 export default function PaymentCalendarScreen() {
   const { screenParams, user, showToast } = useAppStore()
-  const [properties, setProperties] = useState<Property[]>([])
-  const [schedules, setSchedules] = useState<RentPayment[]>([])
-  const [records, setRecords] = useState<RentPaymentRecord[]>([])
-  const [loading, setLoading] = useState(true)
-  // Setup modal state
-  const [setupProp, setSetupProp] = useState<Property | null>(null)
+  const [properties, setProperties]   = useState<Property[]>([])
+  const [schedules, setSchedules]     = useState<RentPayment[]>([])
+  const [records, setRecords]         = useState<RentPaymentRecord[]>([])
+  const [loading, setLoading]         = useState(true)
+
+  const [monthsAhead, setMonthsAhead] = useState<MonthCount>(2)
+  const [activeTab, setActiveTab]     = useState<'current' | 'archive'>('current')
+
+  const [archiveRecords, setArchiveRecords] = useState<RentPaymentRecord[]>([])
+  const [archiveLoading, setArchiveLoading] = useState(false)
+  const [archiveLoaded, setArchiveLoaded]   = useState(false)
+
+  const [setupProp, setSetupProp]     = useState<Property | null>(null)
   const [setupDueDay, setSetupDueDay] = useState('5')
   const [setupNotify, setSetupNotify] = useState('3')
   const [setupSaving, setSetupSaving] = useState(false)
-  // Delete schedule modal
+
   const [deleteScheduleProp, setDeleteScheduleProp] = useState<Property | null>(null)
 
-  const propertyId = screenParams.propertyId as string | undefined
-  const dbId = screenParams.dbId as string | undefined
+  const [payConfirmItem, setPayConfirmItem]     = useState<PaymentItem | null>(null)
+  const [payConfirmAmount, setPayConfirmAmount] = useState('')
+  const [payConfirmNotes, setPayConfirmNotes]   = useState('')
+  const [payConfirmSaving, setPayConfirmSaving] = useState(false)
 
+  const propertyId = screenParams.propertyId as string | undefined
+  const dbId       = screenParams.dbId       as string | undefined
+
+  // ── Initial load ────────────────────────────────────────────────────────────
   useEffect(() => {
     async function load() {
       if (!user) return
       setLoading(true)
       try {
-        // Load occupied properties
         let propsQuery = supabase
           .from('properties')
           .select('id, db_id, owner_id, name, floor, status, rent_type, rent_rate, utilities_rate, tenant_name, lease_start_date, lease_end_date, area_useful, area_total, sort_order, has_parking, parking_spaces, created_at, updated_at')
           .eq('status', 'occupied')
           .eq('owner_id', user.id)
 
-        if (propertyId) {
-          propsQuery = propsQuery.eq('id', propertyId)
-        } else if (dbId) {
-          propsQuery = propsQuery.eq('db_id', dbId)
-        } else {
-          setLoading(false)
-          return
-        }
+        if (propertyId)      propsQuery = propsQuery.eq('id', propertyId)
+        else if (dbId)       propsQuery = propsQuery.eq('db_id', dbId)
+        else { setLoading(false); return }
 
         const { data: propsData } = await propsQuery
         const props = (propsData ?? []) as unknown as Property[]
         setProperties(props)
-
         if (props.length === 0) { setLoading(false); return }
 
         const ids = props.map(p => p.id)
 
-        // Load schedules
         const { data: schedData } = await supabase
-          .from('rent_payments')
-          .select('*')
-          .in('property_id', ids)
-          .eq('is_active', true)
+          .from('rent_payments').select('*').in('property_id', ids).eq('is_active', true)
         setSchedules((schedData ?? []) as RentPayment[])
 
-        // Load records for ±2 months window
-        const start = new Date()
-        start.setMonth(start.getMonth() - 1)
-        start.setDate(1)
-        const end = new Date()
-        end.setMonth(end.getMonth() + 2)
-        end.setDate(1)
-        const { data: recsData } = await supabase
-          .from('rent_payment_records')
-          .select('*')
-          .in('property_id', ids)
-          .gte('due_date', start.toISOString().slice(0, 10))
-          .lte('due_date', end.toISOString().slice(0, 10))
-          .order('due_date', { ascending: false })
-        setRecords((recsData ?? []) as RentPaymentRecord[])
+        await loadRecordsForIds(ids, monthsAhead)
       } catch (e) {
         showToast({ type: 'error', title: 'Помилка завантаження', subtitle: (e as Error).message })
       } finally {
@@ -115,56 +100,81 @@ export default function PaymentCalendarScreen() {
       }
     }
     load()
+    setArchiveLoaded(false)
+    setArchiveRecords([])
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [propertyId, dbId, user?.id])
 
-  // Compute payment items for current month + next month
+  async function loadRecordsForIds(ids: string[], ahead: number) {
+    const start = new Date(); start.setDate(1)
+    const end   = new Date(); end.setMonth(end.getMonth() + ahead); end.setDate(1)
+    const { data } = await supabase
+      .from('rent_payment_records').select('*')
+      .in('property_id', ids)
+      .gte('due_date', start.toISOString().slice(0, 10))
+      .lte('due_date', end.toISOString().slice(0, 10))
+      .order('due_date', { ascending: false })
+    setRecords((data ?? []) as RentPaymentRecord[])
+  }
+
+  // Reload records when horizon changes (properties already loaded)
+  useEffect(() => {
+    if (loading || properties.length === 0) return
+    loadRecordsForIds(properties.map(p => p.id), monthsAhead)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [monthsAhead])
+
+  // Load archive lazily on tab switch
+  useEffect(() => {
+    if (activeTab !== 'archive' || archiveLoaded || archiveLoading || properties.length === 0) return
+    const ids = properties.map(p => p.id)
+    setArchiveLoading(true)
+    const cutoff = new Date(); cutoff.setDate(1)
+    supabase
+      .from('rent_payment_records').select('*')
+      .in('property_id', ids)
+      .lt('due_date', cutoff.toISOString().slice(0, 10))
+      .eq('status', 'paid')
+      .order('due_date', { ascending: false })
+      .then(({ data }) => {
+        setArchiveRecords((data ?? []) as RentPaymentRecord[])
+        setArchiveLoaded(true)
+        setArchiveLoading(false)
+      })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, archiveLoaded, properties])
+
+  // ── Computed ─────────────────────────────────────────────────────────────────
   const paymentItems = useMemo<PaymentItem[]>(() => {
     const today = new Date()
-    const thisYear = today.getFullYear()
-    const thisMonth = today.getMonth()
-    const nextYear = thisMonth === 11 ? thisYear + 1 : thisYear
-    const nextMonth = (thisMonth + 1) % 12
-
     const items: PaymentItem[] = []
-
-    for (const prop of properties) {
-      const sched = schedules.find(s => s.property_id === prop.id)
-      if (!sched) continue
-
-      // Current month
-      const currentDue = dueDateStr(thisYear, thisMonth, sched.due_day)
-      const currentRec = records.find(r => r.property_id === prop.id && r.due_date === currentDue) ?? null
-      items.push({
-        property: prop,
-        schedule: sched,
-        dueDate: currentDue,
-        record: currentRec,
-        daysUntilDue: daysUntil(currentDue),
-        isCurrentMonth: true,
-      })
-
-      // Next month
-      const nextDue = dueDateStr(nextYear, nextMonth, sched.due_day)
-      const nextRec = records.find(r => r.property_id === prop.id && r.due_date === nextDue) ?? null
-      items.push({
-        property: prop,
-        schedule: sched,
-        dueDate: nextDue,
-        record: nextRec,
-        daysUntilDue: daysUntil(nextDue),
-        isCurrentMonth: false,
-      })
+    for (let m = 0; m < monthsAhead; m++) {
+      const d = new Date(today.getFullYear(), today.getMonth() + m, 1)
+      for (const prop of properties) {
+        const sched = schedules.find(s => s.property_id === prop.id)
+        if (!sched) continue
+        const dueDate = dueDateStr(d.getFullYear(), d.getMonth(), sched.due_day)
+        const record  = records.find(r => r.property_id === prop.id && r.due_date === dueDate) ?? null
+        items.push({ property: prop, schedule: sched, dueDate, record, daysUntilDue: daysUntil(dueDate), monthOffset: m })
+      }
     }
+    return items
+  }, [properties, schedules, records, monthsAhead])
 
-    // Sort: overdue first, then by due date
-    return items.sort((a, b) => {
-      const aOk = a.record?.status === 'paid'
-      const bOk = b.record?.status === 'paid'
-      if (aOk !== bOk) return aOk ? 1 : -1
-      return a.daysUntilDue - b.daysUntilDue
+  const monthSections = useMemo(() => {
+    const today = new Date()
+    return Array.from({ length: monthsAhead }, (_, i) => {
+      const d = new Date(today.getFullYear(), today.getMonth() + i, 1)
+      const items = paymentItems
+        .filter(item => item.monthOffset === i)
+        .sort((a, b) => {
+          const aOk = a.record?.status === 'paid', bOk = b.record?.status === 'paid'
+          if (aOk !== bOk) return aOk ? 1 : -1
+          return a.daysUntilDue - b.daysUntilDue
+        })
+      return { label: d.toLocaleDateString('uk-UA', { month: 'long', year: 'numeric' }), items, isFirst: i === 0 }
     })
-  }, [properties, schedules, records])
+  }, [paymentItems, monthsAhead])
 
   const propsWithoutSchedule = useMemo(
     () => properties.filter(p => !schedules.find(s => s.property_id === p.id)),
@@ -172,15 +182,45 @@ export default function PaymentCalendarScreen() {
   )
 
   const stats = useMemo(() => {
-    const thisMonth = paymentItems.filter(i => i.isCurrentMonth)
-    const overdue = thisMonth.filter(i => i.daysUntilDue < 0 && i.record?.status !== 'paid').length
-    const paid = thisMonth.filter(i => i.record?.status === 'paid').length
-    const upcoming = thisMonth.filter(i => i.daysUntilDue >= 0 && i.record?.status !== 'paid').length
-    return { overdue, paid, upcoming }
+    const cur = paymentItems.filter(i => i.monthOffset === 0)
+    return {
+      overdue:  cur.filter(i => i.daysUntilDue < 0   && i.record?.status !== 'paid').length,
+      upcoming: cur.filter(i => i.daysUntilDue >= 0  && i.record?.status !== 'paid').length,
+      paid:     cur.filter(i => i.record?.status === 'paid').length,
+    }
   }, [paymentItems])
 
-  const handleMarkPaid = useCallback(async (item: PaymentItem) => {
+  const archiveByMonth = useMemo(() => {
+    const groups = new Map<string, { label: string; records: RentPaymentRecord[]; total: number }>()
+    for (const rec of archiveRecords) {
+      const [yr, mo] = rec.due_date.split('-').map(Number)
+      const key = `${yr}-${mo}`
+      if (!groups.has(key)) {
+        const d = new Date(yr, mo - 1, 1)
+        groups.set(key, { label: d.toLocaleDateString('uk-UA', { month: 'long', year: 'numeric' }), records: [], total: 0 })
+      }
+      const g = groups.get(key)!
+      g.records.push(rec)
+      g.total += rec.amount ?? 0
+    }
+    return Array.from(groups.values())
+  }, [archiveRecords])
+
+  const archiveTotal = useMemo(
+    () => archiveRecords.reduce((s, r) => s + (r.amount ?? 0), 0),
+    [archiveRecords]
+  )
+
+  // ── Handlers ─────────────────────────────────────────────────────────────────
+  const openConfirm = useCallback((item: PaymentItem) => {
+    setPayConfirmItem(item)
+    setPayConfirmAmount(String(item.property.rent_rate ?? ''))
+    setPayConfirmNotes('')
+  }, [])
+
+  const handleMarkPaid = useCallback(async (item: PaymentItem, amount?: number, notes?: string) => {
     if (!user) return
+    setPayConfirmSaving(true)
     window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('light')
     try {
       const { data, error } = await supabase
@@ -188,33 +228,46 @@ export default function PaymentCalendarScreen() {
         .upsert(
           {
             property_id: item.property.id,
-            owner_id: user.id,
-            due_date: item.dueDate,
-            paid_at: new Date().toISOString(),
-            amount: item.property.rent_rate,
-            status: 'paid' as const,
-            updated_at: new Date().toISOString(),
+            owner_id:    user.id,
+            due_date:    item.dueDate,
+            paid_at:     new Date().toISOString(),
+            amount:      amount ?? item.property.rent_rate,
+            notes:       notes ?? null,
+            status:      'paid' as const,
+            updated_at:  new Date().toISOString(),
           },
           { onConflict: 'property_id,due_date' }
         )
-        .select('*')
-        .single()
+        .select('*').single()
       if (error) throw error
       window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
+      const rec = data as RentPaymentRecord
       setRecords(prev => {
         const idx = prev.findIndex(r => r.property_id === item.property.id && r.due_date === item.dueDate)
-        if (idx >= 0) return prev.map((r, i) => i === idx ? (data as RentPaymentRecord) : r)
-        return [data as RentPaymentRecord, ...prev]
+        return idx >= 0 ? prev.map((r, i) => i === idx ? rec : r) : [rec, ...prev]
       })
-      showToast({ type: 'success', title: 'Платіж відмічено ✓' })
+      // Add to archive too if it's a past-month payment (archive already loaded)
+      if (archiveLoaded) {
+        const cutoff = new Date(); cutoff.setDate(1)
+        if (item.dueDate < cutoff.toISOString().slice(0, 10)) {
+          setArchiveRecords(prev => {
+            const idx = prev.findIndex(r => r.property_id === item.property.id && r.due_date === item.dueDate)
+            return idx >= 0 ? prev.map((r, i) => i === idx ? rec : r) : [rec, ...prev]
+          })
+        }
+      }
+      setPayConfirmItem(null)
+      showToast({ type: 'success', title: 'Платіж підтверджено ✓' })
     } catch (e) {
       showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
+    } finally {
+      setPayConfirmSaving(false)
     }
-  }, [user, showToast])
+  }, [user, archiveLoaded, showToast])
 
   const handleSaveSchedule = useCallback(async () => {
     if (!setupProp || !user) return
-    const day = parseInt(setupDueDay, 10)
+    const day    = parseInt(setupDueDay, 10)
     const notify = parseInt(setupNotify, 10)
     if (!isFinite(day) || day < 1 || day > 28) {
       showToast({ type: 'error', title: 'День платежу має бути від 1 до 28' })
@@ -226,22 +279,20 @@ export default function PaymentCalendarScreen() {
         .from('rent_payments')
         .upsert(
           {
-            property_id: setupProp.id,
-            owner_id: user.id,
-            due_day: day,
+            property_id:        setupProp.id,
+            owner_id:           user.id,
+            due_day:            day,
             notify_days_before: isFinite(notify) ? Math.min(14, Math.max(0, notify)) : 3,
-            is_active: true,
-            updated_at: new Date().toISOString(),
+            is_active:          true,
+            updated_at:         new Date().toISOString(),
           },
           { onConflict: 'property_id' }
         )
-        .select('*')
-        .single()
+        .select('*').single()
       if (error) throw error
       setSchedules(prev => {
         const idx = prev.findIndex(s => s.property_id === setupProp.id)
-        if (idx >= 0) return prev.map((s, i) => i === idx ? (data as RentPayment) : s)
-        return [...prev, data as RentPayment]
+        return idx >= 0 ? prev.map((s, i) => i === idx ? (data as RentPayment) : s) : [...prev, data as RentPayment]
       })
       showToast({ type: 'success', title: 'Розклад збережено' })
       setSetupProp(null)
@@ -264,33 +315,31 @@ export default function PaymentCalendarScreen() {
     }
   }, [deleteScheduleProp, showToast])
 
-  const title = propertyId && properties[0] ? `Платежі — ${properties[0].name}` : 'Календар платежів'
-
-  function getItemStatusColor(item: PaymentItem): string {
+  // ── Helpers ──────────────────────────────────────────────────────────────────
+  function getStatusColor(item: PaymentItem): string {
     if (item.record?.status === 'paid') return 'var(--ok)'
-    if (item.daysUntilDue < 0) return 'var(--err)'
-    if (item.daysUntilDue <= 3) return 'var(--warn)'
+    if (item.daysUntilDue < 0)          return 'var(--err)'
+    if (item.daysUntilDue <= 3)         return 'var(--warn)'
     return 'var(--t3)'
   }
 
-  function getItemLabel(item: PaymentItem): string {
+  function getStatusLabel(item: PaymentItem): string {
     if (item.record?.status === 'paid') return 'Отримано'
-    if (item.daysUntilDue < 0) return `Прострочено ${Math.abs(item.daysUntilDue)}д`
+    if (item.daysUntilDue < 0)  return `Прострочено ${Math.abs(item.daysUntilDue)}д`
     if (item.daysUntilDue === 0) return 'Сьогодні'
     if (item.daysUntilDue === 1) return 'Завтра'
     return `Через ${item.daysUntilDue} дн.`
   }
 
-  const currentItems = paymentItems.filter(i => i.isCurrentMonth)
-  const nextItems = paymentItems.filter(i => !i.isCurrentMonth)
-  const now = new Date()
+  const title = propertyId && properties[0] ? `Платежі — ${properties[0].name}` : 'Календар платежів'
 
+  // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <div className="scr bg-teal">
       <Header title={title} backLabel="Назад" />
 
       <div className="body">
-        {/* Stats */}
+        {/* Stats row */}
         <div className="stat-g" style={{ gridTemplateColumns: 'repeat(3,1fr)' }}>
           <div className="stat glass-s">
             <div className="stat-n" style={{ color: 'var(--err)' }}>{stats.overdue}</div>
@@ -306,19 +355,57 @@ export default function PaymentCalendarScreen() {
           </div>
         </div>
 
+        {/* Tab switcher */}
+        <div style={{ margin: '0 12px 8px', display: 'flex', background: 'var(--glass-1)', borderRadius: 12, padding: 3, border: 'var(--bd)' }}>
+          {(['current', 'archive'] as const).map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              style={{
+                flex: 1, padding: '8px 0', borderRadius: 10,
+                background: activeTab === tab ? 'var(--glass-2)' : 'transparent',
+                color: activeTab === tab ? 'var(--t1)' : 'var(--t3)',
+                fontSize: 13, fontWeight: 600, cursor: 'pointer', border: 'none',
+                transition: 'all .15s',
+              }}
+            >
+              {tab === 'current' ? '📅 Поточні' : '🗂 Архів'}
+            </button>
+          ))}
+        </div>
+
         {loading ? (
-          <div className="loader-wrap" style={{ paddingTop: 40 }}>
-            <div className="loader" />
-          </div>
+          <div className="loader-wrap" style={{ paddingTop: 40 }}><div className="loader" /></div>
         ) : properties.length === 0 ? (
           <div className="empty-state" style={{ paddingTop: 32 }}>
             <div className="empty-ic">📅</div>
             <div className="empty-h">Немає орендованих об&apos;єктів</div>
             <div className="empty-s">Встановіть орендарів для відстеження платежів</div>
           </div>
-        ) : (
+
+        ) : activeTab === 'current' ? (
           <>
-            {/* Properties without schedule — prompt to set up */}
+            {/* Horizon selector */}
+            <div style={{ margin: '0 12px 8px', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 12, color: 'var(--t3)', flexShrink: 0 }}>Показати:</span>
+              {([1, 2, 3, 6] as MonthCount[]).map(n => (
+                <button
+                  key={n}
+                  onClick={() => setMonthsAhead(n)}
+                  style={{
+                    padding: '4px 10px', borderRadius: 8,
+                    background: monthsAhead === n ? 'rgba(122,179,255,.22)' : 'var(--glass-1)',
+                    color:      monthsAhead === n ? '#7AB3FF' : 'var(--t3)',
+                    border:     monthsAhead === n ? '.5px solid rgba(122,179,255,.4)' : 'var(--bd)',
+                    fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                  }}
+                >
+                  {n} міс
+                </button>
+              ))}
+            </div>
+
+            {/* Properties without schedule */}
             {propsWithoutSchedule.length > 0 && (
               <>
                 <div className="over">
@@ -344,55 +431,126 @@ export default function PaymentCalendarScreen() {
               </>
             )}
 
-            {/* Current month */}
-            {currentItems.length > 0 && (
-              <>
-                <div className="over">
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <IconCalendar size={13} color="#7AB3FF" />
-                    {now.toLocaleDateString('uk-UA', { month: 'long', year: 'numeric' })}
-                  </span>
+            {/* Month sections */}
+            {monthSections.map(section => (
+              section.items.length > 0 && (
+                <div key={section.label}>
+                  <div className="over">
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {section.isFirst
+                        ? <IconCalendar size={13} color="#7AB3FF" />
+                        : <IconClock    size={13} color="var(--t3)" />
+                      }
+                      {section.label}
+                    </span>
+                  </div>
+                  <div className="list" style={{ marginBottom: 12 }}>
+                    {section.items.map(item => (
+                      <PaymentItemCard
+                        key={`${item.property.id}-${item.dueDate}`}
+                        item={item}
+                        statusColor={getStatusColor(item)}
+                        label={getStatusLabel(item)}
+                        onMarkPaid={() => openConfirm(item)}
+                        onEdit={() => {
+                          setSetupProp(item.property)
+                          const sc = schedules.find(s => s.property_id === item.property.id)
+                          setSetupDueDay(String(sc?.due_day ?? 5))
+                          setSetupNotify(String(sc?.notify_days_before ?? 3))
+                        }}
+                        onDeleteSchedule={() => setDeleteScheduleProp(item.property)}
+                        userCurrency={user?.currency}
+                      />
+                    ))}
+                  </div>
                 </div>
-                <div className="list" style={{ marginBottom: 12 }}>
-                  {currentItems.map(item => (
-                    <PaymentItemCard
-                      key={`${item.property.id}-${item.dueDate}`}
-                      item={item}
-                      statusColor={getItemStatusColor(item)}
-                      label={getItemLabel(item)}
-                      onMarkPaid={() => handleMarkPaid(item)}
-                      onEdit={() => { setSetupProp(item.property); const s = schedules.find(s => s.property_id === item.property.id); setSetupDueDay(String(s?.due_day ?? 5)); setSetupNotify(String(s?.notify_days_before ?? 3)) }}
-                      onDeleteSchedule={() => setDeleteScheduleProp(item.property)}
-                      userCurrency={user?.currency}
-                    />
-                  ))}
-                </div>
-              </>
-            )}
+              )
+            ))}
 
-            {/* Next month */}
-            {nextItems.length > 0 && (
+            {monthSections.every(s => s.items.length === 0) && propsWithoutSchedule.length === 0 && (
+              <div className="empty-state" style={{ paddingTop: 24 }}>
+                <div className="empty-ic">📅</div>
+                <div className="empty-h">Платежів немає</div>
+                <div className="empty-s">Всі розклади налаштовано — тут з&apos;являться майбутні платежі</div>
+              </div>
+            )}
+          </>
+
+        ) : (
+          /* ── Archive tab ── */
+          <>
+            {archiveLoading ? (
+              <div className="loader-wrap" style={{ paddingTop: 40 }}><div className="loader" /></div>
+            ) : archiveRecords.length === 0 ? (
+              <div className="empty-state" style={{ paddingTop: 32 }}>
+                <div className="empty-ic">🗂</div>
+                <div className="empty-h">Архів порожній</div>
+                <div className="empty-s">Підтверджені платежі минулих місяців відображаються тут</div>
+              </div>
+            ) : (
               <>
-                <div className="over">
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <IconClock size={13} color="var(--t3)" />
-                    {new Date(now.getFullYear(), now.getMonth() + 1, 1).toLocaleDateString('uk-UA', { month: 'long', year: 'numeric' })}
-                  </span>
-                </div>
-                <div className="list" style={{ marginBottom: 12 }}>
-                  {nextItems.map(item => (
-                    <PaymentItemCard
-                      key={`${item.property.id}-${item.dueDate}`}
-                      item={item}
-                      statusColor={getItemStatusColor(item)}
-                      label={getItemLabel(item)}
-                      onMarkPaid={() => handleMarkPaid(item)}
-                      onEdit={() => { setSetupProp(item.property); const s = schedules.find(s => s.property_id === item.property.id); setSetupDueDay(String(s?.due_day ?? 5)); setSetupNotify(String(s?.notify_days_before ?? 3)) }}
-                      onDeleteSchedule={() => setDeleteScheduleProp(item.property)}
-                      userCurrency={user?.currency}
-                    />
-                  ))}
-                </div>
+                {/* Archive total card */}
+                {archiveTotal > 0 && (
+                  <div style={{ margin: '0 12px 4px', padding: '14px 16px', borderRadius: 'var(--r-md)', background: 'rgba(52,199,89,.08)', border: '.5px solid rgba(52,199,89,.2)' }}>
+                    <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 4 }}>Всього отримано за весь час</div>
+                    <div style={{ fontSize: 22, fontWeight: 700, color: '#34c759' }}>
+                      {formatPrice(archiveTotal, user?.currency)}
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 3 }}>
+                      {archiveRecords.length} платежів · {archiveByMonth.length} міс.
+                    </div>
+                  </div>
+                )}
+
+                {/* Groups by month */}
+                {archiveByMonth.map(group => (
+                  <div key={group.label}>
+                    <div className="over">
+                      <span>{group.label}</span>
+                      {group.total > 0 && (
+                        <span style={{ fontSize: 12, fontWeight: 700, color: '#34c759' }}>
+                          {formatPrice(group.total, user?.currency)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="list" style={{ marginBottom: 12 }}>
+                      {group.records.map(rec => {
+                        const prop = properties.find(p => p.id === rec.property_id)
+                        return (
+                          <div key={rec.id} className="glass-s" style={{ borderRadius: 'var(--r-md)', padding: '12px 14px' }}>
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                              <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--ok)', marginTop: 5, flexShrink: 0, boxShadow: '0 0 6px var(--ok)' }} />
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--t1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {prop?.name ?? '—'}
+                                </div>
+                                {prop?.tenant_name && (
+                                  <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 1 }}>{prop.tenant_name}</div>
+                                )}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 5, flexWrap: 'wrap' }}>
+                                  <span style={{ fontSize: 12, color: 'var(--t3)' }}>за {fmtDueDate(rec.due_date)}</span>
+                                  {rec.paid_at && (
+                                    <span style={{ fontSize: 11, color: 'var(--t4)' }}>
+                                      · отримано {new Date(rec.paid_at).toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' })}
+                                    </span>
+                                  )}
+                                </div>
+                                {rec.notes && (
+                                  <div style={{ fontSize: 11, color: 'var(--t3)', marginTop: 3, fontStyle: 'italic' }}>{rec.notes}</div>
+                                )}
+                              </div>
+                              {rec.amount != null && rec.amount > 0 && (
+                                <div style={{ flexShrink: 0, fontSize: 15, fontWeight: 700, color: '#34c759' }}>
+                                  {formatPrice(rec.amount, user?.currency)}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
               </>
             )}
           </>
@@ -401,10 +559,10 @@ export default function PaymentCalendarScreen() {
         <div style={{ height: 80 }} />
       </div>
 
-      {/* Setup schedule modal */}
+      {/* ── Setup / edit schedule modal ── */}
       {setupProp && (
         <Modal
-          title="Розклад платежів"
+          title={schedules.find(s => s.property_id === setupProp.id) ? 'Редагувати розклад' : 'Налаштувати розклад'}
           subtitle={setupProp.name}
           onClose={() => !setupSaving && setSetupProp(null)}
           actions={[
@@ -418,16 +576,14 @@ export default function PaymentCalendarScreen() {
                 <div className="fld-l"><IconCalendar size={11} />День місяця (1–28)</div>
                 <input
                   type="number" min={1} max={28} inputMode="numeric"
-                  value={setupDueDay}
-                  onChange={e => setSetupDueDay(e.target.value)}
+                  value={setupDueDay} onChange={e => setSetupDueDay(e.target.value)}
                 />
               </div>
               <div className="fld">
                 <div className="fld-l"><IconBellRing size={11} />Нагадати за, днів</div>
                 <input
                   type="number" min={0} max={14} inputMode="numeric"
-                  value={setupNotify}
-                  onChange={e => setSetupNotify(e.target.value)}
+                  value={setupNotify} onChange={e => setSetupNotify(e.target.value)}
                 />
               </div>
             </div>
@@ -438,11 +594,11 @@ export default function PaymentCalendarScreen() {
         </Modal>
       )}
 
-      {/* Delete schedule confirm */}
+      {/* ── Delete schedule confirm ── */}
       {deleteScheduleProp && (
         <Modal
           title="Видалити розклад?"
-          subtitle={`Розклад платежів для "${deleteScheduleProp.name}" буде видалено.`}
+          subtitle={`Розклад платежів для «${deleteScheduleProp.name}» буде видалено.`}
           onClose={() => setDeleteScheduleProp(null)}
           actions={[
             { label: 'Видалити', variant: 'danger', onClick: handleDeleteSchedule },
@@ -450,9 +606,58 @@ export default function PaymentCalendarScreen() {
           ]}
         />
       )}
+
+      {/* ── Payment confirmation modal ── */}
+      {payConfirmItem && (
+        <Modal
+          title="Підтвердити отримання"
+          subtitle={`${payConfirmItem.property.name} · ${fmtDueDate(payConfirmItem.dueDate)}`}
+          onClose={() => !payConfirmSaving && setPayConfirmItem(null)}
+          actions={[
+            {
+              label: payConfirmSaving ? 'Зберігаємо...' : 'Підтвердити оплату',
+              variant: 'primary',
+              disabled: payConfirmSaving,
+              onClick: () => {
+                const amt = parseFloat(payConfirmAmount)
+                handleMarkPaid(
+                  payConfirmItem,
+                  isFinite(amt) && amt > 0 ? amt : undefined,
+                  payConfirmNotes.trim() || undefined
+                )
+              },
+            },
+            { label: 'Скасувати', variant: 'secondary', disabled: payConfirmSaving, onClick: () => setPayConfirmItem(null) },
+          ]}
+        >
+          <div style={{ paddingTop: 4 }}>
+            <div className="fld">
+              <div className="fld-l">Сума отриманого платежу</div>
+              <input
+                type="number" min={0} inputMode="decimal"
+                placeholder="Введіть суму..."
+                value={payConfirmAmount}
+                onChange={e => setPayConfirmAmount(e.target.value)}
+              />
+            </div>
+            <div className="fld" style={{ marginTop: 10 }}>
+              <div className="fld-l">Нотатка (необов&apos;язково)</div>
+              <input
+                type="text"
+                placeholder="Готівка, переказ, часткова оплата..."
+                value={payConfirmNotes}
+                onChange={e => setPayConfirmNotes(e.target.value)}
+                maxLength={200}
+              />
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }
+
+// ── PaymentItemCard ───────────────────────────────────────────────────────────
 
 interface PaymentItemCardProps {
   item: PaymentItem
@@ -465,16 +670,14 @@ interface PaymentItemCardProps {
 }
 
 function PaymentItemCard({ item, statusColor, label, onMarkPaid, onEdit, onDeleteSchedule, userCurrency }: PaymentItemCardProps) {
-  const isPaid = item.record?.status === 'paid'
-  const rent = item.property.rent_rate ?? 0
+  const isPaid     = item.record?.status === 'paid'
+  const displayAmt = isPaid ? (item.record?.amount ?? null) : (item.property.rent_rate ?? null)
 
   return (
     <div className="glass-s" style={{ borderRadius: 'var(--r-md)', overflow: 'hidden' }}>
       <div style={{ padding: '12px 14px', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-        {/* Left: status dot */}
         <div style={{ width: 8, height: 8, borderRadius: '50%', background: statusColor, marginTop: 5, flexShrink: 0, boxShadow: `0 0 6px ${statusColor}` }} />
 
-        {/* Middle: info */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--t1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {item.property.name}
@@ -485,11 +688,17 @@ function PaymentItemCard({ item, statusColor, label, onMarkPaid, onEdit, onDelet
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 5, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 12, fontWeight: 600, color: statusColor }}>{label}</span>
             <span style={{ fontSize: 12, color: 'var(--t3)' }}>{fmtDueDate(item.dueDate)}</span>
-            {rent > 0 && <span style={{ fontSize: 12, color: 'var(--t2)' }}>{formatPrice(rent, userCurrency)}</span>}
+            {displayAmt != null && displayAmt > 0 && (
+              <span style={{ fontSize: 12, fontWeight: isPaid ? 700 : 400, color: isPaid ? '#34c759' : 'var(--t2)' }}>
+                {formatPrice(displayAmt, userCurrency)}
+              </span>
+            )}
           </div>
+          {isPaid && item.record?.notes && (
+            <div style={{ fontSize: 11, color: 'var(--t3)', marginTop: 3, fontStyle: 'italic' }}>{item.record.notes}</div>
+          )}
         </div>
 
-        {/* Right: action */}
         {!isPaid ? (
           <button
             onClick={onMarkPaid}
@@ -504,13 +713,19 @@ function PaymentItemCard({ item, statusColor, label, onMarkPaid, onEdit, onDelet
         )}
       </div>
 
-      {/* Bottom actions row */}
+      {/* Bottom action row */}
       <div style={{ padding: '6px 14px 10px', display: 'flex', gap: 8, borderTop: '.5px solid rgba(255,255,255,.06)' }}>
-        <button onClick={onEdit} style={{ fontSize: 11, color: 'var(--t3)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0' }}>
-          ✏️ Змінити день
+        <button
+          onClick={onEdit}
+          style={{ fontSize: 11, color: 'var(--t3)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0' }}
+        >
+          ✏️ Редагувати розклад
         </button>
-        <button onClick={onDeleteSchedule} style={{ fontSize: 11, color: 'var(--err)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0', marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
-          <IconTrash size={11} /> Видалити розклад
+        <button
+          onClick={onDeleteSchedule}
+          style={{ fontSize: 11, color: 'var(--err)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0', marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}
+        >
+          <IconTrash size={11} /> Видалити
         </button>
       </div>
     </div>
