@@ -11,7 +11,7 @@ import { TG_BOT } from '@/lib/telegram'
 import { getInitials, scrollFocusedIntoView } from '@/lib/utils'
 
 export default function ProfileScreen() {
-  const { user, databases, showToast } = useAppStore()
+  const { user, databases } = useAppStore()
   const { logout, updateProfile } = useAuth()
 
   const [pushEnabled, setPushEnabled] = useState(user?.notification_push ?? true)
@@ -23,32 +23,35 @@ export default function ProfileScreen() {
   const emailRef = useRef<HTMLInputElement>(null)
   const phoneRef = useRef<HTMLInputElement>(null)
 
-  function handlePushToggle(v: boolean) {
+  async function handlePushToggle(v: boolean) {
     setPushEnabled(v)
-    updateProfile({ notification_push: v }).catch(() => {})
+    const ok = await updateProfile({ notification_push: v })
+    if (!ok) setPushEnabled(!v)
   }
 
-  function handleWeeklyToggle(v: boolean) {
+  async function handleWeeklyToggle(v: boolean) {
     setWeeklyReport(v)
-    updateProfile({ notification_weekly: v }).catch(() => {})
+    const ok = await updateProfile({ notification_weekly: v })
+    if (!ok) setWeeklyReport(!v)
   }
 
-  function handleNewViewsToggle(v: boolean) {
+  async function handleNewViewsToggle(v: boolean) {
     setNewViews(v)
-    updateProfile({ notification_views: v }).catch(() => {})
+    const ok = await updateProfile({ notification_views: v })
+    if (!ok) setNewViews(!v)
   }
 
   async function handleLangChange(lang: 'uk' | 'en') {
     if ((user?.language_code ?? 'uk') === lang) return
     setSavingLang(true)
-    await updateProfile({ language_code: lang }).catch(() => {})
+    await updateProfile({ language_code: lang })
     setSavingLang(false)
   }
 
   async function handleCurrencyChange(cur: 'USD' | 'UAH' | 'EUR') {
     if ((user?.currency ?? 'USD') === cur) return
     setSavingCur(true)
-    await updateProfile({ currency: cur }).catch(() => {})
+    await updateProfile({ currency: cur })
     setSavingCur(false)
   }
 
@@ -115,12 +118,12 @@ export default function ProfileScreen() {
           <div className="fr">
             <IconMail size={15} color="var(--t3)" />
             <span className="fr-l" style={{ marginLeft: 6 }}>Email</span>
-            <input ref={emailRef} className="fr-i" type="email" placeholder="Не вказано" defaultValue={user.email ?? ''} onBlur={async e => { const val = e.target.value; if (val === (user.email ?? '')) return; try { await updateProfile({ email: val }) } catch { showToast({ type: 'error', title: 'Помилка збереження email' }); if (emailRef.current) emailRef.current.value = user.email ?? '' } }} />
+            <input ref={emailRef} className="fr-i" type="email" placeholder="Не вказано" defaultValue={user.email ?? ''} onBlur={async e => { const val = e.target.value; if (val === (user.email ?? '')) return; const ok = await updateProfile({ email: val }); if (!ok && emailRef.current) emailRef.current.value = user.email ?? '' }} />
           </div>
           <div className="fr">
             <IconPhone size={15} color="var(--t3)" />
             <span className="fr-l" style={{ marginLeft: 6 }}>Телефон</span>
-            <input ref={phoneRef} className="fr-i" type="tel" placeholder="Не вказано" defaultValue={user.phone ?? ''} onBlur={async e => { const val = e.target.value; if (val === (user.phone ?? '')) return; try { await updateProfile({ phone: val }) } catch { showToast({ type: 'error', title: 'Помилка збереження телефону' }); if (phoneRef.current) phoneRef.current.value = user.phone ?? '' } }} />
+            <input ref={phoneRef} className="fr-i" type="tel" placeholder="Не вказано" defaultValue={user.phone ?? ''} onBlur={async e => { const val = e.target.value; if (val === (user.phone ?? '')) return; const ok = await updateProfile({ phone: val }); if (!ok && phoneRef.current) phoneRef.current.value = user.phone ?? '' }} />
           </div>
         </div>
 
