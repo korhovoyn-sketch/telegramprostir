@@ -61,6 +61,8 @@ export default function PaymentCalendarScreen() {
   const [payConfirmAmount, setPayConfirmAmount] = useState('')
   const [payConfirmNotes, setPayConfirmNotes]   = useState('')
   const [payConfirmSaving, setPayConfirmSaving] = useState(false)
+  const [unpayTarget, setUnpayTarget]           = useState<RentPaymentRecord | null>(null)
+  const [showOnlyUnpaid, setShowOnlyUnpaid]     = useState(false)
 
   const propertyId = screenParams.propertyId as string | undefined
   const dbId       = screenParams.dbId       as string | undefined
@@ -73,11 +75,16 @@ export default function PaymentCalendarScreen() {
     setSetupNotify(s ? String(s.notify_days_before) : '3')
   }, [setupProp, schedules])
 
-  // Reset payment form each time a new item is opened — prevents stale values from previous entry.
+  // Pre-fill payment modal: existing amount+notes when editing a paid record, expected rent for new.
   useEffect(() => {
     if (!payConfirmItem) return
-    setPayConfirmAmount('')
-    setPayConfirmNotes('')
+    if (payConfirmItem.record?.status === 'paid') {
+      setPayConfirmAmount(String(payConfirmItem.record.amount ?? ''))
+      setPayConfirmNotes(payConfirmItem.record.notes ?? '')
+    } else {
+      setPayConfirmAmount(String(payConfirmItem.property.rent_rate ?? ''))
+      setPayConfirmNotes('')
+    }
   }, [payConfirmItem])
 
   // ── Initial load ────────────────────────────────────────────────────────────
@@ -140,16 +147,14 @@ export default function PaymentCalendarScreen() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [monthsAhead])
 
-  // Load archive lazily on tab switch
+  // Load archive lazily on tab switch — all paid records regardless of month
   useEffect(() => {
     if (activeTab !== 'archive' || archiveLoaded || archiveLoading || properties.length === 0) return
     const ids = properties.map(p => p.id)
     setArchiveLoading(true)
-    const cutoff = new Date(); cutoff.setDate(1)
     supabase
       .from('rent_payment_records').select('*')
       .in('property_id', ids)
-      .lt('due_date', cutoff.toISOString().slice(0, 10))
       .eq('status', 'paid')
       .order('due_date', { ascending: false })
       .then(({ data }) => {
@@ -181,16 +186,19 @@ export default function PaymentCalendarScreen() {
     const today = new Date()
     return Array.from({ length: monthsAhead }, (_, i) => {
       const d = new Date(today.getFullYear(), today.getMonth() + i, 1)
-      const items = paymentItems
+      const allItems = paymentItems
         .filter(item => item.monthOffset === i)
         .sort((a, b) => {
           const aOk = a.record?.status === 'paid', bOk = b.record?.status === 'paid'
           if (aOk !== bOk) return aOk ? 1 : -1
           return a.daysUntilDue - b.daysUntilDue
         })
-      return { label: d.toLocaleDateString('uk-UA', { month: 'long', year: 'numeric' }), items, isFirst: i === 0 }
+      const paidCount  = allItems.filter(it => it.record?.status === 'paid').length
+      const totalCount = allItems.length
+      const items = showOnlyUnpaid ? allItems.filter(it => it.record?.status !== 'paid') : allItems
+      return { label: d.toLocaleDateString('uk-UA', { month: 'long', year: 'numeric' }), items, isFirst: i === 0, paidCount, totalCount }
     })
-  }, [paymentItems, monthsAhead])
+  }, [paymentItems, monthsAhead, showOnlyUnpaid])
 
   const propsWithoutSchedule = useMemo(
     () => properties.filter(p => !schedules.find(s => s.property_id === p.id)),
@@ -199,10 +207,12 @@ export default function PaymentCalendarScreen() {
 
   const stats = useMemo(() => {
     const cur = paymentItems.filter(i => i.monthOffset === 0)
+    const paidItems = cur.filter(i => i.record?.status === 'paid')
     return {
-      overdue:  cur.filter(i => i.daysUntilDue < 0   && i.record?.status !== 'paid').length,
-      upcoming: cur.filter(i => i.daysUntilDue >= 0  && i.record?.status !== 'paid').length,
-      paid:     cur.filter(i => i.record?.status === 'paid').length,
+      overdue:    cur.filter(i => i.daysUntilDue < 0  && i.record?.status !== 'paid').length,
+      upcoming:   cur.filter(i => i.daysUntilDue >= 0 && i.record?.status !== 'paid').length,
+      paid:       paidItems.length,
+      paidAmount: paidItems.reduce((s, i) => s + (i.record?.amount ?? 0), 0),
     }
   }, [paymentItems])
 
@@ -230,8 +240,7 @@ export default function PaymentCalendarScreen() {
   // ── Handlers ─────────────────────────────────────────────────────────────────
   const openConfirm = useCallback((item: PaymentItem) => {
     setPayConfirmItem(item)
-    setPayConfirmAmount(String(item.property.rent_rate ?? ''))
-    setPayConfirmNotes('')
+    // useEffect handles pre-fill based on whether item is already paid or not
   }, [])
 
   const handleMarkPaid = useCallback(async (item: PaymentItem, amount?: number, notes?: string) => {
@@ -262,15 +271,12 @@ export default function PaymentCalendarScreen() {
         const idx = prev.findIndex(r => r.property_id === item.property.id && r.due_date === item.dueDate)
         return idx >= 0 ? prev.map((r, i) => i === idx ? rec : r) : [rec, ...prev]
       })
-      // Add to archive too if it's a past-month payment (archive already loaded)
+      // Keep archive in sync — add/update regardless of month
       if (archiveLoaded) {
-        const cutoff = new Date(); cutoff.setDate(1)
-        if (item.dueDate < cutoff.toISOString().slice(0, 10)) {
-          setArchiveRecords(prev => {
-            const idx = prev.findIndex(r => r.property_id === item.property.id && r.due_date === item.dueDate)
-            return idx >= 0 ? prev.map((r, i) => i === idx ? rec : r) : [rec, ...prev]
-          })
-        }
+        setArchiveRecords(prev => {
+          const idx = prev.findIndex(r => r.property_id === item.property.id && r.due_date === item.dueDate)
+          return idx >= 0 ? prev.map((r, i) => i === idx ? rec : r) : [rec, ...prev]
+        })
       }
       setPayConfirmItem(null)
       showToast({ type: 'success', title: 'Платіж підтверджено ✓' })
@@ -331,6 +337,20 @@ export default function PaymentCalendarScreen() {
     }
   }, [deleteScheduleProp, showToast])
 
+  const handleUnpay = useCallback(async () => {
+    if (!unpayTarget) return
+    try {
+      const { error } = await supabase.from('rent_payment_records').delete().eq('id', unpayTarget.id)
+      if (error) throw error
+      setRecords(prev => prev.filter(r => r.id !== unpayTarget.id))
+      if (archiveLoaded) setArchiveRecords(prev => prev.filter(r => r.id !== unpayTarget.id))
+      setUnpayTarget(null)
+      showToast({ type: 'success', title: 'Платіж скасовано' })
+    } catch (e) {
+      showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
+    }
+  }, [unpayTarget, archiveLoaded, showToast])
+
   // ── Helpers ──────────────────────────────────────────────────────────────────
   function getStatusColor(item: PaymentItem): string {
     if (item.record?.status === 'paid') return 'var(--ok)'
@@ -366,7 +386,9 @@ export default function PaymentCalendarScreen() {
             <div className="stat-l">Очікується</div>
           </div>
           <div className="stat glass-s">
-            <div className="stat-n" style={{ color: 'var(--ok)' }}>{stats.paid}</div>
+            <div className="stat-n" style={{ color: 'var(--ok)', fontSize: stats.paidAmount >= 100000 ? 14 : undefined }}>
+              {stats.paidAmount > 0 ? formatPrice(stats.paidAmount, user?.currency) : stats.paid > 0 ? stats.paid : '—'}
+            </div>
             <div className="stat-l">Отримано</div>
           </div>
         </div>
@@ -401,8 +423,8 @@ export default function PaymentCalendarScreen() {
 
         ) : activeTab === 'current' ? (
           <>
-            {/* Horizon selector */}
-            <div style={{ margin: '0 12px 8px', display: 'flex', alignItems: 'center', gap: 6 }}>
+            {/* Horizon selector + filter toggle */}
+            <div style={{ margin: '0 12px 8px', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 12, color: 'var(--t3)', flexShrink: 0 }}>Показати:</span>
               {([1, 2, 3, 6] as MonthCount[]).map(n => (
                 <button
@@ -419,6 +441,18 @@ export default function PaymentCalendarScreen() {
                   {n} міс
                 </button>
               ))}
+              <button
+                onClick={() => setShowOnlyUnpaid(v => !v)}
+                style={{
+                  marginLeft: 'auto', padding: '4px 10px', borderRadius: 8,
+                  background: showOnlyUnpaid ? 'rgba(255,107,97,.2)' : 'var(--glass-1)',
+                  color:      showOnlyUnpaid ? '#FF6B61'              : 'var(--t3)',
+                  border:     showOnlyUnpaid ? '.5px solid rgba(255,107,97,.4)' : 'var(--bd)',
+                  fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
+                }}
+              >
+                {showOnlyUnpaid ? '⏳ Очікуються' : '📋 Всі'}
+              </button>
             </div>
 
             {/* Properties without schedule */}
@@ -449,7 +483,7 @@ export default function PaymentCalendarScreen() {
 
             {/* Month sections */}
             {monthSections.map(section => (
-              section.items.length > 0 && (
+              (section.items.length > 0 || section.totalCount > 0) && (
                 <div key={section.label}>
                   <div className="over">
                     <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -459,6 +493,18 @@ export default function PaymentCalendarScreen() {
                       }
                       {section.label}
                     </span>
+                    {section.totalCount > 0 && (
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontSize: 11, color: section.paidCount === section.totalCount ? 'var(--ok)' : 'var(--t3)', fontWeight: 600 }}>
+                          {section.paidCount}/{section.totalCount}
+                        </span>
+                        <span style={{ display: 'flex', gap: 2 }}>
+                          {Array.from({ length: section.totalCount }, (_, k) => (
+                            <span key={k} style={{ width: 14, height: 4, borderRadius: 2, background: k < section.paidCount ? 'var(--ok)' : 'rgba(255,255,255,.15)' }} />
+                          ))}
+                        </span>
+                      </span>
+                    )}
                   </div>
                   <div className="list" style={{ marginBottom: 12 }}>
                     {section.items.map(item => (
@@ -475,15 +521,22 @@ export default function PaymentCalendarScreen() {
                           setSetupNotify(String(sc?.notify_days_before ?? 3))
                         }}
                         onDeleteSchedule={() => setDeleteScheduleProp(item.property)}
+                        onEditPaid={() => setPayConfirmItem(item)}
+                        onUnpay={() => item.record && setUnpayTarget(item.record)}
                         userCurrency={user?.currency}
                       />
                     ))}
+                    {section.items.length === 0 && section.paidCount === section.totalCount && section.totalCount > 0 && (
+                      <div style={{ padding: '12px 14px', textAlign: 'center', fontSize: 13, color: 'var(--ok)', fontWeight: 600 }}>
+                        ✓ Всі платежі за цей місяць підтверджено
+                      </div>
+                    )}
                   </div>
                 </div>
               )
             ))}
 
-            {monthSections.every(s => s.items.length === 0) && propsWithoutSchedule.length === 0 && (
+            {monthSections.every(s => s.items.length === 0 && s.totalCount === 0) && propsWithoutSchedule.length === 0 && (
               <div className="empty-state" style={{ paddingTop: 24 }}>
                 <div className="empty-ic">📅</div>
                 <div className="empty-h">Платежів немає</div>
@@ -501,7 +554,7 @@ export default function PaymentCalendarScreen() {
               <div className="empty-state" style={{ paddingTop: 32 }}>
                 <div className="empty-ic">🗂</div>
                 <div className="empty-h">Архів порожній</div>
-                <div className="empty-s">Підтверджені платежі минулих місяців відображаються тут</div>
+                <div className="empty-s">Підтверджені платежі з&apos;являться тут</div>
               </div>
             ) : (
               <>
@@ -624,14 +677,26 @@ export default function PaymentCalendarScreen() {
       )}
 
       {/* ── Payment confirmation modal ── */}
+      {unpayTarget && (
+        <Modal
+          title="Скасувати платіж?"
+          subtitle={`${properties.find(p => p.id === unpayTarget.property_id)?.name ?? ''} · ${fmtDueDate(unpayTarget.due_date)}`}
+          onClose={() => setUnpayTarget(null)}
+          actions={[
+            { label: 'Скасувати платіж', variant: 'danger', onClick: handleUnpay },
+            { label: 'Назад', variant: 'secondary', onClick: () => setUnpayTarget(null) },
+          ]}
+        />
+      )}
+
       {payConfirmItem && (
         <Modal
-          title="Підтвердити отримання"
+          title={payConfirmItem.record?.status === 'paid' ? 'Редагувати платіж' : 'Підтвердити отримання'}
           subtitle={`${payConfirmItem.property.name} · ${fmtDueDate(payConfirmItem.dueDate)}`}
           onClose={() => !payConfirmSaving && setPayConfirmItem(null)}
           actions={[
             {
-              label: payConfirmSaving ? 'Зберігаємо...' : 'Підтвердити оплату',
+              label: payConfirmSaving ? 'Зберігаємо...' : (payConfirmItem.record?.status === 'paid' ? 'Зберегти зміни' : 'Підтвердити оплату'),
               variant: 'primary',
               disabled: payConfirmSaving,
               onClick: () => {
@@ -682,10 +747,12 @@ interface PaymentItemCardProps {
   onMarkPaid: () => void
   onEdit: () => void
   onDeleteSchedule: () => void
+  onEditPaid?: () => void
+  onUnpay?: () => void
   userCurrency?: string
 }
 
-function PaymentItemCard({ item, statusColor, label, onMarkPaid, onEdit, onDeleteSchedule, userCurrency }: PaymentItemCardProps) {
+function PaymentItemCard({ item, statusColor, label, onMarkPaid, onEdit, onDeleteSchedule, onEditPaid, onUnpay, userCurrency }: PaymentItemCardProps) {
   const isPaid     = item.record?.status === 'paid'
   const displayAmt = isPaid ? (item.record?.amount ?? null) : (item.property.rent_rate ?? null)
 
@@ -723,8 +790,20 @@ function PaymentItemCard({ item, statusColor, label, onMarkPaid, onEdit, onDelet
             <IconCheckCircle size={12} /> Отримано
           </button>
         ) : (
-          <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 'var(--r-pill)', background: 'rgba(52,199,89,.1)', border: '.5px solid rgba(52,199,89,.2)', color: '#34c759', fontSize: 12, fontWeight: 600 }}>
-            ✓ Сплачено
+          <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <button
+              onClick={onEditPaid}
+              style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '6px 10px', borderRadius: 'var(--r-pill)', background: 'rgba(52,199,89,.1)', border: '.5px solid rgba(52,199,89,.2)', color: '#34c759', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+            >
+              ✓ Сплачено
+            </button>
+            <button
+              onClick={onUnpay}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: '50%', background: 'rgba(255,59,48,.12)', border: '.5px solid rgba(255,59,48,.25)', color: 'var(--err)', fontSize: 14, cursor: 'pointer', flexShrink: 0 }}
+              title="Скасувати платіж"
+            >
+              ×
+            </button>
           </div>
         )}
       </div>
