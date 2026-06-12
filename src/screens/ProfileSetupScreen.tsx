@@ -6,9 +6,11 @@ import { useAuth } from '@/hooks/useAuth'
 import { IconMail, IconPhone, IconTelegram } from '@/components/Icons'
 import { scrollFocusedIntoView } from '@/lib/utils'
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
+
 export default function ProfileSetupScreen() {
   const user = useAppStore((s) => s.user)
-  const navigate = useAppStore((s) => s.navigate)
+  const { navigate, showToast } = useAppStore()
   const { updateProfile, loading } = useAuth()
 
   const [email, setEmail] = useState(user?.email ?? '')
@@ -20,15 +22,18 @@ export default function ProfileSetupScreen() {
     return () => { tg?.disableClosingConfirmation() }
   }, [])
 
-  async function handleContinue() {
-    if (email || phone) {
-      await updateProfile({ email: email || undefined, phone: phone || undefined })
-    }
-    navigate(user?.role === 'owner' ? 'empty-state' : 'realtor-dashboard')
-  }
+  const dest = user?.role === 'owner' ? 'empty-state' : 'realtor-dashboard'
 
-  function skip() {
-    navigate(user?.role === 'owner' ? 'empty-state' : 'realtor-dashboard')
+  async function handleContinue() {
+    if (email && !EMAIL_RE.test(email)) {
+      showToast({ type: 'error', title: 'Невірний email', subtitle: 'Перевірте формат адреси' })
+      return
+    }
+    if (email || phone) {
+      const ok = await updateProfile({ email: email || undefined, phone: phone || undefined }, true)
+      if (!ok) return
+    }
+    navigate(dest)
   }
 
   return (
@@ -110,23 +115,24 @@ export default function ProfileSetupScreen() {
         className={`mbtn success ${loading ? 'is-loading' : ''}`}
         onClick={handleContinue}
         disabled={loading}
+        style={{ position: 'relative', bottom: 'auto', left: 'auto', right: 'auto', margin: '24px 12px 0', width: 'calc(100% - 24px)' }}
       >
         {!loading && 'Почати роботу →'}
       </button>
 
       <button
-        onClick={skip}
+        onClick={() => navigate(dest)}
+        disabled={loading}
         style={{
           background: 'none',
           border: 'none',
           cursor: 'pointer',
-          color: 'var(--t3)',
+          color: 'var(--t4)',
           fontSize: 13,
           padding: '12px',
           width: '100%',
           textAlign: 'center',
-          position: 'absolute',
-          bottom: 'calc(78px + var(--safe-bottom))',
+          marginBottom: 'calc(16px + var(--safe-bottom))',
         }}
       >
         Пропустити →

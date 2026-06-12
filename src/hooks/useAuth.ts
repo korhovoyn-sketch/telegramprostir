@@ -273,7 +273,7 @@ export function useAuth() {
     supabase.auth.signOut().catch(() => {})
   }, [setUser, navigateRoot])
 
-  const updateProfile = useCallback(async (updates: Partial<User>) => {
+  const updateProfile = useCallback(async (updates: Partial<User>, silent = false): Promise<boolean> => {
     setLoading(true)
     try {
       const { data: { user: authUser } } = await supabase.auth.getUser()
@@ -300,9 +300,11 @@ export function useAuth() {
       if (error) throw error
       setUser(data as User)
       persistProfile(data as User)
-      showToast({ type: 'success', title: 'Профіль оновлено' })
+      if (!silent) showToast({ type: 'success', title: 'Профіль оновлено' })
+      return true
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Помилка збереження', subtitle: (e as Error).message })
+      return false
     } finally {
       setLoading(false)
     }

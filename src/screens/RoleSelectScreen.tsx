@@ -15,9 +15,9 @@ export default function RoleSelectScreen() {
   async function handleContinue() {
     if (!role) return
     setLoading(true)
-    await updateProfile({ role })
+    const ok = await updateProfile({ role }, true)
     setLoading(false)
-    navigate('profile-setup')
+    if (ok) navigate('profile-setup')
   }
 
   return (

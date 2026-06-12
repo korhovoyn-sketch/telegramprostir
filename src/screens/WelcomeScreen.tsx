@@ -7,16 +7,38 @@ import { useTelegram } from '@/hooks/useTelegram'
 import ProxMascot from '@/components/ProxMascot'
 import { IconTelegram, GlassTelegram, GlassShield, GlassBolt } from '@/components/Icons'
 
+const AUTH_STEPS = [
+  'Підключаємось до Telegram...',
+  'Перевіряємо дані...',
+  'Завантажуємо профіль...',
+  'Налаштовуємо середовище...',
+]
+
 export default function WelcomeScreen() {
   const { loginViaTelegram, loading } = useAuth()
   const { showToast, screenParams, user, navigateRoot } = useAppStore()
   const { tg, user: tgUser } = useTelegram()
   const [diagLoading, setDiagLoading] = useState(false)
+  const [stepIdx, setStepIdx] = useState(0)
+  const [elapsed, setElapsed] = useState(0)
   const autoLoginAttempted = useRef(false)
+  const loadStartRef = useRef<number>(0)
 
-  // SplashScreen abandons restoreSession after its timeout, but the restore keeps
-  // running and may set the user seconds later. Without this watcher the user
-  // would be stuck on Welcome with a valid session until they restart the app.
+  // Track loading start time and cycle through auth step messages
+  useEffect(() => {
+    if (!loading) { setStepIdx(0); setElapsed(0); return }
+    loadStartRef.current = Date.now()
+    setStepIdx(0)
+    const stepTimer = setInterval(() => {
+      setStepIdx(i => Math.min(i + 1, AUTH_STEPS.length - 1))
+    }, 4000)
+    const elapsedTimer = setInterval(() => {
+      setElapsed(Date.now() - loadStartRef.current)
+    }, 500)
+    return () => { clearInterval(stepTimer); clearInterval(elapsedTimer) }
+  }, [loading])
+
+  // Navigate when user is set (from restore finishing after splash timed out)
   useEffect(() => {
     if (!user) return
     const startParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param
@@ -28,13 +50,7 @@ export default function WelcomeScreen() {
     }
   }, [user, navigateRoot])
 
-  // Silent auto-login: attempt immediately if Telegram initData is available.
-  // This runs here (not in SplashScreen) so the user sees a proper loading UI
-  // instead of a frozen progress bar when the Edge Function is cold.
-  // Skip when the user explicitly logged out — they want to stay on this screen.
-  // Short delay: SplashScreen may have timed out while restoreSession was still
-  // running. Give it 200 ms to finish (fast path 0 in doRestoreSession returns
-  // quickly now), then proceed to Edge Function login if still no user.
+  // Silent auto-login: 200 ms grace so an in-flight restore can finish first
   useEffect(() => {
     if (autoLoginAttempted.current) return
     if (!tg?.initData) return
@@ -42,7 +58,7 @@ export default function WelcomeScreen() {
     if (useAppStore.getState().user) return
     autoLoginAttempted.current = true
     const delay = setTimeout(() => {
-      if (useAppStore.getState().user) return  // restore completed during delay
+      if (useAppStore.getState().user) return
       loginViaTelegram(tg!.initData)
     }, 200)
     return () => clearTimeout(delay)
@@ -67,10 +83,7 @@ export default function WelcomeScreen() {
     try {
       const res = await fetch(`${supabaseUrl}/functions/v1/telegram-auth`, {
         method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${anonKey ?? ''}`,
-          'apikey': anonKey ?? '',
-        },
+        headers: { 'Authorization': `Bearer ${anonKey ?? ''}`, 'apikey': anonKey ?? '' },
       })
       const data = await res.json()
       if (data.ok) {
@@ -78,14 +91,11 @@ export default function WelcomeScreen() {
       } else {
         const checks = data.checks ?? {}
         const bad = (Object.entries(checks) as [string, boolean][])
-          .filter(([, v]) => !v)
-          .map(([k]) => k)
+          .filter(([, v]) => !v).map(([k]) => k)
         showToast({
           type: 'error',
           title: 'Проблема конфігурації',
-          subtitle: bad.length
-            ? `Не налаштовано: ${bad.join(', ')}`
-            : 'Edge Function недоступна',
+          subtitle: bad.length ? `Не налаштовано: ${bad.join(', ')}` : 'Edge Function недоступна',
         })
       }
     } catch {
@@ -97,9 +107,75 @@ export default function WelcomeScreen() {
 
   const greeting = tgUser?.first_name ? `Привіт, ${tgUser.first_name}!` : 'Привіт!'
 
+  // ── Auth loading screen ─────────────────────────────────────────────────────
+  if (loading) {
+    const showRetry = elapsed > 25000
+    return (
+      <div className="scr bg-welcome" style={{ alignItems: 'center', justifyContent: 'center', gap: 0 }}>
+        {/* Glow behind mascot */}
+        <div style={{
+          position: 'absolute', width: 280, height: 280, borderRadius: '50%',
+          background: 'radial-gradient(circle,rgba(120,80,255,.45),transparent 70%)',
+          filter: 'blur(32px)', animation: 'glowPulse 3s ease-in-out infinite',
+        }} />
+
+        <div style={{ position: 'relative', marginBottom: 24 }}>
+          <ProxMascot mood="neutral" size={110} />
+        </div>
+
+        <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--t1)', marginBottom: 8, textAlign: 'center', letterSpacing: '-.01em' }}>
+          Авторизація
+        </div>
+        <div style={{
+          fontSize: 14, color: 'var(--t3)', textAlign: 'center',
+          padding: '0 40px', marginBottom: 28, lineHeight: 1.5,
+          minHeight: 22, transition: 'opacity .3s ease',
+        }}>
+          {AUTH_STEPS[stepIdx]}
+        </div>
+
+        {/* Animated dots */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 32 }}>
+          {AUTH_STEPS.map((_, i) => (
+            <div key={i} style={{
+              width: i === stepIdx ? 20 : 8,
+              height: 8, borderRadius: 4,
+              background: i === stepIdx ? 'var(--accent)' : 'var(--glass-3)',
+              transition: 'all .35s var(--ease)',
+            }} />
+          ))}
+        </div>
+
+        {showRetry ? (
+          <div style={{ textAlign: 'center', padding: '0 32px' }}>
+            <div style={{ fontSize: 13, color: 'var(--t3)', marginBottom: 16, lineHeight: 1.5 }}>
+              Авторизація займає довше, ніж зазвичай.{'\n'}Перевірте підключення до інтернету.
+            </div>
+            <button
+              onClick={handleLogin}
+              style={{
+                padding: '12px 32px', borderRadius: 'var(--r-pill)',
+                background: 'var(--glass-2)', border: 'var(--bd)',
+                color: 'var(--t1)', fontSize: 14, fontWeight: 600,
+                cursor: 'pointer', letterSpacing: '.01em',
+              }}
+            >
+              Спробувати ще раз
+            </button>
+          </div>
+        ) : (
+          <div style={{ fontSize: 12, color: 'var(--t4)', textAlign: 'center' }}>
+            Не закривайте додаток
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // ── Welcome / idle screen ────────────────────────────────────────────────────
   return (
     <div className="scr bg-welcome">
-      {/* Mascot section */}
+      {/* Mascot */}
       <div className="sticker-wrap">
         <div className="shimmer-ring" />
         <div className="glow-orb" style={{ background: 'radial-gradient(circle,rgba(120,80,255,.6),transparent 70%)' }} />
@@ -114,13 +190,13 @@ export default function WelcomeScreen() {
         Бази, об&apos;єкти, аналітика — все в одному місці.
       </div>
 
-      {/* Features */}
+      {/* Feature cards */}
       <div className="features-list">
         <div className="feature">
           <GlassTelegram size={32} />
           <div>
             <div className="feature-t">Вхід через Telegram</div>
-            <div className="feature-s">Без паролів — автоматична авторизація</div>
+            <div className="feature-s">Без паролів — миттєва авторизація</div>
           </div>
         </div>
         <div className="feature">
@@ -139,33 +215,29 @@ export default function WelcomeScreen() {
         </div>
       </div>
 
-      {/* Login button */}
+      {/* CTA */}
       <button
-        className={`mbtn ${loading ? 'is-loading' : ''}`}
+        className="mbtn"
         onClick={handleLogin}
-        disabled={loading}
         style={{ position: 'relative', bottom: 'auto', left: 'auto', right: 'auto', margin: '24px 12px 0', width: 'calc(100% - 24px)' }}
       >
-        {!loading && <IconTelegram size={18} />}
-        {!loading && 'Вхід через Telegram'}
-        {loading && <span style={{ fontSize: 13, opacity: 0.8 }}>Авторизуємось...</span>}
+        <IconTelegram size={18} />
+        Увійти через Telegram
       </button>
 
-      <div style={{ textAlign: 'center', fontSize: 13, color: 'var(--t3)', padding: '12px 24px 8px', lineHeight: 1.5 }}>
-        Натискаючи «Вхід», ви погоджуєтесь з Умовами використання та Політикою конфіденційності
+      <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--t4)', padding: '10px 28px 6px', lineHeight: 1.5 }}>
+        Натискаючи «Увійти», ви погоджуєтесь з{' '}
+        <span style={{ color: 'var(--t3)' }}>Умовами використання</span> та{' '}
+        <span style={{ color: 'var(--t3)' }}>Політикою конфіденційності</span>
       </div>
 
       <button
         onClick={handleDiag}
-        disabled={diagLoading || loading}
+        disabled={diagLoading}
         style={{
-          background: 'none',
-          border: 'none',
-          color: 'var(--t4)',
-          fontSize: 11,
-          cursor: 'pointer',
-          padding: '4px 16px 32px',
-          opacity: (diagLoading || loading) ? 0.5 : 1,
+          background: 'none', border: 'none', color: 'var(--t4)',
+          fontSize: 11, cursor: 'pointer', padding: '4px 16px 32px',
+          opacity: diagLoading ? 0.5 : 1,
         }}
       >
         {diagLoading ? 'Перевірка...' : '⚙ Діагностика підключення'}
