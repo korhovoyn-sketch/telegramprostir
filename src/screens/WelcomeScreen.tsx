@@ -175,72 +175,70 @@ export default function WelcomeScreen() {
   // ── Welcome / idle screen ────────────────────────────────────────────────────
   return (
     <div className="scr bg-welcome">
-      {/* Mascot */}
-      <div className="sticker-wrap">
-        <div className="shimmer-ring" />
-        <div className="glow-orb" style={{ background: 'radial-gradient(circle,rgba(120,80,255,.6),transparent 70%)' }} />
-        <div className="sticker">
-          <ProxMascot mood="happy" size={140} />
-        </div>
-      </div>
-
-      <div className="heading">{greeting}<br />Я — Прокс</div>
-      <div className="subtext">
-        Твій AI-асистент для <b>управління нерухомістю</b> у Telegram.
-        Бази, об&apos;єкти, аналітика — все в одному місці.
-      </div>
-
-      {/* Feature cards */}
-      <div className="features-list">
-        <div className="feature">
-          <GlassTelegram size={32} />
-          <div>
-            <div className="feature-t">Вхід через Telegram</div>
-            <div className="feature-s">Без паролів — миттєва авторизація</div>
+      <div className="body" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingBottom: 'calc(var(--btn-h) + 60px + var(--safe-bottom))' }}>
+        {/* Mascot */}
+        <div className="sticker-wrap">
+          <div className="shimmer-ring" />
+          <div className="glow-orb" style={{ background: 'radial-gradient(circle,rgba(120,80,255,.6),transparent 70%)' }} />
+          <div className="sticker">
+            <ProxMascot mood="happy" size={140} />
           </div>
         </div>
-        <div className="feature">
-          <GlassShield size={32} />
-          <div>
-            <div className="feature-t">Безпека даних</div>
-            <div className="feature-s">HMAC підпис, RLS, шифрування</div>
+
+        <div className="heading" style={{ textAlign: 'center' }}>{greeting}<br />Я — Прокс</div>
+        <div className="subtext" style={{ textAlign: 'center' }}>
+          Твій AI-асистент для <b>управління нерухомістю</b> у Telegram.
+          Бази, об&apos;єкти, аналітика — все в одному місці.
+        </div>
+
+        {/* Feature cards */}
+        <div className="features-list" style={{ width: '100%' }}>
+          <div className="feature">
+            <GlassTelegram size={32} />
+            <div>
+              <div className="feature-t">Вхід через Telegram</div>
+              <div className="feature-s">Без паролів — миттєва авторизація</div>
+            </div>
+          </div>
+          <div className="feature">
+            <GlassShield size={32} />
+            <div>
+              <div className="feature-t">Безпека даних</div>
+              <div className="feature-s">HMAC підпис, RLS, шифрування</div>
+            </div>
+          </div>
+          <div className="feature">
+            <GlassBolt size={32} />
+            <div>
+              <div className="feature-t">Швидкий старт</div>
+              <div className="feature-s">Три кроки до першої бази</div>
+            </div>
           </div>
         </div>
-        <div className="feature">
-          <GlassBolt size={32} />
-          <div>
-            <div className="feature-t">Швидкий старт</div>
-            <div className="feature-s">Три кроки до першої бази</div>
-          </div>
+
+        <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--t4)', padding: '10px 28px 6px', lineHeight: 1.5 }}>
+          Натискаючи «Увійти», ви погоджуєтесь з{' '}
+          <span style={{ color: 'var(--t3)' }}>Умовами використання</span> та{' '}
+          <span style={{ color: 'var(--t3)' }}>Політикою конфіденційності</span>
         </div>
+
+        <button
+          onClick={handleDiag}
+          disabled={diagLoading}
+          style={{
+            background: 'none', border: 'none', color: 'var(--t4)',
+            fontSize: 11, cursor: 'pointer', padding: '4px 16px 8px',
+            opacity: diagLoading ? 0.5 : 1,
+          }}
+        >
+          {diagLoading ? 'Перевірка...' : '⚙ Діагностика підключення'}
+        </button>
       </div>
 
-      {/* CTA */}
-      <button
-        className="mbtn"
-        onClick={handleLogin}
-        style={{ position: 'relative', bottom: 'auto', left: 'auto', right: 'auto', margin: '24px 12px 0', width: 'calc(100% - 24px)' }}
-      >
+      {/* CTA — always visible at bottom */}
+      <button className="mbtn" onClick={handleLogin}>
         <IconTelegram size={18} />
         Увійти через Telegram
-      </button>
-
-      <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--t4)', padding: '10px 28px 6px', lineHeight: 1.5 }}>
-        Натискаючи «Увійти», ви погоджуєтесь з{' '}
-        <span style={{ color: 'var(--t3)' }}>Умовами використання</span> та{' '}
-        <span style={{ color: 'var(--t3)' }}>Політикою конфіденційності</span>
-      </div>
-
-      <button
-        onClick={handleDiag}
-        disabled={diagLoading}
-        style={{
-          background: 'none', border: 'none', color: 'var(--t4)',
-          fontSize: 11, cursor: 'pointer', padding: '4px 16px 32px',
-          opacity: diagLoading ? 0.5 : 1,
-        }}
-      >
-        {diagLoading ? 'Перевірка...' : '⚙ Діагностика підключення'}
       </button>
     </div>
   )
