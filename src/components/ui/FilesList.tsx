@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { usePropertyFiles } from '@/hooks/usePropertyFiles'
 import { useAppStore } from '@/store/appStore'
 import Modal from '@/components/ui/Modal'
+import FilePreviewModal from '@/components/ui/FilePreviewModal'
 import { IconFile, IconPlus, IconTrash, IconEye, IconCloudUpload } from '@/components/Icons'
 import type { PropertyFile } from '@/types'
 
@@ -47,6 +48,7 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [toDelete, setToDelete]     = useState<PropertyFile | null>(null)
   const [openingId, setOpeningId]   = useState<string | null>(null)
+  const [previewFile, setPreviewFile] = useState<{ url: string; mime: string; name: string } | null>(null)
 
   useEffect(() => { fetchFiles() }, [fetchFiles])
 
@@ -65,9 +67,7 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
     try {
       const url = await getSignedUrl(file.storage_path)
       if (!url) { showToast({ type: 'error', title: 'Не вдалося відкрити файл' }); return }
-      const tg = window.Telegram?.WebApp
-      if (tg?.openLink) tg.openLink(url)
-      else window.open(url, '_blank', 'noopener')
+      setPreviewFile({ url, mime: file.mime_type, name: file.file_name })
     } finally {
       setOpeningId(null)
     }
@@ -277,6 +277,16 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
           multiple
           style={{ display: 'none' }}
           onChange={handleUpload}
+        />
+      )}
+
+      {/* ── File preview (inline, no external browser) ── */}
+      {previewFile && (
+        <FilePreviewModal
+          url={previewFile.url}
+          mime={previewFile.mime}
+          name={previewFile.name}
+          onClose={() => setPreviewFile(null)}
         />
       )}
 

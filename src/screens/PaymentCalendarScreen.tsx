@@ -377,15 +377,15 @@ export default function PaymentCalendarScreen() {
       <div className="body">
         {/* Stats row */}
         <div className="stat-g" style={{ gridTemplateColumns: 'repeat(3,1fr)' }}>
-          <div className="stat glass-s">
+          <div className="stat glass-s stat-pop-anim" style={{ animationDelay: '0s' }}>
             <div className="stat-n" style={{ color: 'var(--err)' }}>{stats.overdue}</div>
             <div className="stat-l">Прострочено</div>
           </div>
-          <div className="stat glass-s">
+          <div className="stat glass-s stat-pop-anim" style={{ animationDelay: '.06s' }}>
             <div className="stat-n" style={{ color: 'var(--warn)' }}>{stats.upcoming}</div>
             <div className="stat-l">Очікується</div>
           </div>
-          <div className="stat glass-s">
+          <div className="stat glass-s stat-pop-anim" style={{ animationDelay: '.12s' }}>
             <div className="stat-n" style={{ color: 'var(--ok)', fontSize: stats.paidAmount >= 100000 ? 14 : undefined }}>
               {stats.paidAmount > 0 ? formatPrice(stats.paidAmount, user?.currency) : stats.paid > 0 ? stats.paid : '—'}
             </div>
@@ -422,7 +422,7 @@ export default function PaymentCalendarScreen() {
           </div>
 
         ) : activeTab === 'current' ? (
-          <>
+          <div key="current" className="tab-content-anim">
             {/* Horizon selector + filter toggle */}
             <div style={{ margin: '0 12px 8px', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 12, color: 'var(--t3)', flexShrink: 0 }}>Показати:</span>
@@ -500,7 +500,7 @@ export default function PaymentCalendarScreen() {
                         </span>
                         <span style={{ display: 'flex', gap: 2 }}>
                           {Array.from({ length: section.totalCount }, (_, k) => (
-                            <span key={k} style={{ width: 14, height: 4, borderRadius: 2, background: k < section.paidCount ? 'var(--ok)' : 'rgba(255,255,255,.15)' }} />
+                            <span key={k} style={{ width: 14, height: 4, borderRadius: 2, background: k < section.paidCount ? 'var(--ok)' : 'rgba(255,255,255,.15)', transition: 'background .35s ease' }} />
                           ))}
                         </span>
                       </span>
@@ -543,11 +543,11 @@ export default function PaymentCalendarScreen() {
                 <div className="empty-s">Всі розклади налаштовано — тут з&apos;являться майбутні платежі</div>
               </div>
             )}
-          </>
+          </div>
 
         ) : (
           /* ── Archive tab ── */
-          <>
+          <div key="archive" className="tab-content-anim">
             {archiveLoading ? (
               <div className="loader-wrap" style={{ paddingTop: 40 }}><div className="loader" /></div>
             ) : archiveRecords.length === 0 ? (
@@ -622,7 +622,7 @@ export default function PaymentCalendarScreen() {
                 ))}
               </>
             )}
-          </>
+          </div>
         )}
 
         <div style={{ height: 80 }} />

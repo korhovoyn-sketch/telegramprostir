@@ -71,9 +71,15 @@ export default function PhotoGalleryScreen() {
   }
 
   function handleDownload() {
-    if (!url) return
-    if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-      window.Telegram.WebApp.openLink(url)
+    if (!url || !photo) return
+    const tg = window.Telegram?.WebApp
+    const fileName = photo.storage_path.split('/').pop() ?? 'photo.jpg'
+    // Bot API 7.10 types not yet in SDK typedefs — cast to access newer methods
+    const tgExt = tg as unknown as { isVersionAtLeast?: (v: string) => boolean; downloadFile?: (p: { url: string; file_name: string }) => void }
+    if (tgExt.isVersionAtLeast?.('7.10')) {
+      tgExt.downloadFile?.({ url, file_name: fileName })
+    } else if (tg?.openLink) {
+      tg.openLink(url)
     } else {
       window.open(url, '_blank')
     }
