@@ -6,7 +6,8 @@ import { useProperties } from '@/hooks/useProperties'
 import Header from '@/components/ui/Header'
 import Toggle from '@/components/ui/Toggle'
 import Modal from '@/components/ui/Modal'
-import { IconRuler, IconLayers, IconActivity, IconBuilding, IconCurrencyDollar, IconBolt, IconCarGarage, IconFile, IconUser, IconKey, IconMapPin, IconDroplet, IconFlame, IconThermometer, IconBatteryCharging } from '@/components/Icons'
+import { IconRuler, IconLayers, IconActivity, IconBuilding, IconCurrencyDollar, IconBolt, IconCarGarage, IconFile, IconUser, IconKey, IconMapPin } from '@/components/Icons'
+import { UTILITY_META } from '@/lib/utilityMeta'
 import FilesList from '@/components/ui/FilesList'
 import { formatPrice, calcRent, calcUtilities, scrollFocusedIntoView } from '@/lib/utils'
 import type { PropertyStatus, RentType } from '@/types'
@@ -75,14 +76,6 @@ export default function PropertyFormScreen() {
     ? calcUtilities(parseFloat(areaTotal), parseFloat(utilitiesRate))
     : 0
   const total = rentCalc + utilsCalc
-
-  const UTILITY_TAGS = [
-    { id: 'electricity', label: 'Електропостачання', icon: <IconBolt size={14} />, color: '#fbbf24' },
-    { id: 'water',       label: 'Водопостачання',    icon: <IconDroplet size={14} />, color: '#7AB3FF' },
-    { id: 'heating',     label: 'Теплопостачання',   icon: <IconThermometer size={14} />, color: '#fb923c' },
-    { id: 'gas',         label: 'Газопостачання',    icon: <IconFlame size={14} />, color: '#4ade80' },
-    { id: 'backup',      label: 'Резервне живлення', icon: <IconBatteryCharging size={14} />, color: '#a78bfa' },
-  ] as const
 
   function toggleUtility(id: string) {
     window.Telegram?.WebApp?.HapticFeedback?.selectionChanged()
@@ -314,7 +307,7 @@ export default function PropertyFormScreen() {
         <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconBolt size={13} color="#fbbf24" />Комунальні послуги</span></div>
         <div className="glass-s" style={{ margin: '0 12px 16px', borderRadius: 'var(--r-md)' }}>
           <div className="util-tags">
-            {UTILITY_TAGS.map(({ id, label, icon, color }) => {
+            {UTILITY_META.map(({ id, label, Icon, color }) => {
               const on = utilities.includes(id)
               return (
                 <button
@@ -323,7 +316,7 @@ export default function PropertyFormScreen() {
                   onClick={() => toggleUtility(id)}
                   style={on ? { color } : undefined}
                 >
-                  {icon}
+                  <Icon size={14} />
                   {label}
                 </button>
               )

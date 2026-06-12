@@ -11,14 +11,8 @@ import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import CoachMark from '@/components/ui/CoachMark'
 import { useOnboarding } from '@/hooks/useOnboarding'
 import { IconBell, IconChevronRight, IconPlus, GlassDbIcon } from '@/components/Icons'
-import { DB_TYPE_LABELS, formatPrice } from '@/lib/utils'
+import { DB_TYPE_LABELS, formatPrice, STATUS_COLORS, STATUS_LABELS } from '@/lib/utils'
 import type { PropertyStatus } from '@/types'
-
-const STATUS_BADGE: Record<PropertyStatus, { bg: string; color: string; label: string }> = {
-  free:     { bg: 'rgba(52,199,89,.18)',  color: '#34c759', label: 'Вільно'  },
-  occupied: { bg: 'rgba(255,159,10,.18)', color: '#ff9f0a', label: 'Зайнято' },
-  for_sale: { bg: 'rgba(122,179,255,.18)',color: '#7ab3ff', label: 'Продаж'  },
-}
 
 interface PropSearchResult {
   id: string
@@ -157,7 +151,7 @@ export default function DatabaseListScreen() {
             ) : (
               <div className="list">
                 {propResults.map(p => {
-                  const badge = STATUS_BADGE[p.status]
+                  const badge = STATUS_COLORS[p.status]
                   return (
                     <div
                       key={p.id}
@@ -172,7 +166,7 @@ export default function DatabaseListScreen() {
                         </div>
                       </div>
                       <div className="row-r">
-                        <span className="bdg" style={{ background: badge.bg, color: badge.color }}>{badge.label}</span>
+                        <span className="bdg" style={{ background: badge.bg, color: badge.color }}>{STATUS_LABELS[p.status]}</span>
                       </div>
                       <IconChevronRight size={14} color="var(--t4)" />
                     </div>

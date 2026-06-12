@@ -5,7 +5,7 @@ import { useAppStore } from '@/store/appStore'
 import { useNotifications } from '@/hooks/useNotifications'
 import TabBar from '@/components/ui/TabBar'
 import { IconX } from '@/components/Icons'
-import { formatDate } from '@/lib/utils'
+import { formatDate, daysSince } from '@/lib/utils'
 import type { Notification } from '@/types'
 
 type NotifTab = 'all' | 'views' | 'chats' | 'system'
@@ -31,7 +31,7 @@ export default function NotificationsScreen() {
   })
 
   const groupedByDate = filtered.reduce((acc, n) => {
-    const d = Math.floor((Date.now() - new Date(n.created_at).getTime()) / 86400000)
+    const d = daysSince(n.created_at)
     const key = d === 0 ? 'Сьогодні' : d === 1 ? 'Вчора' : d < 7 ? 'Цього тижня' : 'Раніше'
     if (!acc[key]) acc[key] = []
     acc[key].push(n)

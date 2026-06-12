@@ -5,6 +5,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { IconX, IconShare, IconDownload, IconChevronLeft, IconChevronRight } from '@/components/Icons'
 import type { PropertyPhoto } from '@/types'
+import { photoUrl } from '@/lib/utils'
 
 export default function PhotoGalleryScreen() {
   const { back, screenParams } = useAppStore()
@@ -56,13 +57,11 @@ export default function PhotoGalleryScreen() {
   }, [photos.length])
 
   const photo = photos[current]
-  const url = photo
-    ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/photos/${photo.storage_path}`
-    : null
+  const url = photo ? photoUrl(photo.storage_path) : null
 
   function handleShare() {
     if (!photo) return
-    const imageUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/photos/${photo.storage_path}`
+    const imageUrl = photoUrl(photo.storage_path)
     const shareText = `Фото нерухомості ${current + 1}/${photos.length}`
     const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(imageUrl)}&text=${encodeURIComponent(shareText)}`
     if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
@@ -220,7 +219,7 @@ export default function PhotoGalleryScreen() {
           }}
         >
           {photos.map((p, i) => {
-            const thumbUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/photos/${p.storage_path}`
+            const thumbUrl = photoUrl(p.storage_path)
             return (
               <div
                 key={p.id}

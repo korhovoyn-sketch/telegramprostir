@@ -6,7 +6,7 @@ import { useAppStore } from '@/store/appStore'
 import { StatusBadge } from '@/components/ui/Badge'
 import Header from '@/components/ui/Header'
 import { IconBuilding } from '@/components/Icons'
-import { formatPrice, calcRent } from '@/lib/utils'
+import { formatPrice, calcRent, photoUrl } from '@/lib/utils'
 import type { PropertyStatus, RentType } from '@/types'
 
 interface SharedProperty {
@@ -25,10 +25,6 @@ interface SharedCollectionData {
   id: string
   name: string
   properties: SharedProperty[]
-}
-
-function getPhotoUrl(storagePath: string): string {
-  return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/photos/${storagePath}`
 }
 
 export default function SharedCollectionScreen() {
@@ -97,7 +93,7 @@ export default function SharedCollectionScreen() {
         ) : (
           <div className="list">
             {data.properties.map((p) => {
-              const thumbUrl = p.first_photo ? getPhotoUrl(p.first_photo) : null
+              const thumbUrl = p.first_photo ? photoUrl(p.first_photo) : null
               const rent = p.rent_rate && p.area_useful
                 ? calcRent(p.area_useful, p.rent_rate, p.rent_type)
                 : 0

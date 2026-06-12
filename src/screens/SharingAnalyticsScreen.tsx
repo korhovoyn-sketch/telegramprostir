@@ -6,7 +6,7 @@ import { useAppStore } from '@/store/appStore'
 import { supabase } from '@/lib/supabase'
 import Header from '@/components/ui/Header'
 import { IconShare, IconEye, IconChartLine } from '@/components/Icons'
-import { formatDate } from '@/lib/utils'
+import { formatDate, daysSince } from '@/lib/utils'
 import { buildPublicUrl, sharePublicUrl } from '@/lib/telegram'
 import type { PropertyView } from '@/types'
 
@@ -77,10 +77,9 @@ export default function SharingAnalyticsScreen() {
         setViews(viewData)
 
         // Chart: count per day for the last 7 days only
-        const now = Date.now()
         const dayData = Array(7).fill(0)
         viewData.forEach((v) => {
-          const diff = Math.floor((now - new Date(v.created_at).getTime()) / 86400000)
+          const diff = daysSince(v.created_at)
           if (diff >= 0 && diff < 7) dayData[6 - diff]++
         })
         setChartData(dayData)
@@ -96,13 +95,8 @@ export default function SharingAnalyticsScreen() {
   const maxVal = Math.max(...chartData, 1)
 
   // Stats are based on the last 7 days only (matches chart label)
-  const now = Date.now()
-  const last7Views = views.filter((v) =>
-    Math.floor((now - new Date(v.created_at).getTime()) / 86400000) < 7
-  )
-  const todayViews = views.filter((v) =>
-    Math.floor((now - new Date(v.created_at).getTime()) / 86400000) === 0
-  )
+  const last7Views = views.filter((v) => daysSince(v.created_at) < 7)
+  const todayViews = views.filter((v) => daysSince(v.created_at) === 0)
 
   const isPropertyShare = Boolean(screenParams.propertyId)
 
@@ -274,7 +268,7 @@ export default function SharingAnalyticsScreen() {
                   <div
                     className="view-dot"
                     style={{
-                      color: Math.floor((Date.now() - new Date(v.created_at).getTime()) / 86400000) === 0
+                      color: daysSince(v.created_at) === 0
                         ? 'var(--ok)' : 'var(--t4)'
                     }}
                   />

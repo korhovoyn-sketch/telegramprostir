@@ -7,16 +7,12 @@ import { useProperties } from '@/hooks/useProperties'
 import Header from '@/components/ui/Header'
 import Modal from '@/components/ui/Modal'
 import { StatusBadge } from '@/components/ui/Badge'
-import { IconEdit, IconShare, IconMapPin, IconPhoto, IconX, IconCamera, IconRuler, IconBuildingSkyscraper, IconCircleCheck, IconCurrencyDollar, IconCarGarage, IconUser, IconKey, IconBolt, IconDroplet, IconFlame, IconThermometer, IconBatteryCharging, IconCalendar } from '@/components/Icons'
+import { IconEdit, IconShare, IconMapPin, IconPhoto, IconX, IconCamera, IconRuler, IconBuildingSkyscraper, IconCircleCheck, IconCurrencyDollar, IconCarGarage, IconUser, IconKey, IconBolt, IconCalendar } from '@/components/Icons'
 import FilesList from '@/components/ui/FilesList'
-import { formatPrice, calcRent, calcUtilities, STATUS_LABELS, formatLeasePeriod } from '@/lib/utils'
+import FloatingButton from '@/components/ui/FloatingButton'
+import { formatPrice, calcRent, calcUtilities, STATUS_LABELS, formatLeasePeriod, photoUrl, daysUntil } from '@/lib/utils'
+import { UTILITY_META } from '@/lib/utilityMeta'
 import { supabase } from '@/lib/supabase'
-
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
-
-function photoUrl(path: string) {
-  return `${SUPABASE_URL}/storage/v1/object/public/photos/${path}`
-}
 
 function Building3DHero() {
   return (
@@ -113,6 +109,7 @@ export default function PropertyDetailScreen() {
   const { properties, loadSingleProperty, deletePhoto, updateProperty } = useProperties(screenParams.dbId)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const tenantInputRef = useRef<HTMLInputElement>(null)
+  const filesSectionRef = useRef<HTMLDivElement>(null)
   const [photoToDelete, setPhotoToDelete] = useState<{ id: string; path: string } | null>(null)
   const [showRentModal, setShowRentModal] = useState(false)
   const [rentTenantName, setRentTenantName] = useState('')
@@ -141,6 +138,15 @@ export default function PropertyDetailScreen() {
     const t = setTimeout(() => tenantInputRef.current?.focus(), 400)
     return () => clearTimeout(t)
   }, [showRentModal])
+
+  // Scroll to files section when opened via the card's "Файли" quick action.
+  // Delay lets the screen finish its enter animation and the section render.
+  useEffect(() => {
+    if (screenParams.scrollTo !== 'files' || !property) return
+    const t = setTimeout(() => filesSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 350)
+    return () => clearTimeout(t)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [property?.id])
 
   // Record a view exactly once per session mount
   const viewRecorded = useRef(false)
@@ -270,7 +276,8 @@ export default function PropertyDetailScreen() {
             {STATUS_LABELS[property.status]}
           </div>
 
-          {isOwner && (
+          {/* For for_sale the bottom CTA is the share entry point — avoid a second one in the hero */}
+          {isOwner && property.status !== 'for_sale' && (
             <div className="obj-hero-r">
               <button
                 className="obj-hero-a"
@@ -392,32 +399,23 @@ export default function PropertyDetailScreen() {
         )}
 
         {/* Utilities */}
-        {(property.utilities ?? []).length > 0 && (() => {
-          const UTIL_META: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
-            electricity: { label: 'Електропостачання', icon: <IconBolt size={13} />, color: '#fbbf24' },
-            water:       { label: 'Водопостачання',    icon: <IconDroplet size={13} />, color: '#7AB3FF' },
-            heating:     { label: 'Теплопостачання',   icon: <IconThermometer size={13} />, color: '#fb923c' },
-            gas:         { label: 'Газопостачання',    icon: <IconFlame size={13} />, color: '#4ade80' },
-            backup:      { label: 'Резервне живлення', icon: <IconBatteryCharging size={13} />, color: '#a78bfa' },
-          }
-          return (
-            <div style={{ margin: '0 12px 12px' }}>
-              <div style={{ fontSize: 12, color: 'var(--t3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 8 }}>Комунальні послуги</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {(property.utilities ?? []).map(uid => {
-                  const meta = UTIL_META[uid]
-                  if (!meta) return null
-                  return (
-                    <div key={uid} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 'var(--r-pill)', background: 'var(--glass-2)', border: '.5px solid var(--glass-3)', fontSize: 12, fontWeight: 500, color: meta.color }}>
-                      {meta.icon}
-                      {meta.label}
-                    </div>
-                  )
-                })}
-              </div>
+        {(property.utilities ?? []).length > 0 && (
+          <div style={{ margin: '0 12px 12px' }}>
+            <div style={{ fontSize: 12, color: 'var(--t3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 8 }}>Комунальні послуги</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {(property.utilities ?? []).map(uid => {
+                const meta = UTILITY_META.find(m => m.id === uid)
+                if (!meta) return null
+                return (
+                  <div key={uid} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 'var(--r-pill)', background: 'var(--glass-2)', border: '.5px solid var(--glass-3)', fontSize: 12, fontWeight: 500, color: meta.color }}>
+                    <meta.Icon size={13} />
+                    {meta.label}
+                  </div>
+                )
+              })}
             </div>
-          )
-        })()}
+          </div>
+        )}
 
         {/* Financial breakdown */}
         {total > 0 && (
@@ -472,7 +470,7 @@ export default function PropertyDetailScreen() {
           const end = new Date(property.lease_end_date).getTime()
           const now = Date.now()
           const progress = Math.min(100, Math.max(0, ((now - start) / (end - start)) * 100))
-          const daysLeft = Math.ceil((end - now) / 86400000)
+          const daysLeft = daysUntil(property.lease_end_date!)
           const barColor = daysLeft < 30 ? '#fb923c' : '#4ade80'
           return (
             <div className="glass-s" style={{ margin: '0 12px 12px', borderRadius: 'var(--r-md)', padding: '12px 14px' }}>
@@ -553,7 +551,9 @@ export default function PropertyDetailScreen() {
         )}
 
         {/* Files section */}
-        <FilesList propertyId={property.id} isOwner={isOwner} />
+        <div ref={filesSectionRef}>
+          <FilesList propertyId={property.id} isOwner={isOwner} />
+        </div>
 
         {property.description && (
           <>
@@ -568,21 +568,10 @@ export default function PropertyDetailScreen() {
       </div>
 
       {isOwner && property.status === 'free' && (
-        <button
-          style={{
-            position: 'absolute', bottom: 'calc(14px + var(--safe-bottom))',
-            left: '50%', transform: 'translateX(-50%)',
-            height: 'var(--btn-h)', padding: '0 32px', minWidth: 200,
-            borderRadius: 'var(--r-pill)', whiteSpace: 'nowrap',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            fontSize: 15, fontWeight: 600, color: '#fff', cursor: 'pointer',
-            background: 'rgba(74,219,122,.18)',
-            border: '.5px solid rgba(74,219,122,.42)',
-            backdropFilter: 'blur(16px) saturate(180%)',
-            WebkitBackdropFilter: 'blur(16px) saturate(180%)',
-            boxShadow: '0 4px 24px rgba(74,219,122,.22), inset 0 1px 0 rgba(255,255,255,.18)',
-            zIndex: 20,
-          }}
+        <FloatingButton
+          variant="success"
+          icon={<IconKey size={16} />}
+          label="Здати в оренду"
           onClick={() => {
             setRentTenantName('')
             setRentLeaseStart('')
@@ -591,54 +580,23 @@ export default function PropertyDetailScreen() {
             setRentUtilitiesRate(property.utilities_rate != null ? String(property.utilities_rate) : '')
             setShowRentModal(true)
           }}
-        >
-          <IconKey size={16} />
-          Здати в оренду
-        </button>
+        />
       )}
       {isOwner && property.status === 'occupied' && (
-        <button
-          style={{
-            position: 'absolute', bottom: 'calc(14px + var(--safe-bottom))',
-            left: '50%', transform: 'translateX(-50%)',
-            height: 'var(--btn-h)', padding: '0 32px', minWidth: 200,
-            borderRadius: 'var(--r-pill)', whiteSpace: 'nowrap',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            fontSize: 15, fontWeight: 600, color: '#fff', cursor: 'pointer',
-            background: 'rgba(255,107,97,.16)',
-            border: '.5px solid rgba(255,107,97,.38)',
-            backdropFilter: 'blur(16px) saturate(180%)',
-            WebkitBackdropFilter: 'blur(16px) saturate(180%)',
-            boxShadow: '0 4px 24px rgba(255,107,97,.18), inset 0 1px 0 rgba(255,255,255,.15)',
-            zIndex: 20,
-          }}
+        <FloatingButton
+          variant="danger"
+          icon={<IconCircleCheck size={16} />}
+          label="Звільнити об'єкт"
           onClick={() => setShowFreeModal(true)}
-        >
-          <IconCircleCheck size={16} />
-          Звільнити об&apos;єкт
-        </button>
+        />
       )}
       {isOwner && property.status === 'for_sale' && (
-        <button
-          style={{
-            position: 'absolute', bottom: 'calc(14px + var(--safe-bottom))',
-            left: '50%', transform: 'translateX(-50%)',
-            height: 'var(--btn-h)', padding: '0 32px', minWidth: 200,
-            borderRadius: 'var(--r-pill)', whiteSpace: 'nowrap',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            fontSize: 15, fontWeight: 600, color: '#fff', cursor: 'pointer',
-            background: 'rgba(42,171,238,.15)',
-            border: '.5px solid rgba(42,171,238,.35)',
-            backdropFilter: 'blur(16px) saturate(180%)',
-            WebkitBackdropFilter: 'blur(16px) saturate(180%)',
-            boxShadow: '0 4px 24px rgba(42,171,238,.18), inset 0 1px 0 rgba(255,255,255,.18)',
-            zIndex: 20,
-          }}
-          onClick={() => navigate('sharing-analytics', { propertyId: property.id })}
-        >
-          <IconShare size={16} />
-          Поділитись
-        </button>
+        <FloatingButton
+          variant="info"
+          icon={<IconShare size={16} />}
+          label="Поділитись"
+          onClick={() => navigate('sharing-analytics', { propertyId: property.id, dbId: screenParams.dbId })}
+        />
       )}
 
       {photoToDelete && (

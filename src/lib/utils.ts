@@ -19,6 +19,20 @@ export async function withRetry<T>(
   return last
 }
 
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
+
+export function photoUrl(storagePath: string): string {
+  return `${SUPABASE_URL}/storage/v1/object/public/photos/${storagePath}`
+}
+
+export function daysSince(dateStr: string): number {
+  return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000)
+}
+
+export function daysUntil(dateStr: string): number {
+  return Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86400000)
+}
+
 export function formatPrice(amount: number, currency = 'USD'): string {
   if (currency === 'USD') return `$${amount.toLocaleString('uk-UA')}`
   if (currency === 'EUR') return `€${amount.toLocaleString('uk-UA')}`
@@ -130,6 +144,12 @@ export const STATUS_BADGE_CLS: Record<string, string> = {
   free: 'bdg-ok',
   occupied: 'bdg-busy',
   for_sale: 'bdg-sale',
+}
+
+export const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
+  free:     { bg: 'rgba(52,199,89,.18)',   color: '#34c759' },
+  occupied: { bg: 'rgba(255,159,10,.18)',  color: '#ff9f0a' },
+  for_sale: { bg: 'rgba(122,179,255,.18)', color: '#7ab3ff' },
 }
 
 export const DB_COLORS: Record<string, string> = {

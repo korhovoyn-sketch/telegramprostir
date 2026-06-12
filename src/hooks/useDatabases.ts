@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAppStore } from '@/store/appStore'
+import { calcRent } from '@/lib/utils'
 import type { Database } from '@/types'
 
 export function useDatabases() {
@@ -31,7 +32,7 @@ export function useDatabases() {
           .filter(p => p.status === 'occupied' && p.rent_rate)
           .reduce((sum, p) => {
             if (!p.rent_rate) return sum
-            return sum + (p.rent_type === 'fixed' ? p.rent_rate : (p.area_useful ?? 0) * p.rent_rate)
+            return sum + calcRent(p.area_useful ?? 0, p.rent_rate, p.rent_type ?? 'per_m2')
           }, 0)
         return {
           ...row,

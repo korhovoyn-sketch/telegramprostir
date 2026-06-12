@@ -7,7 +7,7 @@ import TabBar from '@/components/ui/TabBar'
 import { StatusBadge } from '@/components/ui/Badge'
 import Modal from '@/components/ui/Modal'
 import { IconPlus, IconShare, IconX, IconChevronLeft, IconTrash, IconBuilding } from '@/components/Icons'
-import { formatPrice, calcRent, formatDate } from '@/lib/utils'
+import { formatPrice, calcRent, formatDate, photoUrl } from '@/lib/utils'
 import { sharePublicUrl } from '@/lib/telegram'
 import type { Property, Collection } from '@/types'
 import CoachMark from '@/components/ui/CoachMark'
@@ -26,11 +26,6 @@ interface CollectionProperty {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function getPhotoUrl(storagePath: string): string {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
-  return `${url}/storage/v1/object/public/photos/${storagePath}`
-}
 
 function getRentLabel(p: Property, currency = 'USD'): string {
   if (!p.rent_rate) return '—'
@@ -312,7 +307,7 @@ function CollectionDetail({
               const p = cp.property
               if (!p) return null
               const firstPhoto = p.photos?.[0]
-              const thumbUrl = firstPhoto ? getPhotoUrl(firstPhoto.storage_path) : null
+              const thumbUrl = firstPhoto ? photoUrl(firstPhoto.storage_path) : null
 
               return (
                 <div key={cp.property_id} className="row glass-s" style={{ alignItems: 'flex-start', gap: 10 }}>
@@ -388,7 +383,7 @@ function CollectionDetail({
               <div className="list" style={{ gap: 6 }}>
                 {availableProps.map((p) => {
                   const firstPhoto = p.photos?.[0]
-                  const thumbUrl = firstPhoto ? getPhotoUrl(firstPhoto.storage_path) : null
+                  const thumbUrl = firstPhoto ? photoUrl(firstPhoto.storage_path) : null
 
                   return (
                     <div key={p.id} className="row glass-s" style={{ alignItems: 'center', gap: 8 }}>
@@ -485,7 +480,7 @@ export default function CollectionsScreen() {
       }>) {
         const urls = (thumbMap[row.collection_id] ??= [])
         if (urls.length < 3 && row.property?.photos?.[0]?.storage_path) {
-          urls.push(getPhotoUrl(row.property.photos[0].storage_path))
+          urls.push(photoUrl(row.property.photos[0].storage_path))
         }
       }
 

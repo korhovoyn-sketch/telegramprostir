@@ -5,12 +5,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { TG_BOT, buildDeepLink } from '@/lib/telegram'
 import { IconBuilding, IconRuler, IconMapPin, IconCurrencyDollar } from '@/components/Icons'
-
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
-
-function photoUrl(path: string) {
-  return `${SUPABASE_URL}/storage/v1/object/public/photos/${path}`
-}
+import { photoUrl } from '@/lib/utils'
 
 // ── data types returned by the RPCs ──────────────────────────────────────────
 
