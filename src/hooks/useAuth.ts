@@ -5,8 +5,9 @@ import { supabase } from '@/lib/supabase'
 import { useAppStore } from '@/store/appStore'
 import type { User } from '@/types'
 
-const SESSION_KEY = 'ps_session'
-const PROFILE_KEY = 'ps_user'
+const SESSION_KEY     = 'ps_session'
+const PROFILE_KEY     = 'ps_user'
+const PROFILE_CS_KEY  = 'ps_user_cs'
 
 // Set true before calling signOut so the SIGNED_OUT listener doesn't re-navigate
 // to welcome and trigger another auto-login cycle.
@@ -60,10 +61,18 @@ function persistSession(access_token: string, refresh_token: string): void {
   try { cloudStorage()?.setItem?.(SESSION_KEY, payload, () => {}) } catch { /* unsupported */ }
 }
 
+function persistProfile(user: User): void {
+  const payload = JSON.stringify(user)
+  try { localStorage.setItem(PROFILE_KEY, payload) } catch { /* quota */ }
+  // Mirror to CloudStorage so iOS cold-start (localStorage wiped) avoids a DB fetch
+  try { cloudStorage()?.setItem?.(PROFILE_CS_KEY, payload, () => {}) } catch { /* unsupported */ }
+}
+
 function clearPersistedSession(): void {
   try { localStorage.removeItem(SESSION_KEY) } catch { /* ignore */ }
   try { localStorage.removeItem(PROFILE_KEY) } catch { /* ignore */ }
   try { cloudStorage()?.removeItem?.(SESSION_KEY, () => {}) } catch { /* unsupported */ }
+  try { cloudStorage()?.removeItem?.(PROFILE_CS_KEY, () => {}) } catch { /* unsupported */ }
 }
 
 export function useAuth() {
@@ -232,7 +241,7 @@ export function useAuth() {
 
       const dbUser: User = user
       setUser(dbUser)
-      try { localStorage.setItem(PROFILE_KEY, JSON.stringify(dbUser)) } catch { /* quota */ }
+      persistProfile(dbUser)
 
       // If the user arrived via a share link, let useDeepLink handle navigation
       const startParam = typeof window !== 'undefined'
@@ -290,7 +299,7 @@ export function useAuth() {
 
       if (error) throw error
       setUser(data as User)
-      try { localStorage.setItem(PROFILE_KEY, JSON.stringify(data)) } catch { /* quota */ }
+      persistProfile(data as User)
       showToast({ type: 'success', title: 'Профіль оновлено' })
     } catch (e) {
       showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
@@ -308,74 +317,83 @@ export function useAuth() {
 }
 
 async function doRestoreSession(): Promise<boolean> {
-    const setUser = (u: User | null) => useAppStore.getState().setUser(u)
-    try {
-      let session = (await supabase.auth.getSession()).data.session
+  const setUser = (u: User | null) => useAppStore.getState().setUser(u)
+  try {
+    let session = (await supabase.auth.getSession()).data.session
 
-      // Supabase has no session in localStorage. On a full Telegram restart (iOS)
-      // localStorage is often wiped, so re-hydrate from our durable copy
-      // (CloudStorage first, localStorage second) via setSession. This avoids the
-      // slow Edge Function re-login that otherwise hangs the splash at ~90%.
-      if (!session) {
-        let stored: string | null = null
-        try { stored = localStorage.getItem(SESSION_KEY) } catch { /* ignore */ }
-        if (!stored) stored = await cloudGet(SESSION_KEY)
-        if (stored) {
-          try {
-            const { access_token, refresh_token } = JSON.parse(stored)
-            if (access_token && refresh_token) {
-              const res = await supabase.auth.setSession({ access_token, refresh_token })
-              session = res.data.session
-              // Tokens may have rotated on refresh — persist the fresh pair.
-              if (session) persistSession(session.access_token, session.refresh_token)
-            }
-          } catch { /* corrupt or expired — fall through to no-session */ }
-        }
+    // Supabase has no session in memory. On iOS, localStorage is wiped between
+    // full app restarts — re-hydrate from CloudStorage. Fetch session token AND
+    // cached profile in parallel so iOS cold-start avoids a DB round-trip.
+    let csProfile: string | null = null
+    if (!session) {
+      let stored: string | null = null
+      try { stored = localStorage.getItem(SESSION_KEY) } catch { /* ignore */ }
+
+      if (!stored) {
+        // Both CS fetches run in parallel; second call is ~instant once SDK is ready
+        ;[stored, csProfile] = await Promise.all([
+          cloudGet(SESSION_KEY),
+          cloudGet(PROFILE_CS_KEY),
+        ])
       }
 
-      if (!session) return false
-
-      const email = session.user.email ?? ''
-      const tgIdStr = email.replace('@telegram.propspace.app', '')
-      if (!tgIdStr || tgIdStr === email) return false
-
-      const tgId = parseInt(tgIdStr, 10)
-      if (isNaN(tgId)) return false
-
-      // Fast path: use locally-cached profile so we never block on DB cold-start.
-      // The cache is written on every successful login and profile update.
-      try {
-        const raw = localStorage.getItem(PROFILE_KEY)
-        if (raw) {
-          const cached = JSON.parse(raw) as User
-          if (cached.tg_id === tgId) {
-            setUser(cached)
-            // Refresh silently in background — update cache when done.
-            supabase.from('users').select('*').eq('tg_id', tgId).single()
-              .then(({ data }) => {
-                if (data) {
-                  useAppStore.getState().setUser(data as User)
-                  try { localStorage.setItem(PROFILE_KEY, JSON.stringify(data)) } catch { /* quota */ }
-                }
-              })
-            return true
+      if (stored) {
+        try {
+          const { access_token, refresh_token } = JSON.parse(stored)
+          if (access_token && refresh_token) {
+            const res = await supabase.auth.setSession({ access_token, refresh_token })
+            session = res.data.session
+            if (session) persistSession(session.access_token, session.refresh_token)
           }
-        }
-      } catch { /* corrupt cache — fall through to DB fetch */ }
-
-      // No valid cache — fetch from DB (first-ever restore after login).
-      const { data } = await supabase
-        .from('users')
-        .select('*')
-        .eq('tg_id', tgId)
-        .single()
-
-      if (data) {
-        setUser(data as User)
-        try { localStorage.setItem(PROFILE_KEY, JSON.stringify(data)) } catch { /* quota */ }
+        } catch { /* corrupt or expired — fall through to no-session */ }
       }
-      return true
-    } catch {
-      return false
     }
+
+    if (!session) return false
+
+    const email = session.user.email ?? ''
+    const tgIdStr = email.replace('@telegram.propspace.app', '')
+    if (!tgIdStr || tgIdStr === email) return false
+
+    const tgId = parseInt(tgIdStr, 10)
+    if (isNaN(tgId)) return false
+
+    // Fast path 1: localStorage cache (warm starts, Android)
+    try {
+      const raw = localStorage.getItem(PROFILE_KEY)
+      if (raw) {
+        const cached = JSON.parse(raw) as User
+        if (cached.tg_id === tgId) {
+          setUser(cached)
+          supabase.from('users').select('*').eq('tg_id', tgId).single()
+            .then(({ data }) => { if (data) { useAppStore.getState().setUser(data as User); persistProfile(data as User) } })
+          return true
+        }
+      }
+    } catch { /* corrupt — fall through */ }
+
+    // Fast path 2: CloudStorage profile cache (iOS cold start where localStorage wiped)
+    try {
+      const raw = csProfile ?? await cloudGet(PROFILE_CS_KEY)
+      if (raw) {
+        const cached = JSON.parse(raw) as User
+        if (cached.tg_id === tgId) {
+          setUser(cached)
+          supabase.from('users').select('*').eq('tg_id', tgId).single()
+            .then(({ data }) => { if (data) { useAppStore.getState().setUser(data as User); persistProfile(data as User) } })
+          return true
+        }
+      }
+    } catch { /* corrupt — fall through */ }
+
+    // Last resort: DB fetch (first-ever restore after fresh install)
+    const { data } = await supabase.from('users').select('*').eq('tg_id', tgId).single()
+    if (data) {
+      setUser(data as User)
+      persistProfile(data as User)
+    }
+    return true
+  } catch {
+    return false
+  }
 }

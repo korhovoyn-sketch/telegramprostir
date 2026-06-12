@@ -32,13 +32,21 @@ export default function WelcomeScreen() {
   // This runs here (not in SplashScreen) so the user sees a proper loading UI
   // instead of a frozen progress bar when the Edge Function is cold.
   // Skip when the user explicitly logged out — they want to stay on this screen.
+  // Small delay: SplashScreen may have timed out while restoreSession was still
+  // running (parallel CS fetches). Give it 800 ms to finish before we fire the
+  // heavier Edge Function login — loginViaTelegram already awaits _restorePromise
+  // internally, but we avoid starting it at all if restore completes in time.
   useEffect(() => {
     if (autoLoginAttempted.current) return
     if (!tg?.initData) return
     if (screenParams.fromLogout) return
     if (useAppStore.getState().user) return
     autoLoginAttempted.current = true
-    loginViaTelegram(tg.initData)
+    const delay = setTimeout(() => {
+      if (useAppStore.getState().user) return  // restore completed during delay
+      loginViaTelegram(tg!.initData)
+    }, 800)
+    return () => clearTimeout(delay)
   }, [tg, loginViaTelegram, screenParams.fromLogout])
 
   async function handleLogin() {

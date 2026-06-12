@@ -14,7 +14,9 @@ import { useTelegram } from '@/hooks/useTelegram'
 // CloudStorage and refresh the JWT, which costs a round-trip or two on slow LTE.
 // Falling through to the Edge Function login is far slower, so we'd rather wait
 // here. A genuinely session-less user still returns false well before this.
-const SESSION_TIMEOUT_MS = 8000
+// 12 s: cloudGet up to 5 s + setSession token-refresh up to 3 s + DB fetch up to 2 s
+// The old 8 s budget was too tight for expired-token cold starts on iOS.
+const SESSION_TIMEOUT_MS = 12000
 
 export default function SplashScreen() {
   const [progress, setProgress] = useState(0)
