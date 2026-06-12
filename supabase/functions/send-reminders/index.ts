@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
     if (res.ok) {
       sent++
       // Insert notification record so the deduplication check works next time
-      await admin.from('notifications').insert({
+      const { error: notifError } = await admin.from('notifications').insert({
         user_id: row.owner_id,
         type: 'rent_reminder',
         title: `Платіж за ${row.property_name}`,
@@ -69,6 +69,7 @@ Deno.serve(async (req) => {
         is_read: false,
         data: { property_id: row.property_id, due_date: row.due_date },
       })
+      if (notifError) console.error('[send-reminders] notification insert failed for property', row.property_id, notifError.message)
     } else {
       const body = await res.text()
       console.error('[send-reminders] TG error for tg_id', row.tg_id, body)
