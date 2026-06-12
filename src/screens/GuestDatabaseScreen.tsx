@@ -88,7 +88,7 @@ export default function GuestDatabaseScreen() {
     const initData = window.Telegram?.WebApp?.initData
     if (!initData) return
     setCtaLoading(true)
-    localStorage.setItem('ps_guest_join', '1')
+    localStorage.setItem('ps_guest_join_token', `db_${token}`)
     await loginViaTelegram(initData)
     // loginViaTelegram navigates on success; if it fails it shows a toast
     setCtaLoading(false)

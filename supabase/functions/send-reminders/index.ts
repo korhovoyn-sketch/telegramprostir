@@ -33,16 +33,20 @@ Deno.serve(async (req) => {
   const { data: rows, error } = await admin.rpc('get_due_reminders_today')
   if (error) {
     console.error('[send-reminders] rpc error', error)
-    return new Response(JSON.stringify({ error: error.message }), { status: 500 })
+    return new Response(JSON.stringify({ error: 'Internal error' }), { status: 500 })
+  }
+
+  function escapeHtml(s: string): string {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   }
 
   let sent = 0
   for (const row of (rows ?? []) as ReminderRow[]) {
     const text = [
-      '💸 *Нагадування про оплату оренди*',
+      '💸 <b>Нагадування про оплату оренди</b>',
       '',
-      `🏢 *${row.property_name}*`,
-      row.tenant_name ? `👤 Орендар: ${row.tenant_name}` : '',
+      `🏢 <b>${escapeHtml(row.property_name)}</b>`,
+      row.tenant_name ? `👤 Орендар: ${escapeHtml(row.tenant_name)}` : '',
       `📅 Дата оплати: ${row.due_day}-е число місяця`,
       '',
       'Відкрийте PropSpace для підтвердження отримання.',
@@ -51,7 +55,7 @@ Deno.serve(async (req) => {
     const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: row.tg_id, text, parse_mode: 'Markdown' }),
+      body: JSON.stringify({ chat_id: row.tg_id, text, parse_mode: 'HTML' }),
     })
 
     if (res.ok) {

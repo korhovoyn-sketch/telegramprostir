@@ -7,7 +7,8 @@
 --    If the record has no paid_at and its due_date is in the past → force 'overdue'.
 CREATE OR REPLACE FUNCTION trg_auto_overdue_fn()
 RETURNS trigger
-LANGUAGE plpgsql
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public
 AS $$
 BEGIN
   IF NEW.paid_at IS NULL AND NEW.due_date < CURRENT_DATE THEN

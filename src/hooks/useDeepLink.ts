@@ -15,6 +15,7 @@ export function useDeepLink() {
     if (!user || handled.current) return
 
     const startParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param
+      ?? localStorage.getItem('ps_guest_join_token') ?? undefined
     if (!startParam) return
 
     handled.current = true
@@ -112,7 +113,7 @@ export function useDeepLink() {
           .upsert({ realtor_id: user!.id, db_id: db.id }, { onConflict: 'realtor_id,db_id' })
 
         if (!error) {
-          localStorage.removeItem('ps_guest_join')
+          localStorage.removeItem('ps_guest_join_token')
           window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
           showToast({ type: 'success', title: 'Базу підключено! 🎉' })
           useAppStore.getState().navigateRoot('realtor-dashboard')
