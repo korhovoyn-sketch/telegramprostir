@@ -420,28 +420,50 @@ export default function PropertyDetailScreen() {
         {/* Financial breakdown */}
         {total > 0 && (
           <div className="glass-s" style={{ margin: '0 12px 12px', borderRadius: 'var(--r-md)', padding: '12px 14px' }}>
-            <div style={{ fontSize: 11, color: 'var(--t3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 8 }}>Фінанси</div>
+            <div style={{ fontSize: 11, color: 'var(--t3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 5 }}>
+              <IconCurrencyDollar size={12} color="#4ade80" />Фінанси
+            </div>
             {rent > 0 && (
               <div className="cost-row">
-                <span>Оренда</span>
-                <span>{formatPrice(rent, user?.currency)}/міс</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 24, height: 24, borderRadius: 8, background: 'rgba(74,222,128,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <IconKey size={12} color="#4ade80" />
+                  </span>
+                  Оренда
+                </span>
+                <span style={{ color: '#4ade80', fontWeight: 600 }}>{formatPrice(rent, user?.currency)}/міс</span>
               </div>
             )}
             {utils > 0 && (
               <div className="cost-row">
-                <span>Комунальні</span>
-                <span>+{formatPrice(utils, user?.currency)}/міс</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 24, height: 24, borderRadius: 8, background: 'rgba(251,191,36,.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <IconBolt size={12} color="#fbbf24" />
+                  </span>
+                  Комунальні
+                </span>
+                <span style={{ color: 'var(--t2)', fontWeight: 600 }}>+{formatPrice(utils, user?.currency)}/міс</span>
               </div>
             )}
             {rent > 0 && utils > 0 && (
-              <div className="cost-row">
-                <span style={{ fontWeight: 600, color: 'var(--t1)' }}>Разом на місяць</span>
+              <div className="cost-row" style={{ marginTop: 4 }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600, color: 'var(--t1)' }}>
+                  <span style={{ width: 24, height: 24, borderRadius: 8, background: 'rgba(122,179,255,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <IconCalendar size={12} color="#7AB3FF" />
+                  </span>
+                  Разом на місяць
+                </span>
                 <span className="cost-ttl">{formatPrice(total, user?.currency)}</span>
               </div>
             )}
             {(rent === 0 || utils === 0) && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: rent > 0 || utils > 0 ? 0 : 4 }}>
-                <span style={{ fontSize: 12, color: 'var(--t3)' }}>Разом на місяць</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 4 }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--t3)' }}>
+                  <span style={{ width: 24, height: 24, borderRadius: 8, background: 'rgba(122,179,255,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <IconCalendar size={12} color="#7AB3FF" />
+                  </span>
+                  Разом на місяць
+                </span>
                 <span className="cost-ttl">{formatPrice(total, user?.currency)}</span>
               </div>
             )}

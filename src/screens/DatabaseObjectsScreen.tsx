@@ -10,7 +10,7 @@ import SearchBar from '@/components/ui/SearchBar'
 import { StatusBadge, FreshnessBadge } from '@/components/ui/Badge'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import Modal from '@/components/ui/Modal'
-import { IconPlus, IconDots, IconEye, IconPhoto, IconShare, IconChevronUp, IconChevronDown, GlassDbIcon, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity } from '@/components/Icons'
+import { IconPlus, IconDots, IconEye, IconPhoto, IconShare, IconChevronUp, IconChevronDown, GlassDbIcon, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar } from '@/components/Icons'
 import DatabaseStatsPanel from '@/components/ui/DatabaseStatsPanel'
 import { formatPrice, calcRent, calcUtilities, DB_TYPE_LABELS, formatLeasePeriod } from '@/lib/utils'
 import type { PropertyStatus } from '@/types'
@@ -437,9 +437,14 @@ export default function DatabaseObjectsScreen() {
                       </div>
                       {total > 0 && (
                         <div className="obj-tot">
-                          <div>
-                            <div className="obj-tot-l">На місяць</div>
-                            <div className="obj-tot-sub">оренда + комунальні</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ width: 22, height: 22, borderRadius: 7, background: 'rgba(74,222,128,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                              <IconCurrencyDollar size={12} color="#4ade80" />
+                            </span>
+                            <div>
+                              <div className="obj-tot-l">На місяць</div>
+                              <div className="obj-tot-sub">{rent > 0 && utils > 0 ? 'оренда + комунальні' : rent > 0 ? 'оренда' : 'комунальні'}</div>
+                            </div>
                           </div>
                           <div className="obj-tot-v">{formatPrice(total, user?.currency)}</div>
                         </div>
