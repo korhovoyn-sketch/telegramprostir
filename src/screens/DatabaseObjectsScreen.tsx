@@ -10,7 +10,7 @@ import SearchBar from '@/components/ui/SearchBar'
 import { StatusBadge, FreshnessBadge } from '@/components/ui/Badge'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import Modal from '@/components/ui/Modal'
-import { IconPlus, IconDots, IconEye, IconPhoto, IconShare, IconChevronUp, IconChevronDown, GlassDbIcon, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar } from '@/components/Icons'
+import { IconPlus, IconDots, IconEye, IconPhoto, IconShare, IconChevronUp, IconChevronDown, GlassDbIcon, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconFile } from '@/components/Icons'
 import DatabaseStatsPanel from '@/components/ui/DatabaseStatsPanel'
 import { formatPrice, calcRent, calcUtilities, DB_TYPE_LABELS, formatLeasePeriod } from '@/lib/utils'
 import type { PropertyStatus } from '@/types'
@@ -380,7 +380,7 @@ export default function DatabaseObjectsScreen() {
                         </div>
                         {p.floor && (
                           <div style={{ fontSize: 11, color: 'var(--t3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 3 }}>
-                            <IconBuilding size={10} color="var(--t3)" />{p.floor} поверх
+                            <IconBuilding size={13} color="var(--t3)" />{p.floor} поверх
                           </div>
                         )}
                       </div>
@@ -396,7 +396,7 @@ export default function DatabaseObjectsScreen() {
                             {p.name}
                           </div>
                           <div className="obj-s">
-                            {p.floor && <><IconBuilding size={10} color="var(--t3)" /><span>{p.floor} поверх</span></>}
+                            {p.floor && <><IconBuilding size={13} color="var(--t3)" /><span>{p.floor} поверх</span></>}
                           </div>
                         </div>
                         <div style={{ flexShrink: 0 }}>
@@ -406,31 +406,31 @@ export default function DatabaseObjectsScreen() {
                       <div className="obj-met">
                         {p.area_useful && (
                           <div className="obj-mt">
-                            <IconRuler size={10} color="var(--t3)" />
+                            <IconRuler size={13} color="var(--t3)" />
                             <span>{p.area_useful}/{p.area_total ?? p.area_useful} м²</span>
                           </div>
                         )}
                         {p.has_parking && (
                           <div className="obj-mt">
-                            <IconParking size={10} color="var(--t3)" />
+                            <IconParking size={13} color="var(--t3)" />
                             <span>{p.parking_spaces} місць</span>
                           </div>
                         )}
                         {(p.photos?.length ?? 0) > 0 && (
                           <div className="obj-mt">
-                            <IconPhoto size={11} />
+                            <IconPhoto size={13} />
                             <span>{p.photos!.length}</span>
                           </div>
                         )}
                         {(p._view_count ?? 0) > 0 && (
                           <div className="obj-mt">
-                            <IconEye size={11} />
+                            <IconEye size={13} />
                             <span>{p._view_count}</span>
                           </div>
                         )}
                         {p.status === 'occupied' && formatLeasePeriod(p.lease_start_date, p.lease_end_date) && (
                           <div className="obj-mt" style={{ gridColumn: '1 / -1', color: 'var(--t3)' }}>
-                            <IconCalendar size={10} color="var(--t3)" />
+                            <IconCalendar size={13} color="var(--t3)" />
                             <span>{formatLeasePeriod(p.lease_start_date, p.lease_end_date)}</span>
                           </div>
                         )}
@@ -455,21 +455,21 @@ export default function DatabaseObjectsScreen() {
                             className="obj-act-btn"
                             onClick={() => navigate('property-form', { propertyId: p.id, dbId: db.id })}
                           >
-                            ✏️ Редагувати
+                            <IconEdit size={13} /> Редагувати
                           </button>
                           {p.status === 'occupied' && (
                             <button
                               className="obj-act-btn"
                               onClick={() => navigate('payment-calendar', { propertyId: p.id, dbId: db.id })}
                             >
-                              📅 Платежі
+                              <IconCalendar size={13} /> Платежі
                             </button>
                           )}
                           <button
                             className="obj-act-btn"
                             onClick={() => navigate('property-detail', { propertyId: p.id, dbId: db.id })}
                           >
-                            📎 Файли
+                            <IconFile size={13} /> Файли
                           </button>
                         </div>
                       )}

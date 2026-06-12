@@ -320,23 +320,23 @@ input,textarea,select{font-size:16px;touch-action:manipulation}
 /* ── OBJECT CARD ── */
 .obj-card{border-radius:var(--r-md);overflow:hidden;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform 0.12s ease,filter 0.12s ease,opacity 0.12s ease}
 .obj-card:active{transform:scale(.985)}
-.obj-hd{padding:12px var(--pad-card) 8px;display:flex;justify-content:space-between;align-items:flex-start;gap:var(--g2)}
+.obj-hd{padding:12px var(--pad-card) 10px;display:flex;justify-content:space-between;align-items:flex-start;gap:var(--g2)}
 /* Card title — Subhead Semibold (same tier as row-t for visual consistency) */
 .obj-t{font-size:var(--fs-sub);font-weight:var(--fw-semi);color:var(--t1);line-height:var(--lh-snug);letter-spacing:-.01em}
 /* Card subtitle / floor — Caption 1 */
-.obj-s{font-size:var(--fs-cap1);color:var(--t3);margin-top:3px;display:flex;align-items:center;gap:3px;line-height:var(--lh-snug)}
-.obj-met{display:flex;gap:10px;padding:0 var(--pad-card) 10px;flex-wrap:wrap}
+.obj-s{font-size:var(--fs-cap1);color:var(--t3);margin-top:3px;display:flex;align-items:center;gap:5px;line-height:var(--lh-snug)}
+.obj-met{display:grid;grid-template-columns:1fr 1fr;gap:7px 0;padding:4px var(--pad-card) 12px}
 /* Metadata chips — Caption 1 */
-.obj-mt{font-size:var(--fs-cap1);color:var(--t2);display:flex;align-items:center;gap:3px;line-height:1}
+.obj-mt{font-size:13px;color:var(--t2);display:flex;align-items:center;gap:5px;line-height:1;font-weight:500}
 /* Total bar — bottom accent strip */
 .obj-tot{background:var(--glass-2);padding:10px var(--pad-card);display:flex;justify-content:space-between;align-items:center;border-top:.5px solid rgba(255,255,255,.08)}
 /* "На місяць" label — Caption 2 uppercase */
 .obj-tot-l{font-size:var(--fs-cap2);color:var(--t3);font-weight:var(--fw-semi);text-transform:uppercase;letter-spacing:.05em}
 /* Price value — Subhead Bold */
 .obj-tot-v{font-size:var(--fs-sub);font-weight:var(--fw-bold);color:var(--t1);letter-spacing:-.02em}
-.obj-tot-sub{font-size:var(--fs-cap2);color:var(--t3);text-align:right;margin-top:2px}
-.obj-act{display:flex;gap:6px;padding:8px var(--pad-card);border-top:.5px solid rgba(255,255,255,.08);flex-wrap:wrap}
-.obj-act-btn{display:flex;align-items:center;gap:4px;padding:5px 10px;border-radius:var(--r-pill);background:var(--glass-2);border:var(--bd);color:var(--t2);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .15s,color .15s}
+.obj-tot-sub{font-size:var(--fs-cap2);color:var(--t3);margin-top:2px}
+.obj-act{display:flex;gap:8px;padding:10px var(--pad-card);border-top:.5px solid rgba(255,255,255,.08);flex-wrap:wrap}
+.obj-act-btn{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:var(--r-pill);background:var(--glass-2);border:var(--bd);color:var(--t2);font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .15s,color .15s}
 .obj-act-btn:active{background:var(--glass-3);color:var(--t1);transform:scale(.96)}
 .cost-row{display:flex;justify-content:space-between;align-items:baseline;padding:3px 0;font-size:13px;color:var(--t2)}
 .cost-row+.cost-row{border-top:.5px solid rgba(255,255,255,.07);padding-top:7px;margin-top:4px}
