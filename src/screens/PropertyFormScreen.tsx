@@ -111,6 +111,14 @@ export default function PropertyFormScreen() {
       showToast({ type: 'error', title: 'Значення не може бути від\'ємним' })
       return
     }
+    if (au > 0 && at > 0 && au > at) {
+      showToast({ type: 'error', title: 'Корисна площа більша за загальну' })
+      return
+    }
+    if (status === 'occupied' && leaseStartDate && leaseEndDate && leaseEndDate < leaseStartDate) {
+      showToast({ type: 'error', title: 'Дата закінчення оренди раніше початку' })
+      return
+    }
     window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
     const payload = {
       db_id: screenParams.dbId!,
@@ -297,7 +305,7 @@ export default function PropertyFormScreen() {
           {hasParking && (
             <div className="fr">
               <span className="fr-l">Місць</span>
-              <input className="fr-i" type="number" min="1" value={parkingSpaces} onChange={e => setParkingSpaces(e.target.value)} />
+              <input className="fr-i" type="number" min="1" step="1" inputMode="numeric" value={parkingSpaces} onChange={e => setParkingSpaces(e.target.value)} />
             </div>
           )}
         </div>

@@ -539,6 +539,10 @@ export default function CollectionsScreen() {
 
   function handleShare(e: React.MouseEvent, col: CollectionWithCount) {
     e.stopPropagation()
+    if (col.property_count === 0) {
+      useAppStore.getState().showToast({ type: 'error', title: 'Підбірка порожня', subtitle: 'Додайте об\'єкти перед тим як ділитися' })
+      return
+    }
     sharePublicUrl('col', col.share_token || col.id, col.name)
   }
 

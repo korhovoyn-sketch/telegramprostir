@@ -17,9 +17,10 @@ export default function NotificationsScreen() {
 
   useEffect(() => {
     loadNotifications()
+    markAllAsRead()
     const cleanup = subscribeToNotifications()
     return cleanup
-  }, [loadNotifications, subscribeToNotifications])
+  }, [loadNotifications, subscribeToNotifications, markAllAsRead])
 
   const filtered = notifications.filter((n) => {
     if (tab === 'all') return true
