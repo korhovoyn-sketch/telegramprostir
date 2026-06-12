@@ -1,0 +1,78 @@
+name: Setup Telegram Bot Webhook
+
+# One-click setup: generates TELEGRAM_WEBHOOK_SECRET, writes all bot env vars
+# to Supabase Edge Function secrets, and registers the Telegram webhook —
+# both sides get the same secret in a single run, so they never drift.
+#
+# Required GitHub repository secrets:
+#   SUPABASE_ACCESS_TOKEN  (already set for deploy-edge-function.yml)
+#   SUPABASE_PROJECT_REF   (already set for deploy-edge-function.yml)
+#   TELEGRAM_BOT_TOKEN     (bot token from @BotFather)
+#
+# Run manually: Actions → Setup Telegram Bot Webhook → Run workflow,
+# enter the bot username and Mini App short name.
+
+on:
+  workflow_dispatch:
+    inputs:
+      bot_username:
+        description: 'Bot username without @ (e.g. prostirapplbot)'
+        required: true
+        type: string
+      app_name:
+        description: 'Mini App short name from BotFather /newapp (e.g. app)'
+        required: true
+        type: string
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify secrets
+        run: |
+          missing=0
+          for s in SUPABASE_ACCESS_TOKEN SUPABASE_PROJECT_REF TELEGRAM_BOT_TOKEN; do
+            if [ -z "${!s}" ]; then
+              echo "::error::$s repository secret is not set (Settings → Secrets and variables → Actions)"
+              missing=1
+            fi
+          done
+          exit $missing
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Set Supabase Edge Function secrets
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          WEBHOOK_SECRET=$(openssl rand -hex 32)
+          echo "::add-mask::$WEBHOOK_SECRET"
+          echo "WEBHOOK_SECRET=$WEBHOOK_SECRET" >> "$GITHUB_ENV"
+          supabase secrets set \
+            TELEGRAM_WEBHOOK_SECRET="$WEBHOOK_SECRET" \
+            TELEGRAM_BOT_TOKEN="${{ secrets.TELEGRAM_BOT_TOKEN }}" \
+            TELEGRAM_BOT_USERNAME="${{ inputs.bot_username }}" \
+            TELEGRAM_APP_NAME="${{ inputs.app_name }}" \
+            --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+          echo "Supabase secrets updated."
+
+      - name: Register Telegram webhook
+        run: |
+          RESP=$(curl -s "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/setWebhook" \
+            --data-urlencode "url=https://${{ secrets.SUPABASE_PROJECT_REF }}.supabase.co/functions/v1/telegram-bot" \
+            --data-urlencode "secret_token=$WEBHOOK_SECRET" \
+            --data-urlencode "drop_pending_updates=true")
+          echo "$RESP"
+          echo "$RESP" | grep -q '"ok":true' || { echo "::error::setWebhook failed"; exit 1; }
+
+      - name: Verify webhook registration
+        run: |
+          curl -s "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/getWebhookInfo"
+          echo ""
+          echo "✅ Webhook registered. Send /start to the bot to test."
