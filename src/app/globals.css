@@ -338,6 +338,9 @@ input,textarea,select{font-size:16px;touch-action:manipulation}
 .obj-act{display:flex;gap:6px;padding:8px var(--pad-card);border-top:.5px solid rgba(255,255,255,.08);flex-wrap:wrap}
 .obj-act-btn{display:flex;align-items:center;gap:4px;padding:5px 10px;border-radius:var(--r-pill);background:var(--glass-2);border:var(--bd);color:var(--t2);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .15s,color .15s}
 .obj-act-btn:active{background:var(--glass-3);color:var(--t1);transform:scale(.96)}
+.cost-row{display:flex;justify-content:space-between;align-items:baseline;padding:3px 0;font-size:13px;color:var(--t2)}
+.cost-row+.cost-row{border-top:.5px solid rgba(255,255,255,.07);padding-top:7px;margin-top:4px}
+.cost-ttl{font-size:22px;font-weight:700;color:var(--t1);letter-spacing:-.02em}
 
 /* ── DASHBOARD STATS PANEL ── */
 .dash-panel{display:flex;gap:8px;padding:0 12px 12px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;flex-shrink:0}
@@ -354,7 +357,7 @@ input,textarea,select{font-size:16px;touch-action:manipulation}
 .dash-sub{font-size:var(--fs-cap2);color:rgba(255,255,255,.48);margin-top:3px;line-height:var(--lh-snug)}
 
 /* ── OBJ HERO ── */
-.obj-hero{height:min(140px,22vh);position:relative;background:linear-gradient(145deg,#152d52,#2563a8);display:flex;align-items:center;justify-content:center;font-size:42px;color:rgba(255,255,255,.4)}
+.obj-hero{height:min(220px,32vh);position:relative;background:linear-gradient(145deg,#152d52,#2563a8);display:flex;align-items:center;justify-content:center;font-size:42px;color:rgba(255,255,255,.4)}
 .obj-hero::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 40%,rgba(0,0,0,.55))}
 .obj-hero-bdg{position:absolute;top:10px;left:10px;display:flex;align-items:center;gap:5px;padding:4px 10px 4px 8px;border-radius:14px;background:rgba(52,199,89,.85);backdrop-filter:blur(10px);font-size:11px;font-weight:600;color:#fff;z-index:2}
 .obj-hero-r{position:absolute;top:10px;right:10px;display:flex;gap:6px;z-index:2}

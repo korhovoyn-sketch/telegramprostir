@@ -252,7 +252,7 @@ export default function PropertyDetailScreen() {
         ) : <div className="hdr-sp" />}
       />
 
-      <div className="body">
+      <div className="body" style={{ animation: 'cascadeIn .2s ease both' }}>
         {/* Hero */}
         <div className="obj-hero" onClick={() => photos.length > 0 && openGallery(0)} style={{ cursor: photos.length > 0 ? 'pointer' : 'default', background: photos.length > 0 ? undefined : 'rgba(255,255,255,.04)', backdropFilter: photos.length > 0 ? undefined : 'blur(28px) saturate(170%)', WebkitBackdropFilter: photos.length > 0 ? undefined : 'blur(28px) saturate(170%)' }}>
           {photos.length > 0 ? (
@@ -285,12 +285,6 @@ export default function PropertyDetailScreen() {
           <div className="obj-hero-meta">
             <div>
               <div className="obj-hero-name">{property.name}</div>
-              {property.floor && (
-                <div className="obj-hero-addr">
-                  <IconMapPin size={10} />
-                  <span>{property.floor} поверх</span>
-                </div>
-              )}
             </div>
             {photos.length > 0 && (
               <div className="obj-hero-photos" onClick={(e) => { e.stopPropagation(); openGallery(0) }}>
@@ -381,11 +375,19 @@ export default function PropertyDetailScreen() {
           </div>
         </div>
 
-        {/* Address */}
+        {/* Address — tap opens Google Maps */}
         {property.address && (
-          <div className="glass-s" style={{ margin: '0 12px 12px', borderRadius: 'var(--r-md)', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div
+            className="glass-s"
+            style={{ margin: '0 12px 12px', borderRadius: 'var(--r-md)', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
+            onClick={() => {
+              const url = `https://maps.google.com/?q=${encodeURIComponent(property.address!)}`
+              window.Telegram?.WebApp?.openLink?.(url)
+            }}
+          >
             <IconMapPin size={14} color="#7AB3FF" />
-            <span style={{ fontSize: 13, color: 'var(--t2)' }}>{property.address}</span>
+            <span style={{ fontSize: 13, color: 'var(--t2)', flex: 1 }}>{property.address}</span>
+            <svg width="7" height="12" viewBox="0 0 7 12" fill="none"><path d="M1 1l5 5-5 5" stroke="rgba(255,255,255,.3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
           </div>
         )}
 
@@ -417,18 +419,34 @@ export default function PropertyDetailScreen() {
           )
         })()}
 
-        {/* Total */}
+        {/* Financial breakdown */}
         {total > 0 && (
-          <div className="glass-s" style={{ margin: '0 12px 12px', borderRadius: 'var(--r-md)', padding: '11px 14px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <div style={{ fontSize: 12, color: 'var(--t3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>Разом на місяць</div>
-                <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 2 }}>оренда + комунальні</div>
+          <div className="glass-s" style={{ margin: '0 12px 12px', borderRadius: 'var(--r-md)', padding: '12px 14px' }}>
+            <div style={{ fontSize: 11, color: 'var(--t3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 8 }}>Фінанси</div>
+            {rent > 0 && (
+              <div className="cost-row">
+                <span>Оренда</span>
+                <span>{formatPrice(rent, user?.currency)}/міс</span>
               </div>
-              <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--t1)', letterSpacing: '-.02em' }}>
-                {formatPrice(total, user?.currency)}
+            )}
+            {utils > 0 && (
+              <div className="cost-row">
+                <span>Комунальні</span>
+                <span>+{formatPrice(utils, user?.currency)}/міс</span>
               </div>
-            </div>
+            )}
+            {rent > 0 && utils > 0 && (
+              <div className="cost-row">
+                <span style={{ fontWeight: 600, color: 'var(--t1)' }}>Разом на місяць</span>
+                <span className="cost-ttl">{formatPrice(total, user?.currency)}</span>
+              </div>
+            )}
+            {(rent === 0 || utils === 0) && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: rent > 0 || utils > 0 ? 0 : 4 }}>
+                <span style={{ fontSize: 12, color: 'var(--t3)' }}>Разом на місяць</span>
+                <span className="cost-ttl">{formatPrice(total, user?.currency)}</span>
+              </div>
+            )}
           </div>
         )}
 
@@ -447,6 +465,36 @@ export default function PropertyDetailScreen() {
             <svg width="7" height="12" viewBox="0 0 7 12" fill="none"><path d="M1 1l5 5-5 5" stroke="rgba(255,255,255,.3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
           </div>
         )}
+
+        {/* Lease progress bar */}
+        {property.status === 'occupied' && property.lease_start_date && property.lease_end_date && (() => {
+          const start = new Date(property.lease_start_date).getTime()
+          const end = new Date(property.lease_end_date).getTime()
+          const now = Date.now()
+          const progress = Math.min(100, Math.max(0, ((now - start) / (end - start)) * 100))
+          const daysLeft = Math.ceil((end - now) / 86400000)
+          const barColor = daysLeft < 30 ? '#fb923c' : '#4ade80'
+          return (
+            <div className="glass-s" style={{ margin: '0 12px 12px', borderRadius: 'var(--r-md)', padding: '12px 14px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <span style={{ fontSize: 11, color: 'var(--t3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>Договір оренди</span>
+                <span style={{ fontSize: 12, color: daysLeft < 30 ? '#fb923c' : 'var(--t3)', fontWeight: 600 }}>
+                  {daysLeft > 0 ? `${daysLeft} дн.` : 'Завершено'}
+                </span>
+              </div>
+              <div style={{ height: 4, borderRadius: 99, background: 'var(--glass-2)', overflow: 'hidden' }}>
+                <div
+                  className="anim-progress"
+                  style={{ '--pw': `${progress}%`, height: '100%', borderRadius: 99, background: barColor } as React.CSSProperties}
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 11, color: 'var(--t4)' }}>
+                <span>{property.lease_start_date}</span>
+                <span>{property.lease_end_date}</span>
+              </div>
+            </div>
+          )
+        })()}
 
         {/* Photo strip with real images + delete + add */}
         <div className="over">
