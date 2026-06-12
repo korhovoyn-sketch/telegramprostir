@@ -144,13 +144,23 @@ export const DB_COLORS: Record<string, string> = {
 /**
  * onFocusCapture handler: scrolls the focused input/textarea into view once the
  * on-screen keyboard has opened. Telegram's webview overlays the keyboard without
- * always resizing the layout, so mid-form fields would otherwise sit hidden behind it.
+ * resizing the layout viewport on iOS, so fields below the fold stay hidden.
+ * Two-pass: immediate scroll for fast keyboards + delayed scroll using visualViewport
+ * to account for iOS keyboard (fully opens in ~450 ms).
  */
 export function scrollFocusedIntoView(e: import('react').FocusEvent<HTMLElement>): void {
   const el = e.target as HTMLElement
   const tag = el?.tagName
-  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
-    // Wait for the keyboard animation before measuring/scrolling.
-    setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 300)
-  }
+  if (tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT') return
+  // Pass 1: quick scroll so the field is at least in the DOM-visible area.
+  el.scrollIntoView({ behavior: 'instant' as ScrollBehavior, block: 'center' })
+  // Pass 2: after keyboard finishes opening, re-check using visualViewport height
+  // which reflects the true visible area with the keyboard shown.
+  setTimeout(() => {
+    const vh = window.visualViewport?.height ?? window.innerHeight
+    const rect = el.getBoundingClientRect()
+    if (rect.top < 56 || rect.bottom > vh - 20) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }, 500)
 }

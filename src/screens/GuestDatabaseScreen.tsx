@@ -106,6 +106,7 @@ export default function GuestDatabaseScreen() {
   }
 
   if (errorMsg) {
+    const isLinkProblem = errorMsg.includes('не знайдена') || errorMsg.includes('застаріло') || errorMsg.includes('Недійсне')
     return (
       <div className="scr bg-purple">
         <div className="hdr">
@@ -113,9 +114,19 @@ export default function GuestDatabaseScreen() {
           <div className="hdr-t">Перегляд бази</div>
         </div>
         <div className="empty-state" style={{ paddingTop: 60 }}>
-          <div className="empty-ic">⚠️</div>
-          <div className="empty-h">{errorMsg}</div>
-          <div className="empty-s">Перевірте посилання або зверніться до власника</div>
+          <div className="empty-ic">{isLinkProblem ? '🔗' : '⚠️'}</div>
+          <div className="empty-h">{isLinkProblem ? 'Посилання недійсне' : 'Помилка завантаження'}</div>
+          <div className="empty-s">
+            {isLinkProblem
+              ? 'Посилання застаріло або база видалена. Зверніться до власника за актуальним посиланням.'
+              : 'Не вдалося завантажити дані. Перевірте підключення.'}
+          </div>
+          <button
+            style={{ marginTop: 20, padding: '10px 24px', borderRadius: 'var(--r-pill)', background: 'var(--glass-2)', border: 'var(--bd)', color: 'var(--t2)', fontSize: 14, cursor: 'pointer' }}
+            onClick={handleClose}
+          >
+            Закрити
+          </button>
         </div>
       </div>
     )

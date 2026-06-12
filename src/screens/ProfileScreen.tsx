@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { useAuth } from '@/hooks/useAuth'
 import TabBar from '@/components/ui/TabBar'
@@ -20,6 +20,8 @@ export default function ProfileScreen() {
   const [showLogoutModal, setShowLogoutModal] = useState(false)
   const [savingLang, setSavingLang] = useState(false)
   const [savingCur, setSavingCur] = useState(false)
+  const emailRef = useRef<HTMLInputElement>(null)
+  const phoneRef = useRef<HTMLInputElement>(null)
 
   function handlePushToggle(v: boolean) {
     setPushEnabled(v)
@@ -113,12 +115,12 @@ export default function ProfileScreen() {
           <div className="fr">
             <IconMail size={15} color="var(--t3)" />
             <span className="fr-l" style={{ marginLeft: 6 }}>Email</span>
-            <input className="fr-i" type="email" placeholder="Не вказано" defaultValue={user.email ?? ''} onBlur={async e => { if (e.target.value === (user.email ?? '')) return; try { await updateProfile({ email: e.target.value }) } catch { showToast({ type: 'error', title: 'Помилка збереження email' }) } }} />
+            <input ref={emailRef} className="fr-i" type="email" placeholder="Не вказано" defaultValue={user.email ?? ''} onBlur={async e => { const val = e.target.value; if (val === (user.email ?? '')) return; try { await updateProfile({ email: val }) } catch { showToast({ type: 'error', title: 'Помилка збереження email' }); if (emailRef.current) emailRef.current.value = user.email ?? '' } }} />
           </div>
           <div className="fr">
             <IconPhone size={15} color="var(--t3)" />
             <span className="fr-l" style={{ marginLeft: 6 }}>Телефон</span>
-            <input className="fr-i" type="tel" placeholder="Не вказано" defaultValue={user.phone ?? ''} onBlur={async e => { if (e.target.value === (user.phone ?? '')) return; try { await updateProfile({ phone: e.target.value }) } catch { showToast({ type: 'error', title: 'Помилка збереження телефону' }) } }} />
+            <input ref={phoneRef} className="fr-i" type="tel" placeholder="Не вказано" defaultValue={user.phone ?? ''} onBlur={async e => { const val = e.target.value; if (val === (user.phone ?? '')) return; try { await updateProfile({ phone: val }) } catch { showToast({ type: 'error', title: 'Помилка збереження телефону' }); if (phoneRef.current) phoneRef.current.value = user.phone ?? '' } }} />
           </div>
         </div>
 

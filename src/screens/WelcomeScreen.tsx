@@ -32,10 +32,9 @@ export default function WelcomeScreen() {
   // This runs here (not in SplashScreen) so the user sees a proper loading UI
   // instead of a frozen progress bar when the Edge Function is cold.
   // Skip when the user explicitly logged out — they want to stay on this screen.
-  // Small delay: SplashScreen may have timed out while restoreSession was still
-  // running (parallel CS fetches). Give it 800 ms to finish before we fire the
-  // heavier Edge Function login — loginViaTelegram already awaits _restorePromise
-  // internally, but we avoid starting it at all if restore completes in time.
+  // Short delay: SplashScreen may have timed out while restoreSession was still
+  // running. Give it 200 ms to finish (fast path 0 in doRestoreSession returns
+  // quickly now), then proceed to Edge Function login if still no user.
   useEffect(() => {
     if (autoLoginAttempted.current) return
     if (!tg?.initData) return
@@ -45,7 +44,7 @@ export default function WelcomeScreen() {
     const delay = setTimeout(() => {
       if (useAppStore.getState().user) return  // restore completed during delay
       loginViaTelegram(tg!.initData)
-    }, 800)
+    }, 200)
     return () => clearTimeout(delay)
   }, [tg, loginViaTelegram, screenParams.fromLogout])
 
@@ -158,7 +157,7 @@ export default function WelcomeScreen() {
 
       <button
         onClick={handleDiag}
-        disabled={diagLoading}
+        disabled={diagLoading || loading}
         style={{
           background: 'none',
           border: 'none',
@@ -166,7 +165,7 @@ export default function WelcomeScreen() {
           fontSize: 11,
           cursor: 'pointer',
           padding: '4px 16px 32px',
-          opacity: diagLoading ? 0.5 : 1,
+          opacity: (diagLoading || loading) ? 0.5 : 1,
         }}
       >
         {diagLoading ? 'Перевірка...' : '⚙ Діагностика підключення'}

@@ -22,37 +22,37 @@ export default function RealtorDatabaseScreen() {
   const [search, setSearch] = useState('')
   const [tab, setTab] = useState<'all' | PropertyStatus>('all')
 
-  useEffect(() => {
-    async function load() {
-      if (!screenParams.dbId) return
-      setLoading(true)
-      setError(false)
-      try {
-        const [dbRes, propsRes] = await Promise.all([
-          supabase.from('databases').select('*').eq('id', screenParams.dbId).single(),
-          supabase.from('properties').select('*, photos:property_photos(*)').eq('db_id', screenParams.dbId).order('created_at', { ascending: false }),
-        ])
-        if (dbRes.error) throw dbRes.error
-        if (propsRes.error) throw propsRes.error
-        const dbData = dbRes.data as Database
-        setDb(dbData)
-        setProperties((propsRes.data ?? []) as Property[])
+  async function load() {
+    if (!screenParams.dbId) return
+    setLoading(true)
+    setError(false)
+    try {
+      const [dbRes, propsRes] = await Promise.all([
+        supabase.from('databases').select('*').eq('id', screenParams.dbId).single(),
+        supabase.from('properties').select('*, photos:property_photos(*)').eq('db_id', screenParams.dbId).order('created_at', { ascending: false }),
+      ])
+      if (dbRes.error) throw dbRes.error
+      if (propsRes.error) throw propsRes.error
+      const dbData = dbRes.data as Database
+      setDb(dbData)
+      setProperties((propsRes.data ?? []) as Property[])
 
-        // Load owner info for contact card
-        if (dbData.owner_id) {
-          const { data: ownerData } = await supabase
-            .from('users').select('*').eq('id', dbData.owner_id).single()
-          if (ownerData) setOwner(ownerData as User)
-        }
-      } catch (e) {
-        setError(true)
-        showToast({ type: 'error', title: 'Помилка завантаження', subtitle: (e as Error).message })
-      } finally {
-        setLoading(false)
+      // Load owner info for contact card
+      if (dbData.owner_id) {
+        const { data: ownerData } = await supabase
+          .from('users').select('*').eq('id', dbData.owner_id).single()
+        if (ownerData) setOwner(ownerData as User)
       }
+    } catch (e) {
+      setError(true)
+      showToast({ type: 'error', title: 'Помилка завантаження', subtitle: (e as Error).message })
+    } finally {
+      setLoading(false)
     }
-    load()
-  }, [screenParams.dbId, showToast])
+  }
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [screenParams.dbId])
 
   const filtered = useMemo(() =>
     properties.filter((p) => {
@@ -71,10 +71,11 @@ export default function RealtorDatabaseScreen() {
     <div className="scr bg-cyan">
       <Header title="База" backLabel="Бази" />
       {error ? (
-        <div className="empty-state" style={{ paddingTop: 40 }}>
-          <div className="empty-ic">⚠️</div>
-          <div className="empty-h">Помилка завантаження</div>
-          <div className="empty-s">Перевір підключення і спробуй ще раз</div>
+        <div className="retry-wrap">
+          <div className="retry-ic">📡</div>
+          <div className="retry-h">Помилка завантаження</div>
+          <div className="retry-s">Перевір підключення і спробуй ще раз</div>
+          <button className="retry-btn" onClick={load}>Спробувати ще раз</button>
         </div>
       ) : (
         <div className="loader-wrap"><div className="loader" /></div>

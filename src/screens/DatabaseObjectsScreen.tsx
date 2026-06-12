@@ -188,7 +188,7 @@ export default function DatabaseObjectsScreen() {
 
         {/* Sort selector — hidden while reordering/selecting */}
         {!reorderMode && !selectMode && properties.length > 1 && (
-          <div style={{ margin: '-4px 12px 8px', display: 'flex', alignItems: 'center', gap: 6, overflowX: 'auto', paddingBottom: 2 }}>
+          <div style={{ margin: '0 12px 8px', display: 'flex', alignItems: 'center', gap: 6, overflowX: 'auto', paddingBottom: 2 }}>
             <IconActivity size={12} color="var(--t4)" />
             {([
               { id: 'default', label: 'За порядком' },
@@ -473,7 +473,8 @@ export default function DatabaseObjectsScreen() {
       {/* Batch action bar */}
       {selectMode && selectedIds.size > 0 && (
         <div style={{
-          position: 'fixed', bottom: 56, left: 0, right: 0, zIndex: 100,
+          position: 'fixed', left: 0, right: 0, zIndex: 100,
+          bottom: 'calc(56px + var(--safe-bottom))',
           background: 'var(--bg2)', borderTop: 'var(--bd)',
           padding: '8px 12px', display: 'flex', gap: 8, alignItems: 'center',
         }}>

@@ -36,6 +36,22 @@ export default function SplashScreen() {
     import('@/screens/NotificationsScreen')
   }, [])
 
+  // Pre-warm the Edge Function so it isn't cold when session restore fails and
+  // WelcomeScreen falls back to loginViaTelegram. Fire after 3 s — if session
+  // restores from cache in that window we skip the unnecessary request.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      if (!url || !key || useAppStore.getState().user) return
+      fetch(`${url}/functions/v1/telegram-auth`, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${key}`, 'apikey': key },
+      }).catch(() => {})
+    }, 3000)
+    return () => clearTimeout(t)
+  }, [])
+
   useEffect(() => {
     if (!isReady) return
     if (startedRef.current) return
@@ -75,6 +91,7 @@ export default function SplashScreen() {
         if (!user) { navigateRoot('welcome'); return }
         const startParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param
         if (startParam?.startsWith('db_') || startParam?.startsWith('prop_') || startParam?.startsWith('col_')) return
+        if (!user.role) { navigateRoot('role-select'); return }
         navigateRoot(user.role === 'owner' ? 'db-list' : 'realtor-dashboard')
         return
       }

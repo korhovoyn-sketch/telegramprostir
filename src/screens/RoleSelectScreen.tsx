@@ -73,11 +73,11 @@ export default function RoleSelectScreen() {
             }}>
               <IconBuildingSkyscraper size={22} color="#fff" />
             </div>
-            <div>
-              <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--t1)', letterSpacing: '-.01em' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--t1)', letterSpacing: '-.01em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 Власник
               </div>
-              <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 2 }}>
+              <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 Я здаю / продаю нерухомість
               </div>
             </div>
@@ -124,11 +124,11 @@ export default function RoleSelectScreen() {
             }}>
               <IconUser size={22} color="#fff" />
             </div>
-            <div>
-              <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--t1)', letterSpacing: '-.01em' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--t1)', letterSpacing: '-.01em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 Ріелтор
               </div>
-              <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 2 }}>
+              <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 Я працюю з клієнтами
               </div>
             </div>

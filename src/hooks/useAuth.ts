@@ -316,21 +316,95 @@ export function useAuth() {
   return { loading, loginViaTelegram, logout, updateProfile, restoreSession, setupAuthListener }
 }
 
+// Returns the Telegram user ID from initDataUnsafe — does NOT require a valid session.
+// Safe to use for identity verification because initDataUnsafe is populated by the
+// Telegram client itself and cannot be spoofed from within the WebApp page.
+function getTgIdFromInitData(): number {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const user = (window as any)?.Telegram?.WebApp?.initDataUnsafe?.user
+    if (user?.id) return parseInt(String(user.id), 10)
+  } catch { /* ignore */ }
+  return NaN
+}
+
+// Silently refresh the Supabase session + DB profile in the background after
+// the fast-path profile cache already returned true. Does not affect navigation.
+async function refreshSessionSilently(tgId: number): Promise<void> {
+  try {
+    let session = (await supabase.auth.getSession()).data.session
+    if (!session) {
+      let stored: string | null = null
+      try { stored = localStorage.getItem(SESSION_KEY) } catch { /* ignore */ }
+      if (!stored) stored = await cloudGet(SESSION_KEY)
+      if (stored) {
+        try {
+          const { access_token, refresh_token } = JSON.parse(stored)
+          if (access_token && refresh_token) {
+            const res = await supabase.auth.setSession({ access_token, refresh_token })
+            session = res.data.session
+            if (session) persistSession(session.access_token, session.refresh_token)
+          }
+        } catch { /* expired tokens — session stays null */ }
+      }
+    }
+    if (session) {
+      const { data } = await supabase.from('users').select('*').eq('tg_id', tgId).single()
+      if (data) {
+        useAppStore.getState().setUser(data as User)
+        persistProfile(data as User)
+      }
+    }
+  } catch { /* background — silently ignore */ }
+}
+
 async function doRestoreSession(): Promise<boolean> {
   const setUser = (u: User | null) => useAppStore.getState().setUser(u)
   try {
+    // Fast path 0: Profile cache + identity from initDataUnsafe.user.id
+    // This works even when session tokens are fully expired (e.g. > 7 days inactive)
+    // or when the JWT has been wiped from localStorage (common iOS cold-start).
+    // We verify tg_id from the Telegram client (unforgeable in-app) instead of JWT.
+    const tgId0 = getTgIdFromInitData()
+    if (!isNaN(tgId0)) {
+      // Check localStorage first (warm starts, Android)
+      let cached: User | null = null
+      try {
+        const lsRaw = localStorage.getItem(PROFILE_KEY)
+        if (lsRaw) {
+          const u = JSON.parse(lsRaw) as User
+          if (u.tg_id === tgId0) cached = u
+        }
+      } catch { /* ignore */ }
+
+      // Check CloudStorage (iOS cold start where localStorage was wiped)
+      if (!cached) {
+        try {
+          const csRaw = await cloudGet(PROFILE_CS_KEY)
+          if (csRaw) {
+            const u = JSON.parse(csRaw) as User
+            if (u.tg_id === tgId0) cached = u
+          }
+        } catch { /* ignore */ }
+      }
+
+      if (cached) {
+        setUser(cached)
+        // Refresh session + live DB profile in the background without blocking UX.
+        refreshSessionSilently(tgId0).catch(() => {})
+        return true
+      }
+    }
+
+    // Existing token-based restore (first install, or initDataUnsafe unavailable)
     let session = (await supabase.auth.getSession()).data.session
 
-    // Supabase has no session in memory. On iOS, localStorage is wiped between
-    // full app restarts — re-hydrate from CloudStorage. Fetch session token AND
-    // cached profile in parallel so iOS cold-start avoids a DB round-trip.
     let csProfile: string | null = null
     if (!session) {
       let stored: string | null = null
       try { stored = localStorage.getItem(SESSION_KEY) } catch { /* ignore */ }
 
       if (!stored) {
-        // Both CS fetches run in parallel; second call is ~instant once SDK is ready
         ;[stored, csProfile] = await Promise.all([
           cloudGet(SESSION_KEY),
           cloudGet(PROFILE_CS_KEY),
@@ -372,7 +446,7 @@ async function doRestoreSession(): Promise<boolean> {
       }
     } catch { /* corrupt — fall through */ }
 
-    // Fast path 2: CloudStorage profile cache (iOS cold start where localStorage wiped)
+    // Fast path 2: CloudStorage profile cache
     try {
       const raw = csProfile ?? await cloudGet(PROFILE_CS_KEY)
       if (raw) {
