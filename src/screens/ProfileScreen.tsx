@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth'
 import TabBar from '@/components/ui/TabBar'
 import Toggle from '@/components/ui/Toggle'
 import Modal from '@/components/ui/Modal'
-import { IconMail, IconPhone, IconLanguage, IconCurrencyDollar, IconLogout, GlassCrown } from '@/components/Icons'
+import { IconMail, IconPhone, IconLanguage, IconCurrencyDollar, IconLogout, GlassCrown, IconBell, IconBellRing, IconChartLine, IconEye, IconMessage, IconAdjustments } from '@/components/Icons'
 import { TG_BOT } from '@/lib/telegram'
 import { getInitials, scrollFocusedIntoView } from '@/lib/utils'
 
@@ -113,7 +113,7 @@ export default function ProfileScreen() {
         )}
 
         {/* Contacts */}
-        <div className="over">Контакти</div>
+        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconMail size={13} color="#7AB3FF" />Контакти</span></div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div className="fr">
             <IconMail size={15} color="var(--t3)" />
@@ -128,7 +128,7 @@ export default function ProfileScreen() {
         </div>
 
         {/* Settings */}
-        <div className="over">Налаштування</div>
+        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconAdjustments size={13} color="#a78bfa" />Налаштування</span></div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div className="fr">
             <IconLanguage size={15} color="var(--t3)" />
@@ -163,24 +163,24 @@ export default function ProfileScreen() {
         </div>
 
         {/* Notifications */}
-        <div className="over">Сповіщення</div>
+        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconBell size={13} color="#fbbf24" />Сповіщення</span></div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div className="fr">
-            <span className="fr-l">Telegram Push</span>
+            <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconBellRing size={14} color="var(--t3)" />Telegram Push</span>
             <Toggle value={pushEnabled} onChange={handlePushToggle} />
           </div>
           <div className="fr">
-            <span className="fr-l">Щотижневий звіт</span>
+            <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconChartLine size={14} color="var(--t3)" />Щотижневий звіт</span>
             <Toggle value={weeklyReport} onChange={handleWeeklyToggle} />
           </div>
           <div className="fr">
-            <span className="fr-l">Нові перегляди</span>
+            <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconEye size={14} color="var(--t3)" />Нові перегляди</span>
             <Toggle value={newViews} onChange={handleNewViewsToggle} />
           </div>
         </div>
 
         {/* Support */}
-        <div className="over">Підтримка</div>
+        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconMessage size={13} color="#7AB3FF" />Підтримка</span></div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div
             className="fr" style={{ cursor: 'pointer' }}

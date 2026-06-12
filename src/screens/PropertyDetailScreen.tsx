@@ -7,7 +7,7 @@ import { useProperties } from '@/hooks/useProperties'
 import Header from '@/components/ui/Header'
 import Modal from '@/components/ui/Modal'
 import { StatusBadge } from '@/components/ui/Badge'
-import { IconEdit, IconShare, IconMapPin, IconPhoto, IconX, IconCamera, IconRuler, IconBuildingSkyscraper, IconCircleCheck, IconCurrencyDollar, IconCarGarage, IconUser, IconKey, IconBolt, IconCalendar } from '@/components/Icons'
+import { IconEdit, IconShare, IconMapPin, IconPhoto, IconX, IconCamera, IconRuler, IconBuildingSkyscraper, IconCircleCheck, IconCurrencyDollar, IconCarGarage, IconUser, IconKey, IconBolt, IconCalendar, IconFile } from '@/components/Icons'
 import FilesList from '@/components/ui/FilesList'
 import FloatingButton from '@/components/ui/FloatingButton'
 import { formatPrice, calcRent, calcUtilities, STATUS_LABELS, formatLeasePeriod, photoUrl, daysUntil } from '@/lib/utils'
@@ -579,7 +579,7 @@ export default function PropertyDetailScreen() {
 
         {property.description && (
           <>
-            <div className="over">Опис</div>
+            <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconFile size={13} color="#a78bfa" />Опис</span></div>
             <div className="descr glass-s">
               <div className="descr-t">{property.description}</div>
             </div>

@@ -5,7 +5,7 @@ import { useAppStore } from '@/store/appStore'
 import { supabase } from '@/lib/supabase'
 import Header from '@/components/ui/Header'
 import Modal from '@/components/ui/Modal'
-import { IconCalendar, IconBellRing, IconCheckCircle, IconClock, IconPlus, IconTrash } from '@/components/Icons'
+import { IconCalendar, IconBellRing, IconCheckCircle, IconClock, IconPlus, IconTrash, IconFile } from '@/components/Icons'
 import { formatPrice } from '@/lib/utils'
 import type { Property, RentPayment, RentPaymentRecord } from '@/types'
 
@@ -459,7 +459,7 @@ export default function PaymentCalendarScreen() {
             {propsWithoutSchedule.length > 0 && (
               <>
                 <div className="over">
-                  <span>Немає розкладу</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconFile size={13} color="#fb923c" />Немає розкладу</span>
                   <span className="over-a">{propsWithoutSchedule.length} об&apos;єктів</span>
                 </div>
                 <div className="list" style={{ marginBottom: 12 }}>
@@ -575,7 +575,7 @@ export default function PaymentCalendarScreen() {
                 {archiveByMonth.map(group => (
                   <div key={group.label}>
                     <div className="over">
-                      <span>{group.label}</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconCalendar size={13} color="#7AB3FF" />{group.label}</span>
                       {group.total > 0 && (
                         <span style={{ fontSize: 12, fontWeight: 700, color: '#34c759' }}>
                           {formatPrice(group.total, user?.currency)}

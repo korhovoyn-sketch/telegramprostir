@@ -231,7 +231,7 @@ export default function SharingAnalyticsScreen() {
 
         {/* Recent viewers */}
         <div className="over">
-          <span>Останні перегляди</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconEye size={13} color="#7AB3FF" />Останні перегляди</span>
           <span className="over-a">
             <IconEye size={12} /> {last7Views.length} за 7 днів
           </span>
