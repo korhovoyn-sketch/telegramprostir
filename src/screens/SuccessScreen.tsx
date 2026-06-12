@@ -19,32 +19,37 @@ export default function SuccessScreen() {
   }, [navigate, nextScreen, screenParams.nextParams])
 
   return (
-    <div className="scr bg-success" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+    <div className="scr bg-success">
       <Confetti />
 
-      <ProxMascot mood="happy" />
+      {/* Scroll-safe centered hero */}
+      <div className="body" style={{ display: 'flex', flexDirection: 'column' }}>
+        <div style={{ margin: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '24px 0' }}>
+          <ProxMascot mood="happy" />
 
-      <div style={{ marginTop: 24, textAlign: 'center', padding: '0 32px' }}>
-        <div style={{ fontSize: 30, fontWeight: 700, color: 'var(--t1)', marginBottom: 8 }}>
-          {title}
-        </div>
-        <div style={{ fontSize: 15, color: 'var(--t2)', lineHeight: 1.5 }}>
-          {message}
-        </div>
-      </div>
+          <div style={{ marginTop: 24, textAlign: 'center', padding: '0 32px' }}>
+            <div style={{ fontSize: 30, fontWeight: 700, color: 'var(--t1)', marginBottom: 8 }}>
+              {title}
+            </div>
+            <div style={{ fontSize: 15, color: 'var(--t2)', lineHeight: 1.5 }}>
+              {message}
+            </div>
+          </div>
 
-      <div style={{ marginTop: 32, display: 'flex', gap: 6 }}>
-        {[0, 1, 2].map((i) => (
-          <div
-            key={i}
-            style={{
-              width: i === 0 ? 20 : 6,
-              height: 6,
-              borderRadius: 3,
-              background: i === 0 ? '#fff' : 'rgba(255,255,255,.4)',
-            }}
-          />
-        ))}
+          <div style={{ marginTop: 32, display: 'flex', gap: 6 }}>
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                style={{
+                  width: i === 0 ? 20 : 6,
+                  height: 6,
+                  borderRadius: 3,
+                  background: i === 0 ? '#fff' : 'rgba(255,255,255,.4)',
+                }}
+              />
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   )

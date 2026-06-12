@@ -4,3 +4,9 @@ out/
 .env.local
 .env*.local
 *.tsbuildinfo
+
+# test artifacts
+coverage/
+playwright-report/
+test-results/
+.playwright/
