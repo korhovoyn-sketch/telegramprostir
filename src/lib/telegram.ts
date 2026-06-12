@@ -11,9 +11,20 @@ function getTgBot(): string {
 
 export const TG_BOT = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME ?? ''
 
-/** Build a Telegram Mini App deep-link (opens the bot + launches Mini App) */
+/** Mini App short name from BotFather (/newapp). Enables direct-link format. */
+const TG_APP = process.env.NEXT_PUBLIC_TELEGRAM_APP_NAME ?? ''
+
+/**
+ * Build a Telegram Mini App deep-link.
+ * Direct-link format (t.me/bot/app?startapp=) launches the Mini App
+ * immediately with start_param; bare t.me/bot?startapp= only auto-opens
+ * when a Main Mini App is configured in BotFather and otherwise drops
+ * the param, leaving the user in an empty bot chat.
+ */
 export function buildDeepLink(startParam: string): string {
-  return `https://t.me/${getTgBot()}?startapp=${encodeURIComponent(startParam)}`
+  const bot = getTgBot()
+  const base = TG_APP ? `https://t.me/${bot}/${TG_APP}` : `https://t.me/${bot}`
+  return `${base}?startapp=${encodeURIComponent(startParam)}`
 }
 
 /**
