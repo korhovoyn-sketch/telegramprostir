@@ -444,6 +444,30 @@ export default function DatabaseObjectsScreen() {
                           <div className="obj-tot-v">{formatPrice(total, user?.currency)}</div>
                         </div>
                       )}
+                      {!selectMode && !reorderMode && (
+                        <div className="obj-act" onClick={e => e.stopPropagation()}>
+                          <button
+                            className="obj-act-btn"
+                            onClick={() => navigate('property-form', { propertyId: p.id, dbId: db.id })}
+                          >
+                            ✏️ Редагувати
+                          </button>
+                          {p.status === 'occupied' && (
+                            <button
+                              className="obj-act-btn"
+                              onClick={() => navigate('payment-calendar', { propertyId: p.id, dbId: db.id })}
+                            >
+                              📅 Платежі
+                            </button>
+                          )}
+                          <button
+                            className="obj-act-btn"
+                            onClick={() => navigate('property-detail', { propertyId: p.id, dbId: db.id })}
+                          >
+                            📎 Файли
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
