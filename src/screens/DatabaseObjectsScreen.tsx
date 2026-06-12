@@ -512,22 +512,44 @@ export default function DatabaseObjectsScreen() {
 
       <TabBar />
 
-      {/* DB menu modal */}
+      {/* DB menu modal — nav items in children (scrollable), destructive in actions */}
       {showMenu && (
         <Modal
           title={db.name}
           subtitle="Дії з базою"
           onClose={() => setShowMenu(false)}
           actions={[
-            { label: '📊 Аналітика і поширення', variant: 'secondary', onClick: () => { setShowMenu(false); navigate('sharing-analytics', { dbId: db.id }) } },
-            { label: '📅 Календар платежів', variant: 'secondary', onClick: () => { setShowMenu(false); navigate('payment-calendar', { dbId: db.id }) } },
-            { label: '📤 Експорт', variant: 'secondary', onClick: () => { setShowMenu(false); navigate('export', { dbId: db.id }) } },
-            { label: '☑ Виділити об\'єкти', variant: 'secondary', onClick: enterSelectMode },
-            { label: '↕ Змінити порядок об\'єктів', variant: 'secondary', onClick: enterReorderMode },
-            { label: '✏️ Редагувати базу', variant: 'secondary', onClick: () => { setShowMenu(false); navigate('edit-db', { dbId: db.id }) } },
             { label: '🗑️ Видалити базу', variant: 'danger', onClick: () => { setShowMenu(false); setShowDeleteModal(true) } },
+            { label: 'Скасувати', variant: 'secondary', onClick: () => setShowMenu(false) },
           ]}
-        />
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, paddingBottom: 4 }}>
+            {[
+              { label: '📊 Аналітика і поширення', action: () => { setShowMenu(false); navigate('sharing-analytics', { dbId: db.id }) } },
+              { label: '📅 Календар платежів',    action: () => { setShowMenu(false); navigate('payment-calendar', { dbId: db.id }) } },
+              { label: '📤 Експорт',               action: () => { setShowMenu(false); navigate('export', { dbId: db.id }) } },
+              { label: '☑ Виділити об\'єкти',      action: enterSelectMode },
+              { label: '↕ Змінити порядок',        action: enterReorderMode },
+              { label: '✏️ Редагувати базу',       action: () => { setShowMenu(false); navigate('edit-db', { dbId: db.id }) } },
+            ].map(({ label, action }) => (
+              <div
+                key={label}
+                onClick={action}
+                style={{
+                  display: 'flex', alignItems: 'center', minHeight: 48,
+                  padding: '0 4px', borderRadius: 12, cursor: 'pointer',
+                  fontSize: 15, color: 'var(--t1)',
+                  transition: 'background .12s',
+                }}
+                onPointerDown={e => (e.currentTarget.style.background = 'rgba(255,255,255,.07)')}
+                onPointerUp={e => (e.currentTarget.style.background = '')}
+                onPointerLeave={e => (e.currentTarget.style.background = '')}
+              >
+                {label}
+              </div>
+            ))}
+          </div>
+        </Modal>
       )}
 
       {/* Batch delete confirm */}

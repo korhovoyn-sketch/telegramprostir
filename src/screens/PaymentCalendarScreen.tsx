@@ -65,6 +65,21 @@ export default function PaymentCalendarScreen() {
   const propertyId = screenParams.propertyId as string | undefined
   const dbId       = screenParams.dbId       as string | undefined
 
+  // Pre-fill schedule inputs with the existing schedule's values when editing.
+  useEffect(() => {
+    if (!setupProp) return
+    const s = schedules.find(s => s.property_id === setupProp.id)
+    setSetupDueDay(s ? String(s.due_day) : '5')
+    setSetupNotify(s ? String(s.notify_days_before) : '3')
+  }, [setupProp, schedules])
+
+  // Reset payment form each time a new item is opened — prevents stale values from previous entry.
+  useEffect(() => {
+    if (!payConfirmItem) return
+    setPayConfirmAmount('')
+    setPayConfirmNotes('')
+  }, [payConfirmItem])
+
   // ── Initial load ────────────────────────────────────────────────────────────
   useEffect(() => {
     async function load() {

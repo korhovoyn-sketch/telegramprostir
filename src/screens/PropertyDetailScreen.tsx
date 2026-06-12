@@ -112,6 +112,7 @@ export default function PropertyDetailScreen() {
   const { screenParams, navigate, user, showToast } = useAppStore()
   const { properties, loadSingleProperty, deletePhoto, updateProperty } = useProperties(screenParams.dbId)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const tenantInputRef = useRef<HTMLInputElement>(null)
   const [photoToDelete, setPhotoToDelete] = useState<{ id: string; path: string } | null>(null)
   const [showRentModal, setShowRentModal] = useState(false)
   const [rentTenantName, setRentTenantName] = useState('')
@@ -132,6 +133,14 @@ export default function PropertyDetailScreen() {
     if (screenParams.propertyId) loadSingleProperty(screenParams.propertyId)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [screenParams.propertyId])
+
+  // Focus tenant input after modal slide-up animation (380ms) — autoFocus doesn't trigger iOS keyboard
+  // when the element is mounted dynamically inside an animated container.
+  useEffect(() => {
+    if (!showRentModal) return
+    const t = setTimeout(() => tenantInputRef.current?.focus(), 400)
+    return () => clearTimeout(t)
+  }, [showRentModal])
 
   // Record a view exactly once per session mount
   const viewRecorded = useRef(false)
@@ -612,7 +621,7 @@ export default function PropertyDetailScreen() {
         <Modal
           title="Здати в оренду"
           subtitle={property.name}
-          onClose={() => setShowRentModal(false)}
+          onClose={() => !rentSaving && setShowRentModal(false)}
           actions={[
             {
               label: rentSaving ? 'Збереження...' : 'Здати',
@@ -641,10 +650,10 @@ export default function PropertyDetailScreen() {
                   <div className="fld">
                     <div className="fld-l"><IconUser size={11} />Орендар</div>
                     <input
+                      ref={tenantInputRef}
                       placeholder="ТОВ «Назва» або ФОП"
                       value={rentTenantName}
                       onChange={e => setRentTenantName(e.target.value)}
-                      autoFocus
                     />
                   </div>
                 </div>

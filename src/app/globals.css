@@ -530,6 +530,8 @@ input,textarea,select{font-size:16px;touch-action:manipulation}
 .modal-btn.primary{background:linear-gradient(180deg,#2AABEE,#229ED9);color:#fff;box-shadow:0 6px 16px rgba(34,158,217,.32)}
 .modal-btn.danger{background:linear-gradient(180deg,#FF6B61,#E24B4A);color:#fff;box-shadow:0 6px 16px rgba(226,75,74,.32)}
 .modal-btn.secondary{background:var(--glass-2);color:var(--t1);border:var(--bd)}
+/* Compact variant for menu-style modals with many items */
+.modal-btn.sm{height:44px;font-size:14px}
 
 /* ── SKELETON ── */
 .skel{background:linear-gradient(90deg,var(--glass-1),var(--glass-2),var(--glass-1));background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:var(--r-sm)}
