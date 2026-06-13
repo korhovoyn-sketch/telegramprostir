@@ -119,3 +119,63 @@ Before finalising any backend change, mentally run through:
 ### Remote session (Claude Code on the web)
 
 The session-start hook (`.claude/hooks/session-start.sh`) runs `npm install` and, if `GH_PAT` env var is set, rewrites the git remote to embed the token so pushes work. Set `GH_PAT` in session Environment Variables via the Claude Code web UI.
+
+---
+
+## Navigation patterns (appStore.ts)
+
+| Action | Use case |
+|---|---|
+| `navigate(screen, params)` | Звичайний перехід вперед, додає поточний екран до history |
+| `back()` | Повернутись назад; фільтрує `AUTH_SCREENS` з history |
+| `navigateRoot(screen, params)` | Після deep link або auth — очищує весь стек history |
+| `backThenReplace(screen, params)` | Після збереження форми — pop + set нового екрану в один крок, щоб уникнути дублювання у history |
+
+`AUTH_SCREENS = ['splash', 'welcome', 'role-select', 'profile-setup']` — ніколи не повертатись на них через Back.
+
+---
+
+## Design system quick reference
+
+**Фон екрану:** `.bg-blue` (бази/об'єкти), `.bg-purple` (колекції), `.bg-teal` (сповіщення/профіль), `.bg-green` (успіх), `.bg-pink` (share/analytics)
+
+**Скло:** `.glass-s` (картки списків), `.glass` (модальне, акцентні блоки), `.glass-d` (FAB, важливі кнопки)
+
+**Типографіка:** `--fs-sub` (15px) — основний текст рядків; `--fs-cap1` (12px) — підписи; `--fs-cap2` (11px) — мітки uppercase; `--fs-foot` (13px) — допоміжний текст
+
+**Відступи:** `--pad-card` (14px) всередині карток; `--g2` (8px) — gap між елементами; `12px` — зовнішній margin карток від країв
+
+**Іконки в метаданих (`.obj-mt`):** розмір `size={13}`, колір `var(--t3)` для неактивних, `var(--t2)` для активних
+
+**Кнопки:** `.mbtn` — головна дія (fixed bottom); `.obj-act-btn` — дії всередині картки; `.hdr-a` — дія в хедері (44×44)
+
+**Форми:** `.fg` (контейнер секції), `.fr` (рядок 48px з border-bottom), `.fr-l` (лейбл), `.fr-i` (input 16px щоб iOS не зумив)
+
+**Правило:** не використовувати `rgba(...)` inline — брати токен (`var(--glass-2)`, `var(--t3)` тощо). Інлайн `style={{}}` тільки для динамічних значень (розраховані ширини, умовні трансформи).
+
+---
+
+## Pending manual actions (зробити в Supabase Dashboard)
+
+### 1. Міграція безпеки — виконати SQL в Dashboard → SQL Editor
+
+Файл: `supabase/migrations/026_security_audit_fixes.sql`
+
+Що робить:
+- `get_shared_collection()` — перевірка `share_expires_at > now()`
+- Storage policy `pfiles_storage_select` — тільки власник або підписаний ріелтор
+- Індекси: `idx_audit_log_user_created`, `idx_audit_log_table_record`
+- Тригер `prune_expired_rate_limits()` — авто-очищення старих записів
+
+### 2. Edge functions — задеплоїти через Supabase CLI (workflow деплоїть лише telegram-auth)
+
+```bash
+supabase functions deploy send-reminders --project-ref <PROJECT_REF>
+supabase functions deploy telegram-bot --project-ref <PROJECT_REF>
+```
+
+### 3. CORS — встановити змінну середовища в Supabase Dashboard → Edge Functions
+
+```
+ALLOWED_ORIGIN=https://<your-vercel-domain>.vercel.app
+```
