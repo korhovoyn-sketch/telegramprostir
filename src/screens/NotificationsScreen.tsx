@@ -12,6 +12,7 @@ type NotifTab = 'all' | 'views' | 'chats' | 'system'
 
 export default function NotificationsScreen() {
   const unreadCount = useAppStore((s) => s.unreadCount)
+  const navigate = useAppStore((s) => s.navigate)
   const { notifications, loading, loadNotifications, markRead, markAllAsRead, deleteNotification, subscribeToNotifications } = useNotifications()
   const [tab, setTab] = useState<NotifTab>('all')
 
@@ -37,6 +38,17 @@ export default function NotificationsScreen() {
     acc[key].push(n)
     return acc
   }, {} as Record<string, Notification[]>)
+
+  function handleNotifTap(n: Notification) {
+    if (!n.is_read) markRead(n.id)
+    const d = n.data as Record<string, string> | null
+    const propertyId = d?.property_id
+    if (n.type === 'rent_reminder' && propertyId) {
+      navigate('payment-calendar', { propertyId })
+    } else if ((n.type === 'view' || n.type === 'favorite') && propertyId) {
+      navigate('sharing-analytics', { propertyId })
+    }
+  }
 
   const NOTIF_ICON: Record<string, string> = {
     view: '👁️',
@@ -105,7 +117,8 @@ export default function NotificationsScreen() {
                   <div
                     key={n.id}
                     className={`notif-i ${!n.is_read ? 'unread' : ''}`}
-                    onClick={() => { if (!n.is_read) markRead(n.id) }}
+                    style={{ cursor: (n.type === 'rent_reminder' || n.type === 'view' || n.type === 'favorite') && (n.data as Record<string, string> | null)?.property_id ? 'pointer' : undefined }}
+                    onClick={() => handleNotifTap(n)}
                   >
                     <div className="notif-ic glass-s">
                       {NOTIF_ICON[n.type] ?? '🔔'}

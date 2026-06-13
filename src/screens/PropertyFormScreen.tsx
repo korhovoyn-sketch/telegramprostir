@@ -13,7 +13,7 @@ import { formatPrice, calcRent, calcUtilities, scrollFocusedIntoView } from '@/l
 import type { PropertyStatus, RentType } from '@/types'
 
 export default function PropertyFormScreen() {
-  const { screenParams, navigate, back, showToast, user } = useAppStore()
+  const { screenParams, backThenReplace, showToast, user } = useAppStore()
   const { properties, loadProperties, createProperty, updateProperty, deleteProperty, loading } = useProperties(screenParams.dbId)
 
   const editId = screenParams.propertyId
@@ -136,9 +136,10 @@ export default function PropertyFormScreen() {
 
     if (isEdit && editId) {
       await updateProperty(editId, payload)
-      // Remove property-form from history so pressing back from detail goes to the right screen
-      back()
-      navigate('property-detail', { propertyId: editId, dbId: screenParams.dbId })
+      // backThenReplace: pops the entry that navigated to property-form (property-detail)
+      // then lands on property-detail fresh — so back() from detail goes to db-objects,
+      // not to a stale duplicate detail entry.
+      backThenReplace('property-detail', { propertyId: editId, dbId: screenParams.dbId })
     } else {
       await createProperty(payload)
     }

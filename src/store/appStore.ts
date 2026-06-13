@@ -25,6 +25,14 @@ interface AppState {
   navigate: (screen: ScreenName, params?: ScreenParams) => void
   /** Replace current screen and clear history stack (use after deep link or fresh auth) */
   navigateRoot: (screen: ScreenName, params?: ScreenParams) => void
+  /**
+   * Pop the last history entry AND replace the current screen in one step.
+   * Use after a form save where you want to land on a detail screen but have
+   * back() skip over the form — not onto a duplicate detail entry.
+   *
+   * Before: history=[A, B], screen=C  →  After: history=[A], screen=newScreen
+   */
+  backThenReplace: (screen: ScreenName, params?: ScreenParams) => void
   back: () => boolean
   setUser: (user: User | null) => void
   showToast: (toast: Toast) => void
@@ -70,11 +78,22 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ screen, screenParams: params, history: [], navKey: get().navKey + 1, navDirection: 'root' })
   },
 
+  backThenReplace: (screen, params = {}) => {
+    const { history, navKey } = get()
+    set({
+      screen,
+      screenParams: params,
+      history: history.length > 0 ? history.slice(0, -1) : [],
+      navKey: navKey + 1,
+      navDirection: 'forward',
+    })
+  },
+
   back: () => {
     const { history, navKey } = get()
     if (history.length === 0) return false
-    // Filter out auth screens that should never appear when pressing Back
-    const AUTH_SCREENS: ScreenName[] = ['splash', 'welcome', 'role-select']
+    // Filter out screens that must never reappear when pressing Back
+    const AUTH_SCREENS: ScreenName[] = ['splash', 'welcome', 'role-select', 'profile-setup']
     const filtered = history.filter(e => !AUTH_SCREENS.includes(e.screen))
     if (filtered.length === 0) return false
     const prev = filtered[filtered.length - 1]
