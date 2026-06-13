@@ -577,7 +577,7 @@ export default function PropertyDetailScreen() {
             boxShadow: '0 4px 24px rgba(42,171,238,.18), inset 0 1px 0 rgba(255,255,255,.18)',
             zIndex: 20,
           }}
-          onClick={() => navigate('sharing-analytics', { propertyId: property.id })}
+          onClick={() => navigate('sharing-analytics', { propertyId: property.id, dbId: screenParams.dbId })}
         >
           <IconShare size={16} />
           Поділитись
