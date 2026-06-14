@@ -123,6 +123,7 @@ export default function PropertyDetailScreen() {
 
   const property = properties.find(p => p.id === screenParams.propertyId)
   const isOwner = user?.role === 'owner'
+  const isGuest = user?.role === 'guest'
 
   // Fetch only this property on every mount — avoids loading the entire DB for detail view.
   // Component is remounted on every navigation so this fires exactly once per visit.
@@ -470,8 +471,24 @@ export default function PropertyDetailScreen() {
           </div>
         )}
 
-        {/* Payment calendar shortcut — owner only, occupied property */}
-        {isOwner && property.status === 'occupied' && (
+        {/* Manage guests — owner only */}
+        {isOwner && (
+          <div
+            className="glass-s"
+            style={{ margin: '0 12px 12px', borderRadius: 'var(--r-md)', padding: '11px 14px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}
+            onClick={() => navigate('manage-guests', { propertyId: property.id })}
+          >
+            <IconUser size={16} color="#a78bfa" />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--t1)' }}>Гості</div>
+              <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 1 }}>Запрошення та керування доступом</div>
+            </div>
+            <svg width="7" height="12" viewBox="0 0 7 12" fill="none"><path d="M1 1l5 5-5 5" stroke="rgba(255,255,255,.3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          </div>
+        )}
+
+        {/* Payment calendar shortcut — owner and guest, occupied property */}
+        {(isOwner || isGuest) && property.status === 'occupied' && (
           <div
             className="glass-s"
             style={{ margin: '0 12px 12px', borderRadius: 'var(--r-md)', padding: '11px 14px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}

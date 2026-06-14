@@ -76,7 +76,56 @@ Deno.serve(async (req) => {
     }
   }
 
-  return new Response(JSON.stringify({ ok: true, sent }), {
+  // ── Guest reminders ────────────────────────────────────────────────────────
+  type GuestReminderRow = {
+    guest_id: string
+    tg_id: number
+    property_id: string
+    property_name: string
+    due_day: number
+    due_date: string
+  }
+
+  const { data: guestRows, error: guestError } = await admin.rpc('get_due_guest_reminders')
+  if (guestError) {
+    console.error('[send-reminders] guest rpc error', guestError)
+  }
+
+  let sentGuests = 0
+  for (const row of (guestRows ?? []) as GuestReminderRow[]) {
+    const text = [
+      '💸 <b>Нагадування про оплату оренди</b>',
+      '',
+      `🏢 <b>${escapeHtml(row.property_name)}</b>`,
+      `📅 Дата оплати: ${row.due_day}-е число місяця`,
+      '',
+      'Відкрийте PropSpace для перегляду деталей.',
+    ].join('\n')
+
+    const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: row.tg_id, text, parse_mode: 'HTML' }),
+    })
+
+    if (res.ok) {
+      sentGuests++
+      const { error: notifError } = await admin.from('notifications').insert({
+        user_id: row.guest_id,
+        type: 'rent_reminder',
+        title: `Платіж за ${row.property_name}`,
+        body: `${row.due_day}-е число`,
+        is_read: false,
+        data: { property_id: row.property_id, due_date: row.due_date },
+      })
+      if (notifError) console.error('[send-reminders] guest notification insert failed', row.property_id, notifError.message)
+    } else {
+      const body = await res.text()
+      console.error('[send-reminders] TG guest error for tg_id', row.tg_id, body)
+    }
+  }
+
+  return new Response(JSON.stringify({ ok: true, sent, sentGuests }), {
     headers: { 'Content-Type': 'application/json' },
   })
 })

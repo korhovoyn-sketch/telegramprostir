@@ -21,7 +21,8 @@ export function useDeepLink() {
     handled.current = true
 
     async function process() {
-      const homeScreen: ScreenName = user!.role === 'owner' ? 'db-list' : 'realtor-dashboard'
+      const role = user!.role
+      const homeScreen: ScreenName = role === 'owner' ? 'db-list' : role === 'realtor' ? 'realtor-dashboard' : 'guest-home'
 
       function navigateFallback() {
         const { screen } = useAppStore.getState()
@@ -31,6 +32,30 @@ export function useDeepLink() {
       }
 
       try {
+        // ── guest_<invite_token> — guest invite link ────────────────────────
+        if (startParam!.startsWith('guest_')) {
+          const token = startParam!.slice(6)
+          const { data, error } = await supabase.rpc('claim_guest_link', { p_token: token })
+          const result = data as { property_id?: string; db_id?: string; error?: string } | null
+
+          if (error || !result || result.error) {
+            const msg = result?.error === 'revoked' ? 'Запрошення відкликано власником'
+              : result?.error === 'already_claimed' ? 'Це запрошення вже використано'
+              : 'Запрошення не знайдено або недійсне'
+            showToast({ type: 'error', title: 'Помилка доступу', subtitle: msg })
+            navigateFallback()
+            return
+          }
+
+          window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
+          showToast({ type: 'success', title: 'Доступ отримано! 🎉' })
+          useAppStore.getState().navigateRoot('guest-home')
+          if (result.property_id) {
+            navigate('property-detail', { propertyId: result.property_id, dbId: result.db_id ?? undefined })
+          }
+          return
+        }
+
         // ── prop_<share_token> — property share link ────────────────────────
         // Lookup via SECURITY DEFINER RPC — handles both new share_token (24-char hex)
         // and legacy UUID format for backward compatibility.

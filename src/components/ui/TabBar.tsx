@@ -24,10 +24,16 @@ const OWNER_TABS: Tab[] = [
   { id: 'profile', label: 'Профіль', screen: 'profile', icon: (a) => <IconTabUser size={26} active={a} /> },
 ]
 
+const GUEST_TABS: Tab[] = [
+  { id: 'guest-home', label: 'Об\'єкти', screen: 'guest-home', icon: (a) => <IconTabHome size={26} active={a} /> },
+  { id: 'notifications', label: 'Сповіщення', screen: 'notifications', icon: (a) => <IconTabBell size={26} active={a} /> },
+  { id: 'profile', label: 'Профіль', screen: 'profile', icon: (a) => <IconTabUser size={26} active={a} /> },
+]
+
 export default function TabBar() {
   const { screen, navigateRoot, user, unreadCount } = useAppStore()
 
-  const tabs = user?.role === 'realtor' ? REALTOR_TABS : OWNER_TABS
+  const tabs = user?.role === 'realtor' ? REALTOR_TABS : user?.role === 'guest' ? GUEST_TABS : OWNER_TABS
 
   const activeId = tabs.find(t => t.screen === screen)?.id ?? tabs[0].id
 

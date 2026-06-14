@@ -90,17 +90,24 @@ export default function SplashScreen() {
         const user = useAppStore.getState().user
         if (!user) { navigateRoot('welcome'); return }
         const startParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param
-        if (startParam?.startsWith('db_') || startParam?.startsWith('prop_') || startParam?.startsWith('col_')) return
+        if (startParam?.startsWith('db_') || startParam?.startsWith('prop_') || startParam?.startsWith('col_') || startParam?.startsWith('guest_')) return
         if (!user.role) { navigateRoot('role-select'); return }
+        if (user.role === 'guest') { navigateRoot('guest-home'); return }
         navigateRoot(user.role === 'owner' ? 'db-list' : 'realtor-dashboard')
         return
       }
 
-      // No session — check for guest share link (db_ without login)
+      // No session — check for public share links that work without login
       const startParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param ?? ''
       if (startParam.startsWith('db_')) {
         setProgress(100)
         navigateRoot('guest-database', { token: startParam.slice(3) })
+        return
+      }
+      if (startParam.startsWith('guest_')) {
+        // Guest invite — show preview then prompt to register
+        setProgress(100)
+        navigateRoot('guest-database', { token: startParam.slice(6), guestMode: true })
         return
       }
 

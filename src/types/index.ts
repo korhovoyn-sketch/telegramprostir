@@ -1,4 +1,4 @@
-export type UserRole = 'owner' | 'realtor'
+export type UserRole = 'owner' | 'realtor' | 'guest'
 export type UserPlan = 'free' | 'pro'
 export type DatabaseType = 'business_center' | 'residential' | 'retail' | 'warehouse' | 'individual' | 'parking'
 export type PropertyStatus = 'free' | 'occupied' | 'for_sale'
@@ -99,6 +99,21 @@ export interface RealtorSubscription {
   database?: Database
 }
 
+export interface GuestLink {
+  id: string
+  owner_id: string
+  property_id: string | null
+  db_id: string | null
+  invite_token: string
+  label: string | null
+  guest_user_id: string | null
+  status: 'pending' | 'active' | 'revoked'
+  claimed_at: string | null
+  created_at: string
+  property?: Property
+  database?: Database
+}
+
 export interface Collection {
   id: string
   realtor_id: string
@@ -162,6 +177,8 @@ export type ScreenName =
   | 'photo-gallery'
   | 'qr-scanner'
   | 'guest-database'
+  | 'guest-home'
+  | 'manage-guests'
   | 'shared-collection'
   | 'success'
   | 'error'

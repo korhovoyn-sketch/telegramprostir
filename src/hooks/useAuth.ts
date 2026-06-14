@@ -125,8 +125,12 @@ export function useAuth() {
         if (restored && restoredUser) {
           if (!restoredUser.role) {
             navigateRoot('role-select')
+          } else if (restoredUser.role === 'owner') {
+            navigateRoot('db-list')
+          } else if (restoredUser.role === 'realtor') {
+            navigateRoot('realtor-dashboard')
           } else {
-            navigateRoot(restoredUser.role === 'owner' ? 'db-list' : 'realtor-dashboard')
+            navigateRoot('guest-home')
           }
           return
         }
@@ -247,12 +251,16 @@ export function useAuth() {
       const startParam = typeof window !== 'undefined'
         ? window?.Telegram?.WebApp?.initDataUnsafe?.start_param
         : null
-      if (startParam?.startsWith('db_') || startParam?.startsWith('prop_')) return
+      if (startParam?.startsWith('db_') || startParam?.startsWith('prop_') || startParam?.startsWith('guest_')) return
 
       if (is_new || !dbUser.role) {
         navigateRoot('role-select')
+      } else if (dbUser.role === 'owner') {
+        navigateRoot('db-list')
+      } else if (dbUser.role === 'realtor') {
+        navigateRoot('realtor-dashboard')
       } else {
-        navigateRoot(dbUser.role === 'owner' ? 'db-list' : 'realtor-dashboard')
+        navigateRoot('guest-home')
       }
     } catch (e) {
       const errorMsg = (e as Error).message || 'Unknown error'
