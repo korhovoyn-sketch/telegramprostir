@@ -308,7 +308,7 @@ export default function PropertyDetailScreen() {
           <div className="obj-grid">
             {property.area_useful && (
               <div className="obj-f">
-                <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                   <IconRuler size={13} color="#7AB3FF" />Корисна площа
                 </div>
                 <div className="obj-fv">{property.area_useful} м²</div>
@@ -316,7 +316,7 @@ export default function PropertyDetailScreen() {
             )}
             {property.area_total && (
               <div className="obj-f">
-                <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                   <IconRuler size={13} color="#7AB3FF" />Загальна площа
                 </div>
                 <div className="obj-fv">{property.area_total} м²</div>
@@ -324,14 +324,14 @@ export default function PropertyDetailScreen() {
             )}
             {property.floor && (
               <div className="obj-f">
-                <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                   <IconBuildingSkyscraper size={13} color="#a78bfa" />Поверх
                 </div>
                 <div className="obj-fv">{property.floor}</div>
               </div>
             )}
             <div className="obj-f">
-              <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                 <IconCircleCheck size={13} color="#4ade80" />Статус
               </div>
               <div className="obj-fv">
@@ -340,7 +340,7 @@ export default function PropertyDetailScreen() {
             </div>
             {property.has_parking && (
               <div className="obj-f">
-                <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                   <IconCarGarage size={13} color="#fb923c" />Паркінг
                 </div>
                 <div className="obj-fv">{property.parking_spaces} місць</div>
@@ -348,7 +348,7 @@ export default function PropertyDetailScreen() {
             )}
             {rent > 0 && (
               <div className="obj-f">
-                <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                   <IconCurrencyDollar size={13} color="#4ade80" />Оренда
                 </div>
                 <div className="obj-fv">{formatPrice(rent, user?.currency)}/міс</div>
@@ -356,7 +356,7 @@ export default function PropertyDetailScreen() {
             )}
             {property.sale_price != null && (
               <div className="obj-f">
-                <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                   <IconCurrencyDollar size={13} color="#fbbf24" />Ціна продажу
                 </div>
                 <div className="obj-fv">{formatPrice(property.sale_price, user?.currency)}</div>
@@ -364,7 +364,7 @@ export default function PropertyDetailScreen() {
             )}
             {property.tenant_name && (
               <div className="obj-f" style={{ gridColumn: '1 / -1' }}>
-                <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                   <IconUser size={13} color="#a78bfa" />Орендар
                 </div>
                 <div className="obj-fv">{property.tenant_name}</div>
@@ -372,7 +372,7 @@ export default function PropertyDetailScreen() {
             )}
             {(property.lease_start_date || property.lease_end_date) && (
               <div className="obj-f" style={{ gridColumn: '1 / -1' }}>
-                <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                   <IconKey size={13} color="#a78bfa" />Строк договору
                 </div>
                 <div className="obj-fv">
@@ -402,13 +402,13 @@ export default function PropertyDetailScreen() {
         {/* Utilities */}
         {(property.utilities ?? []).length > 0 && (
           <div style={{ margin: '0 12px 12px' }}>
-            <div style={{ fontSize: 12, color: 'var(--t3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 8 }}>Комунальні послуги</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            <div style={{ fontSize: 12, color: 'var(--t3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 10 }}>Комунальні послуги</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
               {(property.utilities ?? []).map(uid => {
                 const meta = UTILITY_META.find(m => m.id === uid)
                 if (!meta) return null
                 return (
-                  <div key={uid} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 'var(--r-pill)', background: 'var(--glass-2)', border: '.5px solid var(--glass-3)', fontSize: 12, fontWeight: 500, color: meta.color }}>
+                  <div key={uid} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 13px', borderRadius: 'var(--r-pill)', background: 'var(--glass-2)', border: '.5px solid var(--glass-3)', fontSize: 12, fontWeight: 500, color: meta.color }}>
                     <meta.Icon size={13} />
                     {meta.label}
                   </div>
@@ -421,7 +421,7 @@ export default function PropertyDetailScreen() {
         {/* Financial breakdown */}
         {total > 0 && (
           <div className="glass-s" style={{ margin: '0 12px 12px', borderRadius: 'var(--r-md)', padding: '12px 14px' }}>
-            <div style={{ fontSize: 11, color: 'var(--t3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 5 }}>
+            <div style={{ fontSize: 11, color: 'var(--t3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
               <IconCurrencyDollar size={12} color="#4ade80" />Фінанси
             </div>
             {rent > 0 && (
@@ -513,7 +513,7 @@ export default function PropertyDetailScreen() {
           const barColor = daysLeft < 30 ? '#fb923c' : '#4ade80'
           return (
             <div className="glass-s" style={{ margin: '0 12px 12px', borderRadius: 'var(--r-md)', padding: '12px 14px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                 <span style={{ fontSize: 11, color: 'var(--t3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>Договір оренди</span>
                 <span style={{ fontSize: 12, color: daysLeft < 30 ? '#fb923c' : 'var(--t3)', fontWeight: 600 }}>
                   {daysLeft > 0 ? `${daysLeft} дн.` : 'Завершено'}

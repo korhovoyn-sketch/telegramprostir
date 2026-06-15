@@ -180,7 +180,7 @@ body{
 .subt{font-size:var(--fs-foot);color:var(--t2);margin:-6px var(--g3) var(--g3);line-height:var(--lh-norm)}
 
 /* Section over-line — Caption 2 Semibold uppercase (Apple uses this pattern exactly) */
-.over{padding:8px var(--g3) 5px;font-size:var(--fs-cap2);color:var(--t3);font-weight:var(--fw-semi);text-transform:uppercase;letter-spacing:.07em;display:flex;justify-content:space-between;align-items:center;line-height:1}
+.over{padding:10px var(--g3) 7px;font-size:var(--fs-cap2);color:var(--t3);font-weight:var(--fw-semi);text-transform:uppercase;letter-spacing:.07em;display:flex;justify-content:space-between;align-items:center;line-height:1}
 
 /* Linked action in over-line — Caption 1 */
 .over-a{color:var(--info-fg);cursor:pointer;font-size:var(--fs-cap1);text-transform:none;letter-spacing:0;font-weight:var(--fw-semi)}
@@ -201,7 +201,7 @@ body{
 .stat-l{font-size:var(--fs-cap2);color:var(--t3);margin-top:5px;font-weight:var(--fw-semi);text-transform:uppercase;letter-spacing:.05em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* ── LIST ROW ── */
-.list{display:flex;flex-direction:column;gap:var(--g2);padding:0 var(--g3)}
+.list{display:flex;flex-direction:column;gap:10px;padding:0 var(--g3)}
 .row{border-radius:var(--r-md);padding:var(--pad-card);display:flex;align-items:center;gap:11px;min-height:var(--row-h);cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform 0.12s ease,filter 0.12s ease,opacity 0.12s ease,background .18s}
 .row:hover{background:var(--glass-2)}
 .row:active{transform:scale(.985)}
@@ -320,14 +320,14 @@ input,textarea,select{font-size:16px;touch-action:manipulation}
 /* ── OBJECT CARD ── */
 .obj-card{border-radius:var(--r-md);overflow:hidden;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform 0.12s ease,filter 0.12s ease,opacity 0.12s ease}
 .obj-card:active{transform:scale(.985)}
-.obj-hd{padding:12px var(--pad-card) 10px;display:flex;justify-content:space-between;align-items:flex-start;gap:var(--g2)}
+.obj-hd{padding:13px var(--pad-card) 12px;display:flex;justify-content:space-between;align-items:flex-start;gap:var(--g2)}
 /* Card title — Subhead Semibold (same tier as row-t for visual consistency) */
 .obj-t{font-size:var(--fs-sub);font-weight:var(--fw-semi);color:var(--t1);line-height:var(--lh-snug);letter-spacing:-.01em}
 /* Card subtitle / floor — Caption 1 */
-.obj-s{font-size:var(--fs-cap1);color:var(--t3);margin-top:3px;display:flex;align-items:center;gap:5px;line-height:var(--lh-snug)}
-.obj-met{display:grid;grid-template-columns:1fr 1fr;gap:7px 0;padding:4px var(--pad-card) 12px}
+.obj-s{font-size:var(--fs-cap1);color:var(--t3);margin-top:5px;display:flex;align-items:center;gap:5px;line-height:var(--lh-snug)}
+.obj-met{display:grid;grid-template-columns:1fr 1fr;gap:10px 0;padding:8px var(--pad-card) 13px}
 /* Metadata chips — Caption 1 */
-.obj-mt{font-size:13px;color:var(--t2);display:flex;align-items:center;gap:5px;line-height:1;font-weight:500}
+.obj-mt{font-size:13px;color:var(--t2);display:flex;align-items:center;gap:6px;line-height:1;font-weight:500}
 /* Total bar — bottom accent strip */
 .obj-tot{background:var(--glass-2);padding:10px var(--pad-card);display:flex;justify-content:space-between;align-items:center;border-top:.5px solid rgba(255,255,255,.08)}
 /* "На місяць" label — Caption 2 uppercase */
@@ -335,11 +335,11 @@ input,textarea,select{font-size:16px;touch-action:manipulation}
 /* Price value — Subhead Bold */
 .obj-tot-v{font-size:var(--fs-sub);font-weight:var(--fw-bold);color:var(--t1);letter-spacing:-.02em}
 .obj-tot-sub{font-size:var(--fs-cap2);color:var(--t3);margin-top:2px}
-.obj-act{display:flex;gap:8px;padding:10px var(--pad-card);border-top:.5px solid rgba(255,255,255,.08);flex-wrap:wrap}
+.obj-act{display:flex;gap:8px;padding:12px var(--pad-card);border-top:.5px solid rgba(255,255,255,.08);flex-wrap:wrap}
 .obj-act-btn{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:var(--r-pill);background:var(--glass-2);border:var(--bd);color:var(--t2);font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .15s,color .15s}
 .obj-act-btn:active{background:var(--glass-3);color:var(--t1);transform:scale(.96)}
 .cost-row{display:flex;justify-content:space-between;align-items:baseline;padding:3px 0;font-size:13px;color:var(--t2)}
-.cost-row+.cost-row{border-top:.5px solid rgba(255,255,255,.07);padding-top:7px;margin-top:4px}
+.cost-row+.cost-row{border-top:.5px solid rgba(255,255,255,.07);padding-top:8px;margin-top:6px}
 .cost-ttl{font-size:22px;font-weight:700;color:var(--t1);letter-spacing:-.02em}
 
 /* ── DASHBOARD STATS PANEL ── */
@@ -366,8 +366,8 @@ input,textarea,select{font-size:16px;touch-action:manipulation}
 .obj-hero-name{font-size:18px;font-weight:700;letter-spacing:-.01em}
 .obj-hero-addr{font-size:12px;color:rgba(255,255,255,.75);margin-top:2px;display:flex;align-items:center;gap:3px}
 .obj-body{padding:14px var(--pad-card)}
-.obj-grid{display:grid;grid-template-columns:1fr 1fr;gap:11px 16px;margin-bottom:12px}
-.obj-f{display:flex;flex-direction:column;gap:2px}
+.obj-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 16px;margin-bottom:14px}
+.obj-f{display:flex;flex-direction:column;gap:4px}
 /* Field label — Caption 2 uppercase (Apple detail label pattern) */
 .obj-fl{font-size:var(--fs-cap2);color:var(--t3);text-transform:uppercase;letter-spacing:.05em;font-weight:var(--fw-semi);line-height:1}
 /* Field value — Footnote Semibold */
@@ -380,7 +380,7 @@ input,textarea,select{font-size:16px;touch-action:manipulation}
 /* Info title — Subhead Semibold */
 .info-t{font-size:var(--fs-sub);font-weight:var(--fw-semi);color:var(--t1);letter-spacing:-.01em;line-height:var(--lh-snug)}
 /* Info subtitle — Caption 1 */
-.info-s{font-size:var(--fs-cap1);color:var(--t2);margin-top:4px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;line-height:var(--lh-snug)}
+.info-s{font-size:var(--fs-cap1);color:var(--t2);margin-top:6px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;line-height:var(--lh-snug)}
 .info-act{width:36px;height:36px;border-radius:50%;background:var(--glass-3);display:flex;align-items:center;justify-content:center;color:var(--t1);font-size:14px;flex-shrink:0;border:var(--bd);cursor:pointer}
 
 /* ── OWNER CARD ── */
@@ -931,7 +931,7 @@ svg.ico{overflow:visible}
 .descr-t b{color:var(--t1);font-weight:var(--fw-semi)}
 
 /* ── FEATURES GRID (object detail) ── */
-.feat-g{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;padding:0 var(--g3) var(--g3)}
+.feat-g{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;padding:0 var(--g3) var(--g3)}
 .feat{background:var(--glass-1);backdrop-filter:blur(20px) saturate(170%);-webkit-backdrop-filter:blur(20px) saturate(170%);border:var(--bd);border-radius:var(--r-sm);padding:10px 11px;display:flex;align-items:center;gap:8px}
 .feat i{font-size:16px;color:var(--info-fg);flex-shrink:0}
 /* Feature tag text — Caption 1 Medium */
