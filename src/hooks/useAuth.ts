@@ -251,7 +251,7 @@ export function useAuth() {
       const startParam = typeof window !== 'undefined'
         ? window?.Telegram?.WebApp?.initDataUnsafe?.start_param
         : null
-      if (startParam?.startsWith('db_') || startParam?.startsWith('prop_') || startParam?.startsWith('guest_')) return
+      if (startParam?.startsWith('db_') || startParam?.startsWith('prop_') || startParam?.startsWith('guest_') || startParam?.startsWith('col_')) return
 
       if (is_new || !dbUser.role) {
         navigateRoot('role-select')
@@ -319,7 +319,11 @@ export function useAuth() {
   }, [setUser, showToast])
 
   const restoreSession = useCallback(() => {
-    if (!_restorePromise) _restorePromise = doRestoreSession()
+    if (!_restorePromise) {
+      _restorePromise = doRestoreSession()
+      // Clear singleton on failure so transient errors don't permanently block retries.
+      _restorePromise.then(ok => { if (!ok) _restorePromise = null }).catch(() => { _restorePromise = null })
+    }
     return _restorePromise
   }, [])
 
@@ -476,10 +480,9 @@ async function doRestoreSession(): Promise<boolean> {
 
     // Last resort: DB fetch (first-ever restore after fresh install)
     const { data } = await supabase.from('users').select('*').eq('tg_id', tgId).single()
-    if (data) {
-      setUser(data as User)
-      persistProfile(data as User)
-    }
+    if (!data) return false
+    setUser(data as User)
+    persistProfile(data as User)
     return true
   } catch {
     return false

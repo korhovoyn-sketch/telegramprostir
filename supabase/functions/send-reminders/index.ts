@@ -90,6 +90,7 @@ Deno.serve(async (req) => {
   const { data: guestRows, error: guestError } = await admin.rpc('get_due_guest_reminders')
   if (guestError) {
     console.error('[send-reminders] guest rpc error', guestError)
+    return new Response(JSON.stringify({ error: 'Internal error' }), { status: 500 })
   }
 
   let sentGuests = 0

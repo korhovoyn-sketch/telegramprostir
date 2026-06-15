@@ -41,6 +41,7 @@ export function useDeepLink() {
           if (error || !result || result.error) {
             const msg = result?.error === 'revoked' ? 'Запрошення відкликано власником'
               : result?.error === 'already_claimed' ? 'Це запрошення вже використано'
+              : result?.error === 'cannot_claim_own_link' ? 'Не можна прийняти власне запрошення'
               : 'Запрошення не знайдено або недійсне'
             showToast({ type: 'error', title: 'Помилка доступу', subtitle: msg })
             navigateFallback()
@@ -60,6 +61,8 @@ export function useDeepLink() {
           useAppStore.getState().navigateRoot('guest-home')
           if (result.property_id) {
             navigate('property-detail', { propertyId: result.property_id, dbId: result.db_id ?? undefined })
+          } else if (result.db_id) {
+            navigate('db-objects', { dbId: result.db_id })
           }
           return
         }
