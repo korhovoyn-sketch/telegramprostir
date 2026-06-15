@@ -372,37 +372,41 @@ async function doRestoreSession(): Promise<boolean> {
   const setUser = (u: User | null) => useAppStore.getState().setUser(u)
   try {
     // Fast path 0: Profile cache + identity from initDataUnsafe.user.id
-    // This works even when session tokens are fully expired (e.g. > 7 days inactive)
-    // or when the JWT has been wiped from localStorage (common iOS cold-start).
-    // We verify tg_id from the Telegram client (unforgeable in-app) instead of JWT.
+    // Requires a valid Supabase session so the home screen's API calls work.
+    // Without this gate, fast path could show the home screen with no session —
+    // all queries run anonymously and return empty (the "things don't load" bug
+    // on iOS cold starts where localStorage is wiped but CloudStorage has a profile).
     const tgId0 = getTgIdFromInitData()
     if (!isNaN(tgId0)) {
-      // Check localStorage first (warm starts, Android)
-      let cached: User | null = null
-      try {
-        const lsRaw = localStorage.getItem(PROFILE_KEY)
-        if (lsRaw) {
-          const u = JSON.parse(lsRaw) as User
-          if (u.tg_id === tgId0) cached = u
-        }
-      } catch { /* ignore */ }
-
-      // Check CloudStorage (iOS cold start where localStorage was wiped)
-      if (!cached) {
+      const { data: { session: quickSession } } = await supabase.auth.getSession()
+      if (quickSession) {
+        // Check localStorage first (warm starts, Android)
+        let cached: User | null = null
         try {
-          const csRaw = await cloudGet(PROFILE_CS_KEY)
-          if (csRaw) {
-            const u = JSON.parse(csRaw) as User
+          const lsRaw = localStorage.getItem(PROFILE_KEY)
+          if (lsRaw) {
+            const u = JSON.parse(lsRaw) as User
             if (u.tg_id === tgId0) cached = u
           }
         } catch { /* ignore */ }
-      }
 
-      if (cached) {
-        setUser(cached)
-        // Refresh session + live DB profile in the background without blocking UX.
-        refreshSessionSilently(tgId0).catch(() => {})
-        return true
+        // Check CloudStorage (iOS cold start where localStorage was wiped)
+        if (!cached) {
+          try {
+            const csRaw = await cloudGet(PROFILE_CS_KEY)
+            if (csRaw) {
+              const u = JSON.parse(csRaw) as User
+              if (u.tg_id === tgId0) cached = u
+            }
+          } catch { /* ignore */ }
+        }
+
+        if (cached) {
+          setUser(cached)
+          // Refresh session + live DB profile in the background without blocking UX.
+          refreshSessionSilently(tgId0).catch(() => {})
+          return true
+        }
       }
     }
 

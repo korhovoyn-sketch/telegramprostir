@@ -42,11 +42,15 @@ export default function WelcomeScreen() {
   useEffect(() => {
     if (!user) return
     const startParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param
-    if (startParam?.startsWith('db_') || startParam?.startsWith('prop_') || startParam?.startsWith('col_')) return
+    if (startParam?.startsWith('db_') || startParam?.startsWith('prop_') || startParam?.startsWith('col_') || startParam?.startsWith('guest_')) return
     if (!user.role) {
       navigateRoot('role-select')
+    } else if (user.role === 'owner') {
+      navigateRoot('db-list')
+    } else if (user.role === 'realtor') {
+      navigateRoot('realtor-dashboard')
     } else {
-      navigateRoot(user.role === 'owner' ? 'db-list' : 'realtor-dashboard')
+      navigateRoot('guest-home')
     }
   }, [user, navigateRoot])
 
