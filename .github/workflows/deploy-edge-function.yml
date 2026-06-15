@@ -46,3 +46,10 @@ jobs:
           supabase functions deploy telegram-bot \
             --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} \
             --no-verify-jwt
+
+      - name: Deploy send-reminders function
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          supabase functions deploy send-reminders \
+            --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
