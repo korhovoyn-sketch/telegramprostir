@@ -234,8 +234,7 @@ export default function ManageGuestsScreen() {
           onClose={() => setNewLink(null)}
           actions={[
             { label: 'Поділитись в Telegram', variant: 'primary', onClick: () => { handleShareLink(newLink); setNewLink(null) } },
-            { label: 'Скопіювати', variant: 'secondary', onClick: () => handleCopyLink(newLink) },
-            { label: 'Закрити', variant: 'secondary', onClick: () => setNewLink(null) },
+            { label: 'Скопіювати', variant: 'secondary', onClick: () => { handleCopyLink(newLink); setNewLink(null) } },
           ]}
         >
           <div style={{ wordBreak: 'break-all', fontSize: 12, color: 'var(--t3)', fontFamily: 'monospace', background: 'var(--glass-1)', borderRadius: 'var(--r-sm)', padding: '8px 10px', marginTop: 6 }}>

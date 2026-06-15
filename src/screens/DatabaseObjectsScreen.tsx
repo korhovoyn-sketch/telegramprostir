@@ -21,6 +21,7 @@ export default function DatabaseObjectsScreen() {
   const { screenParams, navigate, databases, user } = useAppStore()
   const { deleteDatabase } = useDatabases()
   const { properties, loading, error, loadProperties, reorderProperty, batchDeleteProperties, batchUpdateStatus } = useProperties(screenParams.dbId)
+  const isOwner = user?.role === 'owner'
 
   const [search, setSearch] = useState('')
   const [tab, setTab] = useState<'all' | PropertyStatus>('all')
@@ -130,11 +131,11 @@ export default function DatabaseObjectsScreen() {
             <button className="hdr-a" onClick={exitSelectMode} style={{ background: 'none', border: 'var(--bd)', fontSize: 13 }}>
               Скасувати
             </button>
-          ) : (
+          ) : isOwner ? (
             <button className="hdr-a" aria-label="Меню бази" onClick={() => setShowMenu(true)} style={{ background: 'none', border: 'var(--bd)' }}>
               <IconDots size={16} />
             </button>
-          )
+          ) : <div className="hdr-sp" />
         }
       />
 
@@ -152,13 +153,15 @@ export default function DatabaseObjectsScreen() {
               <span>{counts.free} вільно</span>
             </div>
           </div>
-          <button
-            className="info-act"
-            aria-label="Аналітика та поширення"
-            onClick={() => navigate('sharing-analytics', { dbId: db.id })}
-          >
-            <IconShare size={14} />
-          </button>
+          {isOwner && (
+            <button
+              className="info-act"
+              aria-label="Аналітика та поширення"
+              onClick={() => navigate('sharing-analytics', { dbId: db.id })}
+            >
+              <IconShare size={14} />
+            </button>
+          )}
         </div>
 
         {/* Segment tabs — hidden while reordering */}
@@ -258,14 +261,16 @@ export default function DatabaseObjectsScreen() {
           <div className="empty-state" style={{ paddingTop: 24 }}>
             <div className="empty-ic">🏢</div>
             <div className="empty-h">Немає об&apos;єктів</div>
-            <div className="empty-s">Натисни + щоб додати перший об&apos;єкт</div>
-            <button
-              className="mbtn success"
-              style={{ position: 'relative', bottom: 'auto', left: 'auto', right: 'auto', marginTop: 24, width: 'auto', minWidth: 200 }}
-              onClick={() => navigate('property-form', { dbId: screenParams.dbId })}
-            >
-              Додати перший об&apos;єкт
-            </button>
+            <div className="empty-s">{isOwner ? 'Натисни + щоб додати перший об\'єкт' : 'У цій базі поки немає об\'єктів'}</div>
+            {isOwner && (
+              <button
+                className="mbtn success"
+                style={{ position: 'relative', bottom: 'auto', left: 'auto', right: 'auto', marginTop: 24, width: 'auto', minWidth: 200 }}
+                onClick={() => navigate('property-form', { dbId: screenParams.dbId })}
+              >
+                Додати перший об&apos;єкт
+              </button>
+            )}
           </div>
         ) : filtered.length === 0 ? (
           <div className="empty-state" style={{ paddingTop: 24 }}>
@@ -451,12 +456,14 @@ export default function DatabaseObjectsScreen() {
                       )}
                       {!selectMode && !reorderMode && (
                         <div className="obj-act" onClick={e => e.stopPropagation()}>
-                          <button
-                            className="obj-act-btn"
-                            onClick={() => navigate('property-form', { propertyId: p.id, dbId: db.id })}
-                          >
-                            <IconEdit size={13} /> Редагувати
-                          </button>
+                          {isOwner && (
+                            <button
+                              className="obj-act-btn"
+                              onClick={() => navigate('property-form', { propertyId: p.id, dbId: db.id })}
+                            >
+                              <IconEdit size={13} /> Редагувати
+                            </button>
+                          )}
                           {p.status === 'occupied' && (
                             <button
                               className="obj-act-btn"
@@ -482,14 +489,14 @@ export default function DatabaseObjectsScreen() {
         )}
       </div>
 
-      {/* FAB — hidden while reordering or selecting */}
-      {!reorderMode && !selectMode && (
+      {/* FAB — owner only, hidden while reordering or selecting */}
+      {isOwner && !reorderMode && !selectMode && (
         <button ref={fabRef} className="fab" aria-label="Додати об'єкт" onClick={() => navigate('property-form', { dbId: db.id })}>
           <IconPlus size={20} />
         </button>
       )}
 
-      {!fabSeen && !reorderMode && !selectMode && !loading && (
+      {isOwner && !fabSeen && !reorderMode && !selectMode && !loading && (
         <CoachMark
           title="Додайте перший об'єкт"
           body="Натисніть +, щоб внести квартиру, офіс або приміщення з площею, статусом та орендою."
@@ -499,8 +506,8 @@ export default function DatabaseObjectsScreen() {
         />
       )}
 
-      {/* Batch action bar */}
-      {selectMode && selectedIds.size > 0 && (
+      {/* Batch action bar — owner only */}
+      {isOwner && selectMode && selectedIds.size > 0 && (
         <div style={{
           position: 'fixed', left: 0, right: 0, zIndex: 100,
           bottom: 'calc(56px + var(--safe-bottom))',

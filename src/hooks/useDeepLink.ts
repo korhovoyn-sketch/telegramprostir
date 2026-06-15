@@ -117,6 +117,7 @@ export function useDeepLink() {
           return
         }
 
+        localStorage.removeItem('ps_guest_join_token')
         const token = startParam!.slice(3)
         const { data: rows, error: dbErr } = await supabase
           .rpc('lookup_shared_db', { p_token: token })
