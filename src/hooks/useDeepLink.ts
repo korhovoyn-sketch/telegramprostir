@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAppStore } from '@/store/appStore'
-import type { ScreenName } from '@/types'
+import type { ScreenName, User } from '@/types'
 
 export function useDeepLink() {
   const user = useAppStore((s) => s.user)
@@ -46,6 +46,14 @@ export function useDeepLink() {
             navigateFallback()
             return
           }
+
+          // Refresh user in store — claim_guest_link may have set role='guest' in DB
+          const { data: freshUser } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', user!.id)
+            .single()
+          if (freshUser) useAppStore.getState().setUser(freshUser as User)
 
           window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
           showToast({ type: 'success', title: 'Доступ отримано! 🎉' })

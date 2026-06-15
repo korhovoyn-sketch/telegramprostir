@@ -1,6 +1,5 @@
 'use client'
 
-/* eslint-disable @next/next/no-img-element */
 import { useEffect, useState } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { supabase } from '@/lib/supabase'
@@ -9,6 +8,7 @@ import { IconShare, IconEye, IconChartLine } from '@/components/Icons'
 import { formatDate, daysSince } from '@/lib/utils'
 import { buildPublicUrl, sharePublicUrl } from '@/lib/telegram'
 import type { PropertyView } from '@/types'
+import QRCode from 'react-qr-code'
 
 const DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд']
 
@@ -122,10 +122,9 @@ export default function SharingAnalyticsScreen() {
   }
 
   const shareLink = getPublicUrl()
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(shareLink)}`
 
   return (
-    <div className="scr bg-teal">
+    <div className="scr bg-pink">
       <Header title={isPropertyShare ? 'Поділитись об\'єктом' : 'Аналітика бази'} backLabel="Назад" />
 
       <div className="body">
@@ -205,13 +204,19 @@ export default function SharingAnalyticsScreen() {
         {/* QR + share link */}
         <div className="qr-hero glass-s">
           <div className="qr-wrap">
-            <img
-              src={qrUrl}
-              alt="QR code"
-              width={124}
-              height={124}
-              style={{ display: 'block', width: '100%', height: '100%' }}
-            />
+            {!loading ? (
+              <QRCode
+                value={shareLink}
+                size={124}
+                bgColor="#ffffff"
+                fgColor="#000000"
+                style={{ borderRadius: 6, display: 'block' }}
+              />
+            ) : (
+              <div style={{ width: 124, height: 124, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div className="loader" />
+              </div>
+            )}
           </div>
           <div className="qr-meta">
             <div className="qr-name">{isPropertyShare ? 'QR-код об\'єкта' : 'QR-код для ріелтора'}</div>
