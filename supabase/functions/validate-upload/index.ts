@@ -59,7 +59,10 @@ Deno.serve(async (req) => {
       return errResponse(404, 'Property not found or no access')
     }
 
-    // Verify file count (max 10 per property)
+    // Verify file count (max 10 per property).
+    // Note: concurrent requests may both pass this check and exceed the limit.
+    // The database trigger enforce_max_files_per_property() will catch this
+    // at insert time, and the database constraint is the authoritative guard.
     const { count } = await admin
       .from('property_files')
       .select('id', { count: 'exact', head: true })
