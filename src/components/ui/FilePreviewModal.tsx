@@ -15,14 +15,18 @@ export default function FilePreviewModal({ url, mime, name, onClose }: FilePrevi
   const isImage = mime.startsWith('image/')
 
   function handleDownload() {
-    const tg = window.Telegram?.WebApp
-    // Bot API 7.10 types not yet in SDK typedefs — cast to access newer methods
-    const tgExt = tg as unknown as { isVersionAtLeast?: (v: string) => boolean; downloadFile?: (p: { url: string; file_name: string }) => void }
-    if (tgExt.isVersionAtLeast?.('7.10')) {
-      tgExt.downloadFile?.({ url, file_name: name })
-    } else if (tg?.openLink) {
-      tg.openLink(url)
-    } else {
+    try {
+      const tg = window.Telegram?.WebApp
+      // Bot API 7.10 types not yet in SDK typedefs — cast to access newer methods
+      const tgExt = tg as unknown as { isVersionAtLeast?: (v: string) => boolean; downloadFile?: (p: { url: string; file_name: string }) => void }
+      if (tgExt.isVersionAtLeast?.('7.10')) {
+        tgExt.downloadFile?.({ url, file_name: name })
+      } else if (tg?.openLink) {
+        tg.openLink(url)
+      } else {
+        window.open(url, '_blank', 'noopener')
+      }
+    } catch {
       window.open(url, '_blank', 'noopener')
     }
   }
@@ -57,28 +61,29 @@ export default function FilePreviewModal({ url, mime, name, onClose }: FilePrevi
         }}>
           {name}
         </div>
-        {!isPdf && !isImage && (
-          <button
-            onClick={handleDownload}
-            style={{
-              width: 36, height: 36, borderRadius: '50%',
-              background: 'rgba(255,255,255,.15)',
-              border: '1px solid rgba(255,255,255,.2)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#fff', cursor: 'pointer', flexShrink: 0,
-              pointerEvents: 'all',
-            }}
-          >
-            <IconDownload size={18} />
-          </button>
-        )}
+        <button
+          onClick={handleDownload}
+          aria-label="Завантажити файл"
+          style={{
+            width: 36, height: 36, borderRadius: '50%',
+            background: 'rgba(255,255,255,.15)',
+            border: '1px solid rgba(255,255,255,.2)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: '#fff', cursor: 'pointer', flexShrink: 0,
+            pointerEvents: 'all',
+          }}
+        >
+          <IconDownload size={18} />
+        </button>
       </div>
 
       {isPdf ? (
-        /* PDF: inline iframe — no external browser */
+        /* PDF: inline iframe — no external browser.
+           sandbox allows scripts only for PDF rendering engine, blocks top navigation. */
         <iframe
           src={url}
           title={name}
+          sandbox="allow-scripts allow-same-origin"
           style={{ flex: 1, width: '100%', border: 'none', background: '#fff' }}
         />
       ) : isImage ? (

@@ -42,8 +42,13 @@ export function usePropertyFiles(propertyId: string | undefined) {
   ) => {
     if (!propertyId) return
 
-    // Guard: re-read fresh count to avoid race when uploading multiple
-    let currentCount = files.length
+    // Guard: query DB for the real current count — avoids stale closure
+    // when the user triggers a second upload batch before React re-renders.
+    const { count: dbCount } = await supabase
+      .from('property_files')
+      .select('id', { count: 'exact', head: true })
+      .eq('property_id', propertyId)
+    let currentCount = dbCount ?? files.length
 
     // Filter out invalid files before showing progress so total is accurate
     const valid = picked.filter(file => {

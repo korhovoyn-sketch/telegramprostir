@@ -31,6 +31,7 @@ export default function SplashScreen() {
     import('@/screens/WelcomeScreen')
     import('@/screens/DatabaseListScreen')
     import('@/screens/RealtorDashboardScreen')
+    import('@/screens/GuestHomeScreen')
     import('@/screens/DatabaseObjectsScreen')
     import('@/screens/ProfileScreen')
     import('@/screens/NotificationsScreen')

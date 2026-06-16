@@ -97,7 +97,8 @@ export default function PaymentCalendarScreen() {
           .from('properties')
           .select('id, db_id, owner_id, name, floor, status, rent_type, rent_rate, utilities_rate, tenant_name, lease_start_date, lease_end_date, area_useful, area_total, sort_order, has_parking, parking_spaces, created_at, updated_at')
           .eq('status', 'occupied')
-          .eq('owner_id', user.id)
+        // Guests access only their linked properties via RLS — no owner_id filter needed
+        if (user.role !== 'guest') propsQuery = propsQuery.eq('owner_id', user.id)
 
         if (propertyId)      propsQuery = propsQuery.eq('id', propertyId)
         else if (dbId)       propsQuery = propsQuery.eq('db_id', dbId)
