@@ -53,8 +53,16 @@ export default function SplashScreen() {
     return () => clearTimeout(t)
   }, [])
 
+  // Fallback: if Telegram SDK never fires isReady (outside Telegram / slow load),
+  // force-start after 2s so the splash never hangs on a white/dark screen forever.
+  const [forcedReady, setForcedReady] = useState(false)
   useEffect(() => {
-    if (!isReady) return
+    const t = setTimeout(() => setForcedReady(true), 2000)
+    return () => clearTimeout(t)
+  }, [])
+
+  useEffect(() => {
+    if (!isReady && !forcedReady) return
     if (startedRef.current) return
     startedRef.current = true
 
@@ -127,7 +135,7 @@ export default function SplashScreen() {
       cancelled = true
       if (ticker) clearInterval(ticker)
     }
-  }, [isReady, navigateRoot, restoreSession])
+  }, [isReady, forcedReady, navigateRoot, restoreSession])
 
   return (
     <div style={{
