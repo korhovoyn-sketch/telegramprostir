@@ -16,11 +16,17 @@ export default function FilePreviewModal({ url, mime, name, onClose }: FilePrevi
   const isPdf   = mime === 'application/pdf'
   const isImage = mime.startsWith('image/')
 
-  // Lock body scroll while modal is open; restore on close
+  // Lock scroll on the inner .body div (the real scroll container) while open.
+  // document.body is NOT the scroll container here — that's the .body div inside
+  // #app-root.  We lock it by finding it via the app-root.
   useEffect(() => {
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => { document.body.style.overflow = prev }
+    const appRoot = document.getElementById('app-root')
+    const bodyDiv = appRoot?.querySelector<HTMLElement>('.body')
+    if (bodyDiv) {
+      const prev = bodyDiv.style.overflow
+      bodyDiv.style.overflow = 'hidden'
+      return () => { bodyDiv.style.overflow = prev }
+    }
   }, [])
 
   // Dismiss on Escape key
@@ -61,8 +67,14 @@ export default function FilePreviewModal({ url, mime, name, onClose }: FilePrevi
   }
 
   const content = (
+    // position:absolute inside #app-root (which is position:fixed covering the TG viewport).
+    // This is the correct approach vs portaling to document.body with position:fixed:
+    // — body has overflow-x:hidden which implicitly makes overflow-y:auto, making body a
+    //   scroll container; a position:fixed child can appear offset if body has any scroll
+    // — #app-root is guaranteed to be exactly the TG viewport; absolute inset:0 here means
+    //   "fill the TG viewport" with no scroll-position gotchas
     <div style={{
-      position: 'fixed', inset: 0, zIndex: 9999,
+      position: 'absolute', inset: 0, zIndex: 200,
       background: '#000',
       display: 'flex', flexDirection: 'column',
     }}>
@@ -183,8 +195,12 @@ export default function FilePreviewModal({ url, mime, name, onClose }: FilePrevi
     </div>
   )
 
-  // Portal renders outside .nav-wrap so position:fixed works relative to viewport,
-  // not the will-change:transform ancestor that breaks fixed positioning.
+  // Portal into #app-root (not document.body).
+  // #app-root is position:fixed covering exactly the Telegram viewport; portaling here
+  // with position:absolute means the modal is placed as a sibling of .nav-wrap but
+  // entirely outside its will-change:transform containing block.
   if (typeof document === 'undefined') return null
-  return createPortal(content, document.body)
+  const appRoot = document.getElementById('app-root')
+  if (!appRoot) return null
+  return createPortal(content, appRoot)
 }
