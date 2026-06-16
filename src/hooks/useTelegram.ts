@@ -59,6 +59,8 @@ interface TelegramWebApp {
   version: string
   platform: string
   isExpanded: boolean
+  setHeaderColor?: (color: string) => void
+  setBackgroundColor?: (color: string) => void
 }
 
 declare global {
@@ -81,13 +83,17 @@ export function useTelegram() {
       try {
         webApp.ready()
         webApp.expand()
-        setTg(webApp)
-        setUser(webApp.initDataUnsafe?.user ?? null)
       } catch {
-        // Older TMA versions may throw on ready()/expand() — still mark as ready
-      } finally {
-        setIsReady(true)
+        // Older TMA versions may throw; still continue with SDK setup
       }
+      setTg(webApp)
+      // initDataUnsafe.user exists only when opened from Telegram; log for DEV diagnostics
+      const tgUser = webApp.initDataUnsafe?.user
+      if (!tgUser) {
+        console.debug('[useTelegram] Opened outside Telegram; initDataUnsafe.user is undefined')
+      }
+      setUser(tgUser ?? null)
+      setIsReady(true)
     }
 
     // The Telegram SDK loads via a deferred external <script>, so it may not be
@@ -100,15 +106,16 @@ export function useTelegram() {
     }
 
     const start = Date.now()
+    const SDK_TIMEOUT_MS = 6000 // Allow 6s for SDK load on slow networks
     const pollId = setInterval(() => {
       if (cancelled) return
       const webApp = window.Telegram?.WebApp
       if (webApp) {
         clearInterval(pollId)
         init(webApp)
-      } else if (Date.now() - start > 4000) {
-        // SDK never loaded (opened outside Telegram) — unblock the splash anyway
+      } else if (Date.now() - start > SDK_TIMEOUT_MS) {
         clearInterval(pollId)
+        // Fallback: initData is empty outside Telegram — still mark as ready to unblock splash
         setIsReady(true)
       }
     }, 50)

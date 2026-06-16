@@ -1,14 +1,3 @@
-/**
- * Telegram bot username used for share links.
- * Set NEXT_PUBLIC_TELEGRAM_BOT_USERNAME in Vercel environment variables.
- * Example: prostirapplbot  (no @, no https)
- */
-function getTgBot(): string {
-  const bot = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME
-  if (!bot) throw new Error('[PropSpace] Missing NEXT_PUBLIC_TELEGRAM_BOT_USERNAME env var')
-  return bot
-}
-
 export const TG_BOT = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME ?? ''
 
 /** Mini App short name from BotFather (/newapp). Enables direct-link format. */
@@ -20,10 +9,12 @@ const TG_APP = process.env.NEXT_PUBLIC_TELEGRAM_APP_NAME ?? ''
  * immediately with start_param; bare t.me/bot?startapp= only auto-opens
  * when a Main Mini App is configured in BotFather and otherwise drops
  * the param, leaving the user in an empty bot chat.
+ * Returns '#' if the bot username env var is not configured (safe fallback
+ * for /v/ page renders in build or preview environments).
  */
 export function buildDeepLink(startParam: string): string {
-  const bot = getTgBot()
-  const base = TG_APP ? `https://t.me/${bot}/${TG_APP}` : `https://t.me/${bot}`
+  if (!TG_BOT) return '#'
+  const base = TG_APP ? `https://t.me/${TG_BOT}/${TG_APP}` : `https://t.me/${TG_BOT}`
   return `${base}?startapp=${encodeURIComponent(startParam)}`
 }
 

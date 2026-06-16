@@ -61,8 +61,8 @@ export default function Page() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const tgAny = tg as any
     try {
-      tgAny.setHeaderColor?.('#0a0a14')
-      tgAny.setBackgroundColor?.('#0a0a14')
+      tgAny.setHeaderColor?.('#040408')
+      tgAny.setBackgroundColor?.('#040408')
       tgAny.disableVerticalSwipes?.()
     } catch { /* older TMA versions may not support these APIs */ }
     if (tg.colorScheme) {

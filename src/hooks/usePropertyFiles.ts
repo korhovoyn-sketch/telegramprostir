@@ -42,8 +42,13 @@ export function usePropertyFiles(propertyId: string | undefined) {
   ) => {
     if (!propertyId) return
 
-    // Guard: re-read fresh count to avoid race when uploading multiple
-    let currentCount = files.length
+    // Guard: query DB for the real current count — avoids stale closure
+    // when the user triggers a second upload batch before React re-renders.
+    const { count: dbCount } = await supabase
+      .from('property_files')
+      .select('id', { count: 'exact', head: true })
+      .eq('property_id', propertyId)
+    let currentCount = dbCount ?? files.length
 
     // Filter out invalid files before showing progress so total is accurate
     const valid = picked.filter(file => {
@@ -55,15 +60,29 @@ export function usePropertyFiles(propertyId: string | undefined) {
 
     if (!valid.length) return
 
+    // Verify ownership before touching storage — prevents orphaned files when RLS
+    // blocks the DB insert but the storage upload already succeeded.
+    const { data: propRow, error: propErr } = await supabase
+      .from('properties')
+      .select('owner_id')
+      .eq('id', propertyId)
+      .single()
+
+    if (propErr || !propRow?.owner_id) {
+      onError('Не вдалося підтвердити право власності на об\'єкт')
+      return
+    }
+
     setUploading(true)
     setUploadProgress({ done: 0, total: valid.length })
     try {
-      // Get owner_id from the property once
-      const { data: propRow } = await supabase
-        .from('properties')
-        .select('owner_id')
-        .eq('id', propertyId)
-        .single()
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      if (!supabaseUrl || !supabaseKey) throw new Error('Supabase config missing')
+
+      // Pass user's JWT so the Edge Function can verify ownership via RLS.
+      const { data: { session } } = await supabase.auth.getSession()
+      const userToken = session?.access_token ?? supabaseKey
 
       for (let i = 0; i < valid.length; i++) {
         const file = valid[i]
@@ -71,22 +90,78 @@ export function usePropertyFiles(propertyId: string | undefined) {
           onError(`Максимум ${MAX_FILES} файлів на об'єкт`)
           break
         }
+
         setCurrentUploadFile(file.name)
         setUploadProgress({ done: i, total: valid.length })
 
-        const ext  = file.name.split('.').pop()?.toLowerCase() ?? 'bin'
-        const rand = Math.random().toString(36).slice(2, 8)
-        const path = `${propertyId}/${Date.now()}_${rand}.${ext}`
+        // Call Edge Function to validate and get signed upload URL.
+        // Authorization header carries user JWT so the function can verify property ownership.
+        // Use AbortController to timeout on slow networks (10s max per file).
+        const controller = new AbortController()
+        const timeout = setTimeout(() => controller.abort(), 10000)
 
-        const { error: storErr } = await supabase.storage.from(BUCKET).upload(path, file)
-        if (storErr) { onError(storErr.message); continue }
+        let validateRes
+        try {
+          validateRes = await fetch(`${supabaseUrl}/functions/v1/validate-upload`, {
+            method: 'POST',
+            signal: controller.signal,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${userToken}`,
+              'apikey': supabaseKey,
+            },
+            body: JSON.stringify({
+              propertyId,
+              fileName: file.name,
+              mimeType: file.type,
+              fileSize: file.size,
+            }),
+          })
+        } catch (err) {
+          if (err instanceof Error && err.name === 'AbortError') {
+            onError('Timeout validating file (10s) — check your connection')
+          } else {
+            onError(`Upload validation failed: ${err instanceof Error ? err.message : String(err)}`)
+          }
+          continue
+        } finally {
+          clearTimeout(timeout)
+        }
 
+        if (!validateRes.ok) {
+          const errData = await validateRes.json().catch(() => ({}))
+          onError((errData as Record<string, unknown>).error as string || `Upload validation failed (${validateRes.status})`)
+          continue
+        }
+
+        const { uploadUrl, storagePath } = await validateRes.json() as { uploadUrl: string; storagePath: string }
+        if (!uploadUrl || !storagePath) {
+          onError('Invalid upload response')
+          continue
+        }
+
+        // Upload file using signed URL
+        const uploadResult = await fetch(uploadUrl, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': file.type,
+            'x-upsert': 'false',
+          },
+          body: file,
+        })
+
+        if (!uploadResult.ok) {
+          onError(`Upload failed: ${uploadResult.status}`)
+          continue
+        }
+
+        // Record in database
         const { data: row, error: dbErr } = await supabase
           .from('property_files')
           .insert({
             property_id:  propertyId,
-            owner_id:     propRow?.owner_id ?? '',
-            storage_path: path,
+            owner_id:     propRow.owner_id,
+            storage_path: storagePath,
             file_name:    file.name,
             file_size:    file.size,
             mime_type:    file.type,
@@ -96,8 +171,8 @@ export function usePropertyFiles(propertyId: string | undefined) {
           .single()
 
         if (dbErr) {
-          await supabase.storage.from(BUCKET).remove([path]).catch(() => {})
-          onError(dbErr.message)
+          console.warn(`[usePropertyFiles] DB insert failed for ${storagePath}:`, dbErr.message)
+          onError(`Файл завантажено, але не збережено: ${dbErr.message}`)
           continue
         }
 

@@ -436,8 +436,8 @@ export default function DatabaseObjectsScreen() {
                       {total > 0 && (
                         <div className="obj-tot">
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <span style={{ width: 22, height: 22, borderRadius: 7, background: 'rgba(74,222,128,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                              <IconCurrencyDollar size={12} color="#4ade80" />
+                            <span style={{ width: 22, height: 22, borderRadius: 7, background: 'rgba(194,130,10,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                              <IconCurrencyDollar size={12} color="#c2820a" />
                             </span>
                             <div>
                               <div className="obj-tot-l">На місяць</div>
@@ -556,6 +556,7 @@ export default function DatabaseObjectsScreen() {
             {[
               { label: '📊 Аналітика і поширення', action: () => { setShowMenu(false); navigate('sharing-analytics', { dbId: db.id }) } },
               { label: '📅 Календар платежів',    action: () => { setShowMenu(false); navigate('payment-calendar', { dbId: db.id }) } },
+              { label: '🔑 Управління гостями',   action: () => { setShowMenu(false); navigate('manage-guests', { dbId: db.id }) } },
               { label: '📤 Експорт',               action: () => { setShowMenu(false); navigate('export', { dbId: db.id }) } },
               { label: '☑ Виділити об\'єкти',      action: enterSelectMode },
               { label: '↕ Змінити порядок',        action: enterReorderMode },

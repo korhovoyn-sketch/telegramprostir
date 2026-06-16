@@ -9,6 +9,8 @@ const SESSION_KEY     = 'ps_session'
 const PROFILE_KEY     = 'ps_user'
 const PROFILE_CS_KEY  = 'ps_user_cs'
 
+const USER_COLUMNS = 'id,tg_id,tg_username,first_name,last_name,email,phone,role,language_code,currency,plan,notification_push,notification_weekly,notification_views,created_at,updated_at'
+
 // Set true before calling signOut so the SIGNED_OUT listener doesn't re-navigate
 // to welcome and trigger another auto-login cycle.
 let _intentionalLogout = false
@@ -91,7 +93,7 @@ export function useAuth() {
           if (isNaN(tgId)) return
           const { data, error } = await supabase
             .from('users')
-            .select('*')
+            .select(USER_COLUMNS)
             .eq('tg_id', tgId)
             .single()
           if (!error && data) {
@@ -292,11 +294,13 @@ export function useAuth() {
       const tgId = parseInt(tgIdStr, 10)
       if (!tgId) throw new Error('Cannot determine tg_id from session')
 
-      // Strip plan on the client — the DB trigger enforces it server-side too.
-      // role is intentionally allowed through so onboarding (role-select) works;
-      // the DB trigger blocks realtor→owner escalation.
+      // Strip plan, id, tg_id always. Strip role unless the current user has none
+      // (first-time onboarding via RoleSelectScreen). After role is set, only the
+      // DB trigger can change it — this is a second layer on top of the trigger.
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { plan: _plan, id: _id, tg_id: _tg_id, ...safeUpdates } = updates as Partial<User> & { plan?: string }
+      const { plan: _plan, id: _id, tg_id: _tg_id, role: _role, ...safeUpdates } = updates as Partial<User> & { plan?: string }
+      const currentRole = useAppStore.getState().user?.role
+      if (!currentRole && _role) (safeUpdates as Partial<User>).role = _role
 
       const { data, error } = await supabase
         .from('users')
@@ -331,8 +335,8 @@ export function useAuth() {
 }
 
 // Returns the Telegram user ID from initDataUnsafe — does NOT require a valid session.
-// Safe to use for identity verification because initDataUnsafe is populated by the
-// Telegram client itself and cannot be spoofed from within the WebApp page.
+// initDataUnsafe is NOT HMAC-validated here; only the Edge Function validates it.
+// Use only for cache-key matching (fast path), never for access control decisions.
 function getTgIdFromInitData(): number {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

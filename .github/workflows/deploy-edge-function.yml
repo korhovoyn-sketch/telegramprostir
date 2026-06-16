@@ -39,6 +39,14 @@ jobs:
             --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} \
             --no-verify-jwt
 
+      - name: Deploy validate-upload function
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          supabase functions deploy validate-upload \
+            --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} \
+            --no-verify-jwt
+
       - name: Deploy telegram-bot function
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
