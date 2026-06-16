@@ -66,11 +66,10 @@ Deno.serve(async (req) => {
       return errResponse(403, 'Property not found or access denied')
     }
 
-    // Verify file count (max 10 per property).
-    // The database trigger enforce_max_files_per_property() provides the
-    // authoritative guard at insert time against concurrent race conditions.
-    const admin = createClient(SUPABASE_URL, SERVICE_KEY)
-    const { count } = await admin
+    // Verify file count (max 10 per property) via userClient to enforce RLS.
+    // Using admin client would bypass RLS and allow reading counts for
+    // properties the user doesn't own. The database trigger provides final guard.
+    const { count } = await userClient
       .from('property_files')
       .select('id', { count: 'exact', head: true })
       .eq('property_id', propertyId)
@@ -88,6 +87,8 @@ Deno.serve(async (req) => {
     const rand = Math.random().toString(36).slice(2, 8)
     const path = `${propertyId}/${Date.now()}_${rand}.${ext}`
 
+    // Use SERVICE_KEY admin client only for storage operations (not RLS-protected)
+    const admin = createClient(SUPABASE_URL, SERVICE_KEY)
     const { data: uploadData, error: signErr } = await admin.storage
       .from('property-files')
       .createSignedUploadUrl(path)

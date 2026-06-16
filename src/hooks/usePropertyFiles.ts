@@ -96,20 +96,37 @@ export function usePropertyFiles(propertyId: string | undefined) {
 
         // Call Edge Function to validate and get signed upload URL.
         // Authorization header carries user JWT so the function can verify property ownership.
-        const validateRes = await fetch(`${supabaseUrl}/functions/v1/validate-upload`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${userToken}`,
-            'apikey': supabaseKey,
-          },
-          body: JSON.stringify({
-            propertyId,
-            fileName: file.name,
-            mimeType: file.type,
-            fileSize: file.size,
-          }),
-        })
+        // Use AbortController to timeout on slow networks (10s max per file).
+        const controller = new AbortController()
+        const timeout = setTimeout(() => controller.abort(), 10000)
+
+        let validateRes
+        try {
+          validateRes = await fetch(`${supabaseUrl}/functions/v1/validate-upload`, {
+            method: 'POST',
+            signal: controller.signal,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${userToken}`,
+              'apikey': supabaseKey,
+            },
+            body: JSON.stringify({
+              propertyId,
+              fileName: file.name,
+              mimeType: file.type,
+              fileSize: file.size,
+            }),
+          })
+        } catch (err) {
+          if (err instanceof Error && err.name === 'AbortError') {
+            onError('Timeout validating file (10s) — check your connection')
+          } else {
+            onError(`Upload validation failed: ${err instanceof Error ? err.message : String(err)}`)
+          }
+          continue
+        } finally {
+          clearTimeout(timeout)
+        }
 
         if (!validateRes.ok) {
           const errData = await validateRes.json().catch(() => ({}))

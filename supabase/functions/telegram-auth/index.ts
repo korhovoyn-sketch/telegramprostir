@@ -7,13 +7,15 @@ const RequestSchema = z.object({
 })
 
 // Restrict CORS to the Mini App origin set via ALLOWED_ORIGIN secret.
-// Logs a warning when unset so the operator knows to configure it.
+// REQUIRED: must be explicitly set. Default '*' is a security risk.
 const _allowedOrigin = Deno.env.get('ALLOWED_ORIGIN')
 if (!_allowedOrigin) {
-  console.warn('[telegram-auth] ALLOWED_ORIGIN not set — CORS is open to all origins. Set it in Supabase → Edge Functions → Secrets.')
+  // CRITICAL: Do NOT default to '*' — it allows ANY origin to make requests
+  // and steal access tokens via CSRF attacks. Fail loudly instead.
+  throw new Error('ALLOWED_ORIGIN env var must be explicitly set (no default to *). Set it in Supabase → Edge Functions → Secrets.')
 }
 const corsHeaders = {
-  'Access-Control-Allow-Origin': _allowedOrigin ?? '*',
+  'Access-Control-Allow-Origin': _allowedOrigin,
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Max-Age': '86400',
