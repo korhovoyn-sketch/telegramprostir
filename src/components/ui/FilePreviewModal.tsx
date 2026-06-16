@@ -51,10 +51,16 @@ export default function FilePreviewModal({ url, mime, name, onClose }: FilePrevi
       const tg = window.Telegram?.WebApp
       const tgExt = tg as unknown as {
         isVersionAtLeast?: (v: string) => boolean
-        downloadFile?: (p: { url: string; file_name: string }) => void
+        // downloadFile added in Bot API 8.0 (not 7.10 as older drafts suggested)
+        downloadFile?: (p: { url: string; file_name: string }, callback?: (success: boolean) => void) => void
       }
-      if (tgExt.isVersionAtLeast?.('7.10')) {
-        tgExt.downloadFile?.({ url, file_name: name })
+      if (tgExt.isVersionAtLeast?.('8.0') && tgExt.downloadFile) {
+        tgExt.downloadFile({ url, file_name: name }, (success) => {
+          if (!success) {
+            // User cancelled or download failed — fall back to openLink
+            tg?.openLink?.(url)
+          }
+        })
       } else if (tg?.openLink) {
         tg.openLink(url)
       } else {
