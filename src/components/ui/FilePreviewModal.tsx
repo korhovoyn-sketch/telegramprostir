@@ -16,9 +16,7 @@ export default function FilePreviewModal({ url, mime, name, onClose }: FilePrevi
   const isPdf   = mime === 'application/pdf'
   const isImage = mime.startsWith('image/')
 
-  // Lock scroll on the inner .body div (the real scroll container) while open.
-  // document.body is NOT the scroll container here — that's the .body div inside
-  // #app-root.  We lock it by finding it via the app-root.
+  // Lock scroll on the inner .body div (real scroll container) while open.
   useEffect(() => {
     const appRoot = document.getElementById('app-root')
     const bodyDiv = appRoot?.querySelector<HTMLElement>('.body')
@@ -29,7 +27,6 @@ export default function FilePreviewModal({ url, mime, name, onClose }: FilePrevi
     }
   }, [])
 
-  // Dismiss on Escape key
   useEffect(() => {
     function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose() }
     document.addEventListener('keydown', onKey)
@@ -52,8 +49,10 @@ export default function FilePreviewModal({ url, mime, name, onClose }: FilePrevi
   function handleDownload() {
     try {
       const tg = window.Telegram?.WebApp
-      // Bot API 7.10 types not yet in SDK typedefs — cast to access newer methods
-      const tgExt = tg as unknown as { isVersionAtLeast?: (v: string) => boolean; downloadFile?: (p: { url: string; file_name: string }) => void }
+      const tgExt = tg as unknown as {
+        isVersionAtLeast?: (v: string) => boolean
+        downloadFile?: (p: { url: string; file_name: string }) => void
+      }
       if (tgExt.isVersionAtLeast?.('7.10')) {
         tgExt.downloadFile?.({ url, file_name: name })
       } else if (tg?.openLink) {
@@ -66,81 +65,97 @@ export default function FilePreviewModal({ url, mime, name, onClose }: FilePrevi
     }
   }
 
+  // Button style reused for top-bar icon buttons — 44×44 minimum touch target (Apple HIG)
+  const iconBtnStyle: React.CSSProperties = {
+    width: 44, height: 44, borderRadius: '50%',
+    background: 'rgba(255,255,255,.15)',
+    border: '1px solid rgba(255,255,255,.2)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    color: '#fff', cursor: 'pointer', flexShrink: 0,
+    WebkitTapHighlightColor: 'transparent',
+  }
+
   const content = (
-    // position:absolute inside #app-root (which is position:fixed covering the TG viewport).
-    // This is the correct approach vs portaling to document.body with position:fixed:
-    // — body has overflow-x:hidden which implicitly makes overflow-y:auto, making body a
-    //   scroll container; a position:fixed child can appear offset if body has any scroll
-    // — #app-root is guaranteed to be exactly the TG viewport; absolute inset:0 here means
-    //   "fill the TG viewport" with no scroll-position gotchas
-    <div style={{
-      position: 'absolute', inset: 0, zIndex: 200,
-      background: '#000',
-      display: 'flex', flexDirection: 'column',
-    }}>
+    // Portal target is #app-root (position:fixed, covers exactly the TG viewport).
+    // Using position:absolute + explicit top/right/bottom/left (not inset shorthand)
+    // for iOS 14.4 and earlier compatibility.
+    // touchAction:none prevents background scroll bleed on mobile WebKit.
+    <div
+      style={{
+        position: 'absolute',
+        top: 0, right: 0, bottom: 0, left: 0,
+        zIndex: 200,
+        background: '#000',
+        display: 'flex',
+        flexDirection: 'column',
+        touchAction: 'none',
+        animation: 'fpmSlideUp .22s cubic-bezier(.16,1,.3,1) both',
+      }}
+      onClick={e => e.stopPropagation()}
+    >
       {/* Top bar */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0,
-        padding: 'calc(12px + var(--safe-top, 0px)) 16px 12px',
-        background: 'linear-gradient(to bottom, rgba(0,0,0,.85), transparent)',
+        padding: 'calc(12px + env(safe-area-inset-top, 0px)) 12px 12px',
+        background: 'linear-gradient(to bottom, rgba(0,0,0,.9), transparent)',
       }}>
-        <button
-          onClick={onClose}
-          aria-label="Закрити"
-          style={{
-            width: 36, height: 36, borderRadius: '50%',
-            background: 'rgba(255,255,255,.15)',
-            border: '1px solid rgba(255,255,255,.2)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#fff', cursor: 'pointer', flexShrink: 0,
-          }}
-        >
-          <IconX size={18} />
+        <button onClick={onClose} aria-label="Закрити" style={iconBtnStyle}>
+          <IconX size={20} />
         </button>
         <div style={{
           flex: 1, fontSize: 14, fontWeight: 600, color: '#fff',
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          paddingLeft: 2,
         }}>
           {name}
         </div>
-        <button
-          onClick={handleDownload}
-          aria-label="Завантажити файл"
-          style={{
-            width: 36, height: 36, borderRadius: '50%',
-            background: 'rgba(255,255,255,.15)',
-            border: '1px solid rgba(255,255,255,.2)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#fff', cursor: 'pointer', flexShrink: 0,
-          }}
-        >
-          <IconDownload size={18} />
+        <button onClick={handleDownload} aria-label="Завантажити файл" style={iconBtnStyle}>
+          <IconDownload size={20} />
         </button>
       </div>
 
       {isImage ? (
-        /* Image: fullscreen viewer, tap backdrop to close */
+        // Image: tap backdrop to close
         <div
           onClick={onClose}
-          style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}
+          style={{
+            flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            overflow: 'hidden', cursor: 'zoom-out',
+          }}
         >
           <img
             src={url}
             alt={name}
-            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', animation: 'galleryFadeIn .22s ease both' }}
+            style={{
+              maxWidth: '100%', maxHeight: '100%',
+              objectFit: 'contain',
+              animation: 'galleryFadeIn .22s ease both',
+            }}
+            onClick={e => e.stopPropagation()}
           />
         </div>
       ) : (
-        /* PDF / doc / docx — show document card with open+download actions.
-           Inline PDF iframes are unreliable in Telegram WebApp (WebView crash risk). */
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <div style={{
-            width: '100%', maxWidth: 320,
-            background: 'rgba(255,255,255,.08)', backdropFilter: 'blur(20px)',
-            borderRadius: 20, padding: '28px 24px',
-            border: '.5px solid rgba(255,255,255,.15)',
-            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16,
-          }}>
+        // PDF / DOC — card with open + download. Tap backdrop to close.
+        <div
+          onClick={onClose}
+          style={{
+            flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '24px 24px calc(24px + env(safe-area-inset-bottom, 0px))',
+            cursor: 'default',
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: '100%', maxWidth: 320,
+              background: 'rgba(255,255,255,.08)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              borderRadius: 20, padding: '28px 24px',
+              border: '.5px solid rgba(255,255,255,.15)',
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16,
+            }}
+          >
             <div style={{
               width: 64, height: 64, borderRadius: 16,
               background: isPdf ? 'rgba(255,107,107,.15)' : 'rgba(122,179,255,.15)',
@@ -166,10 +181,11 @@ export default function FilePreviewModal({ url, mime, name, onClose }: FilePrevi
                 onClick={handleOpen}
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                  width: '100%', padding: '13px 20px', borderRadius: 14,
+                  width: '100%', padding: '14px 20px', borderRadius: 14,
                   background: 'linear-gradient(135deg,rgba(122,179,255,.25),rgba(167,139,250,.25))',
                   border: '.5px solid rgba(122,179,255,.4)',
                   color: '#7AB3FF', fontSize: 15, fontWeight: 600, cursor: 'pointer',
+                  WebkitTapHighlightColor: 'transparent',
                 }}
               >
                 <IconExternalLink size={17} />
@@ -179,10 +195,11 @@ export default function FilePreviewModal({ url, mime, name, onClose }: FilePrevi
                 onClick={handleDownload}
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                  width: '100%', padding: '11px 20px', borderRadius: 14,
+                  width: '100%', padding: '13px 20px', borderRadius: 14,
                   background: 'rgba(255,255,255,.07)',
                   border: '.5px solid rgba(255,255,255,.18)',
                   color: 'rgba(255,255,255,.8)', fontSize: 14, fontWeight: 500, cursor: 'pointer',
+                  WebkitTapHighlightColor: 'transparent',
                 }}
               >
                 <IconDownload size={16} />
@@ -195,10 +212,6 @@ export default function FilePreviewModal({ url, mime, name, onClose }: FilePrevi
     </div>
   )
 
-  // Portal into #app-root (not document.body).
-  // #app-root is position:fixed covering exactly the Telegram viewport; portaling here
-  // with position:absolute means the modal is placed as a sibling of .nav-wrap but
-  // entirely outside its will-change:transform containing block.
   if (typeof document === 'undefined') return null
   const appRoot = document.getElementById('app-root')
   if (!appRoot) return null

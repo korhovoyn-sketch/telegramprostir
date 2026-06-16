@@ -729,6 +729,7 @@ svg.ico{overflow:visible}
 @keyframes scanLine{0%,100%{top:8%}50%{top:88%}}
 @keyframes qrPop{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}
 @keyframes galleryFadeIn{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:scale(1)}}
+@keyframes fpmSlideUp{from{opacity:0;transform:translateY(32px)}to{opacity:1;transform:translateY(0)}}
 @keyframes pingFx{0%{transform:scale(1)}50%{transform:scale(1.16)}100%{transform:scale(1)}}
 @keyframes drawLine{to{stroke-dashoffset:0}}
 

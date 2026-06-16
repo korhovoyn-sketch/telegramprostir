@@ -10,7 +10,17 @@ import { buildPublicUrl, sharePublicUrl } from '@/lib/telegram'
 import type { PropertyView } from '@/types'
 import QRCode from 'react-qr-code'
 
-const DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд']
+const WEEKDAY = ['Нд', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб']
+
+// Last 7 days labels, oldest first (index 0 = 6 days ago, index 6 = today)
+function last7DayLabels(): string[] {
+  const now = new Date()
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(now)
+    d.setDate(now.getDate() - (6 - i))
+    return WEEKDAY[d.getDay()]
+  })
+}
 
 export default function SharingAnalyticsScreen() {
   const { screenParams, user, showToast } = useAppStore()
@@ -195,8 +205,8 @@ export default function SharingAnalyticsScreen() {
           </svg>
 
           <div className="dl-row">
-            {DAYS.map((d) => (
-              <span key={d} className="dl-x">{d}</span>
+            {last7DayLabels().map((d, i) => (
+              <span key={i} className="dl-x">{d}</span>
             ))}
           </div>
         </div>
