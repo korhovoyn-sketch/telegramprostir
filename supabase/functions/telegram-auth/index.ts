@@ -74,8 +74,12 @@ async function checkRateLimit(
       .update({ count: data.count + 1 })
       .eq('ip', key)
     return true
-  } catch {
-    return true // fail open
+  } catch (err) {
+    // Fail closed on database errors: if we can't verify rate limits,
+    // reject the request rather than allowing potential brute-force attacks
+    // during outages. The user can't complete auth anyway if the DB is down.
+    console.error('[telegram-auth] Rate limit check failed:', serializeError(err))
+    return false
   }
 }
 
