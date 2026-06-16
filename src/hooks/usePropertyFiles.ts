@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { PropertyFile } from '@/types'
+import type { Database } from '@/types/supabase'
 
 const MAX_FILES = 10
 const MAX_SIZE  = 20 * 1024 * 1024
@@ -76,33 +77,70 @@ export function usePropertyFiles(propertyId: string | undefined) {
     setUploading(true)
     setUploadProgress({ done: 0, total: valid.length })
     try {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      if (!supabaseUrl || !supabaseKey) throw new Error('Supabase config missing')
+
       for (let i = 0; i < valid.length; i++) {
         const file = valid[i]
         if (currentCount >= MAX_FILES) {
           onError(`Максимум ${MAX_FILES} файлів на об'єкт`)
           break
         }
+
         setCurrentUploadFile(file.name)
         setUploadProgress({ done: i, total: valid.length })
 
-        const MIME_EXT: Record<string, string> = {
-          'application/pdf': 'pdf',
-          'application/msword': 'doc',
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+        // Call Edge Function to validate and get signed upload URL
+        const validateRes = await fetch(`${supabaseUrl}/functions/v1/validate-upload`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseKey}`,
+            'apikey': supabaseKey,
+          },
+          body: JSON.stringify({
+            propertyId,
+            fileName: file.name,
+            mimeType: file.type,
+            fileSize: file.size,
+          }),
+        })
+
+        if (!validateRes.ok) {
+          const errData = await validateRes.json().catch(() => ({}))
+          onError((errData as Record<string, unknown>).error as string || `Upload validation failed (${validateRes.status})`)
+          continue
         }
-        const ext = MIME_EXT[file.type] ?? 'bin'
-        const rand = Math.random().toString(36).slice(2, 8)
-        const path = `${propertyId}/${Date.now()}_${rand}.${ext}`
 
-        const { error: storErr } = await supabase.storage.from(BUCKET).upload(path, file)
-        if (storErr) { onError(storErr.message); continue }
+        const { uploadUrl, storagePath } = await validateRes.json() as { uploadUrl: string; storagePath: string }
+        if (!uploadUrl || !storagePath) {
+          onError('Invalid upload response')
+          continue
+        }
 
+        // Upload file using signed URL
+        const uploadResult = await fetch(uploadUrl, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': file.type,
+            'x-upsert': 'false',
+          },
+          body: file,
+        })
+
+        if (!uploadResult.ok) {
+          onError(`Upload failed: ${uploadResult.status}`)
+          continue
+        }
+
+        // Record in database
         const { data: row, error: dbErr } = await supabase
           .from('property_files')
           .insert({
             property_id:  propertyId,
             owner_id:     propRow.owner_id,
-            storage_path: path,
+            storage_path: storagePath,
             file_name:    file.name,
             file_size:    file.size,
             mime_type:    file.type,
@@ -112,8 +150,8 @@ export function usePropertyFiles(propertyId: string | undefined) {
           .single()
 
         if (dbErr) {
-          await supabase.storage.from(BUCKET).remove([path]).catch(() => {})
-          onError(dbErr.message)
+          console.warn(`[usePropertyFiles] DB insert failed for ${storagePath}:`, dbErr.message)
+          onError(`Файл завантажено, але не збережено: ${dbErr.message}`)
           continue
         }
 
