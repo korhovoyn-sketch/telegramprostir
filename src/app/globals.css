@@ -596,10 +596,7 @@ input,textarea,select{font-size:16px;touch-action:manipulation}
 .tab-ic{position:relative;display:flex;align-items:center;justify-content:center;width:44px;height:44px}
 /* Glass glow — active filled icon (gradient fill lives in the SVG) gets a
    soft neon halo in its tab color */
-.tab.on[data-t="db-list"] .tabico-f,.tab.on[data-t="realtor-dashboard"] .tabico-f{filter:drop-shadow(0 0 5px rgba(150,90,255,.8)) drop-shadow(0 2px 12px rgba(150,90,255,.45))}
-.tab.on[data-t="collections"] .tabico-f{filter:drop-shadow(0 0 5px rgba(255,80,170,.8)) drop-shadow(0 2px 12px rgba(255,80,170,.45))}
-.tab.on[data-t="notifications"] .tabico-f{filter:drop-shadow(0 0 5px rgba(255,150,40,.8)) drop-shadow(0 2px 12px rgba(255,150,40,.45))}
-.tab.on[data-t="profile"] .tabico-f{filter:drop-shadow(0 0 5px rgba(40,220,200,.8)) drop-shadow(0 2px 12px rgba(40,220,200,.45))}
+/* drop-shadow removed — clean minimalist design */
 /* Labels removed visually — tabs carry aria-labels for accessibility */
 .tab-l{display:none}
 
