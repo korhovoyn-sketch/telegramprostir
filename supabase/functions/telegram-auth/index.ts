@@ -6,12 +6,15 @@ const RequestSchema = z.object({
   initData: z.string().min(10).max(4096),
 })
 
-// Restrict CORS to the Mini App origin when ALLOWED_ORIGIN is set in
-// Supabase → Edge Functions → Secrets (e.g. https://your-app.vercel.app).
-// Falls back to '*' so login keeps working until the secret is configured.
+// Restrict CORS to the Mini App origin set via ALLOWED_ORIGIN secret.
+// Logs a warning when unset so the operator knows to configure it.
+const _allowedOrigin = Deno.env.get('ALLOWED_ORIGIN')
+if (!_allowedOrigin) {
+  console.warn('[telegram-auth] ALLOWED_ORIGIN not set — CORS is open to all origins. Set it in Supabase → Edge Functions → Secrets.')
+}
 const corsHeaders = {
-  'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Origin': _allowedOrigin ?? '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Max-Age': '86400',
 }
@@ -91,7 +94,7 @@ async function validateInitData(
 
   params.delete('hash')
   const dataCheckString = [...params.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
     .map(([k, v]) => `${k}=${v}`)
     .join('\n')
 
@@ -172,7 +175,9 @@ Deno.serve(async (req) => {
   // ── GET: lightweight health / config check ──────────────────────────────
   // Returns which env vars are configured (not their values).
   // Useful for diagnosing why auth is broken without exposing secrets.
+  // Uses separate headers that allow GET explicitly (corsHeaders only allows POST).
   if (req.method === 'GET') {
+    const getHeaders = { ...(corsHeaders as Record<string, string>), 'Access-Control-Allow-Methods': 'GET, OPTIONS' }
     const checks = {
       bot_token:   !!Deno.env.get('TELEGRAM_BOT_TOKEN'),
       supabase_url: !!Deno.env.get('SUPABASE_URL'),
@@ -196,7 +201,7 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({ ok: allOk && db, checks: { ...checks, db } }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      { headers: { ...getHeaders, 'Content-Type': 'application/json' } },
     )
   }
 

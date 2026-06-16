@@ -91,7 +91,7 @@ export default function WelcomeScreen() {
       })
       const data = await res.json()
       if (data.ok) {
-        showToast({ type: 'success', title: '✓ Підключення OK', subtitle: 'Edge Function і БД налаштовані' })
+        showToast({ type: 'success', title: '✓ Конфігурація OK', subtitle: 'Змінні та БД налаштовані. Якщо вхід не працює — перевірте правильність TELEGRAM_BOT_TOKEN.' })
       } else {
         const checks = data.checks ?? {}
         const bad = (Object.entries(checks) as [string, boolean][])

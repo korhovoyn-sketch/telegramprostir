@@ -132,7 +132,7 @@ export default function SplashScreen() {
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      height: 'var(--tg-vh)', background: '#03081a',
+      height: 'var(--tg-vh)', background: 'var(--tg-theme-secondary-bg-color, #03081a)',
       position: 'relative', overflow: 'hidden',
     }}>
       {/* Neon Orb */}

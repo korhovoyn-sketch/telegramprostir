@@ -60,16 +60,22 @@ export function usePropertyFiles(propertyId: string | undefined) {
 
     if (!valid.length) return
 
+    // Verify ownership before touching storage — prevents orphaned files when RLS
+    // blocks the DB insert but the storage upload already succeeded.
+    const { data: propRow, error: propErr } = await supabase
+      .from('properties')
+      .select('owner_id')
+      .eq('id', propertyId)
+      .single()
+
+    if (propErr || !propRow?.owner_id) {
+      onError('Не вдалося підтвердити право власності на об\'єкт')
+      return
+    }
+
     setUploading(true)
     setUploadProgress({ done: 0, total: valid.length })
     try {
-      // Get owner_id from the property once
-      const { data: propRow } = await supabase
-        .from('properties')
-        .select('owner_id')
-        .eq('id', propertyId)
-        .single()
-
       for (let i = 0; i < valid.length; i++) {
         const file = valid[i]
         if (currentCount >= MAX_FILES) {
@@ -79,7 +85,12 @@ export function usePropertyFiles(propertyId: string | undefined) {
         setCurrentUploadFile(file.name)
         setUploadProgress({ done: i, total: valid.length })
 
-        const ext  = file.name.split('.').pop()?.toLowerCase() ?? 'bin'
+        const MIME_EXT: Record<string, string> = {
+          'application/pdf': 'pdf',
+          'application/msword': 'doc',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+        }
+        const ext = MIME_EXT[file.type] ?? 'bin'
         const rand = Math.random().toString(36).slice(2, 8)
         const path = `${propertyId}/${Date.now()}_${rand}.${ext}`
 
@@ -90,7 +101,7 @@ export function usePropertyFiles(propertyId: string | undefined) {
           .from('property_files')
           .insert({
             property_id:  propertyId,
-            owner_id:     propRow?.owner_id ?? '',
+            owner_id:     propRow.owner_id,
             storage_path: path,
             file_name:    file.name,
             file_size:    file.size,
