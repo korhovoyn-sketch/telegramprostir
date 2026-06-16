@@ -370,7 +370,7 @@ input,textarea,select{font-size:16px;touch-action:manipulation}
 .obj-hero-r{position:absolute;top:10px;right:10px;display:flex;gap:6px;z-index:2}
 .obj-hero-a{width:44px;height:44px;border-radius:50%;background:rgba(0,0,0,.4);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;color:var(--t1);font-size:14px;border:.5px solid rgba(255,255,255,.2);cursor:pointer}
 .obj-hero-meta{position:absolute;bottom:10px;left:12px;right:12px;z-index:2;display:flex;justify-content:space-between;align-items:flex-end;color:#fff}
-.obj-hero-name{font-size:18px;font-weight:700;letter-spacing:-.01em}
+.obj-hero-name{font-size:18px;font-weight:700;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:calc(100vw - 100px)}
 .obj-hero-addr{font-size:12px;color:rgba(255,255,255,.75);margin-top:2px;display:flex;align-items:center;gap:3px}
 .obj-body{padding:14px var(--pad-card)}
 .obj-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 16px;margin-bottom:14px}

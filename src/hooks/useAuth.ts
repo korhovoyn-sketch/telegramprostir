@@ -4,7 +4,6 @@ import { useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAppStore } from '@/store/appStore'
 import type { User } from '@/types'
-import type { Database } from '@/types/supabase'
 
 const SESSION_KEY     = 'ps_session'
 const PROFILE_KEY     = 'ps_user'

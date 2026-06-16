@@ -3,7 +3,6 @@
 import { useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { PropertyFile } from '@/types'
-import type { Database } from '@/types/supabase'
 
 const MAX_FILES = 10
 const MAX_SIZE  = 20 * 1024 * 1024
