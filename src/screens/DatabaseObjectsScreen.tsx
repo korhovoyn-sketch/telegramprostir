@@ -556,6 +556,7 @@ export default function DatabaseObjectsScreen() {
             {[
               { label: '📊 Аналітика і поширення', action: () => { setShowMenu(false); navigate('sharing-analytics', { dbId: db.id }) } },
               { label: '📅 Календар платежів',    action: () => { setShowMenu(false); navigate('payment-calendar', { dbId: db.id }) } },
+              { label: '🔑 Управління гостями',   action: () => { setShowMenu(false); navigate('manage-guests', { dbId: db.id }) } },
               { label: '📤 Експорт',               action: () => { setShowMenu(false); navigate('export', { dbId: db.id }) } },
               { label: '☑ Виділити об\'єкти',      action: enterSelectMode },
               { label: '↕ Змінити порядок',        action: enterReorderMode },

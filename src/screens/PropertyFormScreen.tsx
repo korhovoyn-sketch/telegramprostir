@@ -96,6 +96,21 @@ export default function PropertyFormScreen() {
 
   async function handleSave() {
     if (!canSave || !screenParams.dbId) return
+
+    // Reject non-numeric values the browser's number input allows on some Android keyboards
+    if (areaUseful && numOrUndef(areaUseful) === undefined) {
+      showToast({ type: 'error', title: 'Некоректне значення', subtitle: 'Корисна площа — лише число' }); return
+    }
+    if (areaTotal && numOrUndef(areaTotal) === undefined) {
+      showToast({ type: 'error', title: 'Некоректне значення', subtitle: 'Загальна площа — лише число' }); return
+    }
+    if (rentRate && numOrUndef(rentRate) === undefined) {
+      showToast({ type: 'error', title: 'Некоректне значення', subtitle: 'Орендна ставка — лише число' }); return
+    }
+    if (utilitiesRate && numOrUndef(utilitiesRate) === undefined) {
+      showToast({ type: 'error', title: 'Некоректне значення', subtitle: 'Ставка комунальних — лише число' }); return
+    }
+
     const au = numOrUndef(areaUseful) ?? 0
     const at = numOrUndef(areaTotal) ?? 0
     const rr = numOrUndef(rentRate) ?? 0
@@ -170,15 +185,15 @@ export default function PropertyFormScreen() {
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div className="fr">
             <span className="fr-l">Назва</span>
-            <input className="fr-i" placeholder="Офіс 101" value={name} onChange={e => setName(e.target.value)} autoFocus={!isEdit} />
+            <input className="fr-i" placeholder="Офіс 101" maxLength={100} value={name} onChange={e => setName(e.target.value)} autoFocus={!isEdit} />
           </div>
           <div className="fr">
             <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconLayers size={13} color="var(--t3)" />Поверх</span>
-            <input className="fr-i" type="text" inputMode="text" placeholder="1, 2, B-1, МП" value={floor} onChange={e => setFloor(e.target.value)} />
+            <input className="fr-i" type="text" inputMode="text" placeholder="1, 2, B-1, МП" maxLength={20} value={floor} onChange={e => setFloor(e.target.value)} />
           </div>
           <div className="fr">
             <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconMapPin size={13} color="var(--t3)" />Адреса</span>
-            <input className="fr-i" type="text" placeholder="вул. Хрещатик, 1" value={address} onChange={e => setAddress(e.target.value)} />
+            <input className="fr-i" type="text" placeholder="вул. Хрещатик, 1" maxLength={200} value={address} onChange={e => setAddress(e.target.value)} />
           </div>
           <div className="fr">
             <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconActivity size={13} color="var(--t3)" />Статус</span>
@@ -201,7 +216,7 @@ export default function PropertyFormScreen() {
             <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
               <div className="fr">
                 <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconCurrencyDollar size={13} color="var(--t3)" />Ціна продажу</span>
-                <input className="fr-i" type="number" min="0" placeholder="150000" value={salePrice} onChange={e => setSalePrice(e.target.value)} />
+                <input className="fr-i" type="number" min="0" max="999999999" inputMode="decimal" placeholder="150000" value={salePrice} onChange={e => setSalePrice(e.target.value)} />
                 <span className="fr-u">$</span>
               </div>
             </div>
@@ -215,7 +230,7 @@ export default function PropertyFormScreen() {
             <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
               <div className="fr">
                 <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconUser size={13} color="var(--t3)" />Найменування</span>
-                <input className="fr-i" placeholder="ТОВ «Назва» або ФОП Іванов" value={tenantName} onChange={e => setTenantName(e.target.value)} />
+                <input className="fr-i" placeholder="ТОВ «Назва» або ФОП Іванов" maxLength={200} value={tenantName} onChange={e => setTenantName(e.target.value)} />
               </div>
               <div className="fr">
                 <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconKey size={13} color="var(--t3)" />Договір з</span>
@@ -236,18 +251,18 @@ export default function PropertyFormScreen() {
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div className="fr">
             <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconRuler size={13} color="var(--t3)" />Корисна</span>
-            <input className="fr-i" type="number" min="0" placeholder="47" value={areaUseful} onChange={e => setAreaUseful(e.target.value)} />
+            <input className="fr-i" type="number" min="0" inputMode="decimal" placeholder="47" value={areaUseful} onChange={e => setAreaUseful(e.target.value)} />
             <span className="fr-u">м²</span>
           </div>
           <div className="fr">
             <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconRuler size={13} color="var(--t3)" />Загальна</span>
-            <input className="fr-i" type="number" min="0" placeholder="52" value={areaTotal} onChange={e => setAreaTotal(e.target.value)} />
+            <input className="fr-i" type="number" min="0" inputMode="decimal" placeholder="52" value={areaTotal} onChange={e => setAreaTotal(e.target.value)} />
             <span className="fr-u">м²</span>
           </div>
         </div>
 
         {/* Rent */}
-        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconCurrencyDollar size={13} color="#4ade80" />Орендна ставка</span></div>
+        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconCurrencyDollar size={13} color="#c2820a" />Орендна ставка</span></div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div className="fr">
             <span className="fr-l">Тип</span>
@@ -258,7 +273,7 @@ export default function PropertyFormScreen() {
           </div>
           <div className="fr hi-row">
             <span className="fr-l">{rentType === 'per_m2' ? 'Ставка' : 'Сума'}</span>
-            <input className="fr-i" type="number" min="0" placeholder="18" value={rentRate} onChange={e => setRentRate(e.target.value)} />
+            <input className="fr-i" type="number" min="0" inputMode="decimal" placeholder="18" value={rentRate} onChange={e => setRentRate(e.target.value)} />
             <span className="fr-u">{rentType === 'per_m2' ? '$/м²' : '$/міс'}</span>
           </div>
           {rentCalc > 0 && (
@@ -276,7 +291,7 @@ export default function PropertyFormScreen() {
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div className="fr">
             <span className="fr-l">Ставка</span>
-            <input className="fr-i" type="number" min="0" placeholder="2.5" value={utilitiesRate} onChange={e => setUtilitiesRate(e.target.value)} />
+            <input className="fr-i" type="number" min="0" inputMode="decimal" placeholder="2.5" value={utilitiesRate} onChange={e => setUtilitiesRate(e.target.value)} />
             <span className="fr-u">$/м²</span>
           </div>
           {utilsCalc > 0 && (
@@ -334,6 +349,7 @@ export default function PropertyFormScreen() {
             value={description}
             onChange={e => setDescription(e.target.value)}
             rows={4}
+            maxLength={2000}
             style={{ resize: 'none' }}
           />
         </div>

@@ -75,6 +75,7 @@ export default function CreateDatabaseScreen() {
               placeholder="БЦ Олімп"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              maxLength={100}
               autoFocus
             />
           </div>
@@ -86,6 +87,7 @@ export default function CreateDatabaseScreen() {
               placeholder="Хрещатик 22"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
+              maxLength={200}
             />
           </div>
         </div>
@@ -122,7 +124,7 @@ export default function CreateDatabaseScreen() {
         {/* Preview */}
         {name && type && (
           <div style={{ margin: '8px 12px 80px' }}>
-            <div className="over" style={{ paddingTop: 12 }}><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconEye size={13} color="#4ade80" />Попередній вигляд</span></div>
+            <div className="over" style={{ paddingTop: 12 }}><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconEye size={13} color="var(--t3)" />Попередній вигляд</span></div>
             <div className="row glass-s">
               <GlassDbIcon type={type ?? undefined} color={color} size={32} />
               <div className="row-mn">
