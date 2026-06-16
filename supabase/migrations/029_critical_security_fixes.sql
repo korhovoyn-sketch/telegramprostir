@@ -10,7 +10,7 @@
 --
 -- CRITICAL-3: File upload TOCTOU prevention (database layer)
 --   Issue: validate-upload Edge Function checked count but didn't lock.
---   Fix: Add database constraint to prevent insertion when file count >= 10.
+--   Fix: Add database trigger to prevent insertion when file count >= 10.
 -- ============================================================================
 
 -- ── CRITICAL-1: Fix lookup_shared_db with server-side expiry enforcement ────
@@ -46,45 +46,12 @@ REVOKE ALL ON FUNCTION lookup_shared_property(TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION lookup_shared_property(TEXT) TO authenticated, service_role;
 
 -- ── CRITICAL-3: File upload TOCTOU prevention ────────────────────────────────
--- Add a database-layer trigger that prevents inserting more than 10 files per property.
--- This guards against the race condition where two concurrent validate-upload requests
--- both see count < 10 and both return signed URLs. The trigger will reject the second
--- insert attempt, and usePropertyFiles.ts will handle the error gracefully.
+-- Database-layer trigger that prevents inserting more than 10 files per property.
+-- Guards against concurrent validate-upload requests that both see count < 10
+-- before either inserts a record. The trigger rejects the second insert.
+-- BEFORE INSERT: COUNT(*) counts existing rows, NOT including the new row being
+-- inserted. So ">= 10" is the correct condition to reject the 11th file attempt.
 
-CREATE TABLE IF NOT EXISTS property_files (
-  id            UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-  property_id   UUID        NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
-  owner_id      UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  storage_path  TEXT        NOT NULL,
-  file_name     VARCHAR(255) NOT NULL,
-  file_size     INT         NOT NULL,
-  mime_type     VARCHAR(100) NOT NULL,
-  sort_order    INT         DEFAULT 0,
-  created_at    TIMESTAMPTZ DEFAULT now()
-);
-
--- Drop old policy if it exists and recreate with explicit ownership check
-DROP POLICY IF EXISTS "Files readable by owner or realtor" ON property_files;
-
-CREATE POLICY "property_files_select" ON property_files
-  FOR SELECT TO authenticated
-  USING (
-    owner_id = current_app_user_id()
-    OR property_id IN (
-      SELECT p.id FROM properties p
-      WHERE p.db_id IN (SELECT get_realtor_db_ids(current_app_user_id()))
-    )
-  );
-
-CREATE POLICY "property_files_insert" ON property_files
-  FOR INSERT TO authenticated
-  WITH CHECK (owner_id = current_app_user_id());
-
-CREATE POLICY "property_files_delete" ON property_files
-  FOR DELETE TO authenticated
-  USING (owner_id = current_app_user_id());
-
--- Trigger to enforce max 10 files per property
 CREATE OR REPLACE FUNCTION enforce_max_files_per_property()
 RETURNS TRIGGER
 LANGUAGE plpgsql SECURITY DEFINER
@@ -98,7 +65,7 @@ BEGIN
   FROM property_files
   WHERE property_id = NEW.property_id;
 
-  IF v_count > 10 THEN
+  IF v_count >= 10 THEN
     RAISE EXCEPTION 'Maximum 10 files per property exceeded';
   END IF;
 
@@ -112,7 +79,7 @@ CREATE TRIGGER trg_enforce_max_files
   FOR EACH ROW
   EXECUTE FUNCTION enforce_max_files_per_property();
 
--- Create indexes for common queries
+-- Create indexes for common queries (idempotent)
 CREATE INDEX IF NOT EXISTS idx_property_files_property_id
   ON property_files(property_id);
 

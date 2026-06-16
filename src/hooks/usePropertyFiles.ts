@@ -80,6 +80,10 @@ export function usePropertyFiles(propertyId: string | undefined) {
       const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
       if (!supabaseUrl || !supabaseKey) throw new Error('Supabase config missing')
 
+      // Pass user's JWT so the Edge Function can verify ownership via RLS.
+      const { data: { session } } = await supabase.auth.getSession()
+      const userToken = session?.access_token ?? supabaseKey
+
       for (let i = 0; i < valid.length; i++) {
         const file = valid[i]
         if (currentCount >= MAX_FILES) {
@@ -90,12 +94,13 @@ export function usePropertyFiles(propertyId: string | undefined) {
         setCurrentUploadFile(file.name)
         setUploadProgress({ done: i, total: valid.length })
 
-        // Call Edge Function to validate and get signed upload URL
+        // Call Edge Function to validate and get signed upload URL.
+        // Authorization header carries user JWT so the function can verify property ownership.
         const validateRes = await fetch(`${supabaseUrl}/functions/v1/validate-upload`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${supabaseKey}`,
+            'Authorization': `Bearer ${userToken}`,
             'apikey': supabaseKey,
           },
           body: JSON.stringify({

@@ -33,8 +33,9 @@ Deno.serve(async (req) => {
   try {
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
     const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')
 
-    if (!SUPABASE_URL || !SERVICE_KEY) {
+    if (!SUPABASE_URL || !SERVICE_KEY || !ANON_KEY) {
       throw new Error('Missing Supabase env vars')
     }
 
@@ -45,24 +46,30 @@ Deno.serve(async (req) => {
       return errResponse(400, 'Invalid request: ' + parsed.error.errors[0]?.message)
     }
 
-    const { propertyId, fileName, mimeType, fileSize } = parsed.data
-    const admin = createClient(SUPABASE_URL, SERVICE_KEY)
+    const { propertyId, mimeType } = parsed.data
 
-    // Verify property exists and user owns it
-    const { data: prop, error: propErr } = await admin
+    // Use user's JWT to verify ownership via RLS — if user doesn't own the
+    // property, the select returns nothing (RLS blocks it) and we return 403.
+    // This is more secure than using the admin client which bypasses RLS.
+    const userJwt = req.headers.get('Authorization') ?? ''
+    const userClient = createClient(SUPABASE_URL, ANON_KEY, {
+      global: { headers: { Authorization: userJwt } },
+    })
+
+    const { data: prop, error: propErr } = await userClient
       .from('properties')
       .select('owner_id')
       .eq('id', propertyId)
       .single()
 
     if (propErr || !prop) {
-      return errResponse(404, 'Property not found or no access')
+      return errResponse(403, 'Property not found or access denied')
     }
 
     // Verify file count (max 10 per property).
-    // Note: concurrent requests may both pass this check and exceed the limit.
-    // The database trigger enforce_max_files_per_property() will catch this
-    // at insert time, and the database constraint is the authoritative guard.
+    // The database trigger enforce_max_files_per_property() provides the
+    // authoritative guard at insert time against concurrent race conditions.
+    const admin = createClient(SUPABASE_URL, SERVICE_KEY)
     const { count } = await admin
       .from('property_files')
       .select('id', { count: 'exact', head: true })
@@ -72,7 +79,8 @@ Deno.serve(async (req) => {
       return errResponse(429, 'Max 10 files per property')
     }
 
-    // All validations passed — generate signed upload URL
+    // Generate unique storage path — {propertyId} as first segment is required
+    // by the storage SELECT policy (SPLIT_PART(name, '/', 1) ownership check).
     const ext = mimeType === 'application/pdf' ? 'pdf'
       : mimeType === 'application/msword' ? 'doc'
       : 'docx'
@@ -80,20 +88,20 @@ Deno.serve(async (req) => {
     const rand = Math.random().toString(36).slice(2, 8)
     const path = `${propertyId}/${Date.now()}_${rand}.${ext}`
 
-    const { data: uploadUrl, error: signErr } = await admin.storage
+    const { data: uploadData, error: signErr } = await admin.storage
       .from('property-files')
       .createSignedUploadUrl(path)
 
-    if (signErr) {
-      throw new Error(`Storage error: ${signErr.message}`)
+    if (signErr || !uploadData) {
+      throw new Error(`Storage error: ${signErr?.message ?? 'no data'}`)
     }
 
     return new Response(
       JSON.stringify({
         ok: true,
-        uploadUrl: uploadUrl.signedUrl,
+        uploadUrl: uploadData.signedUrl,
         storagePath: path,
-        token: uploadUrl.token,
+        token: uploadData.token,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
