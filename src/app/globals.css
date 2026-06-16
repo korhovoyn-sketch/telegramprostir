@@ -1014,8 +1014,18 @@ svg.ico{overflow:visible}
 /* ── PING ANIMATION ── */
 .ping{animation:pingFx .38s var(--ease-spr)}
 
-/* ── LIGHT MODE (not used — app is dark-only) ── */
-/* Light theme support deferred — focus on dark mode perfection first */
+/* ── LIGHT MODE ── */
+[data-tg-theme="light"] #app-root{
+  --t1:#1a1a1a;--t2:#4a4a4a;--t3:#73726c;--t4:#9a9990;
+  --bd:.5px solid #e0ded8;
+  --glass-1:rgba(0,0,0,.03);--glass-2:rgba(0,0,0,.05);--glass-3:rgba(0,0,0,.08);
+}
+/* Legacy class for backwards compatibility */
+.light-page{
+  --t1:#1a1a1a;--t2:#4a4a4a;--t3:#73726c;--t4:#9a9990;
+  --bd:.5px solid #e0ded8;
+  --glass-1:rgba(0,0,0,.03);--glass-2:rgba(0,0,0,.05);--glass-3:rgba(0,0,0,.08);
+}
 
 /* ── DESKTOP / TABLET RESPONSIVE FRAME ─────────────────────────────────────
    On screens ≥ 680 px the app is shown as a centered phone-sized panel.
