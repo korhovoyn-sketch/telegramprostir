@@ -90,6 +90,13 @@ body{
   overflow:hidden;
   display:flex;flex-direction:column;
   position:relative;
+  overscroll-behavior: contain; /* Prevent scroll-chaining to parent webview */
+}
+
+.scr .body{
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch; /* Momentum scrolling on iOS */
+  overscroll-behavior: contain;
 }
 
 /* ── SCREEN TRANSITIONS ── */

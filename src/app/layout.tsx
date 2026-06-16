@@ -7,9 +7,10 @@ import Toast from '@/components/ui/Toast'
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-      const tg = window.Telegram.WebApp as unknown as Record<string, (c: string) => void>
-      tg.setHeaderColor?.('#1a0533')
-      tg.setBackgroundColor?.('#1a0533')
+      const tg = window.Telegram.WebApp
+      const theme = tg.colorScheme === 'dark' ? tg.themeParams?.secondary_bg_color || '#1a0533' : '#ffffff'
+      tg.setHeaderColor?.(theme)
+      tg.setBackgroundColor?.(theme)
     }
 
     // Global error capture — logs structured data without exposing PII.
