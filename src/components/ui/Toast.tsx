@@ -10,7 +10,7 @@ export default function Toast() {
   const isErr = toast.type === 'error'
 
   return (
-    <div className={`toast${isErr ? ' err' : ''}`}>
+    <div className={`toast${isErr ? ' err' : ''}`} role="alert" aria-live="polite" aria-atomic="true">
       <div className="toast-ic">
         {isErr ? <IconAlertTriangle size={14} /> : <IconCheck size={14} />}
       </div>

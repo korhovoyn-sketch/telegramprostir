@@ -39,12 +39,12 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
   --t1:#fff;
   --t2:rgba(255,255,255,.72);
   --t3:rgba(255,255,255,.55);
-  --t4:rgba(255,255,255,.38);
+  --t4:rgba(255,255,255,.46);
   --ok:#34C759;--ok-bg:rgba(52,199,89,.18);--ok-fg:#a4f0c1;--ok-bd:rgba(52,199,89,.28);
   --warn:#FF9500;--warn-bg:rgba(255,149,0,.18);--warn-fg:#ffc985;--warn-bd:rgba(255,149,0,.28);
   --err:#FF3B30;--err-bg:rgba(255,59,48,.16);--err-fg:#ffacac;--err-bd:rgba(255,59,48,.26);
   --info:#7AB3FF;--info-bg:rgba(34,158,217,.18);--info-fg:#a8d4ff;
-  --tg-blue:#229ED9;--tg-blue-light:#2AABEE;
+  --tg-blue:#229ED9;--tg-blue-light:#2AABEE;--accent:var(--tg-blue-light);
   --r-icon:11px;
   --r-phone:42px;
   --ease:cubic-bezier(.34,1.4,.64,1);
@@ -80,7 +80,7 @@ body{
 /* ── APP SHELL ── */
 #app-root{
   position:fixed;top:0;left:0;right:0;
-  height:var(--tg-vh,100dvh);
+  height:var(--tg-vh,100svh);
   overflow:hidden;
   display:flex;flex-direction:column;
 }
@@ -142,8 +142,7 @@ body{
    needs no backdrop at all: just icons + title with a soft glow over the bg. */
 .hdr{padding:calc(10px + var(--safe-top)) var(--g3) 8px;display:flex;align-items:center;gap:var(--g2);flex-shrink:0;position:relative;z-index:8;min-height:44px}
 .hdr-back{display:flex;align-items:center;gap:4px;padding:7px var(--g3) 7px 10px;color:var(--t1);font-size:14px;font-weight:500;background:none;border:none;cursor:pointer;transition:transform .12s,filter .18s,opacity .15s}
-.hdr-back:active{transform:scale(.9)}
-.hdr-back:hover{}
+.hdr-back:active{transform:scale(.92)}
 /* Header title — Subhead Semibold (Apple navigation bar title tier) */
 .hdr-t{flex:1;text-align:center;font-size:var(--fs-sub);font-weight:var(--fw-semi);color:var(--t1);letter-spacing:-.015em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-shadow:0 1px 8px rgba(0,0,0,.35);line-height:var(--lh-snug)}
 /* Header subtitle — Caption 1 */
@@ -153,8 +152,7 @@ body{
 .hdr-a.txt{width:auto;padding:0 12px;font-size:13px;font-weight:600;color:#aae2ff}
 .hdr-a-dot{position:absolute;top:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:#FF3B30;border:1.5px solid #06051a}
 .hdr-sp{width:44px;flex-shrink:0}
-.hdr-a:hover{}
-.hdr-a:active{transform:scale(.9)}
+.hdr-a:active{transform:scale(.92)}
 
 /* ── BODY ── */
 .body{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding-bottom:calc(80px + var(--safe-bottom));position:relative;z-index:5}
@@ -165,7 +163,7 @@ body{
 .body.has-tabbar-btn{padding-bottom:calc(164px + var(--safe-bottom))}
 
 /* ── MAIN BUTTON ── */
-.mbtn{position:absolute;left:var(--g3);right:var(--g3);bottom:calc(14px + var(--safe-bottom));height:var(--btn-h);background:linear-gradient(180deg,var(--tg-blue-light),var(--tg-blue));border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;color:var(--t1);font-size:15px;font-weight:600;letter-spacing:.005em;cursor:pointer;box-shadow:var(--shadow-btn-blue);z-index:20;gap:8px;transition:transform var(--dur-xs) var(--ease),box-shadow var(--dur-xs) var(--ease),opacity var(--dur-xs),filter var(--dur-xs) ease;border:none;width:calc(100% - 24px);will-change:transform}
+.mbtn{position:absolute;left:var(--g3);right:var(--g3);bottom:calc(14px + var(--safe-bottom) + var(--keyboard-h,0px));height:var(--btn-h);background:linear-gradient(180deg,var(--tg-blue-light),var(--tg-blue));border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;color:var(--t1);font-size:15px;font-weight:600;letter-spacing:.005em;cursor:pointer;box-shadow:var(--shadow-btn-blue);z-index:20;gap:8px;transition:bottom var(--dur-sm) ease-out,transform var(--dur-xs) var(--ease),box-shadow var(--dur-xs) var(--ease),opacity var(--dur-xs),filter var(--dur-xs) ease;border:none;width:calc(100% - 24px);will-change:transform}
 .mbtn:hover{transform:translateY(-1px);box-shadow:var(--shadow-btn-blue-hover)}
 .mbtn:active{animation:btnPress .28s var(--ease-spr) both;box-shadow:0 4px 14px rgba(34,158,217,.5);filter:brightness(0.92)}
 .mbtn.danger{background:linear-gradient(180deg,#FF6B61,#E24B4A);box-shadow:var(--shadow-btn-danger)}
@@ -370,7 +368,7 @@ input,textarea,select{font-size:16px;touch-action:manipulation}
 .obj-hero-r{position:absolute;top:10px;right:10px;display:flex;gap:6px;z-index:2}
 .obj-hero-a{width:44px;height:44px;border-radius:50%;background:rgba(0,0,0,.4);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;color:var(--t1);font-size:14px;border:.5px solid rgba(255,255,255,.2);cursor:pointer}
 .obj-hero-meta{position:absolute;bottom:10px;left:12px;right:12px;z-index:2;display:flex;justify-content:space-between;align-items:flex-end;color:#fff}
-.obj-hero-name{font-size:18px;font-weight:700;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:calc(100vw - 100px)}
+.obj-hero-name{font-size:18px;font-weight:700;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:calc(100% - 80px)}
 .obj-hero-addr{font-size:12px;color:rgba(255,255,255,.75);margin-top:2px;display:flex;align-items:center;gap:3px}
 .obj-body{padding:14px var(--pad-card)}
 .obj-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 16px;margin-bottom:14px}
@@ -506,7 +504,7 @@ input,textarea,select{font-size:16px;touch-action:manipulation}
 .notif-s{font-size:var(--fs-cap1);color:var(--t3);margin-top:3px;line-height:var(--lh-norm)}
 /* Timestamp — Caption 2 */
 .notif-t{font-size:var(--fs-cap2);color:var(--t4);flex-shrink:0;padding-top:2px;white-space:nowrap}
-.notif-del{flex-shrink:0;width:36px;height:36px;min-width:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:none;border:none;color:var(--t4);cursor:pointer;margin-left:2px;align-self:center;transition:background var(--dur-sm) var(--ease),color var(--dur-sm) var(--ease)}
+.notif-del{flex-shrink:0;width:36px;height:36px;min-width:36px;padding:4px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:none;border:none;color:var(--t4);cursor:pointer;margin-left:2px;align-self:center;transition:background var(--dur-sm) var(--ease),color var(--dur-sm) var(--ease)}
 .notif-del:active{background:var(--glass-2);color:var(--err)}
 
 /* ── MODAL ── */
@@ -766,12 +764,12 @@ svg.ico{overflow:visible}
 .tab:active{transform:scale(.92);opacity:0.75}
 .color-c:active{transform:scale(1.15)}
 .hdr-back:active{transform:scale(.92)}
-.fab:active{transform:scale(.86) !important;box-shadow:0 3px 10px rgba(196,35,120,.22) !important}
-.share-i:active{transform:scale(.88)}
+.fab:active{transform:scale(.92) !important;box-shadow:0 3px 10px rgba(196,35,120,.22) !important}
+.share-i:active{transform:scale(.93)}
 .collection-c:active{transform:scale(.979)}
-.photo-t:active{transform:scale(.90)}
+.photo-t:active{transform:scale(.93)}
 .cta:active{transform:scale(.968)}
-.owner-act:active{transform:scale(.86)}
+.owner-act:active{transform:scale(.92)}
 .notif-tab:active{transform:scale(.93)}
 .stat:active{transform:scale(.94)}
 .pstat:active{transform:scale(.94)}
@@ -1012,12 +1010,6 @@ svg.ico{overflow:visible}
 .ic-sm{font-size:11px !important}
 .ic-md{font-size:14px !important}
 
-/* ── SEARCH BAR (legacy, alias to search-inline style) ── */
-.search-bar{margin:0 var(--g3) var(--g3);padding:10px 14px;border-radius:var(--r-md);display:flex;align-items:center;gap:9px;color:var(--t3);font-size:14px;cursor:text;background:var(--glass-2);border:var(--bd)}
-.search-bar i{font-size:16px}
-.search-bar.active{border-color:rgba(122,179,255,.5);background:rgba(34,158,217,.1)}
-.search-bar input{flex:1;background:transparent;border:none;outline:none;color:var(--t1);font-size:14px;font-family:inherit}
-
 /* ── ANT LIGHT (mascot antenna) ── */
 @keyframes antBlink{0%,90%,100%{opacity:1}95%{opacity:.3}}
 .ant-light{animation:antBlink 2.5s ease-in-out infinite}
@@ -1026,6 +1018,12 @@ svg.ico{overflow:visible}
 .ping{animation:pingFx .38s var(--ease-spr)}
 
 /* ── LIGHT MODE ── */
+[data-tg-theme="light"] #app-root{
+  --t1:#1a1a1a;--t2:#4a4a4a;--t3:#73726c;--t4:#9a9990;
+  --bd:.5px solid #e0ded8;
+  --glass-1:rgba(0,0,0,.03);--glass-2:rgba(0,0,0,.05);--glass-3:rgba(0,0,0,.08);
+}
+/* Legacy class for backwards compatibility */
 .light-page{
   --t1:#1a1a1a;--t2:#4a4a4a;--t3:#73726c;--t4:#9a9990;
   --bd:.5px solid #e0ded8;
