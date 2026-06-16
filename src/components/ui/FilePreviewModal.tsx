@@ -1,7 +1,9 @@
 'use client'
 
 /* eslint-disable @next/next/no-img-element */
-import { IconX, IconDownload } from '@/components/Icons'
+import { useEffect } from 'react'
+import { createPortal } from 'react-dom'
+import { IconX, IconDownload, IconExternalLink } from '@/components/Icons'
 
 interface FilePreviewModalProps {
   url: string
@@ -13,6 +15,33 @@ interface FilePreviewModalProps {
 export default function FilePreviewModal({ url, mime, name, onClose }: FilePreviewModalProps) {
   const isPdf   = mime === 'application/pdf'
   const isImage = mime.startsWith('image/')
+
+  // Lock body scroll while modal is open; restore on close
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [])
+
+  // Dismiss on Escape key
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  function handleOpen() {
+    try {
+      const tg = window.Telegram?.WebApp
+      if (tg?.openLink) {
+        tg.openLink(url)
+      } else {
+        window.open(url, '_blank', 'noopener')
+      }
+    } catch {
+      window.open(url, '_blank', 'noopener')
+    }
+  }
 
   function handleDownload() {
     try {
@@ -31,25 +60,27 @@ export default function FilePreviewModal({ url, mime, name, onClose }: FilePrevi
     }
   }
 
-  return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 200, background: '#000', display: 'flex', flexDirection: 'column' }}>
+  const content = (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9999,
+      background: '#000',
+      display: 'flex', flexDirection: 'column',
+    }}>
       {/* Top bar */}
       <div style={{
-        position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2,
-        display: 'flex', alignItems: 'center', gap: 10,
+        display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0,
         padding: 'calc(12px + var(--safe-top, 0px)) 16px 12px',
         background: 'linear-gradient(to bottom, rgba(0,0,0,.85), transparent)',
-        pointerEvents: 'none',
       }}>
         <button
           onClick={onClose}
+          aria-label="Закрити"
           style={{
             width: 36, height: 36, borderRadius: '50%',
             background: 'rgba(255,255,255,.15)',
             border: '1px solid rgba(255,255,255,.2)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             color: '#fff', cursor: 'pointer', flexShrink: 0,
-            pointerEvents: 'all',
           }}
         >
           <IconX size={18} />
@@ -57,7 +88,6 @@ export default function FilePreviewModal({ url, mime, name, onClose }: FilePrevi
         <div style={{
           flex: 1, fontSize: 14, fontWeight: 600, color: '#fff',
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          pointerEvents: 'none',
         }}>
           {name}
         </div>
@@ -70,23 +100,13 @@ export default function FilePreviewModal({ url, mime, name, onClose }: FilePrevi
             border: '1px solid rgba(255,255,255,.2)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             color: '#fff', cursor: 'pointer', flexShrink: 0,
-            pointerEvents: 'all',
           }}
         >
           <IconDownload size={18} />
         </button>
       </div>
 
-      {isPdf ? (
-        /* PDF: inline iframe — no external browser.
-           sandbox allows scripts only for PDF rendering engine, blocks top navigation. */
-        <iframe
-          src={url}
-          title={name}
-          sandbox="allow-scripts allow-same-origin"
-          style={{ flex: 1, width: '100%', border: 'none', background: '#fff' }}
-        />
-      ) : isImage ? (
+      {isImage ? (
         /* Image: fullscreen viewer, tap backdrop to close */
         <div
           onClick={onClose}
@@ -99,7 +119,8 @@ export default function FilePreviewModal({ url, mime, name, onClose }: FilePrevi
           />
         </div>
       ) : (
-        /* Other (doc/docx): download card */
+        /* PDF / doc / docx — show document card with open+download actions.
+           Inline PDF iframes are unreliable in Telegram WebApp (WebView crash risk). */
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <div style={{
             width: '100%', maxWidth: 320,
@@ -110,12 +131,12 @@ export default function FilePreviewModal({ url, mime, name, onClose }: FilePrevi
           }}>
             <div style={{
               width: 64, height: 64, borderRadius: 16,
-              background: 'rgba(122,179,255,.15)',
-              border: '.5px solid rgba(122,179,255,.3)',
+              background: isPdf ? 'rgba(255,107,107,.15)' : 'rgba(122,179,255,.15)',
+              border: `.5px solid ${isPdf ? 'rgba(255,107,107,.3)' : 'rgba(122,179,255,.3)'}`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 28,
             }}>
-              📄
+              {isPdf ? '📄' : '📝'}
             </div>
             <div style={{ textAlign: 'center' }}>
               <div style={{
@@ -125,25 +146,45 @@ export default function FilePreviewModal({ url, mime, name, onClose }: FilePrevi
                 {name}
               </div>
               <div style={{ fontSize: 12, color: 'rgba(255,255,255,.45)' }}>
-                Цей формат не можна переглянути напряму
+                {isPdf ? 'PDF документ' : 'Word документ'}
               </div>
             </div>
-            <button
-              onClick={handleDownload}
-              style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                width: '100%', padding: '13px 20px', borderRadius: 14,
-                background: 'linear-gradient(135deg,rgba(122,179,255,.25),rgba(167,139,250,.25))',
-                border: '.5px solid rgba(122,179,255,.4)',
-                color: '#7AB3FF', fontSize: 15, fontWeight: 600, cursor: 'pointer',
-              }}
-            >
-              <IconDownload size={17} />
-              Завантажити файл
-            </button>
+            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <button
+                onClick={handleOpen}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  width: '100%', padding: '13px 20px', borderRadius: 14,
+                  background: 'linear-gradient(135deg,rgba(122,179,255,.25),rgba(167,139,250,.25))',
+                  border: '.5px solid rgba(122,179,255,.4)',
+                  color: '#7AB3FF', fontSize: 15, fontWeight: 600, cursor: 'pointer',
+                }}
+              >
+                <IconExternalLink size={17} />
+                Відкрити
+              </button>
+              <button
+                onClick={handleDownload}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  width: '100%', padding: '11px 20px', borderRadius: 14,
+                  background: 'rgba(255,255,255,.07)',
+                  border: '.5px solid rgba(255,255,255,.18)',
+                  color: 'rgba(255,255,255,.8)', fontSize: 14, fontWeight: 500, cursor: 'pointer',
+                }}
+              >
+                <IconDownload size={16} />
+                Завантажити
+              </button>
+            </div>
           </div>
         </div>
       )}
     </div>
   )
+
+  // Portal renders outside .nav-wrap so position:fixed works relative to viewport,
+  // not the will-change:transform ancestor that breaks fixed positioning.
+  if (typeof document === 'undefined') return null
+  return createPortal(content, document.body)
 }
