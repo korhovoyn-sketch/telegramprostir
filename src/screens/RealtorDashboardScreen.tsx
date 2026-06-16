@@ -5,7 +5,6 @@ import { useAppStore } from '@/store/appStore'
 import { supabase } from '@/lib/supabase'
 import TabBar from '@/components/ui/TabBar'
 import SearchBar from '@/components/ui/SearchBar'
-import { FreshnessBadge } from '@/components/ui/Badge'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import { IconBell, IconChevronRight, GlassDbIcon } from '@/components/Icons'
 import { DB_TYPE_LABELS } from '@/lib/utils'
@@ -132,8 +131,6 @@ export default function RealtorDashboardScreen() {
                   <div className="row-mn">
                     <div className="row-t">{db.name}</div>
                     <div className="row-s">
-                      <FreshnessBadge updatedAt={db.updated_at} />
-                      <span>·</span>
                       <span>{DB_TYPE_LABELS[db.type]}</span>
                     </div>
                   </div>

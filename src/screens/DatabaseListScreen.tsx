@@ -6,7 +6,6 @@ import { useDatabases } from '@/hooks/useDatabases'
 import { supabase } from '@/lib/supabase'
 import TabBar from '@/components/ui/TabBar'
 import SearchBar from '@/components/ui/SearchBar'
-import { FreshnessBadge } from '@/components/ui/Badge'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import CoachMark from '@/components/ui/CoachMark'
 import { useOnboarding } from '@/hooks/useOnboarding'
@@ -222,8 +221,6 @@ export default function DatabaseListScreen() {
                 <div className="row-mn">
                   <div className="row-t">{db.name}</div>
                   <div className="row-s">
-                    <FreshnessBadge updatedAt={db.updated_at} />
-                    <span>·</span>
                     <span>{DB_TYPE_LABELS[db.type]}</span>
                     {db.address && <><span>·</span><span>{db.address}</span></>}
                   </div>

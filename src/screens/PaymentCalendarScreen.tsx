@@ -560,9 +560,9 @@ export default function PaymentCalendarScreen() {
               <>
                 {/* Archive total card */}
                 {archiveTotal > 0 && (
-                  <div style={{ margin: '0 12px 4px', padding: '14px 16px', borderRadius: 'var(--r-md)', background: 'rgba(52,199,89,.08)', border: '.5px solid rgba(52,199,89,.2)' }}>
+                  <div style={{ margin: '0 12px 4px', padding: '14px 16px', borderRadius: 'var(--r-md)', background: 'rgba(194,130,10,.08)', border: '.5px solid rgba(194,130,10,.2)' }}>
                     <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 4 }}>Всього отримано за весь час</div>
-                    <div style={{ fontSize: 22, fontWeight: 700, color: '#34c759' }}>
+                    <div style={{ fontSize: 22, fontWeight: 700, color: '#c2820a' }}>
                       {formatPrice(archiveTotal, user?.currency)}
                     </div>
                     <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 3 }}>
@@ -577,7 +577,7 @@ export default function PaymentCalendarScreen() {
                     <div className="over">
                       <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconCalendar size={13} color="#7AB3FF" />{group.label}</span>
                       {group.total > 0 && (
-                        <span style={{ fontSize: 12, fontWeight: 700, color: '#34c759' }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: '#c2820a' }}>
                           {formatPrice(group.total, user?.currency)}
                         </span>
                       )}
@@ -609,7 +609,7 @@ export default function PaymentCalendarScreen() {
                                 )}
                               </div>
                               {rec.amount != null && rec.amount > 0 && (
-                                <div style={{ flexShrink: 0, fontSize: 15, fontWeight: 700, color: '#34c759' }}>
+                                <div style={{ flexShrink: 0, fontSize: 15, fontWeight: 700, color: '#c2820a' }}>
                                   {formatPrice(rec.amount, user?.currency)}
                                 </div>
                               )}
@@ -772,7 +772,7 @@ function PaymentItemCard({ item, statusColor, label, onMarkPaid, onEdit, onDelet
             <span style={{ fontSize: 12, fontWeight: 600, color: statusColor }}>{label}</span>
             <span style={{ fontSize: 12, color: 'var(--t3)' }}>{fmtDueDate(item.dueDate)}</span>
             {displayAmt != null && displayAmt > 0 && (
-              <span style={{ fontSize: 12, fontWeight: isPaid ? 700 : 400, color: isPaid ? '#34c759' : 'var(--t2)' }}>
+              <span style={{ fontSize: 12, fontWeight: isPaid ? 700 : 400, color: isPaid ? '#c2820a' : 'var(--t2)' }}>
                 {formatPrice(displayAmt, userCurrency)}
               </span>
             )}
@@ -785,7 +785,7 @@ function PaymentItemCard({ item, statusColor, label, onMarkPaid, onEdit, onDelet
         {!isPaid ? (
           <button
             onClick={onMarkPaid}
-            style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 'var(--r-pill)', background: 'rgba(52,199,89,.18)', border: '.5px solid rgba(52,199,89,.32)', color: '#34c759', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+            style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 'var(--r-pill)', background: 'rgba(194,130,10,.18)', border: '.5px solid rgba(194,130,10,.32)', color: '#c2820a', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
           >
             <IconCheckCircle size={12} /> Отримано
           </button>
@@ -793,7 +793,7 @@ function PaymentItemCard({ item, statusColor, label, onMarkPaid, onEdit, onDelet
           <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4 }}>
             <button
               onClick={onEditPaid}
-              style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '6px 10px', borderRadius: 'var(--r-pill)', background: 'rgba(52,199,89,.1)', border: '.5px solid rgba(52,199,89,.2)', color: '#34c759', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+              style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '6px 10px', borderRadius: 'var(--r-pill)', background: 'rgba(194,130,10,.1)', border: '.5px solid rgba(194,130,10,.2)', color: '#c2820a', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
             >
               ✓ Сплачено
             </button>

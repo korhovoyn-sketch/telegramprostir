@@ -7,10 +7,10 @@ import { useProperties } from '@/hooks/useProperties'
 import Header from '@/components/ui/Header'
 import TabBar from '@/components/ui/TabBar'
 import SearchBar from '@/components/ui/SearchBar'
-import { StatusBadge, FreshnessBadge } from '@/components/ui/Badge'
+import { StatusBadge } from '@/components/ui/Badge'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import Modal from '@/components/ui/Modal'
-import { IconPlus, IconDots, IconEye, IconPhoto, IconShare, IconChevronUp, IconChevronDown, GlassDbIcon, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconFile } from '@/components/Icons'
+import { IconPlus, IconDots, IconPhoto, IconShare, IconChevronUp, IconChevronDown, GlassDbIcon, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconFile } from '@/components/Icons'
 import DatabaseStatsPanel from '@/components/ui/DatabaseStatsPanel'
 import { formatPrice, calcRent, calcUtilities, DB_TYPE_LABELS, formatLeasePeriod } from '@/lib/utils'
 import type { PropertyStatus } from '@/types'
@@ -146,8 +146,6 @@ export default function DatabaseObjectsScreen() {
           <div className="info-mn">
             <div className="info-t">{db.name}</div>
             <div className="info-s">
-              <FreshnessBadge updatedAt={db.updated_at} />
-              <span>·</span>
               <span>{properties.length} об&apos;єктів</span>
               <span>·</span>
               <span>{counts.free} вільно</span>
@@ -427,12 +425,7 @@ export default function DatabaseObjectsScreen() {
                             <span>{p.photos!.length}</span>
                           </div>
                         )}
-                        {(p._view_count ?? 0) > 0 && (
-                          <div className="obj-mt">
-                            <IconEye size={13} />
-                            <span>{p._view_count}</span>
-                          </div>
-                        )}
+
                         {p.status === 'occupied' && formatLeasePeriod(p.lease_start_date, p.lease_end_date) && (
                           <div className="obj-mt" style={{ gridColumn: '1 / -1', color: 'var(--t3)' }}>
                             <IconCalendar size={13} color="var(--t3)" />
