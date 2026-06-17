@@ -105,29 +105,38 @@ export function useAuth() {
 
   const setupAuthListener = useCallback(() => {
     if (!supabase.auth) return { unsubscribe: () => {} }
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'TOKEN_REFRESHED' && session) {
         // Supabase rotates the refresh token on every silent background refresh —
         // without this, our CloudStorage mirror goes stale and the next restore
         // that falls back to it uses an already-invalidated refresh token.
         persistSession(session.access_token, session.refresh_token)
-        try {
-          const email = session.user.email ?? ''
-          const tgIdStr = email.replace('@telegram.propspace.app', '')
-          if (!tgIdStr || tgIdStr === email) return
-          const tgId = parseInt(tgIdStr, 10)
-          if (isNaN(tgId)) return
-          const { data, error } = await supabase
-            .from('users')
-            .select(USER_COLUMNS)
-            .eq('tg_id', tgId)
-            .single()
-          if (!error && data) {
-            useAppStore.getState().setUser(data as User)
-          }
-        } catch {
-          // silently ignore token refresh fetch errors
-        }
+        // GoTrueClient awaits this callback while holding its internal auth lock
+        // (the auto-refresh tick acquires it before notifying listeners) — any
+        // awaited work here would block concurrent getSession()/setSession() calls
+        // elsewhere (e.g. SplashScreen's restoreSession) for up to lockAcquireTimeout
+        // (5s default). Defer the DB re-fetch so the callback returns immediately.
+        setTimeout(() => {
+          void (async () => {
+            try {
+              const email = session.user.email ?? ''
+              const tgIdStr = email.replace('@telegram.propspace.app', '')
+              if (!tgIdStr || tgIdStr === email) return
+              const tgId = parseInt(tgIdStr, 10)
+              if (isNaN(tgId)) return
+              const { data, error } = await supabase
+                .from('users')
+                .select(USER_COLUMNS)
+                .eq('tg_id', tgId)
+                .single()
+              if (!error && data) {
+                useAppStore.getState().setUser(data as User)
+              }
+            } catch {
+              // silently ignore token refresh fetch errors
+            }
+          })()
+        }, 0)
       } else if (event === 'SIGNED_OUT') {
         if (_intentionalLogout) { _intentionalLogout = false; return }
         useAppStore.getState().setUser(null)
