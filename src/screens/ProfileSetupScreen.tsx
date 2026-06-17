@@ -122,6 +122,7 @@ export default function ProfileSetupScreen() {
           position: 'absolute',
           bottom: 'calc(var(--btn-h) + 18px + var(--safe-bottom))',
           left: 0, right: 0,
+          zIndex: 6,
           background: 'none', border: 'none', cursor: 'pointer',
           color: 'var(--t4)', fontSize: 13, padding: '4px 0',
           textAlign: 'center',

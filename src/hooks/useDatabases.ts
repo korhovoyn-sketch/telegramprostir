@@ -9,7 +9,7 @@ import type { Database } from '@/types'
 export function useDatabases() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const { user, setDatabases, databases, showToast, navigate } = useAppStore()
+  const { user, setDatabases, databases, showToast, navigate, backThenReplace } = useAppStore()
 
   const loadDatabases = useCallback(async () => {
     if (!user) return
@@ -68,13 +68,13 @@ export function useDatabases() {
 
       setDatabases([data as Database, ...databases])
       showToast({ type: 'success', title: 'Базу створено' })
-      navigate('db-objects', { dbId: data.id })
+      backThenReplace('db-objects', { dbId: data.id })
     } catch (e) {
       showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
     } finally {
       setLoading(false)
     }
-  }, [user, databases, setDatabases, showToast, navigate])
+  }, [user, databases, setDatabases, showToast, backThenReplace])
 
   const updateDatabase = useCallback(async (id: string, payload: Partial<Database>) => {
     setLoading(true)

@@ -9,7 +9,7 @@ export function useProperties(dbId?: string) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [properties, setProperties] = useState<Property[]>([])
-  const { user, showToast, navigate } = useAppStore()
+  const { user, showToast, navigate, backThenReplace } = useAppStore()
 
   const loadProperties = useCallback(async (id?: string) => {
     const targetDbId = id || dbId
@@ -95,13 +95,13 @@ export function useProperties(dbId?: string) {
       if (error) throw error
       setProperties((prev) => [data as Property, ...prev])
       showToast({ type: 'success', title: 'Об\'єкт додано' })
-      navigate('db-objects', { dbId: payload.db_id })
+      backThenReplace('db-objects', { dbId: payload.db_id })
     } catch (e) {
       showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
     } finally {
       setLoading(false)
     }
-  }, [user, showToast, navigate])
+  }, [user, showToast, backThenReplace])
 
   const updateProperty = useCallback(async (id: string, payload: Partial<Property>) => {
     setLoading(true)

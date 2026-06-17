@@ -126,7 +126,7 @@ export default function SplashScreen() {
   return (
     <div className="bg-welcome" style={{
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      height: 'var(--tg-vh)',
+      height: 'var(--tg-vh, 100svh)',
       position: 'relative', overflow: 'hidden',
     }}>
       {/* Neon Orb */}
