@@ -2,21 +2,16 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '@/store/appStore'
-import { useAuth } from '@/hooks/useAuth'
+import { useAuth, RESTORE_BUDGET_MS } from '@/hooks/useAuth'
 import { useTelegram } from '@/hooks/useTelegram'
 
 // How long to wait for a stored session to restore before giving up and
 // showing WelcomeScreen. Auto-login (Edge Function) is intentionally NOT done
 // here — it hangs the splash at 90% on cold starts. WelcomeScreen handles it.
-
-
-// Give restoreSession enough time — it may re-hydrate the session from Telegram
-// CloudStorage and refresh the JWT, which costs a round-trip or two on slow LTE.
-// Falling through to the Edge Function login is far slower, so we'd rather wait
-// here. A genuinely session-less user still returns false well before this.
-// 12 s: cloudGet up to 5 s + setSession token-refresh up to 3 s + DB fetch up to 2 s
-// The old 8 s budget was too tight for expired-token cold starts on iOS.
-const SESSION_TIMEOUT_MS = 12000
+//
+// RESTORE_BUDGET_MS is shared with useAuth's loginViaTelegram, which derives its
+// own wait from however much of this budget the in-flight restore already used —
+// keeping both screens deferring to one source of truth instead of guessing.
 
 export default function SplashScreen() {
   const [progress, setProgress] = useState(0)
@@ -52,16 +47,8 @@ export default function SplashScreen() {
     }).catch(() => {})
   }, [])
 
-  // Fallback: if Telegram SDK never fires isReady (outside Telegram / slow load),
-  // force-start after 2s so the splash never hangs on a white/dark screen forever.
-  const [forcedReady, setForcedReady] = useState(false)
   useEffect(() => {
-    const t = setTimeout(() => setForcedReady(true), 2000)
-    return () => clearTimeout(t)
-  }, [])
-
-  useEffect(() => {
-    if (!isReady && !forcedReady) return
+    if (!isReady) return
     if (startedRef.current) return
     startedRef.current = true
 
@@ -87,7 +74,7 @@ export default function SplashScreen() {
 
       const hasSession = await Promise.race([
         restoreSession(),
-        new Promise<false>(r => setTimeout(() => r(false), SESSION_TIMEOUT_MS)),
+        new Promise<false>(r => setTimeout(() => r(false), RESTORE_BUDGET_MS)),
       ])
 
       if (cancelled) return
@@ -134,7 +121,7 @@ export default function SplashScreen() {
       cancelled = true
       if (ticker) clearInterval(ticker)
     }
-  }, [isReady, forcedReady, navigateRoot, restoreSession])
+  }, [isReady, navigateRoot, restoreSession])
 
   return (
     <div className="bg-welcome" style={{

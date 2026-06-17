@@ -21,6 +21,12 @@ let _intentionalLogout = false
 // them on an internal lock — the visible symptom is a login button that hangs
 // forever). Sharing one promise lets the login path await the in-flight restore.
 let _restorePromise: Promise<boolean> | null = null
+let _restoreStartedAt: number | null = null
+
+// Single shared budget for the whole restore flow — SplashScreen races its timeout
+// against this, and loginViaTelegram derives its own wait from however much of this
+// budget the in-flight restore has already consumed, instead of guessing a flat number.
+export const RESTORE_BUDGET_MS = 12000
 
 // Telegram CloudStorage persists on Telegram's servers, so it survives the
 // WebView wiping localStorage between full app restarts (common on iOS). We mirror
@@ -57,9 +63,26 @@ function cloudGet(key: string): Promise<string | null> {
   })
 }
 
+// One retry after a short delay for the two true single-point-of-failure network
+// calls in doRestoreSession — a single transient blip there currently means a hard
+// restore failure with no fallback, forcing a full (slow) fresh login.
+// Supabase-js resolves network/server errors as `{ error }` rather than rejecting,
+// so we check the result's error field instead of relying on a thrown exception.
+// PGRST116 ("no rows") is a legitimate empty result, not a transient failure — don't retry it.
+async function withRetry<T extends { error: { code?: string } | null }>(
+  fn: () => PromiseLike<T>, attempts = 2, delayMs = 400,
+): Promise<T> {
+  let result: T
+  for (let i = 0; i < attempts; i++) {
+    result = await fn()
+    if (!result.error || result.error.code === 'PGRST116') return result
+    if (i < attempts - 1) await new Promise(r => setTimeout(r, delayMs))
+  }
+  return result!
+}
+
 function persistSession(access_token: string, refresh_token: string): void {
   const payload = JSON.stringify({ access_token, refresh_token })
-  try { localStorage.setItem(SESSION_KEY, payload) } catch { /* quota */ }
   try { cloudStorage()?.setItem?.(SESSION_KEY, payload, () => {}) } catch { /* unsupported */ }
 }
 
@@ -71,7 +94,6 @@ function persistProfile(user: User): void {
 }
 
 function clearPersistedSession(): void {
-  try { localStorage.removeItem(SESSION_KEY) } catch { /* ignore */ }
   try { localStorage.removeItem(PROFILE_KEY) } catch { /* ignore */ }
   try { cloudStorage()?.removeItem?.(SESSION_KEY, () => {}) } catch { /* unsupported */ }
   try { cloudStorage()?.removeItem?.(PROFILE_CS_KEY, () => {}) } catch { /* unsupported */ }
@@ -85,6 +107,10 @@ export function useAuth() {
     if (!supabase.auth) return { unsubscribe: () => {} }
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'TOKEN_REFRESHED' && session) {
+        // Supabase rotates the refresh token on every silent background refresh —
+        // without this, our CloudStorage mirror goes stale and the next restore
+        // that falls back to it uses an already-invalidated refresh token.
+        persistSession(session.access_token, session.refresh_token)
         try {
           const email = session.user.email ?? ''
           const tgIdStr = email.replace('@telegram.propspace.app', '')
@@ -119,9 +145,12 @@ export function useAuth() {
       // can skip the slow Edge Function login (and avoid two interleaved setSession
       // flows deadlocking on Supabase's auth lock).
       if (_restorePromise) {
+        const remaining = _restoreStartedAt
+          ? Math.max(RESTORE_BUDGET_MS - (Date.now() - _restoreStartedAt), 500)
+          : 4000
         const restored = await Promise.race([
           _restorePromise.catch(() => false),
-          new Promise<false>(r => setTimeout(() => r(false), 4000)),
+          new Promise<false>(r => setTimeout(() => r(false), remaining)),
         ])
         const restoredUser = useAppStore.getState().user
         if (restored && restoredUser) {
@@ -324,9 +353,15 @@ export function useAuth() {
 
   const restoreSession = useCallback(() => {
     if (!_restorePromise) {
+      _restoreStartedAt = Date.now()
       _restorePromise = doRestoreSession()
-      // Clear singleton on failure so transient errors don't permanently block retries.
-      _restorePromise.then(ok => { if (!ok) _restorePromise = null }).catch(() => { _restorePromise = null })
+      _restorePromise.then(ok => {
+        if (!ok) { _restorePromise = null; _restoreStartedAt = null }
+        // Clear a successful singleton after a grace delay so it doesn't linger
+        // indefinitely, while still letting any near-simultaneous loginViaTelegram
+        // calls observe the success first.
+        else setTimeout(() => { _restorePromise = null; _restoreStartedAt = null }, 5000)
+      }).catch(() => { _restorePromise = null; _restoreStartedAt = null })
     }
     return _restorePromise
   }, [])
@@ -352,9 +387,7 @@ async function refreshSessionSilently(tgId: number): Promise<void> {
   try {
     let session = (await supabase.auth.getSession()).data.session
     if (!session) {
-      let stored: string | null = null
-      try { stored = localStorage.getItem(SESSION_KEY) } catch { /* ignore */ }
-      if (!stored) stored = await cloudGet(SESSION_KEY)
+      const stored = await cloudGet(SESSION_KEY)
       if (stored) {
         try {
           const { access_token, refresh_token } = JSON.parse(stored)
@@ -423,21 +456,17 @@ async function doRestoreSession(): Promise<boolean> {
 
     let csProfile: string | null = null
     if (!session) {
-      let stored: string | null = null
-      try { stored = localStorage.getItem(SESSION_KEY) } catch { /* ignore */ }
-
-      if (!stored) {
-        ;[stored, csProfile] = await Promise.all([
-          cloudGet(SESSION_KEY),
-          cloudGet(PROFILE_CS_KEY),
-        ])
-      }
+      const [stored, cs] = await Promise.all([
+        cloudGet(SESSION_KEY),
+        cloudGet(PROFILE_CS_KEY),
+      ])
+      csProfile = cs
 
       if (stored) {
         try {
           const { access_token, refresh_token } = JSON.parse(stored)
           if (access_token && refresh_token) {
-            const res = await supabase.auth.setSession({ access_token, refresh_token })
+            const res = await withRetry(() => supabase.auth.setSession({ access_token, refresh_token }))
             session = res.data.session
             if (session) persistSession(session.access_token, session.refresh_token)
           }
@@ -483,7 +512,7 @@ async function doRestoreSession(): Promise<boolean> {
     } catch { /* corrupt — fall through */ }
 
     // Last resort: DB fetch (first-ever restore after fresh install)
-    const { data } = await supabase.from('users').select('*').eq('tg_id', tgId).single()
+    const { data } = await withRetry(() => supabase.from('users').select('*').eq('tg_id', tgId).single())
     if (!data) return false
     setUser(data as User)
     persistProfile(data as User)
