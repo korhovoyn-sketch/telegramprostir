@@ -238,6 +238,38 @@ The session-start hook (`.claude/hooks/session-start.sh`) runs `npm install` and
 
 ---
 
+## Audit playbook
+
+This repo gets audited in three recurring flavors. Each has its own checklist and gotchas learned the hard way across past sessions — check these before assuming a finding is new.
+
+### 1. DevSecOps / security audit
+
+Run every Edge Function and RLS policy touched through the OWASP Top-10 checklist and Security rules above. Recurring findings to check for specifically:
+- Rate limiter fails open instead of closed (must reject on lookup failure, not allow through)
+- `tg_id` passed as a string to a BIGINT column (must `parseInt(tgUser.id, 10)`)
+- Edge Function error responses leaking stack traces or `detail` fields to the client
+- Storage paths containing user-controlled segments instead of `{propertyId}/{timestamp}_{rand}.{ext}`
+- New tables missing `ALTER TABLE … ENABLE ROW LEVEL SECURITY`
+
+### 2. UI/UX & design-system audit
+
+Triggered by reports like "text/buttons are black", "gradient disappeared", "icon should be a different color". Walk every screen in `src/screens/` against the Design system quick reference above. Known root causes from past audits — rule these out before touching new code:
+
+- **Duplicate CSS variable definitions.** `--t1`/`--t2`/`--t3`/`--t4` (and other design tokens) must be defined exactly once, in `:root` in `globals.css`. A scoped block like `[data-tg-theme="light"] #app-root{--t1:#1a1a1a;...}` or a stray `.light-page{...}` class silently overrides text color to dark even when no component renders that class. Sanity check: `grep "  --t1:" src/app/globals.css` must return exactly one line. This exact bug recurred across a revert + a PR merge — re-check after any merge into the design CSS.
+- **Pseudo-element overlays carry gradients/shadows, not the base class.** `.hdr`, `.tabbar`, etc. have no background of their own by design (bare-icon aesthetic) — gradient scrims and specular highlights live in `::before`/`::after`. When a "gradient disappeared" or "shadow behind icons" report comes in, grep for `::before`/`::after` on that selector before editing the base rule, and check `git log -S".selector::before"` to see if it was stripped in an earlier redesign.
+- **Screen backgrounds must use a `.bg-*` gradient class** (`.bg-purple`, `.bg-welcome`, `.bg-teal`, etc.), never an inline flat color or a `var(--tg-theme-*-bg-color, #hex)` fallback. The Telegram theme var is a single flat color and reads as "gradient missing" the moment Telegram doesn't inject it (outside Telegram, or before the SDK finishes loading on a cold start) — this is exactly what happened to `SplashScreen`.
+- **Money/currency figures and the dollar icon are green** (`var(--ok)` / `var(--ok-fg)` / `var(--ok-bg)` / `var(--ok-bd)`), not amber. Standardized across `DatabaseListScreen`, `DatabaseObjectsScreen`, `PropertyDetailScreen`, `PropertyFormScreen`, `PaymentCalendarScreen` — don't reintroduce `#c2820a` or `#fbbf24` for currency display (those amber tones stay reserved for non-money things like electricity/bolt icons and pending-status badges).
+- **No inline `rgba(...)`.** If a color repeats with no existing token, that's a signal a new semantic token belongs in `:root`, not another inline literal.
+
+### 3. Full-workflow verification (auth → CRUD → upload → UI)
+
+This sandboxed environment has **no Playwright browser binaries** (`apt` returns 403) and **no outbound network** to Vercel/Supabase preview URLs (403 host-not-in-allowlist). Verify changes by:
+1. `npm run type-check && npm run lint && npm run build` — all three must pass clean.
+2. Inspect the compiled output directly: `grep` the generated `out/_next/static/css/*.css` and `out/_next/static/chunks/**/*.js` for the literal class names/color values you changed. CSS gets minified and `::before`/`::after` rules get merged onto shared selectors — search for the property value (e.g. a hex color or class name string), not the exact original selector text.
+3. State explicitly to the user that this substitutes for live browser/Vercel verification, since neither is reachable from this environment.
+
+---
+
 ## Pending manual actions (зробити в Supabase Dashboard)
 
 ### 1. Міграція безпеки — виконати SQL в Dashboard → SQL Editor
