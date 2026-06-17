@@ -119,8 +119,8 @@ export default function DatabaseListScreen() {
             <div className="stat-l" style={{ color: 'var(--ok-fg)' }}>Вільно</div>
           </div>
           {totals.income > 0 && (
-            <div className="stat glass-s" style={{ gridColumn: '1 / -1', background: 'rgba(194,130,10,.07)', border: '.5px solid rgba(194,130,10,.18)' }}>
-              <div className="stat-n" style={{ color: '#c2820a', fontSize: 18 }}>
+            <div className="stat glass-s" style={{ gridColumn: '1 / -1', background: 'var(--ok-bg)', border: '.5px solid var(--ok-bd)' }}>
+              <div className="stat-n" style={{ color: 'var(--ok-fg)', fontSize: 18 }}>
                 {formatPrice(totals.income, user?.currency)}
               </div>
               <div className="stat-l">на місяць (зайнято {totals.occupied})</div>
@@ -225,7 +225,7 @@ export default function DatabaseListScreen() {
                     {db.address && <><span>·</span><span>{db.address}</span></>}
                   </div>
                   {(db._monthly_income ?? 0) > 0 && (
-                    <div style={{ fontSize: 11, color: '#c2820a', marginTop: 2, fontWeight: 600 }}>
+                    <div style={{ fontSize: 11, color: 'var(--ok-fg)', marginTop: 2, fontWeight: 600 }}>
                       {formatPrice(db._monthly_income!, user?.currency)}/міс
                     </div>
                   )}

@@ -436,8 +436,8 @@ export default function DatabaseObjectsScreen() {
                       {total > 0 && (
                         <div className="obj-tot">
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <span style={{ width: 22, height: 22, borderRadius: 7, background: 'rgba(194,130,10,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                              <IconCurrencyDollar size={12} color="#c2820a" />
+                            <span style={{ width: 22, height: 22, borderRadius: 7, background: 'var(--ok-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                              <IconCurrencyDollar size={12} color="var(--ok-fg)" />
                             </span>
                             <div>
                               <div className="obj-tot-l">На місяць</div>

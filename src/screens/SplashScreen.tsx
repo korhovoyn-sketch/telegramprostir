@@ -37,20 +37,19 @@ export default function SplashScreen() {
     import('@/screens/NotificationsScreen')
   }, [])
 
-  // Pre-warm the Edge Function so it isn't cold when session restore fails and
-  // WelcomeScreen falls back to loginViaTelegram. Fire after 3 s — if session
-  // restores from cache in that window we skip the unnecessary request.
+  // Pre-warm the Edge Function immediately so it isn't cold when session restore
+  // fails and WelcomeScreen falls back to loginViaTelegram. Cold start is 10-30s,
+  // the single biggest latency source in the auth flow — start warming it as
+  // early as possible rather than waiting, since the fire-and-forget GET is cheap
+  // even on the (less common) path where a cached session makes it unnecessary.
   useEffect(() => {
-    const t = setTimeout(() => {
-      const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-      const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-      if (!url || !key || useAppStore.getState().user) return
-      fetch(`${url}/functions/v1/telegram-auth`, {
-        method: 'GET',
-        headers: { 'Authorization': `Bearer ${key}`, 'apikey': key },
-      }).catch(() => {})
-    }, 3000)
-    return () => clearTimeout(t)
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    if (!url || !key) return
+    fetch(`${url}/functions/v1/telegram-auth`, {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${key}`, 'apikey': key },
+    }).catch(() => {})
   }, [])
 
   // Fallback: if Telegram SDK never fires isReady (outside Telegram / slow load),
@@ -138,9 +137,9 @@ export default function SplashScreen() {
   }, [isReady, forcedReady, navigateRoot, restoreSession])
 
   return (
-    <div style={{
+    <div className="bg-welcome" style={{
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      height: 'var(--tg-vh)', background: 'var(--tg-theme-secondary-bg-color, #03081a)',
+      height: 'var(--tg-vh)',
       position: 'relative', overflow: 'hidden',
     }}>
       {/* Neon Orb */}

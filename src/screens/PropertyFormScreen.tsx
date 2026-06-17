@@ -212,7 +212,7 @@ export default function PropertyFormScreen() {
         {/* Sale price — shown only when for_sale */}
         {status === 'for_sale' && (
           <>
-            <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconCurrencyDollar size={13} color="#fbbf24" />Продаж</span></div>
+            <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconCurrencyDollar size={13} color="var(--ok-fg)" />Продаж</span></div>
             <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
               <div className="fr">
                 <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconCurrencyDollar size={13} color="var(--t3)" />Ціна продажу</span>
@@ -262,7 +262,7 @@ export default function PropertyFormScreen() {
         </div>
 
         {/* Rent */}
-        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconCurrencyDollar size={13} color="#c2820a" />Орендна ставка</span></div>
+        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconCurrencyDollar size={13} color="var(--ok-fg)" />Орендна ставка</span></div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div className="fr">
             <span className="fr-l">Тип</span>

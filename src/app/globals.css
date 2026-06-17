@@ -137,10 +137,13 @@ body{
 .glass-s{background:var(--glass-1);backdrop-filter:blur(28px) saturate(170%) brightness(1.04);-webkit-backdrop-filter:blur(28px) saturate(170%) brightness(1.04);border:var(--bd)}
 .glass-d{background:var(--glass-3);backdrop-filter:blur(36px) saturate(190%) brightness(1.08);-webkit-backdrop-filter:blur(36px) saturate(190%) brightness(1.08);border:var(--bd-s)}
 
-/* ── HEADER — bare floating controls, no bar ──
+/* ── HEADER — bare floating controls, gradient scrim ──
    Content never scrolls under it (screens are flex columns), so the header
-   needs no backdrop at all: just icons + title with a soft glow over the bg. */
+   needs no glass/blur — just a soft top-down gradient scrim behind the icons,
+   plus a thin top specular line, echoing the screen's own gradient. */
 .hdr{padding:calc(10px + var(--safe-top)) var(--g3) 8px;display:flex;align-items:center;gap:var(--g2);flex-shrink:0;position:relative;z-index:8;min-height:44px}
+.hdr::before{content:'';position:absolute;left:0;right:0;top:0;bottom:-18px;background:linear-gradient(180deg,rgba(6,5,18,.38) 0%,rgba(6,5,18,.16) 60%,transparent 100%);pointer-events:none;z-index:-1}
+.hdr::after{content:'';position:absolute;left:0;right:0;top:0;height:1.5px;background:linear-gradient(90deg,transparent 6%,rgba(255,255,255,.30) 50%,transparent 94%);pointer-events:none;z-index:-1}
 .hdr-back{display:flex;align-items:center;gap:4px;padding:7px var(--g3) 7px 10px;color:var(--t1);font-size:14px;font-weight:500;background:none;border:none;cursor:pointer;transition:transform .12s,filter .18s,opacity .15s}
 .hdr-back:active{transform:scale(.92)}
 /* Header title — Subhead Semibold (Apple navigation bar title tier) */

@@ -349,7 +349,7 @@ export default function PropertyDetailScreen() {
             {rent > 0 && (
               <div className="obj-f">
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <IconCurrencyDollar size={13} color="#c2820a" />Оренда
+                  <IconCurrencyDollar size={13} color="var(--ok-fg)" />Оренда
                 </div>
                 <div className="obj-fv">{formatPrice(rent, user?.currency)}/міс</div>
               </div>
@@ -357,7 +357,7 @@ export default function PropertyDetailScreen() {
             {property.sale_price != null && (
               <div className="obj-f">
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <IconCurrencyDollar size={13} color="#fbbf24" />Ціна продажу
+                  <IconCurrencyDollar size={13} color="var(--ok-fg)" />Ціна продажу
                 </div>
                 <div className="obj-fv">{formatPrice(property.sale_price, user?.currency)}</div>
               </div>
@@ -422,17 +422,17 @@ export default function PropertyDetailScreen() {
         {total > 0 && (
           <div className="glass-s" style={{ margin: '0 12px 12px', borderRadius: 'var(--r-md)', padding: '12px 14px' }}>
             <div style={{ fontSize: 11, color: 'var(--t3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <IconCurrencyDollar size={12} color="#c2820a" />Фінанси
+              <IconCurrencyDollar size={12} color="var(--ok-fg)" />Фінанси
             </div>
             {rent > 0 && (
               <div className="cost-row">
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ width: 24, height: 24, borderRadius: 8, background: 'rgba(194,130,10,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <IconKey size={12} color="#c2820a" />
+                  <span style={{ width: 24, height: 24, borderRadius: 8, background: 'var(--ok-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <IconKey size={12} color="var(--ok-fg)" />
                   </span>
                   Оренда
                 </span>
-                <span style={{ color: '#c2820a', fontWeight: 600 }}>{formatPrice(rent, user?.currency)}/міс</span>
+                <span style={{ color: 'var(--ok-fg)', fontWeight: 600 }}>{formatPrice(rent, user?.currency)}/міс</span>
               </div>
             )}
             {utils > 0 && (
@@ -750,7 +750,7 @@ export default function PropertyDetailScreen() {
                     padding: '2px 4px 0', fontSize: 13, color: 'var(--t3)',
                   }}>
                     <span>Разом на місяць</span>
-                    <span style={{ fontSize: 17, fontWeight: 700, color: '#c2820a' }}>
+                    <span style={{ fontSize: 17, fontWeight: 700, color: 'var(--ok-fg)' }}>
                       {formatPrice(previewTotal, user?.currency)}
                     </span>
                   </div>
