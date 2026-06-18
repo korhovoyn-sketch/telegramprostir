@@ -21,6 +21,7 @@ vi.mock('@/lib/supabase', () => ({
       select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: null, error: null }) }) }),
     }),
   },
+  getSessionUngated: vi.fn().mockResolvedValue({ data: { session: null } }),
 }))
 
 import { useAuth } from '@/hooks/useAuth'

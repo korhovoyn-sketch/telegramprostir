@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { supabase } from '@/lib/supabase'
+import { supabase, getSessionUngated } from '@/lib/supabase'
+import { openSessionGate, closeSessionGate } from '@/lib/sessionGate'
 import { useAppStore } from '@/store/appStore'
 import type { User } from '@/types'
 
@@ -391,17 +392,19 @@ function getTgIdFromInitData(): number {
 }
 
 // Silently refresh the Supabase session + DB profile in the background after
-// the fast-path profile cache already returned true. Does not affect navigation.
+// the fast-path profile cache already returned true. Does not affect navigation,
+// but closeSessionGate() here unblocks any REST/Storage queries that screens
+// mounted in the meantime are waiting on (see openSessionGate in Fast Path 0).
 async function refreshSessionSilently(tgId: number): Promise<void> {
   try {
-    let session = (await supabase.auth.getSession()).data.session
+    let session = (await getSessionUngated()).data.session
     if (!session) {
       const stored = await cloudGet(SESSION_KEY)
       if (stored) {
         try {
           const { access_token, refresh_token } = JSON.parse(stored)
           if (access_token && refresh_token) {
-            const res = await supabase.auth.setSession({ access_token, refresh_token })
+            const res = await withRetry(() => supabase.auth.setSession({ access_token, refresh_token }))
             session = res.data.session
             if (session) persistSession(session.access_token, session.refresh_token)
           }
@@ -416,21 +419,24 @@ async function refreshSessionSilently(tgId: number): Promise<void> {
       }
     }
   } catch { /* background — silently ignore */ }
+  finally { closeSessionGate() }
 }
 
 async function doRestoreSession(): Promise<boolean> {
   const setUser = (u: User | null) => useAppStore.getState().setUser(u)
   try {
     // Fast path 0: Profile cache + identity from initDataUnsafe.user.id.
-    // Deliberately does NOT gate on supabase.auth.getSession() first — on iOS cold
-    // starts, localStorage (where GoTrueClient persists its session by default) is
-    // wiped at the same time as our profile cache, so getSession() reliably comes
-    // back null in exactly the scenario this fast path exists for, making the gate
-    // dead code and forcing every iOS cold start through the slow CloudStorage
-    // restore below (the visible "stuck at 58%" splash stall). Instead, trust a
-    // tg_id-matched cached profile immediately and let refreshSessionSilently
-    // restore the real session (from CloudStorage if needed) in the background —
-    // it already handles that fallback.
+    // Deliberately does NOT block navigation on supabase.auth.getSession() first —
+    // on iOS cold starts, localStorage (where GoTrueClient persists its session by
+    // default) is wiped at the same time as our profile cache, so getSession()
+    // reliably comes back null in exactly the scenario this fast path exists for,
+    // making a navigation-blocking gate dead code and forcing every iOS cold start
+    // through the slow CloudStorage restore below (the visible "stuck at 58%"
+    // splash stall). Instead, trust a tg_id-matched cached profile immediately for
+    // navigation, and separately gate REST/Storage queries (not navigation) behind
+    // openSessionGate() below while refreshSessionSilently restores the real
+    // session in the background — see src/lib/sessionGate.ts for why a query-level
+    // gate is required even though a navigation-level one isn't.
     const tgId0 = getTgIdFromInitData()
     if (!isNaN(tgId0)) {
       // Check localStorage first (warm starts, Android)
@@ -458,14 +464,18 @@ async function doRestoreSession(): Promise<boolean> {
         setUser(cached)
         // Restore/validate the real session + live DB profile in the background
         // without blocking UX — handles both the localStorage-has-it and the
-        // CloudStorage-fallback case.
+        // CloudStorage-fallback case. Hold REST/Storage queries (not navigation)
+        // for up to 3s so screens that mount right after this returns get a real
+        // JWT instead of querying anonymously and having RLS silently return
+        // empty results — see src/lib/sessionGate.ts.
+        openSessionGate(3000)
         refreshSessionSilently(tgId0).catch(() => {})
         return true
       }
     }
 
     // Existing token-based restore (first install, or initDataUnsafe unavailable)
-    let session = (await supabase.auth.getSession()).data.session
+    let session = (await getSessionUngated()).data.session
 
     let csProfile: string | null = null
     if (!session) {
