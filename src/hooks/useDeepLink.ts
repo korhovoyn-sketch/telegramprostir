@@ -47,7 +47,10 @@ export function useDeepLink() {
         if (startParam.startsWith('guest_')) {
           const token = startParam.slice(6)
           const { data, error } = await supabase.rpc('claim_guest_link', { p_token: token })
-          const result = (data && typeof data === 'object' && 'property_id' in data) ? data as { property_id?: string; db_id?: string; error?: string } : null
+          // claim_guest_link returns either {property_id, db_id} on success or
+          // {error: 'revoked'|'already_claimed'|...} on failure — never both keys
+          // together, so the guard must accept either shape, not just the success one.
+          const result = (data && typeof data === 'object' && ('property_id' in data || 'error' in data)) ? data as { property_id?: string; db_id?: string; error?: string } : null
 
           if (error || !result || result.error) {
             const msg = result?.error === 'revoked' ? 'Запрошення відкликано власником'
