@@ -5,6 +5,7 @@ import { useAppStore } from '@/store/appStore'
 import { supabase } from '@/lib/supabase'
 import Header from '@/components/ui/Header'
 import Modal from '@/components/ui/Modal'
+import { SkeletonList } from '@/components/ui/SkeletonLoader'
 import { IconCalendar, IconBellRing, IconCheckCircle, IconClock, IconPlus, IconTrash, IconFile } from '@/components/Icons'
 import { formatPrice } from '@/lib/utils'
 import type { Property, RentPayment, RentPaymentRecord } from '@/types'
@@ -42,6 +43,7 @@ export default function PaymentCalendarScreen() {
   const [schedules, setSchedules]     = useState<RentPayment[]>([])
   const [records, setRecords]         = useState<RentPaymentRecord[]>([])
   const [loading, setLoading]         = useState(true)
+  const [loadError, setLoadError]     = useState<string | null>(null)
 
   const [monthsAhead, setMonthsAhead] = useState<MonthCount>(2)
   const [activeTab, setActiveTab]     = useState<'current' | 'archive'>('current')
@@ -88,41 +90,48 @@ export default function PaymentCalendarScreen() {
   }, [payConfirmItem])
 
   // ── Initial load ────────────────────────────────────────────────────────────
-  useEffect(() => {
-    async function load() {
-      if (!user) return
-      setLoading(true)
-      try {
-        let propsQuery = supabase
-          .from('properties')
-          .select('id, db_id, owner_id, name, floor, status, rent_type, rent_rate, utilities_rate, tenant_name, lease_start_date, lease_end_date, area_useful, area_total, sort_order, has_parking, parking_spaces, created_at, updated_at')
-          .eq('status', 'occupied')
-        // Guests access only their linked properties via RLS — no owner_id filter needed
-        if (user.role !== 'guest') propsQuery = propsQuery.eq('owner_id', user.id)
+  const loadCurrent = useCallback(async () => {
+    if (!user) return
+    setLoading(true)
+    setLoadError(null)
+    try {
+      let propsQuery = supabase
+        .from('properties')
+        .select('id, db_id, owner_id, name, floor, status, rent_type, rent_rate, utilities_rate, tenant_name, lease_start_date, lease_end_date, area_useful, area_total, sort_order, has_parking, parking_spaces, created_at, updated_at')
+        .eq('status', 'occupied')
+      // Guests access only their linked properties via RLS — no owner_id filter needed
+      if (user.role !== 'guest') propsQuery = propsQuery.eq('owner_id', user.id)
 
-        if (propertyId)      propsQuery = propsQuery.eq('id', propertyId)
-        else if (dbId)       propsQuery = propsQuery.eq('db_id', dbId)
-        else { setLoading(false); return }
+      if (propertyId)      propsQuery = propsQuery.eq('id', propertyId)
+      else if (dbId)       propsQuery = propsQuery.eq('db_id', dbId)
+      else { setLoading(false); return }
 
-        const { data: propsData } = await propsQuery
-        const props = (propsData ?? []) as unknown as Property[]
-        setProperties(props)
-        if (props.length === 0) { setLoading(false); return }
+      const { data: propsData, error: propsErr } = await propsQuery
+      if (propsErr) throw propsErr
+      const props = (propsData ?? []) as unknown as Property[]
+      setProperties(props)
+      if (props.length === 0) { setLoading(false); return }
 
-        const ids = props.map(p => p.id)
+      const ids = props.map(p => p.id)
 
-        const { data: schedData } = await supabase
-          .from('rent_payments').select('*').in('property_id', ids).eq('is_active', true)
-        setSchedules((schedData ?? []) as RentPayment[])
+      const { data: schedData, error: schedErr } = await supabase
+        .from('rent_payments').select('*').in('property_id', ids).eq('is_active', true)
+      if (schedErr) throw schedErr
+      setSchedules((schedData ?? []) as RentPayment[])
 
-        await loadRecordsForIds(ids, monthsAhead)
-      } catch (e) {
-        showToast({ type: 'error', title: 'Помилка завантаження', subtitle: (e as Error).message })
-      } finally {
-        setLoading(false)
-      }
+      await loadRecordsForIds(ids, monthsAhead)
+    } catch (e) {
+      const msg = (e as Error).message
+      setLoadError(msg)
+      showToast({ type: 'error', title: 'Помилка завантаження', subtitle: msg })
+    } finally {
+      setLoading(false)
     }
-    load()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, propertyId, dbId, showToast])
+
+  useEffect(() => {
+    loadCurrent()
     setArchiveLoading(false)
     setArchiveLoaded(false)
     setArchiveRecords([])
@@ -414,7 +423,14 @@ export default function PaymentCalendarScreen() {
         </div>
 
         {loading ? (
-          <div className="loader-wrap" style={{ paddingTop: 40 }}><div className="loader" /></div>
+          <SkeletonList count={3} />
+        ) : loadError && properties.length === 0 ? (
+          <div className="retry-wrap">
+            <div className="retry-ic">📡</div>
+            <div className="retry-h">Не вдалося завантажити</div>
+            <div className="retry-s">{loadError}</div>
+            <button className="retry-btn" onClick={loadCurrent}>Спробувати ще раз</button>
+          </div>
         ) : properties.length === 0 ? (
           <div className="empty-state" style={{ paddingTop: 32 }}>
             <div className="empty-ic">📅</div>
@@ -434,7 +450,7 @@ export default function PaymentCalendarScreen() {
                   style={{
                     padding: '4px 10px', borderRadius: 8,
                     background: monthsAhead === n ? 'rgba(122,179,255,.22)' : 'var(--glass-1)',
-                    color:      monthsAhead === n ? '#7AB3FF' : 'var(--t3)',
+                    color:      monthsAhead === n ? 'var(--info)' : 'var(--t3)',
                     border:     monthsAhead === n ? '.5px solid rgba(122,179,255,.4)' : 'var(--bd)',
                     fontSize: 12, fontWeight: 600, cursor: 'pointer',
                   }}
@@ -472,7 +488,7 @@ export default function PaymentCalendarScreen() {
                       </div>
                       <button
                         onClick={() => { setSetupProp(prop); setSetupDueDay('5'); setSetupNotify('3') }}
-                        style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 'var(--r-pill)', background: 'rgba(122,179,255,.18)', border: '.5px solid rgba(122,179,255,.32)', color: '#7AB3FF', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                        style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 'var(--r-pill)', background: 'rgba(122,179,255,.18)', border: '.5px solid rgba(122,179,255,.32)', color: 'var(--info)', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
                       >
                         <IconPlus size={12} /> Налаштувати
                       </button>
@@ -489,7 +505,7 @@ export default function PaymentCalendarScreen() {
                   <div className="over">
                     <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       {section.isFirst
-                        ? <IconCalendar size={13} color="#7AB3FF" />
+                        ? <IconCalendar size={13} color="var(--info)" />
                         : <IconClock    size={13} color="var(--t3)" />
                       }
                       {section.label}
@@ -550,7 +566,7 @@ export default function PaymentCalendarScreen() {
           /* ── Archive tab ── */
           <div key="archive" className="tab-content-anim">
             {archiveLoading ? (
-              <div className="loader-wrap" style={{ paddingTop: 40 }}><div className="loader" /></div>
+              <SkeletonList count={3} />
             ) : archiveRecords.length === 0 ? (
               <div className="empty-state" style={{ paddingTop: 32 }}>
                 <div className="empty-ic">🗂</div>
@@ -576,7 +592,7 @@ export default function PaymentCalendarScreen() {
                 {archiveByMonth.map(group => (
                   <div key={group.label}>
                     <div className="over">
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconCalendar size={13} color="#7AB3FF" />{group.label}</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconCalendar size={13} color="var(--info)" />{group.label}</span>
                       {group.total > 0 && (
                         <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ok-fg)' }}>
                           {formatPrice(group.total, user?.currency)}
@@ -671,7 +687,7 @@ export default function PaymentCalendarScreen() {
           subtitle={`Розклад платежів для «${deleteScheduleProp.name}» буде видалено.`}
           onClose={() => setDeleteScheduleProp(null)}
           actions={[
-            { label: 'Видалити', variant: 'danger', onClick: handleDeleteSchedule },
+            { label: 'Видалити', variant: 'danger', onClick: () => { window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('warning'); handleDeleteSchedule() } },
             { label: 'Скасувати', variant: 'secondary', onClick: () => setDeleteScheduleProp(null) },
           ]}
         />

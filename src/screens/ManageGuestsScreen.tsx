@@ -5,6 +5,7 @@ import { useAppStore } from '@/store/appStore'
 import { supabase } from '@/lib/supabase'
 import Header from '@/components/ui/Header'
 import Modal from '@/components/ui/Modal'
+import { SkeletonList } from '@/components/ui/SkeletonLoader'
 import { IconPlus, IconLink, IconBan, IconUser } from '@/components/Icons'
 import { buildDeepLink } from '@/lib/telegram'
 import type { GuestLink } from '@/types'
@@ -29,6 +30,7 @@ export default function ManageGuestsScreen() {
   const [labelText, setLabelText] = useState('')
   const [newLink, setNewLink] = useState<string | null>(null)
   const [revoking, setRevoking] = useState<string | null>(null)
+  const [revokeTarget, setRevokeTarget] = useState<GuestLink | null>(null)
   const labelInputRef = useRef<HTMLInputElement>(null)
 
   const isProperty = !!screenParams.propertyId
@@ -142,7 +144,7 @@ export default function ManageGuestsScreen() {
 
       <div className="body" style={{ animation: 'cascadeIn .2s ease both' }}>
         {loading ? (
-          <div className="loader-wrap"><div className="loader" /></div>
+          <SkeletonList count={3} />
         ) : links.length === 0 ? (
           <div className="empty-state" style={{ paddingTop: 48 }}>
             <div className="empty-ic">👤</div>
@@ -155,7 +157,7 @@ export default function ManageGuestsScreen() {
               <div key={link.id} className="glass-s" style={{ margin: '0 12px 10px', borderRadius: 'var(--r-md)', padding: '12px 14px' }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                   <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(122,179,255,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>
-                    <IconUser size={16} color="#7AB3FF" />
+                    <IconUser size={16} color="var(--info)" />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
@@ -174,15 +176,15 @@ export default function ManageGuestsScreen() {
                     {link.status !== 'revoked' && (
                       <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
                         <button
-                          style={{ flex: 1, padding: '6px 0', borderRadius: 'var(--r-sm)', background: 'rgba(122,179,255,.14)', border: 'none', fontSize: 12, fontWeight: 600, color: '#7AB3FF', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
+                          style={{ flex: 1, padding: '6px 0', borderRadius: 'var(--r-sm)', background: 'rgba(122,179,255,.14)', border: 'none', fontSize: 12, fontWeight: 600, color: 'var(--info)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
                           onClick={() => handleShareLink(buildDeepLink(`guest_${link.invite_token}`))}
                         >
                           <IconLink size={12} />Поділитись
                         </button>
                         <button
-                          style={{ flex: 1, padding: '6px 0', borderRadius: 'var(--r-sm)', background: 'rgba(248,113,113,.10)', border: 'none', fontSize: 12, fontWeight: 600, color: '#f87171', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, opacity: revoking === link.id ? .6 : 1 }}
+                          style={{ flex: 1, padding: '6px 0', borderRadius: 'var(--r-sm)', background: 'var(--err-bg)', border: 'none', fontSize: 12, fontWeight: 600, color: 'var(--err-fg)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, opacity: revoking === link.id ? .6 : 1 }}
                           disabled={revoking === link.id}
-                          onClick={() => handleRevoke(link.id)}
+                          onClick={() => setRevokeTarget(link)}
                         >
                           <IconBan size={12} />Відкликати
                         </button>
@@ -225,6 +227,27 @@ export default function ManageGuestsScreen() {
             </div>
           </div>
         </Modal>
+      )}
+
+      {revokeTarget && (
+        <Modal
+          title="Відкликати доступ?"
+          subtitle={`Гість «${revokeTarget.label ?? 'Гість'}» втратить доступ. Цю дію не можна скасувати.`}
+          onClose={() => setRevokeTarget(null)}
+          actions={[
+            {
+              label: 'Відкликати',
+              variant: 'danger',
+              onClick: () => {
+                window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('warning')
+                const id = revokeTarget.id
+                setRevokeTarget(null)
+                handleRevoke(id)
+              },
+            },
+            { label: 'Скасувати', variant: 'secondary', onClick: () => setRevokeTarget(null) },
+          ]}
+        />
       )}
 
       {newLink && (

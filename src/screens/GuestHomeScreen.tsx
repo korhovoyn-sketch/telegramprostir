@@ -46,7 +46,7 @@ export default function GuestHomeScreen() {
   return (
     <div className="scr bg-teal">
       <div className="hdr">
-        <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg,#4ade80,#16a34a)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 15, color: '#fff', border: 'var(--bd)', flexShrink: 0 }}>
+        <div className="hdr-av av-grad-guest">
           {(user?.first_name ?? 'G').charAt(0).toUpperCase()}
         </div>
         <div className="hdr-t">

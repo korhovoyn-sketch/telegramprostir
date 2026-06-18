@@ -88,7 +88,7 @@ export default function DatabaseListScreen() {
     <div className="scr bg-purple">
       {/* Header */}
       <div className="hdr">
-        <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg,#7AB3FF,#A87CFF)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 15, color: 'var(--t1)', border: 'var(--bd)', flexShrink: 0 }}>
+        <div className="hdr-av hdr-av-owner">
           {(user?.first_name ?? 'U').charAt(0).toUpperCase()}
         </div>
         <div className="hdr-t">
@@ -155,7 +155,7 @@ export default function DatabaseListScreen() {
                     <div
                       key={p.id}
                       className="row glass-s"
-                      onClick={() => navigate('property-detail', { propertyId: p.id, dbId: p.db_id })}
+                      onClick={() => { window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('light'); navigate('property-detail', { propertyId: p.id, dbId: p.db_id }) }}
                     >
                       <div className="row-mn">
                         <div className="row-t">{p.name}</div>
@@ -204,7 +204,7 @@ export default function DatabaseListScreen() {
             <button
               className="mbtn success"
               style={{ position: 'relative', bottom: 'auto', left: 'auto', right: 'auto', marginTop: 24, width: 'auto', minWidth: 200 }}
-              onClick={() => navigate('create-db')}
+              onClick={() => { window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('light'); navigate('create-db') }}
             >
               Створити першу базу
             </button>
@@ -215,7 +215,7 @@ export default function DatabaseListScreen() {
               <div
                 key={db.id}
                 className="row glass-s"
-                onClick={() => navigate('db-objects', { dbId: db.id })}
+                onClick={() => { window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('light'); navigate('db-objects', { dbId: db.id }) }}
               >
                 <GlassDbIcon type={db.type} color={db.color} size={32} />
                 <div className="row-mn">
@@ -243,7 +243,7 @@ export default function DatabaseListScreen() {
         ) : null}
 
         {/* CTA */}
-        <div className="cta" onClick={() => navigate('create-db')}>
+        <div className="cta" onClick={() => { window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('light'); navigate('create-db') }}>
           <IconPlus size={16} />
           Створити нову базу
         </div>
@@ -253,7 +253,7 @@ export default function DatabaseListScreen() {
         ref={fabRef}
         className="fab"
         aria-label="Створити базу"
-        onClick={() => navigate('create-db')}
+        onClick={() => { window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('light'); navigate('create-db') }}
       >
         <IconPlus size={20} />
       </button>

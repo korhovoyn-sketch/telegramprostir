@@ -43,6 +43,7 @@ export default function ProfileScreen() {
 
   async function handleLangChange(lang: 'uk' | 'en') {
     if ((user?.language_code ?? 'uk') === lang) return
+    window.Telegram?.WebApp?.HapticFeedback?.selectionChanged()
     setSavingLang(true)
     await updateProfile({ language_code: lang })
     setSavingLang(false)
@@ -50,6 +51,7 @@ export default function ProfileScreen() {
 
   async function handleCurrencyChange(cur: 'USD' | 'UAH' | 'EUR') {
     if ((user?.currency ?? 'USD') === cur) return
+    window.Telegram?.WebApp?.HapticFeedback?.selectionChanged()
     setSavingCur(true)
     await updateProfile({ currency: cur })
     setSavingCur(false)

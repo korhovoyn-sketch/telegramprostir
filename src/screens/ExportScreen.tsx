@@ -675,7 +675,7 @@ export default function ExportScreen() {
                     <div style={{ height: 10, borderRadius: 3, background: t.accent, marginBottom: 5 }} />
                     <div className="tmpl-bar" style={{ width: '80%' }} />
                     <div className="tmpl-bar" style={{ width: '60%' }} />
-                    <div style={{ flex: 1, background: '#f0f0f0', borderRadius: 3, marginTop: 4, minHeight: 20 }} />
+                    <div className="tmpl-block" />
                     <div className="tmpl-bar" style={{ width: '70%', marginTop: 4 }} />
                     <div className="tmpl-bar" style={{ width: '45%' }} />
                   </div>

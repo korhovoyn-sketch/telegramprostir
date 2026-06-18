@@ -124,7 +124,7 @@ export default function DatabaseObjectsScreen() {
         backLabel="Бази"
         right={
           reorderMode ? (
-            <button className="hdr-a" onClick={() => setReorderMode(false)} style={{ background: 'rgba(34,199,89,.18)', border: 'none', color: '#22c759', fontWeight: 600, fontSize: 13 }}>
+            <button className="hdr-a" onClick={() => setReorderMode(false)} style={{ background: 'var(--ok-bg)', border: 'none', color: 'var(--ok-fg)', fontWeight: 600, fontSize: 13 }}>
               Готово
             </button>
           ) : selectMode ? (

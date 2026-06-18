@@ -181,7 +181,7 @@ export default function PropertyFormScreen() {
 
       <div className="body" onFocusCapture={scrollFocusedIntoView}>
         {/* Basic */}
-        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconBuilding size={13} color="#7AB3FF" />Основне</span></div>
+        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconBuilding size={13} color="var(--info)" />Основне</span></div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div className="fr">
             <span className="fr-l">Назва</span>
@@ -203,7 +203,7 @@ export default function PropertyFormScreen() {
                 { v: 'occupied', l: 'Зайнято' },
                 { v: 'for_sale', l: 'Продаж' },
               ] as const).map(({ v, l }) => (
-                <div key={v} className={`fr-seg-b ${status === v ? 'on' : ''}`} onClick={() => setStatus(v)}>{l}</div>
+                <div key={v} className={`fr-seg-b ${status === v ? 'on' : ''}`} onClick={() => { window.Telegram?.WebApp?.HapticFeedback?.selectionChanged(); setStatus(v) }}>{l}</div>
               ))}
             </div>
           </div>
@@ -247,7 +247,7 @@ export default function PropertyFormScreen() {
         )}
 
         {/* Area */}
-        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconRuler size={13} color="#7AB3FF" />Площа</span></div>
+        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconRuler size={13} color="var(--info)" />Площа</span></div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div className="fr">
             <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconRuler size={13} color="var(--t3)" />Корисна</span>
@@ -267,8 +267,8 @@ export default function PropertyFormScreen() {
           <div className="fr">
             <span className="fr-l">Тип</span>
             <div className="fr-seg" style={{ maxWidth: 180 }}>
-              <div className={`fr-seg-b ${rentType === 'per_m2' ? 'on' : ''}`} onClick={() => setRentType('per_m2')}>$ за м²</div>
-              <div className={`fr-seg-b ${rentType === 'fixed' ? 'on' : ''}`} onClick={() => setRentType('fixed')}>Фікс. сума</div>
+              <div className={`fr-seg-b ${rentType === 'per_m2' ? 'on' : ''}`} onClick={() => { window.Telegram?.WebApp?.HapticFeedback?.selectionChanged(); setRentType('per_m2') }}>$ за м²</div>
+              <div className={`fr-seg-b ${rentType === 'fixed' ? 'on' : ''}`} onClick={() => { window.Telegram?.WebApp?.HapticFeedback?.selectionChanged(); setRentType('fixed') }}>Фікс. сума</div>
             </div>
           </div>
           <div className="fr hi-row">

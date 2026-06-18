@@ -318,7 +318,7 @@ function CollectionDetail({
                       backgroundImage: thumbUrl ? `url(${thumbUrl})` : undefined,
                       backgroundSize: 'cover',
                       backgroundPosition: 'center',
-                      background: thumbUrl ? undefined : 'rgba(123,48,235,.18)',
+                      background: thumbUrl ? undefined : 'var(--purple-bg)',
                       flexShrink: 0,
                     }}
                   >
@@ -393,7 +393,7 @@ function CollectionDetail({
                           backgroundImage: thumbUrl ? `url(${thumbUrl})` : undefined,
                           backgroundSize: 'cover',
                           backgroundPosition: 'center',
-                          background: thumbUrl ? undefined : 'rgba(123,48,235,.18)',
+                          background: thumbUrl ? undefined : 'var(--purple-bg)',
                           flexShrink: 0,
                           width: 36,
                           height: 36,
@@ -412,7 +412,7 @@ function CollectionDetail({
                         className="owner-act"
                         aria-label="Додати до підбірки"
                         onClick={() => addProperty(p.id)}
-                        style={{ flexShrink: 0, background: 'rgba(123,48,235,.28)' }}
+                        style={{ flexShrink: 0, background: 'var(--purple-bd)' }}
                       >
                         <IconPlus size={14} />
                       </button>
@@ -431,7 +431,7 @@ function CollectionDetail({
           subtitle={`Підбірку "${collection.name}" буде видалено. Це незворотно.`}
           onClose={() => setShowDeleteModal(false)}
           actions={[
-            { label: 'Видалити', variant: 'danger', onClick: deleteCollection },
+            { label: 'Видалити', variant: 'danger', onClick: () => { window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('warning'); deleteCollection() } },
             { label: 'Скасувати', variant: 'secondary', onClick: () => setShowDeleteModal(false) },
           ]}
         />
@@ -446,6 +446,7 @@ export default function CollectionsScreen() {
   const { user, showToast, screenParams } = useAppStore()
   const [collections, setCollections] = useState<CollectionWithCount[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [selectedCollection, setSelectedCollection] = useState<CollectionWithCount | null>(null)
   const fabRef = useRef<HTMLButtonElement>(null)
   const { isDone: fabSeen, markDone: markFabSeen } = useOnboarding('col-fab')
@@ -453,6 +454,7 @@ export default function CollectionsScreen() {
   const loadCollections = useCallback(async () => {
     if (!user) return
     setLoading(true)
+    setLoadError(null)
     try {
       // Single query for counts + one batch query for thumbnails — no N+1
       const { data: colsData, error } = await supabase
@@ -492,7 +494,9 @@ export default function CollectionsScreen() {
 
       setCollections(enriched)
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка завантаження', subtitle: (e as Error).message })
+      const msg = (e as Error).message
+      setLoadError(msg)
+      showToast({ type: 'error', title: 'Помилка завантаження', subtitle: msg })
     } finally {
       setLoading(false)
     }
@@ -580,11 +584,25 @@ export default function CollectionsScreen() {
 
         {loading ? (
           <div className="loader-wrap"><div className="loader" /></div>
+        ) : loadError && collections.length === 0 ? (
+          <div className="retry-wrap">
+            <div className="retry-ic">📡</div>
+            <div className="retry-h">Не вдалося завантажити</div>
+            <div className="retry-s">{loadError}</div>
+            <button className="retry-btn" onClick={loadCollections}>Спробувати ще раз</button>
+          </div>
         ) : collections.length === 0 ? (
           <div className="empty-state" style={{ paddingTop: 32 }}>
             <div className="empty-ic">📋</div>
             <div className="empty-h">Немає підбірок</div>
             <div className="empty-s">Створи першу підбірку об&apos;єктів для клієнта</div>
+            <button
+              className="mbtn success"
+              style={{ position: 'relative', bottom: 'auto', left: 'auto', right: 'auto', marginTop: 24, width: 'auto', minWidth: 200 }}
+              onClick={createCollection}
+            >
+              Створити підбірку
+            </button>
           </div>
         ) : (
           <div className="list">

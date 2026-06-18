@@ -44,6 +44,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
   --warn:#FF9500;--warn-bg:rgba(255,149,0,.18);--warn-fg:#ffc985;--warn-bd:rgba(255,149,0,.28);
   --err:#FF3B30;--err-bg:rgba(255,59,48,.16);--err-fg:#ffacac;--err-bd:rgba(255,59,48,.26);
   --info:#7AB3FF;--info-bg:rgba(34,158,217,.18);--info-fg:#a8d4ff;
+  --purple:#7B30EB;--purple-bg:rgba(123,48,235,.18);--purple-bd:rgba(123,48,235,.28);
   --tg-blue:#229ED9;--tg-blue-light:#2AABEE;--accent:var(--tg-blue-light);
   --r-icon:11px;
   --r-phone:42px;
@@ -440,6 +441,7 @@ input,textarea,select{font-size:16px;touch-action:manipulation}
 .tmpl-ph{height:110px;border-radius:var(--r-sm);background:rgba(255,255,255,.96);padding:8px;display:flex;flex-direction:column;gap:3px;border:.5px solid rgba(255,255,255,.16);overflow:hidden}
 .tmpl.sel .tmpl-ph{border-color:#7AB3FF;box-shadow:0 0 0 2px rgba(122,179,255,.4)}
 .tmpl-bar{height:3px;border-radius:1px;background:#cdd5e0}
+.tmpl-block{flex:1;background:#f0f0f0;border-radius:3px;margin-top:4px;min-height:20px}
 .tmpl-l{font-size:11px;color:var(--t1);margin-top:6px;text-align:center;font-weight:500}
 
 /* ── CHART ── */
@@ -507,7 +509,7 @@ input,textarea,select{font-size:16px;touch-action:manipulation}
 .notif-s{font-size:var(--fs-cap1);color:var(--t3);margin-top:3px;line-height:var(--lh-norm)}
 /* Timestamp — Caption 2 */
 .notif-t{font-size:var(--fs-cap2);color:var(--t4);flex-shrink:0;padding-top:2px;white-space:nowrap}
-.notif-del{flex-shrink:0;width:36px;height:36px;min-width:36px;padding:4px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:none;border:none;color:var(--t4);cursor:pointer;margin-left:2px;align-self:center;transition:background var(--dur-sm) var(--ease),color var(--dur-sm) var(--ease)}
+.notif-del{flex-shrink:0;width:44px;height:44px;min-width:44px;padding:4px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:none;border:none;color:var(--t4);cursor:pointer;margin-left:2px;align-self:center;transition:background var(--dur-sm) var(--ease),color var(--dur-sm) var(--ease)}
 .notif-del:active{background:var(--glass-2);color:var(--err)}
 
 /* ── MODAL ── */
@@ -670,6 +672,12 @@ input,textarea,select{font-size:16px;touch-action:manipulation}
 .av-grad-4{background:linear-gradient(135deg,#FFD78F 0%,#FFA557 50%,#EF7A23 100%)}
 .av-grad-5{background:linear-gradient(135deg,#C8B0FF 0%,#8B5BE8 50%,#5723B0 100%)}
 .av-grad-6{background:linear-gradient(135deg,#FFB8E0 0%,#E879B9 50%,#A8327C 100%)}
+.av-grad-guest{background:linear-gradient(135deg,#4ade80,#16a34a)}
+
+/* ── HEADER AVATAR (role-based initial badge) ── */
+.hdr-av{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;color:var(--t1);border:var(--bd);flex-shrink:0}
+.hdr-av-owner{background:linear-gradient(135deg,#7AB3FF,#A87CFF)}
+.hdr-av-realtor{background:linear-gradient(135deg,#FF7AB8,#C42378)}
 
 /* ── PROGRESS ── */
 .progress-ring-wrap{position:relative;width:120px;height:120px;display:flex;align-items:center;justify-content:center}

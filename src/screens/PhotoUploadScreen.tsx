@@ -126,7 +126,7 @@ export default function PhotoUploadScreen() {
             <circle
               cx="56" cy="56" r={radius}
               fill="none"
-              stroke={done && errorCount === 0 ? '#4ade80' : done && doneCount === 0 ? '#f87171' : '#a78bfa'}
+              stroke={done && errorCount === 0 ? '#4ade80' : done && doneCount === 0 ? 'var(--err-fg)' : '#a78bfa'}
               strokeWidth="8"
               strokeLinecap="round"
               strokeDasharray={circ}
@@ -181,7 +181,7 @@ export default function PhotoUploadScreen() {
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 flexShrink: 0, overflow: 'hidden',
                 border: item.status === 'error'
-                  ? '1.5px solid #f87171'
+                  ? '1.5px solid var(--err-fg)'
                   : item.status === 'done'
                   ? '1.5px solid #4ade80'
                   : '1.5px solid rgba(255,255,255,.1)',
@@ -207,7 +207,7 @@ export default function PhotoUploadScreen() {
                   </div>
                 )}
                 {item.status === 'error' && item.errorMsg && (
-                  <div style={{ marginTop: 2, fontSize: 12, color: '#f87171', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <div style={{ marginTop: 2, fontSize: 12, color: 'var(--err-fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {item.errorMsg}
                   </div>
                 )}
@@ -222,7 +222,7 @@ export default function PhotoUploadScreen() {
               </div>
               <div style={{ flexShrink: 0 }}>
                 {item.status === 'done' && <IconCheck size={16} color="#4ade80" />}
-                {item.status === 'error' && <IconX size={16} color="#f87171" />}
+                {item.status === 'error' && <IconX size={16} color="var(--err-fg)" />}
                 {item.status === 'uploading' && (
                   <div className="loader" style={{ width: 14, height: 14 }} />
                 )}
