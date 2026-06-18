@@ -421,42 +421,46 @@ async function refreshSessionSilently(tgId: number): Promise<void> {
 async function doRestoreSession(): Promise<boolean> {
   const setUser = (u: User | null) => useAppStore.getState().setUser(u)
   try {
-    // Fast path 0: Profile cache + identity from initDataUnsafe.user.id
-    // Requires a valid Supabase session so the home screen's API calls work.
-    // Without this gate, fast path could show the home screen with no session —
-    // all queries run anonymously and return empty (the "things don't load" bug
-    // on iOS cold starts where localStorage is wiped but CloudStorage has a profile).
+    // Fast path 0: Profile cache + identity from initDataUnsafe.user.id.
+    // Deliberately does NOT gate on supabase.auth.getSession() first — on iOS cold
+    // starts, localStorage (where GoTrueClient persists its session by default) is
+    // wiped at the same time as our profile cache, so getSession() reliably comes
+    // back null in exactly the scenario this fast path exists for, making the gate
+    // dead code and forcing every iOS cold start through the slow CloudStorage
+    // restore below (the visible "stuck at 58%" splash stall). Instead, trust a
+    // tg_id-matched cached profile immediately and let refreshSessionSilently
+    // restore the real session (from CloudStorage if needed) in the background —
+    // it already handles that fallback.
     const tgId0 = getTgIdFromInitData()
     if (!isNaN(tgId0)) {
-      const { data: { session: quickSession } } = await supabase.auth.getSession()
-      if (quickSession) {
-        // Check localStorage first (warm starts, Android)
-        let cached: User | null = null
+      // Check localStorage first (warm starts, Android)
+      let cached: User | null = null
+      try {
+        const lsRaw = localStorage.getItem(PROFILE_KEY)
+        if (lsRaw) {
+          const u = JSON.parse(lsRaw) as User
+          if (u.tg_id === tgId0) cached = u
+        }
+      } catch { /* ignore */ }
+
+      // Check CloudStorage (iOS cold start where localStorage was wiped)
+      if (!cached) {
         try {
-          const lsRaw = localStorage.getItem(PROFILE_KEY)
-          if (lsRaw) {
-            const u = JSON.parse(lsRaw) as User
+          const csRaw = await cloudGet(PROFILE_CS_KEY)
+          if (csRaw) {
+            const u = JSON.parse(csRaw) as User
             if (u.tg_id === tgId0) cached = u
           }
         } catch { /* ignore */ }
+      }
 
-        // Check CloudStorage (iOS cold start where localStorage was wiped)
-        if (!cached) {
-          try {
-            const csRaw = await cloudGet(PROFILE_CS_KEY)
-            if (csRaw) {
-              const u = JSON.parse(csRaw) as User
-              if (u.tg_id === tgId0) cached = u
-            }
-          } catch { /* ignore */ }
-        }
-
-        if (cached) {
-          setUser(cached)
-          // Refresh session + live DB profile in the background without blocking UX.
-          refreshSessionSilently(tgId0).catch(() => {})
-          return true
-        }
+      if (cached) {
+        setUser(cached)
+        // Restore/validate the real session + live DB profile in the background
+        // without blocking UX — handles both the localStorage-has-it and the
+        // CloudStorage-fallback case.
+        refreshSessionSilently(tgId0).catch(() => {})
+        return true
       }
     }
 
