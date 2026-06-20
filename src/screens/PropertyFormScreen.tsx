@@ -13,7 +13,7 @@ import { formatPrice, calcRent, calcUtilities, scrollFocusedIntoView } from '@/l
 import type { PropertyStatus, RentType } from '@/types'
 
 export default function PropertyFormScreen() {
-  const { screenParams, backThenReplace, showToast, user } = useAppStore()
+  const { screenParams, backThenReplace, showToast, user, isOnline } = useAppStore()
   const { properties, loadProperties, createProperty, updateProperty, deleteProperty, loading } = useProperties(screenParams.dbId)
 
   const editId = screenParams.propertyId
@@ -96,6 +96,12 @@ export default function PropertyFormScreen() {
 
   async function handleSave() {
     if (!canSave || !screenParams.dbId) return
+
+    if (!isOnline) {
+      showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Перевір з\'єднання і спробуй ще раз' })
+      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('error')
+      return
+    }
 
     // Reject non-numeric values the browser's number input allows on some Android keyboards
     if (areaUseful && numOrUndef(areaUseful) === undefined) {

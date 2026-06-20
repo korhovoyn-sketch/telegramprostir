@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo, useRef } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { useDatabases } from '@/hooks/useDatabases'
+import { useSlowLoadingToast } from '@/hooks/useSlowLoadingToast'
 import { supabase } from '@/lib/supabase'
 import TabBar from '@/components/ui/TabBar'
 import SearchBar from '@/components/ui/SearchBar'
@@ -25,6 +26,7 @@ interface PropSearchResult {
 export default function DatabaseListScreen() {
   const { user, navigate, unreadCount } = useAppStore()
   const { databases, loading, error, loadDatabases } = useDatabases()
+  useSlowLoadingToast(loading)
   const [search, setSearch] = useState('')
 
   // Cross-database property search

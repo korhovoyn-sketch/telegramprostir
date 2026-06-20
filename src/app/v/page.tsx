@@ -1,7 +1,7 @@
 'use client'
 
 /* eslint-disable @next/next/no-img-element */
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { TG_BOT, buildDeepLink } from '@/lib/telegram'
 import { IconBuilding, IconRuler, IconMapPin, IconCurrencyDollar } from '@/components/Icons'
@@ -145,6 +145,14 @@ const s = {
     boxShadow: '0 3px 12px rgba(34,158,217,.35)',
     whiteSpace: 'nowrap',
   } as React.CSSProperties,
+  tgIconBtn: {
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
+    background: 'linear-gradient(135deg,#2AABEE,#229ED9)',
+    color: '#fff',
+    textDecoration: 'none', border: 'none', cursor: 'pointer',
+    boxShadow: '0 3px 12px rgba(34,158,217,.35)',
+  } as React.CSSProperties,
   card: {
     margin: '12px', borderRadius: 16,
     background: 'rgba(255,255,255,.06)',
@@ -187,15 +195,50 @@ const s = {
   } as React.CSSProperties,
 }
 
+// ── global interaction styles (press feedback, loader animation) ──────────────
+
+function GlobalStyles() {
+  return (
+    <style>{`
+      .v-btn { transition: transform .15s ease, opacity .15s ease; -webkit-tap-highlight-color: transparent; }
+      .v-btn:active { transform: scale(.94); opacity: .85; }
+      @media (hover: hover) {
+        .v-btn:hover { transform: translateY(-1px); opacity: .92; }
+      }
+      .v-pulse { animation: vPulse 1.8s ease-in-out infinite; }
+      @keyframes vPulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.07); opacity: .82; } }
+      .v-spin { animation: vSpin .8s linear infinite; }
+      @keyframes vSpin { to { transform: rotate(360deg); } }
+    `}</style>
+  )
+}
+
 // ── PhotoGallery component ────────────────────────────────────────────────────
 
 function PhotoGallery({ paths }: { paths: string[] }) {
   const [active, setActive] = useState(0)
+  const touchStartX = useRef<number | null>(null)
   if (paths.length === 0) return null
+
+  function onTouchStart(e: React.TouchEvent) {
+    touchStartX.current = e.touches[0].clientX
+  }
+  function onTouchEnd(e: React.TouchEvent) {
+    if (touchStartX.current === null) return
+    const dx = e.changedTouches[0].clientX - touchStartX.current
+    const SWIPE_THRESHOLD = 40
+    if (dx > SWIPE_THRESHOLD) setActive(a => Math.max(0, a - 1))
+    else if (dx < -SWIPE_THRESHOLD) setActive(a => Math.min(paths.length - 1, a + 1))
+    touchStartX.current = null
+  }
 
   return (
     <div style={{ background: 'rgba(0,0,0,.4)', overflow: 'hidden', borderRadius: '0 0 0 0' }}>
-      <div style={{ position: 'relative', width: '100%', paddingTop: '62%', overflow: 'hidden' }}>
+      <div
+        style={{ position: 'relative', width: '100%', paddingTop: '62%', overflow: 'hidden', touchAction: 'pan-y' }}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+      >
         <img
           src={photoUrl(paths[active])}
           alt=""
@@ -212,10 +255,12 @@ function PhotoGallery({ paths }: { paths: string[] }) {
               {active + 1}/{paths.length}
             </div>
             <button
+              className="v-btn"
               onClick={() => setActive(a => Math.max(0, a - 1))}
               style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,.5)', border: 'none', borderRadius: '50%', width: 32, height: 32, color: '#fff', fontSize: 18, cursor: 'pointer', display: active === 0 ? 'none' : 'flex', alignItems: 'center', justifyContent: 'center' }}
             >‹</button>
             <button
+              className="v-btn"
               onClick={() => setActive(a => Math.min(paths.length - 1, a + 1))}
               style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,.5)', border: 'none', borderRadius: '50%', width: 32, height: 32, color: '#fff', fontSize: 18, cursor: 'pointer', display: active === paths.length - 1 ? 'none' : 'flex', alignItems: 'center', justifyContent: 'center' }}
             >›</button>
@@ -225,12 +270,12 @@ function PhotoGallery({ paths }: { paths: string[] }) {
       {paths.length > 1 && (
         <div style={{ display: 'flex', gap: 6, padding: '8px 12px', overflowX: 'auto' }}>
           {paths.map((p, i) => (
-            <button key={i} onClick={() => setActive(i)} style={{
+            <button key={i} className="v-btn" onClick={() => setActive(i)} style={{
               flexShrink: 0, width: 52, height: 40, borderRadius: 8,
               overflow: 'hidden', border: active === i ? '2px solid #2AABEE' : '2px solid transparent',
               padding: 0, cursor: 'pointer', background: 'none',
             }}>
-              <img src={photoUrl(p)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <img src={photoUrl(p)} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </button>
           ))}
         </div>
@@ -248,11 +293,10 @@ function PageHeader({ deepLink }: { deepLink: string }) {
         <div style={s.logoBox}>P</div>
         <span style={s.logoName}>prostir</span>
       </div>
-      <a href={deepLink} style={s.tgBtn}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+      <a href={deepLink} style={s.tgIconBtn} className="v-btn" aria-label="Відкрити в Telegram">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
           <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L6.88 13.47l-2.967-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.275.089z"/>
         </svg>
-        Відкрити в Telegram
       </a>
     </header>
   )
@@ -273,7 +317,7 @@ function ContactRow({ firstName, lastName, phone, tgUsername, label }: {
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
         {phone && (
-          <a href={`tel:${phone}`} style={{
+          <a href={`tel:${phone}`} className="v-btn" style={{
             ...s.contactBtn,
             background: 'rgba(74,222,128,.12)',
             border: '.5px solid rgba(74,222,128,.3)',
@@ -286,7 +330,7 @@ function ContactRow({ firstName, lastName, phone, tgUsername, label }: {
           </a>
         )}
         {tgUsername && (
-          <a href={`https://t.me/${tgUsername}`} target="_blank" rel="noreferrer" style={{
+          <a href={`https://t.me/${tgUsername}`} target="_blank" rel="noreferrer" className="v-btn" style={{
             ...s.contactBtn,
             background: 'rgba(42,171,238,.12)',
             border: '.5px solid rgba(42,171,238,.3)',
@@ -458,7 +502,7 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
 
       {/* Bottom CTA */}
       <div style={s.bottomCta}>
-        <a href={deepLink} style={s.mainBtn}>
+        <a href={deepLink} className="v-btn" style={s.mainBtn}>
           Відкрити в Telegram →
         </a>
       </div>
@@ -534,7 +578,7 @@ function DatabaseView({ rows, token }: { rows: DbRow[]; token: string }) {
       )}
 
       <div style={s.bottomCta}>
-        <a href={deepLink} style={s.mainBtn}>
+        <a href={deepLink} className="v-btn" style={s.mainBtn}>
           Підключити базу в Telegram →
         </a>
       </div>
@@ -574,6 +618,7 @@ function CollectionView({ rows, token }: { rows: ColRow[]; token: string }) {
                     <img
                       src={photoUrl(p.first_photo)}
                       alt=""
+                      loading="lazy"
                       style={{ width: 90, height: 90, objectFit: 'cover', display: 'block' }}
                     />
                   </div>
@@ -617,7 +662,7 @@ function CollectionView({ rows, token }: { rows: ColRow[]; token: string }) {
       />
 
       <div style={s.bottomCta}>
-        <a href={deepLink} style={s.mainBtn}>
+        <a href={deepLink} className="v-btn" style={s.mainBtn}>
           Відкрити підбірку в Telegram →
         </a>
       </div>
@@ -631,20 +676,26 @@ function CollectionView({ rows, token }: { rows: ColRow[]; token: string }) {
 function Loader() {
   return (
     <div style={{ ...s.wrap, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-      <div style={{ width: 44, height: 44, borderRadius: 14, background: 'linear-gradient(135deg,#7AB3FF,#A87CFF,#FF7AB8)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 700, marginBottom: 20 }}>P</div>
+      <div className="v-pulse" style={{ width: 44, height: 44, borderRadius: 14, background: 'linear-gradient(135deg,#7AB3FF,#A87CFF,#FF7AB8)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 700, marginBottom: 20 }}>P</div>
+      <div className="v-spin" style={{ width: 22, height: 22, borderRadius: '50%', border: '2.5px solid rgba(255,255,255,.15)', borderTopColor: '#A87CFF', marginBottom: 14 }} />
       <div style={{ fontSize: 14, color: 'rgba(255,255,255,.5)' }}>Завантаження...</div>
     </div>
   )
 }
 
-function ErrorView({ msg }: { msg: string }) {
+function ErrorView({ msg, icon, title, onRetry }: { msg: string; icon?: string; title?: string; onRetry?: () => void }) {
   return (
     <div style={{ ...s.wrap, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: 24, textAlign: 'center' }}>
-      <div style={{ fontSize: 48, marginBottom: 16 }}>🔗</div>
-      <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Посилання недійсне</div>
+      <div style={{ fontSize: 48, marginBottom: 16 }}>{icon ?? '🔗'}</div>
+      <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>{title ?? 'Посилання недійсне'}</div>
       <div style={{ fontSize: 14, color: 'rgba(255,255,255,.5)', lineHeight: 1.5 }}>{msg}</div>
+      {onRetry && (
+        <button className="v-btn" onClick={onRetry} style={{ ...s.mainBtn, marginTop: 24, border: 'none', cursor: 'pointer' }}>
+          Спробувати ще раз
+        </button>
+      )}
       {TG_BOT && (
-        <a href={`https://t.me/${TG_BOT}`} style={{ ...s.tgBtn, marginTop: 24 }}>
+        <a href={`https://t.me/${TG_BOT}`} className="v-btn" style={{ ...s.tgBtn, marginTop: 12 }}>
           Відкрити prostir
         </a>
       )}
@@ -657,11 +708,12 @@ function ErrorView({ msg }: { msg: string }) {
 export default function ViewerPage() {
   const [state, setState] = useState<
     | { status: 'loading' }
-    | { status: 'error'; msg: string }
+    | { status: 'error'; msg: string; retry?: boolean }
     | { status: 'prop'; data: PropertyPreview; token: string }
     | { status: 'db'; rows: DbRow[]; token: string }
     | { status: 'col'; rows: ColRow[]; token: string }
   >({ status: 'loading' })
+  const [retryNonce, setRetryNonce] = useState(0)
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -673,6 +725,8 @@ export default function ViewerPage() {
       setState({ status: 'error', msg: 'Параметри перегляду не вказані. Перевірте посилання.' })
       return
     }
+
+    setState({ status: 'loading' })
 
     async function load() {
       if (prop) {
@@ -715,13 +769,35 @@ export default function ViewerPage() {
       }
     }
 
-    load()
-  }, [])
+    load().catch(() => {
+      setState({
+        status: 'error',
+        retry: true,
+        msg: typeof navigator !== 'undefined' && !navigator.onLine
+          ? 'Немає з\'єднання з інтернетом. Перевір мережу і спробуй ще раз.'
+          : 'Не вдалося завантажити. Перевір з\'єднання та спробуй ще раз.',
+      })
+    })
+  }, [retryNonce])
 
-  if (state.status === 'loading') return <Loader />
-  if (state.status === 'error') return <ErrorView msg={state.msg} />
-  if (state.status === 'prop') return <PropertyView data={state.data} token={state.token} />
-  if (state.status === 'db') return <DatabaseView rows={state.rows} token={state.token} />
-  if (state.status === 'col') return <CollectionView rows={state.rows} token={state.token} />
-  return null
+  let content: React.ReactNode = null
+  if (state.status === 'loading') content = <Loader />
+  else if (state.status === 'error') content = (
+    <ErrorView
+      msg={state.msg}
+      icon={state.retry ? '📡' : undefined}
+      title={state.retry ? 'Не вдалося завантажити' : undefined}
+      onRetry={state.retry ? () => setRetryNonce(n => n + 1) : undefined}
+    />
+  )
+  else if (state.status === 'prop') content = <PropertyView data={state.data} token={state.token} />
+  else if (state.status === 'db') content = <DatabaseView rows={state.rows} token={state.token} />
+  else if (state.status === 'col') content = <CollectionView rows={state.rows} token={state.token} />
+
+  return (
+    <>
+      <GlobalStyles />
+      {content}
+    </>
+  )
 }
