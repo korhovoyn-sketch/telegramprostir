@@ -728,9 +728,25 @@ export default function ViewerPage() {
 
     setState({ status: 'loading' })
 
+    // PostgREST resolves (never rejects) on a network failure — it returns
+    // status: 0 instead of throwing (see postgrest-js PostgrestBuilder). A
+    // real "token not found" response is status 200 with an empty array, so
+    // status 0 is the reliable signal to show a retryable network message
+    // instead of the (non-retryable) "link expired" message.
+    function networkErrorState(): { status: 'error'; msg: string; retry: true } {
+      return {
+        status: 'error',
+        retry: true,
+        msg: typeof navigator !== 'undefined' && !navigator.onLine
+          ? 'Немає з\'єднання з інтернетом. Перевір мережу і спробуй ще раз.'
+          : 'Не вдалося завантажити. Перевір з\'єднання та спробуй ще раз.',
+      }
+    }
+
     async function load() {
       if (prop) {
-        const { data, error } = await supabase.rpc('get_public_property_preview', { p_token: prop })
+        const { data, error, status } = await supabase.rpc('get_public_property_preview', { p_token: prop })
+        if (status === 0) { setState(networkErrorState()); return }
         if (error || !data?.length) {
           setState({ status: 'error', msg: 'Об\'єкт не знайдено або посилання застаріло.' })
           return
@@ -750,7 +766,8 @@ export default function ViewerPage() {
       }
 
       if (db) {
-        const { data, error } = await supabase.rpc('get_public_db_preview', { p_token: db })
+        const { data, error, status } = await supabase.rpc('get_public_db_preview', { p_token: db })
+        if (status === 0) { setState(networkErrorState()); return }
         if (error || !data?.length) {
           setState({ status: 'error', msg: 'Базу не знайдено або посилання застаріло.' })
           return
@@ -760,7 +777,8 @@ export default function ViewerPage() {
       }
 
       if (col) {
-        const { data, error } = await supabase.rpc('get_public_collection_preview', { p_token: col })
+        const { data, error, status } = await supabase.rpc('get_public_collection_preview', { p_token: col })
+        if (status === 0) { setState(networkErrorState()); return }
         if (error || !data?.length) {
           setState({ status: 'error', msg: 'Підбірку не знайдено або посилання застаріло.' })
           return
@@ -769,15 +787,7 @@ export default function ViewerPage() {
       }
     }
 
-    load().catch(() => {
-      setState({
-        status: 'error',
-        retry: true,
-        msg: typeof navigator !== 'undefined' && !navigator.onLine
-          ? 'Немає з\'єднання з інтернетом. Перевір мережу і спробуй ще раз.'
-          : 'Не вдалося завантажити. Перевір з\'єднання та спробуй ще раз.',
-      })
-    })
+    load().catch(() => setState(networkErrorState()))
   }, [retryNonce])
 
   let content: React.ReactNode = null
