@@ -11,11 +11,13 @@ import { DB_TYPE_LABELS } from '@/lib/utils'
 import type { Database, RealtorSubscription } from '@/types'
 import CoachMark from '@/components/ui/CoachMark'
 import { useOnboarding } from '@/hooks/useOnboarding'
+import { useSlowLoadingToast } from '@/hooks/useSlowLoadingToast'
 
 export default function RealtorDashboardScreen() {
   const { user, navigate, unreadCount, showToast } = useAppStore()
   const [subscriptions, setSubscriptions] = useState<RealtorSubscription[]>([])
   const [loading, setLoading] = useState(true)
+  useSlowLoadingToast(loading)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [propertyCount, setPropertyCount] = useState<number>(0)

@@ -1078,6 +1078,38 @@ svg.ico{overflow:visible}
   #app-root { border-radius: 0; height: 100vh; }
 }
 
+/* PHONE ROTATED TO LANDSCAPE — not a desktop/tablet, a real phone in a real
+   orientation. Width alone crosses the 680px breakpoint on rotation, but the
+   short height (real phones, even large ones, stay ≤ 500px tall in landscape)
+   reliably distinguishes it from a tablet/laptop window. Without this, the
+   app got letterboxed into the 430px frame with thick black bars on a phone
+   that has the full width available — fall back to the full-bleed mobile
+   layout instead. */
+@media (min-width: 680px) and (orientation: landscape) and (max-height: 500px) {
+  html { height: auto; }
+
+  body {
+    height: auto;
+    overflow-x: hidden;
+    overflow-y: visible;
+    display: block;
+    background: #040408;
+  }
+
+  #app-root {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: var(--tg-vh, 100svh);
+    border-radius: 0;
+    flex-shrink: initial;
+    transform: none;
+    box-shadow: none;
+  }
+
+  body::after { content: none; }
+}
+
 /* wide screens — subtle branding below the frame */
 @media (min-width: 900px) {
   body::after {
