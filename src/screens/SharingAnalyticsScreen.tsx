@@ -74,7 +74,7 @@ export default function SharingAnalyticsScreen() {
           if (propIds.length > 0) {
             const { data, error } = await supabase
               .from('property_views')
-              .select('*')
+              .select('id,property_id,viewer_id,viewer_name,action,created_at')
               .in('property_id', propIds)
               .gte('created_at', thirtyDaysAgo)
               .order('created_at', { ascending: false })
