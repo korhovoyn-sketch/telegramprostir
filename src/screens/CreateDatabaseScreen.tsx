@@ -20,7 +20,7 @@ const TYPES: { id: DatabaseType; label: string; desc: string; neon: 'blue' | 'gr
 const COLOR_NAMES = Object.keys(DB_COLORS)
 
 export default function CreateDatabaseScreen() {
-  const { screenParams, databases, backThenReplace } = useAppStore()
+  const { screenParams, databases, backThenReplace, showToast, isOnline } = useAppStore()
   const { createDatabase, updateDatabase, loading } = useDatabases()
 
   const editId = screenParams.dbId
@@ -51,6 +51,7 @@ export default function CreateDatabaseScreen() {
 
   async function handleSave() {
     if (!canCreate || !type) return
+    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
     window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
     if (isEdit && editId) {
       await updateDatabase(editId, { name: name.trim(), address: address.trim() || undefined, type, color })
