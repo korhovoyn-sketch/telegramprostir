@@ -10,11 +10,11 @@ test('owner onboarding reaches the empty-state with a working CTA', async ({ pag
   // Step 1 — role select
   await expect(page.getByText(/Хто ти\?/i)).toBeVisible()
   await testInfo.attach('1-role-select', { body: await page.screenshot(), contentType: 'image/png' })
-  await page.getByText('Власник').click()
+  await page.getByText('Власник', { exact: true }).first().click()
   await page.getByRole('button', { name: /Продовжити/i }).click()
 
   // Step 2 — profile setup
-  await expect(page.getByText(/Контакти/i)).toBeVisible()
+  await expect(page.getByText('Контакти', { exact: true })).toBeVisible()
   await testInfo.attach('2-profile-setup', { body: await page.screenshot(), contentType: 'image/png' })
   await page.getByRole('button', { name: /Почати роботу/i }).click()
 

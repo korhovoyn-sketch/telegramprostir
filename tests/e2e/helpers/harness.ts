@@ -102,12 +102,28 @@ export async function mockBackend(page: Page, opts: HarnessOptions = {}) {
   await page.route('**/auth/v1/user**', (route) => json(route, authUser))
   await page.route('**/auth/v1/logout**', (route) => json(route, {}))
 
-  // PostgREST tables — empty by default; users returns the profile row
-  await page.route('**/rest/v1/users**', (route) => {
-    const accept = route.request().headers()['accept'] ?? ''
-    return json(route, accept.includes('object') ? user : [user])
+  // PostgREST tables — empty by default.
+  // Register catch-all FIRST so the more-specific users route (added next) wins in Playwright
+  // (last-registered wins when multiple patterns match).
+  await page.route('**/rest/v1/**', (route) => {
+    if (route.request().url().includes('/rest/v1/users')) return // let the specific handler below run
+    return json(route, [])
   })
-  await page.route('**/rest/v1/**', (route) => json(route, []))
+
+  // Users table — handles GET and PATCH. PATCH merges the request body so
+  // role/profile changes are visible immediately (mirrors real DB behaviour).
+  let currentUser = { ...user }
+  await page.route('**/rest/v1/users**', async (route) => {
+    const method = route.request().method()
+    if (method === 'PATCH') {
+      try {
+        const body = JSON.parse(route.request().postData() ?? '{}')
+        currentUser = { ...currentUser, ...body }
+      } catch { /* ignore parse errors */ }
+    }
+    const accept = route.request().headers()['accept'] ?? ''
+    return json(route, accept.includes('object') ? currentUser : [currentUser])
+  })
 }
 
 export async function setupApp(page: Page, opts: HarnessOptions = {}) {

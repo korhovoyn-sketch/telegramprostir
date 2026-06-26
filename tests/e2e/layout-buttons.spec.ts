@@ -34,7 +34,7 @@ test('onboarding buttons stay visible across role-select → profile-setup → e
 
   // role-select
   await assertButtonTappable(/Продовжити/i, page)
-  await page.getByText('Власник').click()
+  await page.getByText('Власник', { exact: true }).first().click()
   await page.getByRole('button', { name: /Продовжити/i }).click()
 
   // profile-setup — both the main and skip buttons
