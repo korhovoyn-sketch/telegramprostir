@@ -321,7 +321,7 @@ export default function PropertyFormScreen() {
           {hasParking && (
             <div className="fr">
               <span className="fr-l">Місць</span>
-              <input className="fr-i" type="number" min="1" step="1" inputMode="numeric" value={parkingSpaces} onChange={e => setParkingSpaces(e.target.value)} />
+              <input className="fr-i" type="number" min="1" max="999" step="1" inputMode="numeric" value={parkingSpaces} onChange={e => setParkingSpaces(e.target.value)} />
             </div>
           )}
         </div>

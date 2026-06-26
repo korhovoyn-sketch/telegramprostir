@@ -17,15 +17,17 @@ interface UploadItem {
 }
 
 export default function PhotoUploadScreen() {
-  const { screenParams, back, showToast } = useAppStore()
+  const { screenParams, back, showToast, isOnline } = useAppStore()
   const propertyId = screenParams.propertyId as string
   const MAX_MB = 10
+  const MAX_PHOTOS = 20
   const ALLOWED = /\.(jpe?g|png|webp|heic|heif)$/i
   const rawFiles = (screenParams.files as File[]) ?? []
-  const files = rawFiles.filter((f) =>
+  const validFiles = rawFiles.filter((f) =>
     (ALLOWED.test(f.name) || f.type.startsWith('image/')) &&
     f.size <= MAX_MB * 1024 * 1024
   )
+  const files = validFiles.slice(0, MAX_PHOTOS)
 
   // Stable preview URLs — created once, revoked on unmount
   const [previews] = useState<string[]>(() => files.map((f) => URL.createObjectURL(f)))
@@ -58,6 +60,14 @@ export default function PhotoUploadScreen() {
 
   useEffect(() => {
     if (files.length === 0) return
+    if (!isOnline) {
+      showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Завантаження фото недоступне офлайн' })
+      back()
+      return
+    }
+    if (validFiles.length > MAX_PHOTOS) {
+      showToast({ type: 'error', title: `Максимум ${MAX_PHOTOS} фото`, subtitle: `Завантажено лише перші ${MAX_PHOTOS}` })
+    }
     let idx = 0
 
     async function uploadNext() {
