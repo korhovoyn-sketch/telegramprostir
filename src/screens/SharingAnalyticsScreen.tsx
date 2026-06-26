@@ -55,7 +55,7 @@ export default function SharingAnalyticsScreen() {
           // Property-level: filter directly by property_id
           const { data, error } = await supabase
             .from('property_views')
-            .select('*')
+            .select('id,property_id,viewer_id,viewer_name,action,created_at')
             .eq('property_id', screenParams.propertyId)
             .gte('created_at', thirtyDaysAgo)
             .order('created_at', { ascending: false })

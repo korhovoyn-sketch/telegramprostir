@@ -43,7 +43,7 @@ export default function ManageGuestsScreen() {
     try {
       const { data, error } = await supabase
         .from('guest_links')
-        .select('*')
+        .select('id,owner_id,property_id,db_id,invite_token,label,guest_user_id,status,claimed_at,created_at')
         .eq(isProperty ? 'property_id' : 'db_id', targetId)
         .order('created_at', { ascending: false })
       if (error) throw error

@@ -115,7 +115,7 @@ export default function PaymentCalendarScreen() {
       const ids = props.map(p => p.id)
 
       const { data: schedData, error: schedErr } = await supabase
-        .from('rent_payments').select('*').in('property_id', ids).eq('is_active', true)
+        .from('rent_payments').select('id,property_id,owner_id,due_day,notify_days_before,is_active,created_at,updated_at').in('property_id', ids).eq('is_active', true)
       if (schedErr) throw schedErr
       setSchedules((schedData ?? []) as RentPayment[])
 
@@ -142,7 +142,7 @@ export default function PaymentCalendarScreen() {
     const start = new Date(); start.setDate(1)
     const end   = new Date(); end.setMonth(end.getMonth() + ahead); end.setDate(1)
     const { data } = await supabase
-      .from('rent_payment_records').select('*')
+      .from('rent_payment_records').select('id,property_id,owner_id,due_date,paid_at,amount,status,notes,created_at,updated_at')
       .in('property_id', ids)
       .gte('due_date', start.toISOString().slice(0, 10))
       .lte('due_date', end.toISOString().slice(0, 10))
@@ -163,7 +163,7 @@ export default function PaymentCalendarScreen() {
     const ids = properties.map(p => p.id)
     setArchiveLoading(true)
     supabase
-      .from('rent_payment_records').select('*')
+      .from('rent_payment_records').select('id,property_id,owner_id,due_date,paid_at,amount,status,notes,created_at,updated_at')
       .in('property_id', ids)
       .eq('status', 'paid')
       .order('due_date', { ascending: false })
@@ -273,7 +273,7 @@ export default function PaymentCalendarScreen() {
           },
           { onConflict: 'property_id,due_date' }
         )
-        .select('*').single()
+        .select('id,property_id,owner_id,due_date,paid_at,amount,status,notes,created_at,updated_at').single()
       if (error) throw error
       window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
       const rec = data as RentPaymentRecord
@@ -320,7 +320,7 @@ export default function PaymentCalendarScreen() {
           },
           { onConflict: 'property_id' }
         )
-        .select('*').single()
+        .select('id,property_id,owner_id,due_day,notify_days_before,is_active,created_at,updated_at').single()
       if (error) throw error
       setSchedules(prev => {
         const idx = prev.findIndex(s => s.property_id === setupProp.id)

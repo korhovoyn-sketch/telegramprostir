@@ -412,7 +412,7 @@ async function refreshSessionSilently(tgId: number): Promise<void> {
       }
     }
     if (session) {
-      const { data } = await supabase.from('users').select('*').eq('tg_id', tgId).single()
+      const { data } = await supabase.from('users').select('id,tg_id,tg_username,first_name,last_name,email,phone,role,language_code,currency,plan,notification_push,notification_weekly,notification_views,created_at').eq('tg_id', tgId).single()
       if (data) {
         useAppStore.getState().setUser(data as User)
         persistProfile(data as User)
@@ -513,7 +513,7 @@ async function doRestoreSession(): Promise<boolean> {
         const cached = JSON.parse(raw) as User
         if (cached.tg_id === tgId) {
           setUser(cached)
-          supabase.from('users').select('*').eq('tg_id', tgId).single()
+          supabase.from('users').select('id,tg_id,tg_username,first_name,last_name,email,phone,role,language_code,currency,plan,notification_push,notification_weekly,notification_views,created_at').eq('tg_id', tgId).single()
             .then(({ data }) => { if (data) { useAppStore.getState().setUser(data as User); persistProfile(data as User) } })
           return true
         }
@@ -527,7 +527,7 @@ async function doRestoreSession(): Promise<boolean> {
         const cached = JSON.parse(raw) as User
         if (cached.tg_id === tgId) {
           setUser(cached)
-          supabase.from('users').select('*').eq('tg_id', tgId).single()
+          supabase.from('users').select('id,tg_id,tg_username,first_name,last_name,email,phone,role,language_code,currency,plan,notification_push,notification_weekly,notification_views,created_at').eq('tg_id', tgId).single()
             .then(({ data }) => { if (data) { useAppStore.getState().setUser(data as User); persistProfile(data as User) } })
           return true
         }
@@ -535,7 +535,7 @@ async function doRestoreSession(): Promise<boolean> {
     } catch { /* corrupt — fall through */ }
 
     // Last resort: DB fetch (first-ever restore after fresh install)
-    const { data } = await withRetry(() => supabase.from('users').select('*').eq('tg_id', tgId).single())
+    const { data } = await withRetry(() => supabase.from('users').select('id,tg_id,tg_username,first_name,last_name,email,phone,role,language_code,currency,plan,notification_push,notification_weekly,notification_views,created_at').eq('tg_id', tgId).single())
     if (!data) return false
     setUser(data as User)
     persistProfile(data as User)

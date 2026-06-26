@@ -28,7 +28,7 @@ export default function RealtorDatabaseScreen() {
     setError(false)
     try {
       const [dbRes, propsRes] = await Promise.all([
-        supabase.from('databases').select('*').eq('id', screenParams.dbId).single(),
+        supabase.from('databases').select('id,owner_id,name,address,type,color,share_token,share_expires_at,created_at,updated_at').eq('id', screenParams.dbId).single(),
         supabase.from('properties').select('*, photos:property_photos(*)').eq('db_id', screenParams.dbId).order('created_at', { ascending: false }),
       ])
       if (dbRes.error) throw dbRes.error
@@ -40,7 +40,7 @@ export default function RealtorDatabaseScreen() {
       // Load owner info for contact card
       if (dbData.owner_id) {
         const { data: ownerData } = await supabase
-          .from('users').select('*').eq('id', dbData.owner_id).single()
+          .from('users').select('id,tg_id,tg_username,first_name,last_name,phone').eq('id', dbData.owner_id).single()
         if (ownerData) setOwner(ownerData as User)
       }
     } catch (e) {

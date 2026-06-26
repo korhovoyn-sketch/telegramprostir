@@ -16,7 +16,7 @@ export function useRentPayments() {
     try {
       const { data } = await supabase
         .from('rent_payments')
-        .select('*')
+        .select('id,property_id,owner_id,due_day,notify_days_before,is_active,created_at,updated_at')
         .eq('property_id', propertyId)
         .single()
       setSchedule(data as RentPayment | null)
@@ -35,7 +35,7 @@ export function useRentPayments() {
     end.setDate(1)
     const { data } = await supabase
       .from('rent_payment_records')
-      .select('*')
+      .select('id,property_id,owner_id,due_date,paid_at,amount,status,notes,created_at,updated_at')
       .eq('property_id', propertyId)
       .gte('due_date', start.toISOString().slice(0, 10))
       .lte('due_date', end.toISOString().slice(0, 10))
@@ -55,7 +55,7 @@ export function useRentPayments() {
       if (ids.length === 0) { setLoading(false); return [] }
       const { data } = await supabase
         .from('rent_payments')
-        .select('*')
+        .select('id,property_id,owner_id,due_day,notify_days_before,is_active,created_at,updated_at')
         .in('property_id', ids)
         .eq('is_active', true)
       return (data ?? []) as RentPayment[]
@@ -80,7 +80,7 @@ export function useRentPayments() {
     end.setDate(1)
     const { data } = await supabase
       .from('rent_payment_records')
-      .select('*')
+      .select('id,property_id,owner_id,due_date,paid_at,amount,status,notes,created_at,updated_at')
       .in('property_id', ids)
       .gte('due_date', start.toISOString().slice(0, 10))
       .lte('due_date', end.toISOString().slice(0, 10))
@@ -98,7 +98,7 @@ export function useRentPayments() {
           { property_id: propertyId, owner_id: user.id, due_day: dueDay, notify_days_before: notifyDaysBefore, is_active: true, updated_at: new Date().toISOString() },
           { onConflict: 'property_id' }
         )
-        .select('*')
+        .select('id,property_id,owner_id,due_day,notify_days_before,is_active,created_at,updated_at')
         .single()
       if (error) throw error
       setSchedule(data as RentPayment)
@@ -128,7 +128,7 @@ export function useRentPayments() {
           },
           { onConflict: 'property_id,due_date' }
         )
-        .select('*')
+        .select('id,property_id,owner_id,due_date,paid_at,amount,status,notes,created_at,updated_at')
         .single()
       if (error) throw error
       window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
