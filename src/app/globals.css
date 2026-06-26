@@ -159,7 +159,7 @@ body{
 .hdr-a:active{transform:scale(.92)}
 
 /* ── BODY ── */
-.body{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding-bottom:calc(80px + var(--safe-bottom));position:relative;z-index:5}
+.body{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding-bottom:calc(80px + var(--safe-bottom) + var(--keyboard-h,0px));transition:padding-bottom var(--dur-sm) ease-out;position:relative;z-index:5}
 .body::-webkit-scrollbar{display:none}
 /* Floating TabBar top edge at 76px; FAB (48px at 90px from bottom = top at 138px) needs more clearance */
 .body.has-fab{padding-bottom:calc(176px + var(--safe-bottom))}
