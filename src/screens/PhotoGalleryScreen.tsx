@@ -166,6 +166,7 @@ export default function PhotoGalleryScreen() {
             src={url}
             alt={`Photo ${current + 1}`}
             style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', animation: 'galleryFadeIn .22s ease both' }}
+            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
           />
         ) : (
           <div style={{ fontSize: 64, opacity: 0.3 }}>🖼️</div>
@@ -236,7 +237,7 @@ export default function PhotoGalleryScreen() {
                   transition: 'border-color .2s ease',
                 }}
               >
-                <img src={thumbUrl} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <img src={thumbUrl} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = '0' }} />
               </div>
             )
           })}
