@@ -345,7 +345,7 @@ export function useAuth() {
         .from('users')
         .update({ ...safeUpdates, updated_at: new Date().toISOString() })
         .eq('tg_id', tgId)
-        .select()
+        .select('id,tg_id,tg_username,first_name,last_name,email,phone,role,language_code,currency,plan,notification_push,notification_weekly,notification_views,created_at,updated_at')
         .single()
 
       if (error) throw error

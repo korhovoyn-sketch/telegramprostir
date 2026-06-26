@@ -38,7 +38,7 @@ interface PaymentItem {
 type MonthCount = 1 | 2 | 3 | 6
 
 export default function PaymentCalendarScreen() {
-  const { screenParams, user, showToast } = useAppStore()
+  const { screenParams, user, showToast, isOnline } = useAppStore()
   const [properties, setProperties]   = useState<Property[]>([])
   const [schedules, setSchedules]     = useState<RentPayment[]>([])
   const [records, setRecords]         = useState<RentPaymentRecord[]>([])
@@ -255,6 +255,7 @@ export default function PaymentCalendarScreen() {
 
   const handleMarkPaid = useCallback(async (item: PaymentItem, amount?: number, notes?: string) => {
     if (!user) return
+    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
     setPayConfirmSaving(true)
     window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('light')
     try {
@@ -295,10 +296,11 @@ export default function PaymentCalendarScreen() {
     } finally {
       setPayConfirmSaving(false)
     }
-  }, [user, archiveLoaded, showToast])
+  }, [user, archiveLoaded, showToast, isOnline])
 
   const handleSaveSchedule = useCallback(async () => {
     if (!setupProp || !user) return
+    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
     const day    = parseInt(setupDueDay, 10)
     const notify = parseInt(setupNotify, 10)
     if (!isFinite(day) || day < 1 || day > 28) {
@@ -333,10 +335,11 @@ export default function PaymentCalendarScreen() {
     } finally {
       setSetupSaving(false)
     }
-  }, [setupProp, user, setupDueDay, setupNotify, showToast])
+  }, [setupProp, user, setupDueDay, setupNotify, showToast, isOnline])
 
   const handleDeleteSchedule = useCallback(async () => {
     if (!deleteScheduleProp) return
+    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
     try {
       await supabase.from('rent_payments').delete().eq('property_id', deleteScheduleProp.id)
       setSchedules(prev => prev.filter(s => s.property_id !== deleteScheduleProp.id))
@@ -345,10 +348,11 @@ export default function PaymentCalendarScreen() {
     } catch (e) {
       showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
     }
-  }, [deleteScheduleProp, showToast])
+  }, [deleteScheduleProp, showToast, isOnline])
 
   const handleUnpay = useCallback(async () => {
     if (!unpayTarget) return
+    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
     try {
       const { error } = await supabase.from('rent_payment_records').delete().eq('id', unpayTarget.id)
       if (error) throw error
@@ -359,7 +363,7 @@ export default function PaymentCalendarScreen() {
     } catch (e) {
       showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
     }
-  }, [unpayTarget, archiveLoaded, showToast])
+  }, [unpayTarget, archiveLoaded, showToast, isOnline])
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
   function getStatusColor(item: PaymentItem): string {

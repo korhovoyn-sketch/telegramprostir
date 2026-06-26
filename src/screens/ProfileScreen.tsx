@@ -11,7 +11,7 @@ import { TG_BOT } from '@/lib/telegram'
 import { getInitials, scrollFocusedIntoView } from '@/lib/utils'
 
 export default function ProfileScreen() {
-  const { user, databases } = useAppStore()
+  const { user, databases, isOnline, showToast } = useAppStore()
   const { logout, updateProfile } = useAuth()
 
   const [pushEnabled, setPushEnabled] = useState(user?.notification_push ?? true)
@@ -23,19 +23,27 @@ export default function ProfileScreen() {
   const emailRef = useRef<HTMLInputElement>(null)
   const phoneRef = useRef<HTMLInputElement>(null)
 
+  function offlineGuard(): boolean {
+    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return true }
+    return false
+  }
+
   async function handlePushToggle(v: boolean) {
+    if (offlineGuard()) return
     setPushEnabled(v)
     const ok = await updateProfile({ notification_push: v })
     if (!ok) setPushEnabled(!v)
   }
 
   async function handleWeeklyToggle(v: boolean) {
+    if (offlineGuard()) return
     setWeeklyReport(v)
     const ok = await updateProfile({ notification_weekly: v })
     if (!ok) setWeeklyReport(!v)
   }
 
   async function handleNewViewsToggle(v: boolean) {
+    if (offlineGuard()) return
     setNewViews(v)
     const ok = await updateProfile({ notification_views: v })
     if (!ok) setNewViews(!v)
@@ -43,6 +51,7 @@ export default function ProfileScreen() {
 
   async function handleLangChange(lang: 'uk' | 'en') {
     if ((user?.language_code ?? 'uk') === lang) return
+    if (offlineGuard()) return
     window.Telegram?.WebApp?.HapticFeedback?.selectionChanged()
     setSavingLang(true)
     await updateProfile({ language_code: lang })
@@ -51,6 +60,7 @@ export default function ProfileScreen() {
 
   async function handleCurrencyChange(cur: 'USD' | 'UAH' | 'EUR') {
     if ((user?.currency ?? 'USD') === cur) return
+    if (offlineGuard()) return
     window.Telegram?.WebApp?.HapticFeedback?.selectionChanged()
     setSavingCur(true)
     await updateProfile({ currency: cur })

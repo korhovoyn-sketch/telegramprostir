@@ -167,7 +167,7 @@ export function usePropertyFiles(propertyId: string | undefined) {
             mime_type:    file.type,
             sort_order:   currentCount,
           })
-          .select()
+          .select('id,property_id,owner_id,storage_path,file_name,file_size,mime_type,sort_order,created_at')
           .single()
 
         if (dbErr) {
