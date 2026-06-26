@@ -167,6 +167,11 @@ export function useDeepLink() {
         }
 
         // Realtor — subscribe then open the database with clean history
+        if (!useAppStore.getState().isOnline) {
+          showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Підключення до бази недоступне офлайн' })
+          navigateFallback()
+          return
+        }
         const { error } = await supabase
           .from('realtor_subscriptions')
           .upsert({ realtor_id: currentUser.id, db_id: db.id }, { onConflict: 'realtor_id,db_id' })

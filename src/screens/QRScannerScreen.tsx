@@ -30,7 +30,7 @@ function extractDbToken(raw: string): string | null {
 }
 
 export default function QRScannerScreen() {
-  const { user, navigate, showToast } = useAppStore()
+  const { user, navigate, showToast, isOnline } = useAppStore()
   const [scanning, setScanning] = useState(false)
   const [flashOn, setFlashOn] = useState(false)
   const [manualToken, setManualToken] = useState('')
@@ -55,6 +55,10 @@ export default function QRScannerScreen() {
     if (db.owner_id === user.id) {
       showToast({ type: 'info', title: 'Це ваша база', subtitle: 'QR-код для ріелторів — не для власника' })
       navigate('db-objects', { dbId: db.id })
+      return
+    }
+    if (!isOnline) {
+      showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Підключення до бази недоступне офлайн' })
       return
     }
     const { error } = await supabase
