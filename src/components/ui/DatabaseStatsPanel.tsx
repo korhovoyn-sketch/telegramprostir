@@ -164,7 +164,8 @@ function StatCard({ icon, label, value, sub, accentBg, accentBorder, bar, barCol
 
 export default function DatabaseStatsPanel({ properties, currency = 'USD' }: Props) {
   const stats = useMemo(() => {
-    const occupied = properties.filter(p => p.status === 'occupied' || p.status === 'for_sale')
+    const occupied = properties.filter(p => p.status === 'occupied')
+    const forSale = properties.filter(p => p.status === 'for_sale')
     const free = properties.filter(p => p.status === 'free')
 
     const totalRent = occupied.reduce((sum, p) =>
@@ -181,6 +182,7 @@ export default function DatabaseStatsPanel({ properties, currency = 'USD' }: Pro
 
     return {
       occupiedCount: occupied.length,
+      forSaleCount: forSale.length,
       freeCount: free.length,
       total: properties.length,
       totalRent,
@@ -207,7 +209,9 @@ export default function DatabaseStatsPanel({ properties, currency = 'USD' }: Pro
       icon: ICON_ACTIVITY,
       label: 'Зайнятість',
       value: `${stats.occupiedCount} / ${stats.total}`,
-      sub: `${Math.round(stats.ratio * 100)}% заповнено`,
+      sub: stats.forSaleCount > 0
+        ? `${Math.round(stats.ratio * 100)}% · ${stats.forSaleCount} на продаж`
+        : `${Math.round(stats.ratio * 100)}% заповнено`,
       accentBg: 'rgba(122,179,255,.13)',
       accentBorder: 'rgba(122,179,255,.26)',
       bar: stats.ratio,
