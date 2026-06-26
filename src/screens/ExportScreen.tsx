@@ -579,7 +579,7 @@ async function generateExcel(
 // ── Screen component ──────────────────────────────────────────────────────────
 
 export default function ExportScreen() {
-  const { screenParams, showToast, user, databases } = useAppStore()
+  const { screenParams, showToast, user, databases, isOnline } = useAppStore()
   const { dbId } = screenParams
   const [format, setFormat]           = useState('pdf')
   const [template, setTemplate]       = useState('classic')
@@ -591,11 +591,12 @@ export default function ExportScreen() {
 
   async function handleExport() {
     if (!dbId) { showToast({ type: 'error', title: 'Не вказано базу' }); return }
+    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Експорт недоступний офлайн' }); return }
     setLoading(true)
     try {
       const { data: propertiesRaw, error } = await supabase
         .from('properties')
-        .select('*, photos:property_photos(*)')
+        .select('id,db_id,owner_id,name,floor,status,area_useful,area_total,rent_type,rent_rate,utilities_rate,has_parking,parking_spaces,description,address,utilities,sale_price,tenant_name,lease_start_date,lease_end_date,sort_order,share_token,share_expires_at,created_at,updated_at,photos:property_photos(id,property_id,storage_path,sort_order,created_at)')
         .eq('db_id', dbId)
         .order('name')
 

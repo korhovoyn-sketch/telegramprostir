@@ -105,7 +105,7 @@ function Building3DHero() {
 }
 
 export default function PropertyDetailScreen() {
-  const { screenParams, navigate, user, showToast } = useAppStore()
+  const { screenParams, navigate, user, showToast, isOnline } = useAppStore()
   const { properties, loading, error, loadSingleProperty, deletePhoto, updateProperty } = useProperties(screenParams.dbId)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const tenantInputRef = useRef<HTMLInputElement>(null)
@@ -201,6 +201,7 @@ export default function PropertyDetailScreen() {
 
   async function handleRentOut() {
     if (!rentTenantName.trim() || !property) return
+    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
     setRentSaving(true)
     const parsedRate = parseFloat(rentRentRate)
     const parsedUtils = parseFloat(rentUtilitiesRate)
@@ -225,6 +226,7 @@ export default function PropertyDetailScreen() {
 
   async function handleFreeProperty() {
     if (!property) return
+    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
     setFreeSaving(true)
     await updateProperty(property.id, {
       status: 'free',
@@ -240,6 +242,7 @@ export default function PropertyDetailScreen() {
 
   async function confirmDeletePhoto() {
     if (!photoToDelete) return
+    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); setPhotoToDelete(null); return }
     try {
       await deletePhoto(photoToDelete.id, photoToDelete.path)
     } catch {

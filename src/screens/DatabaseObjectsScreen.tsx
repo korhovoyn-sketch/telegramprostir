@@ -18,7 +18,7 @@ import CoachMark from '@/components/ui/CoachMark'
 import { useOnboarding } from '@/hooks/useOnboarding'
 
 export default function DatabaseObjectsScreen() {
-  const { screenParams, navigate, databases, user } = useAppStore()
+  const { screenParams, navigate, databases, user, showToast, isOnline } = useAppStore()
   const { deleteDatabase } = useDatabases()
   const { properties, loading, error, loadProperties, reorderProperty, batchDeleteProperties, batchUpdateStatus } = useProperties(screenParams.dbId)
   const isOwner = user?.role === 'owner'
@@ -65,11 +65,13 @@ export default function DatabaseObjectsScreen() {
 
   async function handleBatchDelete() {
     setShowBatchDeleteModal(false)
+    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
     await batchDeleteProperties([...selectedIds])
     exitSelectMode()
   }
 
   async function handleBatchStatus(status: PropertyStatus) {
+    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
     await batchUpdateStatus([...selectedIds], status)
     exitSelectMode()
   }
@@ -602,7 +604,7 @@ export default function DatabaseObjectsScreen() {
           subtitle={`База "${db.name}" і всі ${properties.length} об'єктів будуть видалені. Це незворотно.`}
           onClose={() => setShowDeleteModal(false)}
           actions={[
-            { label: 'Видалити', variant: 'danger', onClick: async () => { window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('warning'); await deleteDatabase(db.id); setShowDeleteModal(false) } },
+            { label: 'Видалити', variant: 'danger', onClick: async () => { if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); setShowDeleteModal(false); return } window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('warning'); await deleteDatabase(db.id); setShowDeleteModal(false) } },
             { label: 'Скасувати', variant: 'secondary', onClick: () => setShowDeleteModal(false) },
           ]}
         />

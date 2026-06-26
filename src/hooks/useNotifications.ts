@@ -56,12 +56,13 @@ export function useNotifications() {
   }, [user, markAllRead, showToast])
 
   const deleteNotification = useCallback(async (id: string) => {
+    const snapshot = useAppStore.getState().notifications
+    setNotifications(snapshot.filter((n) => n.id !== id))
     try {
       const { error } = await supabase.from('notifications').delete().eq('id', id)
       if (error) throw error
-      const fresh = useAppStore.getState().notifications
-      setNotifications(fresh.filter((n) => n.id !== id))
     } catch (e) {
+      setNotifications(snapshot)
       showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
     }
   }, [setNotifications, showToast])
