@@ -331,7 +331,7 @@ export function useAuth() {
       // auth.users.id !== public.users.id — update by tg_id extracted from email
       const tgIdStr = (authUser.email ?? '').replace('@telegram.propspace.app', '')
       const tgId = parseInt(tgIdStr, 10)
-      if (!tgId) throw new Error('Cannot determine tg_id from session')
+      if (isNaN(tgId) || tgId <= 0) throw new Error('Cannot determine tg_id from session')
 
       // Strip plan, id, tg_id always. Strip role unless the current user has none
       // (first-time onboarding via RoleSelectScreen). After role is set, only the

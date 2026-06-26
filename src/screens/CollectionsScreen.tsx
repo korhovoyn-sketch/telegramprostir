@@ -249,7 +249,7 @@ function CollectionDetail({
     }
   }
 
-  const currency = user ? (user as unknown as { currency?: string }).currency ?? 'USD' : 'USD'
+  const currency = user?.currency ?? 'USD'
 
   return (
     <div className="scr bg-violet">

@@ -14,16 +14,19 @@ export function useRentPayments() {
   const loadSchedule = useCallback(async (propertyId: string) => {
     setLoading(true)
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('rent_payments')
         .select('id,property_id,owner_id,due_day,notify_days_before,is_active,created_at,updated_at')
         .eq('property_id', propertyId)
         .single()
+      if (error && error.code !== 'PGRST116') throw error
       setSchedule(data as RentPayment | null)
+    } catch (e) {
+      showToast({ type: 'error', title: 'Помилка завантаження', subtitle: (e as Error).message })
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [showToast])
 
   const loadRecords = useCallback(async (propertyId: string) => {
     // Load last 3 months + next month
@@ -33,15 +36,16 @@ export function useRentPayments() {
     const end = new Date()
     end.setMonth(end.getMonth() + 2)
     end.setDate(1)
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('rent_payment_records')
       .select('id,property_id,owner_id,due_date,paid_at,amount,status,notes,created_at,updated_at')
       .eq('property_id', propertyId)
       .gte('due_date', start.toISOString().slice(0, 10))
       .lte('due_date', end.toISOString().slice(0, 10))
       .order('due_date', { ascending: false })
-    setRecords((data ?? []) as RentPaymentRecord[])
-  }, [])
+    if (error) showToast({ type: 'error', title: 'Помилка завантаження', subtitle: error.message })
+    else setRecords((data ?? []) as RentPaymentRecord[])
+  }, [showToast])
 
   const loadSchedulesForDb = useCallback(async (dbId: string) => {
     setLoading(true)

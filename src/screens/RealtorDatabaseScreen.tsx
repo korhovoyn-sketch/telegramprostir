@@ -65,6 +65,8 @@ export default function RealtorDatabaseScreen() {
   const counts = useMemo(() => ({
     all: properties.length,
     free: properties.filter(p => p.status === 'free').length,
+    occupied: properties.filter(p => p.status === 'occupied').length,
+    for_sale: properties.filter(p => p.status === 'for_sale').length,
   }), [properties])
 
   if (!db) return (
@@ -118,9 +120,11 @@ export default function RealtorDatabaseScreen() {
         {/* Tabs */}
         <div className="seg">
           {([
-            { id: 'all', label: `Всі (${counts.all})` },
-            { id: 'free', label: `Вільно (${counts.free})` },
-          ] as const).map((t) => (
+            { id: 'all',      label: `Всі (${counts.all})` },
+            { id: 'free',     label: `Вільно (${counts.free})` },
+            { id: 'occupied', label: `Зайнято (${counts.occupied})` },
+            { id: 'for_sale', label: `Продаж (${counts.for_sale})` },
+          ] as { id: 'all' | 'free' | 'occupied' | 'for_sale'; label: string }[]).filter(t => t.id === 'all' || counts[t.id as keyof typeof counts] > 0).map((t) => (
             <div key={t.id} className={`seg-b ${tab === t.id ? 'on' : ''}`} onClick={() => { window.Telegram?.WebApp?.HapticFeedback?.selectionChanged(); setTab(t.id) }}>
               {t.label}
             </div>
