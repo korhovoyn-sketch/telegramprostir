@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic'
 import { useAppStore } from '@/store/appStore'
 import { useAuth } from '@/hooks/useAuth'
 import { useDeepLink } from '@/hooks/useDeepLink'
+import { useNotifications } from '@/hooks/useNotifications'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import SplashScreen from '@/screens/SplashScreen'
 
@@ -50,7 +51,9 @@ export default function Page() {
   const isOnline = useAppStore((s) => s.isOnline)
   const setOnline = useAppStore((s) => s.setOnline)
   const showToast = useAppStore((s) => s.showToast)
+  const userId = useAppStore((s) => s.user?.id)
   const { setupAuthListener } = useAuth()
+  const { loadNotifications } = useNotifications()
   useDeepLink()
 
   // TG SDK setup — runs once on mount
@@ -132,6 +135,14 @@ export default function Page() {
     return () => subscription.unsubscribe()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Populate notification badge as soon as the user is known — without this
+  // the unreadCount in the TabBar/header dots stays 0 until the user explicitly
+  // opens the Notifications screen in the same session.
+  useEffect(() => {
+    if (userId) loadNotifications()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId])
 
   // Network status monitoring
   useEffect(() => {

@@ -35,7 +35,7 @@ export default function SharedCollectionScreen() {
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
 
-  const currency = (user as unknown as { currency?: string })?.currency ?? 'USD'
+  const currency = user?.currency ?? 'USD'
 
   useEffect(() => {
     if (!collectionId) { setNotFound(true); setLoading(false); return }

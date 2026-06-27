@@ -22,7 +22,7 @@ const STATUS_COLOR: Record<string, string> = {
 }
 
 export default function ManageGuestsScreen() {
-  const { user, screenParams, showToast } = useAppStore()
+  const { user, screenParams, showToast, isOnline } = useAppStore()
   const [links, setLinks] = useState<GuestLink[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -43,7 +43,7 @@ export default function ManageGuestsScreen() {
     try {
       const { data, error } = await supabase
         .from('guest_links')
-        .select('*')
+        .select('id,owner_id,property_id,db_id,invite_token,label,guest_user_id,status,claimed_at,created_at')
         .eq(isProperty ? 'property_id' : 'db_id', targetId)
         .order('created_at', { ascending: false })
       if (error) throw error
@@ -68,6 +68,7 @@ export default function ManageGuestsScreen() {
 
   async function handleCreate() {
     if (!user || !targetId) return
+    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
     setCreating(true)
     try {
       const { data, error } = await supabase
@@ -95,6 +96,7 @@ export default function ManageGuestsScreen() {
   }
 
   async function handleRevoke(id: string) {
+    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
     setRevoking(id)
     try {
       const { error } = await supabase

@@ -92,44 +92,26 @@ export default function GuestDatabaseScreen() {
     async function load() {
       setLoading(true)
       setErrorMsg(null)
-
-      if (guestMode) {
-        // Guest invite preview
-        const { data, error } = await supabase.rpc('get_guest_property_preview', { p_token: token })
-        if (error) {
-          setErrorMsg('Не вдалося завантажити дані')
-          setLoading(false)
-          return
+      try {
+        if (guestMode) {
+          // Guest invite preview
+          const { data, error } = await supabase.rpc('get_guest_property_preview', { p_token: token })
+          if (error) { setErrorMsg('Не вдалося завантажити дані'); return }
+          const preview = data as GuestPreview | null
+          if (!preview) { setErrorMsg('Запрошення не знайдено або відкликано'); return }
+          if (preview.status === 'revoked') { setErrorMsg('Це запрошення відкликано власником'); return }
+          setGuestPreview(preview)
+        } else {
+          // Realtor public DB preview
+          const { data, error } = await supabase.rpc('get_public_db_preview', { p_token: token })
+          if (error) { setErrorMsg('Не вдалося завантажити дані'); return }
+          const result = (data ?? []) as PreviewRow[]
+          if (result.length === 0) { setErrorMsg('База не знайдена або посилання застаріло'); return }
+          setRows(result)
         }
-        const preview = data as GuestPreview | null
-        if (!preview) {
-          setErrorMsg('Запрошення не знайдено або відкликано')
-          setLoading(false)
-          return
-        }
-        if (preview.status === 'revoked') {
-          setErrorMsg('Це запрошення відкликано власником')
-          setLoading(false)
-          return
-        }
-        setGuestPreview(preview)
-      } else {
-        // Realtor public DB preview
-        const { data, error } = await supabase.rpc('get_public_db_preview', { p_token: token })
-        if (error) {
-          setErrorMsg('Не вдалося завантажити дані')
-          setLoading(false)
-          return
-        }
-        const result = (data ?? []) as PreviewRow[]
-        if (result.length === 0) {
-          setErrorMsg('База не знайдена або посилання застаріло')
-          setLoading(false)
-          return
-        }
-        setRows(result)
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
     }
 
     load()

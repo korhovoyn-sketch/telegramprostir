@@ -28,7 +28,7 @@ export default function RealtorDatabaseScreen() {
     setError(false)
     try {
       const [dbRes, propsRes] = await Promise.all([
-        supabase.from('databases').select('*').eq('id', screenParams.dbId).single(),
+        supabase.from('databases').select('id,owner_id,name,address,type,color,share_token,share_expires_at,created_at,updated_at').eq('id', screenParams.dbId).single(),
         supabase.from('properties').select('*, photos:property_photos(*)').eq('db_id', screenParams.dbId).order('created_at', { ascending: false }),
       ])
       if (dbRes.error) throw dbRes.error
@@ -40,7 +40,7 @@ export default function RealtorDatabaseScreen() {
       // Load owner info for contact card
       if (dbData.owner_id) {
         const { data: ownerData } = await supabase
-          .from('users').select('*').eq('id', dbData.owner_id).single()
+          .from('users').select('id,tg_id,tg_username,first_name,last_name,phone').eq('id', dbData.owner_id).single()
         if (ownerData) setOwner(ownerData as User)
       }
     } catch (e) {
@@ -65,6 +65,8 @@ export default function RealtorDatabaseScreen() {
   const counts = useMemo(() => ({
     all: properties.length,
     free: properties.filter(p => p.status === 'free').length,
+    occupied: properties.filter(p => p.status === 'occupied').length,
+    for_sale: properties.filter(p => p.status === 'for_sale').length,
   }), [properties])
 
   if (!db) return (
@@ -118,9 +120,11 @@ export default function RealtorDatabaseScreen() {
         {/* Tabs */}
         <div className="seg">
           {([
-            { id: 'all', label: `Всі (${counts.all})` },
-            { id: 'free', label: `Вільно (${counts.free})` },
-          ] as const).map((t) => (
+            { id: 'all',      label: `Всі (${counts.all})` },
+            { id: 'free',     label: `Вільно (${counts.free})` },
+            { id: 'occupied', label: `Зайнято (${counts.occupied})` },
+            { id: 'for_sale', label: `Продаж (${counts.for_sale})` },
+          ] as { id: 'all' | 'free' | 'occupied' | 'for_sale'; label: string }[]).filter(t => t.id === 'all' || counts[t.id as keyof typeof counts] > 0).map((t) => (
             <div key={t.id} className={`seg-b ${tab === t.id ? 'on' : ''}`} onClick={() => { window.Telegram?.WebApp?.HapticFeedback?.selectionChanged(); setTab(t.id) }}>
               {t.label}
             </div>

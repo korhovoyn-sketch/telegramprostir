@@ -96,10 +96,9 @@ export default function PropertyFormScreen() {
 
   async function handleSave() {
     if (!canSave || !screenParams.dbId) return
-
     if (!isOnline) {
-      showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Перевір з\'єднання і спробуй ще раз' })
       window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('error')
+      showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' })
       return
     }
 
@@ -320,7 +319,7 @@ export default function PropertyFormScreen() {
           {hasParking && (
             <div className="fr">
               <span className="fr-l">Місць</span>
-              <input className="fr-i" type="number" min="1" step="1" inputMode="numeric" value={parkingSpaces} onChange={e => setParkingSpaces(e.target.value)} />
+              <input className="fr-i" type="number" min="1" max="999" step="1" inputMode="numeric" value={parkingSpaces} onChange={e => setParkingSpaces(e.target.value)} />
             </div>
           )}
         </div>
@@ -387,7 +386,6 @@ export default function PropertyFormScreen() {
           </div>
         )}
 
-        <div style={{ height: 80 }} />
       </div>
 
       <button

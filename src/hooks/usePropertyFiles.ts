@@ -26,7 +26,7 @@ export function usePropertyFiles(propertyId: string | undefined) {
     try {
       const { data, error } = await supabase
         .from('property_files')
-        .select('*')
+        .select('id,property_id,owner_id,storage_path,file_name,file_size,mime_type,sort_order,created_at')
         .eq('property_id', propertyId)
         .order('sort_order', { ascending: true })
         .order('created_at',  { ascending: true })
@@ -167,7 +167,7 @@ export function usePropertyFiles(propertyId: string | undefined) {
             mime_type:    file.type,
             sort_order:   currentCount,
           })
-          .select()
+          .select('id,property_id,owner_id,storage_path,file_name,file_size,mime_type,sort_order,created_at')
           .single()
 
         if (dbErr) {

@@ -67,6 +67,15 @@ export default function SplashScreen() {
     }
 
     async function init() {
+      // If launched right after logout (hash set by logout handler), skip restore and
+      // go straight to WelcomeScreen without auto-login — prevents a flash of logged-in state.
+      if (typeof window !== 'undefined' && window.location.hash === '#fromLogout') {
+        window.history.replaceState(null, '', window.location.pathname + window.location.search)
+        setProgress(100)
+        navigateRoot('welcome', { fromLogout: true })
+        return
+      }
+
       // SDK is ready
       setProgress(14)
       setStatusText('Перевіряємо сесію...')

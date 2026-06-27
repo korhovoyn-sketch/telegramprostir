@@ -161,26 +161,42 @@ export const DB_COLORS: Record<string, string> = {
   teal: 'linear-gradient(135deg,#5AC8FA,#2A8AB0)',
 }
 
+// Cancelled by the next focus event so rapid tab-through doesn't stack scrolls.
+let _scrollTimer: ReturnType<typeof setTimeout> | undefined
+
 /**
  * onFocusCapture handler: scrolls the focused input/textarea into view once the
  * on-screen keyboard has opened. Telegram's webview overlays the keyboard without
  * resizing the layout viewport on iOS, so fields below the fold stay hidden.
- * Two-pass: immediate scroll for fast keyboards + delayed scroll using visualViewport
- * to account for iOS keyboard (fully opens in ~450 ms).
+ * Two-pass: immediate nearest-scroll (no jank) + delayed visual-viewport-aware
+ * centering after the iOS keyboard finishes opening (~450 ms).
  */
 export function scrollFocusedIntoView(e: import('react').FocusEvent<HTMLElement>): void {
   const el = e.target as HTMLElement
   const tag = el?.tagName
   if (tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT') return
-  // Pass 1: quick scroll so the field is at least in the DOM-visible area.
-  el.scrollIntoView({ behavior: 'instant' as ScrollBehavior, block: 'center' })
-  // Pass 2: after keyboard finishes opening, re-check using visualViewport height
-  // which reflects the true visible area with the keyboard shown.
-  setTimeout(() => {
+
+  clearTimeout(_scrollTimer)
+
+  // Pass 1: bring element into the layout viewport with no animation.
+  // 'nearest' avoids jarring jumps when the element is already partially visible.
+  el.scrollIntoView({ behavior: 'instant' as ScrollBehavior, block: 'nearest' })
+
+  // Pass 2: once the keyboard is fully open, re-center within the visual viewport
+  // (the area actually visible above the keyboard).
+  _scrollTimer = setTimeout(() => {
     const vh = window.visualViewport?.height ?? window.innerHeight
     const rect = el.getBoundingClientRect()
     if (rect.top < 56 || rect.bottom > vh - 20) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      const scrollParent = el.closest('.body') as HTMLElement | null
+      if (scrollParent) {
+        // Scroll so element is centered in the visual viewport, not the layout viewport.
+        const elMid = rect.top + rect.height / 2
+        const targetMid = vh / 2
+        scrollParent.scrollBy({ top: elMid - targetMid, behavior: 'smooth' })
+      } else {
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+      }
     }
   }, 500)
 }

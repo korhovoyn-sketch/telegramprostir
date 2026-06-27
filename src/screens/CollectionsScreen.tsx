@@ -106,7 +106,7 @@ function CollectionDetail({
   onUpdate: (updated: CollectionWithCount) => void
   onDelete: (id: string) => void
 }) {
-  const { user, showToast } = useAppStore()
+  const { user, showToast, isOnline } = useAppStore()
 
   const [collectionProps, setCollectionProps] = useState<CollectionProperty[]>([])
   const [loadingProps, setLoadingProps] = useState(true)
@@ -178,6 +178,7 @@ function CollectionDetail({
   }
 
   async function addProperty(propertyId: string) {
+    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
     try {
       const { error } = await supabase
         .from('collection_properties')
@@ -197,6 +198,7 @@ function CollectionDetail({
   }
 
   async function removeProperty(propertyId: string) {
+    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
     try {
       const { error } = await supabase
         .from('collection_properties')
@@ -214,6 +216,7 @@ function CollectionDetail({
   }
 
   async function shareCollection() {
+    if (!isOnline && collection.is_draft) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
     // Mark as active (not draft) when sharing
     if (collection.is_draft) {
       try {
@@ -233,6 +236,7 @@ function CollectionDetail({
   }
 
   async function deleteCollection() {
+    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
     try {
       const { error } = await supabase
         .from('collections')
@@ -249,7 +253,7 @@ function CollectionDetail({
     }
   }
 
-  const currency = user ? (user as unknown as { currency?: string }).currency ?? 'USD' : 'USD'
+  const currency = user?.currency ?? 'USD'
 
   return (
     <div className="scr bg-violet">
@@ -443,7 +447,7 @@ function CollectionDetail({
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function CollectionsScreen() {
-  const { user, showToast, screenParams } = useAppStore()
+  const { user, showToast, screenParams, isOnline } = useAppStore()
   const [collections, setCollections] = useState<CollectionWithCount[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -516,12 +520,13 @@ export default function CollectionsScreen() {
 
   async function createCollection() {
     if (!user) return
+    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
     const name = `Підбірка ${collections.length + 1}`
     try {
       const { data, error } = await supabase
         .from('collections')
         .insert({ realtor_id: user.id, name, is_draft: true })
-        .select()
+        .select('id,realtor_id,name,is_draft,share_token,share_expires_at,created_at,updated_at')
         .single()
       if (error) throw error
       const newCol: CollectionWithCount = {

@@ -366,7 +366,7 @@ Deno.serve(async (req) => {
 
     // ── Return ────────────────────────────────────────────────────────────
     const { data: fullUser } = await adminClient
-      .from('users').select('*').eq('id', userId).single()
+      .from('users').select('id,tg_id,tg_username,first_name,last_name,email,phone,role,language_code,currency,plan,notification_push,notification_weekly,notification_views,created_at,updated_at').eq('id', userId).single()
     if (!fullUser) throw new Error('User not found after session creation')
 
     return new Response(

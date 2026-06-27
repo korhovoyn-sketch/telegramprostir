@@ -10,7 +10,7 @@ import SearchBar from '@/components/ui/SearchBar'
 import { StatusBadge } from '@/components/ui/Badge'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import Modal from '@/components/ui/Modal'
-import { IconPlus, IconDots, IconPhoto, IconShare, IconChevronUp, IconChevronDown, GlassDbIcon, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconFile } from '@/components/Icons'
+import { IconPlus, IconDots, IconPhoto, IconShare, IconChevronUp, IconChevronDown, GlassDbIcon, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconFile, IconLayers, IconLayoutGrid } from '@/components/Icons'
 import DatabaseStatsPanel from '@/components/ui/DatabaseStatsPanel'
 import { formatPrice, calcRent, calcUtilities, DB_TYPE_LABELS, formatLeasePeriod } from '@/lib/utils'
 import type { PropertyStatus } from '@/types'
@@ -18,7 +18,7 @@ import CoachMark from '@/components/ui/CoachMark'
 import { useOnboarding } from '@/hooks/useOnboarding'
 
 export default function DatabaseObjectsScreen() {
-  const { screenParams, navigate, databases, user } = useAppStore()
+  const { screenParams, navigate, databases, user, showToast, isOnline } = useAppStore()
   const { deleteDatabase } = useDatabases()
   const { properties, loading, error, loadProperties, reorderProperty, batchDeleteProperties, batchUpdateStatus } = useProperties(screenParams.dbId)
   const isOwner = user?.role === 'owner'
@@ -32,6 +32,14 @@ export default function DatabaseObjectsScreen() {
   const [selectMode, setSelectMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [showBatchDeleteModal, setShowBatchDeleteModal] = useState(false)
+  const [occCompact, setOccCompact] = useState(() =>
+    typeof window !== 'undefined' && localStorage.getItem('ps:occCompact') === '1')
+
+  function toggleOccCompact(next: boolean) {
+    window.Telegram?.WebApp?.HapticFeedback?.selectionChanged()
+    setOccCompact(next)
+    try { localStorage.setItem('ps:occCompact', next ? '1' : '0') } catch { /* private mode blocks storage */ }
+  }
 
   function enterReorderMode() {
     setShowMenu(false)
@@ -65,11 +73,13 @@ export default function DatabaseObjectsScreen() {
 
   async function handleBatchDelete() {
     setShowBatchDeleteModal(false)
+    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
     await batchDeleteProperties([...selectedIds])
     exitSelectMode()
   }
 
   async function handleBatchStatus(status: PropertyStatus) {
+    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
     await batchUpdateStatus([...selectedIds], status)
     exitSelectMode()
   }
@@ -109,6 +119,8 @@ export default function DatabaseObjectsScreen() {
     occupied: properties.filter(p => p.status === 'occupied').length,
     for_sale: properties.filter(p => p.status === 'for_sale').length,
   }), [properties])
+
+  const compactView = tab === 'occupied' && occCompact && !reorderMode && !selectMode
 
   if (!db) return (
     <div className="scr bg-blue">
@@ -216,6 +228,18 @@ export default function DatabaseObjectsScreen() {
           </div>
         )}
 
+        {/* View-mode toggle — occupied tab only */}
+        {tab === 'occupied' && !reorderMode && !selectMode && filtered.length > 0 && (
+          <div className="fr-seg" style={{ margin: '0 12px 8px', width: 'auto', maxWidth: 220, marginLeft: 'auto' }}>
+            <div className={`fr-seg-b ${!occCompact ? 'on' : ''}`} onClick={() => toggleOccCompact(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+              <IconLayoutGrid size={13} />Картки
+            </div>
+            <div className={`fr-seg-b ${occCompact ? 'on' : ''}`} onClick={() => toggleOccCompact(true)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+              <IconLayers size={13} />Компактно
+            </div>
+          </div>
+        )}
+
         {/* Stats dashboard */}
         {!reorderMode && !selectMode && (
           <DatabaseStatsPanel properties={properties} currency={user?.currency} />
@@ -292,6 +316,30 @@ export default function DatabaseObjectsScreen() {
                 ? calcUtilities(p.area_total, p.utilities_rate)
                 : 0
               const total = rent + utils
+
+              if (compactView) {
+                const title = p.tenant_name?.trim() || p.name
+                return (
+                  <div
+                    key={p.id}
+                    className="row glass-s"
+                    onClick={() => navigate('property-detail', { propertyId: p.id, dbId: db.id })}
+                  >
+                    <div className="row-mn">
+                      <div className="row-t">{title}</div>
+                      <div className="row-s">
+                        {p.tenant_name?.trim() && <><IconBuilding size={13} color="var(--t3)" /><span>{p.name}</span></>}
+                        {p.floor && <><IconLayers size={13} color="var(--t3)" /><span>{p.floor} пов.</span></>}
+                        {p.area_useful && <><IconRuler size={13} color="var(--t3)" /><span>{p.area_useful} м²</span></>}
+                      </div>
+                    </div>
+                    <div className="row-r">
+                      <span className="row-tot">{total > 0 ? formatPrice(total, user?.currency) : '—'}</span>
+                      {total > 0 && <span className="row-tot-u">/міс</span>}
+                    </div>
+                  </div>
+                )
+              }
 
               return (
                 <div
@@ -602,7 +650,7 @@ export default function DatabaseObjectsScreen() {
           subtitle={`База "${db.name}" і всі ${properties.length} об'єктів будуть видалені. Це незворотно.`}
           onClose={() => setShowDeleteModal(false)}
           actions={[
-            { label: 'Видалити', variant: 'danger', onClick: async () => { window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('warning'); await deleteDatabase(db.id); setShowDeleteModal(false) } },
+            { label: 'Видалити', variant: 'danger', onClick: async () => { if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); setShowDeleteModal(false); return } window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('warning'); await deleteDatabase(db.id); setShowDeleteModal(false) } },
             { label: 'Скасувати', variant: 'secondary', onClick: () => setShowDeleteModal(false) },
           ]}
         />

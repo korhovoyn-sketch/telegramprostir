@@ -1,8 +1,17 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 import { z } from 'https://esm.sh/zod@3.23.8'
 
+// Restrict CORS to the Mini App origin set via ALLOWED_ORIGIN secret.
+// REQUIRED: must be explicitly set. Default '*' is a security risk.
+const _allowedOrigin = Deno.env.get('ALLOWED_ORIGIN')
+if (!_allowedOrigin) {
+  // CRITICAL: Do NOT default to '*' — it allows ANY origin to make requests
+  // and steal access tokens via CSRF attacks. Fail loudly instead.
+  throw new Error('ALLOWED_ORIGIN env var must be explicitly set (no default to *). Set it in Supabase → Edge Functions → Secrets.')
+}
+
 const corsHeaders = {
-  'Access-Control-Allow-Origin': Deno.env.get('ALLOWED_ORIGIN') ?? '*',
+  'Access-Control-Allow-Origin': _allowedOrigin,
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }

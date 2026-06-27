@@ -61,7 +61,7 @@ export function useDatabases() {
       const { data, error } = await supabase
         .from('databases')
         .insert({ ...payload, owner_id: user.id })
-        .select()
+        .select('id,owner_id,name,address,type,color,share_token,share_expires_at,created_at,updated_at')
         .single()
 
       if (error) throw error
@@ -83,7 +83,7 @@ export function useDatabases() {
         .from('databases')
         .update({ ...payload, updated_at: new Date().toISOString() })
         .eq('id', id)
-        .select()
+        .select('id,owner_id,name,address,type,color,share_token,share_expires_at,created_at,updated_at')
         .single()
 
       if (error) throw error

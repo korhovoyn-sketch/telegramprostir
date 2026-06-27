@@ -124,7 +124,8 @@ export default function ProfileSetupScreen() {
           left: 0, right: 0,
           zIndex: 6,
           background: 'none', border: 'none', cursor: 'pointer',
-          color: 'var(--t4)', fontSize: 13, padding: '4px 0',
+          color: 'var(--t4)', fontSize: 13, padding: '12px 16px',
+          minHeight: 44,
           textAlign: 'center',
         }}
       >

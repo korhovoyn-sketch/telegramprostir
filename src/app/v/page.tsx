@@ -726,6 +726,12 @@ export default function ViewerPage() {
       return
     }
 
+    const TOKEN_RE = /^[a-zA-Z0-9_-]{6,100}$/
+    if ((prop && !TOKEN_RE.test(prop)) || (db && !TOKEN_RE.test(db)) || (col && !TOKEN_RE.test(col))) {
+      setState({ status: 'error', msg: 'Посилання невалідне. Перевірте QR-код або URL.' })
+      return
+    }
+
     setState({ status: 'loading' })
 
     // PostgREST resolves (never rejects) on a network failure — it returns
