@@ -221,6 +221,9 @@ body{
 /* Row secondary metadata — Caption 1 */
 .row-s{font-size:var(--fs-cap1);color:var(--t3);margin-top:3px;display:flex;align-items:center;gap:5px;flex-wrap:wrap;line-height:var(--lh-snug)}
 .row-r{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0}
+/* Monthly total in compact row — money is always green */
+.row-tot{font-size:var(--fs-sub);font-weight:var(--fw-bold);color:var(--ok-fg);letter-spacing:-.02em;line-height:1}
+.row-tot-u{font-size:var(--fs-cap2);color:var(--t3);margin-top:2px}
 
 /* ── FRESHNESS ── */
 .fresh{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:2px var(--g2);border-radius:var(--r-xs);background:var(--ok-bg);color:var(--ok-fg);border:.5px solid var(--ok-bd)}
