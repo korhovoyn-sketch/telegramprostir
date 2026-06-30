@@ -65,7 +65,7 @@ export default function CreateDatabaseScreen() {
     <div className="scr bg-purple">
       <Header title={isEdit ? 'Редагувати базу' : 'Нова база'} backLabel={isEdit ? 'Назад' : 'Бази'} />
 
-      <div className="body" onFocusCapture={scrollFocusedIntoView}>
+      <div className="body has-flow-cta" onFocusCapture={scrollFocusedIntoView}>
         {/* Name & address */}
         <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconBuilding size={13} color="#7AB3FF" />Основне</span></div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
@@ -140,15 +140,14 @@ export default function CreateDatabaseScreen() {
             </div>
           </div>
         )}
+        <button
+          className={`mbtn success mbtn-flow ${!canCreate || loading ? 'disabled' : ''} ${loading ? 'is-loading' : ''}`}
+          onClick={handleSave}
+          disabled={!canCreate || loading}
+        >
+          {!loading && (isEdit ? 'Зберегти зміни' : 'Створити базу')}
+        </button>
       </div>
-
-      <button
-        className={`mbtn success ${!canCreate || loading ? 'disabled' : ''} ${loading ? 'is-loading' : ''}`}
-        onClick={handleSave}
-        disabled={!canCreate || loading}
-      >
-        {!loading && (isEdit ? 'Зберегти зміни' : 'Створити базу')}
-      </button>
     </div>
   )
 }

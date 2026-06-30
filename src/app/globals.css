@@ -168,6 +168,11 @@ body{
 
 /* ── MAIN BUTTON ── */
 .mbtn{position:absolute;left:var(--g3);right:var(--g3);bottom:calc(14px + var(--safe-bottom) + var(--keyboard-h,0px));height:var(--btn-h);background:linear-gradient(180deg,var(--tg-blue-light),var(--tg-blue));border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;color:var(--t1);font-size:15px;font-weight:600;letter-spacing:.005em;cursor:pointer;box-shadow:var(--shadow-btn-blue);z-index:20;gap:8px;transition:bottom var(--dur-sm) ease-out,transform var(--dur-xs) var(--ease),box-shadow var(--dur-xs) var(--ease),opacity var(--dur-xs),filter var(--dur-xs) ease;border:none;width:calc(100% - 24px);will-change:transform}
+/* In-flow CTA: sits at the end of a form body instead of floating over it.
+   Used by data-entry forms so the button never covers the focused field and
+   never bounces with the keyboard. */
+.mbtn.mbtn-flow{position:static;left:auto;right:auto;bottom:auto;width:auto;margin:18px 12px calc(8px + var(--safe-bottom));transition:transform var(--dur-xs) var(--ease),box-shadow var(--dur-xs) var(--ease),opacity var(--dur-xs),filter var(--dur-xs) ease;will-change:auto}
+.body.has-flow-cta{padding-bottom:calc(16px + var(--safe-bottom) + var(--keyboard-h,0px))}
 .mbtn:hover{transform:translateY(-1px);box-shadow:var(--shadow-btn-blue-hover)}
 .mbtn:active{animation:btnPress .28s var(--ease-spr) both;box-shadow:0 4px 14px rgba(34,158,217,.5);filter:brightness(0.92)}
 .mbtn.danger{background:linear-gradient(180deg,#FF6B61,#E24B4A);box-shadow:var(--shadow-btn-danger)}

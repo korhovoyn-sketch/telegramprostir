@@ -96,20 +96,23 @@ export default function Page() {
     tgAny.onEvent?.('viewportChanged', applyViewportHeight)
     tgAny.onEvent?.('activated', onActivated)
 
+    // Keyboard height must react only to the keyboard opening/closing (resize),
+    // NOT to scrolling. vv.offsetTop changes on every scroll frame while the
+    // keyboard stays put; subtracting it here recomputed a fluctuating height on
+    // every scroll event, which made --keyboard-h jitter — bouncing the save
+    // button and glitching the caret mid-typing. Drop offsetTop, drop 'scroll'.
     function applyKeyboardFromVV() {
       const vv = window.visualViewport
       if (!vv) return
-      vvKbH = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop))
+      vvKbH = Math.max(0, Math.round(window.innerHeight - vv.height))
       applyKeyboardHeight()
     }
     window.visualViewport?.addEventListener('resize', applyKeyboardFromVV)
-    window.visualViewport?.addEventListener('scroll', applyKeyboardFromVV)
 
     return () => {
       tgAny.offEvent?.('viewportChanged', applyViewportHeight)
       tgAny.offEvent?.('activated', onActivated)
       window.visualViewport?.removeEventListener('resize', applyKeyboardFromVV)
-      window.visualViewport?.removeEventListener('scroll', applyKeyboardFromVV)
     }
   }, [])
 

@@ -184,7 +184,7 @@ export default function PropertyFormScreen() {
         }
       />
 
-      <div className="body" onFocusCapture={scrollFocusedIntoView}>
+      <div className="body has-flow-cta" onFocusCapture={scrollFocusedIntoView}>
         {/* Basic */}
         <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconBuilding size={13} color="var(--info)" />Основне</span></div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
@@ -386,15 +386,14 @@ export default function PropertyFormScreen() {
           </div>
         )}
 
+        <button
+          className={`mbtn success mbtn-flow ${!canSave || loading ? 'disabled' : ''} ${loading ? 'is-loading' : ''}`}
+          onClick={handleSave}
+          disabled={!canSave || loading}
+        >
+          {!loading && (isEdit ? 'Зберегти зміни' : 'Додати об\'єкт')}
+        </button>
       </div>
-
-      <button
-        className={`mbtn success ${!canSave || loading ? 'disabled' : ''} ${loading ? 'is-loading' : ''}`}
-        onClick={handleSave}
-        disabled={!canSave || loading}
-      >
-        {!loading && (isEdit ? 'Зберегти зміни' : 'Додати об\'єкт')}
-      </button>
 
       {showDeleteModal && editId && (
         <Modal
