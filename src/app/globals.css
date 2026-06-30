@@ -557,6 +557,19 @@ input,textarea,select{font-size:16px;touch-action:manipulation}
 /* Compact variant for menu-style modals with many items */
 .modal-btn.sm{height:44px;font-size:14px}
 
+/* ── ACTION SHEET (Apple inset-grouped menu) ── */
+.sheet-group{background:var(--glass-1);border:var(--bd);border-radius:var(--r-md);overflow:hidden;margin-bottom:10px}
+.sheet-row{display:flex;align-items:center;gap:12px;min-height:52px;padding:0 14px;cursor:pointer;color:var(--t1);font-size:var(--fs-call);font-weight:500;border-bottom:.5px solid rgba(255,255,255,.07);transition:background .14s var(--ease);-webkit-tap-highlight-color:transparent}
+.sheet-row:last-child{border-bottom:none}
+.sheet-row:active{background:var(--glass-2)}
+.sheet-ic{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:var(--glass-2);color:var(--t2);flex-shrink:0}
+.sheet-lbl{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sheet-chev{color:var(--t4);flex-shrink:0}
+.sheet-row.danger{color:var(--err-fg)}
+.sheet-row.danger .sheet-ic{background:var(--err-bg);color:var(--err-fg)}
+.sheet-cancel{height:var(--btn-h);border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:var(--fw-bold);color:var(--t1);background:var(--glass-2);border:var(--bd);cursor:pointer;width:100%;transition:transform .12s,background .14s}
+.sheet-cancel:active{transform:scale(.98);background:var(--glass-3)}
+
 /* ── SKELETON ── */
 .skel{background:linear-gradient(90deg,var(--glass-1),var(--glass-2),var(--glass-1));background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:var(--r-sm)}
 .skel-row{height:48px;margin-bottom:8px}
