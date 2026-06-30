@@ -54,11 +54,24 @@ async function sendMessage(chatId: number, text: string, buttonLabel: string, bu
   }
 }
 
+// Constant-time string compare — avoids leaking the webhook secret via timing,
+// matching the constant-time discipline in telegram-auth's HMAC check.
+function timingSafeEqual(a: string, b: string): boolean {
+  const enc = new TextEncoder()
+  const ab = enc.encode(a)
+  const bb = enc.encode(b)
+  if (ab.length !== bb.length) return false
+  let mismatch = 0
+  for (let i = 0; i < ab.length; i++) mismatch |= ab[i] ^ bb[i]
+  return mismatch === 0
+}
+
 Deno.serve(async (req) => {
   // Telegram echoes the secret_token registered via setWebhook in this header.
   // Reject anything else — the function is public (--no-verify-jwt).
   const secret = Deno.env.get('TELEGRAM_WEBHOOK_SECRET')
-  if (!secret || req.headers.get('x-telegram-bot-api-secret-token') !== secret) {
+  const provided = req.headers.get('x-telegram-bot-api-secret-token') ?? ''
+  if (!secret || !timingSafeEqual(provided, secret)) {
     return new Response('unauthorized', { status: 401 })
   }
 

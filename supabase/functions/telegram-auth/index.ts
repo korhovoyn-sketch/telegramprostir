@@ -43,7 +43,8 @@ function errResponse(status: number, message: string, code: ErrCode) {
 }
 
 // DB-backed rate limiter — survives cold starts unlike an in-memory Map.
-// Fails open: if the DB is unreachable we allow the request through.
+// Fails CLOSED: if the DB is unreachable we reject the request (see the catch
+// below) so an outage can't be used to bypass the brute-force cap.
 // Keyed by tg:<userId> so it can't be forged and each user gets their own cap.
 async function checkRateLimit(
   // deno-lint-ignore no-explicit-any
