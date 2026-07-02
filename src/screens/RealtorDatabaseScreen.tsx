@@ -190,11 +190,15 @@ export default function RealtorDatabaseScreen() {
         )}
       </div>
 
-      <button className="mbtn" onClick={() => {
-        sharePublicUrl('db', db.share_token ?? db.id)
-      }}>
-        <IconShare size={18} /> Поділитись базою
-      </button>
+      {/* No UUID fallback: a link built from the raw id never resolves in /v.
+          If the owner hasn't a token yet, hide the share action. */}
+      {db.share_token && (
+        <button className="mbtn" onClick={() => {
+          sharePublicUrl('db', db.share_token!, `Перегляньте базу «${db.name}»`)
+        }}>
+          <IconShare size={18} /> Поділитись базою
+        </button>
+      )}
     </div>
   )
 }

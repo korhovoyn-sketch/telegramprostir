@@ -759,15 +759,11 @@ export default function ViewerPage() {
         }
         setState({ status: 'prop', data: (data as PropertyPreview[])[0], token: prop })
 
-        // Record view (fire-and-forget, best-effort)
-        const row = (data as PropertyPreview[])[0]
-        if (row) {
-          supabase.from('property_views').insert({
-            property_id: row.property_id,
-            viewer_name: 'Веб-перегляд',
-            action: 'view',
-          }).then(() => {/* ignore */})
-        }
+        // Record view (fire-and-forget, best-effort). Goes through the
+        // token-validated record_public_view RPC — anon can no longer INSERT
+        // into property_views directly (migration 036), and the RPC dedupes
+        // to one web view per property per minute.
+        supabase.rpc('record_public_view', { p_token: prop }).then(() => {/* ignore */}, () => {/* ignore */})
         return
       }
 

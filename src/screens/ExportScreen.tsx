@@ -596,7 +596,9 @@ export default function ExportScreen() {
     try {
       const { data: propertiesRaw, error } = await supabase
         .from('properties')
-        .select('id,db_id,owner_id,name,floor,status,area_useful,area_total,rent_type,rent_rate,utilities_rate,has_parking,parking_spaces,description,address,utilities,sale_price,tenant_name,lease_start_date,lease_end_date,sort_order,share_token,share_expires_at,created_at,updated_at,photos:property_photos(id,property_id,storage_path,sort_order,created_at)')
+        // share_token deliberately NOT selected: exported files travel outside
+        // the app and must never carry live share credentials.
+        .select('id,db_id,owner_id,name,floor,status,area_useful,area_total,rent_type,rent_rate,utilities_rate,has_parking,parking_spaces,description,address,utilities,sale_price,tenant_name,lease_start_date,lease_end_date,sort_order,created_at,updated_at,photos:property_photos(id,property_id,storage_path,sort_order,created_at)')
         .eq('db_id', dbId)
         .order('name')
 

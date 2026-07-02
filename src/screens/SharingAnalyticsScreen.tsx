@@ -4,11 +4,10 @@ import { useEffect, useState } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { supabase } from '@/lib/supabase'
 import Header from '@/components/ui/Header'
+import ShareSheet from '@/components/ui/ShareSheet'
 import { IconShare, IconEye, IconChartLine } from '@/components/Icons'
 import { formatDate, daysSince } from '@/lib/utils'
-import { buildPublicUrl, sharePublicUrl } from '@/lib/telegram'
 import type { PropertyView } from '@/types'
-import QRCode from 'react-qr-code'
 
 const WEEKDAY = ['Нд', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб']
 
@@ -23,30 +22,20 @@ function last7DayLabels(): string[] {
 }
 
 export default function SharingAnalyticsScreen() {
-  const { screenParams, user, showToast } = useAppStore()
+  const { screenParams, showToast } = useAppStore()
   const [views, setViews] = useState<PropertyView[]>([])
   const [loading, setLoading] = useState(true)
   const [chartData, setChartData] = useState<number[]>(Array(7).fill(0))
-  const [dbShareToken, setDbShareToken] = useState<string>('')
-  const [propShareToken, setPropShareToken] = useState<string>('')
+  const [showShare, setShowShare] = useState(false)
 
   useEffect(() => {
+    // Cancellation guard: rapid navigation between two share targets must not
+    // let the earlier (slower) request overwrite the newer screen's data.
+    let cancelled = false
     async function load() {
       if (!screenParams.propertyId && !screenParams.dbId) return
       setLoading(true)
       try {
-        // Fetch share_tokens for QR / copy-link URL
-        if (screenParams.dbId) {
-          const { data: dbData } = await supabase
-            .from('databases').select('share_token').eq('id', screenParams.dbId).single()
-          if (dbData?.share_token) setDbShareToken(dbData.share_token)
-        }
-        if (screenParams.propertyId) {
-          const { data: propData } = await supabase
-            .from('properties').select('share_token').eq('id', screenParams.propertyId).single()
-          if (propData?.share_token) setPropShareToken(propData.share_token)
-        }
-
         // Use a 30-day window for the viewer list; chart is last 7 days
         const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString()
         let viewData: PropertyView[] = []
@@ -84,6 +73,7 @@ export default function SharingAnalyticsScreen() {
           }
         }
 
+        if (cancelled) return
         setViews(viewData)
 
         // Chart: count per day for the last 7 days only
@@ -94,12 +84,13 @@ export default function SharingAnalyticsScreen() {
         })
         setChartData(dayData)
       } catch (e) {
-        showToast({ type: 'error', title: 'Помилка аналітики', subtitle: (e as Error).message })
+        if (!cancelled) showToast({ type: 'error', title: 'Помилка аналітики', subtitle: (e as Error).message })
       } finally {
-        setLoading(false)
+        if (!cancelled) setLoading(false)
       }
     }
     load()
+    return () => { cancelled = true }
   }, [screenParams.propertyId, screenParams.dbId, showToast])
 
   const maxVal = Math.max(...chartData, 1)
@@ -109,29 +100,7 @@ export default function SharingAnalyticsScreen() {
   const todayViews = views.filter((v) => daysSince(v.created_at) === 0)
 
   const isPropertyShare = Boolean(screenParams.propertyId)
-
-  // Build the public /v URL — what QR codes, copy, and Telegram share all use.
-  // Falls back to id if share_token hasn't loaded yet (edge case on slow network).
-  function getPublicUrl(): string {
-    if (isPropertyShare) {
-      const token = propShareToken || (screenParams.propertyId as string)
-      return buildPublicUrl('prop', token)
-    }
-    const token = dbShareToken || (screenParams.dbId as string) || ''
-    return buildPublicUrl('db', token)
-  }
-
-  function handleShare() {
-    if (!user) return
-    const text = isPropertyShare ? 'Перегляньте цей об\'єкт нерухомості' : 'Перегляньте базу нерухомості'
-    if (isPropertyShare) {
-      sharePublicUrl('prop', propShareToken || (screenParams.propertyId as string), text)
-    } else {
-      sharePublicUrl('db', dbShareToken || (screenParams.dbId as string) || '', text)
-    }
-  }
-
-  const shareLink = getPublicUrl()
+  const shareTargetId = (isPropertyShare ? screenParams.propertyId : screenParams.dbId) as string
 
   return (
     <div className="scr bg-pink">
@@ -211,39 +180,6 @@ export default function SharingAnalyticsScreen() {
           </div>
         </div>
 
-        {/* QR + share link */}
-        <div className="qr-hero glass-s">
-          <div className="qr-wrap">
-            {!loading ? (
-              <QRCode
-                value={shareLink}
-                size={124}
-                bgColor="#ffffff"
-                fgColor="#000000"
-                style={{ borderRadius: 6, display: 'block' }}
-              />
-            ) : (
-              <div style={{ width: 124, height: 124, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <div className="loader" />
-              </div>
-            )}
-          </div>
-          <div className="qr-meta">
-            <div className="qr-name">{isPropertyShare ? 'QR-код об\'єкта' : 'QR-код для ріелтора'}</div>
-            <div className="qr-link" style={{ wordBreak: 'break-all' }}>{shareLink}</div>
-          </div>
-          <button
-            className="glass-s"
-            style={{ marginTop: 8, padding: '8px 20px', borderRadius: 20, fontSize: 13, fontWeight: 600, color: 'var(--t1)', border: '.5px solid rgba(255,255,255,.2)', cursor: 'pointer', background: 'rgba(255,255,255,.08)' }}
-            onClick={() => {
-              navigator.clipboard?.writeText(shareLink)
-              showToast({ type: 'success', title: 'Посилання скопійовано' })
-            }}
-          >
-            Скопіювати посилання
-          </button>
-        </div>
-
         {/* Recent viewers */}
         <div className="over">
           <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconEye size={13} color="#7AB3FF" />Останні перегляди</span>
@@ -297,10 +233,20 @@ export default function SharingAnalyticsScreen() {
         <div style={{ height: 80 }} />
       </div>
 
-      <button className="mbtn" onClick={handleShare}>
+      <button className="mbtn" onClick={() => setShowShare(true)}>
         <IconShare size={18} />
-        Поділитись у Telegram
+        Поділитися
       </button>
+
+      {showShare && (
+        <ShareSheet
+          kind={isPropertyShare ? 'prop' : 'db'}
+          id={shareTargetId}
+          name={isPropertyShare ? 'Об\'єкт' : 'База'}
+          shareText={isPropertyShare ? 'Перегляньте цей об\'єкт нерухомості' : 'Перегляньте базу нерухомості'}
+          onClose={() => setShowShare(false)}
+        />
+      )}
     </div>
   )
 }
