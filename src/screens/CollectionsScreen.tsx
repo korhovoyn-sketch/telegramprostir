@@ -8,7 +8,7 @@ import { StatusBadge } from '@/components/ui/Badge'
 import Modal from '@/components/ui/Modal'
 import { IconPlus, IconShare, IconX, IconChevronLeft, IconTrash, IconBuilding } from '@/components/Icons'
 import { formatPrice, calcRent, formatDate, photoUrl } from '@/lib/utils'
-import { sharePublicUrl } from '@/lib/telegram'
+import ShareSheet from '@/components/ui/ShareSheet'
 import type { Property, Collection } from '@/types'
 import CoachMark from '@/components/ui/CoachMark'
 import { useOnboarding } from '@/hooks/useOnboarding'
@@ -116,6 +116,7 @@ function CollectionDetail({
   const [loadingAvail, setLoadingAvail] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [showShare, setShowShare] = useState(false)
 
   const loadCollectionProperties = useCallback(async () => {
     setLoadingProps(true)
@@ -216,6 +217,10 @@ function CollectionDetail({
   }
 
   async function shareCollection() {
+    if (collection.property_count === 0) {
+      showToast({ type: 'error', title: 'Підбірка порожня', subtitle: 'Додайте об\'єкти перед тим як ділитися' })
+      return
+    }
     if (!isOnline && collection.is_draft) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
     // Mark as active (not draft) when sharing
     if (collection.is_draft) {
@@ -231,8 +236,7 @@ function CollectionDetail({
         return
       }
     }
-
-    sharePublicUrl('col', collection.share_token || collection.id, collection.name)
+    setShowShare(true)
   }
 
   async function deleteCollection() {
@@ -440,6 +444,16 @@ function CollectionDetail({
           ]}
         />
       )}
+
+      {showShare && (
+        <ShareSheet
+          kind="col"
+          id={collection.id}
+          name={collection.name}
+          shareText={collection.name}
+          onClose={() => setShowShare(false)}
+        />
+      )}
     </div>
   )
 }
@@ -452,6 +466,7 @@ export default function CollectionsScreen() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [selectedCollection, setSelectedCollection] = useState<CollectionWithCount | null>(null)
+  const [shareTarget, setShareTarget] = useState<CollectionWithCount | null>(null)
   const fabRef = useRef<HTMLButtonElement>(null)
   const { isDone: fabSeen, markDone: markFabSeen } = useOnboarding('col-fab')
 
@@ -547,7 +562,7 @@ export default function CollectionsScreen() {
       useAppStore.getState().showToast({ type: 'error', title: 'Підбірка порожня', subtitle: 'Додайте об\'єкти перед тим як ділитися' })
       return
     }
-    sharePublicUrl('col', col.share_token || col.id, col.name)
+    setShareTarget(col)
   }
 
   function handleCollectionUpdate(updated: CollectionWithCount) {
@@ -635,6 +650,16 @@ export default function CollectionsScreen() {
           targetRef={fabRef}
           placement="above"
           onDone={markFabSeen}
+        />
+      )}
+
+      {shareTarget && (
+        <ShareSheet
+          kind="col"
+          id={shareTarget.id}
+          name={shareTarget.name}
+          shareText={shareTarget.name}
+          onClose={() => setShareTarget(null)}
         />
       )}
 

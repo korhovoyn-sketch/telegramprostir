@@ -5,12 +5,12 @@ import { useAppStore } from '@/store/appStore'
 import { supabase } from '@/lib/supabase'
 import TabBar from '@/components/ui/TabBar'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
-import { IconBell, IconKey, IconBuilding } from '@/components/Icons'
+import { IconKey, IconBuilding } from '@/components/Icons'
 import { StatusBadge } from '@/components/ui/Badge'
 import type { GuestLink } from '@/types'
 
 export default function GuestHomeScreen() {
-  const { user, navigate, unreadCount } = useAppStore()
+  const { user, navigate } = useAppStore()
   const [links, setLinks] = useState<GuestLink[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -52,15 +52,9 @@ export default function GuestHomeScreen() {
         <div className="hdr-t">
           <div style={{ fontSize: 16, fontWeight: 700 }}>prostir</div>
         </div>
-        <button
-          className="hdr-a"
-          aria-label="Сповіщення"
-          onClick={() => navigate('notifications')}
-          style={{ background: 'none', border: 'var(--bd)', position: 'relative' }}
-        >
-          <IconBell size={16} />
-          {unreadCount > 0 && <span className="hdr-a-dot" />}
-        </button>
+        {/* Notifications live in the tab bar (with unread badge) — a header
+            bell here duplicated that tab and confused users. */}
+        <div className="hdr-sp" />
       </div>
 
       <div className="body has-tabbar">

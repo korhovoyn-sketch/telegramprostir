@@ -39,7 +39,7 @@ export default function ProfileSetupScreen() {
   return (
     <div className="scr bg-purple" onFocusCapture={scrollFocusedIntoView}>
       {/* Scrollable content — padded so it doesn't hide behind the two bottom buttons */}
-      <div className="body" style={{ paddingBottom: 'calc(var(--btn-h) + 56px + var(--safe-bottom))' }}>
+      <div className="body has-flow-cta">
         <div style={{ padding: 'calc(24px + var(--safe-top)) 0 0', textAlign: 'center' }}>
           <div style={{
             display: 'inline-block',
@@ -112,33 +112,25 @@ export default function ProfileSetupScreen() {
             </div>
           </div>
         </div>
+        <button
+          className={`mbtn success mbtn-flow ${loading ? 'is-loading' : ''}`}
+          onClick={handleContinue}
+          disabled={loading}
+        >
+          {!loading && 'Почати роботу →'}
+        </button>
+        <button
+          onClick={() => navigate(dest)}
+          disabled={loading}
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            color: 'var(--t4)', fontSize: 13, padding: '0 16px 12px',
+            minHeight: 44, width: '100%', textAlign: 'center',
+          }}
+        >
+          Пропустити →
+        </button>
       </div>
-
-      {/* Skip — pinned just above the main button */}
-      <button
-        onClick={() => navigate(dest)}
-        disabled={loading}
-        style={{
-          position: 'absolute',
-          bottom: 'calc(var(--btn-h) + 18px + var(--safe-bottom))',
-          left: 0, right: 0,
-          zIndex: 6,
-          background: 'none', border: 'none', cursor: 'pointer',
-          color: 'var(--t4)', fontSize: 13, padding: '12px 16px',
-          minHeight: 44,
-          textAlign: 'center',
-        }}
-      >
-        Пропустити →
-      </button>
-
-      <button
-        className={`mbtn success ${loading ? 'is-loading' : ''}`}
-        onClick={handleContinue}
-        disabled={loading}
-      >
-        {!loading && 'Почати роботу →'}
-      </button>
     </div>
   )
 }

@@ -28,24 +28,25 @@ export function buildPublicUrl(type: 'prop' | 'db' | 'col', token: string): stri
   return `${origin}/v/?${type}=${encodeURIComponent(token)}`
 }
 
-/**
- * Open Telegram's native share sheet with the public viewer URL.
- * The recipient sees the beautiful /v page in any browser; the page
- * has an "Відкрити в Telegram" button that deep-links back to the Mini App.
- */
-export function sharePublicUrl(type: 'prop' | 'db' | 'col', token: string, text?: string): void {
-  const url = buildPublicUrl(type, token)
+/** Open Telegram's native share sheet for any URL. Single home for the
+ *  t.me/share/url construction — do not rebuild it inline in screens. */
+export function openTelegramShare(url: string, text?: string): void {
   const shareUrl = text
     ? `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`
     : `https://t.me/share/url?url=${encodeURIComponent(url)}`
   window.Telegram?.WebApp?.openTelegramLink(shareUrl)
 }
 
+/**
+ * Open Telegram's native share sheet with the public viewer URL.
+ * The recipient sees the beautiful /v page in any browser; the page
+ * has an "Відкрити в Telegram" button that deep-links back to the Mini App.
+ */
+export function sharePublicUrl(type: 'prop' | 'db' | 'col', token: string, text?: string): void {
+  openTelegramShare(buildPublicUrl(type, token), text)
+}
+
 /** @deprecated Use sharePublicUrl for new share flows */
 export function shareDeepLink(startParam: string, text?: string): void {
-  const link = buildDeepLink(startParam)
-  const shareUrl = text
-    ? `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`
-    : `https://t.me/share/url?url=${encodeURIComponent(link)}`
-  window.Telegram?.WebApp?.openTelegramLink(shareUrl)
+  openTelegramShare(buildDeepLink(startParam), text)
 }

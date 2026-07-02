@@ -1,12 +1,18 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { z } from 'zod'
 import { useAppStore } from '@/store/appStore'
 import { supabase } from '@/lib/supabase'
 import Header from '@/components/ui/Header'
-import { IconBolt } from '@/components/Icons'
 import { TG_BOT } from '@/lib/telegram'
 import { scrollFocusedIntoView } from '@/lib/utils'
+
+const SubscribeSchema = z.array(z.object({
+  db_id: z.string().uuid().nullable(),
+  db_name: z.string().nullable(),
+  error: z.string().nullable(),
+}))
 
 // Parse db token from scanned QR content.
 // Handles deep-link: https://t.me/<bot>?startapp=db_<token>
@@ -32,45 +38,41 @@ function extractDbToken(raw: string): string | null {
 export default function QRScannerScreen() {
   const { user, navigate, showToast, isOnline } = useAppStore()
   const [scanning, setScanning] = useState(false)
-  const [flashOn, setFlashOn] = useState(false)
   const [manualToken, setManualToken] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
   async function subscribeByToken(token: string) {
     if (!user) return
-    // Resolve via SECURITY DEFINER RPC — no blanket share_token SELECT policy,
-    // so a row only returns for the exact secret token (no enumeration).
-    const { data: rows } = await supabase
-      .rpc('lookup_shared_db', { p_token: token })
-    const db = (rows as { id: string; owner_id: string; share_expires_at: string | null }[] | null)?.[0]
-
-    if (!db) {
-      showToast({ type: 'error', title: 'Базу не знайдено', subtitle: 'Перевірте посилання або QR-код' })
-      return
-    }
-    if (db.share_expires_at && new Date(db.share_expires_at) < new Date()) {
-      showToast({ type: 'error', title: 'Посилання застаріло', subtitle: 'Попросіть власника оновити посилання' })
-      return
-    }
-    if (db.owner_id === user.id) {
-      showToast({ type: 'info', title: 'Це ваша база', subtitle: 'QR-код для ріелторів — не для власника' })
-      navigate('db-objects', { dbId: db.id })
-      return
-    }
     if (!isOnline) {
       showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Підключення до бази недоступне офлайн' })
       return
     }
-    const { error } = await supabase
-      .from('realtor_subscriptions')
-      .upsert({ realtor_id: user.id, db_id: db.id }, { onConflict: 'realtor_id,db_id' })
-    if (!error) {
-      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
-      showToast({ type: 'success', title: 'Базу підключено! 🎉' })
-      navigate('realtor-database', { dbId: db.id })
-    } else {
-      showToast({ type: 'error', title: 'Помилка підписки', subtitle: error.message })
+    // Token-validated SECURITY DEFINER RPC: checks the token + expiry and
+    // creates the subscription server-side (clients can no longer INSERT
+    // subscriptions directly — see migration 036).
+    const { data, error } = await supabase.rpc('subscribe_to_shared_db', { p_token: token })
+    if (error) {
+      showToast({ type: 'error', title: 'Помилка підписки', subtitle: 'Спробуйте ще раз' })
+      return
     }
+    const row = SubscribeSchema.parse(data ?? [])[0]
+    if (!row || row.error === 'not_found') {
+      // 036 filters expired tokens server-side, so "not found" covers both cases
+      showToast({ type: 'error', title: 'Базу не знайдено', subtitle: 'Посилання невірне або застаріло' })
+      return
+    }
+    if (row.error === 'own_db' && row.db_id) {
+      showToast({ type: 'info', title: 'Це ваша база', subtitle: 'QR-код для ріелторів — не для власника' })
+      navigate('db-objects', { dbId: row.db_id })
+      return
+    }
+    if (row.error || !row.db_id) {
+      showToast({ type: 'error', title: 'Помилка підписки', subtitle: 'Спробуйте ще раз' })
+      return
+    }
+    window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
+    showToast({ type: 'success', title: 'Базу підключено! 🎉' })
+    navigate('realtor-database', { dbId: row.db_id })
   }
 
   useEffect(() => {
@@ -204,21 +206,6 @@ export default function QRScannerScreen() {
           </div>
         </div>
 
-        <button
-          aria-label={flashOn ? 'Вимкнути спалах' : 'Ввімкнути спалах'}
-          style={{
-            width: 52, height: 52,
-            borderRadius: '50%',
-            background: flashOn ? 'rgba(255,220,0,.2)' : 'rgba(255,255,255,.1)',
-            border: `1px solid ${flashOn ? 'rgba(255,220,0,.5)' : 'rgba(255,255,255,.2)'}`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer',
-            color: flashOn ? 'var(--warn)' : 'var(--t2)',
-          }}
-          onClick={() => setFlashOn(!flashOn)}
-        >
-          <IconBolt size={20} />
-        </button>
       </div>
     </div>
   )

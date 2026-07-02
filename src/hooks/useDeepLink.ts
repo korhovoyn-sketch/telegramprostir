@@ -45,6 +45,10 @@ export function useDeepLink() {
 
         // ── guest_<invite_token> — guest invite link ────────────────────────
         if (startParam.startsWith('guest_')) {
+          // Consume the stored token up front: whether the claim succeeds or the
+          // link is already claimed/revoked, replaying it on every app launch
+          // would show the same error toast forever.
+          localStorage.removeItem('ps_guest_join_token')
           const token = startParam.slice(6)
           const { data, error } = await supabase.rpc('claim_guest_link', { p_token: token })
           // claim_guest_link returns either {property_id, db_id} on success or
@@ -138,54 +142,48 @@ export function useDeepLink() {
 
         localStorage.removeItem('ps_guest_join_token')
         const token = startParam.slice(3)
-        const { data: rows, error: dbErr } = await supabase
-          .rpc('lookup_shared_db', { p_token: token })
-        const db = (Array.isArray(rows) && rows[0] && typeof rows[0] === 'object' && 'id' in rows[0]) ? rows[0] as { id: string; owner_id: string; share_expires_at: string | null } : null
 
-        if (dbErr) {
-          showToast({ type: 'error', title: 'Помилка запиту', subtitle: dbErr.message || 'Не вдалося перевірити посилання' })
-          navigateFallback()
-          return
-        }
-
-        if (!db) {
-          showToast({ type: 'error', title: 'Базу не знайдено', subtitle: 'Перевірте посилання або QR-код' })
-          navigateFallback()
-          return
-        }
-        if (db.share_expires_at && new Date(db.share_expires_at) < new Date()) {
-          showToast({ type: 'error', title: 'Посилання застаріло', subtitle: 'Попросіть власника оновити посилання' })
-          navigateFallback()
-          return
-        }
-
-        // Owner tapped their own share link — reset history to db-list then open objects
-        if (db.owner_id === currentUser.id) {
-          useAppStore.getState().navigateRoot('db-list')
-          navigate('db-objects', { dbId: db.id })
-          return
-        }
-
-        // Realtor — subscribe then open the database with clean history
         if (!useAppStore.getState().isOnline) {
           showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Підключення до бази недоступне офлайн' })
           navigateFallback()
           return
         }
-        const { error } = await supabase
-          .from('realtor_subscriptions')
-          .upsert({ realtor_id: currentUser.id, db_id: db.id }, { onConflict: 'realtor_id,db_id' })
 
-        if (!error) {
-          localStorage.removeItem('ps_guest_join_token')
-          window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
-          showToast({ type: 'success', title: 'Базу підключено! 🎉' })
-          useAppStore.getState().navigateRoot('realtor-dashboard')
-          navigate('realtor-database', { dbId: db.id })
-        } else {
-          showToast({ type: 'error', title: 'Помилка підписки', subtitle: error.message })
+        // Token-validated SECURITY DEFINER RPC: checks token + expiry and creates
+        // the subscription server-side (clients can't INSERT subscriptions — 036).
+        const { data: rows, error: dbErr } = await supabase
+          .rpc('subscribe_to_shared_db', { p_token: token })
+        if (dbErr) {
+          showToast({ type: 'error', title: 'Помилка запиту', subtitle: 'Не вдалося перевірити посилання' })
           navigateFallback()
+          return
         }
+        const sub = (Array.isArray(rows) && rows[0] && typeof rows[0] === 'object') ? rows[0] as { db_id: string | null; db_name: string | null; error: string | null } : null
+
+        if (!sub || sub.error === 'not_found') {
+          // 036 filters expired tokens server-side — "not found" covers both cases
+          showToast({ type: 'error', title: 'Базу не знайдено', subtitle: 'Посилання невірне або застаріло' })
+          navigateFallback()
+          return
+        }
+
+        // Owner tapped their own share link — reset history to db-list then open objects
+        if (sub.error === 'own_db' && sub.db_id) {
+          useAppStore.getState().navigateRoot('db-list')
+          navigate('db-objects', { dbId: sub.db_id })
+          return
+        }
+
+        if (sub.error || !sub.db_id) {
+          showToast({ type: 'error', title: 'Помилка підписки', subtitle: 'Спробуйте ще раз' })
+          navigateFallback()
+          return
+        }
+
+        window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
+        showToast({ type: 'success', title: 'Базу підключено! 🎉' })
+        useAppStore.getState().navigateRoot('realtor-dashboard')
+        navigate('realtor-database', { dbId: sub.db_id })
       } catch (e) {
         console.error('[useDeepLink]', e)
         navigateFallback()

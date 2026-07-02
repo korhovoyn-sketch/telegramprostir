@@ -10,7 +10,7 @@ import SearchBar from '@/components/ui/SearchBar'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import CoachMark from '@/components/ui/CoachMark'
 import { useOnboarding } from '@/hooks/useOnboarding'
-import { IconBell, IconChevronRight, IconPlus, GlassDbIcon } from '@/components/Icons'
+import { IconChevronRight, IconPlus, GlassDbIcon } from '@/components/Icons'
 import { DB_TYPE_LABELS, formatPrice, STATUS_COLORS, STATUS_LABELS } from '@/lib/utils'
 import type { PropertyStatus } from '@/types'
 
@@ -24,7 +24,7 @@ interface PropSearchResult {
 }
 
 export default function DatabaseListScreen() {
-  const { user, navigate, unreadCount } = useAppStore()
+  const { user, navigate } = useAppStore()
   const { databases, loading, error, loadDatabases } = useDatabases()
   useSlowLoadingToast(loading)
   const [search, setSearch] = useState('')
@@ -96,10 +96,9 @@ export default function DatabaseListScreen() {
         <div className="hdr-t">
           <div style={{ fontSize: 16, fontWeight: 700 }}>prostir</div>
         </div>
-        <button className="hdr-a" aria-label="Сповіщення" onClick={() => navigate('notifications')} style={{ background: 'none', border: 'var(--bd)', position: 'relative' }}>
-          <IconBell size={16} />
-          {unreadCount > 0 && <span className="hdr-a-dot" />}
-        </button>
+        {/* Notifications live in the tab bar (with unread badge) — a header
+            bell here duplicated that tab and confused users. */}
+        <div className="hdr-sp" />
       </div>
 
       <div className="body has-fab">

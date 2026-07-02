@@ -52,7 +52,10 @@ Deno.serve(async (req) => {
     const parsed = ValidateUploadSchema.safeParse(rawBody)
 
     if (!parsed.success) {
-      return errResponse(400, 'Invalid request: ' + parsed.error.errors[0]?.message)
+      // Log the schema detail server-side only; return a generic message so the
+      // internal validation shape isn't echoed to the client.
+      console.error('[validate-upload] invalid request:', parsed.error.errors[0]?.message)
+      return errResponse(400, 'Invalid request')
     }
 
     const { propertyId, mimeType } = parsed.data

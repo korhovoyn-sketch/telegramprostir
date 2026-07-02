@@ -7,7 +7,8 @@ import Header from '@/components/ui/Header'
 import Modal from '@/components/ui/Modal'
 import { SkeletonList } from '@/components/ui/SkeletonLoader'
 import { IconPlus, IconLink, IconBan, IconUser } from '@/components/Icons'
-import { buildDeepLink } from '@/lib/telegram'
+import { buildDeepLink, openTelegramShare } from '@/lib/telegram'
+import { copyLink } from '@/lib/share'
 import type { GuestLink } from '@/types'
 
 const STATUS_LABEL: Record<string, string> = {
@@ -115,16 +116,13 @@ export default function ManageGuestsScreen() {
 
   function handleShareLink(link: string) {
     const text = isProperty ? 'Запрошення до перегляду об\'єкта' : 'Запрошення до перегляду бази'
-    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`
-    window.Telegram?.WebApp?.openTelegramLink(shareUrl)
+    openTelegramShare(link, text)
   }
 
-  function handleCopyLink(link: string) {
-    navigator.clipboard.writeText(link).then(() => {
-      showToast({ type: 'success', title: 'Посилання скопійовано' })
-    }).catch(() => {
-      showToast({ type: 'error', title: 'Не вдалося скопіювати' })
-    })
+  async function handleCopyLink(link: string) {
+    const ok = await copyLink(link)
+    if (ok) showToast({ type: 'success', title: 'Посилання скопійовано' })
+    else showToast({ type: 'error', title: 'Не вдалося скопіювати' })
   }
 
   return (

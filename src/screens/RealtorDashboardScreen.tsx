@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase'
 import TabBar from '@/components/ui/TabBar'
 import SearchBar from '@/components/ui/SearchBar'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
-import { IconBell, IconChevronRight, GlassDbIcon } from '@/components/Icons'
+import { IconChevronRight, GlassDbIcon } from '@/components/Icons'
 import { DB_TYPE_LABELS } from '@/lib/utils'
 import type { Database, RealtorSubscription } from '@/types'
 import CoachMark from '@/components/ui/CoachMark'
@@ -14,7 +14,7 @@ import { useOnboarding } from '@/hooks/useOnboarding'
 import { useSlowLoadingToast } from '@/hooks/useSlowLoadingToast'
 
 export default function RealtorDashboardScreen() {
-  const { user, navigate, unreadCount, showToast } = useAppStore()
+  const { user, navigate, showToast } = useAppStore()
   const [subscriptions, setSubscriptions] = useState<RealtorSubscription[]>([])
   const [loading, setLoading] = useState(true)
   useSlowLoadingToast(loading)
@@ -76,10 +76,9 @@ export default function RealtorDashboardScreen() {
         <div className="hdr-t">
           <div style={{ fontSize: 16, fontWeight: 700 }}>prostir</div>
         </div>
-        <button className="hdr-a" aria-label="Сповіщення" onClick={() => navigate('notifications')} style={{ background: 'none', border: 'var(--bd)', position: 'relative' }}>
-          <IconBell size={16} />
-          {unreadCount > 0 && <span className="hdr-a-dot" />}
-        </button>
+        {/* Notifications live in the tab bar (with unread badge) — a header
+            bell here duplicated that tab and confused users. */}
+        <div className="hdr-sp" />
       </div>
 
       <div className="body has-tabbar-btn">

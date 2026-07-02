@@ -10,7 +10,7 @@ import SearchBar from '@/components/ui/SearchBar'
 import { StatusBadge } from '@/components/ui/Badge'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import Modal from '@/components/ui/Modal'
-import { IconPlus, IconDots, IconPhoto, IconShare, IconChevronUp, IconChevronDown, GlassDbIcon, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconFile, IconLayers, IconLayoutGrid } from '@/components/Icons'
+import { IconPlus, IconDots, IconPhoto, IconShare, IconChevronUp, IconChevronDown, GlassDbIcon, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconFile, IconLayers, IconLayoutGrid, IconChartBar, IconKey, IconFileExport, IconCircleCheck, IconAdjustments, IconTrash, IconChevronRight } from '@/components/Icons'
 import DatabaseStatsPanel from '@/components/ui/DatabaseStatsPanel'
 import { formatPrice, calcRent, calcUtilities, DB_TYPE_LABELS, formatLeasePeriod } from '@/lib/utils'
 import type { PropertyStatus } from '@/types'
@@ -595,38 +595,26 @@ export default function DatabaseObjectsScreen() {
           title={db.name}
           subtitle="Дії з базою"
           onClose={() => setShowMenu(false)}
-          actions={[
-            { label: '🗑️ Видалити базу', variant: 'danger', onClick: () => { setShowMenu(false); setShowDeleteModal(true) } },
-            { label: 'Скасувати', variant: 'secondary', onClick: () => setShowMenu(false) },
-          ]}
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, paddingBottom: 4 }}>
+          <div className="sheet-group">
             {[
-              { label: '📊 Аналітика і поширення', action: () => { setShowMenu(false); navigate('sharing-analytics', { dbId: db.id }) } },
-              { label: '📅 Календар платежів',    action: () => { setShowMenu(false); navigate('payment-calendar', { dbId: db.id }) } },
-              { label: '🔑 Управління гостями',   action: () => { setShowMenu(false); navigate('manage-guests', { dbId: db.id }) } },
-              { label: '📤 Експорт',               action: () => { setShowMenu(false); navigate('export', { dbId: db.id }) } },
-              { label: '☑ Виділити об\'єкти',      action: enterSelectMode },
-              { label: '↕ Змінити порядок',        action: enterReorderMode },
-              { label: '✏️ Редагувати базу',       action: () => { setShowMenu(false); navigate('edit-db', { dbId: db.id }) } },
-            ].map(({ label, action }) => (
-              <div
-                key={label}
-                onClick={action}
-                style={{
-                  display: 'flex', alignItems: 'center', minHeight: 48,
-                  padding: '0 4px', borderRadius: 12, cursor: 'pointer',
-                  fontSize: 15, color: 'var(--t1)',
-                  transition: 'background .12s',
-                }}
-                onPointerDown={e => (e.currentTarget.style.background = 'rgba(255,255,255,.07)')}
-                onPointerUp={e => (e.currentTarget.style.background = '')}
-                onPointerLeave={e => (e.currentTarget.style.background = '')}
-              >
-                {label}
+              { Icon: IconChartBar,    label: 'Аналітика і поширення', nav: true,  danger: false, action: () => { setShowMenu(false); navigate('sharing-analytics', { dbId: db.id }) } },
+              { Icon: IconCalendar,    label: 'Календар платежів',     nav: true,  danger: false, action: () => { setShowMenu(false); navigate('payment-calendar', { dbId: db.id }) } },
+              { Icon: IconKey,         label: 'Управління гостями',    nav: true,  danger: false, action: () => { setShowMenu(false); navigate('manage-guests', { dbId: db.id }) } },
+              { Icon: IconFileExport,  label: 'Експорт',               nav: true,  danger: false, action: () => { setShowMenu(false); navigate('export', { dbId: db.id }) } },
+              { Icon: IconCircleCheck, label: 'Виділити об\'єкти',      nav: false, danger: false, action: enterSelectMode },
+              { Icon: IconAdjustments, label: 'Змінити порядок',       nav: false, danger: false, action: enterReorderMode },
+              { Icon: IconEdit,        label: 'Редагувати базу',       nav: true,  danger: false, action: () => { setShowMenu(false); navigate('edit-db', { dbId: db.id }) } },
+              { Icon: IconTrash,       label: 'Видалити базу',         nav: false, danger: true,  action: () => { setShowMenu(false); setShowDeleteModal(true) } },
+            ].map(({ Icon, label, nav, danger, action }) => (
+              <div key={label} className={`sheet-row${danger ? ' danger' : ''}`} onClick={action}>
+                <span className="sheet-ic"><Icon size={17} /></span>
+                <span className="sheet-lbl">{label}</span>
+                {nav && <IconChevronRight size={16} className="sheet-chev" />}
               </div>
             ))}
           </div>
+          <button className="sheet-cancel" onClick={() => setShowMenu(false)}>Скасувати</button>
         </Modal>
       )}
 
