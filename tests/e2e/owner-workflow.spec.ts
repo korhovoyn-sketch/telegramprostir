@@ -1,0 +1,192 @@
+import { test, expect, type Page, type Route } from '@playwright/test'
+import { setupApp, DEFAULT_USER } from './helpers/harness'
+
+// ─── Full owner workflow: every screen an owner touches ───────────────────────
+
+const USER = { ...DEFAULT_USER, role: 'owner' as const, first_name: 'Микола' }
+const DB_ID = '10000000-0000-0000-0000-000000000001'
+const NOW = new Date().toISOString()
+
+const DB = {
+  id: DB_ID, owner_id: USER.id, name: 'БЦ Рубін', address: 'вул. Хрещатик, 1',
+  type: 'business_center', color: 'pink',
+  share_token: 'aabbccddeeff001122334455', share_expires_at: null,
+  created_at: NOW, updated_at: NOW,
+  properties: [
+    { status: 'occupied', rent_rate: 18, area_useful: 100, rent_type: 'per_m2' },
+    { status: 'occupied', rent_rate: 2500, area_useful: 80, rent_type: 'fixed' },
+    { status: 'free', rent_rate: null, area_useful: 45, rent_type: 'per_m2' },
+  ],
+}
+
+function prop(n: number, over: Record<string, unknown>) {
+  return {
+    id: `20000000-0000-0000-0000-00000000000${n}`,
+    db_id: DB_ID, owner_id: USER.id, name: `Офіс ${100 + n}`, floor: String(n + 1),
+    status: 'free', area_useful: 45, area_total: 52, rent_type: 'per_m2',
+    rent_rate: null, utilities_rate: null, has_parking: false, parking_spaces: 0,
+    utilities: null, description: null, address: null, sale_price: null,
+    tenant_name: null, lease_start_date: null, lease_end_date: null,
+    sort_order: n, share_token: `bb00000000000000000000${n}${n}`, share_expires_at: null,
+    created_at: NOW, updated_at: NOW, photos: [], ...over,
+  }
+}
+
+const PROPERTIES = [
+  prop(1, { status: 'occupied', tenant_name: 'ТОВ «Ромашка»', rent_rate: 18, area_useful: 100, area_total: 120, utilities_rate: 2.5 }),
+  prop(2, { status: 'occupied', tenant_name: 'ФОП Іванов', rent_type: 'fixed', rent_rate: 2500, area_useful: 80, area_total: 90 }),
+  prop(3, {}),
+]
+
+async function setupFixtures(page: Page) {
+  await setupApp(page, { user: USER })
+  const json = (route: Route, body: unknown) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+
+  await page.route('**/rest/v1/databases**', (route) => {
+    if (route.request().method() === 'POST') {
+      const body = JSON.parse(route.request().postData() ?? '{}')
+      return json(route, [{ ...DB, ...body, id: '10000000-0000-0000-0000-000000000002', properties: [] }])
+    }
+    const accept = route.request().headers()['accept'] ?? ''
+    return json(route, accept.includes('object') ? DB : [DB])
+  })
+  await page.route('**/rest/v1/properties**', (route) => {
+    const url = route.request().url()
+    const accept = route.request().headers()['accept'] ?? ''
+    if (accept.includes('object')) {
+      const m = url.match(/id=eq\.([0-9a-f-]+)/)
+      const found = PROPERTIES.find(p => p.id === m?.[1]) ?? PROPERTIES[0]
+      return json(route, found)
+    }
+    return json(route, PROPERTIES)
+  })
+  await page.route('**/rest/v1/guest_links**', (route) => {
+    if (route.request().method() === 'POST') {
+      return json(route, [{
+        id: '30000000-0000-0000-0000-000000000001', owner_id: USER.id,
+        property_id: null, db_id: DB_ID, invite_token: 'cc00112233445566778899aa',
+        label: 'Тестовий гість', guest_user_id: null, status: 'pending',
+        claimed_at: null, created_at: NOW,
+      }])
+    }
+    return json(route, [])
+  })
+  await page.route('**/rest/v1/rpc/manage_share', (route) =>
+    json(route, [{ share_token: DB.share_token, share_expires_at: null, error: null }]))
+
+  await page.addInitScript(() => {
+    localStorage.setItem('ob_v1', JSON.stringify(['owner-fab', 'obj-fab', 'realtor-qr', 'col-fab']))
+  })
+}
+
+test('owner: create database form submits', async ({ page }) => {
+  await setupFixtures(page)
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+
+  await page.getByLabel('Створити базу').click()
+  await expect(page.getByText('Нова база')).toBeVisible()
+  await page.getByPlaceholder('БЦ Олімп').fill('БЦ Тест')
+  await page.locator('.type-card', { hasText: 'Бізнес-центр' }).click() // canCreate needs a type
+  const postReq = page.waitForRequest(r => r.url().includes('/rest/v1/databases') && r.method() === 'POST')
+  await page.getByRole('button', { name: 'Створити базу' }).click()
+  await postReq
+})
+
+test('owner: objects — sort, search, select & reorder modes', async ({ page }) => {
+  await setupFixtures(page)
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+  await page.getByText('БЦ Рубін').first().click()
+  await expect(page.getByText('Всі (3)')).toBeVisible()
+
+  // Sort by rent: fixed 2500 (Офіс 102) must come before 100×18=1800 (Офіс 101)
+  await page.getByText('За орендою').click()
+  await expect(page.locator('.obj-t').first()).toHaveText('Офіс 102')
+  await page.getByText('За порядком').click()
+
+  // Search filters the list
+  await page.getByPlaceholder("Пошук об'єкту...").fill('103')
+  await expect(page.locator('.obj-card')).toHaveCount(1)
+  await page.getByPlaceholder("Пошук об'єкту...").fill('')
+
+  // Select mode via the action sheet; "Вибрати все"/"Зняти все" toggle
+  await page.getByLabel('Меню бази').click()
+  await page.getByText("Виділити об'єкти").click()
+  await expect(page.getByText("Оберіть об'єкти для дії")).toBeVisible()
+  await page.getByText('Вибрати все').click()
+  await expect(page.getByText('Зняти все')).toBeVisible()
+  await page.getByText('Зняти все').click()
+  await page.getByRole('button', { name: 'Скасувати' }).click()  // exit select mode (header)
+  await expect(page.getByText('Всі (3)')).toBeVisible()
+
+  // Reorder mode via the action sheet
+  await page.getByLabel('Меню бази').click()
+  await page.getByText('Змінити порядок').click()
+  await expect(page.getByText(/Натисніть ↑ або ↓/)).toBeVisible()
+  await page.getByText('Готово').click()  // exit reorder mode
+})
+
+test('owner: property detail and form validation logic', async ({ page }) => {
+  await setupFixtures(page)
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+  await page.getByText('БЦ Рубін').first().click()
+  await expect(page.getByText('Всі (3)')).toBeVisible()
+
+  // Property detail opens from a card (card view shows the object name)
+  await page.locator('.obj-card', { hasText: 'Офіс 101' }).click()
+  await expect(page.getByText('Назад', { exact: true }).first()).toBeVisible()
+
+  // Back to objects, then new-property form validation
+  await page.getByText('Назад', { exact: true }).first().click()
+  await expect(page.getByText('Всі (3)')).toBeVisible()
+  await page.getByLabel("Додати об'єкт").click()
+  await expect(page.getByText("Новий об'єкт")).toBeVisible()
+
+  await page.getByPlaceholder('Офіс 101').fill('Тест-об\'єкт')
+  await page.getByPlaceholder('47').fill('100')  // useful
+  await page.getByPlaceholder('52').fill('50')   // total < useful → error
+  await page.getByRole('button', { name: "Додати об'єкт" }).click()
+  await expect(page.getByText('Корисна площа більша за загальну')).toBeVisible()
+
+  // negative rate → error
+  await page.getByPlaceholder('52').fill('120')
+  await page.getByPlaceholder('18').fill('-5')
+  await page.getByRole('button', { name: "Додати об'єкт" }).click()
+  await expect(page.getByText("Значення не може бути від'ємним")).toBeVisible()
+})
+
+test('owner: calendar, guests, notifications, profile screens open cleanly', async ({ page }) => {
+  await setupFixtures(page)
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+  await page.getByText('БЦ Рубін').first().click()
+  await expect(page.getByText('Всі (3)')).toBeVisible()
+
+  // Payment calendar
+  await page.getByLabel('Меню бази').click()
+  await page.getByText('Календар платежів').click()
+  await expect(page.locator('.retry-h')).toHaveCount(0)
+  await expect(page.getByText('Назад', { exact: true }).first()).toBeVisible()
+  await page.getByText('Назад', { exact: true }).first().click()
+
+  // Manage guests: create an invite
+  await page.getByLabel('Меню бази').click()
+  await page.getByText('Управління гостями').click()
+  await page.getByLabel('Запросити гостя').click()
+  const createBtn = page.getByRole('button', { name: /Створити/ })
+  await createBtn.click()
+  await expect(page.getByText(/Посилання створено/)).toBeVisible()
+
+  // Notifications via tab bar (header bell removed — tab is the only entry)
+  await page.locator('.modal-overlay').click({ position: { x: 10, y: 10 } }).catch(() => {})
+  await page.getByText('Назад', { exact: true }).first().click().catch(() => {})
+  await page.locator('.tabbar [aria-label="Сповіщення"]').click()
+  await expect(page.getByText('Немає сповіщень')).toBeVisible()
+
+  // Profile via tab bar
+  await page.locator('.tabbar [aria-label="Профіль"]').click()
+  await expect(page.getByText('Налаштування')).toBeVisible()
+})

@@ -40,7 +40,8 @@ beforeEach(() => {
 
 describe('useDeepLink — db_ database share links', () => {
   it('owner tapping their own share link resets history and opens db-objects', async () => {
-    rpcMock.mockResolvedValueOnce({ data: [{ id: 'db-1', owner_id: OWNER.id, share_expires_at: null }], error: null })
+    // subscribe_to_shared_db returns error:'own_db' when the caller owns the db.
+    rpcMock.mockResolvedValueOnce({ data: [{ db_id: 'db-1', db_name: 'БЦ', error: 'own_db' }], error: null })
     installTelegramMock({ user: { id: OWNER.tg_id, first_name: 'Test' }, startParam: 'db_TOKEN1' })
     useAppStore.setState({ user: OWNER })
 
@@ -48,31 +49,25 @@ describe('useDeepLink — db_ database share links', () => {
 
     await waitFor(() => expect(useAppStore.getState().screen).toBe('db-objects'))
     expect(useAppStore.getState().screenParams.dbId).toBe('db-1')
-    expect(rpcMock).toHaveBeenCalledWith('lookup_shared_db', { p_token: 'TOKEN1' })
+    expect(rpcMock).toHaveBeenCalledWith('subscribe_to_shared_db', { p_token: 'TOKEN1' })
   })
 
   it('a realtor opening someone else\'s share link subscribes and opens realtor-database', async () => {
-    rpcMock.mockResolvedValueOnce({ data: [{ id: 'db-1', owner_id: OWNER.id, share_expires_at: null }], error: null })
-    const upsert = vi.fn().mockResolvedValue({ error: null })
-    fromMock.mockImplementation((table: string) => {
-      if (table === 'realtor_subscriptions') return { upsert }
-      return freshUserQuery()
-    })
+    // The RPC validates token+expiry and creates the subscription server-side.
+    rpcMock.mockResolvedValueOnce({ data: [{ db_id: 'db-1', db_name: 'БЦ', error: null }], error: null })
     installTelegramMock({ user: { id: REALTOR.tg_id, first_name: 'Realtor' }, startParam: 'db_TOKEN1' })
     useAppStore.setState({ user: REALTOR })
 
     renderHook(() => useDeepLink())
 
     await waitFor(() => expect(useAppStore.getState().screen).toBe('realtor-database'))
-    expect(upsert).toHaveBeenCalledWith(
-      { realtor_id: REALTOR.id, db_id: 'db-1' },
-      { onConflict: 'realtor_id,db_id' }
-    )
+    expect(useAppStore.getState().screenParams.dbId).toBe('db-1')
+    expect(rpcMock).toHaveBeenCalledWith('subscribe_to_shared_db', { p_token: 'TOKEN1' })
   })
 
   it('an expired share link shows an error toast and does not navigate to db-objects', async () => {
-    const pastDate = new Date(Date.now() - 86400000).toISOString()
-    rpcMock.mockResolvedValueOnce({ data: [{ id: 'db-1', owner_id: OWNER.id, share_expires_at: pastDate }], error: null })
+    // 036 filters expired tokens server-side → the RPC returns error:'not_found'.
+    rpcMock.mockResolvedValueOnce({ data: [{ db_id: null, db_name: null, error: 'not_found' }], error: null })
     installTelegramMock({ user: { id: REALTOR.tg_id, first_name: 'Realtor' }, startParam: 'db_TOKEN1' })
     useAppStore.setState({ user: REALTOR })
 
