@@ -9,7 +9,7 @@ import { StatusBadge } from '@/components/ui/Badge'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import { IconShare, IconPhoto, IconMessage, IconBuilding, IconRuler, IconParking, IconCalendar } from '@/components/Icons'
 import { sharePublicUrl } from '@/lib/telegram'
-import { formatPrice, calcRent, calcUtilities, DB_TYPE_LABELS, getInitials, formatLeasePeriod } from '@/lib/utils'
+import { formatPrice, calcRentUtils, DB_TYPE_LABELS, getInitials, formatLeasePeriod } from '@/lib/utils'
 import type { Database, Property, PropertyStatus, User } from '@/types'
 
 export default function RealtorDatabaseScreen() {
@@ -149,9 +149,7 @@ export default function RealtorDatabaseScreen() {
         ) : (
           <div className="list" style={{ marginBottom: 80 }}>
             {filtered.map((p) => {
-              const rent = p.rent_rate && p.area_useful ? calcRent(p.area_useful, p.rent_rate, p.rent_type) : 0
-              const utils = p.utilities_rate && p.area_total ? calcUtilities(p.area_total, p.utilities_rate) : 0
-              const total = rent + utils
+              const { total } = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate)
 
               return (
                 <div

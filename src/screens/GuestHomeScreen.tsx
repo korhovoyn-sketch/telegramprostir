@@ -7,6 +7,7 @@ import TabBar from '@/components/ui/TabBar'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import { IconKey, IconBuilding } from '@/components/Icons'
 import { StatusBadge } from '@/components/ui/Badge'
+import { greeting } from '@/lib/utils'
 import type { GuestLink } from '@/types'
 
 export default function GuestHomeScreen() {
@@ -40,8 +41,7 @@ export default function GuestHomeScreen() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
-  const hour = new Date().getHours()
-  const greet = hour < 12 ? 'Доброго ранку' : hour < 17 ? 'Добрий день' : 'Добрий вечір'
+  const greet = greeting()
 
   return (
     <div className="scr bg-teal">

@@ -39,10 +39,6 @@ export function formatPrice(amount: number, currency = 'USD'): string {
   return `₴${amount.toLocaleString('uk-UA')}`
 }
 
-export function formatArea(m2: number): string {
-  return `${m2} м²`
-}
-
 export function formatLeaseDate(d: string): string {
   return new Date(d).toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
@@ -81,30 +77,32 @@ export function calcUtilities(areaTotal: number, utilitiesRate: number): number 
   return Math.round(areaTotal * utilitiesRate)
 }
 
-export function calcTotal(
-  areaUseful: number,
-  areaTotal: number,
-  rentRate: number,
-  rentType: string,
-  utilitiesRate: number
-): number {
-  const rent = calcRent(areaUseful, rentRate, rentType)
-  const utils = calcUtilities(areaTotal, utilitiesRate)
-  return rent + utils
+// Single source of truth for the rent + utilities monthly total. Mirrors the
+// guard the screens used inline (rent needs a rate + useful area; utilities need
+// a rate + total area) so every surface — cards, detail, /v — shows the same
+// number. Accepts loose nullable numbers so it fits both Property and the /v
+// preview row shapes.
+export function calcRentUtils(
+  areaUseful: number | null | undefined,
+  areaTotal: number | null | undefined,
+  rentRate: number | null | undefined,
+  rentType: string | null | undefined,
+  utilitiesRate: number | null | undefined,
+): { rent: number; utils: number; total: number } {
+  const rent = rentRate && areaUseful ? calcRent(areaUseful, rentRate, rentType ?? 'per_m2') : 0
+  const utils = utilitiesRate && areaTotal ? calcUtilities(areaTotal, utilitiesRate) : 0
+  return { rent, utils, total: rent + utils }
+}
+
+export function greeting(): string {
+  const hour = new Date().getHours()
+  return hour < 12 ? 'Доброго ранку' : hour < 17 ? 'Добрий день' : 'Добрий вечір'
 }
 
 export function getInitials(firstName: string, lastName?: string): string {
   const f = firstName.charAt(0).toUpperCase()
   const l = lastName ? lastName.charAt(0).toUpperCase() : ''
   return f + l
-}
-
-export function freshnessLabel(updatedAt: string): { label: string; cls: string } {
-  const days = Math.floor((Date.now() - new Date(updatedAt).getTime()) / 86400000)
-  if (days === 0) return { label: 'сьогодні', cls: 'fresh' }
-  if (days <= 3) return { label: `${days}д тому`, cls: 'fresh' }
-  if (days <= 7) return { label: `${days}д тому`, cls: 'stale' }
-  return { label: `${days}д тому`, cls: 'old' }
 }
 
 export const DB_TYPE_LABELS: Record<string, string> = {
@@ -114,24 +112,6 @@ export const DB_TYPE_LABELS: Record<string, string> = {
   warehouse: 'Склади',
   individual: 'Приватне',
   parking: 'Паркінг',
-}
-
-export const DB_TYPE_ICONS: Record<string, string> = {
-  business_center: 'ti-building-skyscraper',
-  residential: 'ti-building-community',
-  retail: 'ti-building-store',
-  warehouse: 'ti-building-warehouse',
-  individual: 'ti-home',
-  parking: 'ti-car-garage',
-}
-
-export const DB_TYPE_EMOJI: Record<string, string> = {
-  business_center: '🏢',
-  residential: '🏘',
-  retail: '🏪',
-  warehouse: '🏭',
-  individual: '🏠',
-  parking: '🅿️',
 }
 
 export const STATUS_LABELS: Record<string, string> = {

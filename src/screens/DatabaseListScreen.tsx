@@ -11,7 +11,7 @@ import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import CoachMark from '@/components/ui/CoachMark'
 import { useOnboarding } from '@/hooks/useOnboarding'
 import { IconChevronRight, IconPlus, GlassDbIcon } from '@/components/Icons'
-import { DB_TYPE_LABELS, formatPrice, STATUS_COLORS, STATUS_LABELS } from '@/lib/utils'
+import { DB_TYPE_LABELS, formatPrice, STATUS_COLORS, STATUS_LABELS, greeting } from '@/lib/utils'
 import type { PropertyStatus } from '@/types'
 
 interface PropSearchResult {
@@ -82,8 +82,7 @@ export default function DatabaseListScreen() {
     income:   databases.reduce((s, d) => s + (d._monthly_income  ?? 0), 0),
   }), [databases])
 
-  const hour  = new Date().getHours()
-  const greet = hour < 12 ? 'Доброго ранку' : hour < 17 ? 'Добрий день' : 'Добрий вечір'
+  const greet = greeting()
   const showPropResults = search.length >= 3
 
   return (
