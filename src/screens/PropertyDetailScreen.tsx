@@ -10,7 +10,7 @@ import { StatusBadge } from '@/components/ui/Badge'
 import { IconEdit, IconShare, IconMapPin, IconPhoto, IconX, IconCamera, IconRuler, IconBuildingSkyscraper, IconCircleCheck, IconCurrencyDollar, IconCarGarage, IconUser, IconKey, IconBolt, IconCalendar, IconFile } from '@/components/Icons'
 import FilesList from '@/components/ui/FilesList'
 import FloatingButton from '@/components/ui/FloatingButton'
-import { formatPrice, calcRent, calcUtilities, STATUS_LABELS, formatLeasePeriod, photoUrl, daysUntil } from '@/lib/utils'
+import { formatPrice, calcRent, calcUtilities, calcRentUtils, STATUS_LABELS, formatLeasePeriod, photoUrl, daysUntil } from '@/lib/utils'
 import { UTILITY_META } from '@/lib/utilityMeta'
 import { supabase } from '@/lib/supabase'
 
@@ -186,13 +186,7 @@ export default function PropertyDetailScreen() {
     </div>
   )
 
-  const rent = property.rent_rate && property.area_useful
-    ? calcRent(property.area_useful, property.rent_rate, property.rent_type)
-    : 0
-  const utils = property.utilities_rate && property.area_total
-    ? calcUtilities(property.area_total, property.utilities_rate)
-    : 0
-  const total = rent + utils
+  const { rent, utils, total } = calcRentUtils(property.area_useful, property.area_total, property.rent_rate, property.rent_type, property.utilities_rate)
   const photos = property.photos ?? []
 
   function openGallery(index: number) {

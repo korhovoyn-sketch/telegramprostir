@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import {
-  formatPrice, formatArea, formatLeaseDate, formatLeasePeriod, formatDate,
-  calcRent, calcUtilities, calcTotal, getInitials, freshnessLabel, withRetry,
+  formatPrice, formatLeaseDate, formatLeasePeriod, formatDate,
+  calcRent, calcUtilities, calcRentUtils, getInitials, greeting, withRetry,
 } from '@/lib/utils'
 
 describe('formatPrice', () => {
@@ -9,10 +9,6 @@ describe('formatPrice', () => {
   it('prefixes EUR with €', () => expect(formatPrice(1000, 'EUR')).toContain('€'))
   it('falls back to ₴ for other currencies', () => expect(formatPrice(1000, 'UAH')).toContain('₴'))
   it('defaults to USD when no currency given', () => expect(formatPrice(500)).toContain('$'))
-})
-
-describe('formatArea', () => {
-  it('appends м²', () => expect(formatArea(42)).toBe('42 м²'))
 })
 
 describe('formatLeasePeriod', () => {
@@ -69,11 +65,19 @@ describe('calcUtilities', () => {
     expect(calcUtilities(100, 5)).toBe(500))
 })
 
-describe('calcTotal', () => {
+describe('calcRentUtils', () => {
   it('sums rent + utilities (per_m2)', () =>
-    expect(calcTotal(50, 100, 20, 'per_m2', 5)).toBe(1000 + 500))
-  it('sums flat rent + utilities', () =>
-    expect(calcTotal(50, 100, 800, 'fixed', 5)).toBe(800 + 500))
+    expect(calcRentUtils(50, 100, 20, 'per_m2', 5).total).toBe(1000 + 500))
+  it('sums flat rent + utilities (fixed rent ignores area)', () =>
+    expect(calcRentUtils(50, 100, 800, 'fixed', 5).total).toBe(800 + 500))
+  it('rent is 0 when rate or useful area missing', () => {
+    expect(calcRentUtils(null, 100, 20, 'per_m2', 5).rent).toBe(0)
+    expect(calcRentUtils(50, 100, null, 'per_m2', 5).rent).toBe(0)
+  })
+  it('utils keyed off total area, 0 when missing', () => {
+    expect(calcRentUtils(50, null, 20, 'per_m2', 5).utils).toBe(0)
+    expect(calcRentUtils(50, 100, 20, 'per_m2', null).utils).toBe(0)
+  })
 })
 
 describe('getInitials', () => {
@@ -83,17 +87,9 @@ describe('getInitials', () => {
     expect(getInitials('петро')).toBe('П'))
 })
 
-describe('freshnessLabel', () => {
-  it('today => fresh', () =>
-    expect(freshnessLabel(new Date().toISOString()).cls).toBe('fresh'))
-  it('5 days => stale', () => {
-    const d = new Date(Date.now() - 5 * 86_400_000).toISOString()
-    expect(freshnessLabel(d).cls).toBe('stale')
-  })
-  it('30 days => old', () => {
-    const d = new Date(Date.now() - 30 * 86_400_000).toISOString()
-    expect(freshnessLabel(d).cls).toBe('old')
-  })
+describe('greeting', () => {
+  it('returns one of the three Ukrainian greetings', () =>
+    expect(['Доброго ранку', 'Добрий день', 'Добрий вечір']).toContain(greeting()))
 })
 
 describe('withRetry', () => {

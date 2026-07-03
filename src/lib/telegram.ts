@@ -45,8 +45,3 @@ export function openTelegramShare(url: string, text?: string): void {
 export function sharePublicUrl(type: 'prop' | 'db' | 'col', token: string, text?: string): void {
   openTelegramShare(buildPublicUrl(type, token), text)
 }
-
-/** @deprecated Use sharePublicUrl for new share flows */
-export function shareDeepLink(startParam: string, text?: string): void {
-  openTelegramShare(buildDeepLink(startParam), text)
-}

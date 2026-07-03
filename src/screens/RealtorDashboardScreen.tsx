@@ -7,7 +7,7 @@ import TabBar from '@/components/ui/TabBar'
 import SearchBar from '@/components/ui/SearchBar'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import { IconChevronRight, GlassDbIcon } from '@/components/Icons'
-import { DB_TYPE_LABELS } from '@/lib/utils'
+import { DB_TYPE_LABELS, greeting } from '@/lib/utils'
 import type { Database, RealtorSubscription } from '@/types'
 import CoachMark from '@/components/ui/CoachMark'
 import { useOnboarding } from '@/hooks/useOnboarding'
@@ -64,8 +64,7 @@ export default function RealtorDashboardScreen() {
     s.database?.name.toLowerCase().includes(search.toLowerCase()) ?? false
   )
 
-  const hour = new Date().getHours()
-  const greet = hour < 12 ? 'Доброго ранку' : hour < 17 ? 'Добрий день' : 'Добрий вечір'
+  const greet = greeting()
 
   return (
     <div className="scr bg-cyan">
