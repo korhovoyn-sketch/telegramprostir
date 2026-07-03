@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { TG_BOT, buildDeepLink } from '@/lib/telegram'
 import { IconBuilding, IconRuler, IconMapPin, IconCurrencyDollar } from '@/components/Icons'
-import { photoUrl } from '@/lib/utils'
+import { photoUrl, calcRentUtils } from '@/lib/utils'
 
 // ── data types returned by the RPCs ──────────────────────────────────────────
 
@@ -356,15 +356,15 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
   const deepLink = buildDeepLink(`prop_${token}`)
   const status = data.property_status
 
-  const rentTotal = (() => {
-    const rate = data.property_rent_rate
-    const utils = data.property_utilities_rate
-    const area = data.property_area_useful ?? data.property_area_total
-    if (!rate) return null
-    const rent = data.property_rent_type === 'fixed' ? rate : rate * (area ?? 0)
-    const u = utils && area ? utils * area : 0
-    return rent + u
-  })()
+  // Use the same helper as the app so the public page shows an identical figure
+  // (rounding + utilities keyed off total area, not useful area).
+  const { total: rentTotal } = calcRentUtils(
+    data.property_area_useful,
+    data.property_area_total,
+    data.property_rent_rate,
+    data.property_rent_type,
+    data.property_utilities_rate,
+  )
 
   return (
     <div style={s.wrap}>
@@ -457,7 +457,7 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
                 </span>
               </div>
             )}
-            {rentTotal && rentTotal > 0 && (
+            {rentTotal > 0 && (
               <>
                 <div style={{ height: .5, background: 'rgba(255,255,255,.1)', margin: '4px 0' }} />
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

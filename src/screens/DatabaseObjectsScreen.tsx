@@ -12,7 +12,7 @@ import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import Modal from '@/components/ui/Modal'
 import { IconPlus, IconDots, IconPhoto, IconShare, IconChevronUp, IconChevronDown, GlassDbIcon, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconFile, IconLayers, IconLayoutGrid, IconChartBar, IconKey, IconFileExport, IconCircleCheck, IconAdjustments, IconTrash, IconChevronRight } from '@/components/Icons'
 import DatabaseStatsPanel from '@/components/ui/DatabaseStatsPanel'
-import { formatPrice, calcRent, calcUtilities, DB_TYPE_LABELS, formatLeasePeriod } from '@/lib/utils'
+import { formatPrice, calcRent, calcRentUtils, DB_TYPE_LABELS, formatLeasePeriod } from '@/lib/utils'
 import type { PropertyStatus } from '@/types'
 import CoachMark from '@/components/ui/CoachMark'
 import { useOnboarding } from '@/hooks/useOnboarding'
@@ -309,13 +309,7 @@ export default function DatabaseObjectsScreen() {
         ) : (
           <div className="list">
             {filtered.map((p, idx) => {
-              const rent = p.rent_rate && p.area_useful
-                ? calcRent(p.area_useful, p.rent_rate, p.rent_type)
-                : 0
-              const utils = p.utilities_rate && p.area_total
-                ? calcUtilities(p.area_total, p.utilities_rate)
-                : 0
-              const total = rent + utils
+              const { rent, utils, total } = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate)
 
               if (compactView) {
                 const title = p.tenant_name?.trim() || p.name
@@ -515,7 +509,7 @@ export default function DatabaseObjectsScreen() {
                           )}
                           <button
                             className="obj-act-btn"
-                            onClick={() => navigate('property-detail', { propertyId: p.id, dbId: db.id })}
+                            onClick={() => navigate('property-detail', { propertyId: p.id, dbId: db.id, scrollTo: 'files' })}
                           >
                             <IconFile size={13} /> Файли
                           </button>
