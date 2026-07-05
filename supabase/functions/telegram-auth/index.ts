@@ -1,47 +1,14 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 import { z } from 'https://esm.sh/zod@3.23.8'
+import { allowedOrigin, corsHeadersFor, serializeError } from '../_shared/cors.ts'
+
+// This function's allowed methods (shared corsHeadersFor takes it as a param).
+const CORS_METHODS = 'POST, OPTIONS, GET'
 
 // Schema for request body — rejects malformed payloads before any processing
 const RequestSchema = z.object({
   initData: z.string().min(10).max(4096),
 })
-
-// Restrict CORS to the Mini App origin set via ALLOWED_ORIGIN secret.
-// REQUIRED: must be explicitly set. Default '*' is a security risk for the
-// real auth response (it carries a session token).
-//
-// IMPORTANT: this is read lazily inside the request handler, NOT thrown at
-// module top level. A top-level throw runs before Deno.serve() is ever
-// reached, so Deno never registers a request handler at all — every request,
-// including the OPTIONS preflight, then fails with no CORS headers whatsoever.
-// The browser reports that to JS as a bare network error, indistinguishable
-// from "no internet" (see useAuth.ts's generic fetch-failure message) — so a
-// missing/misconfigured secret silently locks EVERY user out with a message
-// that sends them looking at their Wi-Fi instead of the Supabase dashboard.
-// Computing CORS headers per-request lets a misconfiguration still return a
-// readable, actionable CONFIG_ERROR instead of an opaque connection failure.
-const _allowedOrigin = Deno.env.get('ALLOWED_ORIGIN') ?? null
-
-function corsHeadersFor(reqOrigin: string | null): Record<string, string> {
-  if (_allowedOrigin) {
-    return {
-      'Access-Control-Allow-Origin': _allowedOrigin,
-      'Access-Control-Allow-Methods': 'POST, OPTIONS, GET',
-      'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-      'Access-Control-Max-Age': '86400',
-    }
-  }
-  // Misconfigured: no real auth response is ever returned on this path (see
-  // the CONFIG_ERROR short-circuit below) — the response body never carries a
-  // token or user data, so reflecting the caller's Origin here only makes the
-  // diagnostic itself readable; it does not expose anything an attacker could
-  // use, and it does not weaken the real (configured) case above.
-  return {
-    'Access-Control-Allow-Origin': reqOrigin ?? '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS, GET',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  }
-}
 
 // ── Safe error codes (exposed to client — no internal detail) ────────────────
 // These let the client show an actionable Ukrainian message without leaking
@@ -173,14 +140,6 @@ async function derivePassword(serviceKey: string, email: string): Promise<string
   return Array.from(new Uint8Array(sig)).map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 
-function serializeError(err: unknown): string {
-  if (err instanceof Error) return err.message
-  if (typeof err === 'object' && err !== null && 'message' in err) {
-    return String((err as { message: unknown }).message)
-  }
-  return JSON.stringify(err)
-}
-
 // Classify a caught error message into a safe ErrCode for the client.
 // None of the raw messages are returned to the client — only the code.
 function classifyError(msg: string): ErrCode {
@@ -197,7 +156,7 @@ function classifyError(msg: string): ErrCode {
 }
 
 Deno.serve(async (req) => {
-  const cors = corsHeadersFor(req.headers.get('Origin'))
+  const cors = corsHeadersFor(req.headers.get('Origin'), CORS_METHODS)
 
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: cors })
@@ -211,7 +170,7 @@ Deno.serve(async (req) => {
   // instead of the caller just seeing a generic connection failure.
   if (req.method === 'GET') {
     const checks = {
-      allowed_origin: !!_allowedOrigin,
+      allowed_origin: !!allowedOrigin,
       bot_token:   !!Deno.env.get('TELEGRAM_BOT_TOKEN'),
       supabase_url: !!Deno.env.get('SUPABASE_URL'),
       service_key:  !!Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'),
@@ -242,7 +201,7 @@ Deno.serve(async (req) => {
   // '*' for the token-bearing success response), but return a response the
   // browser can actually read so the client shows an actionable message
   // instead of a bare "check your internet" failure.
-  if (!_allowedOrigin) {
+  if (!allowedOrigin) {
     return errResponse(cors, 500, 'ALLOWED_ORIGIN not configured', 'CONFIG_ERROR')
   }
 
