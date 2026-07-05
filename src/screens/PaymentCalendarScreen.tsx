@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useAppStore } from '@/store/appStore'
+import { hapticImpact, hapticNotify } from '@/lib/telegram'
 import { offlineGuard } from '@/lib/offline'
 import { supabase } from '@/lib/supabase'
 import Header from '@/components/ui/Header'
@@ -265,7 +266,7 @@ export default function PaymentCalendarScreen() {
     if (!user) return
     if (offlineGuard()) return
     setPayConfirmSaving(true)
-    window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('light')
+    hapticImpact('light')
     try {
       const { data, error } = await supabase
         .from('rent_payment_records')
@@ -284,7 +285,7 @@ export default function PaymentCalendarScreen() {
         )
         .select('id,property_id,owner_id,due_date,paid_at,amount,status,notes,created_at,updated_at').single()
       if (error) throw error
-      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
+      hapticNotify('success')
       const rec = data as RentPaymentRecord
       setRecords(prev => {
         const idx = prev.findIndex(r => r.property_id === item.property.id && r.due_date === item.dueDate)
@@ -699,7 +700,7 @@ export default function PaymentCalendarScreen() {
           subtitle={`Розклад платежів для «${deleteScheduleProp.name}» буде видалено.`}
           onClose={() => setDeleteScheduleProp(null)}
           actions={[
-            { label: 'Видалити', variant: 'danger', onClick: () => { window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('warning'); handleDeleteSchedule() } },
+            { label: 'Видалити', variant: 'danger', onClick: () => { hapticNotify('warning'); handleDeleteSchedule() } },
             { label: 'Скасувати', variant: 'secondary', onClick: () => setDeleteScheduleProp(null) },
           ]}
         />

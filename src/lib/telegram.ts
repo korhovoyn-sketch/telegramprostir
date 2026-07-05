@@ -3,6 +3,27 @@ export const TG_BOT = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME ?? ''
 /** Mini App short name from BotFather (/newapp). Enables direct-link format. */
 const TG_APP = process.env.NEXT_PUBLIC_TELEGRAM_APP_NAME ?? ''
 
+// ── Haptics ──────────────────────────────────────────────────────────────────
+// Read window.Telegram directly (optional-chained) so these work from event
+// handlers, hooks, and plain modules alike — no hook/tg-state wiring, no throw
+// when opened outside Telegram. Replaces the inline
+// window.Telegram?.WebApp?.HapticFeedback?.… calls scattered across the app.
+
+/** Light selection tick — segment/toggle/tab changes. */
+export function hapticSelection(): void {
+  window.Telegram?.WebApp?.HapticFeedback?.selectionChanged()
+}
+
+/** Physical impact — taps that commit or open something. */
+export function hapticImpact(style: 'light' | 'medium' | 'heavy' = 'light'): void {
+  window.Telegram?.WebApp?.HapticFeedback?.impactOccurred(style)
+}
+
+/** Outcome feedback — success / error / warning. */
+export function hapticNotify(type: 'success' | 'error' | 'warning'): void {
+  window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred(type)
+}
+
 /**
  * Build a Telegram Mini App deep-link.
  * Direct-link format (t.me/bot/app?startapp=) launches the Mini App

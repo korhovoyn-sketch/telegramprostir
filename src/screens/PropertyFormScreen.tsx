@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useAppStore } from '@/store/appStore'
+import { hapticSelection, hapticNotify } from '@/lib/telegram'
 import { offlineGuard } from '@/lib/offline'
 import { useProperties } from '@/hooks/useProperties'
 import Header from '@/components/ui/Header'
@@ -79,7 +80,7 @@ export default function PropertyFormScreen() {
   const total = rentCalc + utilsCalc
 
   function toggleUtility(id: string) {
-    window.Telegram?.WebApp?.HapticFeedback?.selectionChanged()
+    hapticSelection()
     setUtilities(prev =>
       prev.includes(id) ? prev.filter(u => u !== id) : [...prev, id]
     )
@@ -97,7 +98,7 @@ export default function PropertyFormScreen() {
 
   async function handleSave() {
     if (!canSave || !screenParams.dbId) return
-    if (!isOnline) window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('error')
+    if (!isOnline) hapticNotify('error')
     if (offlineGuard()) return
 
     // Reject non-numeric values the browser's number input allows on some Android keyboards
@@ -130,7 +131,7 @@ export default function PropertyFormScreen() {
       showToast({ type: 'error', title: 'Дата закінчення оренди раніше початку' })
       return
     }
-    window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
+    hapticNotify('success')
     const payload = {
       db_id: screenParams.dbId!,
       name: name.trim(),
@@ -206,7 +207,7 @@ export default function PropertyFormScreen() {
                 { v: 'occupied', l: 'Зайнято' },
                 { v: 'for_sale', l: 'Продаж' },
               ] as const).map(({ v, l }) => (
-                <div key={v} className={`fr-seg-b ${status === v ? 'on' : ''}`} onClick={() => { window.Telegram?.WebApp?.HapticFeedback?.selectionChanged(); setStatus(v) }}>{l}</div>
+                <div key={v} className={`fr-seg-b ${status === v ? 'on' : ''}`} onClick={() => { hapticSelection(); setStatus(v) }}>{l}</div>
               ))}
             </div>
           </div>
@@ -270,8 +271,8 @@ export default function PropertyFormScreen() {
           <div className="fr">
             <span className="fr-l">Тип</span>
             <div className="fr-seg" style={{ maxWidth: 180 }}>
-              <div className={`fr-seg-b ${rentType === 'per_m2' ? 'on' : ''}`} onClick={() => { window.Telegram?.WebApp?.HapticFeedback?.selectionChanged(); setRentType('per_m2') }}>$ за м²</div>
-              <div className={`fr-seg-b ${rentType === 'fixed' ? 'on' : ''}`} onClick={() => { window.Telegram?.WebApp?.HapticFeedback?.selectionChanged(); setRentType('fixed') }}>Фікс. сума</div>
+              <div className={`fr-seg-b ${rentType === 'per_m2' ? 'on' : ''}`} onClick={() => { hapticSelection(); setRentType('per_m2') }}>$ за м²</div>
+              <div className={`fr-seg-b ${rentType === 'fixed' ? 'on' : ''}`} onClick={() => { hapticSelection(); setRentType('fixed') }}>Фікс. сума</div>
             </div>
           </div>
           <div className="fr hi-row">
@@ -399,7 +400,7 @@ export default function PropertyFormScreen() {
           subtitle={`Об'єкт "${name}" буде видалено. Це незворотно.`}
           onClose={() => setShowDeleteModal(false)}
           actions={[
-            { label: 'Видалити', variant: 'danger', onClick: async () => { window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('warning'); await deleteProperty(editId, screenParams.dbId!); setShowDeleteModal(false) } },
+            { label: 'Видалити', variant: 'danger', onClick: async () => { hapticNotify('warning'); await deleteProperty(editId, screenParams.dbId!); setShowDeleteModal(false) } },
             { label: 'Скасувати', variant: 'secondary', onClick: () => setShowDeleteModal(false) },
           ]}
         />

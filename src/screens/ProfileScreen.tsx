@@ -8,7 +8,7 @@ import TabBar from '@/components/ui/TabBar'
 import Toggle from '@/components/ui/Toggle'
 import Modal from '@/components/ui/Modal'
 import { IconMail, IconPhone, IconLanguage, IconCurrencyDollar, IconLogout, GlassCrown, IconBell, IconBellRing, IconChartLine, IconEye, IconMessage, IconAdjustments } from '@/components/Icons'
-import { TG_BOT } from '@/lib/telegram'
+import { TG_BOT , hapticSelection } from '@/lib/telegram'
 import { getInitials, scrollFocusedIntoView } from '@/lib/utils'
 
 export default function ProfileScreen() {
@@ -48,7 +48,7 @@ export default function ProfileScreen() {
   async function handleLangChange(lang: 'uk' | 'en') {
     if ((user?.language_code ?? 'uk') === lang) return
     if (offlineGuard()) return
-    window.Telegram?.WebApp?.HapticFeedback?.selectionChanged()
+    hapticSelection()
     setSavingLang(true)
     await updateProfile({ language_code: lang })
     setSavingLang(false)
@@ -57,7 +57,7 @@ export default function ProfileScreen() {
   async function handleCurrencyChange(cur: 'USD' | 'UAH' | 'EUR') {
     if ((user?.currency ?? 'USD') === cur) return
     if (offlineGuard()) return
-    window.Telegram?.WebApp?.HapticFeedback?.selectionChanged()
+    hapticSelection()
     setSavingCur(true)
     await updateProfile({ currency: cur })
     setSavingCur(false)

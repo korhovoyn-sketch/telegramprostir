@@ -3,6 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 import { useState, useRef, useEffect } from 'react'
 import { useAppStore } from '@/store/appStore'
+import { hapticImpact } from '@/lib/telegram'
 import { IconX, IconShare, IconDownload, IconChevronLeft, IconChevronRight } from '@/components/Icons'
 import type { PropertyPhoto } from '@/types'
 import { photoUrl } from '@/lib/utils'
@@ -38,11 +39,11 @@ export default function PhotoGalleryScreen() {
     if (dy > 60) return // vertical scroll, ignore
     if (dx < -50) {
       // swipe left → next
-      window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('light')
+      hapticImpact('light')
       setCurrent((i) => Math.min(i + 1, photos.length - 1))
     } else if (dx > 50) {
       // swipe right → prev
-      window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('light')
+      hapticImpact('light')
       setCurrent((i) => Math.max(i - 1, 0))
     }
   }

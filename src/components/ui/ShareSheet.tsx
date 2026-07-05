@@ -7,7 +7,7 @@ import { useAppStore } from '@/store/appStore'
 import { offlineGuard } from '@/lib/offline'
 import { supabase } from '@/lib/supabase'
 import Modal from '@/components/ui/Modal'
-import { buildPublicUrl, openTelegramShare } from '@/lib/telegram'
+import { buildPublicUrl, openTelegramShare , hapticNotify } from '@/lib/telegram'
 import { copyLink } from '@/lib/share'
 import { formatLeaseDate } from '@/lib/utils'
 import { IconRefresh, IconBan, IconChevronRight, IconClock } from '@/components/Icons'
@@ -80,7 +80,7 @@ export default function ShareSheet({ kind, id, name, shareText, onClose }: Share
       if (!row || row.error) throw new Error(row?.error ?? 'empty response')
       setToken(row.share_token)
       setExpiresAt(row.share_expires_at)
-      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
+      hapticNotify('success')
       if (action === 'rotate') showToast({ type: 'success', title: 'Посилання оновлено', subtitle: 'Старе посилання більше не діє' })
       if (action === 'revoke') showToast({ type: 'success', title: 'Доступ відкликано' })
     } catch {

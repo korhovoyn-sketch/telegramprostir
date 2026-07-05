@@ -8,7 +8,7 @@ import SearchBar from '@/components/ui/SearchBar'
 import { StatusBadge } from '@/components/ui/Badge'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import { IconShare, IconPhoto, IconMessage, IconBuilding, IconRuler, IconParking, IconCalendar } from '@/components/Icons'
-import { sharePublicUrl } from '@/lib/telegram'
+import { sharePublicUrl , hapticSelection } from '@/lib/telegram'
 import { formatPrice, calcRentUtils, DB_TYPE_LABELS, getInitials, formatLeasePeriod, humanizeDbError } from '@/lib/utils'
 import type { Database, Property, PropertyStatus, User } from '@/types'
 
@@ -125,7 +125,7 @@ export default function RealtorDatabaseScreen() {
             { id: 'occupied', label: `Зайнято (${counts.occupied})` },
             { id: 'for_sale', label: `Продаж (${counts.for_sale})` },
           ] as { id: 'all' | 'free' | 'occupied' | 'for_sale'; label: string }[]).filter(t => t.id === 'all' || counts[t.id as keyof typeof counts] > 0).map((t) => (
-            <div key={t.id} className={`seg-b ${tab === t.id ? 'on' : ''}`} onClick={() => { window.Telegram?.WebApp?.HapticFeedback?.selectionChanged(); setTab(t.id) }}>
+            <div key={t.id} className={`seg-b ${tab === t.id ? 'on' : ''}`} onClick={() => { hapticSelection(); setTab(t.id) }}>
               {t.label}
             </div>
           ))}

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useAppStore } from '@/store/appStore'
+import { hapticNotify } from '@/lib/telegram'
 import { offlineGuard } from '@/lib/offline'
 import { supabase } from '@/lib/supabase'
 import TabBar from '@/components/ui/TabBar'
@@ -248,7 +249,7 @@ function CollectionDetail({
         .delete()
         .eq('id', collection.id)
       if (error) throw error
-      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
+      hapticNotify('success')
       showToast({ type: 'success', title: 'Підбірку видалено' })
       onDelete(collection.id)
     } catch (e) {
@@ -440,7 +441,7 @@ function CollectionDetail({
           subtitle={`Підбірку "${collection.name}" буде видалено. Це незворотно.`}
           onClose={() => setShowDeleteModal(false)}
           actions={[
-            { label: 'Видалити', variant: 'danger', onClick: () => { window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('warning'); deleteCollection() } },
+            { label: 'Видалити', variant: 'danger', onClick: () => { hapticNotify('warning'); deleteCollection() } },
             { label: 'Скасувати', variant: 'secondary', onClick: () => setShowDeleteModal(false) },
           ]}
         />

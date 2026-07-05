@@ -6,7 +6,7 @@ import { useAppStore } from '@/store/appStore'
 import { offlineGuard } from '@/lib/offline'
 import { supabase } from '@/lib/supabase'
 import Header from '@/components/ui/Header'
-import { TG_BOT } from '@/lib/telegram'
+import { TG_BOT , hapticNotify } from '@/lib/telegram'
 import { scrollFocusedIntoView } from '@/lib/utils'
 
 const SubscribeSchema = z.array(z.object({
@@ -68,7 +68,7 @@ export default function QRScannerScreen() {
       showToast({ type: 'error', title: 'Помилка підписки', subtitle: 'Спробуйте ще раз' })
       return
     }
-    window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
+    hapticNotify('success')
     showToast({ type: 'success', title: 'Базу підключено! 🎉' })
     navigate('realtor-database', { dbId: row.db_id })
   }

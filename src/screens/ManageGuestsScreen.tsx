@@ -9,7 +9,7 @@ import Header from '@/components/ui/Header'
 import Modal from '@/components/ui/Modal'
 import { SkeletonList } from '@/components/ui/SkeletonLoader'
 import { IconPlus, IconLink, IconBan, IconUser } from '@/components/Icons'
-import { buildDeepLink, openTelegramShare } from '@/lib/telegram'
+import { buildDeepLink, openTelegramShare , hapticNotify } from '@/lib/telegram'
 import { copyLink } from '@/lib/share'
 import type { GuestLink } from '@/types'
 
@@ -108,7 +108,7 @@ export default function ManageGuestsScreen() {
         .eq('id', id)
       if (error) throw error
       setLinks(prev => prev.map(l => l.id === id ? { ...l, status: 'revoked' as const } : l))
-      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
+      hapticNotify('success')
     } catch (e) {
       showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
     } finally {
@@ -241,7 +241,7 @@ export default function ManageGuestsScreen() {
               label: 'Відкликати',
               variant: 'danger',
               onClick: () => {
-                window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('warning')
+                hapticNotify('warning')
                 const id = revokeTarget.id
                 setRevokeTarget(null)
                 handleRevoke(id)

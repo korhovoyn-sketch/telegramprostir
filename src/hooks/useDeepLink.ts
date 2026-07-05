@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react'
 import { supabase, USER_COLUMNS } from '@/lib/supabase'
 import { useAppStore } from '@/store/appStore'
+import { hapticNotify } from '@/lib/telegram'
 import type { ScreenName, User } from '@/types'
 
 export function useDeepLink() {
@@ -74,7 +75,7 @@ export function useDeepLink() {
             .single()
           if (freshUser) useAppStore.getState().setUser(freshUser as User)
 
-          window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
+          hapticNotify('success')
           showToast({ type: 'success', title: 'Доступ отримано! 🎉' })
           useAppStore.getState().navigateRoot('guest-home')
           if (result.property_id) {
@@ -180,7 +181,7 @@ export function useDeepLink() {
           return
         }
 
-        window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
+        hapticNotify('success')
         showToast({ type: 'success', title: 'Базу підключено! 🎉' })
         useAppStore.getState().navigateRoot('realtor-dashboard')
         navigate('realtor-database', { dbId: sub.db_id })

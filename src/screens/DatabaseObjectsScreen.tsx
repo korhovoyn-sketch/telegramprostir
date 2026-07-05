@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo, useRef } from 'react'
 import { useAppStore } from '@/store/appStore'
+import { hapticSelection, hapticNotify } from '@/lib/telegram'
 import { offlineGuard } from '@/lib/offline'
 import { useDatabases } from '@/hooks/useDatabases'
 import { useProperties } from '@/hooks/useProperties'
@@ -37,7 +38,7 @@ export default function DatabaseObjectsScreen() {
     typeof window !== 'undefined' && localStorage.getItem('ps:occCompact') === '1')
 
   function toggleOccCompact(next: boolean) {
-    window.Telegram?.WebApp?.HapticFeedback?.selectionChanged()
+    hapticSelection()
     setOccCompact(next)
     try { localStorage.setItem('ps:occCompact', next ? '1' : '0') } catch { /* private mode blocks storage */ }
   }
@@ -63,7 +64,7 @@ export default function DatabaseObjectsScreen() {
   }
 
   function toggleSelect(id: string) {
-    window.Telegram?.WebApp?.HapticFeedback?.selectionChanged()
+    hapticSelection()
     setSelectedIds(prev => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
@@ -187,7 +188,7 @@ export default function DatabaseObjectsScreen() {
               <div
                 key={t.id}
                 className={`seg-b ${tab === t.id ? 'on' : ''}`}
-                onClick={() => { window.Telegram?.WebApp?.HapticFeedback?.selectionChanged(); setTab(t.id) }}
+                onClick={() => { hapticSelection(); setTab(t.id) }}
               >
                 {t.label}
               </div>
@@ -385,7 +386,7 @@ export default function DatabaseObjectsScreen() {
                       background: 'rgba(255,255,255,.04)',
                     }}>
                       <button
-                        onClick={(e) => { e.stopPropagation(); window.Telegram?.WebApp?.HapticFeedback?.selectionChanged(); reorderProperty(p.id, 'up') }}
+                        onClick={(e) => { e.stopPropagation(); hapticSelection(); reorderProperty(p.id, 'up') }}
                         disabled={idx === 0}
                         aria-label="Вгору"
                         style={{
@@ -400,7 +401,7 @@ export default function DatabaseObjectsScreen() {
                         <IconChevronUp size={14} />
                       </button>
                       <button
-                        onClick={(e) => { e.stopPropagation(); window.Telegram?.WebApp?.HapticFeedback?.selectionChanged(); reorderProperty(p.id, 'down') }}
+                        onClick={(e) => { e.stopPropagation(); hapticSelection(); reorderProperty(p.id, 'down') }}
                         disabled={idx === filtered.length - 1}
                         aria-label="Вниз"
                         style={{
@@ -633,7 +634,7 @@ export default function DatabaseObjectsScreen() {
           subtitle={`База "${db.name}" і всі ${properties.length} об'єктів будуть видалені. Це незворотно.`}
           onClose={() => setShowDeleteModal(false)}
           actions={[
-            { label: 'Видалити', variant: 'danger', onClick: async () => { if (offlineGuard()) { setShowDeleteModal(false); return } window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('warning'); await deleteDatabase(db.id); setShowDeleteModal(false) } },
+            { label: 'Видалити', variant: 'danger', onClick: async () => { if (offlineGuard()) { setShowDeleteModal(false); return } hapticNotify('warning'); await deleteDatabase(db.id); setShowDeleteModal(false) } },
             { label: 'Скасувати', variant: 'secondary', onClick: () => setShowDeleteModal(false) },
           ]}
         />

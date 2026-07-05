@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import { useAppStore } from '@/store/appStore'
+import { hapticNotify } from '@/lib/telegram'
 import { useAuth } from '@/hooks/useAuth'
 import { useDeepLink } from '@/hooks/useDeepLink'
 import { useNotifications } from '@/hooks/useNotifications'
@@ -151,7 +152,7 @@ export default function Page() {
   useEffect(() => {
     const handleOffline = () => {
       setOnline(false)
-      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('warning')
+      hapticNotify('warning')
     }
     const handleOnline = () => {
       setOnline(true)

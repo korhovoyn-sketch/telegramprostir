@@ -126,17 +126,5 @@ export function useTelegram() {
     }
   }, [])
 
-  function haptic(style: 'light' | 'medium' | 'heavy' = 'light') {
-    tg?.HapticFeedback.impactOccurred(style)
-  }
-
-  function hapticSuccess() {
-    tg?.HapticFeedback.notificationOccurred('success')
-  }
-
-  function hapticError() {
-    tg?.HapticFeedback.notificationOccurred('error')
-  }
-
-  return { tg, user, isReady, haptic, hapticSuccess, hapticError }
+  return { tg, user, isReady }
 }

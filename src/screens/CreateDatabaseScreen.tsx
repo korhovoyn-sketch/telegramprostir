@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useAppStore } from '@/store/appStore'
+import { hapticSelection, hapticNotify } from '@/lib/telegram'
 import { offlineGuard } from '@/lib/offline'
 import { useDatabases } from '@/hooks/useDatabases'
 import Header from '@/components/ui/Header'
@@ -53,7 +54,7 @@ export default function CreateDatabaseScreen() {
   async function handleSave() {
     if (!canCreate || !type) return
     if (offlineGuard()) return
-    window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
+    hapticNotify('success')
     if (isEdit && editId) {
       await updateDatabase(editId, { name: name.trim(), address: address.trim() || undefined, type, color })
       backThenReplace('db-objects', { dbId: editId })
@@ -101,7 +102,7 @@ export default function CreateDatabaseScreen() {
             <div
               key={t.id}
               className={`type-card ${type === t.id ? 'sel' : ''}`}
-              onClick={() => { window.Telegram?.WebApp?.HapticFeedback?.selectionChanged(); setType(t.id) }}
+              onClick={() => { hapticSelection(); setType(t.id) }}
             >
               <GlassDbIcon type={t.id} color={t.neon} size={30} />
               <div className="type-n">{t.label}</div>
@@ -118,7 +119,7 @@ export default function CreateDatabaseScreen() {
               key={c}
               className={`color-c ${color === c ? 'sel' : ''}`}
               style={{ background: DB_COLORS[c] }}
-              onClick={() => { window.Telegram?.WebApp?.HapticFeedback?.selectionChanged(); setColor(c) }}
+              onClick={() => { hapticSelection(); setColor(c) }}
             />
           ))}
         </div>
