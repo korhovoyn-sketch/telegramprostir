@@ -1,6 +1,11 @@
 import { createClient, type SupabaseClient as SBClient } from '@supabase/supabase-js'
 import { waitForSessionGate } from './sessionGate'
 
+// Single source of truth for the full public.users column list. Every profile
+// read must use this so the shape can't drift between call sites (one omission
+// of updated_at previously slipped in across several reads).
+export const USER_COLUMNS = 'id,tg_id,tg_username,first_name,last_name,email,phone,role,language_code,currency,plan,notification_push,notification_weekly,notification_views,created_at,updated_at'
+
 let _rawGetSession: SBClient['auth']['getSession'] | undefined
 
 function createSupabaseClient(): SBClient {

@@ -2,16 +2,17 @@
 
 import { useState, useRef } from 'react'
 import { useAppStore } from '@/store/appStore'
+import { offlineGuard } from '@/lib/offline'
 import { useAuth } from '@/hooks/useAuth'
 import TabBar from '@/components/ui/TabBar'
 import Toggle from '@/components/ui/Toggle'
 import Modal from '@/components/ui/Modal'
 import { IconMail, IconPhone, IconLanguage, IconCurrencyDollar, IconLogout, GlassCrown, IconBell, IconBellRing, IconChartLine, IconEye, IconMessage, IconAdjustments } from '@/components/Icons'
-import { TG_BOT } from '@/lib/telegram'
+import { TG_BOT , hapticSelection } from '@/lib/telegram'
 import { getInitials, scrollFocusedIntoView } from '@/lib/utils'
 
 export default function ProfileScreen() {
-  const { user, databases, isOnline, showToast } = useAppStore()
+  const { user, databases } = useAppStore()
   const { logout, updateProfile } = useAuth()
 
   const [pushEnabled, setPushEnabled] = useState(user?.notification_push ?? true)
@@ -22,11 +23,6 @@ export default function ProfileScreen() {
   const [savingCur, setSavingCur] = useState(false)
   const emailRef = useRef<HTMLInputElement>(null)
   const phoneRef = useRef<HTMLInputElement>(null)
-
-  function offlineGuard(): boolean {
-    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return true }
-    return false
-  }
 
   async function handlePushToggle(v: boolean) {
     if (offlineGuard()) return
@@ -52,7 +48,7 @@ export default function ProfileScreen() {
   async function handleLangChange(lang: 'uk' | 'en') {
     if ((user?.language_code ?? 'uk') === lang) return
     if (offlineGuard()) return
-    window.Telegram?.WebApp?.HapticFeedback?.selectionChanged()
+    hapticSelection()
     setSavingLang(true)
     await updateProfile({ language_code: lang })
     setSavingLang(false)
@@ -61,7 +57,7 @@ export default function ProfileScreen() {
   async function handleCurrencyChange(cur: 'USD' | 'UAH' | 'EUR') {
     if ((user?.currency ?? 'USD') === cur) return
     if (offlineGuard()) return
-    window.Telegram?.WebApp?.HapticFeedback?.selectionChanged()
+    hapticSelection()
     setSavingCur(true)
     await updateProfile({ currency: cur })
     setSavingCur(false)

@@ -3,6 +3,9 @@
 /* eslint-disable @next/next/no-img-element */
 import { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '@/store/appStore'
+import RetryState from '@/components/ui/RetryState'
+import { hapticImpact, hapticNotify } from '@/lib/telegram'
+import { offlineGuard } from '@/lib/offline'
 import { useProperties } from '@/hooks/useProperties'
 import Header from '@/components/ui/Header'
 import Modal from '@/components/ui/Modal'
@@ -105,7 +108,7 @@ function Building3DHero() {
 }
 
 export default function PropertyDetailScreen() {
-  const { screenParams, navigate, user, showToast, isOnline } = useAppStore()
+  const { screenParams, navigate, user, showToast } = useAppStore()
   const { properties, loading, error, loadSingleProperty, deletePhoto, updateProperty } = useProperties(screenParams.dbId)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const tenantInputRef = useRef<HTMLInputElement>(null)
@@ -166,14 +169,12 @@ export default function PropertyDetailScreen() {
   if (!property && error) return (
     <div className="scr bg-blue">
       <Header title="Об'єкт" backLabel="Назад" />
-      <div className="retry-wrap">
-        <div className="retry-ic">🏚️</div>
-        <div className="retry-h">Об&apos;єкт не знайдено</div>
-        <div className="retry-s">Можливо, його видалили. {error}</div>
-        <button className="retry-btn" onClick={() => screenParams.propertyId && loadSingleProperty(screenParams.propertyId)}>
-          Спробувати ще раз
-        </button>
-      </div>
+      <RetryState
+        icon="🏚️"
+        title="Об'єкт не знайдено"
+        subtitle={<>Можливо, його видалили. {error}</>}
+        onRetry={() => screenParams.propertyId && loadSingleProperty(screenParams.propertyId)}
+      />
     </div>
   )
 
@@ -195,7 +196,7 @@ export default function PropertyDetailScreen() {
 
   async function handleRentOut() {
     if (!rentTenantName.trim() || !property) return
-    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
+    if (offlineGuard()) return
     setRentSaving(true)
     const parsedRate = parseFloat(rentRentRate)
     const parsedUtils = parseFloat(rentUtilitiesRate)
@@ -207,7 +208,7 @@ export default function PropertyDetailScreen() {
       ...(isFinite(parsedRate) && parsedRate >= 0 ? { rent_rate: parsedRate } : {}),
       ...(isFinite(parsedUtils) && parsedUtils >= 0 ? { utilities_rate: parsedUtils } : {}),
     })
-    window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
+    hapticNotify('success')
     showToast({ type: 'success', title: 'Об\'єкт здано в оренду' })
     setShowRentModal(false)
     setRentTenantName('')
@@ -220,7 +221,7 @@ export default function PropertyDetailScreen() {
 
   async function handleFreeProperty() {
     if (!property) return
-    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
+    if (offlineGuard()) return
     setFreeSaving(true)
     await updateProperty(property.id, {
       status: 'free',
@@ -228,7 +229,7 @@ export default function PropertyDetailScreen() {
       lease_start_date: null,
       lease_end_date: null,
     })
-    window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
+    hapticNotify('success')
     showToast({ type: 'success', title: 'Об\'єкт звільнено' })
     setShowFreeModal(false)
     setFreeSaving(false)
@@ -236,7 +237,7 @@ export default function PropertyDetailScreen() {
 
   async function confirmDeletePhoto() {
     if (!photoToDelete) return
-    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); setPhotoToDelete(null); return }
+    if (offlineGuard()) { setPhotoToDelete(null); return }
     try {
       await deletePhoto(photoToDelete.id, photoToDelete.path)
     } catch {
@@ -262,7 +263,7 @@ export default function PropertyDetailScreen() {
           <button
             className="hdr-a"
             aria-label="Редагувати об'єкт"
-            onClick={() => { window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('light'); navigate('property-form', { propertyId: property.id, dbId: screenParams.dbId, editMode: true }) }}
+            onClick={() => { hapticImpact('light'); navigate('property-form', { propertyId: property.id, dbId: screenParams.dbId, editMode: true }) }}
             style={{ background: 'none', border: 'var(--bd)' }}
           >
             <IconEdit size={15} />
@@ -294,7 +295,7 @@ export default function PropertyDetailScreen() {
               <button
                 className="obj-hero-a"
                 aria-label="Поділитись об'єктом"
-                onClick={(e) => { e.stopPropagation(); window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('light'); navigate('sharing-analytics', { propertyId: property.id, dbId: screenParams.dbId }) }}
+                onClick={(e) => { e.stopPropagation(); hapticImpact('light'); navigate('sharing-analytics', { propertyId: property.id, dbId: screenParams.dbId }) }}
               >
                 <IconShare size={14} />
               </button>
@@ -487,7 +488,7 @@ export default function PropertyDetailScreen() {
           <div
             className="glass-s"
             style={{ margin: '0 12px 12px', borderRadius: 'var(--r-md)', padding: '11px 14px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}
-            onClick={() => { window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('light'); navigate('manage-guests', { propertyId: property.id }) }}
+            onClick={() => { hapticImpact('light'); navigate('manage-guests', { propertyId: property.id }) }}
           >
             <IconUser size={16} color="#a78bfa" />
             <div style={{ flex: 1 }}>
@@ -503,7 +504,7 @@ export default function PropertyDetailScreen() {
           <div
             className="glass-s"
             style={{ margin: '0 12px 12px', borderRadius: 'var(--r-md)', padding: '11px 14px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}
-            onClick={() => { window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('light'); navigate('payment-calendar', { propertyId: property.id, dbId: screenParams.dbId }) }}
+            onClick={() => { hapticImpact('light'); navigate('payment-calendar', { propertyId: property.id, dbId: screenParams.dbId }) }}
           >
             <IconCalendar size={16} color="#7AB3FF" />
             <div style={{ flex: 1 }}>
@@ -564,7 +565,7 @@ export default function PropertyDetailScreen() {
               {isOwner && (
                 <button
                   aria-label="Видалити фото"
-                  onClick={(e) => { e.stopPropagation(); window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('light'); setPhotoToDelete({ id: photo.id, path: photo.storage_path }) }}
+                  onClick={(e) => { e.stopPropagation(); hapticImpact('light'); setPhotoToDelete({ id: photo.id, path: photo.storage_path }) }}
                   style={{
                     position: 'absolute', top: 3, right: 3,
                     width: 20, height: 20, borderRadius: '50%',
@@ -623,7 +624,7 @@ export default function PropertyDetailScreen() {
           icon={<IconKey size={16} />}
           label="Здати в оренду"
           onClick={() => {
-            window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('light')
+            hapticImpact('light')
             setRentTenantName('')
             setRentLeaseStart('')
             setRentLeaseEnd('')
@@ -638,7 +639,7 @@ export default function PropertyDetailScreen() {
           variant="danger"
           icon={<IconCircleCheck size={16} />}
           label="Звільнити об'єкт"
-          onClick={() => { window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('light'); setShowFreeModal(true) }}
+          onClick={() => { hapticImpact('light'); setShowFreeModal(true) }}
         />
       )}
       {isOwner && property.status === 'for_sale' && (
@@ -646,7 +647,7 @@ export default function PropertyDetailScreen() {
           variant="info"
           icon={<IconShare size={16} />}
           label="Поділитись"
-          onClick={() => { window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('light'); navigate('sharing-analytics', { propertyId: property.id, dbId: screenParams.dbId }) }}
+          onClick={() => { hapticImpact('light'); navigate('sharing-analytics', { propertyId: property.id, dbId: screenParams.dbId }) }}
         />
       )}
 

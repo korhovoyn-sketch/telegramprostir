@@ -2,14 +2,15 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import { useAppStore } from '@/store/appStore'
+import RetryState from '@/components/ui/RetryState'
 import { supabase } from '@/lib/supabase'
 import Header from '@/components/ui/Header'
 import SearchBar from '@/components/ui/SearchBar'
 import { StatusBadge } from '@/components/ui/Badge'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import { IconShare, IconPhoto, IconMessage, IconBuilding, IconRuler, IconParking, IconCalendar } from '@/components/Icons'
-import { sharePublicUrl } from '@/lib/telegram'
-import { formatPrice, calcRentUtils, DB_TYPE_LABELS, getInitials, formatLeasePeriod } from '@/lib/utils'
+import { sharePublicUrl , hapticSelection } from '@/lib/telegram'
+import { formatPrice, calcRentUtils, DB_TYPE_LABELS, getInitials, formatLeasePeriod, humanizeDbError } from '@/lib/utils'
 import type { Database, Property, PropertyStatus, User } from '@/types'
 
 export default function RealtorDatabaseScreen() {
@@ -45,7 +46,7 @@ export default function RealtorDatabaseScreen() {
       }
     } catch (e) {
       setError(true)
-      showToast({ type: 'error', title: 'Помилка завантаження', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Помилка завантаження', subtitle: humanizeDbError(e) })
     } finally {
       setLoading(false)
     }
@@ -73,12 +74,7 @@ export default function RealtorDatabaseScreen() {
     <div className="scr bg-cyan">
       <Header title="База" backLabel="Бази" />
       {error ? (
-        <div className="retry-wrap">
-          <div className="retry-ic">📡</div>
-          <div className="retry-h">Помилка завантаження</div>
-          <div className="retry-s">Перевір підключення і спробуй ще раз</div>
-          <button className="retry-btn" onClick={load}>Спробувати ще раз</button>
-        </div>
+        <RetryState title="Помилка завантаження" subtitle="Перевір підключення і спробуй ще раз" onRetry={load} />
       ) : (
         <div className="loader-wrap"><div className="loader" /></div>
       )}
@@ -125,7 +121,7 @@ export default function RealtorDatabaseScreen() {
             { id: 'occupied', label: `Зайнято (${counts.occupied})` },
             { id: 'for_sale', label: `Продаж (${counts.for_sale})` },
           ] as { id: 'all' | 'free' | 'occupied' | 'for_sale'; label: string }[]).filter(t => t.id === 'all' || counts[t.id as keyof typeof counts] > 0).map((t) => (
-            <div key={t.id} className={`seg-b ${tab === t.id ? 'on' : ''}`} onClick={() => { window.Telegram?.WebApp?.HapticFeedback?.selectionChanged(); setTab(t.id) }}>
+            <div key={t.id} className={`seg-b ${tab === t.id ? 'on' : ''}`} onClick={() => { hapticSelection(); setTab(t.id) }}>
               {t.label}
             </div>
           ))}

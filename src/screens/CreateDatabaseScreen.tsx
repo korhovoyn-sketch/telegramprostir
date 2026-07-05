@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { useAppStore } from '@/store/appStore'
+import { hapticSelection, hapticNotify } from '@/lib/telegram'
+import { offlineGuard } from '@/lib/offline'
 import { useDatabases } from '@/hooks/useDatabases'
 import Header from '@/components/ui/Header'
 import { IconMapPin, IconBuilding, IconLayoutGrid, IconAdjustments, IconEye, GlassDbIcon } from '@/components/Icons'
@@ -20,7 +22,7 @@ const TYPES: { id: DatabaseType; label: string; desc: string; neon: 'blue' | 'gr
 const COLOR_NAMES = Object.keys(DB_COLORS)
 
 export default function CreateDatabaseScreen() {
-  const { screenParams, databases, backThenReplace, showToast, isOnline } = useAppStore()
+  const { screenParams, databases, backThenReplace } = useAppStore()
   const { createDatabase, updateDatabase, loading } = useDatabases()
 
   const editId = screenParams.dbId
@@ -51,8 +53,8 @@ export default function CreateDatabaseScreen() {
 
   async function handleSave() {
     if (!canCreate || !type) return
-    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
-    window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
+    if (offlineGuard()) return
+    hapticNotify('success')
     if (isEdit && editId) {
       await updateDatabase(editId, { name: name.trim(), address: address.trim() || undefined, type, color })
       backThenReplace('db-objects', { dbId: editId })
@@ -100,7 +102,7 @@ export default function CreateDatabaseScreen() {
             <div
               key={t.id}
               className={`type-card ${type === t.id ? 'sel' : ''}`}
-              onClick={() => { window.Telegram?.WebApp?.HapticFeedback?.selectionChanged(); setType(t.id) }}
+              onClick={() => { hapticSelection(); setType(t.id) }}
             >
               <GlassDbIcon type={t.id} color={t.neon} size={30} />
               <div className="type-n">{t.label}</div>
@@ -117,7 +119,7 @@ export default function CreateDatabaseScreen() {
               key={c}
               className={`color-c ${color === c ? 'sel' : ''}`}
               style={{ background: DB_COLORS[c] }}
-              onClick={() => { window.Telegram?.WebApp?.HapticFeedback?.selectionChanged(); setColor(c) }}
+              onClick={() => { hapticSelection(); setColor(c) }}
             />
           ))}
         </div>

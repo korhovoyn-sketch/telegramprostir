@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react'
 import { z } from 'zod'
 import { useAppStore } from '@/store/appStore'
+import { offlineGuard } from '@/lib/offline'
 import { supabase } from '@/lib/supabase'
 import Header from '@/components/ui/Header'
-import { TG_BOT } from '@/lib/telegram'
+import { TG_BOT , hapticNotify } from '@/lib/telegram'
 import { scrollFocusedIntoView } from '@/lib/utils'
 
 const SubscribeSchema = z.array(z.object({
@@ -36,17 +37,14 @@ function extractDbToken(raw: string): string | null {
 }
 
 export default function QRScannerScreen() {
-  const { user, navigate, showToast, isOnline } = useAppStore()
+  const { user, navigate, showToast } = useAppStore()
   const [scanning, setScanning] = useState(false)
   const [manualToken, setManualToken] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
   async function subscribeByToken(token: string) {
     if (!user) return
-    if (!isOnline) {
-      showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Підключення до бази недоступне офлайн' })
-      return
-    }
+    if (offlineGuard('Підключення до бази недоступне офлайн')) return
     // Token-validated SECURITY DEFINER RPC: checks the token + expiry and
     // creates the subscription server-side (clients can no longer INSERT
     // subscriptions directly — see migration 036).
@@ -70,7 +68,7 @@ export default function QRScannerScreen() {
       showToast({ type: 'error', title: 'Помилка підписки', subtitle: 'Спробуйте ще раз' })
       return
     }
-    window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
+    hapticNotify('success')
     showToast({ type: 'success', title: 'Базу підключено! 🎉' })
     navigate('realtor-database', { dbId: row.db_id })
   }

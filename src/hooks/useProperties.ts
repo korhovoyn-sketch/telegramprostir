@@ -2,8 +2,22 @@
 
 import { useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
+import { humanizeDbError } from '@/lib/utils'
 import { useAppStore } from '@/store/appStore'
 import type { Property, PropertyStatus } from '@/types'
+
+// Full property select (+ photos and view-count relation) shared by
+// loadProperties and loadSingleProperty so the two can't drift apart.
+const PROPERTY_SELECT = `
+  id, db_id, owner_id, name, floor, status,
+  area_useful, area_total, rent_type, rent_rate, utilities_rate,
+  has_parking, parking_spaces, description,
+  address, utilities,
+  sale_price, tenant_name, lease_start_date, lease_end_date,
+  sort_order, created_at, updated_at,
+  photos:property_photos(id, storage_path, sort_order),
+  views:property_views(id)
+`
 
 export function useProperties(dbId?: string) {
   const [loading, setLoading] = useState(false)
@@ -19,16 +33,7 @@ export function useProperties(dbId?: string) {
     try {
       const { data, error } = await supabase
         .from('properties')
-        .select(`
-          id, db_id, owner_id, name, floor, status,
-          area_useful, area_total, rent_type, rent_rate, utilities_rate,
-          has_parking, parking_spaces, description,
-          address, utilities,
-          sale_price, tenant_name, lease_start_date, lease_end_date,
-          sort_order, created_at, updated_at,
-          photos:property_photos(id, storage_path, sort_order),
-          views:property_views(id)
-        `)
+        .select(PROPERTY_SELECT)
         .eq('db_id', targetDbId)
         .order('sort_order', { ascending: true })
         .order('created_at', { ascending: true })
@@ -40,7 +45,7 @@ export function useProperties(dbId?: string) {
       })
       setProperties(mapped as unknown as Property[])
     } catch (e) {
-      const msg = (e as Error).message
+      const msg = humanizeDbError(e)
       setError(msg)
       showToast({ type: 'error', title: 'Помилка завантаження', subtitle: msg })
     } finally {
@@ -54,16 +59,7 @@ export function useProperties(dbId?: string) {
     try {
       const { data, error } = await supabase
         .from('properties')
-        .select(`
-          id, db_id, owner_id, name, floor, status,
-          area_useful, area_total, rent_type, rent_rate, utilities_rate,
-          has_parking, parking_spaces, description,
-          address, utilities,
-          sale_price, tenant_name, lease_start_date, lease_end_date,
-          sort_order, created_at, updated_at,
-          photos:property_photos(id, storage_path, sort_order),
-          views:property_views(id)
-        `)
+        .select(PROPERTY_SELECT)
         .eq('id', propertyId)
         .single()
 
@@ -72,7 +68,7 @@ export function useProperties(dbId?: string) {
       const mapped = { ...rest, _view_count: (views as unknown[])?.length ?? 0 } as unknown as Property
       setProperties([mapped])
     } catch (e) {
-      const msg = (e as Error).message
+      const msg = humanizeDbError(e)
       setError(msg)
       showToast({ type: 'error', title: 'Помилка завантаження', subtitle: msg })
     } finally {
@@ -97,7 +93,7 @@ export function useProperties(dbId?: string) {
       showToast({ type: 'success', title: 'Об\'єкт додано' })
       backThenReplace('db-objects', { dbId: payload.db_id })
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
     } finally {
       setLoading(false)
     }
@@ -117,7 +113,7 @@ export function useProperties(dbId?: string) {
       setProperties((prev) => prev.map((p) => (p.id === id ? (data as Property) : p)))
       showToast({ type: 'success', title: 'Збережено' })
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
     } finally {
       setLoading(false)
     }
@@ -152,7 +148,7 @@ export function useProperties(dbId?: string) {
       showToast({ type: 'success', title: 'Об\'єкт видалено' })
       navigate('db-objects', { dbId })
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
     } finally {
       setLoading(false)
     }
@@ -175,7 +171,7 @@ export function useProperties(dbId?: string) {
       setProperties(prev => prev.filter(p => !ids.includes(p.id)))
       showToast({ type: 'success', title: `Видалено ${ids.length} об'єктів` })
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка видалення', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Помилка видалення', subtitle: humanizeDbError(e) })
     } finally {
       setLoading(false)
     }
@@ -193,7 +189,7 @@ export function useProperties(dbId?: string) {
       const label: Record<PropertyStatus, string> = { free: 'Вільно', occupied: 'Зайнято', for_sale: 'Продаж' }
       showToast({ type: 'success', title: `${ids.length} об'єктів — ${label[status]}` })
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
     }
   }, [showToast])
 
@@ -248,7 +244,7 @@ export function useProperties(dbId?: string) {
         photos: p.photos?.filter((ph) => ph.id !== photoId),
       })))
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка видалення фото', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Помилка видалення фото', subtitle: humanizeDbError(e) })
       throw e
     }
   }, [showToast])

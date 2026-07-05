@@ -12,6 +12,7 @@ import { makeUser } from '../mocks/fixtures'
 // must still resolve instantly from the CloudStorage-cached profile instead of
 // falling through to the slow CloudStorage-session + setSession() restore path.
 vi.mock('@/lib/supabase', () => ({
+  USER_COLUMNS: 'id,tg_id,tg_username,first_name,last_name,email,phone,role,language_code,currency,plan,notification_push,notification_weekly,notification_views,created_at,updated_at',
   supabase: {
     auth: {
       getSession: vi.fn().mockResolvedValue({ data: { session: null } }),

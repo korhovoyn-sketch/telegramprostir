@@ -1,4 +1,5 @@
 'use client'
+import { hapticImpact } from '@/lib/telegram'
 
 interface ToggleProps {
   value: boolean
@@ -9,7 +10,7 @@ export default function Toggle({ value, onChange }: ToggleProps) {
   return (
     <div
       className={`tgl ${value ? 'on' : ''}`}
-      onClick={() => { window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('medium'); onChange(!value) }}
+      onClick={() => { hapticImpact('medium'); onChange(!value) }}
       role="switch"
       aria-checked={value}
     >

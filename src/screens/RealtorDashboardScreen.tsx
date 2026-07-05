@@ -2,12 +2,13 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useAppStore } from '@/store/appStore'
+import RetryState from '@/components/ui/RetryState'
 import { supabase } from '@/lib/supabase'
 import TabBar from '@/components/ui/TabBar'
 import SearchBar from '@/components/ui/SearchBar'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import { IconChevronRight, GlassDbIcon } from '@/components/Icons'
-import { DB_TYPE_LABELS, greeting } from '@/lib/utils'
+import { DB_TYPE_LABELS, greeting, humanizeDbError } from '@/lib/utils'
 import type { Database, RealtorSubscription } from '@/types'
 import CoachMark from '@/components/ui/CoachMark'
 import { useOnboarding } from '@/hooks/useOnboarding'
@@ -47,7 +48,7 @@ export default function RealtorDashboardScreen() {
         setPropertyCount(count ?? 0)
       }
     } catch (e) {
-      const msg = (e as Error).message
+      const msg = humanizeDbError(e)
       setLoadError(msg)
       showToast({ type: 'error', title: 'Помилка завантаження', subtitle: msg })
     } finally {
@@ -100,12 +101,7 @@ export default function RealtorDashboardScreen() {
         {loading ? (
           <SkeletonLoader />
         ) : loadError && subscriptions.length === 0 ? (
-          <div className="retry-wrap">
-            <div className="retry-ic">📡</div>
-            <div className="retry-h">Не вдалося завантажити</div>
-            <div className="retry-s">{loadError}</div>
-            <button className="retry-btn" onClick={load}>Спробувати ще раз</button>
-          </div>
+          <RetryState subtitle={loadError} onRetry={load} />
         ) : filtered.length === 0 ? (
           <div className="empty-state" style={{ paddingTop: 32 }}>
             <div className="empty-ic">🏢</div>

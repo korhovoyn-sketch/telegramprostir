@@ -1,35 +1,9 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 import { z } from 'https://esm.sh/zod@3.23.8'
+import { allowedOrigin, corsHeadersFor } from '../_shared/cors.ts'
 
-// Restrict CORS to the Mini App origin set via ALLOWED_ORIGIN secret.
-// REQUIRED: must be explicitly set. Default '*' is a security risk for the
-// real (signed-upload-URL-bearing) success response.
-//
-// Read lazily inside the request handler, NOT thrown at module top level —
-// see the matching comment in telegram-auth/index.ts. A top-level throw means
-// Deno.serve() is never reached, so every request (including the OPTIONS
-// preflight) fails with zero CORS headers and shows up to the browser as a
-// bare network error — indistinguishable from "no internet" — instead of the
-// actionable config error this function already knows how to report.
-const _allowedOrigin = Deno.env.get('ALLOWED_ORIGIN') ?? null
-
-function corsHeadersFor(reqOrigin: string | null): Record<string, string> {
-  if (_allowedOrigin) {
-    return {
-      'Access-Control-Allow-Origin': _allowedOrigin,
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    }
-  }
-  // Misconfigured: no real (signed-URL) response is ever returned on this
-  // path — see the CONFIG_ERROR short-circuit below — so reflecting the
-  // caller's Origin only makes the diagnostic itself readable.
-  return {
-    'Access-Control-Allow-Origin': reqOrigin ?? '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  }
-}
+// This function's allowed methods (shared corsHeadersFor takes it as a param).
+const CORS_METHODS = 'POST, OPTIONS'
 
 const ValidateUploadSchema = z.object({
   propertyId: z.string().uuid(),
@@ -46,7 +20,7 @@ function errResponse(cors: Record<string, string>, status: number, message: stri
 }
 
 Deno.serve(async (req) => {
-  const cors = corsHeadersFor(req.headers.get('Origin'))
+  const cors = corsHeadersFor(req.headers.get('Origin'), CORS_METHODS)
 
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: cors })
@@ -56,7 +30,7 @@ Deno.serve(async (req) => {
     return errResponse(cors, 405, 'Method not allowed')
   }
 
-  if (!_allowedOrigin) {
+  if (!allowedOrigin) {
     return errResponse(cors, 500, 'ALLOWED_ORIGIN not configured')
   }
 

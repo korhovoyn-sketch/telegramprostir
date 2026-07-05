@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
+import { humanizeDbError } from '@/lib/utils'
 import { useAppStore } from '@/store/appStore'
 import type { Notification } from '@/types'
 
@@ -23,7 +24,7 @@ export function useNotifications() {
       if (error) throw error
       setNotifications((data || []) as Notification[])
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
     } finally {
       setLoading(false)
     }
@@ -36,7 +37,7 @@ export function useNotifications() {
       const fresh = useAppStore.getState().notifications
       setNotifications(fresh.map((n) => (n.id === id ? { ...n, is_read: true } : n)))
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
     }
   }, [setNotifications, showToast])
 
@@ -51,7 +52,7 @@ export function useNotifications() {
       if (error) throw error
       markAllRead()
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
     }
   }, [user, markAllRead, showToast])
 
@@ -63,7 +64,7 @@ export function useNotifications() {
       if (error) throw error
     } catch (e) {
       setNotifications(snapshot)
-      showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
     }
   }, [setNotifications, showToast])
 

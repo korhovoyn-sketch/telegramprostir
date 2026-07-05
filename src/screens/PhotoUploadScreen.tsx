@@ -2,8 +2,10 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useAppStore } from '@/store/appStore'
+import { offlineGuard } from '@/lib/offline'
 import Header from '@/components/ui/Header'
 import { supabase } from '@/lib/supabase'
+import { humanizeDbError } from '@/lib/utils'
 import { IconCheck, IconX } from '@/components/Icons'
 
 /* eslint-disable @next/next/no-img-element */
@@ -17,7 +19,7 @@ interface UploadItem {
 }
 
 export default function PhotoUploadScreen() {
-  const { screenParams, back, showToast, isOnline } = useAppStore()
+  const { screenParams, back, showToast } = useAppStore()
   const propertyId = screenParams.propertyId as string
   const MAX_MB = 10
   const MAX_PHOTOS = 20
@@ -60,11 +62,7 @@ export default function PhotoUploadScreen() {
 
   useEffect(() => {
     if (files.length === 0) return
-    if (!isOnline) {
-      showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Завантаження фото недоступне офлайн' })
-      back()
-      return
-    }
+    if (offlineGuard('Завантаження фото недоступне офлайн')) { back(); return }
     if (validFiles.length > MAX_PHOTOS) {
       showToast({ type: 'error', title: `Максимум ${MAX_PHOTOS} фото`, subtitle: `Завантажено лише перші ${MAX_PHOTOS}` })
     }
@@ -106,7 +104,7 @@ export default function PhotoUploadScreen() {
           }
         }
       } catch (e) {
-        const msg = (e as Error).message ?? 'Невідома помилка'
+        const msg = humanizeDbError(e, 'Невідома помилка')
         setQueue((q) => q.map((x, i) => i === currentIdx
           ? { ...x, status: 'error', progress: 0, errorMsg: msg } : x))
         showToast({ type: 'error', title: 'Помилка завантаження', subtitle: msg })

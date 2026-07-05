@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { supabase } from '@/lib/supabase'
+import { supabase, USER_COLUMNS } from '@/lib/supabase'
 import { useAppStore } from '@/store/appStore'
+import { hapticNotify } from '@/lib/telegram'
 import type { ScreenName, User } from '@/types'
 
 export function useDeepLink() {
@@ -69,12 +70,12 @@ export function useDeepLink() {
           // Refresh user in store — claim_guest_link may have set role='guest' in DB
           const { data: freshUser } = await supabase
             .from('users')
-            .select('id,tg_id,tg_username,first_name,last_name,email,phone,role,language_code,currency,plan,notification_push,notification_weekly,notification_views,created_at,updated_at')
+            .select(USER_COLUMNS)
             .eq('id', currentUser.id)
             .single()
           if (freshUser) useAppStore.getState().setUser(freshUser as User)
 
-          window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
+          hapticNotify('success')
           showToast({ type: 'success', title: 'Доступ отримано! 🎉' })
           useAppStore.getState().navigateRoot('guest-home')
           if (result.property_id) {
@@ -180,7 +181,7 @@ export function useDeepLink() {
           return
         }
 
-        window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
+        hapticNotify('success')
         showToast({ type: 'success', title: 'Базу підключено! 🎉' })
         useAppStore.getState().navigateRoot('realtor-dashboard')
         navigate('realtor-database', { dbId: sub.db_id })

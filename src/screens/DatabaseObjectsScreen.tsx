@@ -2,6 +2,9 @@
 
 import { useEffect, useState, useMemo, useRef } from 'react'
 import { useAppStore } from '@/store/appStore'
+import RetryState from '@/components/ui/RetryState'
+import { hapticSelection, hapticNotify } from '@/lib/telegram'
+import { offlineGuard } from '@/lib/offline'
 import { useDatabases } from '@/hooks/useDatabases'
 import { useProperties } from '@/hooks/useProperties'
 import Header from '@/components/ui/Header'
@@ -18,7 +21,7 @@ import CoachMark from '@/components/ui/CoachMark'
 import { useOnboarding } from '@/hooks/useOnboarding'
 
 export default function DatabaseObjectsScreen() {
-  const { screenParams, navigate, databases, user, showToast, isOnline } = useAppStore()
+  const { screenParams, navigate, databases, user } = useAppStore()
   const { deleteDatabase } = useDatabases()
   const { properties, loading, error, loadProperties, reorderProperty, batchDeleteProperties, batchUpdateStatus } = useProperties(screenParams.dbId)
   const isOwner = user?.role === 'owner'
@@ -36,7 +39,7 @@ export default function DatabaseObjectsScreen() {
     typeof window !== 'undefined' && localStorage.getItem('ps:occCompact') === '1')
 
   function toggleOccCompact(next: boolean) {
-    window.Telegram?.WebApp?.HapticFeedback?.selectionChanged()
+    hapticSelection()
     setOccCompact(next)
     try { localStorage.setItem('ps:occCompact', next ? '1' : '0') } catch { /* private mode blocks storage */ }
   }
@@ -62,7 +65,7 @@ export default function DatabaseObjectsScreen() {
   }
 
   function toggleSelect(id: string) {
-    window.Telegram?.WebApp?.HapticFeedback?.selectionChanged()
+    hapticSelection()
     setSelectedIds(prev => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
@@ -73,13 +76,13 @@ export default function DatabaseObjectsScreen() {
 
   async function handleBatchDelete() {
     setShowBatchDeleteModal(false)
-    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
+    if (offlineGuard()) return
     await batchDeleteProperties([...selectedIds])
     exitSelectMode()
   }
 
   async function handleBatchStatus(status: PropertyStatus) {
-    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
+    if (offlineGuard()) return
     await batchUpdateStatus([...selectedIds], status)
     exitSelectMode()
   }
@@ -186,7 +189,7 @@ export default function DatabaseObjectsScreen() {
               <div
                 key={t.id}
                 className={`seg-b ${tab === t.id ? 'on' : ''}`}
-                onClick={() => { window.Telegram?.WebApp?.HapticFeedback?.selectionChanged(); setTab(t.id) }}
+                onClick={() => { hapticSelection(); setTab(t.id) }}
               >
                 {t.label}
               </div>
@@ -273,12 +276,7 @@ export default function DatabaseObjectsScreen() {
         {loading ? (
           <SkeletonLoader />
         ) : error && properties.length === 0 ? (
-          <div className="retry-wrap">
-            <div className="retry-ic">📡</div>
-            <div className="retry-h">Не вдалося завантажити</div>
-            <div className="retry-s">{error}</div>
-            <button className="retry-btn" onClick={() => loadProperties(screenParams.dbId)}>Спробувати ще раз</button>
-          </div>
+          <RetryState subtitle={error} onRetry={() => loadProperties(screenParams.dbId)} />
         ) : filtered.length === 0 && properties.length === 0 ? (
           <div className="empty-state" style={{ paddingTop: 24 }}>
             <div className="empty-ic">🏢</div>
@@ -384,7 +382,7 @@ export default function DatabaseObjectsScreen() {
                       background: 'rgba(255,255,255,.04)',
                     }}>
                       <button
-                        onClick={(e) => { e.stopPropagation(); window.Telegram?.WebApp?.HapticFeedback?.selectionChanged(); reorderProperty(p.id, 'up') }}
+                        onClick={(e) => { e.stopPropagation(); hapticSelection(); reorderProperty(p.id, 'up') }}
                         disabled={idx === 0}
                         aria-label="Вгору"
                         style={{
@@ -399,7 +397,7 @@ export default function DatabaseObjectsScreen() {
                         <IconChevronUp size={14} />
                       </button>
                       <button
-                        onClick={(e) => { e.stopPropagation(); window.Telegram?.WebApp?.HapticFeedback?.selectionChanged(); reorderProperty(p.id, 'down') }}
+                        onClick={(e) => { e.stopPropagation(); hapticSelection(); reorderProperty(p.id, 'down') }}
                         disabled={idx === filtered.length - 1}
                         aria-label="Вниз"
                         style={{
@@ -632,7 +630,7 @@ export default function DatabaseObjectsScreen() {
           subtitle={`База "${db.name}" і всі ${properties.length} об'єктів будуть видалені. Це незворотно.`}
           onClose={() => setShowDeleteModal(false)}
           actions={[
-            { label: 'Видалити', variant: 'danger', onClick: async () => { if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); setShowDeleteModal(false); return } window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('warning'); await deleteDatabase(db.id); setShowDeleteModal(false) } },
+            { label: 'Видалити', variant: 'danger', onClick: async () => { if (offlineGuard()) { setShowDeleteModal(false); return } hapticNotify('warning'); await deleteDatabase(db.id); setShowDeleteModal(false) } },
             { label: 'Скасувати', variant: 'secondary', onClick: () => setShowDeleteModal(false) },
           ]}
         />

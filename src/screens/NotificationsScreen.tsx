@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useAppStore } from '@/store/appStore'
+import { hapticSelection, hapticImpact, hapticNotify } from '@/lib/telegram'
 import { useNotifications } from '@/hooks/useNotifications'
 import TabBar from '@/components/ui/TabBar'
 import { IconX } from '@/components/Icons'
@@ -44,10 +45,10 @@ export default function NotificationsScreen() {
     const d = n.data as Record<string, string> | null
     const propertyId = d?.property_id
     if (n.type === 'rent_reminder' && propertyId) {
-      window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('light')
+      hapticImpact('light')
       navigate('payment-calendar', { propertyId })
     } else if ((n.type === 'view' || n.type === 'favorite') && propertyId) {
-      window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('light')
+      hapticImpact('light')
       navigate('sharing-analytics', { propertyId })
     }
   }
@@ -95,7 +96,7 @@ export default function NotificationsScreen() {
             <div
               key={t.id}
               className={`notif-tab ${tab === t.id ? 'on' : ''}`}
-              onClick={() => { window.Telegram?.WebApp?.HapticFeedback?.selectionChanged(); setTab(t.id) }}
+              onClick={() => { hapticSelection(); setTab(t.id) }}
             >
               {t.label}
             </div>
@@ -133,7 +134,7 @@ export default function NotificationsScreen() {
                     <button
                       className="notif-del"
                       aria-label="Видалити сповіщення"
-                      onClick={(e) => { e.stopPropagation(); window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('warning'); deleteNotification(n.id) }}
+                      onClick={(e) => { e.stopPropagation(); hapticNotify('warning'); deleteNotification(n.id) }}
                     >
                       <IconX size={13} />
                     </button>

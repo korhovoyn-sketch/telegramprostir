@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import { useAppStore } from '@/store/appStore'
+import RetryState from '@/components/ui/RetryState'
 import { supabase } from '@/lib/supabase'
 import TabBar from '@/components/ui/TabBar'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import { IconKey, IconBuilding } from '@/components/Icons'
 import { StatusBadge } from '@/components/ui/Badge'
-import { greeting } from '@/lib/utils'
+import { greeting, humanizeDbError } from '@/lib/utils'
 import type { GuestLink } from '@/types'
 
 export default function GuestHomeScreen() {
@@ -30,7 +31,7 @@ export default function GuestHomeScreen() {
       if (error) throw error
       setLinks((data ?? []) as GuestLink[])
     } catch (e) {
-      setLoadError((e as Error).message)
+      setLoadError(humanizeDbError(e))
     } finally {
       setLoading(false)
     }
@@ -75,12 +76,7 @@ export default function GuestHomeScreen() {
         {loading ? (
           <SkeletonLoader />
         ) : loadError ? (
-          <div className="retry-wrap">
-            <div className="retry-ic">📡</div>
-            <div className="retry-h">Не вдалося завантажити</div>
-            <div className="retry-s">{loadError}</div>
-            <button className="retry-btn" onClick={load}>Спробувати ще раз</button>
-          </div>
+          <RetryState subtitle={loadError} onRetry={load} />
         ) : links.length === 0 ? (
           <div className="empty-state" style={{ paddingTop: 32 }}>
             <div className="empty-ic">🏠</div>

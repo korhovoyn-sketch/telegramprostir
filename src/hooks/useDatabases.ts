@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAppStore } from '@/store/appStore'
-import { calcRent } from '@/lib/utils'
+import { calcRent, humanizeDbError } from '@/lib/utils'
 import type { Database } from '@/types'
 
 export function useDatabases() {
@@ -46,7 +46,7 @@ export function useDatabases() {
 
       setDatabases(dbs as unknown as Database[])
     } catch (e) {
-      const msg = (e as Error).message
+      const msg = humanizeDbError(e)
       setError(msg)
       showToast({ type: 'error', title: 'Помилка завантаження', subtitle: msg })
     } finally {
@@ -70,7 +70,7 @@ export function useDatabases() {
       showToast({ type: 'success', title: 'Базу створено' })
       backThenReplace('db-objects', { dbId: data.id })
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
     } finally {
       setLoading(false)
     }
@@ -91,7 +91,7 @@ export function useDatabases() {
       setDatabases(databases.map((d) => (d.id === id ? { ...d, ...data } : d)))
       showToast({ type: 'success', title: 'Базу оновлено' })
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
     } finally {
       setLoading(false)
     }
@@ -125,7 +125,7 @@ export function useDatabases() {
       showToast({ type: 'success', title: 'Базу видалено' })
       navigate('db-list')
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
     } finally {
       setLoading(false)
     }

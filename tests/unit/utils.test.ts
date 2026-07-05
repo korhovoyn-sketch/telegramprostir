@@ -2,7 +2,32 @@ import { describe, it, expect, vi } from 'vitest'
 import {
   formatPrice, formatLeaseDate, formatLeasePeriod, formatDate,
   calcRent, calcUtilities, calcRentUtils, getInitials, greeting, withRetry,
+  humanizeDbError,
 } from '@/lib/utils'
+
+describe('humanizeDbError', () => {
+  it('maps RLS / permission errors to a no-access message', () => {
+    expect(humanizeDbError(new Error('new row violates row-level security policy'))).toContain('доступу')
+  })
+  it('maps unique-violation (23505) to "already exists"', () => {
+    expect(humanizeDbError(new Error('duplicate key value violates unique constraint'))).toContain('існує')
+  })
+  it('maps network failures to a connectivity message', () => {
+    expect(humanizeDbError(new Error('TypeError: Failed to fetch'))).toContain('з\'єднання')
+  })
+  it('returns the fallback for unknown errors and never the raw text', () => {
+    const raw = 'column "secret_internal_col" does not exist in relation xyz'
+    const out = humanizeDbError(new Error(raw))
+    expect(out).not.toContain('secret_internal_col')
+  })
+  it('accepts a custom fallback', () => {
+    expect(humanizeDbError({}, 'кастом')).toBe('кастом')
+  })
+  it('does not throw on non-Error inputs', () => {
+    expect(() => humanizeDbError(null)).not.toThrow()
+    expect(() => humanizeDbError('plain string')).not.toThrow()
+  })
+})
 
 describe('formatPrice', () => {
   it('prefixes USD with $', () => expect(formatPrice(1000, 'USD')).toContain('$'))

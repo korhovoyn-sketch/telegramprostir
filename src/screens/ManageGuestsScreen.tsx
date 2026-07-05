@@ -2,12 +2,14 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useAppStore } from '@/store/appStore'
+import { offlineGuard } from '@/lib/offline'
 import { supabase } from '@/lib/supabase'
+import { humanizeDbError } from '@/lib/utils'
 import Header from '@/components/ui/Header'
 import Modal from '@/components/ui/Modal'
 import { SkeletonList } from '@/components/ui/SkeletonLoader'
 import { IconPlus, IconLink, IconBan, IconUser } from '@/components/Icons'
-import { buildDeepLink, openTelegramShare } from '@/lib/telegram'
+import { buildDeepLink, openTelegramShare , hapticNotify } from '@/lib/telegram'
 import { copyLink } from '@/lib/share'
 import type { GuestLink } from '@/types'
 
@@ -23,7 +25,7 @@ const STATUS_COLOR: Record<string, string> = {
 }
 
 export default function ManageGuestsScreen() {
-  const { user, screenParams, showToast, isOnline } = useAppStore()
+  const { user, screenParams, showToast } = useAppStore()
   const [links, setLinks] = useState<GuestLink[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -50,7 +52,7 @@ export default function ManageGuestsScreen() {
       if (error) throw error
       setLinks((data ?? []) as GuestLink[])
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка завантаження', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Помилка завантаження', subtitle: humanizeDbError(e) })
     } finally {
       setLoading(false)
     }
@@ -69,7 +71,7 @@ export default function ManageGuestsScreen() {
 
   async function handleCreate() {
     if (!user || !targetId) return
-    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
+    if (offlineGuard()) return
     setCreating(true)
     try {
       const { data, error } = await supabase
@@ -90,14 +92,14 @@ export default function ManageGuestsScreen() {
       setNewLink(deepLink)
       await load()
     } catch (e) {
-      showToast({ type: 'error', title: 'Не вдалося створити', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Не вдалося створити', subtitle: humanizeDbError(e) })
     } finally {
       setCreating(false)
     }
   }
 
   async function handleRevoke(id: string) {
-    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
+    if (offlineGuard()) return
     setRevoking(id)
     try {
       const { error } = await supabase
@@ -106,9 +108,9 @@ export default function ManageGuestsScreen() {
         .eq('id', id)
       if (error) throw error
       setLinks(prev => prev.map(l => l.id === id ? { ...l, status: 'revoked' as const } : l))
-      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
+      hapticNotify('success')
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
     } finally {
       setRevoking(null)
     }
@@ -239,7 +241,7 @@ export default function ManageGuestsScreen() {
               label: 'Відкликати',
               variant: 'danger',
               onClick: () => {
-                window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('warning')
+                hapticNotify('warning')
                 const id = revokeTarget.id
                 setRevokeTarget(null)
                 handleRevoke(id)

@@ -4,9 +4,10 @@ import { useEffect, useState } from 'react'
 import { z } from 'zod'
 import QRCode from 'react-qr-code'
 import { useAppStore } from '@/store/appStore'
+import { offlineGuard } from '@/lib/offline'
 import { supabase } from '@/lib/supabase'
 import Modal from '@/components/ui/Modal'
-import { buildPublicUrl, openTelegramShare } from '@/lib/telegram'
+import { buildPublicUrl, openTelegramShare , hapticNotify } from '@/lib/telegram'
 import { copyLink } from '@/lib/share'
 import { formatLeaseDate } from '@/lib/utils'
 import { IconRefresh, IconBan, IconChevronRight, IconClock } from '@/components/Icons'
@@ -33,7 +34,7 @@ interface ShareSheetProps {
  * token rotation and revocation via the manage_share RPC.
  */
 export default function ShareSheet({ kind, id, name, shareText, onClose }: ShareSheetProps) {
-  const { showToast, isOnline } = useAppStore()
+  const { showToast } = useAppStore()
   const [token, setToken] = useState<string | null>(null)
   const [expiresAt, setExpiresAt] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -68,10 +69,7 @@ export default function ShareSheet({ kind, id, name, shareText, onClose }: Share
   }, [kind, id])
 
   async function runManage(action: 'rotate' | 'set_expiry' | 'clear_expiry' | 'revoke', days?: number) {
-    if (!isOnline) {
-      showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Зміни недоступні офлайн' })
-      return
-    }
+    if (offlineGuard('Зміни недоступні офлайн')) return
     setBusy(true)
     try {
       const { data, error } = await supabase.rpc('manage_share', {
@@ -82,7 +80,7 @@ export default function ShareSheet({ kind, id, name, shareText, onClose }: Share
       if (!row || row.error) throw new Error(row?.error ?? 'empty response')
       setToken(row.share_token)
       setExpiresAt(row.share_expires_at)
-      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
+      hapticNotify('success')
       if (action === 'rotate') showToast({ type: 'success', title: 'Посилання оновлено', subtitle: 'Старе посилання більше не діє' })
       if (action === 'revoke') showToast({ type: 'success', title: 'Доступ відкликано' })
     } catch {

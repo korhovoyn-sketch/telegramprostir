@@ -2,12 +2,15 @@
 
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useAppStore } from '@/store/appStore'
+import RetryState from '@/components/ui/RetryState'
+import { hapticImpact, hapticNotify } from '@/lib/telegram'
+import { offlineGuard } from '@/lib/offline'
 import { supabase } from '@/lib/supabase'
 import Header from '@/components/ui/Header'
 import Modal from '@/components/ui/Modal'
 import { SkeletonList } from '@/components/ui/SkeletonLoader'
 import { IconCalendar, IconBellRing, IconCheckCircle, IconClock, IconPlus, IconTrash, IconFile } from '@/components/Icons'
-import { formatPrice } from '@/lib/utils'
+import { formatPrice, humanizeDbError } from '@/lib/utils'
 import type { Property, RentPayment, RentPaymentRecord } from '@/types'
 
 function fmtDueDate(dateStr: string): string {
@@ -38,7 +41,7 @@ interface PaymentItem {
 type MonthCount = 1 | 2 | 3 | 6
 
 export default function PaymentCalendarScreen() {
-  const { screenParams, user, showToast, isOnline } = useAppStore()
+  const { screenParams, user, showToast } = useAppStore()
   const [properties, setProperties]   = useState<Property[]>([])
   const [schedules, setSchedules]     = useState<RentPayment[]>([])
   const [records, setRecords]         = useState<RentPaymentRecord[]>([])
@@ -121,7 +124,7 @@ export default function PaymentCalendarScreen() {
 
       await loadRecordsForIds(ids, monthsAhead)
     } catch (e) {
-      const msg = (e as Error).message
+      const msg = humanizeDbError(e)
       setLoadError(msg)
       showToast({ type: 'error', title: 'Помилка завантаження', subtitle: msg })
     } finally {
@@ -160,6 +163,7 @@ export default function PaymentCalendarScreen() {
   // Load archive lazily on tab switch — all paid records regardless of month
   useEffect(() => {
     if (activeTab !== 'archive' || archiveLoaded || archiveLoading || properties.length === 0) return
+    let cancelled = false
     const ids = properties.map(p => p.id)
     setArchiveLoading(true)
     supabase
@@ -168,10 +172,16 @@ export default function PaymentCalendarScreen() {
       .eq('status', 'paid')
       .order('due_date', { ascending: false })
       .then(({ data }) => {
+        if (cancelled) return
         setArchiveRecords((data ?? []) as RentPaymentRecord[])
         setArchiveLoaded(true)
         setArchiveLoading(false)
+      }, () => {
+        if (cancelled) return
+        setArchiveLoading(false)
+        showToast({ type: 'error', title: 'Не вдалося завантажити архів' })
       })
+    return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, archiveLoaded, properties])
 
@@ -255,9 +265,9 @@ export default function PaymentCalendarScreen() {
 
   const handleMarkPaid = useCallback(async (item: PaymentItem, amount?: number, notes?: string) => {
     if (!user) return
-    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
+    if (offlineGuard()) return
     setPayConfirmSaving(true)
-    window.Telegram?.WebApp?.HapticFeedback?.impactOccurred('light')
+    hapticImpact('light')
     try {
       const { data, error } = await supabase
         .from('rent_payment_records')
@@ -276,7 +286,7 @@ export default function PaymentCalendarScreen() {
         )
         .select('id,property_id,owner_id,due_date,paid_at,amount,status,notes,created_at,updated_at').single()
       if (error) throw error
-      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
+      hapticNotify('success')
       const rec = data as RentPaymentRecord
       setRecords(prev => {
         const idx = prev.findIndex(r => r.property_id === item.property.id && r.due_date === item.dueDate)
@@ -292,15 +302,15 @@ export default function PaymentCalendarScreen() {
       setPayConfirmItem(null)
       showToast({ type: 'success', title: 'Платіж підтверджено ✓' })
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
     } finally {
       setPayConfirmSaving(false)
     }
-  }, [user, archiveLoaded, showToast, isOnline])
+  }, [user, archiveLoaded, showToast])
 
   const handleSaveSchedule = useCallback(async () => {
     if (!setupProp || !user) return
-    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
+    if (offlineGuard()) return
     const day    = parseInt(setupDueDay, 10)
     const notify = parseInt(setupNotify, 10)
     if (!isFinite(day) || day < 1 || day > 28) {
@@ -331,28 +341,28 @@ export default function PaymentCalendarScreen() {
       showToast({ type: 'success', title: 'Розклад збережено' })
       setSetupProp(null)
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка збереження', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Помилка збереження', subtitle: humanizeDbError(e) })
     } finally {
       setSetupSaving(false)
     }
-  }, [setupProp, user, setupDueDay, setupNotify, showToast, isOnline])
+  }, [setupProp, user, setupDueDay, setupNotify, showToast])
 
   const handleDeleteSchedule = useCallback(async () => {
     if (!deleteScheduleProp) return
-    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
+    if (offlineGuard()) return
     try {
       await supabase.from('rent_payments').delete().eq('property_id', deleteScheduleProp.id)
       setSchedules(prev => prev.filter(s => s.property_id !== deleteScheduleProp.id))
       showToast({ type: 'success', title: 'Розклад видалено' })
       setDeleteScheduleProp(null)
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
     }
-  }, [deleteScheduleProp, showToast, isOnline])
+  }, [deleteScheduleProp, showToast])
 
   const handleUnpay = useCallback(async () => {
     if (!unpayTarget) return
-    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
+    if (offlineGuard()) return
     try {
       const { error } = await supabase.from('rent_payment_records').delete().eq('id', unpayTarget.id)
       if (error) throw error
@@ -361,9 +371,9 @@ export default function PaymentCalendarScreen() {
       setUnpayTarget(null)
       showToast({ type: 'success', title: 'Платіж скасовано' })
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
     }
-  }, [unpayTarget, archiveLoaded, showToast, isOnline])
+  }, [unpayTarget, archiveLoaded, showToast])
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
   function getStatusColor(item: PaymentItem): string {
@@ -429,12 +439,7 @@ export default function PaymentCalendarScreen() {
         {loading ? (
           <SkeletonList count={3} />
         ) : loadError && properties.length === 0 ? (
-          <div className="retry-wrap">
-            <div className="retry-ic">📡</div>
-            <div className="retry-h">Не вдалося завантажити</div>
-            <div className="retry-s">{loadError}</div>
-            <button className="retry-btn" onClick={loadCurrent}>Спробувати ще раз</button>
-          </div>
+          <RetryState subtitle={loadError} onRetry={loadCurrent} />
         ) : properties.length === 0 ? (
           <div className="empty-state" style={{ paddingTop: 32 }}>
             <div className="empty-ic">📅</div>
@@ -691,7 +696,7 @@ export default function PaymentCalendarScreen() {
           subtitle={`Розклад платежів для «${deleteScheduleProp.name}» буде видалено.`}
           onClose={() => setDeleteScheduleProp(null)}
           actions={[
-            { label: 'Видалити', variant: 'danger', onClick: () => { window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('warning'); handleDeleteSchedule() } },
+            { label: 'Видалити', variant: 'danger', onClick: () => { hapticNotify('warning'); handleDeleteSchedule() } },
             { label: 'Скасувати', variant: 'secondary', onClick: () => setDeleteScheduleProp(null) },
           ]}
         />

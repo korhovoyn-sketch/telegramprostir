@@ -2,11 +2,12 @@
 
 import { useState } from 'react'
 import { useAppStore } from '@/store/appStore'
+import { offlineGuard } from '@/lib/offline'
 import { supabase } from '@/lib/supabase'
 import Header from '@/components/ui/Header'
 import Toggle from '@/components/ui/Toggle'
 import { IconFileExport, IconFile, IconAdjustments } from '@/components/Icons'
-import { calcRent, calcUtilities, DB_TYPE_LABELS, STATUS_LABELS, formatDate } from '@/lib/utils'
+import { calcRent, calcUtilities, DB_TYPE_LABELS, STATUS_LABELS, formatDate, humanizeDbError } from '@/lib/utils'
 import type { Property, Database } from '@/types'
 
 const FORMATS = [
@@ -579,7 +580,7 @@ async function generateExcel(
 // ── Screen component ──────────────────────────────────────────────────────────
 
 export default function ExportScreen() {
-  const { screenParams, showToast, user, databases, isOnline } = useAppStore()
+  const { screenParams, showToast, user, databases } = useAppStore()
   const { dbId } = screenParams
   const [format, setFormat]           = useState('pdf')
   const [template, setTemplate]       = useState('classic')
@@ -591,7 +592,7 @@ export default function ExportScreen() {
 
   async function handleExport() {
     if (!dbId) { showToast({ type: 'error', title: 'Не вказано базу' }); return }
-    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Експорт недоступний офлайн' }); return }
+    if (offlineGuard('Експорт недоступний офлайн')) return
     setLoading(true)
     try {
       const { data: propertiesRaw, error } = await supabase
@@ -623,7 +624,7 @@ export default function ExportScreen() {
         showToast({ type: 'success', title: 'Excel збережено ✓' })
       }
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка експорту', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Помилка експорту', subtitle: humanizeDbError(e) })
     } finally {
       setLoading(false)
     }

@@ -2,12 +2,15 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useAppStore } from '@/store/appStore'
+import RetryState from '@/components/ui/RetryState'
+import { hapticNotify } from '@/lib/telegram'
+import { offlineGuard } from '@/lib/offline'
 import { supabase } from '@/lib/supabase'
 import TabBar from '@/components/ui/TabBar'
 import { StatusBadge } from '@/components/ui/Badge'
 import Modal from '@/components/ui/Modal'
 import { IconPlus, IconShare, IconX, IconChevronLeft, IconTrash, IconBuilding } from '@/components/Icons'
-import { formatPrice, calcRent, formatDate, photoUrl } from '@/lib/utils'
+import { formatPrice, calcRent, formatDate, photoUrl, humanizeDbError } from '@/lib/utils'
 import ShareSheet from '@/components/ui/ShareSheet'
 import type { Property, Collection } from '@/types'
 import CoachMark from '@/components/ui/CoachMark'
@@ -128,7 +131,7 @@ function CollectionDetail({
       if (error) throw error
       setCollectionProps((data ?? []) as unknown as CollectionProperty[])
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка завантаження', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Помилка завантаження', subtitle: humanizeDbError(e) })
     } finally {
       setLoadingProps(false)
     }
@@ -167,7 +170,7 @@ function CollectionDetail({
       const available = ((props ?? []) as Property[]).filter((p) => !addedIds.has(p.id))
       setAvailableProps(available)
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка завантаження', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Помилка завантаження', subtitle: humanizeDbError(e) })
     } finally {
       setLoadingAvail(false)
     }
@@ -179,7 +182,7 @@ function CollectionDetail({
   }
 
   async function addProperty(propertyId: string) {
-    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
+    if (offlineGuard()) return
     try {
       const { error } = await supabase
         .from('collection_properties')
@@ -194,12 +197,12 @@ function CollectionDetail({
       onUpdate({ ...collection, property_count: collection.property_count + 1 })
       showToast({ type: 'success', title: 'Об\'єкт додано' })
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
     }
   }
 
   async function removeProperty(propertyId: string) {
-    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
+    if (offlineGuard()) return
     try {
       const { error } = await supabase
         .from('collection_properties')
@@ -212,7 +215,7 @@ function CollectionDetail({
       onUpdate({ ...collection, property_count: Math.max(0, collection.property_count - 1) })
       showToast({ type: 'success', title: 'Об\'єкт видалено' })
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
     }
   }
 
@@ -232,7 +235,7 @@ function CollectionDetail({
         if (error) throw error
         onUpdate({ ...collection, is_draft: false })
       } catch (e) {
-        showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
+        showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
         return
       }
     }
@@ -240,18 +243,18 @@ function CollectionDetail({
   }
 
   async function deleteCollection() {
-    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
+    if (offlineGuard()) return
     try {
       const { error } = await supabase
         .from('collections')
         .delete()
         .eq('id', collection.id)
       if (error) throw error
-      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
+      hapticNotify('success')
       showToast({ type: 'success', title: 'Підбірку видалено' })
       onDelete(collection.id)
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
     } finally {
       setShowDeleteModal(false)
     }
@@ -439,7 +442,7 @@ function CollectionDetail({
           subtitle={`Підбірку "${collection.name}" буде видалено. Це незворотно.`}
           onClose={() => setShowDeleteModal(false)}
           actions={[
-            { label: 'Видалити', variant: 'danger', onClick: () => { window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('warning'); deleteCollection() } },
+            { label: 'Видалити', variant: 'danger', onClick: () => { hapticNotify('warning'); deleteCollection() } },
             { label: 'Скасувати', variant: 'secondary', onClick: () => setShowDeleteModal(false) },
           ]}
         />
@@ -461,7 +464,7 @@ function CollectionDetail({
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function CollectionsScreen() {
-  const { user, showToast, screenParams, isOnline } = useAppStore()
+  const { user, showToast, screenParams } = useAppStore()
   const [collections, setCollections] = useState<CollectionWithCount[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -513,7 +516,7 @@ export default function CollectionsScreen() {
 
       setCollections(enriched)
     } catch (e) {
-      const msg = (e as Error).message
+      const msg = humanizeDbError(e)
       setLoadError(msg)
       showToast({ type: 'error', title: 'Помилка завантаження', subtitle: msg })
     } finally {
@@ -535,7 +538,7 @@ export default function CollectionsScreen() {
 
   async function createCollection() {
     if (!user) return
-    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
+    if (offlineGuard()) return
     const name = `Підбірка ${collections.length + 1}`
     try {
       const { data, error } = await supabase
@@ -552,7 +555,7 @@ export default function CollectionsScreen() {
       setCollections([newCol, ...collections])
       showToast({ type: 'success', title: 'Підбірку створено' })
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
     }
   }
 
@@ -605,12 +608,7 @@ export default function CollectionsScreen() {
         {loading ? (
           <div className="loader-wrap"><div className="loader" /></div>
         ) : loadError && collections.length === 0 ? (
-          <div className="retry-wrap">
-            <div className="retry-ic">📡</div>
-            <div className="retry-h">Не вдалося завантажити</div>
-            <div className="retry-s">{loadError}</div>
-            <button className="retry-btn" onClick={loadCollections}>Спробувати ще раз</button>
-          </div>
+          <RetryState subtitle={loadError} onRetry={loadCollections} />
         ) : collections.length === 0 ? (
           <div className="empty-state" style={{ paddingTop: 32 }}>
             <div className="empty-ic">📋</div>
