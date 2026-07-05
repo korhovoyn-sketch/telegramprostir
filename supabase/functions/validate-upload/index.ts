@@ -2,18 +2,33 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 import { z } from 'https://esm.sh/zod@3.23.8'
 
 // Restrict CORS to the Mini App origin set via ALLOWED_ORIGIN secret.
-// REQUIRED: must be explicitly set. Default '*' is a security risk.
-const _allowedOrigin = Deno.env.get('ALLOWED_ORIGIN')
-if (!_allowedOrigin) {
-  // CRITICAL: Do NOT default to '*' — it allows ANY origin to make requests
-  // and steal access tokens via CSRF attacks. Fail loudly instead.
-  throw new Error('ALLOWED_ORIGIN env var must be explicitly set (no default to *). Set it in Supabase → Edge Functions → Secrets.')
-}
+// REQUIRED: must be explicitly set. Default '*' is a security risk for the
+// real (signed-upload-URL-bearing) success response.
+//
+// Read lazily inside the request handler, NOT thrown at module top level —
+// see the matching comment in telegram-auth/index.ts. A top-level throw means
+// Deno.serve() is never reached, so every request (including the OPTIONS
+// preflight) fails with zero CORS headers and shows up to the browser as a
+// bare network error — indistinguishable from "no internet" — instead of the
+// actionable config error this function already knows how to report.
+const _allowedOrigin = Deno.env.get('ALLOWED_ORIGIN') ?? null
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': _allowedOrigin,
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+function corsHeadersFor(reqOrigin: string | null): Record<string, string> {
+  if (_allowedOrigin) {
+    return {
+      'Access-Control-Allow-Origin': _allowedOrigin,
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    }
+  }
+  // Misconfigured: no real (signed-URL) response is ever returned on this
+  // path — see the CONFIG_ERROR short-circuit below — so reflecting the
+  // caller's Origin only makes the diagnostic itself readable.
+  return {
+    'Access-Control-Allow-Origin': reqOrigin ?? '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  }
 }
 
 const ValidateUploadSchema = z.object({
@@ -23,20 +38,26 @@ const ValidateUploadSchema = z.object({
   fileSize: z.number().min(1).max(20 * 1024 * 1024),
 })
 
-function errResponse(status: number, message: string) {
+function errResponse(cors: Record<string, string>, status: number, message: string) {
   return new Response(
     JSON.stringify({ error: message }),
-    { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    { status, headers: { ...cors, 'Content-Type': 'application/json' } }
   )
 }
 
 Deno.serve(async (req) => {
+  const cors = corsHeadersFor(req.headers.get('Origin'))
+
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response('ok', { headers: cors })
   }
 
   if (req.method !== 'POST') {
-    return errResponse(405, 'Method not allowed')
+    return errResponse(cors, 405, 'Method not allowed')
+  }
+
+  if (!_allowedOrigin) {
+    return errResponse(cors, 500, 'ALLOWED_ORIGIN not configured')
   }
 
   try {
@@ -55,7 +76,7 @@ Deno.serve(async (req) => {
       // Log the schema detail server-side only; return a generic message so the
       // internal validation shape isn't echoed to the client.
       console.error('[validate-upload] invalid request:', parsed.error.errors[0]?.message)
-      return errResponse(400, 'Invalid request')
+      return errResponse(cors, 400, 'Invalid request')
     }
 
     const { propertyId, mimeType } = parsed.data
@@ -75,7 +96,7 @@ Deno.serve(async (req) => {
       .single()
 
     if (propErr || !prop) {
-      return errResponse(403, 'Property not found or access denied')
+      return errResponse(cors, 403, 'Property not found or access denied')
     }
 
     // Verify file count (max 10 per property) via userClient to enforce RLS.
@@ -87,7 +108,7 @@ Deno.serve(async (req) => {
       .eq('property_id', propertyId)
 
     if ((count ?? 0) >= 10) {
-      return errResponse(429, 'Max 10 files per property')
+      return errResponse(cors, 429, 'Max 10 files per property')
     }
 
     // Generate unique storage path — {propertyId} as first segment is required
@@ -116,11 +137,11 @@ Deno.serve(async (req) => {
         storagePath: path,
         token: uploadData.token,
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...cors, 'Content-Type': 'application/json' } }
     )
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Unknown error'
     console.error('[validate-upload]', msg)
-    return errResponse(500, 'Server error')
+    return errResponse(cors, 500, 'Server error')
   }
 })

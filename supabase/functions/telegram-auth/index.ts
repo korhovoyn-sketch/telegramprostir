@@ -7,18 +7,40 @@ const RequestSchema = z.object({
 })
 
 // Restrict CORS to the Mini App origin set via ALLOWED_ORIGIN secret.
-// REQUIRED: must be explicitly set. Default '*' is a security risk.
-const _allowedOrigin = Deno.env.get('ALLOWED_ORIGIN')
-if (!_allowedOrigin) {
-  // CRITICAL: Do NOT default to '*' — it allows ANY origin to make requests
-  // and steal access tokens via CSRF attacks. Fail loudly instead.
-  throw new Error('ALLOWED_ORIGIN env var must be explicitly set (no default to *). Set it in Supabase → Edge Functions → Secrets.')
-}
-const corsHeaders = {
-  'Access-Control-Allow-Origin': _allowedOrigin,
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Max-Age': '86400',
+// REQUIRED: must be explicitly set. Default '*' is a security risk for the
+// real auth response (it carries a session token).
+//
+// IMPORTANT: this is read lazily inside the request handler, NOT thrown at
+// module top level. A top-level throw runs before Deno.serve() is ever
+// reached, so Deno never registers a request handler at all — every request,
+// including the OPTIONS preflight, then fails with no CORS headers whatsoever.
+// The browser reports that to JS as a bare network error, indistinguishable
+// from "no internet" (see useAuth.ts's generic fetch-failure message) — so a
+// missing/misconfigured secret silently locks EVERY user out with a message
+// that sends them looking at their Wi-Fi instead of the Supabase dashboard.
+// Computing CORS headers per-request lets a misconfiguration still return a
+// readable, actionable CONFIG_ERROR instead of an opaque connection failure.
+const _allowedOrigin = Deno.env.get('ALLOWED_ORIGIN') ?? null
+
+function corsHeadersFor(reqOrigin: string | null): Record<string, string> {
+  if (_allowedOrigin) {
+    return {
+      'Access-Control-Allow-Origin': _allowedOrigin,
+      'Access-Control-Allow-Methods': 'POST, OPTIONS, GET',
+      'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+      'Access-Control-Max-Age': '86400',
+    }
+  }
+  // Misconfigured: no real auth response is ever returned on this path (see
+  // the CONFIG_ERROR short-circuit below) — the response body never carries a
+  // token or user data, so reflecting the caller's Origin here only makes the
+  // diagnostic itself readable; it does not expose anything an attacker could
+  // use, and it does not weaken the real (configured) case above.
+  return {
+    'Access-Control-Allow-Origin': reqOrigin ?? '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS, GET',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  }
 }
 
 // ── Safe error codes (exposed to client — no internal detail) ────────────────
@@ -35,10 +57,10 @@ type ErrCode =
   | 'CONFIG_ERROR'      // missing env var
   | 'INTERNAL'
 
-function errResponse(status: number, message: string, code: ErrCode) {
+function errResponse(cors: Record<string, string>, status: number, message: string, code: ErrCode) {
   return new Response(
     JSON.stringify({ error: message, code }),
-    { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    { status, headers: { ...cors, 'Content-Type': 'application/json' } },
   )
 }
 
@@ -175,17 +197,21 @@ function classifyError(msg: string): ErrCode {
 }
 
 Deno.serve(async (req) => {
+  const cors = corsHeadersFor(req.headers.get('Origin'))
+
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response('ok', { headers: cors })
   }
 
   // ── GET: lightweight health / config check ──────────────────────────────
   // Returns which env vars are configured (not their values).
   // Useful for diagnosing why auth is broken without exposing secrets.
-  // Uses separate headers that allow GET explicitly (corsHeaders only allows POST).
+  // Always reachable — including when ALLOWED_ORIGIN itself is unset — so the
+  // in-app "Діагностика підключення" button can name that exact secret
+  // instead of the caller just seeing a generic connection failure.
   if (req.method === 'GET') {
-    const getHeaders = { ...(corsHeaders as Record<string, string>), 'Access-Control-Allow-Methods': 'GET, OPTIONS' }
     const checks = {
+      allowed_origin: !!_allowedOrigin,
       bot_token:   !!Deno.env.get('TELEGRAM_BOT_TOKEN'),
       supabase_url: !!Deno.env.get('SUPABASE_URL'),
       service_key:  !!Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'),
@@ -208,8 +234,16 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({ ok: allOk && db, checks: { ...checks, db } }),
-      { headers: { ...getHeaders, 'Content-Type': 'application/json' } },
+      { headers: { ...cors, 'Content-Type': 'application/json' } },
     )
+  }
+
+  // Misconfigured deploy: refuse to process real logins (never fall back to
+  // '*' for the token-bearing success response), but return a response the
+  // browser can actually read so the client shows an actionable message
+  // instead of a bare "check your internet" failure.
+  if (!_allowedOrigin) {
+    return errResponse(cors, 500, 'ALLOWED_ORIGIN not configured', 'CONFIG_ERROR')
   }
 
   // ── POST: auth ───────────────────────────────────────────────────────────
@@ -217,7 +251,7 @@ Deno.serve(async (req) => {
     const rawBody = await req.json().catch(() => null)
     const parsed = RequestSchema.safeParse(rawBody)
     if (!parsed.success) {
-      return errResponse(400, 'Invalid request body', 'INVALID_REQUEST')
+      return errResponse(cors, 400, 'Invalid request body', 'INVALID_REQUEST')
     }
     const body = parsed.data
 
@@ -237,6 +271,7 @@ Deno.serve(async (req) => {
     const validation = await validateInitData(body.initData, botToken)
     if (!validation.ok) {
       return errResponse(
+        cors,
         401,
         validation.code === 'INIT_DATA_EXPIRED' ? 'Session expired' : 'Invalid initData',
         validation.code,
@@ -248,10 +283,10 @@ Deno.serve(async (req) => {
     try {
       tgUser = JSON.parse(validated.user ?? '{}')
     } catch {
-      return errResponse(400, 'Invalid user data', 'INVALID_REQUEST')
+      return errResponse(cors, 400, 'Invalid user data', 'INVALID_REQUEST')
     }
     if (!tgUser.id) {
-      return errResponse(400, 'Missing user id', 'INVALID_REQUEST')
+      return errResponse(cors, 400, 'Missing user id', 'INVALID_REQUEST')
     }
 
     const tgId = parseInt(tgUser.id, 10)
@@ -260,7 +295,7 @@ Deno.serve(async (req) => {
     // ── Rate limiting (DB-backed, per Telegram user) ──────────────────────
     const allowed = await checkRateLimit(adminClient, `tg:${tgId}`)
     if (!allowed) {
-      return errResponse(429, 'Rate limit exceeded', 'RATE_LIMIT')
+      return errResponse(cors, 429, 'Rate limit exceeded', 'RATE_LIMIT')
     }
 
     // ── Upsert user in public.users ───────────────────────────────────────
@@ -372,12 +407,12 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({ access_token, refresh_token, user: fullUser, is_new: !existing }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      { headers: { ...cors, 'Content-Type': 'application/json' } },
     )
   } catch (err) {
     const msg = serializeError(err)
     console.error('[telegram-auth] error:', msg)
     const code = classifyError(msg)
-    return errResponse(500, 'Internal error', code)
+    return errResponse(cors, 500, 'Internal error', code)
   }
 })

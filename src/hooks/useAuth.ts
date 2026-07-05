@@ -24,6 +24,12 @@ let _intentionalLogout = false
 let _restorePromise: Promise<boolean> | null = null
 let _restoreStartedAt: number | null = null
 
+// logout()'s signOut runs fire-and-forget; the next login's setSession() must
+// wait for it to release Supabase's internal auth lock, otherwise setSession
+// deadlocks behind the still-running signOut and the login hangs — surfacing as
+// a false "no internet" error. loginViaTelegram awaits this before setSession.
+let _signOutPromise: Promise<unknown> | null = null
+
 // Single shared budget for the whole restore flow — SplashScreen races its timeout
 // against this, and loginViaTelegram derives its own wait from however much of this
 // budget the in-flight restore has already consumed, instead of guessing a flat number.
@@ -277,6 +283,16 @@ export function useAuth() {
         throw new Error(`Invalid token format: expected 3 parts, got ${access_token.split('.').length}`)
       }
 
+      // Wait for a just-issued logout's signOut to finish releasing the auth
+      // lock, else setSession() below can deadlock behind it (hangs → false
+      // "no internet"). Bounded so a stuck signOut can't wedge login forever.
+      if (_signOutPromise) {
+        await Promise.race([
+          _signOutPromise.catch(() => {}),
+          new Promise(r => setTimeout(r, 3000)),
+        ])
+      }
+
       try {
         await supabase.auth.setSession({ access_token, refresh_token })
       } catch (sessionErr) {
@@ -318,8 +334,14 @@ export function useAuth() {
     clearPersistedSession()
     setUser(null)
     navigateRoot('welcome', { fromLogout: true })
-    // Fire-and-forget — SIGNED_OUT listener is suppressed by _intentionalLogout
-    supabase.auth.signOut().catch(() => {})
+    // scope:'local' clears the stored session WITHOUT a network POST to
+    // /auth/v1/logout. A global signOut's network call can hang in the Telegram
+    // webview while holding the auth lock, deadlocking the next login's
+    // setSession(). Track the promise so loginViaTelegram can await it.
+    // SIGNED_OUT listener is suppressed by _intentionalLogout.
+    _signOutPromise = supabase.auth.signOut({ scope: 'local' })
+      .catch(() => {})
+      .finally(() => { _signOutPromise = null })
   }, [setUser, navigateRoot])
 
   const updateProfile = useCallback(async (updates: Partial<User>, silent = false): Promise<boolean> => {

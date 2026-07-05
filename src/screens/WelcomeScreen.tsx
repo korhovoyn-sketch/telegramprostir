@@ -93,13 +93,21 @@ export default function WelcomeScreen() {
       if (data.ok) {
         showToast({ type: 'success', title: '✓ Конфігурація OK', subtitle: 'Змінні та БД налаштовані. Якщо вхід не працює — перевірте правильність TELEGRAM_BOT_TOKEN.' })
       } else {
+        const ENV_VAR_NAMES: Record<string, string> = {
+          allowed_origin: 'ALLOWED_ORIGIN',
+          bot_token: 'TELEGRAM_BOT_TOKEN',
+          supabase_url: 'SUPABASE_URL',
+          service_key: 'SUPABASE_SERVICE_ROLE_KEY',
+          anon_key: 'SUPABASE_ANON_KEY',
+          db: 'з\'єднання з БД',
+        }
         const checks = data.checks ?? {}
         const bad = (Object.entries(checks) as [string, boolean][])
-          .filter(([, v]) => !v).map(([k]) => k)
+          .filter(([, v]) => !v).map(([k]) => ENV_VAR_NAMES[k] ?? k)
         showToast({
           type: 'error',
           title: 'Проблема конфігурації',
-          subtitle: bad.length ? `Не налаштовано: ${bad.join(', ')}` : 'Edge Function недоступна',
+          subtitle: bad.length ? `Не налаштовано в Supabase → Edge Functions → Secrets: ${bad.join(', ')}` : 'Edge Function недоступна',
         })
       }
     } catch {
