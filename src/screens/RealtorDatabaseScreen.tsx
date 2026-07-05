@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import { useAppStore } from '@/store/appStore'
+import RetryState from '@/components/ui/RetryState'
 import { supabase } from '@/lib/supabase'
 import Header from '@/components/ui/Header'
 import SearchBar from '@/components/ui/SearchBar'
@@ -73,12 +74,7 @@ export default function RealtorDatabaseScreen() {
     <div className="scr bg-cyan">
       <Header title="База" backLabel="Бази" />
       {error ? (
-        <div className="retry-wrap">
-          <div className="retry-ic">📡</div>
-          <div className="retry-h">Помилка завантаження</div>
-          <div className="retry-s">Перевір підключення і спробуй ще раз</div>
-          <button className="retry-btn" onClick={load}>Спробувати ще раз</button>
-        </div>
+        <RetryState title="Помилка завантаження" subtitle="Перевір підключення і спробуй ще раз" onRetry={load} />
       ) : (
         <div className="loader-wrap"><div className="loader" /></div>
       )}

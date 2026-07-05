@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useAppStore } from '@/store/appStore'
+import RetryState from '@/components/ui/RetryState'
 import { hapticNotify } from '@/lib/telegram'
 import { offlineGuard } from '@/lib/offline'
 import { supabase } from '@/lib/supabase'
@@ -607,12 +608,7 @@ export default function CollectionsScreen() {
         {loading ? (
           <div className="loader-wrap"><div className="loader" /></div>
         ) : loadError && collections.length === 0 ? (
-          <div className="retry-wrap">
-            <div className="retry-ic">📡</div>
-            <div className="retry-h">Не вдалося завантажити</div>
-            <div className="retry-s">{loadError}</div>
-            <button className="retry-btn" onClick={loadCollections}>Спробувати ще раз</button>
-          </div>
+          <RetryState subtitle={loadError} onRetry={loadCollections} />
         ) : collections.length === 0 ? (
           <div className="empty-state" style={{ paddingTop: 32 }}>
             <div className="empty-ic">📋</div>

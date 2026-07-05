@@ -3,6 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 import { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '@/store/appStore'
+import RetryState from '@/components/ui/RetryState'
 import { hapticImpact, hapticNotify } from '@/lib/telegram'
 import { offlineGuard } from '@/lib/offline'
 import { useProperties } from '@/hooks/useProperties'
@@ -168,14 +169,12 @@ export default function PropertyDetailScreen() {
   if (!property && error) return (
     <div className="scr bg-blue">
       <Header title="Об'єкт" backLabel="Назад" />
-      <div className="retry-wrap">
-        <div className="retry-ic">🏚️</div>
-        <div className="retry-h">Об&apos;єкт не знайдено</div>
-        <div className="retry-s">Можливо, його видалили. {error}</div>
-        <button className="retry-btn" onClick={() => screenParams.propertyId && loadSingleProperty(screenParams.propertyId)}>
-          Спробувати ще раз
-        </button>
-      </div>
+      <RetryState
+        icon="🏚️"
+        title="Об'єкт не знайдено"
+        subtitle={<>Можливо, його видалили. {error}</>}
+        onRetry={() => screenParams.propertyId && loadSingleProperty(screenParams.propertyId)}
+      />
     </div>
   )
 

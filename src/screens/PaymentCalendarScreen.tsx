@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useAppStore } from '@/store/appStore'
+import RetryState from '@/components/ui/RetryState'
 import { hapticImpact, hapticNotify } from '@/lib/telegram'
 import { offlineGuard } from '@/lib/offline'
 import { supabase } from '@/lib/supabase'
@@ -438,12 +439,7 @@ export default function PaymentCalendarScreen() {
         {loading ? (
           <SkeletonList count={3} />
         ) : loadError && properties.length === 0 ? (
-          <div className="retry-wrap">
-            <div className="retry-ic">📡</div>
-            <div className="retry-h">Не вдалося завантажити</div>
-            <div className="retry-s">{loadError}</div>
-            <button className="retry-btn" onClick={loadCurrent}>Спробувати ще раз</button>
-          </div>
+          <RetryState subtitle={loadError} onRetry={loadCurrent} />
         ) : properties.length === 0 ? (
           <div className="empty-state" style={{ paddingTop: 32 }}>
             <div className="empty-ic">📅</div>

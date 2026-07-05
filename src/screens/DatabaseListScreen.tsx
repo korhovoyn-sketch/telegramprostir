@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo, useRef } from 'react'
 import { useAppStore } from '@/store/appStore'
+import RetryState from '@/components/ui/RetryState'
 import { hapticImpact } from '@/lib/telegram'
 import { useDatabases } from '@/hooks/useDatabases'
 import { useSlowLoadingToast } from '@/hooks/useSlowLoadingToast'
@@ -185,12 +186,7 @@ export default function DatabaseListScreen() {
         {loading ? (
           <SkeletonLoader />
         ) : error && databases.length === 0 ? (
-          <div className="retry-wrap">
-            <div className="retry-ic">📡</div>
-            <div className="retry-h">Не вдалося завантажити</div>
-            <div className="retry-s">{error}</div>
-            <button className="retry-btn" onClick={loadDatabases}>Спробувати ще раз</button>
-          </div>
+          <RetryState subtitle={error} onRetry={loadDatabases} />
         ) : !showPropResults && filtered.length === 0 && search ? (
           <div className="empty-state" style={{ paddingTop: 32 }}>
             <div className="empty-ic">🔍</div>

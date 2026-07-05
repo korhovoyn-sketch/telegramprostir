@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo, useRef } from 'react'
 import { useAppStore } from '@/store/appStore'
+import RetryState from '@/components/ui/RetryState'
 import { hapticSelection, hapticNotify } from '@/lib/telegram'
 import { offlineGuard } from '@/lib/offline'
 import { useDatabases } from '@/hooks/useDatabases'
@@ -275,12 +276,7 @@ export default function DatabaseObjectsScreen() {
         {loading ? (
           <SkeletonLoader />
         ) : error && properties.length === 0 ? (
-          <div className="retry-wrap">
-            <div className="retry-ic">📡</div>
-            <div className="retry-h">Не вдалося завантажити</div>
-            <div className="retry-s">{error}</div>
-            <button className="retry-btn" onClick={() => loadProperties(screenParams.dbId)}>Спробувати ще раз</button>
-          </div>
+          <RetryState subtitle={error} onRetry={() => loadProperties(screenParams.dbId)} />
         ) : filtered.length === 0 && properties.length === 0 ? (
           <div className="empty-state" style={{ paddingTop: 24 }}>
             <div className="empty-ic">🏢</div>
