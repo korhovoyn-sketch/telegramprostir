@@ -247,9 +247,14 @@ export function useAuth() {
           throw new Error('Забагато спроб входу. Зачекайте хвилину і спробуйте ще раз.')
         }
 
-        // Map safe error codes from the Edge Function to actionable Ukrainian messages
+        // Map safe error codes from the Edge Function to actionable Ukrainian messages.
+        // CONFIG_ERROR can mean ALLOWED_ORIGIN, TELEGRAM_BOT_TOKEN, or a missing
+        // Supabase env var — the POST response never names which one (the generic
+        // catch-all only returns 'Internal error' for anything but the ALLOWED_ORIGIN
+        // short-circuit, by design — see telegram-auth's Security rule #1). Point to
+        // the diagnostics button instead of guessing specific var names.
         if (code === 'CONFIG_ERROR') {
-          throw new Error('Не налаштовані змінні середовища Edge Function. Додайте TELEGRAM_BOT_TOKEN та SUPABASE_SERVICE_ROLE_KEY в Supabase → Settings → Edge Functions.')
+          throw new Error('Edge Function не налаштована на сервері. Натисніть «⚙ Діагностика підключення» на цьому екрані, щоб дізнатись, яку саме змінну додати в Supabase → Edge Functions → Secrets.')
         }
         if (code === 'DB_SETUP') {
           throw new Error('Таблиці бази даних не створені. Запустіть файл 013_master_setup.sql у Supabase → SQL Editor.')
