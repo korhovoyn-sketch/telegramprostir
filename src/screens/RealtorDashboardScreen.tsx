@@ -7,7 +7,7 @@ import TabBar from '@/components/ui/TabBar'
 import SearchBar from '@/components/ui/SearchBar'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import { IconChevronRight, GlassDbIcon } from '@/components/Icons'
-import { DB_TYPE_LABELS, greeting } from '@/lib/utils'
+import { DB_TYPE_LABELS, greeting, humanizeDbError } from '@/lib/utils'
 import type { Database, RealtorSubscription } from '@/types'
 import CoachMark from '@/components/ui/CoachMark'
 import { useOnboarding } from '@/hooks/useOnboarding'
@@ -47,7 +47,7 @@ export default function RealtorDashboardScreen() {
         setPropertyCount(count ?? 0)
       }
     } catch (e) {
-      const msg = (e as Error).message
+      const msg = humanizeDbError(e)
       setLoadError(msg)
       showToast({ type: 'error', title: 'Помилка завантаження', subtitle: msg })
     } finally {

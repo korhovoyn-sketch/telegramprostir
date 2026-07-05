@@ -7,7 +7,7 @@ import TabBar from '@/components/ui/TabBar'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import { IconKey, IconBuilding } from '@/components/Icons'
 import { StatusBadge } from '@/components/ui/Badge'
-import { greeting } from '@/lib/utils'
+import { greeting, humanizeDbError } from '@/lib/utils'
 import type { GuestLink } from '@/types'
 
 export default function GuestHomeScreen() {
@@ -30,7 +30,7 @@ export default function GuestHomeScreen() {
       if (error) throw error
       setLinks((data ?? []) as GuestLink[])
     } catch (e) {
-      setLoadError((e as Error).message)
+      setLoadError(humanizeDbError(e))
     } finally {
       setLoading(false)
     }

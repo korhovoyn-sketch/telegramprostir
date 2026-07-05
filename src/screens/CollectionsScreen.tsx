@@ -7,7 +7,7 @@ import TabBar from '@/components/ui/TabBar'
 import { StatusBadge } from '@/components/ui/Badge'
 import Modal from '@/components/ui/Modal'
 import { IconPlus, IconShare, IconX, IconChevronLeft, IconTrash, IconBuilding } from '@/components/Icons'
-import { formatPrice, calcRent, formatDate, photoUrl } from '@/lib/utils'
+import { formatPrice, calcRent, formatDate, photoUrl, humanizeDbError } from '@/lib/utils'
 import ShareSheet from '@/components/ui/ShareSheet'
 import type { Property, Collection } from '@/types'
 import CoachMark from '@/components/ui/CoachMark'
@@ -128,7 +128,7 @@ function CollectionDetail({
       if (error) throw error
       setCollectionProps((data ?? []) as unknown as CollectionProperty[])
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка завантаження', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Помилка завантаження', subtitle: humanizeDbError(e) })
     } finally {
       setLoadingProps(false)
     }
@@ -167,7 +167,7 @@ function CollectionDetail({
       const available = ((props ?? []) as Property[]).filter((p) => !addedIds.has(p.id))
       setAvailableProps(available)
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка завантаження', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Помилка завантаження', subtitle: humanizeDbError(e) })
     } finally {
       setLoadingAvail(false)
     }
@@ -194,7 +194,7 @@ function CollectionDetail({
       onUpdate({ ...collection, property_count: collection.property_count + 1 })
       showToast({ type: 'success', title: 'Об\'єкт додано' })
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
     }
   }
 
@@ -212,7 +212,7 @@ function CollectionDetail({
       onUpdate({ ...collection, property_count: Math.max(0, collection.property_count - 1) })
       showToast({ type: 'success', title: 'Об\'єкт видалено' })
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
     }
   }
 
@@ -232,7 +232,7 @@ function CollectionDetail({
         if (error) throw error
         onUpdate({ ...collection, is_draft: false })
       } catch (e) {
-        showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
+        showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
         return
       }
     }
@@ -251,7 +251,7 @@ function CollectionDetail({
       showToast({ type: 'success', title: 'Підбірку видалено' })
       onDelete(collection.id)
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
     } finally {
       setShowDeleteModal(false)
     }
@@ -513,7 +513,7 @@ export default function CollectionsScreen() {
 
       setCollections(enriched)
     } catch (e) {
-      const msg = (e as Error).message
+      const msg = humanizeDbError(e)
       setLoadError(msg)
       showToast({ type: 'error', title: 'Помилка завантаження', subtitle: msg })
     } finally {
@@ -552,7 +552,7 @@ export default function CollectionsScreen() {
       setCollections([newCol, ...collections])
       showToast({ type: 'success', title: 'Підбірку створено' })
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
     }
   }
 

@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase'
 import Header from '@/components/ui/Header'
 import Toggle from '@/components/ui/Toggle'
 import { IconFileExport, IconFile, IconAdjustments } from '@/components/Icons'
-import { calcRent, calcUtilities, DB_TYPE_LABELS, STATUS_LABELS, formatDate } from '@/lib/utils'
+import { calcRent, calcUtilities, DB_TYPE_LABELS, STATUS_LABELS, formatDate, humanizeDbError } from '@/lib/utils'
 import type { Property, Database } from '@/types'
 
 const FORMATS = [
@@ -623,7 +623,7 @@ export default function ExportScreen() {
         showToast({ type: 'success', title: 'Excel збережено ✓' })
       }
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка експорту', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Помилка експорту', subtitle: humanizeDbError(e) })
     } finally {
       setLoading(false)
     }

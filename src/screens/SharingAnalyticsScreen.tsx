@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase'
 import Header from '@/components/ui/Header'
 import ShareSheet from '@/components/ui/ShareSheet'
 import { IconShare, IconEye, IconChartLine } from '@/components/Icons'
-import { formatDate, daysSince } from '@/lib/utils'
+import { formatDate, daysSince, humanizeDbError } from '@/lib/utils'
 import type { PropertyView } from '@/types'
 
 const WEEKDAY = ['Нд', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб']
@@ -84,7 +84,7 @@ export default function SharingAnalyticsScreen() {
         })
         setChartData(dayData)
       } catch (e) {
-        if (!cancelled) showToast({ type: 'error', title: 'Помилка аналітики', subtitle: (e as Error).message })
+        if (!cancelled) showToast({ type: 'error', title: 'Помилка аналітики', subtitle: humanizeDbError(e) })
       } finally {
         if (!cancelled) setLoading(false)
       }

@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { supabase, getSessionUngated } from '@/lib/supabase'
+import { supabase, getSessionUngated, USER_COLUMNS } from '@/lib/supabase'
+import { humanizeDbError } from '@/lib/utils'
 import { openSessionGate, closeSessionGate } from '@/lib/sessionGate'
 import { useAppStore } from '@/store/appStore'
 import type { User } from '@/types'
@@ -9,8 +10,6 @@ import type { User } from '@/types'
 const SESSION_KEY     = 'ps_session'
 const PROFILE_KEY     = 'ps_user'
 const PROFILE_CS_KEY  = 'ps_user_cs'
-
-const USER_COLUMNS = 'id,tg_id,tg_username,first_name,last_name,email,phone,role,language_code,currency,plan,notification_push,notification_weekly,notification_views,created_at,updated_at'
 
 // Set true before calling signOut so the SIGNED_OUT listener doesn't re-navigate
 // to welcome and trigger another auto-login cycle.
@@ -372,7 +371,7 @@ export function useAuth() {
         .from('users')
         .update({ ...safeUpdates, updated_at: new Date().toISOString() })
         .eq('tg_id', tgId)
-        .select('id,tg_id,tg_username,first_name,last_name,email,phone,role,language_code,currency,plan,notification_push,notification_weekly,notification_views,created_at,updated_at')
+        .select(USER_COLUMNS)
         .single()
 
       if (error) throw error
@@ -381,7 +380,7 @@ export function useAuth() {
       if (!silent) showToast({ type: 'success', title: 'Профіль оновлено' })
       return true
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка збереження', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Помилка збереження', subtitle: humanizeDbError(e) })
       return false
     } finally {
       setLoading(false)
@@ -439,7 +438,7 @@ async function refreshSessionSilently(tgId: number): Promise<void> {
       }
     }
     if (session) {
-      const { data } = await supabase.from('users').select('id,tg_id,tg_username,first_name,last_name,email,phone,role,language_code,currency,plan,notification_push,notification_weekly,notification_views,created_at').eq('tg_id', tgId).single()
+      const { data } = await supabase.from('users').select(USER_COLUMNS).eq('tg_id', tgId).single()
       if (data) {
         useAppStore.getState().setUser(data as User)
         persistProfile(data as User)
@@ -540,8 +539,8 @@ async function doRestoreSession(): Promise<boolean> {
         const cached = JSON.parse(raw) as User
         if (cached.tg_id === tgId) {
           setUser(cached)
-          supabase.from('users').select('id,tg_id,tg_username,first_name,last_name,email,phone,role,language_code,currency,plan,notification_push,notification_weekly,notification_views,created_at').eq('tg_id', tgId).single()
-            .then(({ data }) => { if (data) { useAppStore.getState().setUser(data as User); persistProfile(data as User) } })
+          supabase.from('users').select(USER_COLUMNS).eq('tg_id', tgId).single()
+            .then(({ data }) => { if (data) { useAppStore.getState().setUser(data as User); persistProfile(data as User) } }, () => {/* background refresh — cached profile already shown */})
           return true
         }
       }
@@ -554,15 +553,15 @@ async function doRestoreSession(): Promise<boolean> {
         const cached = JSON.parse(raw) as User
         if (cached.tg_id === tgId) {
           setUser(cached)
-          supabase.from('users').select('id,tg_id,tg_username,first_name,last_name,email,phone,role,language_code,currency,plan,notification_push,notification_weekly,notification_views,created_at').eq('tg_id', tgId).single()
-            .then(({ data }) => { if (data) { useAppStore.getState().setUser(data as User); persistProfile(data as User) } })
+          supabase.from('users').select(USER_COLUMNS).eq('tg_id', tgId).single()
+            .then(({ data }) => { if (data) { useAppStore.getState().setUser(data as User); persistProfile(data as User) } }, () => {/* background refresh — cached profile already shown */})
           return true
         }
       }
     } catch { /* corrupt — fall through */ }
 
     // Last resort: DB fetch (first-ever restore after fresh install)
-    const { data } = await withRetry(() => supabase.from('users').select('id,tg_id,tg_username,first_name,last_name,email,phone,role,language_code,currency,plan,notification_push,notification_weekly,notification_views,created_at').eq('tg_id', tgId).single())
+    const { data } = await withRetry(() => supabase.from('users').select(USER_COLUMNS).eq('tg_id', tgId).single())
     if (!data) return false
     setUser(data as User)
     persistProfile(data as User)

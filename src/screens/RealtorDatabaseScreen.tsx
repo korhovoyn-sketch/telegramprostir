@@ -9,7 +9,7 @@ import { StatusBadge } from '@/components/ui/Badge'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import { IconShare, IconPhoto, IconMessage, IconBuilding, IconRuler, IconParking, IconCalendar } from '@/components/Icons'
 import { sharePublicUrl } from '@/lib/telegram'
-import { formatPrice, calcRentUtils, DB_TYPE_LABELS, getInitials, formatLeasePeriod } from '@/lib/utils'
+import { formatPrice, calcRentUtils, DB_TYPE_LABELS, getInitials, formatLeasePeriod, humanizeDbError } from '@/lib/utils'
 import type { Database, Property, PropertyStatus, User } from '@/types'
 
 export default function RealtorDatabaseScreen() {
@@ -45,7 +45,7 @@ export default function RealtorDatabaseScreen() {
       }
     } catch (e) {
       setError(true)
-      showToast({ type: 'error', title: 'Помилка завантаження', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Помилка завантаження', subtitle: humanizeDbError(e) })
     } finally {
       setLoading(false)
     }

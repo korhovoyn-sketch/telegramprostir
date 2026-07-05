@@ -19,6 +19,43 @@ export async function withRetry<T>(
   return last
 }
 
+/**
+ * Turn any thrown/returned Supabase/Postgres error into a safe, friendly
+ * Ukrainian message for a user-facing toast — never the raw PostgREST/Postgres
+ * text (which leaks column names, RLS policy text, constraint names). The raw
+ * message is logged to console for diagnostics. Use this instead of
+ * `subtitle: (e as Error).message` anywhere a toast is shown to the user.
+ */
+export function humanizeDbError(e: unknown, fallback = 'Спробуйте ще раз'): string {
+  const raw = e instanceof Error ? e.message
+    : (typeof e === 'object' && e !== null && 'message' in e) ? String((e as { message: unknown }).message)
+    : String(e ?? '')
+  if (raw) console.error('[db]', raw)
+
+  const m = raw.toLowerCase()
+  // Network / connectivity (PostgREST resolves fetch failures as status 0)
+  if (m.includes('fetch') || m.includes('network') || m.includes('failed to fetch')) {
+    return 'Немає з\'єднання. Перевірте інтернет і спробуйте ще раз.'
+  }
+  // RLS / permission denied — the user can't touch this row
+  if (m.includes('row-level security') || m.includes('permission denied') || m.includes('not authorized')) {
+    return 'Немає доступу до цих даних.'
+  }
+  // Unique violation (Postgres 23505) — duplicate
+  if (m.includes('duplicate key') || m.includes('23505') || m.includes('already exists')) {
+    return 'Такий запис уже існує.'
+  }
+  // Foreign-key / not-null / check violations — bad input shape
+  if (m.includes('violates') || m.includes('23503') || m.includes('23502') || m.includes('23514')) {
+    return 'Некоректні дані. Перевірте введене й спробуйте ще раз.'
+  }
+  // Missing table/relation — deploy/migration issue, not the user's fault
+  if (m.includes('does not exist') || m.includes('42p01')) {
+    return 'Сервіс тимчасово недоступний. Спробуйте пізніше.'
+  }
+  return fallback
+}
+
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
 
 export function photoUrl(storagePath: string): string {

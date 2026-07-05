@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { supabase } from '@/lib/supabase'
+import { humanizeDbError } from '@/lib/utils'
 import Header from '@/components/ui/Header'
 import Modal from '@/components/ui/Modal'
 import { SkeletonList } from '@/components/ui/SkeletonLoader'
@@ -50,7 +51,7 @@ export default function ManageGuestsScreen() {
       if (error) throw error
       setLinks((data ?? []) as GuestLink[])
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка завантаження', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Помилка завантаження', subtitle: humanizeDbError(e) })
     } finally {
       setLoading(false)
     }
@@ -90,7 +91,7 @@ export default function ManageGuestsScreen() {
       setNewLink(deepLink)
       await load()
     } catch (e) {
-      showToast({ type: 'error', title: 'Не вдалося створити', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Не вдалося створити', subtitle: humanizeDbError(e) })
     } finally {
       setCreating(false)
     }
@@ -108,7 +109,7 @@ export default function ManageGuestsScreen() {
       setLinks(prev => prev.map(l => l.id === id ? { ...l, status: 'revoked' as const } : l))
       window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success')
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
     } finally {
       setRevoking(null)
     }

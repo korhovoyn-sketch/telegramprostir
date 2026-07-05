@@ -7,7 +7,7 @@ import Header from '@/components/ui/Header'
 import Modal from '@/components/ui/Modal'
 import { SkeletonList } from '@/components/ui/SkeletonLoader'
 import { IconCalendar, IconBellRing, IconCheckCircle, IconClock, IconPlus, IconTrash, IconFile } from '@/components/Icons'
-import { formatPrice } from '@/lib/utils'
+import { formatPrice, humanizeDbError } from '@/lib/utils'
 import type { Property, RentPayment, RentPaymentRecord } from '@/types'
 
 function fmtDueDate(dateStr: string): string {
@@ -121,7 +121,7 @@ export default function PaymentCalendarScreen() {
 
       await loadRecordsForIds(ids, monthsAhead)
     } catch (e) {
-      const msg = (e as Error).message
+      const msg = humanizeDbError(e)
       setLoadError(msg)
       showToast({ type: 'error', title: 'Помилка завантаження', subtitle: msg })
     } finally {
@@ -160,6 +160,7 @@ export default function PaymentCalendarScreen() {
   // Load archive lazily on tab switch — all paid records regardless of month
   useEffect(() => {
     if (activeTab !== 'archive' || archiveLoaded || archiveLoading || properties.length === 0) return
+    let cancelled = false
     const ids = properties.map(p => p.id)
     setArchiveLoading(true)
     supabase
@@ -168,10 +169,16 @@ export default function PaymentCalendarScreen() {
       .eq('status', 'paid')
       .order('due_date', { ascending: false })
       .then(({ data }) => {
+        if (cancelled) return
         setArchiveRecords((data ?? []) as RentPaymentRecord[])
         setArchiveLoaded(true)
         setArchiveLoading(false)
+      }, () => {
+        if (cancelled) return
+        setArchiveLoading(false)
+        showToast({ type: 'error', title: 'Не вдалося завантажити архів' })
       })
+    return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, archiveLoaded, properties])
 
@@ -292,7 +299,7 @@ export default function PaymentCalendarScreen() {
       setPayConfirmItem(null)
       showToast({ type: 'success', title: 'Платіж підтверджено ✓' })
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
     } finally {
       setPayConfirmSaving(false)
     }
@@ -331,7 +338,7 @@ export default function PaymentCalendarScreen() {
       showToast({ type: 'success', title: 'Розклад збережено' })
       setSetupProp(null)
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка збереження', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Помилка збереження', subtitle: humanizeDbError(e) })
     } finally {
       setSetupSaving(false)
     }
@@ -346,7 +353,7 @@ export default function PaymentCalendarScreen() {
       showToast({ type: 'success', title: 'Розклад видалено' })
       setDeleteScheduleProp(null)
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
     }
   }, [deleteScheduleProp, showToast, isOnline])
 
@@ -361,7 +368,7 @@ export default function PaymentCalendarScreen() {
       setUnpayTarget(null)
       showToast({ type: 'success', title: 'Платіж скасовано' })
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: (e as Error).message })
+      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
     }
   }, [unpayTarget, archiveLoaded, showToast, isOnline])
 

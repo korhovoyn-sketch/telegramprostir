@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useAppStore } from '@/store/appStore'
 import Header from '@/components/ui/Header'
 import { supabase } from '@/lib/supabase'
+import { humanizeDbError } from '@/lib/utils'
 import { IconCheck, IconX } from '@/components/Icons'
 
 /* eslint-disable @next/next/no-img-element */
@@ -106,7 +107,7 @@ export default function PhotoUploadScreen() {
           }
         }
       } catch (e) {
-        const msg = (e as Error).message ?? 'Невідома помилка'
+        const msg = humanizeDbError(e, 'Невідома помилка')
         setQueue((q) => q.map((x, i) => i === currentIdx
           ? { ...x, status: 'error', progress: 0, errorMsg: msg } : x))
         showToast({ type: 'error', title: 'Помилка завантаження', subtitle: msg })
