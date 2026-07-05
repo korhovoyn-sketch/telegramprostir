@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useAppStore } from '@/store/appStore'
+import { offlineGuard } from '@/lib/offline'
 import Header from '@/components/ui/Header'
 import { supabase } from '@/lib/supabase'
 import { humanizeDbError } from '@/lib/utils'
@@ -18,7 +19,7 @@ interface UploadItem {
 }
 
 export default function PhotoUploadScreen() {
-  const { screenParams, back, showToast, isOnline } = useAppStore()
+  const { screenParams, back, showToast } = useAppStore()
   const propertyId = screenParams.propertyId as string
   const MAX_MB = 10
   const MAX_PHOTOS = 20
@@ -61,11 +62,7 @@ export default function PhotoUploadScreen() {
 
   useEffect(() => {
     if (files.length === 0) return
-    if (!isOnline) {
-      showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Завантаження фото недоступне офлайн' })
-      back()
-      return
-    }
+    if (offlineGuard('Завантаження фото недоступне офлайн')) { back(); return }
     if (validFiles.length > MAX_PHOTOS) {
       showToast({ type: 'error', title: `Максимум ${MAX_PHOTOS} фото`, subtitle: `Завантажено лише перші ${MAX_PHOTOS}` })
     }

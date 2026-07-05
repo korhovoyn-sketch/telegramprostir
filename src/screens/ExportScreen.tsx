@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useAppStore } from '@/store/appStore'
+import { offlineGuard } from '@/lib/offline'
 import { supabase } from '@/lib/supabase'
 import Header from '@/components/ui/Header'
 import Toggle from '@/components/ui/Toggle'
@@ -579,7 +580,7 @@ async function generateExcel(
 // ── Screen component ──────────────────────────────────────────────────────────
 
 export default function ExportScreen() {
-  const { screenParams, showToast, user, databases, isOnline } = useAppStore()
+  const { screenParams, showToast, user, databases } = useAppStore()
   const { dbId } = screenParams
   const [format, setFormat]           = useState('pdf')
   const [template, setTemplate]       = useState('classic')
@@ -591,7 +592,7 @@ export default function ExportScreen() {
 
   async function handleExport() {
     if (!dbId) { showToast({ type: 'error', title: 'Не вказано базу' }); return }
-    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Експорт недоступний офлайн' }); return }
+    if (offlineGuard('Експорт недоступний офлайн')) return
     setLoading(true)
     try {
       const { data: propertiesRaw, error } = await supabase

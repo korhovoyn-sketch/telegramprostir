@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useAppStore } from '@/store/appStore'
+import { offlineGuard } from '@/lib/offline'
 import { supabase } from '@/lib/supabase'
 import TabBar from '@/components/ui/TabBar'
 import { StatusBadge } from '@/components/ui/Badge'
@@ -179,7 +180,7 @@ function CollectionDetail({
   }
 
   async function addProperty(propertyId: string) {
-    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
+    if (offlineGuard()) return
     try {
       const { error } = await supabase
         .from('collection_properties')
@@ -199,7 +200,7 @@ function CollectionDetail({
   }
 
   async function removeProperty(propertyId: string) {
-    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
+    if (offlineGuard()) return
     try {
       const { error } = await supabase
         .from('collection_properties')
@@ -240,7 +241,7 @@ function CollectionDetail({
   }
 
   async function deleteCollection() {
-    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
+    if (offlineGuard()) return
     try {
       const { error } = await supabase
         .from('collections')
@@ -461,7 +462,7 @@ function CollectionDetail({
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function CollectionsScreen() {
-  const { user, showToast, screenParams, isOnline } = useAppStore()
+  const { user, showToast, screenParams } = useAppStore()
   const [collections, setCollections] = useState<CollectionWithCount[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -535,7 +536,7 @@ export default function CollectionsScreen() {
 
   async function createCollection() {
     if (!user) return
-    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
+    if (offlineGuard()) return
     const name = `Підбірка ${collections.length + 1}`
     try {
       const { data, error } = await supabase

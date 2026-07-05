@@ -3,6 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 import { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '@/store/appStore'
+import { offlineGuard } from '@/lib/offline'
 import { useProperties } from '@/hooks/useProperties'
 import Header from '@/components/ui/Header'
 import Modal from '@/components/ui/Modal'
@@ -105,7 +106,7 @@ function Building3DHero() {
 }
 
 export default function PropertyDetailScreen() {
-  const { screenParams, navigate, user, showToast, isOnline } = useAppStore()
+  const { screenParams, navigate, user, showToast } = useAppStore()
   const { properties, loading, error, loadSingleProperty, deletePhoto, updateProperty } = useProperties(screenParams.dbId)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const tenantInputRef = useRef<HTMLInputElement>(null)
@@ -195,7 +196,7 @@ export default function PropertyDetailScreen() {
 
   async function handleRentOut() {
     if (!rentTenantName.trim() || !property) return
-    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
+    if (offlineGuard()) return
     setRentSaving(true)
     const parsedRate = parseFloat(rentRentRate)
     const parsedUtils = parseFloat(rentUtilitiesRate)
@@ -220,7 +221,7 @@ export default function PropertyDetailScreen() {
 
   async function handleFreeProperty() {
     if (!property) return
-    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
+    if (offlineGuard()) return
     setFreeSaving(true)
     await updateProperty(property.id, {
       status: 'free',
@@ -236,7 +237,7 @@ export default function PropertyDetailScreen() {
 
   async function confirmDeletePhoto() {
     if (!photoToDelete) return
-    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); setPhotoToDelete(null); return }
+    if (offlineGuard()) { setPhotoToDelete(null); return }
     try {
       await deletePhoto(photoToDelete.id, photoToDelete.path)
     } catch {

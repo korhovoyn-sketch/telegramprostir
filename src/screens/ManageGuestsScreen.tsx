@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useAppStore } from '@/store/appStore'
+import { offlineGuard } from '@/lib/offline'
 import { supabase } from '@/lib/supabase'
 import { humanizeDbError } from '@/lib/utils'
 import Header from '@/components/ui/Header'
@@ -24,7 +25,7 @@ const STATUS_COLOR: Record<string, string> = {
 }
 
 export default function ManageGuestsScreen() {
-  const { user, screenParams, showToast, isOnline } = useAppStore()
+  const { user, screenParams, showToast } = useAppStore()
   const [links, setLinks] = useState<GuestLink[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -70,7 +71,7 @@ export default function ManageGuestsScreen() {
 
   async function handleCreate() {
     if (!user || !targetId) return
-    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
+    if (offlineGuard()) return
     setCreating(true)
     try {
       const { data, error } = await supabase
@@ -98,7 +99,7 @@ export default function ManageGuestsScreen() {
   }
 
   async function handleRevoke(id: string) {
-    if (!isOnline) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
+    if (offlineGuard()) return
     setRevoking(id)
     try {
       const { error } = await supabase

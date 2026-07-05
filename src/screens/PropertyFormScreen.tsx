@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useAppStore } from '@/store/appStore'
+import { offlineGuard } from '@/lib/offline'
 import { useProperties } from '@/hooks/useProperties'
 import Header from '@/components/ui/Header'
 import Toggle from '@/components/ui/Toggle'
@@ -96,11 +97,8 @@ export default function PropertyFormScreen() {
 
   async function handleSave() {
     if (!canSave || !screenParams.dbId) return
-    if (!isOnline) {
-      window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('error')
-      showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' })
-      return
-    }
+    if (!isOnline) window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('error')
+    if (offlineGuard()) return
 
     // Reject non-numeric values the browser's number input allows on some Android keyboards
     if (areaUseful && numOrUndef(areaUseful) === undefined) {
