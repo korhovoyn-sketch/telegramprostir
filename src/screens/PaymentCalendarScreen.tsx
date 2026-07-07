@@ -10,8 +10,16 @@ import Header from '@/components/ui/Header'
 import Modal from '@/components/ui/Modal'
 import { SkeletonList } from '@/components/ui/SkeletonLoader'
 import { IconCalendar, IconBellRing, IconCheckCircle, IconClock, IconPlus, IconTrash, IconFile } from '@/components/Icons'
-import { formatPrice, humanizeDbError } from '@/lib/utils'
+import { formatPrice, calcRent, humanizeDbError } from '@/lib/utils'
 import type { Property, RentPayment, RentPaymentRecord } from '@/types'
+
+// Expected monthly rent for a property. rent_rate alone is WRONG for per_m2
+// properties (it's the $/m² rate, not the monthly total) — go through calcRent
+// so the confirm-payment default matches what every other screen shows.
+function expectedRent(p: Property): number {
+  if (!p.rent_rate) return 0
+  return calcRent(p.area_useful ?? 0, p.rent_rate, p.rent_type)
+}
 
 function fmtDueDate(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00')
@@ -87,7 +95,8 @@ export default function PaymentCalendarScreen() {
       setPayConfirmAmount(String(payConfirmItem.record.amount ?? ''))
       setPayConfirmNotes(payConfirmItem.record.notes ?? '')
     } else {
-      setPayConfirmAmount(String(payConfirmItem.property.rent_rate ?? ''))
+      const expected = expectedRent(payConfirmItem.property)
+      setPayConfirmAmount(expected > 0 ? String(expected) : '')
       setPayConfirmNotes('')
     }
   }, [payConfirmItem])
@@ -277,7 +286,7 @@ export default function PaymentCalendarScreen() {
             owner_id:    user.id,
             due_date:    item.dueDate,
             paid_at:     new Date().toISOString(),
-            amount:      amount ?? item.property.rent_rate,
+            amount:      amount ?? (expectedRent(item.property) || null),
             notes:       notes ?? null,
             status:      'paid' as const,
             updated_at:  new Date().toISOString(),

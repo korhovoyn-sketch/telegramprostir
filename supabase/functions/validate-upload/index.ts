@@ -55,9 +55,11 @@ Deno.serve(async (req) => {
 
     const { propertyId, mimeType } = parsed.data
 
-    // Use user's JWT to verify ownership via RLS — if user doesn't own the
-    // property, the select returns nothing (RLS blocks it) and we return 403.
-    // This is more secure than using the admin client which bypasses RLS.
+    // Resolve the property AND the caller through the user's JWT so PostgREST
+    // verifies the token signature. RLS visibility alone is NOT ownership:
+    // props_realtor_select makes subscribed realtors' SELECT succeed here too,
+    // which used to hand them signed upload URLs for other owners' properties.
+    // The explicit owner_id comparison below is what closes that.
     const userJwt = req.headers.get('Authorization') ?? ''
     const userClient = createClient(SUPABASE_URL, ANON_KEY, {
       global: { headers: { Authorization: userJwt } },
@@ -73,13 +75,30 @@ Deno.serve(async (req) => {
       return errResponse(cors, 403, 'Property not found or access denied')
     }
 
+    // users_own is the only authenticated policy on users (id = caller), so an
+    // unfiltered select returns exactly the caller's row.
+    const { data: me, error: meErr } = await userClient
+      .from('users')
+      .select('id')
+      .maybeSingle()
+
+    if (meErr || !me || me.id !== prop.owner_id) {
+      return errResponse(cors, 403, 'Property not found or access denied')
+    }
+
     // Verify file count (max 10 per property) via userClient to enforce RLS.
     // Using admin client would bypass RLS and allow reading counts for
     // properties the user doesn't own. The database trigger provides final guard.
-    const { count } = await userClient
+    const { count, error: countErr } = await userClient
       .from('property_files')
       .select('id', { count: 'exact', head: true })
       .eq('property_id', propertyId)
+
+    // Fail closed: an unreadable count must not admit an 11th file. The DB
+    // trigger (trg_enforce_max_files) is the final guard either way.
+    if (countErr) {
+      return errResponse(cors, 500, 'Server error')
+    }
 
     if ((count ?? 0) >= 10) {
       return errResponse(cors, 429, 'Max 10 files per property')

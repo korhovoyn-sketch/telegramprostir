@@ -149,7 +149,7 @@ Before finalising any backend change, mentally run through:
 | A04 | Insecure Design | Share tokens server-enforced expiry; `prevent_privilege_escalation` trigger |
 | A05 | Security Misconfiguration | `SERVICE_ROLE_KEY` Edge Function only; `ANON_KEY` read-only on client |
 | A06 | Vulnerable Components | Pin `@supabase/supabase-js` and Zod versions in imports |
-| A07 | Auth Failures | HMAC-SHA256 `initData` validation; 1-hour replay window; 10 req/min rate limit |
+| A07 | Auth Failures | HMAC-SHA256 `initData` validation; 24h replay window (Telegram reuses initData across restarts); 20 req/min rate limit |
 | A08 | Data Integrity | Cascade deletes tested; storage orphan cleanup on DB failure |
 | A09 | Logging | Edge Function logs to Supabase Logs — never log tokens or user PII |
 | A10 | SSRF | No server-side HTTP fetch to user-supplied URLs |
@@ -271,6 +271,27 @@ This sandboxed environment has **no Playwright browser binaries** (`apt` returns
 ---
 
 ## Pending manual actions (зробити в Supabase Dashboard)
+
+### 0a. Storage write hardening — виконати SQL в Dashboard → SQL Editor (ПРІОРИТЕТ, безпека)
+
+Файл: `supabase/migrations/038_storage_write_hardening.sql`
+
+Закриває дві діри, знайдені аудитом (обидві — наслідок того, що RLS-політики
+об'єднуються через OR і старі пермісивні політики ніхто не видалив):
+- **photos bucket:** `photos_insert_auth`/`photos_delete_auth` з `008` дозволяли
+  будь-якому автентифікованому юзеру писати/видаляти будь-який шлях — а `/v`
+  публічно віддає `storage_path` фото. Тепер запис/видалення тільки для власника
+  об'єкта (через `get_app_user_id_from_auth_uid()`, бо `current_app_user_id()`
+  ненадійний у storage-контексті — див. 030).
+- **property_files:** пермісивна `pfiles_insert_owner` дозволяла підписаному
+  рієлтору вставити файл-рядок на чужий об'єкт (033 це не закрила). Тепер
+  INSERT/UPDATE вимагає володіння і рядком, і об'єктом.
+
+Разом з цим задеплоїти оновлену edge function `validate-upload` (тепер порівнює
+`owner_id` об'єкта з викликачем, а не лише RLS-видимість):
+```bash
+supabase functions deploy validate-upload --project-ref <PROJECT_REF>
+```
 
 ### 0. Share-фікси бази даних — виконати SQL в Dashboard → SQL Editor (ПРІОРИТЕТ)
 
