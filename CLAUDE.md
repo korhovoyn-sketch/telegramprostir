@@ -272,6 +272,27 @@ This sandboxed environment has **no Playwright browser binaries** (`apt` returns
 
 ## Pending manual actions (зробити в Supabase Dashboard)
 
+### 0. Share-фікси бази даних — виконати SQL в Dashboard → SQL Editor (ПРІОРИТЕТ)
+
+Файли: `supabase/migrations/036_share_management.sql`, `supabase/migrations/037_db_share_fixes.sql`
+
+**Чому критично:** немає workflow, який застосовує міграції автоматично (є лише
+`deploy-edge-function.yml` для telegram-auth). Фронтенд викликає RPC
+`subscribe_to_shared_db` / `manage_share`, яких немає в БД без 036/037 — через це
+розділ «поділитися базою» не працює (підключення бази падає з «Помилка запиту»).
+
+`037` самодостатній — застосування лише його полагодить DB-share навіть якщо 036
+пропущено. Що робить 037:
+- Backfill `databases.share_token` для NULL-рядків + DEFAULT + `SET NOT NULL`
+  (легасі-дірка: `013`/`016` додавали колонку без default, `023` форсив NOT NULL
+  лише для properties/collections).
+- `get_public_db_preview()` тепер віддає контакти власника + перше фото —
+  публічна `/v` сторінка перестає бути тупиком для глядача без Telegram.
+- `subscribe_to_shared_db()` нормалізує роль: дефолтний `owner` без власних баз →
+  `realtor` (узгоджує home-екран). `manage_share()` — rotate/expiry/revoke.
+
+Verification (в кінці 037 — має показати `null_tokens = 0` і 3 наявні RPC).
+
 ### 1. Міграція безпеки — виконати SQL в Dashboard → SQL Editor
 
 Файл: `supabase/migrations/026_security_audit_fixes.sql`

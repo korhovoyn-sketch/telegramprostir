@@ -37,6 +37,7 @@ export default function ShareSheet({ kind, id, name, shareText, onClose }: Share
   const { showToast } = useAppStore()
   const [token, setToken] = useState<string | null>(null)
   const [expiresAt, setExpiresAt] = useState<string | null>(null)
+  const [resolvedName, setResolvedName] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [confirmAction, setConfirmAction] = useState<'rotate' | 'revoke' | null>(null)
@@ -48,10 +49,11 @@ export default function ShareSheet({ kind, id, name, shareText, onClose }: Share
       try {
         const { data } = await supabase
           .from(KIND_TABLE[kind])
-          .select('share_token,share_expires_at')
+          .select('name,share_token,share_expires_at')
           .eq('id', id)
           .single()
         if (cancelled) return
+        if (data?.name) setResolvedName(data.name)
         if (data?.share_token) {
           setToken(data.share_token)
           setExpiresAt(data.share_expires_at)
@@ -103,7 +105,7 @@ export default function ShareSheet({ kind, id, name, shareText, onClose }: Share
   }
 
   return (
-    <Modal title={name} subtitle="Поділитися" onClose={onClose}>
+    <Modal title={resolvedName ?? name} subtitle="Поділитися" onClose={onClose}>
       {/* QR + link */}
       <div className="qr-hero glass-s" style={{ margin: '0 0 12px' }}>
         <div className="qr-wrap">
