@@ -51,6 +51,11 @@ interface DbRow {
   property_rent_type: string | null
   property_rent_rate: number | null
   property_description: string | null
+  owner_first_name: string
+  owner_last_name: string | null
+  owner_tg_username: string | null
+  owner_phone: string | null
+  first_photo: string | null
 }
 
 interface ColRow {
@@ -549,33 +554,53 @@ function DatabaseView({ rows, token }: { rows: DbRow[]; token: string }) {
         <div style={{ margin: '0 12px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {properties.map(p => (
             <div key={p.property_id} style={{ ...s.card }}>
-              <div style={{ ...s.pad, paddingBottom: 12 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                  <div style={{ fontSize: 15, fontWeight: 600, flex: 1 }}>{p.property_name}</div>
-                  {p.property_status && (
-                    <span style={{
-                      fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 7, flexShrink: 0,
-                      background: STATUS_BG[p.property_status] ?? STATUS_BG.free,
-                      color: STATUS_COLOR[p.property_status] ?? STATUS_COLOR.free,
-                    }}>
-                      {STATUS_LABEL[p.property_status] ?? p.property_status}
-                    </span>
-                  )}
-                </div>
-                <div style={{ display: 'flex', gap: 12, marginTop: 6, flexWrap: 'wrap' }}>
-                  {p.property_floor && <span style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconBuilding size={11} color="rgba(255,255,255,.5)" />{p.property_floor} пов.</span>}
-                  {p.property_area_useful && <span style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconRuler size={11} color="rgba(255,255,255,.5)" />{p.property_area_useful} м²</span>}
-                  {p.property_rent_rate && (
-                    <span style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                      <IconCurrencyDollar size={11} color="rgba(255,255,255,.5)" />{p.property_rent_rate.toLocaleString('uk-UA')}{p.property_rent_type === 'per_m2' ? '/м²' : '/міс'}
-                    </span>
-                  )}
+              <div style={{ display: 'flex', gap: 0, overflow: 'hidden' }}>
+                {p.first_photo && (
+                  <div style={{ width: 90, flexShrink: 0 }}>
+                    <img
+                      src={photoUrl(p.first_photo)}
+                      alt=""
+                      loading="lazy"
+                      style={{ width: 90, height: '100%', minHeight: 90, objectFit: 'cover', display: 'block' }}
+                    />
+                  </div>
+                )}
+                <div style={{ flex: 1, padding: '12px 16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                    <div style={{ fontSize: 15, fontWeight: 600, flex: 1 }}>{p.property_name}</div>
+                    {p.property_status && (
+                      <span style={{
+                        fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 7, flexShrink: 0,
+                        background: STATUS_BG[p.property_status] ?? STATUS_BG.free,
+                        color: STATUS_COLOR[p.property_status] ?? STATUS_COLOR.free,
+                      }}>
+                        {STATUS_LABEL[p.property_status] ?? p.property_status}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: 12, marginTop: 6, flexWrap: 'wrap' }}>
+                    {p.property_floor && <span style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconBuilding size={11} color="rgba(255,255,255,.5)" />{p.property_floor} пов.</span>}
+                    {p.property_area_useful && <span style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconRuler size={11} color="rgba(255,255,255,.5)" />{p.property_area_useful} м²</span>}
+                    {p.property_rent_rate && (
+                      <span style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                        <IconCurrencyDollar size={11} color="rgba(255,255,255,.5)" />{p.property_rent_rate.toLocaleString('uk-UA')}{p.property_rent_type === 'per_m2' ? '/м²' : '/міс'}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
           ))}
         </div>
       )}
+
+      <ContactRow
+        firstName={info.owner_first_name}
+        lastName={info.owner_last_name}
+        phone={info.owner_phone}
+        tgUsername={info.owner_tg_username}
+        label="Власник"
+      />
 
       <div style={s.bottomCta}>
         <a href={deepLink} className="v-btn" style={s.mainBtn}>
