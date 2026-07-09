@@ -6,18 +6,21 @@ import { humanizeDbError } from '@/lib/utils'
 import { useAppStore } from '@/store/appStore'
 import type { Property, PropertyStatus } from '@/types'
 
-// Full property select (+ photos and view-count relation) shared by
-// loadProperties and loadSingleProperty so the two can't drift apart.
-const PROPERTY_SELECT = `
+// Scalar column list + the photos relation, shared across every select so the
+// four query sites can't drift apart (and none falls back to select('*')).
+const PROPERTY_COLUMNS = `
   id, db_id, owner_id, name, floor, status,
   area_useful, area_total, rent_type, rent_rate, utilities_rate,
   has_parking, parking_spaces, description,
   address, utilities,
   sale_price, tenant_name, lease_start_date, lease_end_date,
-  sort_order, created_at, updated_at,
-  photos:property_photos(id, storage_path, sort_order),
-  views:property_views(id)
+  sort_order, created_at, updated_at
 `
+const PROPERTY_WITH_PHOTOS = `${PROPERTY_COLUMNS}, photos:property_photos(id, storage_path, sort_order)`
+
+// loadProperties/loadSingleProperty additionally pull the view relation so the
+// card can show a view count; create/update don't need it (a fresh row has none).
+const PROPERTY_SELECT = `${PROPERTY_WITH_PHOTOS}, views:property_views(id)`
 
 export function useProperties(dbId?: string) {
   const [loading, setLoading] = useState(false)
@@ -85,7 +88,7 @@ export function useProperties(dbId?: string) {
       const { data, error } = await supabase
         .from('properties')
         .insert({ ...payload, owner_id: user.id })
-        .select(`*, photos:property_photos(*)`)
+        .select(PROPERTY_WITH_PHOTOS)
         .single()
 
       if (error) throw error
@@ -106,7 +109,7 @@ export function useProperties(dbId?: string) {
         .from('properties')
         .update({ ...payload, updated_at: new Date().toISOString() })
         .eq('id', id)
-        .select(`*, photos:property_photos(*)`)
+        .select(PROPERTY_WITH_PHOTOS)
         .single()
 
       if (error) throw error

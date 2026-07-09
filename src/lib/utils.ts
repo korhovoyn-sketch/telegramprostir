@@ -114,6 +114,15 @@ export function calcUtilities(areaTotal: number, utilitiesRate: number): number 
   return Math.round(areaTotal * utilitiesRate)
 }
 
+// Build a safe download filename from a user-controlled name: collapse anything
+// that isn't a Latin/Cyrillic letter or digit to '_', append the date and ext.
+// A raw db name can carry '/', '\', control chars or emoji that break the file
+// on some OSes or, worse, escape the intended directory.
+export function safeFileName(name: string, ext: string): string {
+  const slug = name.replace(/[^a-zA-Zа-яА-ЯіІїЇєЄ0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '') || 'export'
+  return `${slug}_${new Date().toISOString().slice(0, 10)}.${ext}`
+}
+
 // Single source of truth for the rent + utilities monthly total. Mirrors the
 // guard the screens used inline (rent needs a rate + useful area; utilities need
 // a rate + total area) so every surface — cards, detail, /v — shows the same
