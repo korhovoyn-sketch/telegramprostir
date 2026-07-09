@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import {
   formatPrice, formatLeaseDate, formatLeasePeriod, formatDate,
   calcRent, calcUtilities, calcRentUtils, getInitials, greeting, withRetry,
-  humanizeDbError,
+  humanizeDbError, safeFileName,
 } from '@/lib/utils'
 
 describe('humanizeDbError', () => {
@@ -102,6 +102,21 @@ describe('calcRentUtils', () => {
   it('utils keyed off total area, 0 when missing', () => {
     expect(calcRentUtils(50, null, 20, 'per_m2', 5).utils).toBe(0)
     expect(calcRentUtils(50, 100, 20, 'per_m2', null).utils).toBe(0)
+  })
+})
+
+describe('safeFileName', () => {
+  it('keeps Latin, Cyrillic and digits, collapses the rest to single _', () => {
+    expect(safeFileName('БЦ Рубін 2', 'pdf')).toMatch(/^БЦ_Рубін_2_\d{4}-\d{2}-\d{2}\.pdf$/)
+  })
+  it('strips path separators and control chars that could escape the directory', () => {
+    const out = safeFileName('../../etc/passwd', 'xlsx')
+    expect(out).not.toContain('/')
+    expect(out).not.toContain('..')
+    expect(out).toMatch(/\.xlsx$/)
+  })
+  it('falls back to "export" when the name has no usable characters', () => {
+    expect(safeFileName('!!!', 'pdf')).toMatch(/^export_\d{4}-\d{2}-\d{2}\.pdf$/)
   })
 })
 

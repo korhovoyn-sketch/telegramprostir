@@ -6,6 +6,10 @@ import { useAppStore } from '@/store/appStore'
 import { calcRent, humanizeDbError } from '@/lib/utils'
 import type { Database } from '@/types'
 
+// Single source of truth for the databases column list — keeps loadDatabases,
+// createDatabase and updateDatabase from drifting apart.
+const DB_COLUMNS = 'id,owner_id,name,address,type,color,share_token,share_expires_at,created_at,updated_at'
+
 export function useDatabases() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -18,7 +22,7 @@ export function useDatabases() {
     try {
       const { data, error } = await supabase
         .from('databases')
-        .select('*, properties(status, rent_rate, area_useful, rent_type)')
+        .select(`${DB_COLUMNS}, properties(status, rent_rate, area_useful, rent_type)`)
         .eq('owner_id', user.id)
         .order('created_at', { ascending: false })
 
@@ -61,7 +65,7 @@ export function useDatabases() {
       const { data, error } = await supabase
         .from('databases')
         .insert({ ...payload, owner_id: user.id })
-        .select('id,owner_id,name,address,type,color,share_token,share_expires_at,created_at,updated_at')
+        .select(DB_COLUMNS)
         .single()
 
       if (error) throw error
@@ -83,7 +87,7 @@ export function useDatabases() {
         .from('databases')
         .update({ ...payload, updated_at: new Date().toISOString() })
         .eq('id', id)
-        .select('id,owner_id,name,address,type,color,share_token,share_expires_at,created_at,updated_at')
+        .select(DB_COLUMNS)
         .single()
 
       if (error) throw error

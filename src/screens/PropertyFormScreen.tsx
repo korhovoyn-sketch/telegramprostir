@@ -71,8 +71,10 @@ export default function PropertyFormScreen() {
     }
   }, [isEdit, existing, screenParams.dbId, loadProperties])
 
-  const rentCalc = (parseFloat(areaUseful) && parseFloat(rentRate))
-    ? calcRent(parseFloat(areaUseful), parseFloat(rentRate), rentType)
+  // Fixed rent is the monthly sum itself — it needs no area. Only per_m2 needs
+  // a useful area to multiply, so guard the two rent types separately.
+  const rentCalc = parseFloat(rentRate) && (rentType === 'fixed' || parseFloat(areaUseful))
+    ? calcRent(parseFloat(areaUseful) || 0, parseFloat(rentRate), rentType)
     : 0
   const utilsCalc = (parseFloat(areaTotal) && parseFloat(utilitiesRate))
     ? calcUtilities(parseFloat(areaTotal), parseFloat(utilitiesRate))
@@ -115,11 +117,16 @@ export default function PropertyFormScreen() {
       showToast({ type: 'error', title: 'Некоректне значення', subtitle: 'Ставка комунальних — лише число' }); return
     }
 
+    if (status === 'for_sale' && salePrice && numOrUndef(salePrice) === undefined) {
+      showToast({ type: 'error', title: 'Некоректне значення', subtitle: 'Ціна продажу — лише число' }); return
+    }
+
     const au = numOrUndef(areaUseful) ?? 0
     const at = numOrUndef(areaTotal) ?? 0
     const rr = numOrUndef(rentRate) ?? 0
     const ur = numOrUndef(utilitiesRate) ?? 0
-    if (au < 0 || at < 0 || rr < 0 || ur < 0) {
+    const sp = numOrUndef(salePrice) ?? 0
+    if (au < 0 || at < 0 || rr < 0 || ur < 0 || sp < 0) {
       showToast({ type: 'error', title: 'Значення не може бути від\'ємним' })
       return
     }
@@ -144,7 +151,8 @@ export default function PropertyFormScreen() {
       rent_rate: numOrUndef(rentRate),
       utilities_rate: numOrUndef(utilitiesRate),
       has_parking: hasParking,
-      parking_spaces: hasParking ? parseInt(parkingSpaces) : 0,
+      // Clearing the field leaves parkingSpaces '' → parseInt is NaN; floor to 1.
+      parking_spaces: hasParking ? Math.max(1, parseInt(parkingSpaces, 10) || 1) : 0,
       utilities: utilities.length > 0 ? utilities : null,
       description: description.trim() || undefined,
       sale_price: status === 'for_sale' ? numOrUndef(salePrice) : null,

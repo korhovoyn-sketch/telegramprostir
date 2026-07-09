@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase'
 import Header from '@/components/ui/Header'
 import Toggle from '@/components/ui/Toggle'
 import { IconFileExport, IconFile, IconAdjustments } from '@/components/Icons'
-import { calcRent, calcUtilities, DB_TYPE_LABELS, STATUS_LABELS, formatDate, humanizeDbError } from '@/lib/utils'
+import { calcRent, calcUtilities, DB_TYPE_LABELS, STATUS_LABELS, formatDate, humanizeDbError, safeFileName } from '@/lib/utils'
 import type { Property, Database } from '@/types'
 
 const FORMATS = [
@@ -436,7 +436,7 @@ async function generatePDF(
   }
 
   // ── Save: use Web Share API on mobile, fallback to download ───────────────
-  const fileName = `${db.name.replace(/[^a-zA-Zа-яА-ЯіІїЇєЄ0-9]/g, '_')}_${new Date().toISOString().slice(0, 10)}.pdf`
+  const fileName = safeFileName(db.name, 'pdf')
   const blob = new Blob([doc.output('arraybuffer')], { type: 'application/pdf' })
   await sharePDF(blob, fileName)
 }
@@ -574,7 +574,7 @@ async function generateExcel(
   XLSX.utils.book_append_sheet(wb, ws, 'Об\'єкти')
   XLSX.utils.book_append_sheet(wb, wsSummary, 'Зведена')
 
-  XLSX.writeFile(wb, `${db.name}_${new Date().toISOString().slice(0,10)}.xlsx`)
+  XLSX.writeFile(wb, safeFileName(db.name, 'xlsx'))
 }
 
 // ── Screen component ──────────────────────────────────────────────────────────
