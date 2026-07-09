@@ -10,7 +10,7 @@ import TabBar from '@/components/ui/TabBar'
 import { StatusBadge } from '@/components/ui/Badge'
 import Modal from '@/components/ui/Modal'
 import { IconPlus, IconShare, IconX, IconChevronLeft, IconTrash, IconBuilding } from '@/components/Icons'
-import { formatPrice, calcRent, formatDate, photoUrl, humanizeDbError } from '@/lib/utils'
+import { formatPrice, calcRent, rentUnitLabel, formatDate, photoUrl, humanizeDbError } from '@/lib/utils'
 import ShareSheet from '@/components/ui/ShareSheet'
 import type { Property, Collection } from '@/types'
 import CoachMark from '@/components/ui/CoachMark'
@@ -33,7 +33,7 @@ interface CollectionProperty {
 function getRentLabel(p: Property, currency = 'USD'): string {
   if (!p.rent_rate) return '—'
   const rent = calcRent(p.area_useful ?? 0, p.rent_rate, p.rent_type)
-  return formatPrice(rent, currency)
+  return `${formatPrice(rent, currency)}${rentUnitLabel(p.rent_type)}`
 }
 
 // ─── Collection List View ─────────────────────────────────────────────────────

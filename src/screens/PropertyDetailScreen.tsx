@@ -189,6 +189,9 @@ export default function PropertyDetailScreen() {
 
   const { rent, utils, total } = calcRentUtils(property.area_useful, property.area_total, property.rent_rate, property.rent_type, property.utilities_rate)
   const isParking = databases.find(d => d.id === property.db_id)?.type === 'parking'
+  // A daily rate can't be summed with a monthly utilities charge into a monthly
+  // total — for per_day we show the line items but no combined "Разом на місяць".
+  const isDaily = property.rent_type === 'per_day'
   const photos = property.photos ?? []
 
   function openGallery(index: number) {
@@ -475,7 +478,7 @@ export default function PropertyDetailScreen() {
                 <span style={{ color: 'var(--t2)', fontWeight: 600 }}>+{formatPrice(utils, user?.currency)}/міс</span>
               </div>
             )}
-            {rent > 0 && utils > 0 && (
+            {!isDaily && rent > 0 && utils > 0 && (
               <div className="cost-row" style={{ marginTop: 4 }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600, color: 'var(--t1)' }}>
                   <span style={{ width: 24, height: 24, borderRadius: 8, background: 'rgba(122,179,255,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -486,7 +489,7 @@ export default function PropertyDetailScreen() {
                 <span className="cost-ttl">{formatPrice(total, user?.currency)}</span>
               </div>
             )}
-            {(rent === 0 || utils === 0) && (
+            {!isDaily && (rent === 0 || utils === 0) && (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 4 }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--t3)' }}>
                   <span style={{ width: 24, height: 24, borderRadius: 8, background: 'rgba(122,179,255,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
