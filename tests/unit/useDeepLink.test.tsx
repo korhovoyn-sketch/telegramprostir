@@ -56,6 +56,7 @@ describe('useDeepLink — db_ database share links', () => {
   it('a realtor opening someone else\'s share link subscribes and opens realtor-database', async () => {
     // The RPC validates token+expiry and creates the subscription server-side.
     rpcMock.mockResolvedValueOnce({ data: [{ db_id: 'db-1', db_name: 'БЦ', error: null }], error: null })
+    fromMock.mockImplementation(() => freshUserQuery(REALTOR))
     installTelegramMock({ user: { id: REALTOR.tg_id, first_name: 'Realtor' }, startParam: 'db_TOKEN1' })
     useAppStore.setState({ user: REALTOR })
 
@@ -64,6 +65,36 @@ describe('useDeepLink — db_ database share links', () => {
     await waitFor(() => expect(useAppStore.getState().screen).toBe('realtor-database'))
     expect(useAppStore.getState().screenParams.dbId).toBe('db-1')
     expect(rpcMock).toHaveBeenCalledWith('subscribe_to_shared_db', { p_token: 'TOKEN1' })
+  })
+
+  it('picks up the server-side owner→realtor role change after subscribing', async () => {
+    // A brand-new user still on the default 'owner' role who opens a DB share
+    // link is normalised to 'realtor' by subscribe_to_shared_db (037). The hook
+    // re-fetches the user so the store reflects the new role before landing on
+    // the realtor home.
+    rpcMock.mockResolvedValueOnce({ data: [{ db_id: 'db-1', db_name: 'БЦ', error: null }], error: null })
+    fromMock.mockImplementation(() => freshUserQuery(makeUser({ ...OWNER, role: 'realtor' })))
+    installTelegramMock({ user: { id: OWNER.tg_id, first_name: 'Test' }, startParam: 'db_TOKEN1' })
+    useAppStore.setState({ user: OWNER })
+
+    renderHook(() => useDeepLink())
+
+    await waitFor(() => expect(useAppStore.getState().screen).toBe('realtor-database'))
+    expect(useAppStore.getState().user?.role).toBe('realtor')
+  })
+
+  it('still navigates to realtor-database when the post-subscribe role refresh fails', async () => {
+    // The subscription already succeeded — a failed best-effort user re-fetch
+    // must not abort navigation back to the fallback screen.
+    rpcMock.mockResolvedValueOnce({ data: [{ db_id: 'db-1', db_name: 'БЦ', error: null }], error: null })
+    fromMock.mockImplementation(() => ({ select: () => ({ eq: () => ({ single: () => Promise.reject(new Error('network')) }) }) }))
+    installTelegramMock({ user: { id: REALTOR.tg_id, first_name: 'Realtor' }, startParam: 'db_TOKEN1' })
+    useAppStore.setState({ user: REALTOR })
+
+    renderHook(() => useDeepLink())
+
+    await waitFor(() => expect(useAppStore.getState().screen).toBe('realtor-database'))
+    expect(useAppStore.getState().screenParams.dbId).toBe('db-1')
   })
 
   it('an expired share link shows an error toast and does not navigate to db-objects', async () => {

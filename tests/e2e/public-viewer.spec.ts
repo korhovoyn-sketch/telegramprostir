@@ -47,6 +47,9 @@ const DB_ROWS = [
     property_status: 'free', property_floor: '3', property_area_useful: 100,
     property_area_total: 120, property_rent_type: 'per_m2', property_rent_rate: 18,
     property_description: null,
+    owner_first_name: 'Микола', owner_last_name: 'К.',
+    owner_tg_username: 'mykola', owner_phone: '+380670000000',
+    first_photo: null,
   },
 ]
 
@@ -92,6 +95,9 @@ test('/v?db — renders a shared database preview with its objects', async ({ pa
 
   await expect(page.getByText('БЦ Рубін')).toBeVisible({ timeout: 20_000 })
   await expect(page.getByText('Офіс 101')).toBeVisible()
+  // Owner contact must be reachable for a visitor without Telegram (037/P1)
+  await expect(page.getByText('Микола К.', { exact: true })).toBeVisible()
+  await expect(page.getByText('@mykola')).toBeVisible()
 })
 
 test('/v?col — renders a shared collection preview', async ({ page }) => {

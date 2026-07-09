@@ -108,13 +108,16 @@ export function useDatabases() {
 
       if (props && props.length > 0) {
         const propIds = props.map((p) => p.id)
-        const { data: photos } = await supabase
-          .from('property_photos')
-          .select('storage_path')
-          .in('property_id', propIds)
+        const [{ data: photos }, { data: docs }] = await Promise.all([
+          supabase.from('property_photos').select('storage_path').in('property_id', propIds),
+          supabase.from('property_files').select('storage_path').in('property_id', propIds),
+        ])
 
         if (photos && photos.length > 0) {
           await supabase.storage.from('photos').remove(photos.map((p) => p.storage_path))
+        }
+        if (docs && docs.length > 0) {
+          await supabase.storage.from('property-files').remove(docs.map((d) => d.storage_path))
         }
       }
 

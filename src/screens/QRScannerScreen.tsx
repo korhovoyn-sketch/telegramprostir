@@ -4,10 +4,11 @@ import { useEffect, useState } from 'react'
 import { z } from 'zod'
 import { useAppStore } from '@/store/appStore'
 import { offlineGuard } from '@/lib/offline'
-import { supabase } from '@/lib/supabase'
+import { supabase, USER_COLUMNS } from '@/lib/supabase'
 import Header from '@/components/ui/Header'
 import { TG_BOT , hapticNotify } from '@/lib/telegram'
 import { scrollFocusedIntoView } from '@/lib/utils'
+import type { User } from '@/types'
 
 const SubscribeSchema = z.array(z.object({
   db_id: z.string().uuid().nullable(),
@@ -53,7 +54,10 @@ export default function QRScannerScreen() {
       showToast({ type: 'error', title: 'Помилка підписки', subtitle: 'Спробуйте ще раз' })
       return
     }
-    const row = SubscribeSchema.parse(data ?? [])[0]
+    // safeParse: a malformed RPC response must surface the error toast, not
+    // throw out of the scan callback and leave the screen stuck silently.
+    const parsed = SubscribeSchema.safeParse(data ?? [])
+    const row = parsed.success ? parsed.data[0] : undefined
     if (!row || row.error === 'not_found') {
       // 036 filters expired tokens server-side, so "not found" covers both cases
       showToast({ type: 'error', title: 'Базу не знайдено', subtitle: 'Посилання невірне або застаріло' })
@@ -68,6 +72,17 @@ export default function QRScannerScreen() {
       showToast({ type: 'error', title: 'Помилка підписки', subtitle: 'Спробуйте ще раз' })
       return
     }
+    // subscribe_to_shared_db may have normalised a default-owner (no databases
+    // of their own) to 'realtor' server-side (037) — re-fetch so the store role
+    // matches, same as useDeepLink. Best effort: never block navigation.
+    try {
+      const { data: freshUser } = await supabase
+        .from('users')
+        .select(USER_COLUMNS)
+        .eq('id', user.id)
+        .single()
+      if (freshUser) useAppStore.getState().setUser(freshUser as User)
+    } catch { /* role refresh is best-effort */ }
     hapticNotify('success')
     showToast({ type: 'success', title: 'Базу підключено! 🎉' })
     navigate('realtor-database', { dbId: row.db_id })

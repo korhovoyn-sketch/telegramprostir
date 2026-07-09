@@ -183,13 +183,17 @@ export function useDeepLink() {
 
         // subscribe_to_shared_db may have normalised a default-owner (who never
         // created a database) to 'realtor' server-side — re-fetch so the store's
-        // role matches the realtor-dashboard home we're about to land on.
-        const { data: freshUser } = await supabase
-          .from('users')
-          .select(USER_COLUMNS)
-          .eq('id', currentUser.id)
-          .single()
-        if (freshUser) useAppStore.getState().setUser(freshUser as User)
+        // role matches the realtor-dashboard home we're about to land on. Best
+        // effort: a failed refresh must not abort the (already succeeded)
+        // subscription flow, so swallow its error instead of hitting the catch.
+        try {
+          const { data: freshUser } = await supabase
+            .from('users')
+            .select(USER_COLUMNS)
+            .eq('id', currentUser.id)
+            .single()
+          if (freshUser) useAppStore.getState().setUser(freshUser as User)
+        } catch { /* role refresh is best-effort */ }
 
         hapticNotify('success')
         showToast({ type: 'success', title: 'Базу підключено! 🎉' })

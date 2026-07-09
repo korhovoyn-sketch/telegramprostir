@@ -132,13 +132,16 @@ export function useProperties(dbId?: string) {
     setLoading(true)
     try {
       // Clean up storage files before deleting the record (cascade handles DB rows)
-      const { data: photos } = await supabase
-        .from('property_photos')
-        .select('storage_path')
-        .eq('property_id', id)
+      const [{ data: photos }, { data: docs }] = await Promise.all([
+        supabase.from('property_photos').select('storage_path').eq('property_id', id),
+        supabase.from('property_files').select('storage_path').eq('property_id', id),
+      ])
 
       if (photos && photos.length > 0) {
         await supabase.storage.from('photos').remove(photos.map((p) => p.storage_path))
+      }
+      if (docs && docs.length > 0) {
+        await supabase.storage.from('property-files').remove(docs.map((d) => d.storage_path))
       }
 
       const { error } = await supabase.from('properties').delete().eq('id', id)
@@ -158,13 +161,16 @@ export function useProperties(dbId?: string) {
     if (ids.length === 0) return
     setLoading(true)
     try {
-      // Collect all photo paths before deleting rows
-      const { data: photos } = await supabase
-        .from('property_photos')
-        .select('storage_path')
-        .in('property_id', ids)
+      // Collect all photo + document paths before deleting rows
+      const [{ data: photos }, { data: docs }] = await Promise.all([
+        supabase.from('property_photos').select('storage_path').in('property_id', ids),
+        supabase.from('property_files').select('storage_path').in('property_id', ids),
+      ])
       if (photos && photos.length > 0) {
         await supabase.storage.from('photos').remove(photos.map(p => p.storage_path))
+      }
+      if (docs && docs.length > 0) {
+        await supabase.storage.from('property-files').remove(docs.map(d => d.storage_path))
       }
       const { error } = await supabase.from('properties').delete().in('id', ids)
       if (error) throw error
