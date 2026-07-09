@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { TG_BOT, buildDeepLink } from '@/lib/telegram'
 import { IconBuilding, IconRuler, IconMapPin, IconCurrencyDollar } from '@/components/Icons'
-import { photoUrl, calcRentUtils } from '@/lib/utils'
+import { photoUrl, calcRentUtils, rentUnitLabel, parkingTypeLabel } from '@/lib/utils'
 
 // ── data types returned by the RPCs ──────────────────────────────────────────
 
@@ -16,13 +16,15 @@ interface PropertyPreview {
   property_floor: string | null
   property_area_useful: number | null
   property_area_total: number | null
-  property_rent_type: 'per_m2' | 'fixed'
+  property_rent_type: 'per_m2' | 'fixed' | 'per_day'
   property_rent_rate: number | null
   property_utilities_rate: number | null
   property_description: string | null
   property_address: string | null
   property_has_parking: boolean
   property_parking_spaces: number
+  property_parking_type: 'underground' | 'covered' | 'open' | null
+  property_ev_charger: boolean
   property_sale_price: number | null
   share_expires_at: string | null
   db_id: string
@@ -443,26 +445,25 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
         <div style={{ ...s.card, ...s.pad }}>
           <div style={s.sectionTitle}>Орендна ставка</div>
           <div style={{ fontSize: 13, color: 'rgba(255,255,255,.5)', marginBottom: 6 }}>
-            {data.property_rent_type === 'fixed' ? 'Фіксована оплата' : 'За м²'}
+            {data.property_rent_type === 'fixed' ? 'Фіксована оплата'
+              : data.property_rent_type === 'per_day' ? 'Подобова оплата' : 'За м²'}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: 13, color: 'rgba(255,255,255,.6)' }}>Оренда</span>
               <span style={{ fontSize: 17, fontWeight: 700 }}>
-                {data.property_rent_type === 'fixed'
-                  ? fmtPrice(data.property_rent_rate, '/міс')
-                  : fmtPrice(data.property_rent_rate, '/м²')}
+                {fmtPrice(data.property_rent_rate, rentUnitLabel(data.property_rent_type))}
               </span>
             </div>
             {data.property_utilities_rate && (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 13, color: 'rgba(255,255,255,.6)' }}>Комунальні</span>
                 <span style={{ fontSize: 17, fontWeight: 700 }}>
-                  {fmtPrice(data.property_utilities_rate, '/м²')}
+                  {fmtPrice(data.property_utilities_rate, data.property_area_total ? '/м²' : '/міс')}
                 </span>
               </div>
             )}
-            {rentTotal > 0 && (
+            {rentTotal > 0 && data.property_rent_type !== 'per_day' && (
               <>
                 <div style={{ height: .5, background: 'rgba(255,255,255,.1)', margin: '4px 0' }} />
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -476,6 +477,25 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
           </div>
         </div>
       ) : null}
+
+      {/* Parking spot attributes */}
+      {(parkingTypeLabel(data.property_parking_type) || data.property_ev_charger) && (
+        <div style={{ ...s.card, ...s.pad }}>
+          <div style={s.sectionTitle}>Паркомісце</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {parkingTypeLabel(data.property_parking_type) && (
+              <span style={{ fontSize: 13, fontWeight: 600, padding: '5px 11px', borderRadius: 9, background: 'rgba(168,124,255,.15)', color: 'rgba(168,124,255,.95)' }}>
+                {parkingTypeLabel(data.property_parking_type)}
+              </span>
+            )}
+            {data.property_ev_charger && (
+              <span style={{ fontSize: 13, fontWeight: 600, padding: '5px 11px', borderRadius: 9, background: 'rgba(74,222,128,.15)', color: '#4ade80' }}>
+                ⚡ Зарядка EV
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Description */}
       {data.property_description && (
@@ -583,7 +603,7 @@ function DatabaseView({ rows, token }: { rows: DbRow[]; token: string }) {
                     {p.property_area_useful && <span style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconRuler size={11} color="rgba(255,255,255,.5)" />{p.property_area_useful} м²</span>}
                     {p.property_rent_rate && (
                       <span style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                        <IconCurrencyDollar size={11} color="rgba(255,255,255,.5)" />{p.property_rent_rate.toLocaleString('uk-UA')}{p.property_rent_type === 'per_m2' ? '/м²' : '/міс'}
+                        <IconCurrencyDollar size={11} color="rgba(255,255,255,.5)" />{p.property_rent_rate.toLocaleString('uk-UA')}{rentUnitLabel(p.property_rent_type)}
                       </span>
                     )}
                   </div>
@@ -665,7 +685,7 @@ function CollectionView({ rows, token }: { rows: ColRow[]; token: string }) {
                     {[
                       p.property_floor ? `${p.property_floor} пов.` : null,
                       fmtArea(p.property_area_useful),
-                      p.property_rent_rate ? fmtPrice(p.property_rent_rate, p.property_rent_type === 'per_m2' ? '/м²' : '/міс') : null,
+                      p.property_rent_rate ? fmtPrice(p.property_rent_rate, rentUnitLabel(p.property_rent_type)) : null,
                     ].filter(Boolean).join(' • ')}
                   </div>
                   {p.db_name && (

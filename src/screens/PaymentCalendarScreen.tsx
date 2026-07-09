@@ -10,15 +10,15 @@ import Header from '@/components/ui/Header'
 import Modal from '@/components/ui/Modal'
 import { SkeletonList } from '@/components/ui/SkeletonLoader'
 import { IconCalendar, IconBellRing, IconCheckCircle, IconClock, IconPlus, IconTrash, IconFile } from '@/components/Icons'
-import { formatPrice, calcRent, humanizeDbError } from '@/lib/utils'
+import { formatPrice, monthlyRent, humanizeDbError } from '@/lib/utils'
 import type { Property, RentPayment, RentPaymentRecord } from '@/types'
 
 // Expected monthly rent for a property. rent_rate alone is WRONG for per_m2
-// properties (it's the $/m² rate, not the monthly total) — go through calcRent
-// so the confirm-payment default matches what every other screen shows.
+// (it's the $/m² rate) and for per_day (daily) — monthlyRent normalises every
+// unit to a month so the confirm-payment default matches the other screens.
 function expectedRent(p: Property): number {
   if (!p.rent_rate) return 0
-  return calcRent(p.area_useful ?? 0, p.rent_rate, p.rent_type)
+  return monthlyRent(p.area_useful ?? 0, p.rent_rate, p.rent_type)
 }
 
 function fmtDueDate(dateStr: string): string {

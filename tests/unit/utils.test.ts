@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest'
 import {
   formatPrice, formatLeaseDate, formatLeasePeriod, formatDate,
-  calcRent, calcUtilities, calcRentUtils, getInitials, greeting, withRetry,
-  humanizeDbError, safeFileName,
+  calcRent, calcUtilities, calcRentUtils, monthlyRent, rentUnitLabel, parkingTypeLabel,
+  getInitials, greeting, withRetry, humanizeDbError, safeFileName,
 } from '@/lib/utils'
 
 describe('humanizeDbError', () => {
@@ -83,6 +83,36 @@ describe('calcRent', () => {
     expect(calcRent(50, 20, 'per_m2')).toBe(1000))
   it('returns flat rate for fixed', () =>
     expect(calcRent(50, 20, 'fixed')).toBe(20))
+  it('returns the raw rate for per_day (daily, no area multiply)', () =>
+    expect(calcRent(50, 150, 'per_day')).toBe(150))
+})
+
+describe('monthlyRent', () => {
+  it('projects a daily rate across ~30 days', () =>
+    expect(monthlyRent(0, 150, 'per_day')).toBe(4500))
+  it('matches calcRent for per_m2 and fixed', () => {
+    expect(monthlyRent(50, 20, 'per_m2')).toBe(1000)
+    expect(monthlyRent(50, 800, 'fixed')).toBe(800)
+  })
+})
+
+describe('rentUnitLabel', () => {
+  it('maps each rent type to its suffix', () => {
+    expect(rentUnitLabel('per_m2')).toBe('/м²')
+    expect(rentUnitLabel('per_day')).toBe('/добу')
+    expect(rentUnitLabel('fixed')).toBe('/міс')
+    expect(rentUnitLabel(null)).toBe('/міс')
+  })
+})
+
+describe('parkingTypeLabel', () => {
+  it('translates known kinds, null otherwise', () => {
+    expect(parkingTypeLabel('underground')).toBe('Підземний')
+    expect(parkingTypeLabel('covered')).toBe('Критий')
+    expect(parkingTypeLabel('open')).toBe('Просто неба')
+    expect(parkingTypeLabel(null)).toBeNull()
+    expect(parkingTypeLabel('nonsense')).toBeNull()
+  })
 })
 
 describe('calcUtilities', () => {
@@ -95,12 +125,15 @@ describe('calcRentUtils', () => {
     expect(calcRentUtils(50, 100, 20, 'per_m2', 5).total).toBe(1000 + 500))
   it('sums flat rent + utilities (fixed rent ignores area)', () =>
     expect(calcRentUtils(50, 100, 800, 'fixed', 5).total).toBe(800 + 500))
-  it('rent is 0 when rate or useful area missing', () => {
+  it('per_day rent carries the daily rate, not gated on area', () =>
+    expect(calcRentUtils(0, null, 150, 'per_day', null).rent).toBe(150))
+  it('rent is 0 when rate missing; per_m2 with no area is 0', () => {
     expect(calcRentUtils(null, 100, 20, 'per_m2', 5).rent).toBe(0)
     expect(calcRentUtils(50, 100, null, 'per_m2', 5).rent).toBe(0)
   })
-  it('utils keyed off total area, 0 when missing', () => {
-    expect(calcRentUtils(50, null, 20, 'per_m2', 5).utils).toBe(0)
+  it('utils are $/m² with a total area, flat charge without one (parking)', () => {
+    expect(calcRentUtils(50, 100, 20, 'per_m2', 5).utils).toBe(500)
+    expect(calcRentUtils(13, null, 0, 'fixed', 30).utils).toBe(30)
     expect(calcRentUtils(50, 100, 20, 'per_m2', null).utils).toBe(0)
   })
 })

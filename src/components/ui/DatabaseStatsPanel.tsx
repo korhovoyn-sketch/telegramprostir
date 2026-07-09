@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useMemo, type ReactNode } from 'react'
-import { calcRent, calcUtilities, formatPrice } from '@/lib/utils'
+import { monthlyRent, calcUtilities, formatPrice } from '@/lib/utils'
 import type { Property } from '@/types'
 
 interface Props {
@@ -169,10 +169,11 @@ export default function DatabaseStatsPanel({ properties, currency = 'USD' }: Pro
     const free = properties.filter(p => p.status === 'free')
 
     const totalRent = occupied.reduce((sum, p) =>
-      sum + (p.rent_rate && p.area_useful ? calcRent(p.area_useful, p.rent_rate, p.rent_type) : 0), 0)
+      sum + (p.rent_rate ? monthlyRent(p.area_useful ?? 0, p.rent_rate, p.rent_type) : 0), 0)
 
+    // Utilities are $/m² when a total area exists, otherwise a flat charge (parking).
     const totalUtils = occupied.reduce((sum, p) =>
-      sum + (p.utilities_rate && p.area_total ? calcUtilities(p.area_total, p.utilities_rate) : 0), 0)
+      sum + (p.utilities_rate ? (p.area_total ? calcUtilities(p.area_total, p.utilities_rate) : p.utilities_rate) : 0), 0)
 
     const occupiedUseful = occupied.reduce((sum, p) => sum + (p.area_useful ?? 0), 0)
     const occupiedTotal = occupied.reduce((sum, p) => sum + (p.area_total ?? 0), 0)

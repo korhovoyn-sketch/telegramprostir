@@ -10,7 +10,7 @@ import { StatusBadge } from '@/components/ui/Badge'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import { IconShare, IconPhoto, IconMessage, IconBuilding, IconRuler, IconParking, IconCalendar } from '@/components/Icons'
 import { sharePublicUrl , hapticSelection } from '@/lib/telegram'
-import { formatPrice, calcRentUtils, DB_TYPE_LABELS, getInitials, formatLeasePeriod, humanizeDbError } from '@/lib/utils'
+import { formatPrice, calcRentUtils, rentUnitLabel, DB_TYPE_LABELS, getInitials, formatLeasePeriod, humanizeDbError } from '@/lib/utils'
 import type { Database, Property, PropertyStatus, User } from '@/types'
 
 export default function RealtorDatabaseScreen() {
@@ -145,7 +145,10 @@ export default function RealtorDatabaseScreen() {
         ) : (
           <div className="list" style={{ marginBottom: 80 }}>
             {filtered.map((p) => {
-              const { total } = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate)
+              const { rent, total } = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate)
+              // A daily rate isn't a monthly total — show it as-is (/добу).
+              const isDaily = p.rent_type === 'per_day'
+              const dispVal = isDaily ? rent : total
 
               return (
                 <div
@@ -171,10 +174,10 @@ export default function RealtorDatabaseScreen() {
                       </div>
                     )}
                   </div>
-                  {total > 0 && (
+                  {dispVal > 0 && (
                     <div className="obj-tot">
-                      <div className="obj-tot-l">На місяць</div>
-                      <div className="obj-tot-v">{formatPrice(total, user?.currency)}</div>
+                      <div className="obj-tot-l">{isDaily ? 'За добу' : 'На місяць'}</div>
+                      <div className="obj-tot-v">{formatPrice(dispVal, user?.currency)}{isDaily ? rentUnitLabel(p.rent_type) : ''}</div>
                     </div>
                   )}
                 </div>

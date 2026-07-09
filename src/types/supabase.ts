@@ -75,11 +75,13 @@ export type Database = {
           status: 'free' | 'occupied' | 'for_sale'
           area_useful: number | null
           area_total: number | null
-          rent_type: 'per_m2' | 'fixed'
+          rent_type: 'per_m2' | 'fixed' | 'per_day'
           rent_rate: number | null
           utilities_rate: number | null
           has_parking: boolean
           parking_spaces: number
+          parking_type: 'underground' | 'covered' | 'open' | null
+          ev_charger: boolean
           description: string | null
           address: string | null
           utilities: string[] | null

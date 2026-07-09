@@ -13,7 +13,7 @@ import { StatusBadge } from '@/components/ui/Badge'
 import { IconEdit, IconShare, IconMapPin, IconPhoto, IconX, IconCamera, IconRuler, IconBuildingSkyscraper, IconCircleCheck, IconCurrencyDollar, IconCarGarage, IconUser, IconKey, IconBolt, IconCalendar, IconFile } from '@/components/Icons'
 import FilesList from '@/components/ui/FilesList'
 import FloatingButton from '@/components/ui/FloatingButton'
-import { formatPrice, calcRent, calcUtilities, calcRentUtils, STATUS_LABELS, formatLeasePeriod, photoUrl, daysUntil } from '@/lib/utils'
+import { formatPrice, calcRent, calcUtilities, calcRentUtils, rentUnitLabel, parkingTypeLabel, STATUS_LABELS, formatLeasePeriod, photoUrl, daysUntil } from '@/lib/utils'
 import { UTILITY_META } from '@/lib/utilityMeta'
 import { supabase } from '@/lib/supabase'
 
@@ -108,7 +108,7 @@ function Building3DHero() {
 }
 
 export default function PropertyDetailScreen() {
-  const { screenParams, navigate, user, showToast } = useAppStore()
+  const { screenParams, navigate, user, showToast, databases } = useAppStore()
   const { properties, loading, error, loadSingleProperty, deletePhoto, updateProperty } = useProperties(screenParams.dbId)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const tenantInputRef = useRef<HTMLInputElement>(null)
@@ -188,6 +188,10 @@ export default function PropertyDetailScreen() {
   )
 
   const { rent, utils, total } = calcRentUtils(property.area_useful, property.area_total, property.rent_rate, property.rent_type, property.utilities_rate)
+  const isParking = databases.find(d => d.id === property.db_id)?.type === 'parking'
+  // A daily rate can't be summed with a monthly utilities charge into a monthly
+  // total — for per_day we show the line items but no combined "Разом на місяць".
+  const isDaily = property.rent_type === 'per_day'
   const photos = property.photos ?? []
 
   function openGallery(index: number) {
@@ -321,7 +325,7 @@ export default function PropertyDetailScreen() {
             {property.area_useful && (
               <div className="obj-f">
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <IconRuler size={13} color="#7AB3FF" />Корисна площа
+                  <IconRuler size={13} color="#7AB3FF" />{isParking ? 'Площа місця' : 'Корисна площа'}
                 </div>
                 <div className="obj-fv">{property.area_useful} м²</div>
               </div>
@@ -350,7 +354,7 @@ export default function PropertyDetailScreen() {
                 <StatusBadge status={property.status} />
               </div>
             </div>
-            {property.has_parking && (
+            {property.has_parking && !isParking && (
               <div className="obj-f">
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                   <IconCarGarage size={13} color="#fb923c" />Паркінг
@@ -358,12 +362,28 @@ export default function PropertyDetailScreen() {
                 <div className="obj-fv">{property.parking_spaces} місць</div>
               </div>
             )}
+            {parkingTypeLabel(property.parking_type) && (
+              <div className="obj-f">
+                <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <IconCarGarage size={13} color="#fb923c" />Тип місця
+                </div>
+                <div className="obj-fv">{parkingTypeLabel(property.parking_type)}</div>
+              </div>
+            )}
+            {property.ev_charger && (
+              <div className="obj-f">
+                <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <IconBolt size={13} color="#4ade80" />Зарядка EV
+                </div>
+                <div className="obj-fv">Є</div>
+              </div>
+            )}
             {rent > 0 && (
               <div className="obj-f">
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                   <IconCurrencyDollar size={13} color="var(--ok-fg)" />Оренда
                 </div>
-                <div className="obj-fv">{formatPrice(rent, user?.currency)}/міс</div>
+                <div className="obj-fv">{formatPrice(rent, user?.currency)}{rentUnitLabel(property.rent_type)}</div>
               </div>
             )}
             {property.sale_price != null && (
@@ -444,7 +464,7 @@ export default function PropertyDetailScreen() {
                   </span>
                   Оренда
                 </span>
-                <span style={{ color: 'var(--ok-fg)', fontWeight: 600 }}>{formatPrice(rent, user?.currency)}/міс</span>
+                <span style={{ color: 'var(--ok-fg)', fontWeight: 600 }}>{formatPrice(rent, user?.currency)}{rentUnitLabel(property.rent_type)}</span>
               </div>
             )}
             {utils > 0 && (
@@ -458,7 +478,7 @@ export default function PropertyDetailScreen() {
                 <span style={{ color: 'var(--t2)', fontWeight: 600 }}>+{formatPrice(utils, user?.currency)}/міс</span>
               </div>
             )}
-            {rent > 0 && utils > 0 && (
+            {!isDaily && rent > 0 && utils > 0 && (
               <div className="cost-row" style={{ marginTop: 4 }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600, color: 'var(--t1)' }}>
                   <span style={{ width: 24, height: 24, borderRadius: 8, background: 'rgba(122,179,255,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -469,7 +489,7 @@ export default function PropertyDetailScreen() {
                 <span className="cost-ttl">{formatPrice(total, user?.currency)}</span>
               </div>
             )}
-            {(rent === 0 || utils === 0) && (
+            {!isDaily && (rent === 0 || utils === 0) && (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 4 }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--t3)' }}>
                   <span style={{ width: 24, height: 24, borderRadius: 8, background: 'rgba(122,179,255,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -693,14 +713,15 @@ export default function PropertyDetailScreen() {
           {(() => {
             const rateVal = parseFloat(rentRentRate)
             const utilVal = parseFloat(rentUtilitiesRate)
-            const previewRent = isFinite(rateVal) && rateVal > 0 && property.area_useful
-              ? calcRent(property.area_useful, rateVal, property.rent_type)
+            const previewRent = isFinite(rateVal) && rateVal > 0
+              ? calcRent(property.area_useful ?? 0, rateVal, property.rent_type)
               : 0
-            const previewUtils = isFinite(utilVal) && utilVal > 0 && property.area_total
-              ? calcUtilities(property.area_total, utilVal)
+            const previewUtils = isFinite(utilVal) && utilVal > 0
+              ? (property.area_total ? calcUtilities(property.area_total, utilVal) : utilVal)
               : 0
-            const previewTotal = previewRent + previewUtils
-            const rateUnit = property.rent_type === 'fixed' ? '$/міс' : '$/м²'
+            const previewTotal = property.rent_type === 'per_day' ? 0 : previewRent + previewUtils
+            const rateUnit = `$${rentUnitLabel(property.rent_type)}`
+            const utilUnit = isParking ? '$/міс' : '$/м²'
 
             return (
               <div style={{ paddingTop: 4 }}>
@@ -727,7 +748,7 @@ export default function PropertyDetailScreen() {
                     />
                   </div>
                   <div className="fld">
-                    <div className="fld-l"><IconBolt size={11} />Комунальні, $/м²</div>
+                    <div className="fld-l"><IconBolt size={11} />Комунальні, {utilUnit}</div>
                     <input
                       type="number"
                       inputMode="decimal"

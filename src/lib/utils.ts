@@ -106,8 +106,35 @@ export function formatDate(iso: string): string {
 }
 
 export function calcRent(areaUseful: number, rentRate: number, rentType: string): number {
-  if (rentType === 'fixed') return rentRate
+  // per_m2 multiplies by useful area; fixed (monthly) and per_day (daily) store
+  // the rate itself. calcRent returns the raw figure for that unit — for a
+  // per_day spot that's the DAILY rate; monthlyRent() below scales it to a month.
+  if (rentType === 'fixed' || rentType === 'per_day') return rentRate
   return Math.round(areaUseful * rentRate)
+}
+
+// Monthly value of a rent, used only for income aggregations (dashboard stats,
+// payment calendar). A daily parking rate is projected across ~30 days.
+const DAYS_PER_MONTH = 30
+export function monthlyRent(areaUseful: number, rentRate: number, rentType: string): number {
+  if (rentType === 'per_day') return Math.round(rentRate * DAYS_PER_MONTH)
+  return calcRent(areaUseful, rentRate, rentType)
+}
+
+// Unit suffix for a rent rate, shared by every surface that prints one.
+export function rentUnitLabel(rentType: string | null | undefined): string {
+  if (rentType === 'per_m2') return '/м²'
+  if (rentType === 'per_day') return '/добу'
+  return '/міс'
+}
+
+const PARKING_TYPE_LABELS: Record<string, string> = {
+  underground: 'Підземний',
+  covered: 'Критий',
+  open: 'Просто неба',
+}
+export function parkingTypeLabel(t: string | null | undefined): string | null {
+  return t ? PARKING_TYPE_LABELS[t] ?? null : null
 }
 
 export function calcUtilities(areaTotal: number, utilitiesRate: number): number {
@@ -135,8 +162,14 @@ export function calcRentUtils(
   rentType: string | null | undefined,
   utilitiesRate: number | null | undefined,
 ): { rent: number; utils: number; total: number } {
-  const rent = rentRate && areaUseful ? calcRent(areaUseful, rentRate, rentType ?? 'per_m2') : 0
-  const utils = utilitiesRate && areaTotal ? calcUtilities(areaTotal, utilitiesRate) : 0
+  // per_m2 needs a useful area to multiply; fixed/per_day carry the rate itself,
+  // so they must NOT be gated on area (a fixed monthly rent or a parking spot
+  // with no m² still has a rent).
+  const rt = rentType ?? 'per_m2'
+  const rent = rentRate ? calcRent(areaUseful ?? 0, rentRate, rt) : 0
+  // Utilities: $/m² when a total area is present, otherwise a flat charge
+  // (parking utilities are flat — there's no total area to multiply).
+  const utils = utilitiesRate ? (areaTotal ? calcUtilities(areaTotal, utilitiesRate) : Math.round(utilitiesRate)) : 0
   return { rent, utils, total: rent + utils }
 }
 
