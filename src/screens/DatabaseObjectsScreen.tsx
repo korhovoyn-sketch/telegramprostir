@@ -15,7 +15,7 @@ import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import Modal from '@/components/ui/Modal'
 import { IconPlus, IconDots, IconPhoto, IconShare, IconChevronUp, IconChevronDown, GlassDbIcon, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconFile, IconLayers, IconLayoutGrid, IconChartBar, IconKey, IconFileExport, IconCircleCheck, IconAdjustments, IconTrash, IconChevronRight } from '@/components/Icons'
 import DatabaseStatsPanel from '@/components/ui/DatabaseStatsPanel'
-import { formatPrice, calcRent, calcRentUtils, DB_TYPE_LABELS, formatLeasePeriod } from '@/lib/utils'
+import { formatPrice, calcRent, calcRentUtils, rentUnitLabel, DB_TYPE_LABELS, formatLeasePeriod } from '@/lib/utils'
 import type { PropertyStatus } from '@/types'
 import CoachMark from '@/components/ui/CoachMark'
 import { useOnboarding } from '@/hooks/useOnboarding'
@@ -308,6 +308,11 @@ export default function DatabaseObjectsScreen() {
           <div className="list">
             {filtered.map((p, idx) => {
               const { rent, utils, total } = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate)
+              // A daily rate can't be summed with monthly utilities — show the raw
+              // daily rate (/добу); everything else shows the monthly total (/міс).
+              const isDaily = p.rent_type === 'per_day'
+              const dispVal = isDaily ? rent : total
+              const dispUnit = rentUnitLabel(p.rent_type)
 
               if (compactView) {
                 const title = p.tenant_name?.trim() || p.name
@@ -326,8 +331,8 @@ export default function DatabaseObjectsScreen() {
                       </div>
                     </div>
                     <div className="row-r">
-                      <span className="row-tot">{total > 0 ? formatPrice(total, user?.currency) : '—'}</span>
-                      {total > 0 && <span className="row-tot-u">/міс</span>}
+                      <span className="row-tot">{dispVal > 0 ? formatPrice(dispVal, user?.currency) : '—'}</span>
+                      {dispVal > 0 && <span className="row-tot-u">{dispUnit}</span>}
                     </div>
                   </div>
                 )
@@ -473,18 +478,18 @@ export default function DatabaseObjectsScreen() {
                           </div>
                         )}
                       </div>
-                      {total > 0 && (
+                      {dispVal > 0 && (
                         <div className="obj-tot">
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                             <span style={{ width: 22, height: 22, borderRadius: 7, background: 'var(--ok-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                               <IconCurrencyDollar size={12} color="var(--ok-fg)" />
                             </span>
                             <div>
-                              <div className="obj-tot-l">На місяць</div>
-                              <div className="obj-tot-sub">{rent > 0 && utils > 0 ? 'оренда + комунальні' : rent > 0 ? 'оренда' : 'комунальні'}</div>
+                              <div className="obj-tot-l">{isDaily ? 'За добу' : 'На місяць'}</div>
+                              <div className="obj-tot-sub">{isDaily ? 'подобово' : rent > 0 && utils > 0 ? 'оренда + комунальні' : rent > 0 ? 'оренда' : 'комунальні'}</div>
                             </div>
                           </div>
-                          <div className="obj-tot-v">{formatPrice(total, user?.currency)}</div>
+                          <div className="obj-tot-v">{formatPrice(dispVal, user?.currency)}</div>
                         </div>
                       )}
                       {!selectMode && !reorderMode && (

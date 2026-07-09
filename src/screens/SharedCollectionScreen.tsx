@@ -6,7 +6,7 @@ import { useAppStore } from '@/store/appStore'
 import { StatusBadge } from '@/components/ui/Badge'
 import Header from '@/components/ui/Header'
 import { IconBuilding } from '@/components/Icons'
-import { formatPrice, calcRent, photoUrl } from '@/lib/utils'
+import { formatPrice, calcRent, rentUnitLabel, photoUrl } from '@/lib/utils'
 import type { PropertyStatus, RentType } from '@/types'
 
 interface SharedProperty {
@@ -94,8 +94,8 @@ export default function SharedCollectionScreen() {
           <div className="list">
             {data.properties.map((p) => {
               const thumbUrl = p.first_photo ? photoUrl(p.first_photo) : null
-              const rent = p.rent_rate && p.area_useful
-                ? calcRent(p.area_useful, p.rent_rate, p.rent_type)
+              const rent = p.rent_rate
+                ? calcRent(p.area_useful ?? 0, p.rent_rate, p.rent_type)
                 : 0
 
               return (
@@ -123,7 +123,7 @@ export default function SharedCollectionScreen() {
                       {p.floor && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconBuilding size={10} color="var(--t3)" />{p.floor} пов.</span>}
                       {rent > 0 && (
                         <span style={{ color: 'var(--t2)', fontWeight: 600 }}>
-                          {formatPrice(rent, currency)}/міс
+                          {formatPrice(rent, currency)}{rentUnitLabel(p.rent_type)}
                         </span>
                       )}
                     </div>

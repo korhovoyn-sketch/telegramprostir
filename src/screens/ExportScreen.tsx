@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase'
 import Header from '@/components/ui/Header'
 import Toggle from '@/components/ui/Toggle'
 import { IconFileExport, IconFile, IconAdjustments } from '@/components/Icons'
-import { calcRent, calcUtilities, DB_TYPE_LABELS, STATUS_LABELS, formatDate, humanizeDbError, safeFileName } from '@/lib/utils'
+import { calcRent, calcUtilities, rentUnitLabel, DB_TYPE_LABELS, STATUS_LABELS, formatDate, humanizeDbError, safeFileName } from '@/lib/utils'
 import type { Property, Database } from '@/types'
 
 const FORMATS = [
@@ -202,7 +202,7 @@ async function generatePDF(
       STATUS_LABELS[p.status] ?? p.status,
       p.area_useful ? `${p.area_useful}` : '—',
       p.area_total  ? `${p.area_total}`  : '—',
-      p.rent_rate   ? `${p.rent_rate}${p.rent_type === 'per_m2' ? '/м²' : ''}` : '—',
+      p.rent_rate   ? `${p.rent_rate}${p.rent_type === 'fixed' ? '' : rentUnitLabel(p.rent_type)}` : '—',
       utils ? `$${utils}`  : '—',
       rent + utils ? `$${rent + utils}` : '—',
     ]
@@ -353,7 +353,7 @@ async function generatePDF(
     drawSection('ОРЕНДА', y)
     y += 5
     const rentRateStr = p.rent_rate
-      ? `${p.rent_rate} ${p.rent_type === 'per_m2' ? '$ / м² / міс' : '$ / міс (фіксована)'}`
+      ? `${p.rent_rate} ${p.rent_type === 'per_m2' ? '$ / м² / міс' : p.rent_type === 'per_day' ? '$ / добу' : '$ / міс (фіксована)'}`
       : '—'
     const yL3 = drawField('Ставка оренди',    rentRateStr,            CL, y, CW)
     const yR3 = drawField('Оренда на місяць', rent  ? `$${rent}`  : '—', CR, y, CW)
@@ -486,7 +486,7 @@ async function generateExcel(
       p.area_useful ?? '',
       p.area_total  ?? '',
       p.rent_rate   ?? '',
-      p.rent_type === 'per_m2' ? '$/м²/міс' : 'фіксована $/міс',
+      p.rent_type === 'per_m2' ? '$/м²/міс' : p.rent_type === 'per_day' ? '$/добу' : 'фіксована $/міс',
       rent  || '',
       utils || '',
       rent + utils || '',

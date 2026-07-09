@@ -272,6 +272,20 @@ This sandboxed environment has **no Playwright browser binaries** (`apt` returns
 
 ## Pending manual actions (зробити в Supabase Dashboard)
 
+### 0b. Паркінг-поля об'єктів — виконати SQL в Dashboard → SQL Editor
+
+Файл: `supabase/migrations/039_parking_fields.sql`
+
+Додає підтримку паркінг-специфічних об'єктів (форма адаптується під базу типу
+`parking`):
+- `rent_type` CHECK розширено на `per_day` (подобова оренда).
+- Нові колонки `parking_type` (`underground|covered|open`) і `ev_charger`.
+- `get_public_property_preview()` тепер віддає `parking_type` + `ev_charger`
+  (публічна `/v` сторінка показує тип місця і зарядку EV).
+
+Без цієї міграції збереження паркінг-об'єкта з подобовою орендою впаде на CHECK,
+а `parking_type`/`ev_charger` не існуватимуть.
+
 ### 0a. Storage write hardening — виконати SQL в Dashboard → SQL Editor (ПРІОРИТЕТ, безпека)
 
 Файл: `supabase/migrations/038_storage_write_hardening.sql`

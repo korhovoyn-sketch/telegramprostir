@@ -2,7 +2,8 @@ export type UserRole = 'owner' | 'realtor' | 'guest'
 export type UserPlan = 'free' | 'pro'
 export type DatabaseType = 'business_center' | 'residential' | 'retail' | 'warehouse' | 'individual' | 'parking'
 export type PropertyStatus = 'free' | 'occupied' | 'for_sale'
-export type RentType = 'per_m2' | 'fixed'
+export type RentType = 'per_m2' | 'fixed' | 'per_day'
+export type ParkingType = 'underground' | 'covered' | 'open'
 export type NotificationAction = 'view' | 'photo' | 'document' | 'share' | 'favorite'
 
 export interface User {
@@ -55,6 +56,8 @@ export interface Property {
   utilities_rate?: number
   has_parking: boolean
   parking_spaces: number
+  parking_type?: ParkingType | null
+  ev_charger?: boolean
   description?: string
   address?: string | null
   utilities?: string[] | null

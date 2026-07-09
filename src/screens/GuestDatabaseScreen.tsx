@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAppStore } from '@/store/appStore'
 import { useAuth } from '@/hooks/useAuth'
-import { DB_TYPE_LABELS } from '@/lib/utils'
+import { DB_TYPE_LABELS, rentUnitLabel } from '@/lib/utils'
 import { IconBuilding, IconRuler, IconCurrencyDollar } from '@/components/Icons'
 
 // Public DB preview (realtor flow)
@@ -365,7 +365,7 @@ export default function GuestDatabaseScreen() {
                   {p.property_rent_rate != null && (
                     <div className="obj-mt">
                       <IconCurrencyDollar size={13} color="var(--t3)" />
-                      <span>{p.property_rent_rate.toLocaleString('uk-UA')}{p.property_rent_type === 'per_m2' ? ' /м²' : ' /міс'}</span>
+                      <span>{p.property_rent_rate.toLocaleString('uk-UA')} {rentUnitLabel(p.property_rent_type)}</span>
                     </div>
                   )}
                 </div>

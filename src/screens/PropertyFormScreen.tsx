@@ -11,16 +11,26 @@ import Modal from '@/components/ui/Modal'
 import { IconRuler, IconLayers, IconActivity, IconBuilding, IconCurrencyDollar, IconBolt, IconCarGarage, IconFile, IconUser, IconKey, IconMapPin } from '@/components/Icons'
 import { UTILITY_META } from '@/lib/utilityMeta'
 import FilesList from '@/components/ui/FilesList'
-import { formatPrice, calcRent, calcUtilities, scrollFocusedIntoView } from '@/lib/utils'
-import type { PropertyStatus, RentType } from '@/types'
+import { formatPrice, calcRent, calcUtilities, rentUnitLabel, scrollFocusedIntoView } from '@/lib/utils'
+import type { PropertyStatus, RentType, ParkingType } from '@/types'
+
+const PARKING_TYPES: { v: ParkingType; l: string }[] = [
+  { v: 'underground', l: 'Підземний' },
+  { v: 'covered', l: 'Критий' },
+  { v: 'open', l: 'Просто неба' },
+]
 
 export default function PropertyFormScreen() {
-  const { screenParams, backThenReplace, showToast, user, isOnline } = useAppStore()
+  const { screenParams, backThenReplace, showToast, user, isOnline, databases } = useAppStore()
   const { properties, loadProperties, createProperty, updateProperty, deleteProperty, loading } = useProperties(screenParams.dbId)
 
   const editId = screenParams.propertyId
   const isEdit = !!editId
   const existing = properties.find(p => p.id === editId)
+
+  // Parking DBs get a spot-oriented field set (number/area/level/type/EV, flat
+  // utilities, monthly-or-daily rate) instead of the office/apartment layout.
+  const isParking = databases.find(d => d.id === screenParams.dbId)?.type === 'parking'
 
   const [name, setName] = useState('')
   const [floor, setFloor] = useState('')
@@ -32,6 +42,8 @@ export default function PropertyFormScreen() {
   const [utilitiesRate, setUtilitiesRate] = useState('')
   const [hasParking, setHasParking] = useState(false)
   const [parkingSpaces, setParkingSpaces] = useState('1')
+  const [parkingType, setParkingType] = useState<ParkingType | ''>('')
+  const [evCharger, setEvCharger] = useState(false)
   const [description, setDescription] = useState('')
   const [salePrice, setSalePrice] = useState('')
   const [tenantName, setTenantName] = useState('')
@@ -59,6 +71,8 @@ export default function PropertyFormScreen() {
       setUtilitiesRate(String(existing.utilities_rate ?? ''))
       setHasParking(existing.has_parking)
       setParkingSpaces(String(existing.parking_spaces))
+      setParkingType(existing.parking_type ?? '')
+      setEvCharger(existing.ev_charger ?? false)
       setDescription(existing.description ?? '')
       setAddress(existing.address ?? '')
       setUtilities(existing.utilities ?? [])
@@ -71,15 +85,26 @@ export default function PropertyFormScreen() {
     }
   }, [isEdit, existing, screenParams.dbId, loadProperties])
 
-  // Fixed rent is the monthly sum itself — it needs no area. Only per_m2 needs
-  // a useful area to multiply, so guard the two rent types separately.
-  const rentCalc = parseFloat(rentRate) && (rentType === 'fixed' || parseFloat(areaUseful))
+  // Parking rate is monthly-per-spot or daily — never $/m². Default a new
+  // parking spot to a fixed monthly rate so the per_m2 office default never
+  // leaks into a parking form (where that segment isn't even shown).
+  useEffect(() => {
+    if (isParking && !isEdit && rentType === 'per_m2') setRentType('fixed')
+  }, [isParking, isEdit, rentType])
+
+  // Only per_m2 needs a useful area to multiply; fixed (monthly) and per_day
+  // (daily) are the rate itself, so don't gate them on area.
+  const rentCalc = parseFloat(rentRate) && (rentType !== 'per_m2' || parseFloat(areaUseful))
     ? calcRent(parseFloat(areaUseful) || 0, parseFloat(rentRate), rentType)
     : 0
-  const utilsCalc = (parseFloat(areaTotal) && parseFloat(utilitiesRate))
-    ? calcUtilities(parseFloat(areaTotal), parseFloat(utilitiesRate))
-    : 0
-  const total = rentCalc + utilsCalc
+  // Parking utilities are a flat monthly charge (no $/m²); offices multiply the
+  // rate by the total area.
+  const utilsCalc = isParking
+    ? (parseFloat(utilitiesRate) || 0)
+    : (parseFloat(areaTotal) && parseFloat(utilitiesRate) ? calcUtilities(parseFloat(areaTotal), parseFloat(utilitiesRate)) : 0)
+  // A daily rate and a monthly utilities charge aren't the same unit — only sum
+  // them into a monthly total when the rent itself is monthly.
+  const total = rentType === 'per_day' ? 0 : rentCalc + utilsCalc
 
   function toggleUtility(id: string) {
     hapticSelection()
@@ -146,14 +171,18 @@ export default function PropertyFormScreen() {
       address: address.trim() || undefined,
       status,
       area_useful: numOrUndef(areaUseful),
-      area_total: numOrUndef(areaTotal),
+      // A parking spot has a single area; the office useful/total split doesn't apply.
+      area_total: isParking ? undefined : numOrUndef(areaTotal),
       rent_type: rentType,
       rent_rate: numOrUndef(rentRate),
       utilities_rate: numOrUndef(utilitiesRate),
-      has_parking: hasParking,
+      // A parking spot never "has parking" of its own and carries no utility tags.
+      has_parking: isParking ? false : hasParking,
       // Clearing the field leaves parkingSpaces '' → parseInt is NaN; floor to 1.
-      parking_spaces: hasParking ? Math.max(1, parseInt(parkingSpaces, 10) || 1) : 0,
-      utilities: utilities.length > 0 ? utilities : null,
+      parking_spaces: !isParking && hasParking ? Math.max(1, parseInt(parkingSpaces, 10) || 1) : 0,
+      parking_type: isParking ? (parkingType || null) : null,
+      ev_charger: isParking ? evCharger : false,
+      utilities: !isParking && utilities.length > 0 ? utilities : null,
       description: description.trim() || undefined,
       sale_price: status === 'for_sale' ? numOrUndef(salePrice) : null,
       tenant_name: status === 'occupied' ? (tenantName.trim() || undefined) : null,
@@ -196,12 +225,12 @@ export default function PropertyFormScreen() {
         <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconBuilding size={13} color="var(--info)" />Основне</span></div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div className="fr">
-            <span className="fr-l">Назва</span>
-            <input className="fr-i" placeholder="Офіс 101" maxLength={100} value={name} onChange={e => setName(e.target.value)} autoFocus={!isEdit} />
+            <span className="fr-l">{isParking ? 'Номер місця' : 'Назва'}</span>
+            <input className="fr-i" placeholder={isParking ? '№ 42, A-15' : 'Офіс 101'} maxLength={100} value={name} onChange={e => setName(e.target.value)} autoFocus={!isEdit} />
           </div>
           <div className="fr">
-            <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconLayers size={13} color="var(--t3)" />Поверх</span>
-            <input className="fr-i" type="text" inputMode="text" placeholder="1, 2, B-1, МП" maxLength={20} value={floor} onChange={e => setFloor(e.target.value)} />
+            <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconLayers size={13} color="var(--t3)" />{isParking ? 'Рівень / поверх' : 'Поверх'}</span>
+            <input className="fr-i" type="text" inputMode="text" placeholder={isParking ? '-1, 2, підвал' : '1, 2, B-1, МП'} maxLength={20} value={floor} onChange={e => setFloor(e.target.value)} />
           </div>
           <div className="fr">
             <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconMapPin size={13} color="var(--t3)" />Адреса</span>
@@ -262,15 +291,17 @@ export default function PropertyFormScreen() {
         <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconRuler size={13} color="var(--info)" />Площа</span></div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div className="fr">
-            <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconRuler size={13} color="var(--t3)" />Корисна</span>
-            <input className="fr-i" type="number" min="0" inputMode="decimal" placeholder="47" value={areaUseful} onChange={e => setAreaUseful(e.target.value)} />
+            <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconRuler size={13} color="var(--t3)" />{isParking ? 'Площа місця' : 'Корисна'}</span>
+            <input className="fr-i" type="number" min="0" inputMode="decimal" placeholder={isParking ? '13.5' : '47'} value={areaUseful} onChange={e => setAreaUseful(e.target.value)} />
             <span className="fr-u">м²</span>
           </div>
-          <div className="fr">
-            <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconRuler size={13} color="var(--t3)" />Загальна</span>
-            <input className="fr-i" type="number" min="0" inputMode="decimal" placeholder="52" value={areaTotal} onChange={e => setAreaTotal(e.target.value)} />
-            <span className="fr-u">м²</span>
-          </div>
+          {!isParking && (
+            <div className="fr">
+              <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconRuler size={13} color="var(--t3)" />Загальна</span>
+              <input className="fr-i" type="number" min="0" inputMode="decimal" placeholder="52" value={areaTotal} onChange={e => setAreaTotal(e.target.value)} />
+              <span className="fr-u">м²</span>
+            </div>
+          )}
         </div>
 
         {/* Rent */}
@@ -279,20 +310,29 @@ export default function PropertyFormScreen() {
           <div className="fr">
             <span className="fr-l">Тип</span>
             <div className="fr-seg" style={{ maxWidth: 180 }}>
-              <div className={`fr-seg-b ${rentType === 'per_m2' ? 'on' : ''}`} onClick={() => { hapticSelection(); setRentType('per_m2') }}>$ за м²</div>
-              <div className={`fr-seg-b ${rentType === 'fixed' ? 'on' : ''}`} onClick={() => { hapticSelection(); setRentType('fixed') }}>Фікс. сума</div>
+              {isParking ? (
+                <>
+                  <div className={`fr-seg-b ${rentType === 'fixed' ? 'on' : ''}`} onClick={() => { hapticSelection(); setRentType('fixed') }}>За місяць</div>
+                  <div className={`fr-seg-b ${rentType === 'per_day' ? 'on' : ''}`} onClick={() => { hapticSelection(); setRentType('per_day') }}>Подобово</div>
+                </>
+              ) : (
+                <>
+                  <div className={`fr-seg-b ${rentType === 'per_m2' ? 'on' : ''}`} onClick={() => { hapticSelection(); setRentType('per_m2') }}>$ за м²</div>
+                  <div className={`fr-seg-b ${rentType === 'fixed' ? 'on' : ''}`} onClick={() => { hapticSelection(); setRentType('fixed') }}>Фікс. сума</div>
+                </>
+              )}
             </div>
           </div>
           <div className="fr hi-row">
             <span className="fr-l">{rentType === 'per_m2' ? 'Ставка' : 'Сума'}</span>
-            <input className="fr-i" type="number" min="0" inputMode="decimal" placeholder="18" value={rentRate} onChange={e => setRentRate(e.target.value)} />
-            <span className="fr-u">{rentType === 'per_m2' ? '$/м²' : '$/міс'}</span>
+            <input className="fr-i" type="number" min="0" inputMode="decimal" placeholder={rentType === 'per_day' ? '150' : '18'} value={rentRate} onChange={e => setRentRate(e.target.value)} />
+            <span className="fr-u">${rentUnitLabel(rentType)}</span>
           </div>
           {rentCalc > 0 && (
             <div className="fr" style={{ background: 'rgba(34,158,217,.08)' }}>
-              <span className="fr-l" style={{ color: 'var(--t3)', fontSize: 12 }}>Розрахунок</span>
+              <span className="fr-l" style={{ color: 'var(--t3)', fontSize: 12 }}>{rentType === 'per_m2' ? 'Розрахунок' : 'Ставка'}</span>
               <span style={{ flex: 1, textAlign: 'right', fontWeight: 700, fontSize: 15, color: 'var(--info-fg)' }}>
-                {formatPrice(rentCalc, user?.currency)}/міс
+                {formatPrice(rentCalc, user?.currency)}{rentUnitLabel(rentType === 'per_m2' ? 'fixed' : rentType)}
               </span>
             </div>
           )}
@@ -302,11 +342,11 @@ export default function PropertyFormScreen() {
         <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconBolt size={13} color="#fbbf24" />Комунальні</span></div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div className="fr">
-            <span className="fr-l">Ставка</span>
-            <input className="fr-i" type="number" min="0" inputMode="decimal" placeholder="2.5" value={utilitiesRate} onChange={e => setUtilitiesRate(e.target.value)} />
-            <span className="fr-u">$/м²</span>
+            <span className="fr-l">{isParking ? 'Сума' : 'Ставка'}</span>
+            <input className="fr-i" type="number" min="0" inputMode="decimal" placeholder={isParking ? '30' : '2.5'} value={utilitiesRate} onChange={e => setUtilitiesRate(e.target.value)} />
+            <span className="fr-u">{isParking ? '$/міс' : '$/м²'}</span>
           </div>
-          {utilsCalc > 0 && (
+          {!isParking && utilsCalc > 0 && (
             <div className="fr" style={{ background: 'rgba(34,158,217,.08)' }}>
               <span className="fr-l" style={{ color: 'var(--t3)', fontSize: 12 }}>Розрахунок</span>
               <span style={{ flex: 1, textAlign: 'right', fontWeight: 700, fontSize: 15, color: 'var(--info-fg)' }}>
@@ -316,41 +356,66 @@ export default function PropertyFormScreen() {
           )}
         </div>
 
-        {/* Parking */}
-        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconCarGarage size={13} color="#fb923c" />Паркінг</span></div>
-        <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
-          <div className="fr">
-            <span className="fr-l">Є паркінг</span>
-            <Toggle value={hasParking} onChange={setHasParking} />
-          </div>
-          {hasParking && (
-            <div className="fr">
-              <span className="fr-l">Місць</span>
-              <input className="fr-i" type="number" min="1" max="999" step="1" inputMode="numeric" value={parkingSpaces} onChange={e => setParkingSpaces(e.target.value)} />
+        {/* Parking spot attributes — parking DBs only */}
+        {isParking && (
+          <>
+            <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconCarGarage size={13} color="#fb923c" />Місце</span></div>
+            <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
+              <div className="fr">
+                <span className="fr-l">Тип</span>
+                <div className="fr-seg" style={{ maxWidth: 230 }}>
+                  {PARKING_TYPES.map(({ v, l }) => (
+                    <div key={v} className={`fr-seg-b ${parkingType === v ? 'on' : ''}`} onClick={() => { hapticSelection(); setParkingType(parkingType === v ? '' : v) }}>{l}</div>
+                  ))}
+                </div>
+              </div>
+              <div className="fr">
+                <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconBolt size={13} color="var(--t3)" />Зарядка для електромобіля</span>
+                <Toggle value={evCharger} onChange={setEvCharger} />
+              </div>
             </div>
-          )}
-        </div>
+          </>
+        )}
 
-        {/* Utilities */}
-        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconBolt size={13} color="#fbbf24" />Комунальні послуги</span></div>
-        <div className="glass-s" style={{ margin: '0 12px 16px', borderRadius: 'var(--r-md)' }}>
-          <div className="util-tags">
-            {UTILITY_META.map(({ id, label, Icon, color }) => {
-              const on = utilities.includes(id)
-              return (
-                <button
-                  key={id}
-                  className={`util-tag${on ? ' on' : ''}`}
-                  onClick={() => toggleUtility(id)}
-                  style={on ? { color } : undefined}
-                >
-                  <Icon size={14} />
-                  {label}
-                </button>
-              )
-            })}
-          </div>
-        </div>
+        {/* Parking (office/apartment DBs) */}
+        {!isParking && (
+          <>
+            <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconCarGarage size={13} color="#fb923c" />Паркінг</span></div>
+            <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
+              <div className="fr">
+                <span className="fr-l">Є паркінг</span>
+                <Toggle value={hasParking} onChange={setHasParking} />
+              </div>
+              {hasParking && (
+                <div className="fr">
+                  <span className="fr-l">Місць</span>
+                  <input className="fr-i" type="number" min="1" max="999" step="1" inputMode="numeric" value={parkingSpaces} onChange={e => setParkingSpaces(e.target.value)} />
+                </div>
+              )}
+            </div>
+
+            {/* Utility services */}
+            <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconBolt size={13} color="#fbbf24" />Комунальні послуги</span></div>
+            <div className="glass-s" style={{ margin: '0 12px 16px', borderRadius: 'var(--r-md)' }}>
+              <div className="util-tags">
+                {UTILITY_META.map(({ id, label, Icon, color }) => {
+                  const on = utilities.includes(id)
+                  return (
+                    <button
+                      key={id}
+                      className={`util-tag${on ? ' on' : ''}`}
+                      onClick={() => toggleUtility(id)}
+                      style={on ? { color } : undefined}
+                    >
+                      <Icon size={14} />
+                      {label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </>
+        )}
 
         {/* Description */}
         <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconFile size={13} color="#a78bfa" />Опис</span></div>
