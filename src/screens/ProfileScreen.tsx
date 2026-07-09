@@ -205,7 +205,7 @@ export default function ProfileScreen() {
           {' '}Вийти з акаунту
         </div>
 
-        <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--t4)', paddingBottom: 80 }}>
+        <div style={{ textAlign: 'center', fontSize: 'var(--fs-cap1)', color: 'var(--t4)', paddingBottom: 80 }}>
           prostir v1.0.0
         </div>
       </div>

@@ -10,13 +10,16 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
   --g1:4px;--g2:8px;--g3:12px;--g4:16px;--g5:20px;--g6:24px;
   --pad-card:14px;--row-h:52px;--btn-h:52px;--input-h:48px;
   /* ── Apple HIG type scale (compact web, 1px ≈ 1pt) ── */
+  --fs-cap3:10px;   /* Caption 3  — micro labels, dot counters */
   --fs-cap2:11px;   /* Caption 2  — badges, labels, over-lines */
   --fs-cap1:12px;   /* Caption 1  — metadata, secondary detail */
   --fs-foot:13px;   /* Footnote   — timestamps, descriptions */
+  --fs-note:14px;   /* Note       — dense body / secondary rows */
   --fs-sub:15px;    /* Subhead    — list names, form labels */
   --fs-call:16px;   /* Callout    — inputs (prevents iOS zoom), body copy */
   --fs-body:16px;   /* Body       — primary readable text */
   --fs-head:17px;   /* Headline   — profile names, modal titles */
+  --fs-lead:18px;   /* Lead       — emphasised body, small titles */
   --fs-t3:20px;     /* Title 3    — section display titles */
   --fs-t2:22px;     /* Title 2    — stat numbers, main headings */
   --fs-t1:28px;     /* Title 1    — hero numbers */
@@ -70,15 +73,45 @@ body{
   color:#fff;
   min-height:100vh;
   overflow-x:hidden;
-  font-family:'SF Pro Text','SF Pro Display',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  /* Native stack — SF Pro on Apple (via -apple-system), Roboto on Android,
+     Segoe on Windows. Leading with the -apple-system token is what actually
+     resolves SF Pro on iOS Safari; the old 'SF Pro Text/Display' names matched
+     nothing on the web and just fell through. */
+  font-family:-apple-system,BlinkMacSystemFont,system-ui,'Segoe UI',Roboto,'Helvetica Neue',sans-serif;
   font-size:var(--fs-sub);       /* 15px base — Subhead tier per Apple HIG */
   line-height:var(--lh-norm);    /* 1.5 — minimum for comfortable reading */
   overscroll-behavior:none;
   -webkit-font-smoothing:antialiased;
   -moz-osx-font-smoothing:grayscale;
   text-rendering:optimizeLegibility;
+  font-optical-sizing:auto;
   font-feature-settings:'kern' 1,'liga' 1;
 }
+
+/* ── Numeric rendering ──
+   Tabular figures so digits line up in columns and don't shift width while a
+   counter animates (e.g. .stat-n pop). Applied to the numeric classes plus a
+   reusable .num for inline money/area/date/count outputs. Never on running text. */
+.num,.stat-n,.row-tot,.row-tot-u,.sum-tot-v,.sum-tot-l,.dl-x,.qr-link,.view-t,
+.obj-tot-v,.cost-ttl,.obj-fv{
+  font-variant-numeric:tabular-nums;font-feature-settings:'tnum' 1,'kern' 1;
+}
+
+/* ── Type-utility layer ──
+   Size + line-height straight from the token scale; colour and weight stay on
+   the element so these compose. Replaces ad-hoc inline font-size literals. */
+.ty-cap3{font-size:var(--fs-cap3);line-height:var(--lh-snug)}
+.ty-cap2{font-size:var(--fs-cap2);line-height:var(--lh-snug)}
+.ty-cap1{font-size:var(--fs-cap1);line-height:var(--lh-snug)}
+.ty-foot{font-size:var(--fs-foot);line-height:var(--lh-norm)}
+.ty-note{font-size:var(--fs-note);line-height:var(--lh-norm)}
+.ty-sub{font-size:var(--fs-sub);line-height:var(--lh-snug)}
+.ty-body{font-size:var(--fs-body);line-height:var(--lh-norm)}
+.ty-head{font-size:var(--fs-head);line-height:var(--lh-snug)}
+.ty-lead{font-size:var(--fs-lead);line-height:var(--lh-snug)}
+.ty-t3{font-size:var(--fs-t3);line-height:var(--lh-tight)}
+.ty-t2{font-size:var(--fs-t2);line-height:var(--lh-tight)}
+.ty-t1{font-size:var(--fs-t1);line-height:var(--lh-tight)}
 
 /* ── APP SHELL ── */
 #app-root{

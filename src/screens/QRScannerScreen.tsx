@@ -168,17 +168,17 @@ export default function QRScannerScreen() {
         </div>
 
         <div style={{ textAlign: 'center' }}>
-          <div style={{ color: 'var(--t1)', fontWeight: 600, fontSize: 16, marginBottom: 6 }}>
+          <div style={{ color: 'var(--t1)', fontWeight: 'var(--fw-semi)', fontSize: 'var(--fs-call)', marginBottom: 6 }}>
             Відскануйте QR-код
           </div>
-          <div style={{ color: 'var(--t3)', fontSize: 13 }}>
+          <div style={{ color: 'var(--t3)', fontSize: 'var(--fs-foot)' }}>
             Направте камеру на QR-код від власника бази
           </div>
         </div>
 
         {/* Manual input — accepts URL, db_ prefix, or raw token */}
         <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={{ color: 'var(--t3)', fontSize: 12, textAlign: 'center' }}>або вставте посилання / токен</div>
+          <div style={{ color: 'var(--t3)', fontSize: 'var(--fs-cap1)', textAlign: 'center' }}>або вставте посилання / токен</div>
           <div style={{ display: 'flex', gap: 8 }}>
             <input
               type="text"
@@ -193,7 +193,7 @@ export default function QRScannerScreen() {
                 border: '1px solid rgba(255,255,255,.15)',
                 background: 'rgba(255,255,255,.08)',
                 color: 'var(--t1)',
-                fontSize: 13,
+                fontSize: 'var(--fs-foot)',
                 padding: '0 14px',
                 outline: 'none',
               }}
@@ -208,8 +208,8 @@ export default function QRScannerScreen() {
                 background: submitting ? 'rgba(167,139,250,.3)' : 'rgba(167,139,250,.85)',
                 border: 'none',
                 color: 'var(--t1)',
-                fontWeight: 600,
-                fontSize: 14,
+                fontWeight: 'var(--fw-semi)',
+                fontSize: 'var(--fs-note)',
                 cursor: submitting ? 'default' : 'pointer',
                 whiteSpace: 'nowrap',
               }}

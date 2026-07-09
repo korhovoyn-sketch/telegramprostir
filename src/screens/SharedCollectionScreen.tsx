@@ -122,7 +122,7 @@ export default function SharedCollectionScreen() {
                       )}
                       {p.floor && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconBuilding size={10} color="var(--t3)" />{p.floor} пов.</span>}
                       {rent > 0 && (
-                        <span style={{ color: 'var(--t2)', fontWeight: 600 }}>
+                        <span style={{ color: 'var(--t2)', fontWeight: 'var(--fw-semi)' }}>
                           {formatPrice(rent, currency)}{rentUnitLabel(p.rent_type)}
                         </span>
                       )}

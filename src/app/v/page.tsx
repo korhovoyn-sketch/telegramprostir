@@ -437,7 +437,7 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
       {status === 'for_sale' && data.property_sale_price ? (
         <div style={{ ...s.card, ...s.pad }}>
           <div style={s.sectionTitle}>Ціна продажу</div>
-          <div style={{ fontSize: 28, fontWeight: 800, color: '#60a5fa', letterSpacing: '-.03em' }}>
+          <div className="num" style={{ fontSize: 28, fontWeight: 800, color: '#60a5fa', letterSpacing: '-.03em' }}>
             {fmtPrice(data.property_sale_price)}
           </div>
         </div>
@@ -468,7 +468,7 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
                 <div style={{ height: .5, background: 'rgba(255,255,255,.1)', margin: '4px 0' }} />
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,.8)' }}>Разом / місяць</span>
-                  <span style={{ fontSize: 22, fontWeight: 800, color: '#4ade80', letterSpacing: '-.02em' }}>
+                  <span className="num" style={{ fontSize: 22, fontWeight: 800, color: '#4ade80', letterSpacing: '-.02em' }}>
                     {fmtPrice(rentTotal)}
                   </span>
                 </div>

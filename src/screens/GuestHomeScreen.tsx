@@ -51,7 +51,7 @@ export default function GuestHomeScreen() {
           {(user?.first_name ?? 'G').charAt(0).toUpperCase()}
         </div>
         <div className="hdr-t">
-          <div style={{ fontSize: 16, fontWeight: 700 }}>prostir</div>
+          <div style={{ fontSize: 'var(--fs-call)', fontWeight: 'var(--fw-bold)' }}>prostir</div>
         </div>
         {/* Notifications live in the tab bar (with unread badge) — a header
             bell here duplicated that tab and confused users. */}
@@ -111,17 +111,17 @@ export default function GuestHomeScreen() {
                       : <IconBuilding size={18} color="#7AB3FF" />}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--t1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <div style={{ fontSize: 'var(--fs-sub)', fontWeight: 'var(--fw-semi)', color: 'var(--t1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {name}
                     </div>
                     {link.label && (
-                      <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {link.label}
                       </div>
                     )}
                     {status && <div style={{ marginTop: 4 }}><StatusBadge status={status} /></div>}
                     {!isProperty && (
-                      <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 2 }}>База об&apos;єктів</div>
+                      <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 2 }}>База об&apos;єктів</div>
                     )}
                   </div>
                   <svg width="7" height="12" viewBox="0 0 7 12" fill="none">

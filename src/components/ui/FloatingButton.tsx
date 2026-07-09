@@ -34,7 +34,7 @@ export default function FloatingButton({ variant, icon, label, onClick }: Floati
         height: 'var(--btn-h)', padding: '0 32px', minWidth: 200,
         borderRadius: 'var(--r-pill)', whiteSpace: 'nowrap',
         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-        fontSize: 15, fontWeight: 600, color: '#fff', cursor: 'pointer',
+        fontSize: 'var(--fs-sub)', fontWeight: 'var(--fw-semi)', color: '#fff', cursor: 'pointer',
         backdropFilter: 'blur(16px) saturate(180%)',
         WebkitBackdropFilter: 'blur(16px) saturate(180%)',
         zIndex: 20,

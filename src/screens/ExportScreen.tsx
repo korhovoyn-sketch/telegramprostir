@@ -649,7 +649,7 @@ export default function ExportScreen() {
               onClick={() => setFormat(f.id)}
             >
               <div className="format-ic glass-s">
-                <span style={{ fontSize: 19 }}>{f.emoji}</span>
+                <span style={{ fontSize: 'var(--fs-lead)' }}>{f.emoji}</span>
               </div>
               <div className="format-mn">
                 <div className="format-n">{f.label}</div>
@@ -716,7 +716,7 @@ export default function ExportScreen() {
           borderRadius: 12,
           background: 'rgba(90,200,250,.08)',
           border: '0.5px solid rgba(90,200,250,.25)',
-          fontSize: 12,
+          fontSize: 'var(--fs-cap1)',
           color: 'var(--t3)',
           lineHeight: 1.5,
         }}>

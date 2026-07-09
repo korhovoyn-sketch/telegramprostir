@@ -29,9 +29,9 @@ export default function RoleSelectScreen() {
           background: 'var(--glass-1)',
           border: 'var(--bd)',
           borderRadius: 'var(--r-pill)',
-          fontSize: 12,
+          fontSize: 'var(--fs-cap1)',
           color: 'var(--t3)',
-          fontWeight: 600,
+          fontWeight: 'var(--fw-semi)',
           letterSpacing: '.06em',
           textTransform: 'uppercase',
           marginBottom: 16,
@@ -74,23 +74,23 @@ export default function RoleSelectScreen() {
               <IconBuildingSkyscraper size={22} color="#fff" />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--t1)', letterSpacing: '-.01em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div style={{ fontSize: 'var(--fs-head)', fontWeight: 'var(--fw-bold)', color: 'var(--t1)', letterSpacing: '-.01em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 Власник
               </div>
-              <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 Я здаю / продаю нерухомість
               </div>
             </div>
             {role === 'owner' && (
               <div style={{ marginLeft: 'auto', width: 24, height: 24, borderRadius: '50%', background: '#7AB3FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontSize: 14, color: 'var(--t1)' }}>✓</span>
+                <span style={{ fontSize: 'var(--fs-note)', color: 'var(--t1)' }}>✓</span>
               </div>
             )}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {['Створюй бази і об\'єкти', 'Ділись QR з ріелторами', 'Переглядай аналітику'].map((f) => (
-              <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--t2)' }}>
-                <span style={{ color: '#34C759', fontSize: 12 }}>✓</span>
+              <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--fs-foot)', color: 'var(--t2)' }}>
+                <span style={{ color: '#34C759', fontSize: 'var(--fs-cap1)' }}>✓</span>
                 {f}
               </div>
             ))}
@@ -125,23 +125,23 @@ export default function RoleSelectScreen() {
               <IconUser size={22} color="#fff" />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--t1)', letterSpacing: '-.01em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div style={{ fontSize: 'var(--fs-head)', fontWeight: 'var(--fw-bold)', color: 'var(--t1)', letterSpacing: '-.01em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 Ріелтор
               </div>
-              <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 Я працюю з клієнтами
               </div>
             </div>
             {role === 'realtor' && (
               <div style={{ marginLeft: 'auto', width: 24, height: 24, borderRadius: '50%', background: '#FF7AB8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontSize: 14, color: 'var(--t1)' }}>✓</span>
+                <span style={{ fontSize: 'var(--fs-note)', color: 'var(--t1)' }}>✓</span>
               </div>
             )}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {['Підписуйся на бази власників', 'Створюй підбірки для клієнтів', 'Зберігай обрані об\'єкти'].map((f) => (
-              <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--t2)' }}>
-                <span style={{ color: '#FF7AB8', fontSize: 12 }}>✓</span>
+              <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--fs-foot)', color: 'var(--t2)' }}>
+                <span style={{ color: '#FF7AB8', fontSize: 'var(--fs-cap1)' }}>✓</span>
                 {f}
               </div>
             ))}

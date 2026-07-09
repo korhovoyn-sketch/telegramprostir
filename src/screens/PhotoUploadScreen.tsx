@@ -152,18 +152,18 @@ export default function PhotoUploadScreen() {
               </span>
             ) : (
               <>
-                <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--t1)' }}>{overallPct}%</div>
-                <div style={{ fontSize: 12, color: 'var(--t3)' }}>{doneCount}/{total}</div>
+                <div style={{ fontSize: 'var(--fs-t3)', fontWeight: 'var(--fw-bold)', color: 'var(--t1)' }}>{overallPct}%</div>
+                <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)' }}>{doneCount}/{total}</div>
               </>
             )}
           </div>
         </div>
 
         <div style={{ textAlign: 'center' }}>
-          <div style={{ color: 'var(--t1)', fontWeight: 600, fontSize: 16 }}>
+          <div style={{ color: 'var(--t1)', fontWeight: 'var(--fw-semi)', fontSize: 'var(--fs-call)' }}>
             {done ? (errorCount > 0 && doneCount === 0 ? 'Помилка завантаження' : 'Завантажено!') : 'Завантаження...'}
           </div>
-          <div style={{ color: 'var(--t3)', fontSize: 13, marginTop: 4 }}>
+          <div style={{ color: 'var(--t3)', fontSize: 'var(--fs-foot)', marginTop: 4 }}>
             {done
               ? (errorCount > 0 ? `${doneCount} успішно, ${errorCount} з помилкою` : `${doneCount} фото збережено`)
               : `${doneCount} з ${total} фото`
@@ -206,7 +206,7 @@ export default function PhotoUploadScreen() {
                 ) : null}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, color: 'var(--t2)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{ fontSize: 'var(--fs-foot)', color: 'var(--t2)', fontWeight: 'var(--fw-med)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {item.file.name}
                 </div>
                 {item.status === 'uploading' && (
@@ -215,17 +215,17 @@ export default function PhotoUploadScreen() {
                   </div>
                 )}
                 {item.status === 'error' && item.errorMsg && (
-                  <div style={{ marginTop: 2, fontSize: 12, color: 'var(--err-fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <div style={{ marginTop: 2, fontSize: 'var(--fs-cap1)', color: 'var(--err-fg)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {item.errorMsg}
                   </div>
                 )}
                 {item.status === 'pending' && (
-                  <div style={{ marginTop: 2, fontSize: 12, color: 'var(--t3)' }}>
+                  <div style={{ marginTop: 2, fontSize: 'var(--fs-cap1)', color: 'var(--t3)' }}>
                     {(item.file.size / 1024 / 1024).toFixed(1)} MB
                   </div>
                 )}
                 {item.status === 'done' && (
-                  <div style={{ marginTop: 2, fontSize: 12, color: '#4ade80' }}>Збережено</div>
+                  <div style={{ marginTop: 2, fontSize: 'var(--fs-cap1)', color: '#4ade80' }}>Збережено</div>
                 )}
               </div>
               <div style={{ flexShrink: 0 }}>

@@ -426,7 +426,7 @@ export default function PropertyDetailScreen() {
             }}
           >
             <IconMapPin size={14} color="#7AB3FF" />
-            <span style={{ fontSize: 13, color: 'var(--t2)', flex: 1 }}>{property.address}</span>
+            <span style={{ fontSize: 'var(--fs-foot)', color: 'var(--t2)', flex: 1 }}>{property.address}</span>
             <svg width="7" height="12" viewBox="0 0 7 12" fill="none"><path d="M1 1l5 5-5 5" stroke="rgba(255,255,255,.3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
           </div>
         )}
@@ -434,13 +434,13 @@ export default function PropertyDetailScreen() {
         {/* Utilities */}
         {(property.utilities ?? []).length > 0 && (
           <div style={{ margin: '0 12px 12px' }}>
-            <div style={{ fontSize: 12, color: 'var(--t3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 10 }}>Комунальні послуги</div>
+            <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', fontWeight: 'var(--fw-semi)', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 10 }}>Комунальні послуги</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
               {(property.utilities ?? []).map(uid => {
                 const meta = UTILITY_META.find(m => m.id === uid)
                 if (!meta) return null
                 return (
-                  <div key={uid} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 13px', borderRadius: 'var(--r-pill)', background: 'var(--glass-2)', border: '.5px solid var(--glass-3)', fontSize: 12, fontWeight: 500, color: meta.color }}>
+                  <div key={uid} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 13px', borderRadius: 'var(--r-pill)', background: 'var(--glass-2)', border: '.5px solid var(--glass-3)', fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-med)', color: meta.color }}>
                     <meta.Icon size={13} />
                     {meta.label}
                   </div>
@@ -453,7 +453,7 @@ export default function PropertyDetailScreen() {
         {/* Financial breakdown */}
         {total > 0 && (
           <div className="glass-s" style={{ margin: '0 12px 12px', borderRadius: 'var(--r-md)', padding: '12px 14px' }}>
-            <div style={{ fontSize: 11, color: 'var(--t3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ fontSize: 'var(--fs-cap2)', color: 'var(--t3)', fontWeight: 'var(--fw-semi)', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
               <IconCurrencyDollar size={12} color="var(--ok-fg)" />Фінанси
             </div>
             {rent > 0 && (
@@ -464,7 +464,7 @@ export default function PropertyDetailScreen() {
                   </span>
                   Оренда
                 </span>
-                <span style={{ color: 'var(--ok-fg)', fontWeight: 600 }}>{formatPrice(rent, user?.currency)}{rentUnitLabel(property.rent_type)}</span>
+                <span style={{ color: 'var(--ok-fg)', fontWeight: 'var(--fw-semi)' }}>{formatPrice(rent, user?.currency)}{rentUnitLabel(property.rent_type)}</span>
               </div>
             )}
             {utils > 0 && (
@@ -475,12 +475,12 @@ export default function PropertyDetailScreen() {
                   </span>
                   Комунальні
                 </span>
-                <span style={{ color: 'var(--t2)', fontWeight: 600 }}>+{formatPrice(utils, user?.currency)}/міс</span>
+                <span style={{ color: 'var(--t2)', fontWeight: 'var(--fw-semi)' }}>+{formatPrice(utils, user?.currency)}/міс</span>
               </div>
             )}
             {!isDaily && rent > 0 && utils > 0 && (
               <div className="cost-row" style={{ marginTop: 4 }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600, color: 'var(--t1)' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 'var(--fw-semi)', color: 'var(--t1)' }}>
                   <span style={{ width: 24, height: 24, borderRadius: 8, background: 'rgba(122,179,255,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <IconCalendar size={12} color="#7AB3FF" />
                   </span>
@@ -491,7 +491,7 @@ export default function PropertyDetailScreen() {
             )}
             {!isDaily && (rent === 0 || utils === 0) && (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 4 }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--t3)' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--fs-cap1)', color: 'var(--t3)' }}>
                   <span style={{ width: 24, height: 24, borderRadius: 8, background: 'rgba(122,179,255,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <IconCalendar size={12} color="#7AB3FF" />
                   </span>
@@ -512,8 +512,8 @@ export default function PropertyDetailScreen() {
           >
             <IconUser size={16} color="#a78bfa" />
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--t1)' }}>Гості</div>
-              <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 1 }}>Запрошення та керування доступом</div>
+              <div style={{ fontSize: 'var(--fs-note)', fontWeight: 'var(--fw-semi)', color: 'var(--t1)' }}>Гості</div>
+              <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 1 }}>Запрошення та керування доступом</div>
             </div>
             <svg width="7" height="12" viewBox="0 0 7 12" fill="none"><path d="M1 1l5 5-5 5" stroke="rgba(255,255,255,.3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
           </div>
@@ -528,8 +528,8 @@ export default function PropertyDetailScreen() {
           >
             <IconCalendar size={16} color="#7AB3FF" />
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--t1)' }}>Календар платежів</div>
-              <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 1 }}>Відстежувати та відмічати оплати</div>
+              <div style={{ fontSize: 'var(--fs-note)', fontWeight: 'var(--fw-semi)', color: 'var(--t1)' }}>Календар платежів</div>
+              <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 1 }}>Відстежувати та відмічати оплати</div>
             </div>
             <svg width="7" height="12" viewBox="0 0 7 12" fill="none"><path d="M1 1l5 5-5 5" stroke="rgba(255,255,255,.3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
           </div>
@@ -546,8 +546,8 @@ export default function PropertyDetailScreen() {
           return (
             <div className="glass-s" style={{ margin: '0 12px 12px', borderRadius: 'var(--r-md)', padding: '12px 14px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                <span style={{ fontSize: 11, color: 'var(--t3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>Договір оренди</span>
-                <span style={{ fontSize: 12, color: daysLeft < 30 ? '#fb923c' : 'var(--t3)', fontWeight: 600 }}>
+                <span style={{ fontSize: 'var(--fs-cap2)', color: 'var(--t3)', fontWeight: 'var(--fw-semi)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Договір оренди</span>
+                <span style={{ fontSize: 'var(--fs-cap1)', color: daysLeft < 30 ? '#fb923c' : 'var(--t3)', fontWeight: 'var(--fw-semi)' }}>
                   {daysLeft > 0 ? `${daysLeft} дн.` : 'Завершено'}
                 </span>
               </div>
@@ -557,7 +557,7 @@ export default function PropertyDetailScreen() {
                   style={{ '--pw': `${progress}%`, height: '100%', borderRadius: 99, background: barColor } as React.CSSProperties}
                 />
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 11, color: 'var(--t4)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 'var(--fs-cap2)', color: 'var(--t4)' }}>
                 <span>{property.lease_start_date}</span>
                 <span>{property.lease_end_date}</span>
               </div>
@@ -603,7 +603,7 @@ export default function PropertyDetailScreen() {
             <div
               className="photo-t"
               onClick={() => fileInputRef.current?.click()}
-              style={{ border: '.5px dashed rgba(255,255,255,.28)', fontSize: 28, color: 'rgba(255,255,255,.4)', cursor: 'pointer' }}
+              style={{ border: '.5px dashed rgba(255,255,255,.28)', fontSize: 'var(--fs-t1)', color: 'rgba(255,255,255,.4)', cursor: 'pointer' }}
             >
               +
             </div>
@@ -781,10 +781,10 @@ export default function PropertyDetailScreen() {
                 {previewTotal > 0 && (
                   <div style={{
                     display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-                    padding: '2px 4px 0', fontSize: 13, color: 'var(--t3)',
+                    padding: '2px 4px 0', fontSize: 'var(--fs-foot)', color: 'var(--t3)',
                   }}>
                     <span>Разом на місяць</span>
-                    <span style={{ fontSize: 17, fontWeight: 700, color: 'var(--ok-fg)' }}>
+                    <span style={{ fontSize: 'var(--fs-head)', fontWeight: 'var(--fw-bold)', color: 'var(--ok-fg)' }}>
                       {formatPrice(previewTotal, user?.currency)}
                     </span>
                   </div>

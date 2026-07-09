@@ -135,11 +135,11 @@ export default function WelcomeScreen() {
           <ProxMascot mood="neutral" size={110} />
         </div>
 
-        <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--t1)', marginBottom: 8, textAlign: 'center', letterSpacing: '-.01em' }}>
+        <div style={{ fontSize: 'var(--fs-t3)', fontWeight: 'var(--fw-bold)', color: 'var(--t1)', marginBottom: 8, textAlign: 'center', letterSpacing: '-.01em' }}>
           Авторизація
         </div>
         <div style={{
-          fontSize: 14, color: 'var(--t3)', textAlign: 'center',
+          fontSize: 'var(--fs-note)', color: 'var(--t3)', textAlign: 'center',
           padding: '0 40px', marginBottom: 28, lineHeight: 1.5,
           minHeight: 22, transition: 'opacity .3s ease',
         }}>
@@ -160,7 +160,7 @@ export default function WelcomeScreen() {
 
         {showRetry ? (
           <div style={{ textAlign: 'center', padding: '0 32px' }}>
-            <div style={{ fontSize: 13, color: 'var(--t3)', marginBottom: 16, lineHeight: 1.5 }}>
+            <div style={{ fontSize: 'var(--fs-foot)', color: 'var(--t3)', marginBottom: 16, lineHeight: 1.5 }}>
               Авторизація займає довше, ніж зазвичай.{'\n'}Перевірте підключення до інтернету.
             </div>
             <button
@@ -168,7 +168,7 @@ export default function WelcomeScreen() {
               style={{
                 padding: '12px 32px', borderRadius: 'var(--r-pill)',
                 background: 'var(--glass-2)', border: 'var(--bd)',
-                color: 'var(--t1)', fontSize: 14, fontWeight: 600,
+                color: 'var(--t1)', fontSize: 'var(--fs-note)', fontWeight: 'var(--fw-semi)',
                 cursor: 'pointer', letterSpacing: '.01em',
               }}
             >
@@ -176,7 +176,7 @@ export default function WelcomeScreen() {
             </button>
           </div>
         ) : (
-          <div style={{ fontSize: 12, color: 'var(--t4)', textAlign: 'center' }}>
+          <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t4)', textAlign: 'center' }}>
             Не закривайте додаток
           </div>
         )}
@@ -228,7 +228,7 @@ export default function WelcomeScreen() {
           </div>
         </div>
 
-        <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--t4)', padding: '10px 28px 6px', lineHeight: 1.5 }}>
+        <div style={{ textAlign: 'center', fontSize: 'var(--fs-cap1)', color: 'var(--t4)', padding: '10px 28px 6px', lineHeight: 1.5 }}>
           Натискаючи «Увійти», ви погоджуєтесь з{' '}
           <span style={{ color: 'var(--t3)' }}>Умовами використання</span> та{' '}
           <span style={{ color: 'var(--t3)' }}>Політикою конфіденційності</span>
@@ -239,7 +239,7 @@ export default function WelcomeScreen() {
           disabled={diagLoading}
           style={{
             background: 'none', border: 'none', color: 'var(--t4)',
-            fontSize: 11, cursor: 'pointer', padding: '4px 16px 8px',
+            fontSize: 'var(--fs-cap2)', cursor: 'pointer', padding: '4px 16px 8px',
             opacity: diagLoading ? 0.5 : 1,
           }}
         >

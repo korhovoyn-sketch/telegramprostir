@@ -32,7 +32,7 @@ function FileBadge({ mime }: { mime: string }) {
     }}>
       <IconFile size={14} color={isPdf ? '#ff6b6b' : '#7AB3FF'} />
       <span style={{
-        fontSize: 8, fontWeight: 800, letterSpacing: '.04em',
+        fontSize: 8, fontWeight: 'var(--fw-heavy)', letterSpacing: '.04em',
         color: isPdf ? '#ff8585' : '#7AB3FF', lineHeight: 1,
       }}>
         {isPdf ? 'PDF' : 'DOC'}
@@ -93,7 +93,7 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
           Файли
           {files.length > 0 && (
             <span style={{
-              fontSize: 11, fontWeight: 600, color: 'var(--t3)',
+              fontSize: 'var(--fs-cap2)', fontWeight: 'var(--fw-semi)', color: 'var(--t3)',
               background: 'var(--glass-2)', borderRadius: 8, padding: '1px 6px',
             }}>
               {files.length}/{maxFiles}
@@ -108,7 +108,7 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
               background: 'rgba(122,179,255,.14)',
               border: '.5px solid rgba(122,179,255,.3)',
               borderRadius: 10, padding: '4px 10px',
-              color: '#7AB3FF', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              color: '#7AB3FF', fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', cursor: 'pointer',
             }}
           >
             <IconPlus size={12} />Додати
@@ -125,7 +125,7 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
           display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
         }}>
           <IconCloudUpload size={28} color="var(--t4)" />
-          <div style={{ fontSize: 13, color: 'var(--t3)', textAlign: 'center', lineHeight: 1.4 }}>
+          <div style={{ fontSize: 'var(--fs-foot)', color: 'var(--t3)', textAlign: 'center', lineHeight: 1.4 }}>
             {isOwner
               ? `Додайте PDF або Word файли (до ${maxFiles} шт., макс. 20 МБ)`
               : 'Файли ще не додані'}
@@ -136,7 +136,7 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
               style={{
                 marginTop: 4, background: 'var(--glass-2)', border: 'var(--bd)',
                 borderRadius: 'var(--r-pill)', color: 'var(--t1)',
-                fontSize: 13, fontWeight: 600, padding: '8px 20px', cursor: 'pointer',
+                fontSize: 'var(--fs-foot)', fontWeight: 'var(--fw-semi)', padding: '8px 20px', cursor: 'pointer',
                 display: 'flex', alignItems: 'center', gap: 6,
               }}
             >
@@ -168,12 +168,12 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
 
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{
-                  fontSize: 13, fontWeight: 600, color: 'var(--t1)',
+                  fontSize: 'var(--fs-foot)', fontWeight: 'var(--fw-semi)', color: 'var(--t1)',
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 }}>
                   {file.file_name}
                 </div>
-                <div style={{ fontSize: 11, color: 'var(--t3)', marginTop: 2 }}>
+                <div style={{ fontSize: 'var(--fs-cap2)', color: 'var(--t3)', marginTop: 2 }}>
                   {formatBytes(file.file_size)}
                 </div>
               </div>
@@ -223,11 +223,11 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
             }}>
               <div className="loader" style={{ width: 16, height: 16, borderWidth: 2, flexShrink: 0 }} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: '#7AB3FF', marginBottom: 4 }}>
+                <div style={{ fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', color: '#7AB3FF', marginBottom: 4 }}>
                   Завантаження {uploadProgress.done + 1}/{uploadProgress.total}
                 </div>
                 {currentUploadFile && (
-                  <div style={{ fontSize: 11, color: 'var(--t3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <div style={{ fontSize: 'var(--fs-cap2)', color: 'var(--t3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {currentUploadFile}
                   </div>
                 )}
@@ -253,7 +253,7 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
                 padding: '9px 12px', borderRadius: 'var(--r-sm)',
                 border: '.5px dashed rgba(255,255,255,.2)',
                 background: 'transparent', color: 'var(--t3)',
-                fontSize: 13, fontWeight: 500, cursor: 'pointer',
+                fontSize: 'var(--fs-foot)', fontWeight: 'var(--fw-med)', cursor: 'pointer',
               }}
             >
               <IconPlus size={14} />Додати ще файл
@@ -261,7 +261,7 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
           )}
 
           {files.length >= maxFiles && (
-            <div style={{ fontSize: 11, color: 'var(--t3)', textAlign: 'center', padding: '4px 0 2px' }}>
+            <div style={{ fontSize: 'var(--fs-cap2)', color: 'var(--t3)', textAlign: 'center', padding: '4px 0 2px' }}>
               Досягнуто ліміту {maxFiles} файлів
             </div>
           )}

@@ -150,7 +150,7 @@ export default function SplashScreen() {
       <div className="splash-name">prostir</div>
       <div className="splash-sub">платформа нерухомості</div>
 
-      <div style={{ position: 'absolute', bottom: 'calc(32px + var(--safe-bottom))', fontSize: 11, color: 'var(--t4)' }}>
+      <div style={{ position: 'absolute', bottom: 'calc(32px + var(--safe-bottom))', fontSize: 'var(--fs-cap2)', color: 'var(--t4)' }}>
         prostir v1.0.0 · powered by Telegram
       </div>
     </div>

@@ -164,7 +164,7 @@ export default function GuestDatabaseScreen() {
               : 'Не вдалося завантажити дані. Перевірте підключення.'}
           </div>
           <button
-            style={{ marginTop: 20, padding: '10px 24px', borderRadius: 'var(--r-pill)', background: 'var(--glass-2)', border: 'var(--bd)', color: 'var(--t2)', fontSize: 14, cursor: 'pointer' }}
+            style={{ marginTop: 20, padding: '10px 24px', borderRadius: 'var(--r-pill)', background: 'var(--glass-2)', border: 'var(--bd)', color: 'var(--t2)', fontSize: 'var(--fs-note)', cursor: 'pointer' }}
             onClick={handleClose}
           >
             Закрити
@@ -191,7 +191,7 @@ export default function GuestDatabaseScreen() {
         <div className="body" style={{ paddingBottom: 96 }}>
           {/* Invite header */}
           <div className="glass" style={{ margin: '12px 12px 8px', padding: '16px' }}>
-            <div style={{ fontSize: 13, color: 'var(--t3)', marginBottom: 6 }}>
+            <div style={{ fontSize: 'var(--fs-foot)', color: 'var(--t3)', marginBottom: 6 }}>
               {guestPreview.owner_first} надає вам доступ до:
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -202,17 +202,17 @@ export default function GuestDatabaseScreen() {
                   : 'linear-gradient(135deg,#0e9c92,#0a7a72)',
               }} />
               <div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--t1)' }}>
+                <div style={{ fontSize: 'var(--fs-call)', fontWeight: 'var(--fw-bold)', color: 'var(--t1)' }}>
                   {isProperty ? p?.name : d?.name}
                 </div>
-                <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 2 }}>
+                <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 2 }}>
                   {isProperty
                     ? (p?.db_type ? (DB_TYPE_LABELS[p.db_type] ?? p.db_type) : '')
                     : (d?.type ? (DB_TYPE_LABELS[d.type] ?? d.type) : '')}
                 </div>
               </div>
               <span style={{
-                marginLeft: 'auto', fontSize: 11, fontWeight: 600,
+                marginLeft: 'auto', fontSize: 'var(--fs-cap2)', fontWeight: 'var(--fw-semi)',
                 color: '#0e9c92', background: 'rgba(14,156,146,.15)',
                 borderRadius: 6, padding: '3px 8px',
               }}>
@@ -223,12 +223,12 @@ export default function GuestDatabaseScreen() {
             {isProperty && p && (
               <div style={{ marginTop: 12, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                 {p.floor && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, color: 'var(--t2)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--fs-foot)', color: 'var(--t2)' }}>
                     <IconBuilding size={13} color="var(--t3)" />{p.floor} поверх
                   </div>
                 )}
                 {p.area_useful != null && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, color: 'var(--t2)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--fs-foot)', color: 'var(--t2)' }}>
                     <IconRuler size={13} color="var(--t3)" />{p.area_useful}{p.area_total ? `/${p.area_total}` : ''} м²
                   </div>
                 )}
@@ -243,20 +243,20 @@ export default function GuestDatabaseScreen() {
 
           {/* What guest gets */}
           <div style={{ margin: '0 12px 12px', padding: '14px 16px', background: 'var(--glass-1)', borderRadius: 'var(--r-md)', border: 'var(--bd)' }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)', marginBottom: 8 }}>Що ви отримаєте:</div>
+            <div style={{ fontSize: 'var(--fs-foot)', fontWeight: 'var(--fw-semi)', color: 'var(--t1)', marginBottom: 8 }}>Що ви отримаєте:</div>
             {[
               '👁 Перегляд усієї інформації про об\'єкт',
               '📄 Доступ до документів та файлів',
               '💸 Нагадування про строки оплати',
             ].map((item) => (
-              <div key={item} style={{ fontSize: 13, color: 'var(--t2)', marginBottom: 6 }}>{item}</div>
+              <div key={item} style={{ fontSize: 'var(--fs-foot)', color: 'var(--t2)', marginBottom: 6 }}>{item}</div>
             ))}
           </div>
 
           {/* DB-level: list of properties */}
           {!isProperty && guestPreview.properties && guestPreview.properties.length > 0 && (
             <>
-              <div style={{ padding: '0 16px 8px', fontSize: 12, color: 'var(--t3)' }}>
+              <div style={{ padding: '0 16px 8px', fontSize: 'var(--fs-cap1)', color: 'var(--t3)' }}>
                 {guestPreview.properties.length} об&apos;єктів у базі
               </div>
               <div className="list">
@@ -319,20 +319,20 @@ export default function GuestDatabaseScreen() {
               flexShrink: 0,
             }} />
             <div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--t1)' }}>{dbInfo?.db_name}</div>
-              <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 2 }}>
+              <div style={{ fontSize: 'var(--fs-sub)', fontWeight: 'var(--fw-bold)', color: 'var(--t1)' }}>{dbInfo?.db_name}</div>
+              <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 2 }}>
                 {dbInfo?.db_type ? (DB_TYPE_LABELS[dbInfo.db_type] ?? dbInfo.db_type) : ''}
               </div>
             </div>
             <div style={{ marginLeft: 'auto' }}>
-              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent)', background: 'rgba(168,124,255,.15)', borderRadius: 6, padding: '3px 8px' }}>
+              <span style={{ fontSize: 'var(--fs-cap2)', fontWeight: 'var(--fw-semi)', color: 'var(--accent)', background: 'rgba(168,124,255,.15)', borderRadius: 6, padding: '3px 8px' }}>
                 Публічний перегляд
               </span>
             </div>
           </div>
         </div>
 
-        <div style={{ padding: '0 16px 8px', fontSize: 12, color: 'var(--t3)' }}>
+        <div style={{ padding: '0 16px 8px', fontSize: 'var(--fs-cap1)', color: 'var(--t3)' }}>
           {properties.length === 0
             ? 'Об\'єктів поки немає'
             : `${properties.length} об'єкт${properties.length === 1 ? '' : properties.length < 5 ? 'и' : 'ів'}`}

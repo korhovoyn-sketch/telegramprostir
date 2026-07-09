@@ -139,11 +139,11 @@ export default function DatabaseObjectsScreen() {
         backLabel="Бази"
         right={
           reorderMode ? (
-            <button className="hdr-a" onClick={() => setReorderMode(false)} style={{ background: 'var(--ok-bg)', border: 'none', color: 'var(--ok-fg)', fontWeight: 600, fontSize: 13 }}>
+            <button className="hdr-a" onClick={() => setReorderMode(false)} style={{ background: 'var(--ok-bg)', border: 'none', color: 'var(--ok-fg)', fontWeight: 'var(--fw-semi)', fontSize: 'var(--fs-foot)' }}>
               Готово
             </button>
           ) : selectMode ? (
-            <button className="hdr-a" onClick={exitSelectMode} style={{ background: 'none', border: 'var(--bd)', fontSize: 13 }}>
+            <button className="hdr-a" onClick={exitSelectMode} style={{ background: 'none', border: 'var(--bd)', fontSize: 'var(--fs-foot)' }}>
               Скасувати
             </button>
           ) : isOwner ? (
@@ -222,7 +222,7 @@ export default function DatabaseObjectsScreen() {
                   background: sortBy === opt.id ? 'rgba(122,179,255,.22)' : 'var(--glass-1)',
                   color:      sortBy === opt.id ? '#7AB3FF' : 'var(--t3)',
                   border:     sortBy === opt.id ? '.5px solid rgba(122,179,255,.4)' : 'var(--bd)',
-                  fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
+                  fontSize: 'var(--fs-cap2)', fontWeight: 'var(--fw-semi)', cursor: 'pointer', whiteSpace: 'nowrap',
                 }}
               >
                 {opt.label}
@@ -250,12 +250,12 @@ export default function DatabaseObjectsScreen() {
 
         {/* Mode hints */}
         {reorderMode && (
-          <div style={{ padding: '8px 16px', fontSize: 12, color: 'var(--t3)', textAlign: 'center' }}>
+          <div style={{ padding: '8px 16px', fontSize: 'var(--fs-cap1)', color: 'var(--t3)', textAlign: 'center' }}>
             Натисніть ↑ або ↓ щоб змінити позицію об&apos;єкта
           </div>
         )}
         {selectMode && (
-          <div style={{ padding: '6px 16px', fontSize: 12, color: 'var(--t3)', textAlign: 'center', display: 'flex', justifyContent: 'center', gap: 12 }}>
+          <div style={{ padding: '6px 16px', fontSize: 'var(--fs-cap1)', color: 'var(--t3)', textAlign: 'center', display: 'flex', justifyContent: 'center', gap: 12 }}>
             <span>Оберіть об&apos;єкти для дії</span>
             {filtered.length > 0 && (
               <button
@@ -264,7 +264,7 @@ export default function DatabaseObjectsScreen() {
                   if (allSelected) setSelectedIds(new Set())
                   else setSelectedIds(new Set(filtered.map(p => p.id)))
                 }}
-                style={{ background: 'none', border: 'none', color: 'var(--accent)', fontSize: 12, cursor: 'pointer', padding: 0 }}
+                style={{ background: 'none', border: 'none', color: 'var(--accent)', fontSize: 'var(--fs-cap1)', cursor: 'pointer', padding: 0 }}
               >
                 {filtered.every(p => selectedIds.has(p.id)) ? 'Зняти все' : 'Вибрати все'}
               </button>
@@ -298,7 +298,7 @@ export default function DatabaseObjectsScreen() {
             <div className="empty-h">Нічого не знайдено</div>
             <div className="empty-s">Немає результатів для &quot;{search}&quot;</div>
             <button
-              style={{ marginTop: 16, padding: '8px 20px', borderRadius: 'var(--r-pill)', background: 'var(--glass-2)', border: 'var(--bd)', color: 'var(--t2)', fontSize: 13, cursor: 'pointer' }}
+              style={{ marginTop: 16, padding: '8px 20px', borderRadius: 'var(--r-pill)', background: 'var(--glass-2)', border: 'var(--bd)', color: 'var(--t2)', fontSize: 'var(--fs-foot)', cursor: 'pointer' }}
               onClick={() => setSearch('')}
             >
               Очистити пошук
@@ -423,11 +423,11 @@ export default function DatabaseObjectsScreen() {
                     /* Simplified row in reorder mode */
                     <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', padding: '0 12px', gap: 8, height: 52 }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--t1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.2 }}>
+                        <div style={{ fontSize: 'var(--fs-note)', fontWeight: 'var(--fw-semi)', color: 'var(--t1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.2 }}>
                           {p.name}
                         </div>
                         {p.floor && (
-                          <div style={{ fontSize: 11, color: 'var(--t3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 3 }}>
+                          <div style={{ fontSize: 'var(--fs-cap2)', color: 'var(--t3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 3 }}>
                             <IconBuilding size={13} color="var(--t3)" />{p.floor} поверх
                           </div>
                         )}
@@ -552,31 +552,31 @@ export default function DatabaseObjectsScreen() {
           background: 'var(--bg2)', borderTop: 'var(--bd)',
           padding: '8px 12px', display: 'flex', gap: 8, alignItems: 'center',
         }}>
-          <span style={{ fontSize: 12, color: 'var(--t3)', whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', whiteSpace: 'nowrap' }}>
             {selectedIds.size} обрано
           </span>
           <div style={{ flex: 1, display: 'flex', gap: 6, overflowX: 'auto' }}>
             <button
               onClick={() => handleBatchStatus('free')}
-              style={{ padding: '6px 10px', borderRadius: 'var(--r-pill)', background: 'rgba(52,199,89,.18)', border: 'none', color: '#34c759', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}
+              style={{ padding: '6px 10px', borderRadius: 'var(--r-pill)', background: 'rgba(52,199,89,.18)', border: 'none', color: '#34c759', fontSize: 'var(--fs-cap1)', cursor: 'pointer', whiteSpace: 'nowrap' }}
             >
               Вільно
             </button>
             <button
               onClick={() => handleBatchStatus('occupied')}
-              style={{ padding: '6px 10px', borderRadius: 'var(--r-pill)', background: 'rgba(255,159,10,.18)', border: 'none', color: '#ff9f0a', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}
+              style={{ padding: '6px 10px', borderRadius: 'var(--r-pill)', background: 'rgba(255,159,10,.18)', border: 'none', color: '#ff9f0a', fontSize: 'var(--fs-cap1)', cursor: 'pointer', whiteSpace: 'nowrap' }}
             >
               Зайнято
             </button>
             <button
               onClick={() => handleBatchStatus('for_sale')}
-              style={{ padding: '6px 10px', borderRadius: 'var(--r-pill)', background: 'rgba(122,179,255,.18)', border: 'none', color: '#7ab3ff', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' }}
+              style={{ padding: '6px 10px', borderRadius: 'var(--r-pill)', background: 'rgba(122,179,255,.18)', border: 'none', color: '#7ab3ff', fontSize: 'var(--fs-cap1)', cursor: 'pointer', whiteSpace: 'nowrap' }}
             >
               Продаж
             </button>
             <button
               onClick={() => setShowBatchDeleteModal(true)}
-              style={{ padding: '6px 10px', borderRadius: 'var(--r-pill)', background: 'rgba(255,59,48,.18)', border: 'none', color: 'var(--err)', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap', marginLeft: 'auto' }}
+              style={{ padding: '6px 10px', borderRadius: 'var(--r-pill)', background: 'rgba(255,59,48,.18)', border: 'none', color: 'var(--err)', fontSize: 'var(--fs-cap1)', cursor: 'pointer', whiteSpace: 'nowrap', marginLeft: 'auto' }}
             >
               🗑 Видалити
             </button>
