@@ -40,7 +40,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
   --t2:rgba(255,255,255,.72);
   --t3:rgba(255,255,255,.55);
   --t4:rgba(255,255,255,.46);
-  --ok:#34C759;--ok-bg:rgba(52,199,89,.18);--ok-fg:#a4f0c1;--ok-bd:rgba(52,199,89,.28);
+  --ok:#34C759;--ok-light:#40D46B;--ok-bg:rgba(52,199,89,.18);--ok-fg:#a4f0c1;--ok-bd:rgba(52,199,89,.28);
   --warn:#FF9500;--warn-bg:rgba(255,149,0,.18);--warn-fg:#ffc985;--warn-bd:rgba(255,149,0,.28);
   --err:#FF3B30;--err-bg:rgba(255,59,48,.16);--err-fg:#ffacac;--err-bd:rgba(255,59,48,.26);
   --info:#7AB3FF;--info-bg:rgba(34,158,217,.18);--info-fg:#a8d4ff;
@@ -59,7 +59,9 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
   --shadow-btn-blue:0 8px 24px rgba(34,158,217,.42),inset 0 1px 0 rgba(255,255,255,.32);
   --shadow-btn-blue-hover:0 12px 32px rgba(34,158,217,.55),inset 0 1px 0 rgba(255,255,255,.35);
   --shadow-btn-danger:0 8px 24px rgba(226,75,74,.42),inset 0 1px 0 rgba(255,255,255,.32);
+  --shadow-btn-danger-hover:0 12px 32px rgba(226,75,74,.55),inset 0 1px 0 rgba(255,255,255,.35);
   --shadow-btn-success:0 8px 24px rgba(52,199,89,.42),inset 0 1px 0 rgba(255,255,255,.32);
+  --shadow-btn-success-hover:0 12px 32px rgba(52,199,89,.55),inset 0 1px 0 rgba(255,255,255,.35);
   --shadow-fab:0 8px 22px rgba(196,35,120,.42),inset 0 1px 0 rgba(255,255,255,.3);
 }
 
@@ -167,7 +169,7 @@ body{
 .body.has-tabbar-btn{padding-bottom:calc(164px + var(--safe-bottom))}
 
 /* ── MAIN BUTTON ── */
-.mbtn{position:absolute;left:var(--g3);right:var(--g3);bottom:calc(14px + var(--safe-bottom) + var(--keyboard-h,0px));height:var(--btn-h);background:linear-gradient(180deg,var(--tg-blue-light),var(--tg-blue));border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;color:var(--t1);font-size:15px;font-weight:600;letter-spacing:.005em;cursor:pointer;box-shadow:var(--shadow-btn-blue);z-index:20;gap:8px;transition:bottom var(--dur-sm) ease-out,transform var(--dur-xs) var(--ease),box-shadow var(--dur-xs) var(--ease),opacity var(--dur-xs),filter var(--dur-xs) ease;border:none;width:calc(100% - 24px);will-change:transform}
+.mbtn{position:absolute;left:var(--g3);right:var(--g3);bottom:calc(14px + var(--safe-bottom) + var(--keyboard-h,0px));height:var(--btn-h);padding:0 20px;background:linear-gradient(180deg,var(--tg-blue-light),var(--tg-blue));border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;white-space:nowrap;color:var(--t1);font-size:15px;font-weight:600;letter-spacing:.005em;cursor:pointer;box-shadow:var(--shadow-btn-blue);z-index:20;gap:8px;transition:bottom var(--dur-sm) ease-out,transform var(--dur-xs) var(--ease),box-shadow var(--dur-xs) var(--ease),opacity var(--dur-xs),filter var(--dur-xs) ease;border:none;width:calc(100% - 24px);will-change:transform}
 /* In-flow CTA: sits at the end of a form body instead of floating over it.
    Used by data-entry forms so the button never covers the focused field and
    never bounces with the keyboard. */
@@ -176,7 +178,13 @@ body{
 .mbtn:hover{transform:translateY(-1px);box-shadow:var(--shadow-btn-blue-hover)}
 .mbtn:active{animation:btnPress .28s var(--ease-spr) both;box-shadow:0 4px 14px rgba(34,158,217,.5);filter:brightness(0.92)}
 .mbtn.danger{background:linear-gradient(180deg,#FF6B61,#E24B4A);box-shadow:var(--shadow-btn-danger)}
-.mbtn.success{background:linear-gradient(180deg,#4ADB7A,var(--ok));box-shadow:var(--shadow-btn-success)}
+.mbtn.success{background:linear-gradient(180deg,var(--ok-light),var(--ok));box-shadow:var(--shadow-btn-success)}
+/* Per-variant hover/active glow — without these, green and red buttons inherit
+   the base .mbtn blue shadow on hover/press (looked off-brand). */
+.mbtn.success:hover{box-shadow:var(--shadow-btn-success-hover)}
+.mbtn.success:active{box-shadow:0 4px 14px rgba(52,199,89,.5)}
+.mbtn.danger:hover{box-shadow:var(--shadow-btn-danger-hover)}
+.mbtn.danger:active{box-shadow:0 4px 14px rgba(226,75,74,.5)}
 .mbtn.disabled{background:var(--glass-3);color:var(--t3);box-shadow:none;cursor:not-allowed;pointer-events:none}
 .mbtn.is-loading{pointer-events:none;color:transparent;position:relative;animation:btnPulse 1.2s ease-in-out infinite}
 .mbtn.is-loading::after{content:'';position:absolute;width:20px;height:20px;border:2.5px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;top:50%;left:50%;transform:translate(-50%,-50%)}
