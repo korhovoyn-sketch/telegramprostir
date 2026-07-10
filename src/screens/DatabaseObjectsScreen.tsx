@@ -15,7 +15,7 @@ import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import Modal from '@/components/ui/Modal'
 import { IconPlus, IconDots, IconPhoto, IconShare, IconChevronUp, IconChevronDown, GlassDbIcon, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconFile, IconLayers, IconLayoutGrid, IconChartBar, IconKey, IconFileExport, IconCircleCheck, IconAdjustments, IconTrash, IconChevronRight } from '@/components/Icons'
 import DatabaseStatsPanel from '@/components/ui/DatabaseStatsPanel'
-import { formatPrice, calcRent, calcRentUtils, rentUnitLabel, DB_TYPE_LABELS, formatLeasePeriod } from '@/lib/utils'
+import { formatPrice, calcRent, calcRentUtils, rentUnitLabel, objectsWord, DB_TYPE_LABELS, formatLeasePeriod } from '@/lib/utils'
 import type { PropertyStatus } from '@/types'
 import CoachMark from '@/components/ui/CoachMark'
 import { useOnboarding } from '@/hooks/useOnboarding'
@@ -161,7 +161,7 @@ export default function DatabaseObjectsScreen() {
           <div className="info-mn">
             <div className="info-t">{db.name}</div>
             <div className="info-s">
-              <span>{properties.length} об&apos;єктів</span>
+              <span>{properties.length} {objectsWord(properties.length)}</span>
               <span>·</span>
               <span>{counts.free} вільно</span>
             </div>
@@ -292,7 +292,7 @@ export default function DatabaseObjectsScreen() {
               </button>
             )}
           </div>
-        ) : filtered.length === 0 ? (
+        ) : filtered.length === 0 && search ? (
           <div className="empty-state" style={{ paddingTop: 24 }}>
             <div className="empty-ic">🔍</div>
             <div className="empty-h">Нічого не знайдено</div>
@@ -302,6 +302,22 @@ export default function DatabaseObjectsScreen() {
               onClick={() => setSearch('')}
             >
               Очистити пошук
+            </button>
+          </div>
+        ) : filtered.length === 0 ? (
+          // Empty because of the status tab, not search — a status-specific
+          // message + a way back to all, instead of the misleading "no results".
+          <div className="empty-state" style={{ paddingTop: 24 }}>
+            <div className="empty-ic">{tab === 'free' ? '🟢' : tab === 'occupied' ? '🔑' : '🏷️'}</div>
+            <div className="empty-h">
+              {tab === 'free' ? 'Немає вільних об\'єктів' : tab === 'occupied' ? 'Немає зайнятих об\'єктів' : 'Немає об\'єктів на продаж'}
+            </div>
+            <div className="empty-s">Усього в базі — {properties.length} {objectsWord(properties.length)}</div>
+            <button
+              style={{ marginTop: 16, padding: '8px 20px', borderRadius: 'var(--r-pill)', background: 'var(--glass-2)', border: 'var(--bd)', color: 'var(--t2)', fontSize: 'var(--fs-foot)', cursor: 'pointer' }}
+              onClick={() => { hapticSelection(); setTab('all') }}
+            >
+              Показати всі
             </button>
           </div>
         ) : (
@@ -618,7 +634,7 @@ export default function DatabaseObjectsScreen() {
       {/* Batch delete confirm */}
       {showBatchDeleteModal && (
         <Modal
-          title={`Видалити ${selectedIds.size} об'єктів?`}
+          title={`Видалити ${selectedIds.size} ${objectsWord(selectedIds.size)}?`}
           subtitle="Всі вибрані об'єкти і їхні фото будуть видалені. Це незворотно."
           onClose={() => setShowBatchDeleteModal(false)}
           actions={[
@@ -632,7 +648,7 @@ export default function DatabaseObjectsScreen() {
       {showDeleteModal && (
         <Modal
           title="Видалити базу?"
-          subtitle={`База "${db.name}" і всі ${properties.length} об'єктів будуть видалені. Це незворотно.`}
+          subtitle={`База "${db.name}" і всі ${properties.length} ${objectsWord(properties.length)} будуть видалені. Це незворотно.`}
           onClose={() => setShowDeleteModal(false)}
           actions={[
             { label: 'Видалити', variant: 'danger', onClick: async () => { if (offlineGuard()) { setShowDeleteModal(false); return } hapticNotify('warning'); await deleteDatabase(db.id); setShowDeleteModal(false) } },

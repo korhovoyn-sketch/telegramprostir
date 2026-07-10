@@ -158,6 +158,23 @@ test('owner: property detail and form validation logic', async ({ page }) => {
   await expect(page.getByText("Значення не може бути від'ємним")).toBeVisible()
 })
 
+test('owner: empty status tab shows a status message, not a search dead-end', async ({ page }) => {
+  await setupFixtures(page)
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+  await page.getByText('БЦ Рубін').first().click()
+  await expect(page.getByText('Всі (3)')).toBeVisible()
+
+  // The fixture has 0 for-sale objects — the "Продаж" tab is empty.
+  await page.getByText(/Продаж \(0\)/).click()
+  // Status-specific empty state + a way back to all — NOT the search "Нічого
+  // не знайдено" with an empty query and a useless "Очистити пошук".
+  await expect(page.getByText('Немає об\'єктів на продаж')).toBeVisible()
+  await expect(page.getByText(/Нічого не знайдено/)).toHaveCount(0)
+  await page.getByRole('button', { name: 'Показати всі' }).click()
+  await expect(page.getByText('Всі (3)')).toBeVisible()
+})
+
 test('owner: calendar, guests, notifications, profile screens open cleanly', async ({ page }) => {
   await setupFixtures(page)
   await page.goto('/')

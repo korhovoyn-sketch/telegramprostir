@@ -10,7 +10,7 @@ import TabBar from '@/components/ui/TabBar'
 import { StatusBadge } from '@/components/ui/Badge'
 import Modal from '@/components/ui/Modal'
 import { IconPlus, IconShare, IconX, IconChevronLeft, IconTrash, IconBuilding } from '@/components/Icons'
-import { formatPrice, calcRent, rentUnitLabel, formatDate, photoUrl, humanizeDbError } from '@/lib/utils'
+import { formatPrice, calcRent, rentUnitLabel, objectsWord, formatDate, photoUrl, humanizeDbError } from '@/lib/utils'
 import ShareSheet from '@/components/ui/ShareSheet'
 import type { Property, Collection } from '@/types'
 import CoachMark from '@/components/ui/CoachMark'
@@ -57,7 +57,7 @@ function CollectionCard({
             <span>·</span>
             <span>{formatDate(col.updated_at)}</span>
             <span>·</span>
-            <span>{col.property_count} об&apos;єктів</span>
+            <span>{col.property_count} {objectsWord(col.property_count)}</span>
           </div>
         </div>
         <button
