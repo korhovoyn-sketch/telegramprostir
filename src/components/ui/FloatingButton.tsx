@@ -1,10 +1,12 @@
 'use client'
 
 const VARIANTS = {
+  // Green tint echoes the CTA button's light stop (--ok-light #40D46B) so the
+  // FAB and the main .mbtn.success button read as the same green.
   success: {
-    background: 'rgba(74,219,122,.18)',
-    border: '.5px solid rgba(74,219,122,.42)',
-    boxShadow: '0 4px 24px rgba(74,219,122,.22), inset 0 1px 0 rgba(255,255,255,.18)',
+    background: 'rgba(64,212,107,.18)',
+    border: '.5px solid rgba(64,212,107,.42)',
+    boxShadow: '0 4px 24px rgba(64,212,107,.22), inset 0 1px 0 rgba(255,255,255,.18)',
   },
   danger: {
     background: 'rgba(255,107,97,.16)',
@@ -34,7 +36,7 @@ export default function FloatingButton({ variant, icon, label, onClick }: Floati
         height: 'var(--btn-h)', padding: '0 32px', minWidth: 200,
         borderRadius: 'var(--r-pill)', whiteSpace: 'nowrap',
         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-        fontSize: 15, fontWeight: 600, color: '#fff', cursor: 'pointer',
+        fontSize: 'var(--fs-sub)', fontWeight: 'var(--fw-semi)', color: '#fff', cursor: 'pointer',
         backdropFilter: 'blur(16px) saturate(180%)',
         WebkitBackdropFilter: 'blur(16px) saturate(180%)',
         zIndex: 20,

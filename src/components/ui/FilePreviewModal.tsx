@@ -109,7 +109,7 @@ export default function FilePreviewModal({ url, mime, name, onClose }: FilePrevi
           <IconX size={20} />
         </button>
         <div style={{
-          flex: 1, fontSize: 14, fontWeight: 600, color: '#fff',
+          flex: 1, fontSize: 'var(--fs-note)', fontWeight: 'var(--fw-semi)', color: '#fff',
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           paddingLeft: 2,
         }}>
@@ -167,18 +167,18 @@ export default function FilePreviewModal({ url, mime, name, onClose }: FilePrevi
               background: isPdf ? 'rgba(255,107,107,.15)' : 'rgba(122,179,255,.15)',
               border: `.5px solid ${isPdf ? 'rgba(255,107,107,.3)' : 'rgba(122,179,255,.3)'}`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 28,
+              fontSize: 'var(--fs-t1)',
             }}>
               {isPdf ? '📄' : '📝'}
             </div>
             <div style={{ textAlign: 'center' }}>
               <div style={{
-                fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 6,
+                fontSize: 'var(--fs-sub)', fontWeight: 'var(--fw-bold)', color: '#fff', marginBottom: 6,
                 wordBreak: 'break-all', lineHeight: 1.4,
               }}>
                 {name}
               </div>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,.45)' }}>
+              <div style={{ fontSize: 'var(--fs-cap1)', color: 'rgba(255,255,255,.45)' }}>
                 {isPdf ? 'PDF документ' : 'Word документ'}
               </div>
             </div>
@@ -190,7 +190,7 @@ export default function FilePreviewModal({ url, mime, name, onClose }: FilePrevi
                   width: '100%', padding: '14px 20px', borderRadius: 14,
                   background: 'linear-gradient(135deg,rgba(122,179,255,.25),rgba(167,139,250,.25))',
                   border: '.5px solid rgba(122,179,255,.4)',
-                  color: '#7AB3FF', fontSize: 15, fontWeight: 600, cursor: 'pointer',
+                  color: '#7AB3FF', fontSize: 'var(--fs-sub)', fontWeight: 'var(--fw-semi)', cursor: 'pointer',
                   WebkitTapHighlightColor: 'transparent',
                 }}
               >
@@ -204,7 +204,7 @@ export default function FilePreviewModal({ url, mime, name, onClose }: FilePrevi
                   width: '100%', padding: '13px 20px', borderRadius: 14,
                   background: 'rgba(255,255,255,.07)',
                   border: '.5px solid rgba(255,255,255,.18)',
-                  color: 'rgba(255,255,255,.8)', fontSize: 14, fontWeight: 500, cursor: 'pointer',
+                  color: 'rgba(255,255,255,.8)', fontSize: 'var(--fs-note)', fontWeight: 'var(--fw-med)', cursor: 'pointer',
                   WebkitTapHighlightColor: 'transparent',
                 }}
               >

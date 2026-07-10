@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase'
 import Header from '@/components/ui/Header'
 import Toggle from '@/components/ui/Toggle'
 import { IconFileExport, IconFile, IconAdjustments } from '@/components/Icons'
-import { calcRent, calcUtilities, rentUnitLabel, DB_TYPE_LABELS, STATUS_LABELS, formatDate, humanizeDbError, safeFileName } from '@/lib/utils'
+import { calcRent, calcUtilities, rentUnitLabel, objectsWord, DB_TYPE_LABELS, STATUS_LABELS, formatDate, humanizeDbError, safeFileName } from '@/lib/utils'
 import type { Property, Database } from '@/types'
 
 const FORMATS = [
@@ -147,7 +147,7 @@ async function generatePDF(
   doc.setTextColor(...TXSEC)
   const typeLabel = DB_TYPE_LABELS[db.type] ?? db.type
   const dateStr   = new Date().toLocaleDateString('uk-UA', { day: 'numeric', month: 'long', year: 'numeric' })
-  doc.text(`${typeLabel}  ·  ${rows.length} об'єктів  ·  ${dateStr}`, M, 38)
+  doc.text(`${typeLabel}  ·  ${rows.length} ${objectsWord(rows.length)}  ·  ${dateStr}`, M, 38)
 
   // Address (if any)
   if (db.address) {
@@ -605,6 +605,15 @@ export default function ExportScreen() {
 
       if (error) throw error
       const properties = (propertiesRaw ?? []) as Property[]
+
+      // Nothing to export — a file with 0 rows is pointless. Tell the user
+      // instead of downloading an empty PDF/Excel.
+      const exportable = onlyFree ? properties.filter(p => p.status === 'free') : properties
+      if (exportable.length === 0) {
+        showToast({ type: 'error', title: 'Немає об\'єктів для експорту', subtitle: onlyFree ? 'У базі немає вільних об\'єктів' : 'Спершу додайте об\'єкти до бази' })
+        return
+      }
+
       const dbRecord = db ?? ({ name: 'База', type: 'business_center', color: 'purple' } as Database)
 
       if (format === 'pdf') {
@@ -649,7 +658,7 @@ export default function ExportScreen() {
               onClick={() => setFormat(f.id)}
             >
               <div className="format-ic glass-s">
-                <span style={{ fontSize: 19 }}>{f.emoji}</span>
+                <span style={{ fontSize: 'var(--fs-lead)' }}>{f.emoji}</span>
               </div>
               <div className="format-mn">
                 <div className="format-n">{f.label}</div>
@@ -716,7 +725,7 @@ export default function ExportScreen() {
           borderRadius: 12,
           background: 'rgba(90,200,250,.08)',
           border: '0.5px solid rgba(90,200,250,.25)',
-          fontSize: 12,
+          fontSize: 'var(--fs-cap1)',
           color: 'var(--t3)',
           lineHeight: 1.5,
         }}>

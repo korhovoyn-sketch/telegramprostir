@@ -74,7 +74,7 @@ export default function RealtorDashboardScreen() {
           {(user?.first_name ?? 'R').charAt(0).toUpperCase()}
         </div>
         <div className="hdr-t">
-          <div style={{ fontSize: 16, fontWeight: 700 }}>prostir</div>
+          <div style={{ fontSize: 'var(--fs-call)', fontWeight: 'var(--fw-bold)' }}>prostir</div>
         </div>
         {/* Notifications live in the tab bar (with unread badge) — a header
             bell here duplicated that tab and confused users. */}

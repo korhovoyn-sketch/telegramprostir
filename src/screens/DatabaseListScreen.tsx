@@ -95,7 +95,7 @@ export default function DatabaseListScreen() {
           {(user?.first_name ?? 'U').charAt(0).toUpperCase()}
         </div>
         <div className="hdr-t">
-          <div style={{ fontSize: 16, fontWeight: 700 }}>prostir</div>
+          <div style={{ fontSize: 'var(--fs-call)', fontWeight: 'var(--fw-bold)' }}>prostir</div>
         </div>
         {/* Notifications live in the tab bar (with unread badge) — a header
             bell here duplicated that tab and confused users. */}
@@ -122,7 +122,7 @@ export default function DatabaseListScreen() {
           </div>
           {totals.income > 0 && (
             <div className="stat glass-s" style={{ gridColumn: '1 / -1', background: 'var(--ok-bg)', border: '.5px solid var(--ok-bd)' }}>
-              <div className="stat-n" style={{ color: 'var(--ok-fg)', fontSize: 18 }}>
+              <div className="stat-n" style={{ color: 'var(--ok-fg)', fontSize: 'var(--fs-lead)' }}>
                 {formatPrice(totals.income, user?.currency)}
               </div>
               <div className="stat-l">на місяць (зайнято {totals.occupied})</div>
@@ -148,7 +148,7 @@ export default function DatabaseListScreen() {
                 <div className="skel" style={{ height: 44, borderRadius: 10 }} />
               </div>
             ) : propResults.length === 0 ? (
-              <div style={{ padding: '8px 16px', fontSize: 13, color: 'var(--t3)' }}>Нічого не знайдено</div>
+              <div style={{ padding: '8px 16px', fontSize: 'var(--fs-foot)', color: 'var(--t3)' }}>Нічого не знайдено</div>
             ) : (
               <div className="list">
                 {propResults.map(p => {
@@ -222,7 +222,7 @@ export default function DatabaseListScreen() {
                     {db.address && <><span>·</span><span>{db.address}</span></>}
                   </div>
                   {(db._monthly_income ?? 0) > 0 && (
-                    <div style={{ fontSize: 11, color: 'var(--ok-fg)', marginTop: 2, fontWeight: 600 }}>
+                    <div style={{ fontSize: 'var(--fs-cap2)', color: 'var(--ok-fg)', marginTop: 2, fontWeight: 'var(--fw-semi)' }}>
                       {formatPrice(db._monthly_income!, user?.currency)}/міс
                     </div>
                   )}

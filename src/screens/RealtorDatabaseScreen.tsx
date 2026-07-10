@@ -136,7 +136,7 @@ export default function RealtorDatabaseScreen() {
             <div className="empty-ic">🔍</div>
             <div className="empty-h">Нічого не знайдено</div>
             <button
-              style={{ marginTop: 16, padding: '8px 20px', borderRadius: 'var(--r-pill)', background: 'var(--glass-2)', border: 'var(--bd)', color: 'var(--t2)', fontSize: 13, cursor: 'pointer' }}
+              style={{ marginTop: 16, padding: '8px 20px', borderRadius: 'var(--r-pill)', background: 'var(--glass-2)', border: 'var(--bd)', color: 'var(--t2)', fontSize: 'var(--fs-foot)', cursor: 'pointer' }}
               onClick={() => setSearch('')}
             >
               Очистити пошук

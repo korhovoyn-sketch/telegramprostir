@@ -330,8 +330,8 @@ export default function PropertyFormScreen() {
           </div>
           {rentCalc > 0 && (
             <div className="fr" style={{ background: 'rgba(34,158,217,.08)' }}>
-              <span className="fr-l" style={{ color: 'var(--t3)', fontSize: 12 }}>{rentType === 'per_m2' ? 'Розрахунок' : 'Ставка'}</span>
-              <span style={{ flex: 1, textAlign: 'right', fontWeight: 700, fontSize: 15, color: 'var(--info-fg)' }}>
+              <span className="fr-l" style={{ color: 'var(--t3)', fontSize: 'var(--fs-cap1)' }}>{rentType === 'per_m2' ? 'Розрахунок' : 'Ставка'}</span>
+              <span style={{ flex: 1, textAlign: 'right', fontWeight: 'var(--fw-bold)', fontSize: 'var(--fs-sub)', color: 'var(--info-fg)' }}>
                 {formatPrice(rentCalc, user?.currency)}{rentUnitLabel(rentType === 'per_m2' ? 'fixed' : rentType)}
               </span>
             </div>
@@ -348,8 +348,8 @@ export default function PropertyFormScreen() {
           </div>
           {!isParking && utilsCalc > 0 && (
             <div className="fr" style={{ background: 'rgba(34,158,217,.08)' }}>
-              <span className="fr-l" style={{ color: 'var(--t3)', fontSize: 12 }}>Розрахунок</span>
-              <span style={{ flex: 1, textAlign: 'right', fontWeight: 700, fontSize: 15, color: 'var(--info-fg)' }}>
+              <span className="fr-l" style={{ color: 'var(--t3)', fontSize: 'var(--fs-cap1)' }}>Розрахунок</span>
+              <span style={{ flex: 1, textAlign: 'right', fontWeight: 'var(--fw-bold)', fontSize: 'var(--fs-sub)', color: 'var(--info-fg)' }}>
                 {formatPrice(utilsCalc, user?.currency)}/міс
               </span>
             </div>

@@ -47,9 +47,9 @@ export default function ProfileSetupScreen() {
             background: 'var(--glass-1)',
             border: 'var(--bd)',
             borderRadius: 'var(--r-pill)',
-            fontSize: 12,
+            fontSize: 'var(--fs-cap1)',
             color: 'var(--t3)',
-            fontWeight: 600,
+            fontWeight: 'var(--fw-semi)',
             letterSpacing: '.06em',
             textTransform: 'uppercase',
             marginBottom: 16,
@@ -68,15 +68,15 @@ export default function ProfileSetupScreen() {
           <div className="fg glass-s">
             <div className="fr">
               <span className="fr-l">Ім&apos;я</span>
-              <span style={{ flex: 1, textAlign: 'right', color: 'var(--t3)', fontSize: 14 }}>
+              <span style={{ flex: 1, textAlign: 'right', color: 'var(--t3)', fontSize: 'var(--fs-note)' }}>
                 {user?.first_name} {user?.last_name}
               </span>
-              <span style={{ fontSize: 11, color: 'var(--t4)', marginLeft: 6 }}>🔒</span>
+              <span style={{ fontSize: 'var(--fs-cap2)', color: 'var(--t4)', marginLeft: 6 }}>🔒</span>
             </div>
             {user?.tg_username && (
               <div className="fr">
                 <span className="fr-l">Username</span>
-                <span style={{ flex: 1, textAlign: 'right', color: 'var(--t3)', fontSize: 14 }}>
+                <span style={{ flex: 1, textAlign: 'right', color: 'var(--t3)', fontSize: 'var(--fs-note)' }}>
                   @{user.tg_username}
                 </span>
               </div>
@@ -124,7 +124,7 @@ export default function ProfileSetupScreen() {
           disabled={loading}
           style={{
             background: 'none', border: 'none', cursor: 'pointer',
-            color: 'var(--t4)', fontSize: 13, padding: '0 16px 12px',
+            color: 'var(--t4)', fontSize: 'var(--fs-foot)', padding: '0 16px 12px',
             minHeight: 44, width: '100%', textAlign: 'center',
           }}
         >

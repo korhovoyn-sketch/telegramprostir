@@ -10,7 +10,7 @@ import TabBar from '@/components/ui/TabBar'
 import { StatusBadge } from '@/components/ui/Badge'
 import Modal from '@/components/ui/Modal'
 import { IconPlus, IconShare, IconX, IconChevronLeft, IconTrash, IconBuilding } from '@/components/Icons'
-import { formatPrice, calcRent, rentUnitLabel, formatDate, photoUrl, humanizeDbError } from '@/lib/utils'
+import { formatPrice, calcRent, rentUnitLabel, objectsWord, formatDate, photoUrl, humanizeDbError } from '@/lib/utils'
 import ShareSheet from '@/components/ui/ShareSheet'
 import type { Property, Collection } from '@/types'
 import CoachMark from '@/components/ui/CoachMark'
@@ -57,7 +57,7 @@ function CollectionCard({
             <span>·</span>
             <span>{formatDate(col.updated_at)}</span>
             <span>·</span>
-            <span>{col.property_count} об&apos;єктів</span>
+            <span>{col.property_count} {objectsWord(col.property_count)}</span>
           </div>
         </div>
         <button
@@ -275,11 +275,11 @@ function CollectionDetail({
           <IconChevronLeft size={16} />
         </button>
         <div className="hdr-t" style={{ flex: 1, textAlign: 'center' }}>
-          <div style={{ fontSize: 15, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div style={{ fontSize: 'var(--fs-sub)', fontWeight: 'var(--fw-bold)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {collection.name}
           </div>
           {collection.is_draft && (
-            <div style={{ fontSize: 12, color: 'var(--t3)' }}>Чернетка</div>
+            <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)' }}>Чернетка</div>
           )}
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -387,7 +387,7 @@ function CollectionDetail({
                 <div className="loader" />
               </div>
             ) : availableProps.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--t3)', fontSize: 13 }}>
+              <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--t3)', fontSize: 'var(--fs-foot)' }}>
                 Немає доступних об&apos;єктів
               </div>
             ) : (
@@ -413,7 +413,7 @@ function CollectionDetail({
                         {!thumbUrl && <IconBuilding size={16} color="#A87CFF" />}
                       </div>
                       <div className="row-mn" style={{ flex: 1, minWidth: 0 }}>
-                        <div className="row-t" style={{ fontSize: 13 }}>{p.name}</div>
+                        <div className="row-t" style={{ fontSize: 'var(--fs-foot)' }}>{p.name}</div>
                         <div className="row-s" style={{ gap: 4 }}>
                           <StatusBadge status={p.status} />
                           {p.area_useful && <span>{p.area_useful} м²</span>}

@@ -436,7 +436,7 @@ export default function PaymentCalendarScreen() {
                 flex: 1, padding: '8px 0', borderRadius: 10,
                 background: activeTab === tab ? 'var(--glass-2)' : 'transparent',
                 color: activeTab === tab ? 'var(--t1)' : 'var(--t3)',
-                fontSize: 13, fontWeight: 600, cursor: 'pointer', border: 'none',
+                fontSize: 'var(--fs-foot)', fontWeight: 'var(--fw-semi)', cursor: 'pointer', border: 'none',
                 transition: 'all .15s',
               }}
             >
@@ -460,7 +460,7 @@ export default function PaymentCalendarScreen() {
           <div key="current" className="tab-content-anim">
             {/* Horizon selector + filter toggle */}
             <div style={{ margin: '0 12px 8px', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 12, color: 'var(--t3)', flexShrink: 0 }}>Показати:</span>
+              <span style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', flexShrink: 0 }}>Показати:</span>
               {([1, 2, 3, 6] as MonthCount[]).map(n => (
                 <button
                   key={n}
@@ -470,7 +470,7 @@ export default function PaymentCalendarScreen() {
                     background: monthsAhead === n ? 'rgba(122,179,255,.22)' : 'var(--glass-1)',
                     color:      monthsAhead === n ? 'var(--info)' : 'var(--t3)',
                     border:     monthsAhead === n ? '.5px solid rgba(122,179,255,.4)' : 'var(--bd)',
-                    fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                    fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', cursor: 'pointer',
                   }}
                 >
                   {n} міс
@@ -483,7 +483,7 @@ export default function PaymentCalendarScreen() {
                   background: showOnlyUnpaid ? 'rgba(255,107,97,.2)' : 'var(--glass-1)',
                   color:      showOnlyUnpaid ? '#FF6B61'              : 'var(--t3)',
                   border:     showOnlyUnpaid ? '.5px solid rgba(255,107,97,.4)' : 'var(--bd)',
-                  fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
+                  fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', cursor: 'pointer', whiteSpace: 'nowrap',
                 }}
               >
                 {showOnlyUnpaid ? '⏳ Очікуються' : '📋 Всі'}
@@ -501,12 +501,12 @@ export default function PaymentCalendarScreen() {
                   {propsWithoutSchedule.map(prop => (
                     <div key={prop.id} className="glass-s" style={{ borderRadius: 'var(--r-md)', padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--t1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{prop.name}</div>
-                        {prop.tenant_name && <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 2 }}>{prop.tenant_name}</div>}
+                        <div style={{ fontSize: 'var(--fs-note)', fontWeight: 'var(--fw-semi)', color: 'var(--t1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{prop.name}</div>
+                        {prop.tenant_name && <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 2 }}>{prop.tenant_name}</div>}
                       </div>
                       <button
                         onClick={() => { setSetupProp(prop); setSetupDueDay('5'); setSetupNotify('3') }}
-                        style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 'var(--r-pill)', background: 'rgba(122,179,255,.18)', border: '.5px solid rgba(122,179,255,.32)', color: 'var(--info)', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                        style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 'var(--r-pill)', background: 'rgba(122,179,255,.18)', border: '.5px solid rgba(122,179,255,.32)', color: 'var(--info)', fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', cursor: 'pointer', whiteSpace: 'nowrap' }}
                       >
                         <IconPlus size={12} /> Налаштувати
                       </button>
@@ -530,7 +530,7 @@ export default function PaymentCalendarScreen() {
                     </span>
                     {section.totalCount > 0 && (
                       <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ fontSize: 11, color: section.paidCount === section.totalCount ? 'var(--ok)' : 'var(--t3)', fontWeight: 600 }}>
+                        <span style={{ fontSize: 'var(--fs-cap2)', color: section.paidCount === section.totalCount ? 'var(--ok)' : 'var(--t3)', fontWeight: 'var(--fw-semi)' }}>
                           {section.paidCount}/{section.totalCount}
                         </span>
                         <span style={{ display: 'flex', gap: 2 }}>
@@ -562,7 +562,7 @@ export default function PaymentCalendarScreen() {
                       />
                     ))}
                     {section.items.length === 0 && section.paidCount === section.totalCount && section.totalCount > 0 && (
-                      <div style={{ padding: '12px 14px', textAlign: 'center', fontSize: 13, color: 'var(--ok)', fontWeight: 600 }}>
+                      <div style={{ padding: '12px 14px', textAlign: 'center', fontSize: 'var(--fs-foot)', color: 'var(--ok)', fontWeight: 'var(--fw-semi)' }}>
                         ✓ Всі платежі за цей місяць підтверджено
                       </div>
                     )}
@@ -596,11 +596,11 @@ export default function PaymentCalendarScreen() {
                 {/* Archive total card */}
                 {archiveTotal > 0 && (
                   <div style={{ margin: '0 12px 4px', padding: '14px 16px', borderRadius: 'var(--r-md)', background: 'var(--ok-bg)', border: '.5px solid var(--ok-bd)' }}>
-                    <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 4 }}>Всього отримано за весь час</div>
-                    <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--ok-fg)' }}>
+                    <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginBottom: 4 }}>Всього отримано за весь час</div>
+                    <div style={{ fontSize: 'var(--fs-t2)', fontWeight: 'var(--fw-bold)', color: 'var(--ok-fg)' }}>
                       {formatPrice(archiveTotal, user?.currency)}
                     </div>
-                    <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 3 }}>
+                    <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 3 }}>
                       {archiveRecords.length} платежів · {archiveByMonth.length} міс.
                     </div>
                   </div>
@@ -612,7 +612,7 @@ export default function PaymentCalendarScreen() {
                     <div className="over">
                       <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconCalendar size={13} color="var(--info)" />{group.label}</span>
                       {group.total > 0 && (
-                        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ok-fg)' }}>
+                        <span style={{ fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-bold)', color: 'var(--ok-fg)' }}>
                           {formatPrice(group.total, user?.currency)}
                         </span>
                       )}
@@ -625,26 +625,26 @@ export default function PaymentCalendarScreen() {
                             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                               <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--ok)', marginTop: 5, flexShrink: 0, boxShadow: '0 0 6px var(--ok)' }} />
                               <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--t1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                <div style={{ fontSize: 'var(--fs-note)', fontWeight: 'var(--fw-semi)', color: 'var(--t1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                   {prop?.name ?? '—'}
                                 </div>
                                 {prop?.tenant_name && (
-                                  <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 1 }}>{prop.tenant_name}</div>
+                                  <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 1 }}>{prop.tenant_name}</div>
                                 )}
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 5, flexWrap: 'wrap' }}>
-                                  <span style={{ fontSize: 12, color: 'var(--t3)' }}>за {fmtDueDate(rec.due_date)}</span>
+                                  <span style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)' }}>за {fmtDueDate(rec.due_date)}</span>
                                   {rec.paid_at && (
-                                    <span style={{ fontSize: 11, color: 'var(--t4)' }}>
+                                    <span style={{ fontSize: 'var(--fs-cap2)', color: 'var(--t4)' }}>
                                       · отримано {new Date(rec.paid_at).toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' })}
                                     </span>
                                   )}
                                 </div>
                                 {rec.notes && (
-                                  <div style={{ fontSize: 11, color: 'var(--t3)', marginTop: 3, fontStyle: 'italic' }}>{rec.notes}</div>
+                                  <div style={{ fontSize: 'var(--fs-cap2)', color: 'var(--t3)', marginTop: 3, fontStyle: 'italic' }}>{rec.notes}</div>
                                 )}
                               </div>
                               {rec.amount != null && rec.amount > 0 && (
-                                <div style={{ flexShrink: 0, fontSize: 15, fontWeight: 700, color: 'var(--ok-fg)' }}>
+                                <div style={{ flexShrink: 0, fontSize: 'var(--fs-sub)', fontWeight: 'var(--fw-bold)', color: 'var(--ok-fg)' }}>
                                   {formatPrice(rec.amount, user?.currency)}
                                 </div>
                               )}
@@ -691,7 +691,7 @@ export default function PaymentCalendarScreen() {
                 />
               </div>
             </div>
-            <div style={{ fontSize: 12, color: 'var(--t3)', padding: '0 4px' }}>
+            <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', padding: '0 4px' }}>
               Ви отримаєте повідомлення через Telegram за {setupNotify || '3'} дн. до {setupDueDay || '5'}-го числа кожного місяця.
             </div>
           </div>
@@ -797,30 +797,30 @@ function PaymentItemCard({ item, statusColor, label, onMarkPaid, onEdit, onDelet
         <div style={{ width: 8, height: 8, borderRadius: '50%', background: statusColor, marginTop: 5, flexShrink: 0, boxShadow: `0 0 6px ${statusColor}` }} />
 
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--t1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div style={{ fontSize: 'var(--fs-note)', fontWeight: 'var(--fw-semi)', color: 'var(--t1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {item.property.name}
           </div>
           {item.property.tenant_name && (
-            <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 1 }}>{item.property.tenant_name}</div>
+            <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 1 }}>{item.property.tenant_name}</div>
           )}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 5, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: statusColor }}>{label}</span>
-            <span style={{ fontSize: 12, color: 'var(--t3)' }}>{fmtDueDate(item.dueDate)}</span>
+            <span style={{ fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', color: statusColor }}>{label}</span>
+            <span style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)' }}>{fmtDueDate(item.dueDate)}</span>
             {displayAmt != null && displayAmt > 0 && (
-              <span style={{ fontSize: 12, fontWeight: isPaid ? 700 : 400, color: isPaid ? 'var(--ok-fg)' : 'var(--t2)' }}>
+              <span style={{ fontSize: 'var(--fs-cap1)', fontWeight: isPaid ? 700 : 400, color: isPaid ? 'var(--ok-fg)' : 'var(--t2)' }}>
                 {formatPrice(displayAmt, userCurrency)}
               </span>
             )}
           </div>
           {isPaid && item.record?.notes && (
-            <div style={{ fontSize: 11, color: 'var(--t3)', marginTop: 3, fontStyle: 'italic' }}>{item.record.notes}</div>
+            <div style={{ fontSize: 'var(--fs-cap2)', color: 'var(--t3)', marginTop: 3, fontStyle: 'italic' }}>{item.record.notes}</div>
           )}
         </div>
 
         {!isPaid ? (
           <button
             onClick={onMarkPaid}
-            style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 'var(--r-pill)', background: 'var(--ok-bg)', border: '.5px solid var(--ok-bd)', color: 'var(--ok-fg)', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+            style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 'var(--r-pill)', background: 'var(--ok-bg)', border: '.5px solid var(--ok-bd)', color: 'var(--ok-fg)', fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', cursor: 'pointer', whiteSpace: 'nowrap' }}
           >
             <IconCheckCircle size={12} /> Отримано
           </button>
@@ -828,13 +828,13 @@ function PaymentItemCard({ item, statusColor, label, onMarkPaid, onEdit, onDelet
           <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4 }}>
             <button
               onClick={onEditPaid}
-              style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '6px 10px', borderRadius: 'var(--r-pill)', background: 'var(--ok-bg)', border: '.5px solid var(--ok-bd)', color: 'var(--ok-fg)', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+              style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '6px 10px', borderRadius: 'var(--r-pill)', background: 'var(--ok-bg)', border: '.5px solid var(--ok-bd)', color: 'var(--ok-fg)', fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', cursor: 'pointer', whiteSpace: 'nowrap' }}
             >
               ✓ Сплачено
             </button>
             <button
               onClick={onUnpay}
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: '50%', background: 'rgba(255,59,48,.12)', border: '.5px solid rgba(255,59,48,.25)', color: 'var(--err)', fontSize: 14, cursor: 'pointer', flexShrink: 0 }}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: '50%', background: 'rgba(255,59,48,.12)', border: '.5px solid rgba(255,59,48,.25)', color: 'var(--err)', fontSize: 'var(--fs-note)', cursor: 'pointer', flexShrink: 0 }}
               title="Скасувати платіж"
             >
               ×
@@ -847,13 +847,13 @@ function PaymentItemCard({ item, statusColor, label, onMarkPaid, onEdit, onDelet
       <div style={{ padding: '6px 14px 10px', display: 'flex', gap: 8, borderTop: '.5px solid rgba(255,255,255,.06)' }}>
         <button
           onClick={onEdit}
-          style={{ fontSize: 11, color: 'var(--t3)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0' }}
+          style={{ fontSize: 'var(--fs-cap2)', color: 'var(--t3)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0' }}
         >
           ✏️ Редагувати розклад
         </button>
         <button
           onClick={onDeleteSchedule}
-          style={{ fontSize: 11, color: 'var(--err)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0', marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}
+          style={{ fontSize: 'var(--fs-cap2)', color: 'var(--err)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0', marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}
         >
           <IconTrash size={11} /> Видалити
         </button>

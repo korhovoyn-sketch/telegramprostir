@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
-import { humanizeDbError } from '@/lib/utils'
+import { humanizeDbError, objectsWord } from '@/lib/utils'
 import { useAppStore } from '@/store/appStore'
 import type { Property, PropertyStatus } from '@/types'
 
@@ -178,7 +178,7 @@ export function useProperties(dbId?: string) {
       const { error } = await supabase.from('properties').delete().in('id', ids)
       if (error) throw error
       setProperties(prev => prev.filter(p => !ids.includes(p.id)))
-      showToast({ type: 'success', title: `Видалено ${ids.length} об'єктів` })
+      showToast({ type: 'success', title: `Видалено ${ids.length} ${objectsWord(ids.length)}` })
     } catch (e) {
       showToast({ type: 'error', title: 'Помилка видалення', subtitle: humanizeDbError(e) })
     } finally {
@@ -196,7 +196,7 @@ export function useProperties(dbId?: string) {
       if (error) throw error
       setProperties(prev => prev.map(p => ids.includes(p.id) ? { ...p, status } : p))
       const label: Record<PropertyStatus, string> = { free: 'Вільно', occupied: 'Зайнято', for_sale: 'Продаж' }
-      showToast({ type: 'success', title: `${ids.length} об'єктів — ${label[status]}` })
+      showToast({ type: 'success', title: `${ids.length} ${objectsWord(ids.length)} — ${label[status]}` })
     } catch (e) {
       showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
     }

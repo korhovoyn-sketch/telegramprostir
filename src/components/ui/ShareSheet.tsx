@@ -138,7 +138,7 @@ export default function ShareSheet({ kind, id, name, shareText, onClose }: Share
         <div className="sheet-row" style={{ cursor: 'default' }}>
           <span className="sheet-ic"><IconClock size={17} /></span>
           <span className="sheet-lbl">Термін дії</span>
-          <span style={{ color: isExpired ? 'var(--err-fg)' : 'var(--t3)', fontSize: 13, flexShrink: 0 }}>
+          <span style={{ color: isExpired ? 'var(--err-fg)' : 'var(--t3)', fontSize: 'var(--fs-foot)', flexShrink: 0 }}>
             {isExpired ? 'закінчився' : expiresAt ? `до ${formatLeaseDate(expiresAt)}` : 'безстрокове'}
           </span>
         </div>

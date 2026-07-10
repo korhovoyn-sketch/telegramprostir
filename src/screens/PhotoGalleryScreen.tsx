@@ -113,7 +113,7 @@ export default function PhotoGalleryScreen() {
         >
           <IconX size={18} />
         </button>
-        <div style={{ color: 'var(--t2)', fontSize: 14 }}>
+        <div style={{ color: 'var(--t2)', fontSize: 'var(--fs-note)' }}>
           {current + 1} / {photos.length}
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -157,7 +157,7 @@ export default function PhotoGalleryScreen() {
           position: 'absolute', top: 16, right: 16, zIndex: 10,
           background: 'rgba(0,0,0,.55)', backdropFilter: 'blur(8px)',
           padding: '4px 10px', borderRadius: 'var(--r-pill)',
-          fontSize: 13, fontWeight: 600, color: 'var(--t1)',
+          fontSize: 'var(--fs-foot)', fontWeight: 'var(--fw-semi)', color: 'var(--t1)',
         }}>
           {current + 1} / {photos.length}
         </div>

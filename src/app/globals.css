@@ -10,13 +10,16 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
   --g1:4px;--g2:8px;--g3:12px;--g4:16px;--g5:20px;--g6:24px;
   --pad-card:14px;--row-h:52px;--btn-h:52px;--input-h:48px;
   /* ── Apple HIG type scale (compact web, 1px ≈ 1pt) ── */
+  --fs-cap3:10px;   /* Caption 3  — micro labels, dot counters */
   --fs-cap2:11px;   /* Caption 2  — badges, labels, over-lines */
   --fs-cap1:12px;   /* Caption 1  — metadata, secondary detail */
   --fs-foot:13px;   /* Footnote   — timestamps, descriptions */
+  --fs-note:14px;   /* Note       — dense body / secondary rows */
   --fs-sub:15px;    /* Subhead    — list names, form labels */
   --fs-call:16px;   /* Callout    — inputs (prevents iOS zoom), body copy */
   --fs-body:16px;   /* Body       — primary readable text */
   --fs-head:17px;   /* Headline   — profile names, modal titles */
+  --fs-lead:18px;   /* Lead       — emphasised body, small titles */
   --fs-t3:20px;     /* Title 3    — section display titles */
   --fs-t2:22px;     /* Title 2    — stat numbers, main headings */
   --fs-t1:28px;     /* Title 1    — hero numbers */
@@ -40,7 +43,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
   --t2:rgba(255,255,255,.72);
   --t3:rgba(255,255,255,.55);
   --t4:rgba(255,255,255,.46);
-  --ok:#34C759;--ok-bg:rgba(52,199,89,.18);--ok-fg:#a4f0c1;--ok-bd:rgba(52,199,89,.28);
+  --ok:#34C759;--ok-light:#40D46B;--ok-bg:rgba(52,199,89,.18);--ok-fg:#a4f0c1;--ok-bd:rgba(52,199,89,.28);
   --warn:#FF9500;--warn-bg:rgba(255,149,0,.18);--warn-fg:#ffc985;--warn-bd:rgba(255,149,0,.28);
   --err:#FF3B30;--err-bg:rgba(255,59,48,.16);--err-fg:#ffacac;--err-bd:rgba(255,59,48,.26);
   --info:#7AB3FF;--info-bg:rgba(34,158,217,.18);--info-fg:#a8d4ff;
@@ -59,7 +62,9 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
   --shadow-btn-blue:0 8px 24px rgba(34,158,217,.42),inset 0 1px 0 rgba(255,255,255,.32);
   --shadow-btn-blue-hover:0 12px 32px rgba(34,158,217,.55),inset 0 1px 0 rgba(255,255,255,.35);
   --shadow-btn-danger:0 8px 24px rgba(226,75,74,.42),inset 0 1px 0 rgba(255,255,255,.32);
+  --shadow-btn-danger-hover:0 12px 32px rgba(226,75,74,.55),inset 0 1px 0 rgba(255,255,255,.35);
   --shadow-btn-success:0 8px 24px rgba(52,199,89,.42),inset 0 1px 0 rgba(255,255,255,.32);
+  --shadow-btn-success-hover:0 12px 32px rgba(52,199,89,.55),inset 0 1px 0 rgba(255,255,255,.35);
   --shadow-fab:0 8px 22px rgba(196,35,120,.42),inset 0 1px 0 rgba(255,255,255,.3);
 }
 
@@ -68,15 +73,45 @@ body{
   color:#fff;
   min-height:100vh;
   overflow-x:hidden;
-  font-family:'SF Pro Text','SF Pro Display',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  /* Native stack — SF Pro on Apple (via -apple-system), Roboto on Android,
+     Segoe on Windows. Leading with the -apple-system token is what actually
+     resolves SF Pro on iOS Safari; the old 'SF Pro Text/Display' names matched
+     nothing on the web and just fell through. */
+  font-family:-apple-system,BlinkMacSystemFont,system-ui,'Segoe UI',Roboto,'Helvetica Neue',sans-serif;
   font-size:var(--fs-sub);       /* 15px base — Subhead tier per Apple HIG */
   line-height:var(--lh-norm);    /* 1.5 — minimum for comfortable reading */
   overscroll-behavior:none;
   -webkit-font-smoothing:antialiased;
   -moz-osx-font-smoothing:grayscale;
   text-rendering:optimizeLegibility;
+  font-optical-sizing:auto;
   font-feature-settings:'kern' 1,'liga' 1;
 }
+
+/* ── Numeric rendering ──
+   Tabular figures so digits line up in columns and don't shift width while a
+   counter animates (e.g. .stat-n pop). Applied to the numeric classes plus a
+   reusable .num for inline money/area/date/count outputs. Never on running text. */
+.num,.stat-n,.row-tot,.row-tot-u,.sum-tot-v,.sum-tot-l,.dl-x,.qr-link,.view-t,
+.obj-tot-v,.cost-ttl,.obj-fv{
+  font-variant-numeric:tabular-nums;font-feature-settings:'tnum' 1,'kern' 1;
+}
+
+/* ── Type-utility layer ──
+   Size + line-height straight from the token scale; colour and weight stay on
+   the element so these compose. Replaces ad-hoc inline font-size literals. */
+.ty-cap3{font-size:var(--fs-cap3);line-height:var(--lh-snug)}
+.ty-cap2{font-size:var(--fs-cap2);line-height:var(--lh-snug)}
+.ty-cap1{font-size:var(--fs-cap1);line-height:var(--lh-snug)}
+.ty-foot{font-size:var(--fs-foot);line-height:var(--lh-norm)}
+.ty-note{font-size:var(--fs-note);line-height:var(--lh-norm)}
+.ty-sub{font-size:var(--fs-sub);line-height:var(--lh-snug)}
+.ty-body{font-size:var(--fs-body);line-height:var(--lh-norm)}
+.ty-head{font-size:var(--fs-head);line-height:var(--lh-snug)}
+.ty-lead{font-size:var(--fs-lead);line-height:var(--lh-snug)}
+.ty-t3{font-size:var(--fs-t3);line-height:var(--lh-tight)}
+.ty-t2{font-size:var(--fs-t2);line-height:var(--lh-tight)}
+.ty-t1{font-size:var(--fs-t1);line-height:var(--lh-tight)}
 
 /* ── APP SHELL ── */
 #app-root{
@@ -167,7 +202,7 @@ body{
 .body.has-tabbar-btn{padding-bottom:calc(164px + var(--safe-bottom))}
 
 /* ── MAIN BUTTON ── */
-.mbtn{position:absolute;left:var(--g3);right:var(--g3);bottom:calc(14px + var(--safe-bottom) + var(--keyboard-h,0px));height:var(--btn-h);background:linear-gradient(180deg,var(--tg-blue-light),var(--tg-blue));border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;color:var(--t1);font-size:15px;font-weight:600;letter-spacing:.005em;cursor:pointer;box-shadow:var(--shadow-btn-blue);z-index:20;gap:8px;transition:bottom var(--dur-sm) ease-out,transform var(--dur-xs) var(--ease),box-shadow var(--dur-xs) var(--ease),opacity var(--dur-xs),filter var(--dur-xs) ease;border:none;width:calc(100% - 24px);will-change:transform}
+.mbtn{position:absolute;left:var(--g3);right:var(--g3);bottom:calc(14px + var(--safe-bottom) + var(--keyboard-h,0px));height:var(--btn-h);padding:0 20px;background:linear-gradient(180deg,var(--tg-blue-light),var(--tg-blue));border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;white-space:nowrap;color:var(--t1);font-size:15px;font-weight:600;letter-spacing:.005em;cursor:pointer;box-shadow:var(--shadow-btn-blue);z-index:20;gap:8px;transition:bottom var(--dur-sm) ease-out,transform var(--dur-xs) var(--ease),box-shadow var(--dur-xs) var(--ease),opacity var(--dur-xs),filter var(--dur-xs) ease;border:none;width:calc(100% - 24px);will-change:transform}
 /* In-flow CTA: sits at the end of a form body instead of floating over it.
    Used by data-entry forms so the button never covers the focused field and
    never bounces with the keyboard. */
@@ -176,7 +211,13 @@ body{
 .mbtn:hover{transform:translateY(-1px);box-shadow:var(--shadow-btn-blue-hover)}
 .mbtn:active{animation:btnPress .28s var(--ease-spr) both;box-shadow:0 4px 14px rgba(34,158,217,.5);filter:brightness(0.92)}
 .mbtn.danger{background:linear-gradient(180deg,#FF6B61,#E24B4A);box-shadow:var(--shadow-btn-danger)}
-.mbtn.success{background:linear-gradient(180deg,#4ADB7A,var(--ok));box-shadow:var(--shadow-btn-success)}
+.mbtn.success{background:linear-gradient(180deg,var(--ok-light),var(--ok));box-shadow:var(--shadow-btn-success)}
+/* Per-variant hover/active glow — without these, green and red buttons inherit
+   the base .mbtn blue shadow on hover/press (looked off-brand). */
+.mbtn.success:hover{box-shadow:var(--shadow-btn-success-hover)}
+.mbtn.success:active{box-shadow:0 4px 14px rgba(52,199,89,.5)}
+.mbtn.danger:hover{box-shadow:var(--shadow-btn-danger-hover)}
+.mbtn.danger:active{box-shadow:0 4px 14px rgba(226,75,74,.5)}
 .mbtn.disabled{background:var(--glass-3);color:var(--t3);box-shadow:none;cursor:not-allowed;pointer-events:none}
 .mbtn.is-loading{pointer-events:none;color:transparent;position:relative;animation:btnPulse 1.2s ease-in-out infinite}
 .mbtn.is-loading::after{content:'';position:absolute;width:20px;height:20px;border:2.5px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;top:50%;left:50%;transform:translate(-50%,-50%)}

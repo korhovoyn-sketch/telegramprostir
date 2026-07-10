@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import {
   formatPrice, formatLeaseDate, formatLeasePeriod, formatDate,
   calcRent, calcUtilities, calcRentUtils, monthlyRent, rentUnitLabel, parkingTypeLabel,
-  getInitials, greeting, withRetry, humanizeDbError, safeFileName,
+  getInitials, greeting, withRetry, humanizeDbError, safeFileName, pluralUk, objectsWord,
 } from '@/lib/utils'
 
 describe('humanizeDbError', () => {
@@ -103,6 +103,29 @@ describe('rentUnitLabel', () => {
     expect(rentUnitLabel('fixed')).toBe('/міс')
     expect(rentUnitLabel(null)).toBe('/міс')
   })
+})
+
+describe('objectsWord (Ukrainian plural)', () => {
+  it('one form for 1, 21, 101 (but not 11)', () => {
+    expect(objectsWord(1)).toBe('об\'єкт')
+    expect(objectsWord(21)).toBe('об\'єкт')
+    expect(objectsWord(101)).toBe('об\'єкт')
+  })
+  it('few form for 2-4, 22-24 (but not 12-14)', () => {
+    expect(objectsWord(2)).toBe('об\'єкти')
+    expect(objectsWord(3)).toBe('об\'єкти')
+    expect(objectsWord(24)).toBe('об\'єкти')
+  })
+  it('many form for 0, 5-20, 11-14, 25', () => {
+    expect(objectsWord(0)).toBe('об\'єктів')
+    expect(objectsWord(5)).toBe('об\'єктів')
+    expect(objectsWord(11)).toBe('об\'єктів')
+    expect(objectsWord(12)).toBe('об\'єктів')
+    expect(objectsWord(14)).toBe('об\'єктів')
+    expect(objectsWord(25)).toBe('об\'єктів')
+  })
+  it('pluralUk picks the passed forms', () =>
+    expect(pluralUk(3, 'база', 'бази', 'баз')).toBe('бази'))
 })
 
 describe('parkingTypeLabel', () => {

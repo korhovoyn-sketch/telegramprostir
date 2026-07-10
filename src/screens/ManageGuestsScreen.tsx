@@ -163,14 +163,14 @@ export default function ManageGuestsScreen() {
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-                      <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--t1)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <span style={{ fontSize: 'var(--fs-note)', fontWeight: 'var(--fw-semi)', color: 'var(--t1)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {link.label ?? 'Гість'}
                       </span>
-                      <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 'var(--r-pill)', background: `${STATUS_COLOR[link.status]}22`, color: STATUS_COLOR[link.status], flexShrink: 0 }}>
+                      <span style={{ fontSize: 'var(--fs-cap2)', fontWeight: 'var(--fw-semi)', padding: '2px 8px', borderRadius: 'var(--r-pill)', background: `${STATUS_COLOR[link.status]}22`, color: STATUS_COLOR[link.status], flexShrink: 0 }}>
                         {STATUS_LABEL[link.status] ?? link.status}
                       </span>
                     </div>
-                    <div style={{ fontSize: 11, color: 'var(--t4)' }}>
+                    <div style={{ fontSize: 'var(--fs-cap2)', color: 'var(--t4)' }}>
                       {link.claimed_at
                         ? `Прийнято ${new Date(link.claimed_at).toLocaleDateString('uk-UA')}`
                         : `Створено ${new Date(link.created_at).toLocaleDateString('uk-UA')}`}
@@ -178,13 +178,13 @@ export default function ManageGuestsScreen() {
                     {link.status !== 'revoked' && (
                       <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
                         <button
-                          style={{ flex: 1, padding: '6px 0', borderRadius: 'var(--r-sm)', background: 'rgba(122,179,255,.14)', border: 'none', fontSize: 12, fontWeight: 600, color: 'var(--info)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
+                          style={{ flex: 1, padding: '6px 0', borderRadius: 'var(--r-sm)', background: 'rgba(122,179,255,.14)', border: 'none', fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', color: 'var(--info)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
                           onClick={() => handleShareLink(buildDeepLink(`guest_${link.invite_token}`))}
                         >
                           <IconLink size={12} />Поділитись
                         </button>
                         <button
-                          style={{ flex: 1, padding: '6px 0', borderRadius: 'var(--r-sm)', background: 'var(--err-bg)', border: 'none', fontSize: 12, fontWeight: 600, color: 'var(--err-fg)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, opacity: revoking === link.id ? .6 : 1 }}
+                          style={{ flex: 1, padding: '6px 0', borderRadius: 'var(--r-sm)', background: 'var(--err-bg)', border: 'none', fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', color: 'var(--err-fg)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, opacity: revoking === link.id ? .6 : 1 }}
                           disabled={revoking === link.id}
                           onClick={() => setRevokeTarget(link)}
                         >
@@ -262,7 +262,7 @@ export default function ManageGuestsScreen() {
             { label: 'Скопіювати', variant: 'secondary', onClick: () => { handleCopyLink(newLink); setNewLink(null) } },
           ]}
         >
-          <div style={{ wordBreak: 'break-all', fontSize: 12, color: 'var(--t3)', fontFamily: 'monospace', background: 'var(--glass-1)', borderRadius: 'var(--r-sm)', padding: '8px 10px', marginTop: 6 }}>
+          <div style={{ wordBreak: 'break-all', fontSize: 'var(--fs-cap1)', color: 'var(--t3)', fontFamily: 'monospace', background: 'var(--glass-1)', borderRadius: 'var(--r-sm)', padding: '8px 10px', marginTop: 6 }}>
             {newLink}
           </div>
         </Modal>

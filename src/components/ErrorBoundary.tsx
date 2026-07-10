@@ -35,8 +35,8 @@ export class ErrorBoundary extends Component<Props, State> {
           padding: 32, gap: 20, color: 'var(--t1)', textAlign: 'center'
         }}>
           <div style={{ fontSize: 64 }}>⚠️</div>
-          <div style={{ fontSize: 20, fontWeight: 700 }}>Щось пішло не так</div>
-          <div style={{ fontSize: 14, color: 'var(--t2)', maxWidth: 280, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 'var(--fs-t3)', fontWeight: 'var(--fw-bold)' }}>Щось пішло не так</div>
+          <div style={{ fontSize: 'var(--fs-note)', color: 'var(--t2)', maxWidth: 280, lineHeight: 1.5 }}>
             {this.state.error?.message ?? 'Невідома помилка'}
           </div>
           <button
@@ -47,7 +47,7 @@ export class ErrorBoundary extends Component<Props, State> {
             style={{
               marginTop: 8, padding: '12px 28px', borderRadius: 14,
               background: 'linear-gradient(135deg, #7B30EB, #3478F6)',
-              border: 'none', color: 'var(--t1)', fontSize: 15, fontWeight: 600,
+              border: 'none', color: 'var(--t1)', fontSize: 'var(--fs-sub)', fontWeight: 'var(--fw-semi)',
               cursor: 'pointer'
             }}
           >
