@@ -193,7 +193,7 @@ export default function QRScannerScreen() {
                 border: '1px solid rgba(255,255,255,.15)',
                 background: 'rgba(255,255,255,.08)',
                 color: 'var(--t1)',
-                fontSize: 'var(--fs-foot)',
+                fontSize: 'var(--fs-call)',
                 padding: '0 14px',
                 outline: 'none',
               }}
