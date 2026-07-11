@@ -3,6 +3,7 @@ import {
   formatPrice, formatLeaseDate, formatLeasePeriod, formatDate,
   calcRent, calcUtilities, calcRentUtils, monthlyRent, rentUnitLabel, parkingTypeLabel,
   getInitials, greeting, withRetry, humanizeDbError, safeFileName, pluralUk, objectsWord,
+  computedRentUnit,
 } from '@/lib/utils'
 
 describe('humanizeDbError', () => {
@@ -102,6 +103,16 @@ describe('rentUnitLabel', () => {
     expect(rentUnitLabel('per_day')).toBe('/добу')
     expect(rentUnitLabel('fixed')).toBe('/міс')
     expect(rentUnitLabel(null)).toBe('/міс')
+  })
+})
+
+describe('computedRentUnit', () => {
+  it('a computed monthly total is only ever /добу for per_day, else /міс', () => {
+    expect(computedRentUnit('per_day')).toBe('/добу')
+    // per_m2 is a RATE unit; once summed into a monthly total it reads /міс
+    expect(computedRentUnit('per_m2')).toBe('/міс')
+    expect(computedRentUnit('fixed')).toBe('/міс')
+    expect(computedRentUnit(null)).toBe('/міс')
   })
 })
 

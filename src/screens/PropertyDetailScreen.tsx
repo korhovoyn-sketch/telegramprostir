@@ -13,28 +13,13 @@ import { StatusBadge } from '@/components/ui/Badge'
 import { IconEdit, IconShare, IconMapPin, IconPhoto, IconX, IconCamera, IconRuler, IconBuildingSkyscraper, IconCircleCheck, IconCurrencyDollar, IconCarGarage, IconUser, IconKey, IconBolt, IconCalendar, IconFile } from '@/components/Icons'
 import FilesList from '@/components/ui/FilesList'
 import FloatingButton from '@/components/ui/FloatingButton'
-import { formatPrice, calcRent, calcUtilities, calcRentUtils, rentUnitLabel, parkingTypeLabel, STATUS_LABELS, formatLeasePeriod, photoUrl, daysUntil } from '@/lib/utils'
+import { formatPrice, calcRent, calcUtilities, calcRentUtils, rentUnitLabel, computedRentUnit, parkingTypeLabel, STATUS_LABELS, formatLeasePeriod, photoUrl, daysUntil } from '@/lib/utils'
 import { UTILITY_META } from '@/lib/utilityMeta'
 import { supabase } from '@/lib/supabase'
 
 function Building3DHero() {
   return (
     <svg viewBox="0 0 160 150" width="136" height="126" style={{ overflow: 'visible' }}>
-      <style>{`
-        @keyframes b3dFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-9px)} }
-        @keyframes b3dWinA  { 0%,82%,100%{opacity:.78} 88%{opacity:.15} }
-        @keyframes b3dWinB  { 0%,68%,100%{opacity:.48} 74%{opacity:.92} }
-        @keyframes b3dWinC  { 0%,56%,100%{opacity:.65} 62%{opacity:.18} }
-        @keyframes b3dSpark { 0%,100%{opacity:0} 50%{opacity:1} }
-        .b3d-g{animation:b3dFloat 3.8s ease-in-out infinite;transform-origin:80px 112px}
-        .b3d-wa{animation:b3dWinA 5.2s .3s ease-in-out infinite}
-        .b3d-wb{animation:b3dWinB 5.2s 1.1s ease-in-out infinite}
-        .b3d-wc{animation:b3dWinC 5.2s 2.0s ease-in-out infinite}
-        .b3d-wd{animation:b3dWinA 5.2s 2.8s ease-in-out infinite}
-        .b3d-s1{animation:b3dSpark 2.6s 0s ease-in-out infinite}
-        .b3d-s2{animation:b3dSpark 2.6s .9s ease-in-out infinite}
-        .b3d-s3{animation:b3dSpark 2.6s 1.7s ease-in-out infinite}
-      `}</style>
       <defs>
         <linearGradient id="b3dFr" x1="0" y1="0" x2=".08" y2="1">
           <stop offset="0%" stopColor="#4E87E8"/><stop offset="100%" stopColor="#1C3F8E"/>
@@ -307,7 +292,7 @@ export default function PropertyDetailScreen() {
           )}
 
           <div className="obj-hero-meta">
-            <div>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <div className="obj-hero-name">{property.name}</div>
             </div>
             {photos.length > 0 && (
@@ -383,7 +368,7 @@ export default function PropertyDetailScreen() {
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                   <IconCurrencyDollar size={13} color="var(--ok-fg)" />Оренда
                 </div>
-                <div className="obj-fv">{formatPrice(rent, user?.currency)}{rentUnitLabel(property.rent_type)}</div>
+                <div className="obj-fv">{formatPrice(rent, user?.currency)}{computedRentUnit(property.rent_type)}</div>
               </div>
             )}
             {property.sale_price != null && (
@@ -464,7 +449,7 @@ export default function PropertyDetailScreen() {
                   </span>
                   Оренда
                 </span>
-                <span style={{ color: 'var(--ok-fg)', fontWeight: 'var(--fw-semi)' }}>{formatPrice(rent, user?.currency)}{rentUnitLabel(property.rent_type)}</span>
+                <span style={{ color: 'var(--ok-fg)', fontWeight: 'var(--fw-semi)' }}>{formatPrice(rent, user?.currency)}{computedRentUnit(property.rent_type)}</span>
               </div>
             )}
             {utils > 0 && (

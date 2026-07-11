@@ -137,11 +137,20 @@ export function objectsWord(n: number): string {
   return pluralUk(n, 'об\'єкт', 'об\'єкти', 'об\'єктів')
 }
 
-// Unit suffix for a rent rate, shared by every surface that prints one.
+// Unit suffix for a rent RATE (the raw rent_rate value): per_m2 → /м²,
+// per_day → /добу, else → /міс. Use only next to the rate itself.
 export function rentUnitLabel(rentType: string | null | undefined): string {
   if (rentType === 'per_m2') return '/м²'
   if (rentType === 'per_day') return '/добу'
   return '/міс'
+}
+
+// Unit suffix for a COMPUTED rent amount (calcRent/monthlyRent output). per_m2
+// and fixed both compute a MONTHLY figure, so the unit is /міс — NOT /м² (that
+// would misread e.g. a $1 800 monthly total as $1 800 per square metre). per_day
+// computes a daily figure, so /добу.
+export function computedRentUnit(rentType: string | null | undefined): string {
+  return rentType === 'per_day' ? '/добу' : '/міс'
 }
 
 const PARKING_TYPE_LABELS: Record<string, string> = {

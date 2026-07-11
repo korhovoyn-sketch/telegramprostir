@@ -15,7 +15,7 @@ import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import Modal from '@/components/ui/Modal'
 import { IconPlus, IconDots, IconPhoto, IconShare, IconChevronUp, IconChevronDown, GlassDbIcon, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconFile, IconLayers, IconLayoutGrid, IconChartBar, IconKey, IconFileExport, IconCircleCheck, IconAdjustments, IconTrash, IconChevronRight } from '@/components/Icons'
 import DatabaseStatsPanel from '@/components/ui/DatabaseStatsPanel'
-import { formatPrice, calcRent, calcRentUtils, rentUnitLabel, objectsWord, DB_TYPE_LABELS, formatLeasePeriod } from '@/lib/utils'
+import { formatPrice, calcRent, calcRentUtils, computedRentUnit, objectsWord, DB_TYPE_LABELS, formatLeasePeriod } from '@/lib/utils'
 import type { PropertyStatus } from '@/types'
 import CoachMark from '@/components/ui/CoachMark'
 import { useOnboarding } from '@/hooks/useOnboarding'
@@ -328,7 +328,7 @@ export default function DatabaseObjectsScreen() {
               // daily rate (/добу); everything else shows the monthly total (/міс).
               const isDaily = p.rent_type === 'per_day'
               const dispVal = isDaily ? rent : total
-              const dispUnit = rentUnitLabel(p.rent_type)
+              const dispUnit = computedRentUnit(p.rent_type)
 
               if (compactView) {
                 const title = p.tenant_name?.trim() || p.name

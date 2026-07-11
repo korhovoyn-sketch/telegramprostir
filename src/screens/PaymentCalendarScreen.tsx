@@ -10,7 +10,7 @@ import Header from '@/components/ui/Header'
 import Modal from '@/components/ui/Modal'
 import { SkeletonList } from '@/components/ui/SkeletonLoader'
 import { IconCalendar, IconBellRing, IconCheckCircle, IconClock, IconPlus, IconTrash, IconFile } from '@/components/Icons'
-import { formatPrice, monthlyRent, humanizeDbError } from '@/lib/utils'
+import { formatPrice, monthlyRent, humanizeDbError, objectsWord } from '@/lib/utils'
 import type { Property, RentPayment, RentPaymentRecord } from '@/types'
 
 // Expected monthly rent for a property. rent_rate alone is WRONG for per_m2
@@ -495,7 +495,7 @@ export default function PaymentCalendarScreen() {
               <>
                 <div className="over">
                   <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconFile size={13} color="#fb923c" />Немає розкладу</span>
-                  <span className="over-a">{propsWithoutSchedule.length} об&apos;єктів</span>
+                  <span className="over-a">{propsWithoutSchedule.length} {objectsWord(propsWithoutSchedule.length)}</span>
                 </div>
                 <div className="list" style={{ marginBottom: 12 }}>
                   {propsWithoutSchedule.map(prop => (
