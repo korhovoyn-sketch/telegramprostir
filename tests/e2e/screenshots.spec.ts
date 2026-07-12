@@ -256,15 +256,18 @@ test('screens · public /v', async ({ page }) => {
     property_ev_charger: false, property_sale_price: null, share_expires_at: null,
     db_id: '1', db_name: 'БЦ Рубін', db_type: 'business_center', db_color: 'pink',
     owner_first_name: 'Микола', owner_last_name: 'К.', owner_tg_username: 'mykola',
-    owner_phone: '+380670000000', photos: [],
+    owner_phone: '+380670000000', owner_currency: 'USD', photos: [],
   }
   const DB_ROWS = [{
     db_id: '1', db_name: 'БЦ Рубін', db_type: 'business_center', db_color: 'pink',
     share_expires_at: null, property_id: '2', property_name: 'Офіс 101',
     property_status: 'free', property_floor: '3', property_area_useful: 100,
     property_area_total: 120, property_rent_type: 'per_m2', property_rent_rate: 18,
-    property_description: null, owner_first_name: 'Микола', owner_last_name: 'К.',
-    owner_tg_username: 'mykola', owner_phone: '+380670000000', first_photo: null,
+    property_sale_price: null,
+    property_description: 'Світлий офіс у центрі, панорамні вікна.',
+    owner_first_name: 'Микола', owner_last_name: 'К.',
+    owner_tg_username: 'mykola', owner_phone: '+380670000000', owner_currency: 'UAH',
+    first_photo: null,
   }]
   const COL_ROWS = [{
     collection_id: '4', collection_name: 'Підбірка для клієнта', share_expires_at: null,

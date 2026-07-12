@@ -131,7 +131,11 @@ export interface Collection {
 
 export interface PropertyView {
   id: string
-  property_id: string
+  // Null for db/collection open events (migration 040) — exactly one of
+  // property_id / db_id / collection_id is set per row.
+  property_id: string | null
+  db_id?: string | null
+  collection_id?: string | null
   viewer_id?: string
   viewer_name?: string
   action: NotificationAction

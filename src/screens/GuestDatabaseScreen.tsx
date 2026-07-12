@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAppStore } from '@/store/appStore'
 import { useAuth } from '@/hooks/useAuth'
-import { DB_TYPE_LABELS, rentUnitLabel } from '@/lib/utils'
+import { DB_TYPE_LABELS, rentUnitLabel, objectsWord, DB_COLORS } from '@/lib/utils'
 import { IconBuilding, IconRuler, IconCurrencyDollar } from '@/components/Icons'
 
 // Public DB preview (realtor flow)
@@ -313,9 +313,9 @@ export default function GuestDatabaseScreen() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{
               width: 36, height: 36, borderRadius: 10,
-              background: dbInfo?.db_color
-                ? `linear-gradient(135deg, ${dbInfo.db_color}, ${dbInfo.db_color}99)`
-                : 'linear-gradient(135deg,#7B30EB,#5B1FD4)',
+              // db_color is a named token — a raw `${color}99` interpolation is
+              // invalid CSS and drops the whole background
+              background: (dbInfo?.db_color && DB_COLORS[dbInfo.db_color]) || DB_COLORS.purple,
               flexShrink: 0,
             }} />
             <div>
@@ -335,7 +335,7 @@ export default function GuestDatabaseScreen() {
         <div style={{ padding: '0 16px 8px', fontSize: 'var(--fs-cap1)', color: 'var(--t3)' }}>
           {properties.length === 0
             ? 'Об\'єктів поки немає'
-            : `${properties.length} об'єкт${properties.length === 1 ? '' : properties.length < 5 ? 'и' : 'ів'}`}
+            : `${properties.length} ${objectsWord(properties.length)}`}
         </div>
 
         {properties.length > 0 && (

@@ -4,8 +4,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { TG_BOT, buildDeepLink } from '@/lib/telegram'
-import { IconBuilding, IconRuler, IconMapPin, IconCurrencyDollar } from '@/components/Icons'
-import { photoUrl, calcRentUtils, rentUnitLabel, parkingTypeLabel } from '@/lib/utils'
+import { IconBuilding, IconRuler, IconMapPin } from '@/components/Icons'
+import { photoUrl, calcRentUtils, rentUnitLabel, parkingTypeLabel, formatPrice, objectsWord, pluralUk, DB_COLORS } from '@/lib/utils'
 
 // ── data types returned by the RPCs ──────────────────────────────────────────
 
@@ -35,6 +35,8 @@ interface PropertyPreview {
   owner_last_name: string | null
   owner_tg_username: string | null
   owner_phone: string | null
+  // Optional until migration 040 is applied — the client must not assume them.
+  owner_currency?: string | null
   photos: string[]
 }
 
@@ -52,11 +54,13 @@ interface DbRow {
   property_area_total: number | null
   property_rent_type: string | null
   property_rent_rate: number | null
+  property_sale_price?: number | null
   property_description: string | null
   owner_first_name: string
   owner_last_name: string | null
   owner_tg_username: string | null
   owner_phone: string | null
+  owner_currency?: string | null
   first_photo: string | null
 }
 
@@ -76,7 +80,9 @@ interface ColRow {
   property_area_total: number | null
   property_rent_type: string | null
   property_rent_rate: number | null
+  property_sale_price?: number | null
   property_description: string | null
+  owner_currency?: string | null
   db_id: string | null
   db_name: string | null
   db_type: string | null
@@ -107,9 +113,11 @@ const DB_TYPE_LABEL: Record<string, string> = {
 }
 
 function fmtArea(a: number | null) { return a ? `${a} м²` : null }
-function fmtPrice(n: number | null, suffix = '') {
+// Currency comes from the owner's profile (migration 040); default to USD for
+// responses from a not-yet-migrated backend.
+function fmtPrice(n: number | null, currency?: string | null, suffix = '') {
   if (n == null) return null
-  return `$${n.toLocaleString('uk-UA')}${suffix}`
+  return `${formatPrice(n, currency ?? 'USD')}${suffix}`
 }
 
 // ── shared UI pieces ──────────────────────────────────────────────────────────
@@ -225,6 +233,26 @@ function GlobalStyles() {
 function PhotoGallery({ paths }: { paths: string[] }) {
   const [active, setActive] = useState(0)
   const touchStartX = useRef<number | null>(null)
+
+  // Prefetch neighbours so swiping/arrowing doesn't flash a blank frame on
+  // slow networks.
+  useEffect(() => {
+    for (const p of [paths[active + 1], paths[active - 1]]) {
+      if (p) new window.Image().src = photoUrl(p)
+    }
+  }, [active, paths])
+
+  // Desktop viewers get arrow-key navigation (buttons stay for touch/mouse).
+  useEffect(() => {
+    if (paths.length < 2) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') setActive(a => Math.max(0, a - 1))
+      else if (e.key === 'ArrowRight') setActive(a => Math.min(paths.length - 1, a + 1))
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [paths.length])
+
   if (paths.length === 0) return null
 
   function onTouchStart(e: React.TouchEvent) {
@@ -362,6 +390,9 @@ function ContactRow({ firstName, lastName, phone, tgUsername, label }: {
 function PropertyView({ data, token }: { data: PropertyPreview; token: string }) {
   const deepLink = buildDeepLink(`prop_${token}`)
   const status = data.property_status
+  const currency = data.owner_currency
+
+  useEffect(() => { document.title = `${data.property_name} — prostir` }, [data.property_name])
 
   // Use the same helper as the app so the public page shows an identical figure
   // (rounding + utilities keyed off total area, not useful area).
@@ -438,7 +469,7 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
         <div style={{ ...s.card, ...s.pad }}>
           <div style={s.sectionTitle}>Ціна продажу</div>
           <div className="num" style={{ fontSize: 28, fontWeight: 800, color: '#60a5fa', letterSpacing: '-.03em' }}>
-            {fmtPrice(data.property_sale_price)}
+            {fmtPrice(data.property_sale_price, currency)}
           </div>
         </div>
       ) : data.property_rent_rate ? (
@@ -452,14 +483,14 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: 13, color: 'rgba(255,255,255,.6)' }}>Оренда</span>
               <span style={{ fontSize: 17, fontWeight: 700 }}>
-                {fmtPrice(data.property_rent_rate, rentUnitLabel(data.property_rent_type))}
+                {fmtPrice(data.property_rent_rate, currency, rentUnitLabel(data.property_rent_type))}
               </span>
             </div>
             {data.property_utilities_rate && (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 13, color: 'rgba(255,255,255,.6)' }}>Комунальні</span>
                 <span style={{ fontSize: 17, fontWeight: 700 }}>
-                  {fmtPrice(data.property_utilities_rate, data.property_area_total ? '/м²' : '/міс')}
+                  {fmtPrice(data.property_utilities_rate, currency, data.property_area_total ? '/м²' : '/міс')}
                 </span>
               </div>
             )}
@@ -469,7 +500,7 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,.8)' }}>Разом / місяць</span>
                   <span className="num" style={{ fontSize: 22, fontWeight: 800, color: '#4ade80', letterSpacing: '-.02em' }}>
-                    {fmtPrice(rentTotal)}
+                    {fmtPrice(rentTotal, currency)}
                   </span>
                 </div>
               </>
@@ -512,7 +543,7 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
         <div style={{ ...s.card, ...s.pad }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: 'rgba(255,255,255,.75)' }}>
             <span style={{ fontSize: 18 }}>🅟</span>
-            Паркінг: {data.property_parking_spaces} {data.property_parking_spaces === 1 ? 'місце' : data.property_parking_spaces < 5 ? 'місця' : 'місць'}
+            Паркінг: {data.property_parking_spaces} {pluralUk(data.property_parking_spaces, 'місце', 'місця', 'місць')}
           </div>
         </div>
       )}
@@ -542,6 +573,11 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
 function DatabaseView({ rows, token }: { rows: DbRow[]; token: string }) {
   const deepLink = buildDeepLink(`db_${token}`)
   const info = rows[0]
+
+  useEffect(() => {
+    if (info) document.title = `${info.db_name} — prostir`
+  }, [info])
+
   if (!info) return null
   const properties = rows.filter(r => r.property_id !== null)
 
@@ -551,15 +587,18 @@ function DatabaseView({ rows, token }: { rows: DbRow[]; token: string }) {
 
       <div style={{ ...s.card, ...s.pad }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
+          {/* db_color is a named token ('purple', 'pink', …) — resolve through
+              DB_COLORS; interpolating it into a gradient produces invalid CSS
+              ('pink88') and the whole background silently drops. */}
           <div style={{
             width: 40, height: 40, borderRadius: 11, flexShrink: 0,
-            background: `linear-gradient(135deg,${info.db_color || '#7B30EB'},${info.db_color || '#7B30EB'}88)`,
+            background: DB_COLORS[info.db_color] ?? DB_COLORS.purple,
           }} />
           <div>
             <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-.02em' }}>{info.db_name}</div>
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', marginTop: 2 }}>
               {DB_TYPE_LABEL[info.db_type] ?? info.db_type}
-              {properties.length > 0 && ` • ${properties.length} об'єкт${properties.length === 1 ? '' : properties.length < 5 ? 'и' : 'ів'}`}
+              {properties.length > 0 && ` • ${properties.length} ${objectsWord(properties.length)}`}
             </div>
           </div>
           <span style={{
@@ -570,10 +609,12 @@ function DatabaseView({ rows, token }: { rows: DbRow[]; token: string }) {
         </div>
       </div>
 
-      {properties.length > 0 && (
+      {properties.length > 0 ? (
         <div style={{ margin: '0 12px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {/* Per-property share tokens are deliberately NOT exposed here — the
+              card leads into Telegram, where access is subscription-gated. */}
           {properties.map(p => (
-            <div key={p.property_id} style={{ ...s.card }}>
+            <a key={p.property_id} href={deepLink} className="v-btn" style={{ ...s.card, display: 'block', textDecoration: 'none', color: 'inherit' }}>
               <div style={{ display: 'flex', gap: 0, overflow: 'hidden' }}>
                 {p.first_photo && (
                   <div style={{ width: 90, flexShrink: 0 }}>
@@ -601,16 +642,33 @@ function DatabaseView({ rows, token }: { rows: DbRow[]; token: string }) {
                   <div style={{ display: 'flex', gap: 12, marginTop: 6, flexWrap: 'wrap' }}>
                     {p.property_floor && <span style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconBuilding size={11} color="rgba(255,255,255,.5)" />{p.property_floor} пов.</span>}
                     {p.property_area_useful && <span style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconRuler size={11} color="rgba(255,255,255,.5)" />{p.property_area_useful} м²</span>}
-                    {p.property_rent_rate && (
-                      <span style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                        <IconCurrencyDollar size={11} color="rgba(255,255,255,.5)" />{p.property_rent_rate.toLocaleString('uk-UA')}{rentUnitLabel(p.property_rent_type)}
+                    {p.property_status === 'for_sale' && p.property_sale_price ? (
+                      <span className="num" style={{ fontSize: 12, fontWeight: 700, color: '#60a5fa' }}>
+                        {fmtPrice(p.property_sale_price, p.owner_currency)}
                       </span>
-                    )}
+                    ) : p.property_rent_rate ? (
+                      <span className="num" style={{ fontSize: 12, fontWeight: 700, color: '#4ade80' }}>
+                        {fmtPrice(p.property_rent_rate, p.owner_currency, rentUnitLabel(p.property_rent_type))}
+                      </span>
+                    ) : null}
                   </div>
+                  {p.property_description && (
+                    <div style={{
+                      fontSize: 12, color: 'rgba(255,255,255,.45)', marginTop: 6, lineHeight: 1.4,
+                      display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+                    }}>
+                      {p.property_description}
+                    </div>
+                  )}
                 </div>
               </div>
-            </div>
+            </a>
           ))}
+        </div>
+      ) : (
+        <div style={{ ...s.card, ...s.pad, textAlign: 'center' }}>
+          <div style={{ fontSize: 28, marginBottom: 8 }}>🏢</div>
+          <div style={{ fontSize: 14, color: 'rgba(255,255,255,.6)' }}>У базі поки немає об&apos;єктів</div>
         </div>
       )}
 
@@ -637,6 +695,11 @@ function DatabaseView({ rows, token }: { rows: DbRow[]; token: string }) {
 function CollectionView({ rows, token }: { rows: ColRow[]; token: string }) {
   const deepLink = buildDeepLink(`col_${token}`)
   const info = rows[0]
+
+  useEffect(() => {
+    if (info) document.title = `${info.collection_name} — prostir`
+  }, [info])
+
   if (!info) return null
   const properties = rows.filter(r => r.property_id !== null)
 
@@ -649,14 +712,14 @@ function CollectionView({ rows, token }: { rows: ColRow[]; token: string }) {
         <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-.02em', marginBottom: 6 }}>{info.collection_name}</div>
         <div style={{ fontSize: 13, color: 'rgba(255,255,255,.5)' }}>
           {[info.realtor_first_name, info.realtor_last_name].filter(Boolean).join(' ')} •{' '}
-          {properties.length} об&apos;єкт{properties.length === 1 ? '' : properties.length < 5 ? 'и' : 'ів'}
+          {properties.length} {objectsWord(properties.length)}
         </div>
       </div>
 
-      {properties.length > 0 && (
+      {properties.length > 0 ? (
         <div style={{ margin: '0 12px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {properties.map(p => (
-            <div key={p.property_id} style={{ ...s.card }}>
+            <a key={p.property_id} href={deepLink} className="v-btn" style={{ ...s.card, display: 'block', textDecoration: 'none', color: 'inherit' }}>
               <div style={{ display: 'flex', gap: 0, overflow: 'hidden' }}>
                 {p.first_photo && (
                   <div style={{ width: 90, flexShrink: 0 }}>
@@ -685,16 +748,33 @@ function CollectionView({ rows, token }: { rows: ColRow[]; token: string }) {
                     {[
                       p.property_floor ? `${p.property_floor} пов.` : null,
                       fmtArea(p.property_area_useful),
-                      p.property_rent_rate ? fmtPrice(p.property_rent_rate, rentUnitLabel(p.property_rent_type)) : null,
+                      p.property_status === 'for_sale' && p.property_sale_price
+                        ? fmtPrice(p.property_sale_price, p.owner_currency)
+                        : p.property_rent_rate
+                          ? fmtPrice(p.property_rent_rate, p.owner_currency, rentUnitLabel(p.property_rent_type))
+                          : null,
                     ].filter(Boolean).join(' • ')}
                   </div>
+                  {p.property_description && (
+                    <div style={{
+                      fontSize: 11, color: 'rgba(255,255,255,.4)', marginTop: 4, lineHeight: 1.4,
+                      display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+                    }}>
+                      {p.property_description}
+                    </div>
+                  )}
                   {p.db_name && (
                     <div style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', marginTop: 4 }}>{p.db_name}</div>
                   )}
                 </div>
               </div>
-            </div>
+            </a>
           ))}
+        </div>
+      ) : (
+        <div style={{ ...s.card, ...s.pad, textAlign: 'center' }}>
+          <div style={{ fontSize: 28, marginBottom: 8 }}>🔖</div>
+          <div style={{ fontSize: 14, color: 'rgba(255,255,255,.6)' }}>У підбірці поки немає об&apos;єктів</div>
         </div>
       )}
 
@@ -820,6 +900,11 @@ export default function ViewerPage() {
           return
         }
         setState({ status: 'db', rows: data as DbRow[], token: db })
+
+        // Fire-and-forget, like the property branch. Requires migration 040
+        // (record_public_view with p_kind); on an older backend the call just
+        // errors and is ignored.
+        supabase.rpc('record_public_view', { p_token: db, p_kind: 'db' }).then(() => {/* ignore */}, () => {/* ignore */})
         return
       }
 
@@ -831,6 +916,7 @@ export default function ViewerPage() {
           return
         }
         setState({ status: 'col', rows: data as ColRow[], token: col })
+        supabase.rpc('record_public_view', { p_token: col, p_kind: 'col' }).then(() => {/* ignore */}, () => {/* ignore */})
       }
     }
 

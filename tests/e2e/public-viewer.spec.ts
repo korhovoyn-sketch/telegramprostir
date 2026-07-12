@@ -36,22 +36,47 @@ const PROP_PREVIEW = {
   owner_last_name: 'К.',
   owner_tg_username: 'mykola',
   owner_phone: '+380670000000',
+  owner_currency: 'USD',
   photos: [],
+}
+
+const DB_ROW_BASE = {
+  db_id: '10000000-0000-0000-0000-000000000001', db_name: 'БЦ Рубін',
+  db_type: 'business_center', db_color: 'pink', share_expires_at: NOW_PLUS,
+  owner_first_name: 'Микола', owner_last_name: 'К.',
+  owner_tg_username: 'mykola', owner_phone: '+380670000000',
+  owner_currency: 'UAH',
+  first_photo: null,
 }
 
 const DB_ROWS = [
   {
-    db_id: '10000000-0000-0000-0000-000000000001', db_name: 'БЦ Рубін',
-    db_type: 'business_center', db_color: 'pink', share_expires_at: NOW_PLUS,
+    ...DB_ROW_BASE,
     property_id: '20000000-0000-0000-0000-000000000001', property_name: 'Офіс 101',
     property_status: 'free', property_floor: '3', property_area_useful: 100,
     property_area_total: 120, property_rent_type: 'per_m2', property_rent_rate: 18,
+    property_sale_price: null,
+    property_description: 'Світлий офіс у самому центрі міста, панорамні вікна.',
+  },
+  {
+    ...DB_ROW_BASE,
+    property_id: '20000000-0000-0000-0000-000000000003', property_name: 'Офіс 202',
+    property_status: 'for_sale', property_floor: '4', property_area_useful: 80,
+    property_area_total: 90, property_rent_type: 'per_m2', property_rent_rate: null,
+    property_sale_price: 85000,
     property_description: null,
-    owner_first_name: 'Микола', owner_last_name: 'К.',
-    owner_tg_username: 'mykola', owner_phone: '+380670000000',
-    first_photo: null,
   },
 ]
+
+// A DB with zero objects: the RPC's LEFT JOIN returns one row with NULL
+// property fields.
+const DB_ROWS_EMPTY = [{
+  ...DB_ROW_BASE,
+  property_id: null, property_name: null, property_status: null,
+  property_floor: null, property_area_useful: null, property_area_total: null,
+  property_rent_type: null, property_rent_rate: null, property_sale_price: null,
+  property_description: null,
+}]
 
 const COL_ROWS = [
   {
@@ -61,6 +86,7 @@ const COL_ROWS = [
     property_id: '20000000-0000-0000-0000-000000000002', property_name: 'Квартира 12',
     property_status: 'free', property_floor: '5', property_area_useful: 60,
     property_area_total: 65, property_rent_type: 'per_m2', property_rent_rate: 15,
+    property_sale_price: null, owner_currency: 'EUR',
     property_description: null, db_id: '10000000-0000-0000-0000-000000000001',
     db_name: 'ЖК Липки', db_type: 'residential', db_color: 'blue', first_photo: null,
   },
@@ -90,6 +116,11 @@ test('/v?prop — renders a shared property preview', async ({ page }) => {
 test('/v?db — renders a shared database preview with its objects', async ({ page }) => {
   await stubTelegram(page)
   await page.route('**/rest/v1/rpc/get_public_db_preview', (route) => json(route, DB_ROWS))
+  let recordedKind: string | undefined
+  await page.route('**/rest/v1/rpc/record_public_view', (route) => {
+    recordedKind = JSON.parse(route.request().postData() ?? '{}').p_kind
+    return json(route, true)
+  })
 
   await page.goto('/v/?db=aabbccddeeff001122334455')
 
@@ -98,17 +129,48 @@ test('/v?db — renders a shared database preview with its objects', async ({ pa
   // Owner contact must be reachable for a visitor without Telegram (037/P1)
   await expect(page.getByText('Микола К.', { exact: true })).toBeVisible()
   await expect(page.getByText('@mykola')).toBeVisible()
+
+  // 040: owner currency (UAH → ₴, not a hardcoded $) on the rent rate
+  await expect(page.getByText(/₴18\/м²/)).toBeVisible()
+  // 040: a for-sale object shows its sale price in the list
+  await expect(page.getByText(/₴85/)).toBeVisible()
+  // Correct Ukrainian plural for 2
+  await expect(page.getByText(/2 об'єкти/)).toBeVisible()
+  // Card description (clamped) renders
+  await expect(page.getByText(/панорамні вікна/)).toBeVisible()
+  // 040: the db open is recorded with p_kind='db'
+  await expect.poll(() => recordedKind, { timeout: 10_000 }).toBe('db')
+})
+
+test('/v?db — empty database shows an explanatory empty state', async ({ page }) => {
+  await stubTelegram(page)
+  await page.route('**/rest/v1/rpc/get_public_db_preview', (route) => json(route, DB_ROWS_EMPTY))
+  await page.route('**/rest/v1/rpc/record_public_view', (route) => json(route, true))
+
+  await page.goto('/v/?db=aabbccddeeff001122334455')
+
+  await expect(page.getByText('БЦ Рубін')).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByText('У базі поки немає об\'єктів')).toBeVisible()
 })
 
 test('/v?col — renders a shared collection preview', async ({ page }) => {
   await stubTelegram(page)
   await page.route('**/rest/v1/rpc/get_public_collection_preview', (route) => json(route, COL_ROWS))
+  let recordedKind: string | undefined
+  await page.route('**/rest/v1/rpc/record_public_view', (route) => {
+    recordedKind = JSON.parse(route.request().postData() ?? '{}').p_kind
+    return json(route, true)
+  })
 
   await page.goto('/v/?col=aabbccddeeff001122334455')
 
   await expect(page.getByText('Підбірка для клієнта')).toBeVisible({ timeout: 20_000 })
   await expect(page.getByText('Квартира 12')).toBeVisible()
   await expect(page.getByText('Олена Р.', { exact: true })).toBeVisible() // realtor name
+  // 040: property owner's currency (EUR), 1-object plural
+  await expect(page.getByText(/€15\/м²/)).toBeVisible()
+  await expect(page.getByText(/1 об'єкт(?!и|ів)/)).toBeVisible()
+  await expect.poll(() => recordedKind, { timeout: 10_000 }).toBe('col')
 })
 
 test('/v with no params shows a "no params" error', async ({ page }) => {
@@ -139,6 +201,7 @@ test('/v?prop not found (empty result) shows expired/not-found error', async ({ 
 
 test('/v?db network failure shows a retryable error, then succeeds on retry', async ({ page }) => {
   await stubTelegram(page)
+  await page.route('**/rest/v1/rpc/record_public_view', (route) => json(route, true))
   let firstCall = true
   await page.route('**/rest/v1/rpc/get_public_db_preview', (route) => {
     if (firstCall) { firstCall = false; return route.abort('failed') } // → postgrest status 0
