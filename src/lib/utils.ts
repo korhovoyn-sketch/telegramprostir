@@ -174,6 +174,34 @@ export function nextCopyName(base: string, taken: string[]): string {
   return candidate
 }
 
+// Sequence of names for bulk creation: a trailing number becomes the start of
+// a run («Офіс 101» ×3 → 101, 102, 103, zero-padding preserved), otherwise an
+// index is appended («Місце» ×3 → «Місце 1..3»). Taken names are skipped.
+export function bulkCreateNames(base: string, count: number, taken: string[]): string[] {
+  const trimmed = base.trim()
+  if (count <= 1) return [trimmed]
+  const has = new Set(taken)
+  const names: string[] = []
+  const m = trimmed.match(/^(.*?)(\d+)\s*$/)
+  if (m) {
+    const pad = m[2].length
+    let n = parseInt(m[2], 10) - 1
+    while (names.length < count) {
+      n += 1
+      const candidate = `${m[1]}${String(n).padStart(pad, '0')}`
+      if (!has.has(candidate)) names.push(candidate)
+    }
+  } else {
+    let i = 0
+    while (names.length < count) {
+      i += 1
+      const candidate = `${trimmed} ${i}`
+      if (!has.has(candidate)) names.push(candidate)
+    }
+  }
+  return names
+}
+
 const PARKING_TYPE_LABELS: Record<string, string> = {
   underground: 'Підземний',
   covered: 'Критий',

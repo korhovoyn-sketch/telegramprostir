@@ -124,6 +124,32 @@ export function useProperties(dbId?: string) {
     }
   }, [user, showToast, backThenReplace])
 
+  // Bulk create — one INSERT for the whole batch (e.g. 10 parking spots at
+  // once), so it's a single round-trip and either all rows land or none.
+  const createProperties = useCallback(async (
+    payloads: Omit<Property, 'id' | 'owner_id' | 'created_at' | 'updated_at' | 'photos'>[]
+  ): Promise<boolean> => {
+    if (!user || payloads.length === 0) return false
+    setLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from('properties')
+        .insert(payloads.map(p => ({ ...p, owner_id: user.id })))
+        .select(PROPERTY_WITH_PHOTOS)
+
+      if (error) throw error
+      setProperties((prev) => [...((data ?? []) as Property[]), ...prev])
+      showToast({ type: 'success', title: `Додано ${payloads.length} ${objectsWord(payloads.length)}` })
+      backThenReplace('db-objects', { dbId: payloads[0].db_id })
+      return true
+    } catch (e) {
+      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
+      return false
+    } finally {
+      setLoading(false)
+    }
+  }, [user, showToast, backThenReplace])
+
   const updateProperty = useCallback(async (
     id: string,
     payload: Partial<Property>,
@@ -348,6 +374,7 @@ export function useProperties(dbId?: string) {
     loadProperties,
     loadSingleProperty,
     createProperty,
+    createProperties,
     updateProperty,
     cycleStatus,
     reorderProperty,

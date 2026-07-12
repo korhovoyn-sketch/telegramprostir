@@ -3,7 +3,7 @@ import {
   formatPrice, formatLeaseDate, formatLeasePeriod, formatDate,
   calcRent, calcUtilities, calcRentUtils, monthlyRent, rentUnitLabel, parkingTypeLabel,
   getInitials, greeting, withRetry, humanizeDbError, safeFileName, pluralUk, objectsWord,
-  computedRentUnit, nextCopyName,
+  computedRentUnit, nextCopyName, bulkCreateNames,
 } from '@/lib/utils'
 
 describe('humanizeDbError', () => {
@@ -150,6 +150,23 @@ describe('nextCopyName', () => {
   it('appends «копія» when there is no trailing number', () => {
     expect(nextCopyName('Склад', ['Склад'])).toBe('Склад (копія)')
     expect(nextCopyName('Склад', ['Склад', 'Склад (копія)'])).toBe('Склад (копія 2)')
+  })
+})
+
+describe('bulkCreateNames', () => {
+  it('runs a numeric sequence from the entered name, padding preserved', () => {
+    expect(bulkCreateNames('Офіс 101', 3, [])).toEqual(['Офіс 101', 'Офіс 102', 'Офіс 103'])
+    expect(bulkCreateNames('A-08', 3, [])).toEqual(['A-08', 'A-09', 'A-10'])
+  })
+  it('skips taken names inside the run', () => {
+    expect(bulkCreateNames('Офіс 101', 3, ['Офіс 102'])).toEqual(['Офіс 101', 'Офіс 103', 'Офіс 104'])
+  })
+  it('appends an index when there is no trailing number', () => {
+    expect(bulkCreateNames('Місце', 3, [])).toEqual(['Місце 1', 'Місце 2', 'Місце 3'])
+    expect(bulkCreateNames('Місце', 2, ['Місце 1'])).toEqual(['Місце 2', 'Місце 3'])
+  })
+  it('count 1 returns just the trimmed name', () => {
+    expect(bulkCreateNames(' Офіс 5 ', 1, [])).toEqual(['Офіс 5'])
   })
 })
 

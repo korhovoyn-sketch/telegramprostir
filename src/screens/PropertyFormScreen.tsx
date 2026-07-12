@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { hapticSelection, hapticNotify } from '@/lib/telegram'
 import { offlineGuard } from '@/lib/offline'
@@ -9,10 +9,10 @@ import { useMainButton } from '@/hooks/useMainButton'
 import Header from '@/components/ui/Header'
 import Toggle from '@/components/ui/Toggle'
 import Modal from '@/components/ui/Modal'
-import { IconRuler, IconLayers, IconActivity, IconBuilding, IconCurrencyDollar, IconBolt, IconCarGarage, IconFile, IconUser, IconKey, IconMapPin } from '@/components/Icons'
+import { IconRuler, IconLayers, IconLayoutGrid, IconActivity, IconBuilding, IconCurrencyDollar, IconBolt, IconCarGarage, IconFile, IconUser, IconKey, IconMapPin } from '@/components/Icons'
 import { UTILITY_META } from '@/lib/utilityMeta'
 import FilesList from '@/components/ui/FilesList'
-import { formatPrice, calcRent, calcUtilities, rentUnitLabel, nextCopyName, scrollFocusedIntoView } from '@/lib/utils'
+import { formatPrice, calcRent, calcUtilities, rentUnitLabel, nextCopyName, bulkCreateNames, objectsWord, scrollFocusedIntoView } from '@/lib/utils'
 import type { PropertyStatus, RentType, ParkingType } from '@/types'
 
 const PARKING_TYPES: { v: ParkingType; l: string }[] = [
@@ -23,7 +23,7 @@ const PARKING_TYPES: { v: ParkingType; l: string }[] = [
 
 export default function PropertyFormScreen() {
   const { screenParams, backThenReplace, showToast, user, isOnline, databases } = useAppStore()
-  const { properties, loadProperties, createProperty, updateProperty, deleteProperty, loading } = useProperties(screenParams.dbId)
+  const { properties, loadProperties, createProperty, createProperties, updateProperty, deleteProperty, loading } = useProperties(screenParams.dbId)
 
   const editId = screenParams.propertyId
   const isEdit = !!editId
@@ -58,6 +58,9 @@ export default function PropertyFormScreen() {
   const [address, setAddress] = useState('')
   const [utilities, setUtilities] = useState<string[]>([])
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  // Bulk creation: how many objects to create from this one form (create mode
+  // only). Names are auto-numbered from the entered name.
+  const [count, setCount] = useState(1)
 
   useEffect(() => {
     const tg = window.Telegram?.WebApp
@@ -218,10 +221,21 @@ export default function PropertyFormScreen() {
 
   const canSave = name.trim().length > 0
 
+  const BULK_MAX = 50
+  const bulkNames = useMemo(
+    () => (!isEdit && count > 1 && name.trim()
+      ? bulkCreateNames(name, count, properties.map(p => p.name))
+      : null),
+    [isEdit, count, name, properties],
+  )
+  const saveLabel = isEdit
+    ? 'Зберегти зміни'
+    : count > 1 ? `Додати ${count} ${objectsWord(count)}` : 'Додати об\'єкт'
+
   // Native Telegram MainButton is the primary action; the DOM button below is
   // the fallback for browsers outside Telegram.
   const nativeMain = useMainButton({
-    text: isEdit ? 'Зберегти зміни' : 'Додати об\'єкт',
+    text: saveLabel,
     visible: true,
     enabled: canSave,
     loading,
@@ -309,6 +323,10 @@ export default function PropertyFormScreen() {
       // then lands on property-detail fresh — so back() from detail goes to db-objects,
       // not to a stale duplicate detail entry.
       backThenReplace('property-detail', { propertyId: editId, dbId: screenParams.dbId })
+    } else if (count > 1 && bulkNames) {
+      // Bulk: same fields for every row, names auto-numbered from the entered one.
+      const ok = await createProperties(bulkNames.map(n => ({ ...payload, name: n })))
+      if (ok && draftKey) localStorage.removeItem(draftKey)
     } else {
       const ok = await createProperty(payload)
       if (ok && draftKey) localStorage.removeItem(draftKey)
@@ -342,6 +360,40 @@ export default function PropertyFormScreen() {
             <span className="fr-l">{isParking ? 'Номер місця' : 'Назва'}</span>
             <input className="fr-i" placeholder={isParking ? '№ 42, A-15' : 'Офіс 101'} maxLength={100} value={name} onChange={e => setName(e.target.value)} autoFocus={!isEdit} />
           </div>
+          {!isEdit && (
+            <div className="fr">
+              <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <IconLayoutGrid size={13} color="var(--t3)" />Кількість
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <button
+                  aria-label="Менше об'єктів"
+                  onClick={() => { hapticSelection(); setCount(c => Math.max(1, c - 1)) }}
+                  disabled={count <= 1}
+                  style={{
+                    width: 32, height: 32, borderRadius: 'var(--r-10)',
+                    background: 'var(--glass-2)', border: '.5px solid var(--glass-bd)',
+                    color: count <= 1 ? 'var(--t4)' : 'var(--t1)',
+                    fontSize: 'var(--fs-lead)', lineHeight: 1, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}
+                >−</button>
+                <span className="num" style={{ minWidth: 28, textAlign: 'center', fontSize: 'var(--fs-call)', fontWeight: 'var(--fw-semi)', color: 'var(--t1)' }}>{count}</span>
+                <button
+                  aria-label="Більше об'єктів"
+                  onClick={() => { hapticSelection(); setCount(c => Math.min(BULK_MAX, c + 1)) }}
+                  disabled={count >= BULK_MAX}
+                  style={{
+                    width: 32, height: 32, borderRadius: 'var(--r-10)',
+                    background: 'var(--glass-2)', border: '.5px solid var(--glass-bd)',
+                    color: count >= BULK_MAX ? 'var(--t4)' : 'var(--t1)',
+                    fontSize: 'var(--fs-lead)', lineHeight: 1, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}
+                >+</button>
+              </div>
+            </div>
+          )}
           <div className="fr">
             <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconLayers size={13} color="var(--t3)" />{isParking ? 'Рівень / поверх' : 'Поверх'}</span>
             <input className="fr-i" type="text" inputMode="text" placeholder={isParking ? '-1, 2, підвал' : '1, 2, B-1, МП'} maxLength={20} value={floor} onChange={e => setFloor(e.target.value)} />
@@ -363,6 +415,15 @@ export default function PropertyFormScreen() {
             </div>
           </div>
         </div>
+
+        {/* Bulk preview: which names the batch will get */}
+        {bulkNames && (
+          <div style={{ margin: '-8px 12px 16px', padding: '0 4px', fontSize: 'var(--fs-cap1)', color: 'var(--t3)', lineHeight: 1.5 }}>
+            Буде створено: {bulkNames.length <= 4
+              ? bulkNames.join(', ')
+              : `${bulkNames.slice(0, 3).join(', ')} … ${bulkNames[bulkNames.length - 1]}`}
+          </div>
+        )}
 
         {/* Sale price — shown only when for_sale */}
         {status === 'for_sale' && (
@@ -578,7 +639,7 @@ export default function PropertyFormScreen() {
             onClick={handleSave}
             disabled={!canSave || loading}
           >
-            {!loading && (isEdit ? 'Зберегти зміни' : 'Додати об\'єкт')}
+            {!loading && saveLabel}
           </button>
         )}
       </div>
