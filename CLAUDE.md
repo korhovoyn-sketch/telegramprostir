@@ -272,6 +272,25 @@ This sandboxed environment has **no Playwright browser binaries** (`apt` returns
 
 ## Pending manual actions (зробити в Supabase Dashboard)
 
+### 0c. Публічний /v — валюта, ціна продажу, порядок, перегляди — виконати SQL в Dashboard → SQL Editor
+
+Файл: `supabase/migrations/040_public_preview_fixes.sql` (застосовувати ПІСЛЯ 039 —
+040 перевизначає `get_public_property_preview` включно з паркінг-полями з 039).
+
+Що робить:
+- Усі три `get_public_*_preview` віддають `owner_currency` — `/v` більше не
+  показує «$» власнику, який веде ціни в ₴/€ (до міграції клієнт фолбечиться на USD).
+- `get_public_db_preview`/`get_public_collection_preview` віддають
+  `property_sale_price` — картка «Продаж» у публічному списку має цифру.
+- Порядок списків: база — `sort_order` (як у застосунку), підбірка — порядок
+  додавання рієлтором (було лексикографічне `ORDER BY p.name`).
+- `record_public_view(p_token, p_kind)` — рахує відкриття бази/підбірки
+  (нові nullable-колонки `db_id`/`collection_id` в `property_views` + RLS
+  select-політики для власника/рієлтора). Стара 1-арг сигнатура дропається.
+
+Без 040 нічого не ламається: клієнт трактує нові поля як опціональні, а
+fire-and-forget виклики `record_public_view` з `p_kind` просто ігноруються.
+
 ### 0b. Паркінг-поля об'єктів — виконати SQL в Dashboard → SQL Editor
 
 Файл: `supabase/migrations/039_parking_fields.sql`

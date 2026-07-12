@@ -6,7 +6,7 @@ import { useAppStore } from '@/store/appStore'
 import { StatusBadge } from '@/components/ui/Badge'
 import Header from '@/components/ui/Header'
 import { IconBuilding } from '@/components/Icons'
-import { formatPrice, calcRent, rentUnitLabel, photoUrl } from '@/lib/utils'
+import { formatPrice, calcRent, computedRentUnit, photoUrl } from '@/lib/utils'
 import type { PropertyStatus, RentType } from '@/types'
 
 interface SharedProperty {
@@ -123,7 +123,7 @@ export default function SharedCollectionScreen() {
                       {p.floor && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconBuilding size={10} color="var(--t3)" />{p.floor} пов.</span>}
                       {rent > 0 && (
                         <span style={{ color: 'var(--t2)', fontWeight: 'var(--fw-semi)' }}>
-                          {formatPrice(rent, currency)}{rentUnitLabel(p.rent_type)}
+                          {formatPrice(rent, currency)}{computedRentUnit(p.rent_type)}
                         </span>
                       )}
                     </div>

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useMemo, type ReactNode } from 'react'
-import { monthlyRent, calcUtilities, formatPrice } from '@/lib/utils'
+import { monthlyRent, calcUtilities, formatPrice, objectsWord } from '@/lib/utils'
 import type { Property } from '@/types'
 
 interface Props {
@@ -222,7 +222,7 @@ export default function DatabaseStatsPanel({ properties, currency = 'USD' }: Pro
       icon: ICON_DOLLAR,
       label: 'Оренда / міс',
       value: formatPrice(animRent, currency),
-      sub: `${stats.occupiedCount} об'єктів`,
+      sub: `${stats.occupiedCount} ${objectsWord(stats.occupiedCount)}`,
       accentBg: 'rgba(52,199,89,.13)',
       accentBorder: 'rgba(52,199,89,.26)',
     } satisfies CardData] : []),

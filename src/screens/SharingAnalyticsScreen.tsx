@@ -71,6 +71,22 @@ export default function SharingAnalyticsScreen() {
             if (error) throw error
             viewData = (data ?? []) as PropertyView[]
           }
+
+          // Public opens of the DB itself (/v?db=…) live in rows keyed by
+          // db_id (migration 040). Best-effort: on an older backend the
+          // column doesn't exist and the query errors — just skip it.
+          const { data: dbOpens } = await supabase
+            .from('property_views')
+            .select('id,property_id,viewer_id,viewer_name,action,created_at')
+            .eq('db_id', screenParams.dbId)
+            .gte('created_at', thirtyDaysAgo)
+            .order('created_at', { ascending: false })
+            .limit(200)
+          if (dbOpens?.length) {
+            viewData = [...viewData, ...(dbOpens as PropertyView[])]
+              .sort((a, b) => b.created_at.localeCompare(a.created_at))
+              .slice(0, 200)
+          }
         }
 
         if (cancelled) return

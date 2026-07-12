@@ -3,6 +3,7 @@ import {
   formatPrice, formatLeaseDate, formatLeasePeriod, formatDate,
   calcRent, calcUtilities, calcRentUtils, monthlyRent, rentUnitLabel, parkingTypeLabel,
   getInitials, greeting, withRetry, humanizeDbError, safeFileName, pluralUk, objectsWord,
+  computedRentUnit, nextCopyName, bulkCreateNames,
 } from '@/lib/utils'
 
 describe('humanizeDbError', () => {
@@ -105,6 +106,16 @@ describe('rentUnitLabel', () => {
   })
 })
 
+describe('computedRentUnit', () => {
+  it('a computed monthly total is only ever /добу for per_day, else /міс', () => {
+    expect(computedRentUnit('per_day')).toBe('/добу')
+    // per_m2 is a RATE unit; once summed into a monthly total it reads /міс
+    expect(computedRentUnit('per_m2')).toBe('/міс')
+    expect(computedRentUnit('fixed')).toBe('/міс')
+    expect(computedRentUnit(null)).toBe('/міс')
+  })
+})
+
 describe('objectsWord (Ukrainian plural)', () => {
   it('one form for 1, 21, 101 (but not 11)', () => {
     expect(objectsWord(1)).toBe('об\'єкт')
@@ -126,6 +137,37 @@ describe('objectsWord (Ukrainian plural)', () => {
   })
   it('pluralUk picks the passed forms', () =>
     expect(pluralUk(3, 'база', 'бази', 'баз')).toBe('бази'))
+})
+
+describe('nextCopyName', () => {
+  it('increments a trailing number and keeps zero-padding', () => {
+    expect(nextCopyName('Офіс 101', ['Офіс 101'])).toBe('Офіс 102')
+    expect(nextCopyName('A-09', ['A-09'])).toBe('A-10')
+  })
+  it('skips names that are already taken', () => {
+    expect(nextCopyName('Офіс 101', ['Офіс 101', 'Офіс 102', 'Офіс 103'])).toBe('Офіс 104')
+  })
+  it('appends «копія» when there is no trailing number', () => {
+    expect(nextCopyName('Склад', ['Склад'])).toBe('Склад (копія)')
+    expect(nextCopyName('Склад', ['Склад', 'Склад (копія)'])).toBe('Склад (копія 2)')
+  })
+})
+
+describe('bulkCreateNames', () => {
+  it('runs a numeric sequence from the entered name, padding preserved', () => {
+    expect(bulkCreateNames('Офіс 101', 3, [])).toEqual(['Офіс 101', 'Офіс 102', 'Офіс 103'])
+    expect(bulkCreateNames('A-08', 3, [])).toEqual(['A-08', 'A-09', 'A-10'])
+  })
+  it('skips taken names inside the run', () => {
+    expect(bulkCreateNames('Офіс 101', 3, ['Офіс 102'])).toEqual(['Офіс 101', 'Офіс 103', 'Офіс 104'])
+  })
+  it('appends an index when there is no trailing number', () => {
+    expect(bulkCreateNames('Місце', 3, [])).toEqual(['Місце 1', 'Місце 2', 'Місце 3'])
+    expect(bulkCreateNames('Місце', 2, ['Місце 1'])).toEqual(['Місце 2', 'Місце 3'])
+  })
+  it('count 1 returns just the trimmed name', () => {
+    expect(bulkCreateNames(' Офіс 5 ', 1, [])).toEqual(['Офіс 5'])
+  })
 })
 
 describe('parkingTypeLabel', () => {

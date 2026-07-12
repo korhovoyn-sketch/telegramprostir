@@ -207,3 +207,38 @@ test('owner: calendar, guests, notifications, profile screens open cleanly', asy
   await page.locator('.tabbar [aria-label="Профіль"]').click()
   await expect(page.getByText('Налаштування')).toBeVisible()
 })
+
+test('owner: bulk create sends one INSERT with auto-numbered names', async ({ page }) => {
+  await setupFixtures(page)
+  let postBody: Record<string, unknown>[] | null = null
+  // Registered after setupFixtures → takes precedence; GETs fall back to it.
+  await page.route('**/rest/v1/properties**', (route) => {
+    const req = route.request()
+    if (req.method() === 'POST') {
+      postBody = JSON.parse(req.postData() ?? '[]')
+      const rows = (postBody ?? []).map((b, i) => ({
+        ...PROPERTIES[0], ...b, id: `20000000-0000-0000-0000-00000000010${i}`, photos: [],
+      }))
+      return route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify(rows) })
+    }
+    return route.fallback()
+  })
+
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+  await page.getByText('БЦ Рубін').first().click()
+  await expect(page.getByText('Всі (3)')).toBeVisible()
+  await page.getByLabel("Додати об'єкт").click()
+  await expect(page.getByText("Новий об'єкт")).toBeVisible()
+
+  await page.getByPlaceholder('Офіс 101').fill('Офіс 201')
+  await page.getByLabel("Більше об'єктів").click()
+  await page.getByLabel("Більше об'єктів").click() // count = 3
+  await expect(page.getByText('Буде створено: Офіс 201, Офіс 202, Офіс 203')).toBeVisible()
+
+  await page.getByRole('button', { name: "Додати 3 об'єкти" }).click()
+  await expect.poll(() => postBody, { timeout: 10_000 }).not.toBeNull()
+  expect(postBody!.map(b => b.name)).toEqual(['Офіс 201', 'Офіс 202', 'Офіс 203'])
+  // Success lands back on the objects list
+  await expect(page.getByPlaceholder("Пошук об'єкту...")).toBeVisible()
+})

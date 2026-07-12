@@ -137,11 +137,69 @@ export function objectsWord(n: number): string {
   return pluralUk(n, 'об\'єкт', 'об\'єкти', 'об\'єктів')
 }
 
-// Unit suffix for a rent rate, shared by every surface that prints one.
+// Unit suffix for a rent RATE (the raw rent_rate value): per_m2 → /м²,
+// per_day → /добу, else → /міс. Use only next to the rate itself.
 export function rentUnitLabel(rentType: string | null | undefined): string {
   if (rentType === 'per_m2') return '/м²'
   if (rentType === 'per_day') return '/добу'
   return '/міс'
+}
+
+// Unit suffix for a COMPUTED rent amount (calcRent/monthlyRent output). per_m2
+// and fixed both compute a MONTHLY figure, so the unit is /міс — NOT /м² (that
+// would misread e.g. a $1 800 monthly total as $1 800 per square metre). per_day
+// computes a daily figure, so /добу.
+export function computedRentUnit(rentType: string | null | undefined): string {
+  return rentType === 'per_day' ? '/добу' : '/міс'
+}
+
+// Name for a duplicated object: increment a trailing number («Офіс 101» →
+// «Офіс 102», «A-09» → «A-10», zero-padding preserved), skipping names already
+// taken; otherwise append «(копія)».
+export function nextCopyName(base: string, taken: string[]): string {
+  const has = new Set(taken)
+  const m = base.match(/^(.*?)(\d+)\s*$/)
+  if (m) {
+    const pad = m[2].length
+    let n = parseInt(m[2], 10)
+    let candidate: string
+    do {
+      n += 1
+      candidate = `${m[1]}${String(n).padStart(pad, '0')}`
+    } while (has.has(candidate))
+    return candidate
+  }
+  let candidate = `${base} (копія)`
+  for (let i = 2; has.has(candidate); i++) candidate = `${base} (копія ${i})`
+  return candidate
+}
+
+// Sequence of names for bulk creation: a trailing number becomes the start of
+// a run («Офіс 101» ×3 → 101, 102, 103, zero-padding preserved), otherwise an
+// index is appended («Місце» ×3 → «Місце 1..3»). Taken names are skipped.
+export function bulkCreateNames(base: string, count: number, taken: string[]): string[] {
+  const trimmed = base.trim()
+  if (count <= 1) return [trimmed]
+  const has = new Set(taken)
+  const names: string[] = []
+  const m = trimmed.match(/^(.*?)(\d+)\s*$/)
+  if (m) {
+    const pad = m[2].length
+    let n = parseInt(m[2], 10) - 1
+    while (names.length < count) {
+      n += 1
+      const candidate = `${m[1]}${String(n).padStart(pad, '0')}`
+      if (!has.has(candidate)) names.push(candidate)
+    }
+  } else {
+    let i = 0
+    while (names.length < count) {
+      i += 1
+      const candidate = `${trimmed} ${i}`
+      if (!has.has(candidate)) names.push(candidate)
+    }
+  }
+  return names
 }
 
 const PARKING_TYPE_LABELS: Record<string, string> = {

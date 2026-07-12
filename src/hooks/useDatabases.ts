@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAppStore } from '@/store/appStore'
 import { monthlyRent, humanizeDbError } from '@/lib/utils'
+import { readSnapshot, writeSnapshot } from '@/lib/snapshot'
 import type { Database } from '@/types'
 
 // Single source of truth for the databases column list — keeps loadDatabases,
@@ -17,7 +18,20 @@ export function useDatabases() {
 
   const loadDatabases = useCallback(async () => {
     if (!user) return
-    setLoading(true)
+
+    // Stale-while-revalidate: on a cold start paint the last known list
+    // immediately and refresh silently — the skeleton shows only when there
+    // is truly nothing to draw. State is read via getState() so the callback
+    // identity stays stable (screens re-run their effect off it).
+    let painted = useAppStore.getState().databases.length > 0
+    if (!painted) {
+      const cached = readSnapshot<Database[]>('databases', user.id)
+      if (cached?.length) {
+        setDatabases(cached)
+        painted = true
+      }
+    }
+    if (!painted) setLoading(true)
     setError(null)
     try {
       const { data, error } = await supabase
@@ -49,6 +63,7 @@ export function useDatabases() {
       })
 
       setDatabases(dbs as unknown as Database[])
+      writeSnapshot('databases', user.id, dbs)
     } catch (e) {
       const msg = humanizeDbError(e)
       setError(msg)

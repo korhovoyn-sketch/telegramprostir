@@ -356,6 +356,8 @@ input,textarea,select{font-size:16px;touch-action:manipulation}
 .toast-mn{flex:1}
 .toast-t{font-size:14px;font-weight:600;color:#a4f0c1;line-height:1.2}
 .toast-s{font-size:12px;color:rgba(255,255,255,.65);margin-top:2px;line-height:1.3}
+.toast-act{flex-shrink:0;padding:6px 12px;border-radius:var(--r-pill);background:var(--glass-2);border:.5px solid var(--glass-bd);color:var(--t1);font-size:13px;font-weight:600;cursor:pointer;transition:background .15s ease}
+.toast-act:active{background:var(--glass-3)}
 .toast-close{color:rgba(255,255,255,.55);font-size:14px;cursor:pointer;padding:4px}
 
 /* ── OFFLINE BANNER ── */
@@ -415,8 +417,24 @@ input,textarea,select{font-size:16px;touch-action:manipulation}
 .dash-sub{font-size:var(--fs-cap2);color:rgba(255,255,255,.48);margin-top:3px;line-height:var(--lh-snug)}
 
 /* ── OBJ HERO ── */
-.obj-hero{height:min(220px,32vh);position:relative;background:linear-gradient(145deg,#152d52,#2563a8);display:flex;align-items:center;justify-content:center;font-size:42px;color:rgba(255,255,255,.4)}
+.obj-hero{height:min(220px,32vh);position:relative;background:linear-gradient(145deg,#152d52,#2563a8);display:flex;align-items:center;justify-content:center}
 .obj-hero::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 40%,rgba(0,0,0,.55))}
+/* Building3DHero animation — kept in the global sheet, never as an inline SVG <style>:
+   @tailwind base sets svg{display:block}, which defeats the SVG UA `style{display:none}`
+   and would render the CSS text as a giant glyph over the hero. */
+@keyframes b3dFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+@keyframes b3dWinA{0%,82%,100%{opacity:.78}88%{opacity:.15}}
+@keyframes b3dWinB{0%,68%,100%{opacity:.48}74%{opacity:.92}}
+@keyframes b3dWinC{0%,56%,100%{opacity:.65}62%{opacity:.18}}
+@keyframes b3dSpark{0%,100%{opacity:0}50%{opacity:1}}
+.b3d-g{animation:b3dFloat 3.8s ease-in-out infinite;transform-origin:80px 112px}
+.b3d-wa{animation:b3dWinA 5.2s .3s ease-in-out infinite}
+.b3d-wb{animation:b3dWinB 5.2s 1.1s ease-in-out infinite}
+.b3d-wc{animation:b3dWinC 5.2s 2.0s ease-in-out infinite}
+.b3d-wd{animation:b3dWinA 5.2s 2.8s ease-in-out infinite}
+.b3d-s1{animation:b3dSpark 2.6s 0s ease-in-out infinite}
+.b3d-s2{animation:b3dSpark 2.6s .9s ease-in-out infinite}
+.b3d-s3{animation:b3dSpark 2.6s 1.7s ease-in-out infinite}
 .obj-hero-bdg{position:absolute;top:10px;left:10px;display:flex;align-items:center;gap:5px;padding:4px 10px 4px 8px;border-radius:14px;background:rgba(52,199,89,.85);backdrop-filter:blur(10px);font-size:11px;font-weight:600;color:#fff;z-index:2}
 .obj-hero-r{position:absolute;top:10px;right:10px;display:flex;gap:6px;z-index:2}
 .obj-hero-a{width:44px;height:44px;border-radius:50%;background:rgba(0,0,0,.4);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;color:var(--t1);font-size:14px;border:.5px solid rgba(255,255,255,.2);cursor:pointer}

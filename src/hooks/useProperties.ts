@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { humanizeDbError, objectsWord } from '@/lib/utils'
+import { readSnapshot, writeSnapshot } from '@/lib/snapshot'
 import { useAppStore } from '@/store/appStore'
 import type { Property, PropertyStatus } from '@/types'
 
@@ -28,10 +29,28 @@ export function useProperties(dbId?: string) {
   const [properties, setProperties] = useState<Property[]>([])
   const { user, showToast, navigate, backThenReplace } = useAppStore()
 
+  // Mirror of `properties` for reading inside stable callbacks — screens
+  // re-run their load effect off the callback identity, so loadProperties
+  // must not depend on the list itself.
+  const propertiesRef = useRef(properties)
+  useEffect(() => { propertiesRef.current = properties }, [properties])
+
   const loadProperties = useCallback(async (id?: string) => {
     const targetDbId = id || dbId
     if (!targetDbId) return
-    setLoading(true)
+
+    // Stale-while-revalidate: screens remount on every navigation, so without
+    // this every visit opens on a skeleton. Paint the last known list
+    // instantly and refresh silently in the background.
+    let painted = propertiesRef.current.length > 0
+    if (!painted && user) {
+      const cached = readSnapshot<Property[]>(`props:${targetDbId}`, user.id)
+      if (cached?.length) {
+        setProperties(cached)
+        painted = true
+      }
+    }
+    if (!painted) setLoading(true)
     setError(null)
     try {
       const { data, error } = await supabase
@@ -47,6 +66,7 @@ export function useProperties(dbId?: string) {
         return { ...rest, _view_count: (views as unknown[])?.length ?? 0 }
       })
       setProperties(mapped as unknown as Property[])
+      if (user) writeSnapshot(`props:${targetDbId}`, user.id, mapped)
     } catch (e) {
       const msg = humanizeDbError(e)
       setError(msg)
@@ -54,7 +74,7 @@ export function useProperties(dbId?: string) {
     } finally {
       setLoading(false)
     }
-  }, [dbId, showToast])
+  }, [dbId, user, showToast])
 
   const loadSingleProperty = useCallback(async (propertyId: string) => {
     setLoading(true)
@@ -95,14 +115,72 @@ export function useProperties(dbId?: string) {
       setProperties((prev) => [data as Property, ...prev])
       showToast({ type: 'success', title: 'Об\'єкт додано' })
       backThenReplace('db-objects', { dbId: payload.db_id })
+      return true
     } catch (e) {
       showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
+      return false
     } finally {
       setLoading(false)
     }
   }, [user, showToast, backThenReplace])
 
-  const updateProperty = useCallback(async (id: string, payload: Partial<Property>) => {
+  // Bulk create — one INSERT for the whole batch (e.g. 10 parking spots at
+  // once), so it's a single round-trip and either all rows land or none.
+  const createProperties = useCallback(async (
+    payloads: Omit<Property, 'id' | 'owner_id' | 'created_at' | 'updated_at' | 'photos'>[]
+  ): Promise<boolean> => {
+    if (!user || payloads.length === 0) return false
+    setLoading(true)
+    try {
+      const { data, error } = await supabase
+        .from('properties')
+        .insert(payloads.map(p => ({ ...p, owner_id: user.id })))
+        .select(PROPERTY_WITH_PHOTOS)
+
+      if (error) throw error
+      setProperties((prev) => [...((data ?? []) as Property[]), ...prev])
+      showToast({ type: 'success', title: `Додано ${payloads.length} ${objectsWord(payloads.length)}` })
+      backThenReplace('db-objects', { dbId: payloads[0].db_id })
+      return true
+    } catch (e) {
+      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
+      return false
+    } finally {
+      setLoading(false)
+    }
+  }, [user, showToast, backThenReplace])
+
+  const updateProperty = useCallback(async (
+    id: string,
+    payload: Partial<Property>,
+    opts?: { optimistic?: boolean; silent?: boolean },
+  ): Promise<boolean> => {
+    // Optimistic path: apply locally right away, sync in the background,
+    // roll back on failure. Used for one-tap status changes (free/rent) so
+    // the UI never blocks on the network.
+    if (opts?.optimistic) {
+      const prevList = propertiesRef.current
+      setProperties((prev) => prev.map((p) => (p.id === id ? ({ ...p, ...payload } as Property) : p)))
+      try {
+        const { data, error } = await supabase
+          .from('properties')
+          .update({ ...payload, updated_at: new Date().toISOString() })
+          .eq('id', id)
+          .select(PROPERTY_WITH_PHOTOS)
+          .single()
+        if (error) throw error
+        setProperties((prev) => prev.map((p) => (
+          p.id === id ? ({ ...(data as Property), _view_count: (p as Property & { _view_count?: number })._view_count } as Property) : p
+        )))
+        if (!opts.silent) showToast({ type: 'success', title: 'Збережено' })
+        return true
+      } catch (e) {
+        setProperties(prevList)
+        showToast({ type: 'error', title: 'Не збереглося — повернуто як було', subtitle: humanizeDbError(e) })
+        return false
+      }
+    }
+
     setLoading(true)
     try {
       const { data, error } = await supabase
@@ -114,9 +192,11 @@ export function useProperties(dbId?: string) {
 
       if (error) throw error
       setProperties((prev) => prev.map((p) => (p.id === id ? (data as Property) : p)))
-      showToast({ type: 'success', title: 'Збережено' })
+      if (!opts?.silent) showToast({ type: 'success', title: 'Збережено' })
+      return true
     } catch (e) {
       showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
+      return false
     } finally {
       setLoading(false)
     }
@@ -294,6 +374,7 @@ export function useProperties(dbId?: string) {
     loadProperties,
     loadSingleProperty,
     createProperty,
+    createProperties,
     updateProperty,
     cycleStatus,
     reorderProperty,

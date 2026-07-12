@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useAppStore } from '@/store/appStore'
 import RetryState from '@/components/ui/RetryState'
+import { SkeletonList } from '@/components/ui/SkeletonLoader'
 import { hapticNotify } from '@/lib/telegram'
 import { offlineGuard } from '@/lib/offline'
 import { supabase } from '@/lib/supabase'
@@ -10,7 +11,7 @@ import TabBar from '@/components/ui/TabBar'
 import { StatusBadge } from '@/components/ui/Badge'
 import Modal from '@/components/ui/Modal'
 import { IconPlus, IconShare, IconX, IconChevronLeft, IconTrash, IconBuilding } from '@/components/Icons'
-import { formatPrice, calcRent, rentUnitLabel, objectsWord, formatDate, photoUrl, humanizeDbError } from '@/lib/utils'
+import { formatPrice, calcRent, computedRentUnit, objectsWord, formatDate, photoUrl, humanizeDbError } from '@/lib/utils'
 import ShareSheet from '@/components/ui/ShareSheet'
 import type { Property, Collection } from '@/types'
 import CoachMark from '@/components/ui/CoachMark'
@@ -33,7 +34,7 @@ interface CollectionProperty {
 function getRentLabel(p: Property, currency = 'USD'): string {
   if (!p.rent_rate) return '—'
   const rent = calcRent(p.area_useful ?? 0, p.rent_rate, p.rent_type)
-  return `${formatPrice(rent, currency)}${rentUnitLabel(p.rent_type)}`
+  return `${formatPrice(rent, currency)}${computedRentUnit(p.rent_type)}`
 }
 
 // ─── Collection List View ─────────────────────────────────────────────────────
@@ -305,7 +306,7 @@ function CollectionDetail({
       {/* Body */}
       <div className="body has-fab">
         {loadingProps ? (
-          <div className="loader-wrap"><div className="loader" /></div>
+          <SkeletonList count={4} />
         ) : collectionProps.length === 0 ? (
           <div className="empty-state" style={{ paddingTop: 32 }}>
             <div className="empty-ic">🏢</div>
@@ -606,7 +607,7 @@ export default function CollectionsScreen() {
         <div className="display">Для клієнтів</div>
 
         {loading ? (
-          <div className="loader-wrap"><div className="loader" /></div>
+          <SkeletonList count={4} />
         ) : loadError && collections.length === 0 ? (
           <RetryState subtitle={loadError} onRetry={loadCollections} />
         ) : collections.length === 0 ? (

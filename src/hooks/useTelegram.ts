@@ -30,6 +30,8 @@ interface TelegramWebApp {
   }
   MainButton: {
     text: string
+    isVisible: boolean
+    setText: (text: string) => void
     show: () => void
     hide: () => void
     enable: () => void

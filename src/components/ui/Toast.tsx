@@ -18,6 +18,14 @@ export default function Toast() {
         <div className="toast-t">{toast.title}</div>
         {toast.subtitle && <div className="toast-s">{toast.subtitle}</div>}
       </div>
+      {toast.actionLabel && toast.onAction && (
+        <button
+          className="toast-act"
+          onClick={() => { toast.onAction?.(); hideToast() }}
+        >
+          {toast.actionLabel}
+        </button>
+      )}
       <button
         className="toast-close"
         onClick={hideToast}
