@@ -14,6 +14,19 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
+// Constant-time compare for the caller's bearer token — a plain !== leaks the
+// SERVICE_KEY prefix/length via response timing. Matches the constant-time
+// discipline in telegram-auth's HMAC check and telegram-bot's webhook secret.
+function timingSafeEqual(a: string, b: string): boolean {
+  const enc = new TextEncoder()
+  const ab = enc.encode(a)
+  const bb = enc.encode(b)
+  if (ab.length !== bb.length) return false
+  let mismatch = 0
+  for (let i = 0; i < ab.length; i++) mismatch |= ab[i] ^ bb[i]
+  return mismatch === 0
+}
+
 async function sendTelegramMessage(chatId: number, text: string): Promise<Response | null> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), TG_TIMEOUT_MS)
@@ -36,7 +49,7 @@ async function sendTelegramMessage(chatId: number, text: string): Promise<Respon
 
 Deno.serve(async (req) => {
   const auth = req.headers.get('Authorization') ?? ''
-  if (auth !== `Bearer ${SERVICE_KEY}`) {
+  if (!SERVICE_KEY || !timingSafeEqual(auth, `Bearer ${SERVICE_KEY}`)) {
     return new Response('Unauthorized', { status: 401 })
   }
   if (!SUPABASE_URL || !SERVICE_KEY) {
