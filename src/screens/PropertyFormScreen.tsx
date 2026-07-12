@@ -167,6 +167,13 @@ export default function PropertyFormScreen() {
     }
   }, [isEdit, existing, screenParams.dbId, loadProperties])
 
+  // Create mode also needs the existing list: bulk naming skips taken names
+  // and batch sort_order continues from the current maximum — both are wrong
+  // against an empty list. SWR cache makes this paint-cheap.
+  useEffect(() => {
+    if (!isEdit && !duplicateId && screenParams.dbId) loadProperties(screenParams.dbId)
+  }, [isEdit, duplicateId, screenParams.dbId, loadProperties])
+
   // Duplicate prefill — everything except tenant/lease/photos/files: a copy
   // starts free. Runs once (ref-guarded) so typing is never overwritten.
   useEffect(() => {
@@ -236,7 +243,9 @@ export default function PropertyFormScreen() {
   // the fallback for browsers outside Telegram.
   const nativeMain = useMainButton({
     text: saveLabel,
-    visible: true,
+    // Hidden while the delete modal is up — its danger action must be the
+    // only actionable primary button on screen.
+    visible: !showDeleteModal,
     enabled: canSave,
     loading,
     onClick: handleSave,
@@ -324,8 +333,13 @@ export default function PropertyFormScreen() {
       // not to a stale duplicate detail entry.
       backThenReplace('property-detail', { propertyId: editId, dbId: screenParams.dbId })
     } else if (count > 1 && bulkNames) {
-      // Bulk: same fields for every row, names auto-numbered from the entered one.
-      const ok = await createProperties(bulkNames.map(n => ({ ...payload, name: n })))
+      // Bulk: same fields for every row, names auto-numbered from the entered
+      // one. The whole batch shares one created_at (single INSERT), so give
+      // rows explicit sort_order — otherwise their list order is arbitrary.
+      const sortBase = Math.max(0, ...properties.map(p => p.sort_order ?? 0))
+      const ok = await createProperties(bulkNames.map((n, i) => ({
+        ...payload, name: n, sort_order: sortBase + (i + 1) * 100,
+      })))
       if (ok && draftKey) localStorage.removeItem(draftKey)
     } else {
       const ok = await createProperty(payload)
