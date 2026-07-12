@@ -165,8 +165,9 @@ const s = {
     width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
     background: 'linear-gradient(135deg,#2AABEE,#229ED9)',
     color: '#fff',
-    textDecoration: 'none', border: 'none', cursor: 'pointer',
-    boxShadow: '0 3px 12px rgba(34,158,217,.35)',
+    textDecoration: 'none', cursor: 'pointer',
+    border: '.5px solid rgba(255,255,255,.22)',
+    boxShadow: '0 3px 14px rgba(34,158,217,.4), inset 0 1px 0 rgba(255,255,255,.28)',
   } as React.CSSProperties,
   card: {
     margin: '12px', borderRadius: 16,
@@ -195,18 +196,20 @@ const s = {
   } as React.CSSProperties,
   mainBtn: {
     display: 'block', width: '100%',
-    padding: '14px 24px', borderRadius: 14,
-    background: 'linear-gradient(135deg,#2AABEE,#229ED9)',
+    padding: '15px 24px', borderRadius: 15,
+    background: 'linear-gradient(135deg,#3BB7F5 0%,#2AABEE 45%,#1E96D2 100%)',
     color: '#fff', fontSize: 16, fontWeight: 700,
     textDecoration: 'none', textAlign: 'center',
-    boxShadow: '0 6px 24px rgba(34,158,217,.4)',
+    border: '.5px solid rgba(255,255,255,.22)',
+    boxShadow: '0 8px 28px rgba(34,158,217,.45), 0 2px 6px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.3)',
     letterSpacing: '-.01em',
   } as React.CSSProperties,
   contactBtn: {
-    flex: 1, padding: '11px 16px', borderRadius: 12,
+    flex: 1, padding: '12px 16px', borderRadius: 13,
     fontSize: 14, fontWeight: 600, textAlign: 'center',
     textDecoration: 'none', display: 'flex',
-    alignItems: 'center', justifyContent: 'center', gap: 6,
+    alignItems: 'center', justifyContent: 'center', gap: 7,
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,.08)',
   } as React.CSSProperties,
 }
 
@@ -215,15 +218,56 @@ const s = {
 function GlobalStyles() {
   return (
     <style>{`
-      .v-btn { transition: transform .15s ease, opacity .15s ease; -webkit-tap-highlight-color: transparent; }
-      .v-btn:active { transform: scale(.94); opacity: .85; }
+      .v-btn { transition: transform .18s cubic-bezier(.2,.8,.3,1), filter .18s ease, box-shadow .18s ease; -webkit-tap-highlight-color: transparent; }
+      .v-btn:active { transform: scale(.96); filter: brightness(.92); }
       @media (hover: hover) {
-        .v-btn:hover { transform: translateY(-1px); opacity: .92; }
+        .v-btn:hover { transform: translateY(-1.5px); filter: brightness(1.07); }
       }
+
+      /* Main CTA: periodic sheen sweep + arrow nudge on hover */
+      .v-cta { position: relative; overflow: hidden; }
+      .v-cta::after {
+        content: ''; position: absolute; top: 0; bottom: 0; left: -70%; width: 45%;
+        background: linear-gradient(105deg, transparent, rgba(255,255,255,.32), transparent);
+        transform: skewX(-20deg); pointer-events: none;
+        animation: vSheen 5s ease-in-out infinite;
+      }
+      @keyframes vSheen { 0%, 74% { left: -70%; } 100% { left: 140%; } }
+      .v-cta:active { transform: scale(.98); }
+      .v-arr { display: inline-block; transition: transform .18s cubic-bezier(.34,1.56,.64,1); }
+      @media (hover: hover) { .v-cta:hover .v-arr { transform: translateX(5px); } }
+
+      /* Contact + header buttons: springy icon micro-motion */
+      .v-contact svg { transition: transform .2s cubic-bezier(.34,1.56,.64,1); }
+      @media (hover: hover) { .v-contact:hover svg { transform: scale(1.18) rotate(-8deg); } }
+      .v-tg svg { transition: transform .22s cubic-bezier(.34,1.56,.64,1); }
+      @media (hover: hover) { .v-tg:hover svg { transform: rotate(-14deg) scale(1.12) translateX(-1px); } }
+
+      /* Content entrance: cards rise in with a stagger (delay set inline) */
+      .v-rise { animation: vRise .38s cubic-bezier(.22,.9,.34,1) both; }
+      @keyframes vRise { from { opacity: 0; transform: translateY(12px); } }
+
+      /* Gallery: crossfade on photo switch, thumb hover */
+      .v-fade { animation: vFade .28s ease both; }
+      @keyframes vFade { from { opacity: 0; } }
+      .v-thumb { transition: transform .16s ease, border-color .16s ease, opacity .16s ease; }
+      @media (hover: hover) { .v-thumb:hover { transform: scale(1.07); } }
+      .v-thumb:active { transform: scale(.94); }
+
+      /* Empty-state / error emoji gently floats */
+      .v-float { animation: vFloat 3.2s ease-in-out infinite; }
+      @keyframes vFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+
       .v-pulse { animation: vPulse 1.8s ease-in-out infinite; }
       @keyframes vPulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.07); opacity: .82; } }
       .v-spin { animation: vSpin .8s linear infinite; }
       @keyframes vSpin { to { transform: rotate(360deg); } }
+
+      @media (prefers-reduced-motion: reduce) {
+        .v-btn, .v-arr, .v-contact svg, .v-tg svg, .v-thumb { transition: none; }
+        .v-cta::after, .v-rise, .v-fade, .v-float, .v-pulse { animation: none; }
+        .v-rise { opacity: 1; }
+      }
     `}</style>
   )
 }
@@ -274,7 +318,10 @@ function PhotoGallery({ paths }: { paths: string[] }) {
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
+        {/* key remounts the img per photo so the crossfade animation replays */}
         <img
+          key={active}
+          className="v-fade"
           src={photoUrl(paths[active])}
           alt=""
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
@@ -305,10 +352,11 @@ function PhotoGallery({ paths }: { paths: string[] }) {
       {paths.length > 1 && (
         <div style={{ display: 'flex', gap: 6, padding: '8px 12px', overflowX: 'auto' }}>
           {paths.map((p, i) => (
-            <button key={i} className="v-btn" onClick={() => setActive(i)} style={{
+            <button key={i} className="v-thumb" onClick={() => setActive(i)} style={{
               flexShrink: 0, width: 52, height: 40, borderRadius: 8,
               overflow: 'hidden', border: active === i ? '2px solid #2AABEE' : '2px solid transparent',
               padding: 0, cursor: 'pointer', background: 'none',
+              opacity: active === i ? 1 : .7,
             }}>
               <img src={photoUrl(p)} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </button>
@@ -328,7 +376,7 @@ function PageHeader({ deepLink }: { deepLink: string }) {
         <div style={s.logoBox}>P</div>
         <span style={s.logoName}>prostir</span>
       </div>
-      <a href={deepLink} style={s.tgIconBtn} className="v-btn" aria-label="Відкрити в Telegram">
+      <a href={deepLink} style={s.tgIconBtn} className="v-btn v-tg" aria-label="Відкрити в Telegram">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
           <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L6.88 13.47l-2.967-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.275.089z"/>
         </svg>
@@ -345,17 +393,17 @@ function ContactRow({ firstName, lastName, phone, tgUsername, label }: {
 }) {
   const fullName = [firstName, lastName].filter(Boolean).join(' ')
   return (
-    <div style={{ ...s.card, ...s.pad }}>
+    <div className="v-rise" style={{ ...s.card, ...s.pad, animationDelay: '280ms' }}>
       <div style={s.sectionTitle}>{label}</div>
       <div style={{ fontSize: 15, fontWeight: 600, color: 'rgba(255,255,255,.9)', marginBottom: 12 }}>
         {fullName}
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
         {phone && (
-          <a href={`tel:${phone}`} className="v-btn" style={{
+          <a href={`tel:${phone}`} className="v-btn v-contact" style={{
             ...s.contactBtn,
-            background: 'rgba(74,222,128,.12)',
-            border: '.5px solid rgba(74,222,128,.3)',
+            background: 'linear-gradient(135deg,rgba(74,222,128,.18),rgba(74,222,128,.07))',
+            border: '.5px solid rgba(74,222,128,.35)',
             color: '#4ade80',
           }}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -365,10 +413,10 @@ function ContactRow({ firstName, lastName, phone, tgUsername, label }: {
           </a>
         )}
         {tgUsername && (
-          <a href={`https://t.me/${tgUsername}`} target="_blank" rel="noreferrer" className="v-btn" style={{
+          <a href={`https://t.me/${tgUsername}`} target="_blank" rel="noreferrer" className="v-btn v-contact" style={{
             ...s.contactBtn,
-            background: 'rgba(42,171,238,.12)',
-            border: '.5px solid rgba(42,171,238,.3)',
+            background: 'linear-gradient(135deg,rgba(42,171,238,.18),rgba(42,171,238,.07))',
+            border: '.5px solid rgba(42,171,238,.35)',
             color: '#2AABEE',
           }}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
@@ -409,13 +457,13 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
       <PageHeader deepLink={deepLink} />
 
       {data.photos.length > 0 && (
-        <div style={{ margin: 12, borderRadius: 16, overflow: 'hidden' }}>
+        <div className="v-rise" style={{ margin: 12, borderRadius: 16, overflow: 'hidden' }}>
           <PhotoGallery paths={data.photos} />
         </div>
       )}
 
       {/* Status + title */}
-      <div style={{ ...s.card, ...s.pad }}>
+      <div className="v-rise" style={{ ...s.card, ...s.pad, animationDelay: '40ms' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
           <span style={{
             fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 8,
@@ -446,7 +494,7 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
 
       {/* Area */}
       {(data.property_area_useful || data.property_area_total) && (
-        <div style={{ ...s.card }}>
+        <div className="v-rise" style={{ ...s.card, animationDelay: '80ms' }}>
           <div style={{ display: 'flex' }}>
             {data.property_area_useful && (
               <div style={{ flex: 1, padding: '12px 16px', borderRight: '.5px solid rgba(255,255,255,.08)' }}>
@@ -466,14 +514,14 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
 
       {/* Price */}
       {status === 'for_sale' && data.property_sale_price ? (
-        <div style={{ ...s.card, ...s.pad }}>
+        <div className="v-rise" style={{ ...s.card, ...s.pad, animationDelay: '120ms' }}>
           <div style={s.sectionTitle}>Ціна продажу</div>
           <div className="num" style={{ fontSize: 28, fontWeight: 800, color: '#60a5fa', letterSpacing: '-.03em' }}>
             {fmtPrice(data.property_sale_price, currency)}
           </div>
         </div>
       ) : data.property_rent_rate ? (
-        <div style={{ ...s.card, ...s.pad }}>
+        <div className="v-rise" style={{ ...s.card, ...s.pad, animationDelay: '120ms' }}>
           <div style={s.sectionTitle}>Орендна ставка</div>
           <div style={{ fontSize: 13, color: 'rgba(255,255,255,.5)', marginBottom: 6 }}>
             {data.property_rent_type === 'fixed' ? 'Фіксована оплата'
@@ -511,7 +559,7 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
 
       {/* Parking spot attributes */}
       {(parkingTypeLabel(data.property_parking_type) || data.property_ev_charger) && (
-        <div style={{ ...s.card, ...s.pad }}>
+        <div className="v-rise" style={{ ...s.card, ...s.pad, animationDelay: '160ms' }}>
           <div style={s.sectionTitle}>Паркомісце</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {parkingTypeLabel(data.property_parking_type) && (
@@ -530,7 +578,7 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
 
       {/* Description */}
       {data.property_description && (
-        <div style={{ ...s.card, ...s.pad }}>
+        <div className="v-rise" style={{ ...s.card, ...s.pad, animationDelay: '200ms' }}>
           <div style={s.sectionTitle}>Опис</div>
           <div style={{ fontSize: 14, color: 'rgba(255,255,255,.75)', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>
             {data.property_description}
@@ -540,7 +588,7 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
 
       {/* Parking */}
       {data.property_has_parking && data.property_parking_spaces > 0 && (
-        <div style={{ ...s.card, ...s.pad }}>
+        <div className="v-rise" style={{ ...s.card, ...s.pad, animationDelay: '240ms' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: 'rgba(255,255,255,.75)' }}>
             <span style={{ fontSize: 18 }}>🅟</span>
             Паркінг: {data.property_parking_spaces} {pluralUk(data.property_parking_spaces, 'місце', 'місця', 'місць')}
@@ -558,8 +606,8 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
 
       {/* Bottom CTA */}
       <div style={s.bottomCta}>
-        <a href={deepLink} className="v-btn" style={s.mainBtn}>
-          Відкрити в Telegram →
+        <a href={deepLink} className="v-btn v-cta" style={s.mainBtn}>
+          Відкрити в Telegram <span className="v-arr">→</span>
         </a>
       </div>
 
@@ -585,7 +633,7 @@ function DatabaseView({ rows, token }: { rows: DbRow[]; token: string }) {
     <div style={s.wrap}>
       <PageHeader deepLink={deepLink} />
 
-      <div style={{ ...s.card, ...s.pad }}>
+      <div className="v-rise" style={{ ...s.card, ...s.pad }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
           {/* db_color is a named token ('purple', 'pink', …) — resolve through
               DB_COLORS; interpolating it into a gradient produces invalid CSS
@@ -613,8 +661,8 @@ function DatabaseView({ rows, token }: { rows: DbRow[]; token: string }) {
         <div style={{ margin: '0 12px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           {/* Per-property share tokens are deliberately NOT exposed here — the
               card leads into Telegram, where access is subscription-gated. */}
-          {properties.map(p => (
-            <a key={p.property_id} href={deepLink} className="v-btn" style={{ ...s.card, display: 'block', textDecoration: 'none', color: 'inherit' }}>
+          {properties.map((p, i) => (
+            <a key={p.property_id} href={deepLink} className="v-btn v-rise" style={{ ...s.card, display: 'block', textDecoration: 'none', color: 'inherit', animationDelay: `${Math.min(40 + i * 45, 320)}ms` }}>
               <div style={{ display: 'flex', gap: 0, overflow: 'hidden' }}>
                 {p.first_photo && (
                   <div style={{ width: 90, flexShrink: 0 }}>
@@ -666,8 +714,8 @@ function DatabaseView({ rows, token }: { rows: DbRow[]; token: string }) {
           ))}
         </div>
       ) : (
-        <div style={{ ...s.card, ...s.pad, textAlign: 'center' }}>
-          <div style={{ fontSize: 28, marginBottom: 8 }}>🏢</div>
+        <div className="v-rise" style={{ ...s.card, ...s.pad, textAlign: 'center', animationDelay: '60ms' }}>
+          <div className="v-float" style={{ fontSize: 28, marginBottom: 8 }}>🏢</div>
           <div style={{ fontSize: 14, color: 'rgba(255,255,255,.6)' }}>У базі поки немає об&apos;єктів</div>
         </div>
       )}
@@ -681,8 +729,8 @@ function DatabaseView({ rows, token }: { rows: DbRow[]; token: string }) {
       />
 
       <div style={s.bottomCta}>
-        <a href={deepLink} className="v-btn" style={s.mainBtn}>
-          Підключити базу в Telegram →
+        <a href={deepLink} className="v-btn v-cta" style={s.mainBtn}>
+          Підключити базу в Telegram <span className="v-arr">→</span>
         </a>
       </div>
       <div style={{ height: 8 }} />
@@ -707,7 +755,7 @@ function CollectionView({ rows, token }: { rows: ColRow[]; token: string }) {
     <div style={s.wrap}>
       <PageHeader deepLink={deepLink} />
 
-      <div style={{ ...s.card, ...s.pad }}>
+      <div className="v-rise" style={{ ...s.card, ...s.pad }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.4)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 6 }}>Підбірка</div>
         <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-.02em', marginBottom: 6 }}>{info.collection_name}</div>
         <div style={{ fontSize: 13, color: 'rgba(255,255,255,.5)' }}>
@@ -718,8 +766,8 @@ function CollectionView({ rows, token }: { rows: ColRow[]; token: string }) {
 
       {properties.length > 0 ? (
         <div style={{ margin: '0 12px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {properties.map(p => (
-            <a key={p.property_id} href={deepLink} className="v-btn" style={{ ...s.card, display: 'block', textDecoration: 'none', color: 'inherit' }}>
+          {properties.map((p, i) => (
+            <a key={p.property_id} href={deepLink} className="v-btn v-rise" style={{ ...s.card, display: 'block', textDecoration: 'none', color: 'inherit', animationDelay: `${Math.min(40 + i * 45, 320)}ms` }}>
               <div style={{ display: 'flex', gap: 0, overflow: 'hidden' }}>
                 {p.first_photo && (
                   <div style={{ width: 90, flexShrink: 0 }}>
@@ -772,8 +820,8 @@ function CollectionView({ rows, token }: { rows: ColRow[]; token: string }) {
           ))}
         </div>
       ) : (
-        <div style={{ ...s.card, ...s.pad, textAlign: 'center' }}>
-          <div style={{ fontSize: 28, marginBottom: 8 }}>🔖</div>
+        <div className="v-rise" style={{ ...s.card, ...s.pad, textAlign: 'center', animationDelay: '60ms' }}>
+          <div className="v-float" style={{ fontSize: 28, marginBottom: 8 }}>🔖</div>
           <div style={{ fontSize: 14, color: 'rgba(255,255,255,.6)' }}>У підбірці поки немає об&apos;єктів</div>
         </div>
       )}
@@ -787,8 +835,8 @@ function CollectionView({ rows, token }: { rows: ColRow[]; token: string }) {
       />
 
       <div style={s.bottomCta}>
-        <a href={deepLink} className="v-btn" style={s.mainBtn}>
-          Відкрити підбірку в Telegram →
+        <a href={deepLink} className="v-btn v-cta" style={s.mainBtn}>
+          Відкрити підбірку в Telegram <span className="v-arr">→</span>
         </a>
       </div>
       <div style={{ height: 8 }} />
@@ -811,11 +859,11 @@ function Loader() {
 function ErrorView({ msg, icon, title, onRetry }: { msg: string; icon?: string; title?: string; onRetry?: () => void }) {
   return (
     <div style={{ ...s.wrap, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: 24, textAlign: 'center' }}>
-      <div style={{ fontSize: 48, marginBottom: 16 }}>{icon ?? '🔗'}</div>
+      <div className="v-float" style={{ fontSize: 48, marginBottom: 16 }}>{icon ?? '🔗'}</div>
       <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>{title ?? 'Посилання недійсне'}</div>
       <div style={{ fontSize: 14, color: 'rgba(255,255,255,.5)', lineHeight: 1.5 }}>{msg}</div>
       {onRetry && (
-        <button className="v-btn" onClick={onRetry} style={{ ...s.mainBtn, marginTop: 24, border: 'none', cursor: 'pointer' }}>
+        <button className="v-btn v-cta" onClick={onRetry} style={{ ...s.mainBtn, marginTop: 24, cursor: 'pointer' }}>
           Спробувати ще раз
         </button>
       )}
