@@ -153,6 +153,27 @@ export function computedRentUnit(rentType: string | null | undefined): string {
   return rentType === 'per_day' ? '/добу' : '/міс'
 }
 
+// Name for a duplicated object: increment a trailing number («Офіс 101» →
+// «Офіс 102», «A-09» → «A-10», zero-padding preserved), skipping names already
+// taken; otherwise append «(копія)».
+export function nextCopyName(base: string, taken: string[]): string {
+  const has = new Set(taken)
+  const m = base.match(/^(.*?)(\d+)\s*$/)
+  if (m) {
+    const pad = m[2].length
+    let n = parseInt(m[2], 10)
+    let candidate: string
+    do {
+      n += 1
+      candidate = `${m[1]}${String(n).padStart(pad, '0')}`
+    } while (has.has(candidate))
+    return candidate
+  }
+  let candidate = `${base} (копія)`
+  for (let i = 2; has.has(candidate); i++) candidate = `${base} (копія ${i})`
+  return candidate
+}
+
 const PARKING_TYPE_LABELS: Record<string, string> = {
   underground: 'Підземний',
   covered: 'Критий',

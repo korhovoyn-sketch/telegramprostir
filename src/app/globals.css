@@ -356,6 +356,8 @@ input,textarea,select{font-size:16px;touch-action:manipulation}
 .toast-mn{flex:1}
 .toast-t{font-size:14px;font-weight:600;color:#a4f0c1;line-height:1.2}
 .toast-s{font-size:12px;color:rgba(255,255,255,.65);margin-top:2px;line-height:1.3}
+.toast-act{flex-shrink:0;padding:6px 12px;border-radius:var(--r-pill);background:var(--glass-2);border:.5px solid var(--glass-bd);color:var(--t1);font-size:13px;font-weight:600;cursor:pointer;transition:background .15s ease}
+.toast-act:active{background:var(--glass-3)}
 .toast-close{color:rgba(255,255,255,.55);font-size:14px;cursor:pointer;padding:4px}
 
 /* ── OFFLINE BANNER ── */

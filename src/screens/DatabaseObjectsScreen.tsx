@@ -13,7 +13,7 @@ import SearchBar from '@/components/ui/SearchBar'
 import { StatusBadge } from '@/components/ui/Badge'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import Modal from '@/components/ui/Modal'
-import { IconPlus, IconDots, IconPhoto, IconShare, IconChevronUp, IconChevronDown, GlassDbIcon, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconFile, IconLayers, IconLayoutGrid, IconChartBar, IconKey, IconFileExport, IconCircleCheck, IconAdjustments, IconTrash, IconChevronRight } from '@/components/Icons'
+import { IconPlus, IconDots, IconPhoto, IconShare, IconChevronUp, IconChevronDown, GlassDbIcon, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconCopy, IconFile, IconLayers, IconLayoutGrid, IconChartBar, IconKey, IconFileExport, IconCircleCheck, IconAdjustments, IconTrash, IconChevronRight } from '@/components/Icons'
 import DatabaseStatsPanel from '@/components/ui/DatabaseStatsPanel'
 import { formatPrice, calcRent, calcRentUtils, computedRentUnit, objectsWord, DB_TYPE_LABELS, formatLeasePeriod } from '@/lib/utils'
 import type { PropertyStatus } from '@/types'
@@ -516,6 +516,14 @@ export default function DatabaseObjectsScreen() {
                               onClick={() => navigate('property-form', { propertyId: p.id, dbId: db.id })}
                             >
                               <IconEdit size={13} /> Редагувати
+                            </button>
+                          )}
+                          {isOwner && (
+                            <button
+                              className="obj-act-btn"
+                              onClick={() => { hapticSelection(); navigate('property-form', { dbId: db.id, duplicateId: p.id }) }}
+                            >
+                              <IconCopy size={13} /> Дублювати
                             </button>
                           )}
                           {p.status === 'occupied' && (

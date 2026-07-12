@@ -3,7 +3,7 @@ import {
   formatPrice, formatLeaseDate, formatLeasePeriod, formatDate,
   calcRent, calcUtilities, calcRentUtils, monthlyRent, rentUnitLabel, parkingTypeLabel,
   getInitials, greeting, withRetry, humanizeDbError, safeFileName, pluralUk, objectsWord,
-  computedRentUnit,
+  computedRentUnit, nextCopyName,
 } from '@/lib/utils'
 
 describe('humanizeDbError', () => {
@@ -137,6 +137,20 @@ describe('objectsWord (Ukrainian plural)', () => {
   })
   it('pluralUk picks the passed forms', () =>
     expect(pluralUk(3, 'база', 'бази', 'баз')).toBe('бази'))
+})
+
+describe('nextCopyName', () => {
+  it('increments a trailing number and keeps zero-padding', () => {
+    expect(nextCopyName('Офіс 101', ['Офіс 101'])).toBe('Офіс 102')
+    expect(nextCopyName('A-09', ['A-09'])).toBe('A-10')
+  })
+  it('skips names that are already taken', () => {
+    expect(nextCopyName('Офіс 101', ['Офіс 101', 'Офіс 102', 'Офіс 103'])).toBe('Офіс 104')
+  })
+  it('appends «копія» when there is no trailing number', () => {
+    expect(nextCopyName('Склад', ['Склад'])).toBe('Склад (копія)')
+    expect(nextCopyName('Склад', ['Склад', 'Склад (копія)'])).toBe('Склад (копія 2)')
+  })
 })
 
 describe('parkingTypeLabel', () => {

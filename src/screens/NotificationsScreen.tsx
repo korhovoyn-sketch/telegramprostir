@@ -5,6 +5,7 @@ import { useAppStore } from '@/store/appStore'
 import { hapticSelection, hapticImpact, hapticNotify } from '@/lib/telegram'
 import { useNotifications } from '@/hooks/useNotifications'
 import TabBar from '@/components/ui/TabBar'
+import { SkeletonList } from '@/components/ui/SkeletonLoader'
 import { IconX } from '@/components/Icons'
 import { formatDate, daysSince } from '@/lib/utils'
 import type { Notification } from '@/types'
@@ -104,7 +105,7 @@ export default function NotificationsScreen() {
         </div>
 
         {loading ? (
-          <div className="loader-wrap"><div className="loader" /></div>
+          <SkeletonList count={5} />
         ) : filtered.length === 0 ? (
           <div className="empty-state" style={{ paddingTop: 32 }}>
             <div className="empty-ic">🔔</div>

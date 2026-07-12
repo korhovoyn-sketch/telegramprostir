@@ -1,17 +1,18 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { hapticSelection, hapticNotify } from '@/lib/telegram'
 import { offlineGuard } from '@/lib/offline'
 import { useProperties } from '@/hooks/useProperties'
+import { useMainButton } from '@/hooks/useMainButton'
 import Header from '@/components/ui/Header'
 import Toggle from '@/components/ui/Toggle'
 import Modal from '@/components/ui/Modal'
 import { IconRuler, IconLayers, IconActivity, IconBuilding, IconCurrencyDollar, IconBolt, IconCarGarage, IconFile, IconUser, IconKey, IconMapPin } from '@/components/Icons'
 import { UTILITY_META } from '@/lib/utilityMeta'
 import FilesList from '@/components/ui/FilesList'
-import { formatPrice, calcRent, calcUtilities, rentUnitLabel, scrollFocusedIntoView } from '@/lib/utils'
+import { formatPrice, calcRent, calcUtilities, rentUnitLabel, nextCopyName, scrollFocusedIntoView } from '@/lib/utils'
 import type { PropertyStatus, RentType, ParkingType } from '@/types'
 
 const PARKING_TYPES: { v: ParkingType; l: string }[] = [
@@ -27,6 +28,11 @@ export default function PropertyFormScreen() {
   const editId = screenParams.propertyId
   const isEdit = !!editId
   const existing = properties.find(p => p.id === editId)
+
+  // Duplicate mode: prefill from a source object but stay in create mode.
+  const duplicateId = screenParams.duplicateId as string | undefined
+  const dupSource = properties.find(p => p.id === duplicateId)
+  const dupFilledRef = useRef(false)
 
   // Parking DBs get a spot-oriented field set (number/area/level/type/EV, flat
   // utilities, monthly-or-daily rate) instead of the office/apartment layout.
@@ -59,6 +65,79 @@ export default function PropertyFormScreen() {
     return () => { tg?.disableClosingConfirmation() }
   }, [])
 
+  // ── Draft autosave (new object only) ────────────────────────────────────────
+  // Closing confirmation guards against an accidental swipe-down, but a crash
+  // or webview kill still loses typed input — the draft in localStorage
+  // survives that. Restored automatically; «Очистити» in the toast discards.
+  const isNewBlank = !isEdit && !duplicateId
+  const draftKey = user && screenParams.dbId ? `draft_v1:${user.id}:prop-new:${screenParams.dbId}` : null
+  const draftReadyRef = useRef(false)
+
+  useEffect(() => {
+    if (!isNewBlank || !draftKey || draftReadyRef.current) return
+    draftReadyRef.current = true
+    try {
+      const raw = localStorage.getItem(draftKey)
+      if (!raw) return
+      const d = JSON.parse(raw) as Record<string, unknown>
+      if (!d || typeof d !== 'object' || !(d.name || d.description || d.rentRate)) return
+      setName(String(d.name ?? ''))
+      setFloor(String(d.floor ?? ''))
+      setStatus((d.status as PropertyStatus) ?? 'free')
+      setAreaUseful(String(d.areaUseful ?? ''))
+      setAreaTotal(String(d.areaTotal ?? ''))
+      setRentType((d.rentType as RentType) ?? 'per_m2')
+      setRentRate(String(d.rentRate ?? ''))
+      setUtilitiesRate(String(d.utilitiesRate ?? ''))
+      setHasParking(Boolean(d.hasParking))
+      setParkingSpaces(String(d.parkingSpaces ?? '1'))
+      setParkingType((d.parkingType as ParkingType | '') ?? '')
+      setEvCharger(Boolean(d.evCharger))
+      setDescription(String(d.description ?? ''))
+      setSalePrice(String(d.salePrice ?? ''))
+      setTenantName(String(d.tenantName ?? ''))
+      setLeaseStartDate(String(d.leaseStartDate ?? ''))
+      setLeaseEndDate(String(d.leaseEndDate ?? ''))
+      setAddress(String(d.address ?? ''))
+      setUtilities(Array.isArray(d.utilities) ? (d.utilities as string[]) : [])
+      showToast({
+        type: 'info',
+        title: 'Чернетку відновлено',
+        subtitle: 'Незбережений об\'єкт з минулого разу',
+        actionLabel: 'Очистити',
+        onAction: () => {
+          localStorage.removeItem(draftKey)
+          setName(''); setFloor(''); setStatus('free'); setAreaUseful(''); setAreaTotal('')
+          setRentType('per_m2'); setRentRate(''); setUtilitiesRate(''); setHasParking(false)
+          setParkingSpaces('1'); setParkingType(''); setEvCharger(false); setDescription('')
+          setSalePrice(''); setTenantName(''); setLeaseStartDate(''); setLeaseEndDate('')
+          setAddress(''); setUtilities([])
+        },
+      })
+    } catch { /* corrupted draft — ignore */ }
+  }, [isNewBlank, draftKey, showToast])
+
+  useEffect(() => {
+    if (!isNewBlank || !draftKey || !draftReadyRef.current) return
+    const t = setTimeout(() => {
+      try {
+        if (name.trim() || description.trim() || rentRate) {
+          localStorage.setItem(draftKey, JSON.stringify({
+            name, floor, status, areaUseful, areaTotal, rentType, rentRate,
+            utilitiesRate, hasParking, parkingSpaces, parkingType, evCharger,
+            description, salePrice, tenantName, leaseStartDate, leaseEndDate,
+            address, utilities,
+          }))
+        } else {
+          localStorage.removeItem(draftKey)
+        }
+      } catch { /* quota — best-effort */ }
+    }, 600)
+    return () => clearTimeout(t)
+  }, [isNewBlank, draftKey, name, floor, status, areaUseful, areaTotal, rentType,
+      rentRate, utilitiesRate, hasParking, parkingSpaces, parkingType, evCharger,
+      description, salePrice, tenantName, leaseStartDate, leaseEndDate, address, utilities])
+
   useEffect(() => {
     if (isEdit && existing) {
       setName(existing.name)
@@ -84,6 +163,30 @@ export default function PropertyFormScreen() {
       loadProperties(screenParams.dbId)
     }
   }, [isEdit, existing, screenParams.dbId, loadProperties])
+
+  // Duplicate prefill — everything except tenant/lease/photos/files: a copy
+  // starts free. Runs once (ref-guarded) so typing is never overwritten.
+  useEffect(() => {
+    if (isEdit || !duplicateId || dupFilledRef.current) return
+    if (!dupSource) { loadProperties(screenParams.dbId); return }
+    dupFilledRef.current = true
+    setName(nextCopyName(dupSource.name, properties.map(p => p.name)))
+    setFloor(dupSource.floor ?? '')
+    setStatus('free')
+    setAreaUseful(String(dupSource.area_useful ?? ''))
+    setAreaTotal(String(dupSource.area_total ?? ''))
+    setRentType(dupSource.rent_type)
+    setRentRate(String(dupSource.rent_rate ?? ''))
+    setUtilitiesRate(String(dupSource.utilities_rate ?? ''))
+    setHasParking(dupSource.has_parking)
+    setParkingSpaces(String(dupSource.parking_spaces))
+    setParkingType(dupSource.parking_type ?? '')
+    setEvCharger(dupSource.ev_charger ?? false)
+    setDescription(dupSource.description ?? '')
+    setAddress(dupSource.address ?? '')
+    setUtilities(dupSource.utilities ?? [])
+    setSalePrice(String(dupSource.sale_price ?? ''))
+  }, [isEdit, duplicateId, dupSource, properties, screenParams.dbId, loadProperties])
 
   // Parking rate is monthly-per-spot or daily — never $/m². Default a new
   // parking spot to a fixed monthly rate so the per_m2 office default never
@@ -114,6 +217,16 @@ export default function PropertyFormScreen() {
   }
 
   const canSave = name.trim().length > 0
+
+  // Native Telegram MainButton is the primary action; the DOM button below is
+  // the fallback for browsers outside Telegram.
+  const nativeMain = useMainButton({
+    text: isEdit ? 'Зберегти зміни' : 'Додати об\'єкт',
+    visible: true,
+    enabled: canSave,
+    loading,
+    onClick: handleSave,
+  })
 
   // Returns the numeric value, or undefined if string is empty/invalid.
   // Avoids the `parseFloat('0') || undefined` pitfall where 0 is silently dropped.
@@ -197,7 +310,8 @@ export default function PropertyFormScreen() {
       // not to a stale duplicate detail entry.
       backThenReplace('property-detail', { propertyId: editId, dbId: screenParams.dbId })
     } else {
-      await createProperty(payload)
+      const ok = await createProperty(payload)
+      if (ok && draftKey) localStorage.removeItem(draftKey)
     }
   }
 
@@ -458,13 +572,15 @@ export default function PropertyFormScreen() {
           </div>
         )}
 
-        <button
-          className={`mbtn success mbtn-flow ${!canSave || loading ? 'disabled' : ''} ${loading ? 'is-loading' : ''}`}
-          onClick={handleSave}
-          disabled={!canSave || loading}
-        >
-          {!loading && (isEdit ? 'Зберегти зміни' : 'Додати об\'єкт')}
-        </button>
+        {!nativeMain && (
+          <button
+            className={`mbtn success mbtn-flow ${!canSave || loading ? 'disabled' : ''} ${loading ? 'is-loading' : ''}`}
+            onClick={handleSave}
+            disabled={!canSave || loading}
+          >
+            {!loading && (isEdit ? 'Зберегти зміни' : 'Додати об\'єкт')}
+          </button>
+        )}
       </div>
 
       {showDeleteModal && editId && (

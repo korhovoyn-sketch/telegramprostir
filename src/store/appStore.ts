@@ -112,10 +112,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   showToast: (toast) => {
     if (_toastTimer) clearTimeout(_toastTimer)
     set({ toast })
+    // Undo-style toasts (with an action) stay longer so there's time to react.
     _toastTimer = setTimeout(() => {
       set({ toast: null })
       _toastTimer = null
-    }, 3500)
+    }, toast.onAction ? 5000 : 3500)
   },
 
   hideToast: () => {

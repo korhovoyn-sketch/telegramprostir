@@ -73,7 +73,6 @@ export default function PaymentCalendarScreen() {
   const [payConfirmItem, setPayConfirmItem]     = useState<PaymentItem | null>(null)
   const [payConfirmAmount, setPayConfirmAmount] = useState('')
   const [payConfirmNotes, setPayConfirmNotes]   = useState('')
-  const [payConfirmSaving, setPayConfirmSaving] = useState(false)
   const [unpayTarget, setUnpayTarget]           = useState<RentPaymentRecord | null>(null)
   const [showOnlyUnpaid, setShowOnlyUnpaid]     = useState(false)
 
@@ -275,8 +274,37 @@ export default function PaymentCalendarScreen() {
   const handleMarkPaid = useCallback(async (item: PaymentItem, amount?: number, notes?: string) => {
     if (!user) return
     if (offlineGuard()) return
-    setPayConfirmSaving(true)
     hapticImpact('light')
+
+    // Optimistic: the modal closes and the row turns green immediately; the
+    // upsert syncs in the background and everything rolls back on failure.
+    const now = new Date().toISOString()
+    const optimisticRec: RentPaymentRecord = {
+      id: item.record?.id ?? `tmp_${item.property.id}_${item.dueDate}`,
+      property_id: item.property.id,
+      owner_id:    user.id,
+      due_date:    item.dueDate,
+      paid_at:     now,
+      amount:      amount ?? (expectedRent(item.property) || null),
+      status:      'paid',
+      notes:       notes ?? null,
+      created_at:  item.record?.created_at ?? now,
+      updated_at:  now,
+    }
+    const upsertLocal = (prev: RentPaymentRecord[], rec: RentPaymentRecord) => {
+      const idx = prev.findIndex(r => r.property_id === item.property.id && r.due_date === item.dueDate)
+      return idx >= 0 ? prev.map((r, i) => i === idx ? rec : r) : [rec, ...prev]
+    }
+    let snapshotMain: RentPaymentRecord[] = []
+    let snapshotArch: RentPaymentRecord[] = []
+    setRecords(prev => { snapshotMain = prev; return upsertLocal(prev, optimisticRec) })
+    if (archiveLoaded) {
+      setArchiveRecords(prev => { snapshotArch = prev; return upsertLocal(prev, optimisticRec) })
+    }
+    setPayConfirmItem(null)
+    hapticNotify('success')
+    showToast({ type: 'success', title: 'Платіж підтверджено ✓' })
+
     try {
       const { data, error } = await supabase
         .from('rent_payment_records')
@@ -285,35 +313,24 @@ export default function PaymentCalendarScreen() {
             property_id: item.property.id,
             owner_id:    user.id,
             due_date:    item.dueDate,
-            paid_at:     new Date().toISOString(),
-            amount:      amount ?? (expectedRent(item.property) || null),
+            paid_at:     now,
+            amount:      optimisticRec.amount,
             notes:       notes ?? null,
             status:      'paid' as const,
-            updated_at:  new Date().toISOString(),
+            updated_at:  now,
           },
           { onConflict: 'property_id,due_date' }
         )
         .select('id,property_id,owner_id,due_date,paid_at,amount,status,notes,created_at,updated_at').single()
       if (error) throw error
-      hapticNotify('success')
+      // Swap the temp row for the server one (real id/created_at)
       const rec = data as RentPaymentRecord
-      setRecords(prev => {
-        const idx = prev.findIndex(r => r.property_id === item.property.id && r.due_date === item.dueDate)
-        return idx >= 0 ? prev.map((r, i) => i === idx ? rec : r) : [rec, ...prev]
-      })
-      // Keep archive in sync — add/update regardless of month
-      if (archiveLoaded) {
-        setArchiveRecords(prev => {
-          const idx = prev.findIndex(r => r.property_id === item.property.id && r.due_date === item.dueDate)
-          return idx >= 0 ? prev.map((r, i) => i === idx ? rec : r) : [rec, ...prev]
-        })
-      }
-      setPayConfirmItem(null)
-      showToast({ type: 'success', title: 'Платіж підтверджено ✓' })
+      setRecords(prev => upsertLocal(prev, rec))
+      if (archiveLoaded) setArchiveRecords(prev => upsertLocal(prev, rec))
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
-    } finally {
-      setPayConfirmSaving(false)
+      setRecords(snapshotMain)
+      if (archiveLoaded) setArchiveRecords(snapshotArch)
+      showToast({ type: 'error', title: 'Платіж не зберігся — повернуто', subtitle: humanizeDbError(e) })
     }
   }, [user, archiveLoaded, showToast])
 
@@ -728,12 +745,11 @@ export default function PaymentCalendarScreen() {
         <Modal
           title={payConfirmItem.record?.status === 'paid' ? 'Редагувати платіж' : 'Підтвердити отримання'}
           subtitle={`${payConfirmItem.property.name} · ${fmtDueDate(payConfirmItem.dueDate)}`}
-          onClose={() => !payConfirmSaving && setPayConfirmItem(null)}
+          onClose={() => setPayConfirmItem(null)}
           actions={[
             {
-              label: payConfirmSaving ? 'Зберігаємо...' : (payConfirmItem.record?.status === 'paid' ? 'Зберегти зміни' : 'Підтвердити оплату'),
+              label: payConfirmItem.record?.status === 'paid' ? 'Зберегти зміни' : 'Підтвердити оплату',
               variant: 'primary',
-              disabled: payConfirmSaving,
               onClick: () => {
                 const amt = parseFloat(payConfirmAmount)
                 handleMarkPaid(
@@ -743,7 +759,7 @@ export default function PaymentCalendarScreen() {
                 )
               },
             },
-            { label: 'Скасувати', variant: 'secondary', disabled: payConfirmSaving, onClick: () => setPayConfirmItem(null) },
+            { label: 'Скасувати', variant: 'secondary', onClick: () => setPayConfirmItem(null) },
           ]}
         >
           <div style={{ paddingTop: 4 }}>

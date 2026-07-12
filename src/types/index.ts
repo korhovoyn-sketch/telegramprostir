@@ -159,6 +159,10 @@ export interface Toast {
   type: ToastType
   title: string
   subtitle?: string
+  // Optional action button (e.g. «Скасувати» for undo). The toast stays
+  // visible longer when present so the user has time to react.
+  actionLabel?: string
+  onAction?: () => void
 }
 
 export type ScreenName =

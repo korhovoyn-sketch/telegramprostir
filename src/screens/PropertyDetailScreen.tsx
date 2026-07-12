@@ -105,9 +105,6 @@ export default function PropertyDetailScreen() {
   const [rentLeaseEnd, setRentLeaseEnd] = useState('')
   const [rentRentRate, setRentRentRate] = useState('')
   const [rentUtilitiesRate, setRentUtilitiesRate] = useState('')
-  const [rentSaving, setRentSaving] = useState(false)
-  const [showFreeModal, setShowFreeModal] = useState(false)
-  const [freeSaving, setFreeSaving] = useState(false)
 
   const property = properties.find(p => p.id === screenParams.propertyId)
   const isOwner = user?.role === 'owner'
@@ -183,20 +180,21 @@ export default function PropertyDetailScreen() {
     navigate('photo-gallery', { photos, initialIndex: index })
   }
 
-  async function handleRentOut() {
+  function handleRentOut() {
     if (!rentTenantName.trim() || !property) return
     if (offlineGuard()) return
-    setRentSaving(true)
     const parsedRate = parseFloat(rentRentRate)
     const parsedUtils = parseFloat(rentUtilitiesRate)
-    await updateProperty(property.id, {
+    // Optimistic: the modal closes instantly, the update syncs in the
+    // background and rolls back (with an error toast) if it fails.
+    updateProperty(property.id, {
       status: 'occupied',
       tenant_name: rentTenantName.trim(),
       lease_start_date: rentLeaseStart || undefined,
       lease_end_date: rentLeaseEnd || undefined,
       ...(isFinite(parsedRate) && parsedRate >= 0 ? { rent_rate: parsedRate } : {}),
       ...(isFinite(parsedUtils) && parsedUtils >= 0 ? { utilities_rate: parsedUtils } : {}),
-    })
+    }, { optimistic: true, silent: true })
     hapticNotify('success')
     showToast({ type: 'success', title: 'Об\'єкт здано в оренду' })
     setShowRentModal(false)
@@ -205,23 +203,35 @@ export default function PropertyDetailScreen() {
     setRentLeaseEnd('')
     setRentRentRate('')
     setRentUtilitiesRate('')
-    setRentSaving(false)
   }
 
-  async function handleFreeProperty() {
+  function handleFreeProperty() {
     if (!property) return
     if (offlineGuard()) return
-    setFreeSaving(true)
-    await updateProperty(property.id, {
+    // Reversible action → no confirm modal: act immediately and offer undo
+    // in the toast. Undo restores the exact previous tenant/lease fields.
+    const prev = {
+      status: property.status,
+      tenant_name: property.tenant_name,
+      lease_start_date: property.lease_start_date,
+      lease_end_date: property.lease_end_date,
+    }
+    updateProperty(property.id, {
       status: 'free',
       tenant_name: null,
       lease_start_date: null,
       lease_end_date: null,
-    })
+    }, { optimistic: true, silent: true })
     hapticNotify('success')
-    showToast({ type: 'success', title: 'Об\'єкт звільнено' })
-    setShowFreeModal(false)
-    setFreeSaving(false)
+    showToast({
+      type: 'success',
+      title: 'Об\'єкт звільнено',
+      actionLabel: 'Скасувати',
+      onAction: () => {
+        updateProperty(property.id, prev, { optimistic: true, silent: true })
+        hapticImpact('light')
+      },
+    })
   }
 
   async function confirmDeletePhoto() {
@@ -644,7 +654,7 @@ export default function PropertyDetailScreen() {
           variant="danger"
           icon={<IconCircleCheck size={16} />}
           label="Звільнити об'єкт"
-          onClick={() => { hapticImpact('light'); setShowFreeModal(true) }}
+          onClick={() => { hapticImpact('light'); handleFreeProperty() }}
         />
       )}
       {isOwner && property.status === 'for_sale' && (
@@ -668,31 +678,19 @@ export default function PropertyDetailScreen() {
         />
       )}
 
-      {showFreeModal && (
-        <Modal
-          title="Звільнити об'єкт?"
-          subtitle={property.tenant_name ? `Орендар "${property.tenant_name}" та дати договору будуть видалені.` : 'Об\'єкт отримає статус "Вільно".'}
-          onClose={() => !freeSaving && setShowFreeModal(false)}
-          actions={[
-            { label: freeSaving ? 'Збереження...' : 'Звільнити', variant: 'danger', disabled: freeSaving, onClick: handleFreeProperty },
-            { label: 'Скасувати', variant: 'secondary', disabled: freeSaving, onClick: () => setShowFreeModal(false) },
-          ]}
-        />
-      )}
-
       {showRentModal && (
         <Modal
           title="Здати в оренду"
           subtitle={property.name}
-          onClose={() => !rentSaving && setShowRentModal(false)}
+          onClose={() => setShowRentModal(false)}
           actions={[
             {
-              label: rentSaving ? 'Збереження...' : 'Здати',
+              label: 'Здати',
               variant: 'primary',
-              disabled: rentSaving || !rentTenantName.trim(),
+              disabled: !rentTenantName.trim(),
               onClick: handleRentOut,
             },
-            { label: 'Скасувати', variant: 'secondary', disabled: rentSaving, onClick: () => setShowRentModal(false) },
+            { label: 'Скасувати', variant: 'secondary', onClick: () => setShowRentModal(false) },
           ]}
         >
           {(() => {

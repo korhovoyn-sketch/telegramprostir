@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useAppStore } from '@/store/appStore'
 import RetryState from '@/components/ui/RetryState'
+import { SkeletonList } from '@/components/ui/SkeletonLoader'
 import { hapticNotify } from '@/lib/telegram'
 import { offlineGuard } from '@/lib/offline'
 import { supabase } from '@/lib/supabase'
@@ -305,7 +306,7 @@ function CollectionDetail({
       {/* Body */}
       <div className="body has-fab">
         {loadingProps ? (
-          <div className="loader-wrap"><div className="loader" /></div>
+          <SkeletonList count={4} />
         ) : collectionProps.length === 0 ? (
           <div className="empty-state" style={{ paddingTop: 32 }}>
             <div className="empty-ic">🏢</div>
@@ -606,7 +607,7 @@ export default function CollectionsScreen() {
         <div className="display">Для клієнтів</div>
 
         {loading ? (
-          <div className="loader-wrap"><div className="loader" /></div>
+          <SkeletonList count={4} />
         ) : loadError && collections.length === 0 ? (
           <RetryState subtitle={loadError} onRetry={loadCollections} />
         ) : collections.length === 0 ? (
