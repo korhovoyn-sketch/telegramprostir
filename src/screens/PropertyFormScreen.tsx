@@ -61,6 +61,20 @@ export default function PropertyFormScreen() {
   // Bulk creation: how many objects to create from this one form (create mode
   // only). Names are auto-numbered from the entered name.
   const [count, setCount] = useState(1)
+  // Per-row overrides for bulk mode: name '' means «use the auto-numbered
+  // name», empty areas fall back to the shared «Площа» fields. Offices on the
+  // same floor rarely share a footprint — this lets each row differ without
+  // N separate form visits.
+  const [bulkRows, setBulkRows] = useState<{ name: string; areaUseful: string; areaTotal: string }[]>([])
+
+  useEffect(() => {
+    setBulkRows(prev => {
+      if (count <= 1) return []
+      const next = prev.slice(0, count)
+      while (next.length < count) next.push({ name: '', areaUseful: '', areaTotal: '' })
+      return next
+    })
+  }, [count])
 
   useEffect(() => {
     const tg = window.Telegram?.WebApp
@@ -333,12 +347,49 @@ export default function PropertyFormScreen() {
       // not to a stale duplicate detail entry.
       backThenReplace('property-detail', { propertyId: editId, dbId: screenParams.dbId })
     } else if (count > 1 && bulkNames) {
-      // Bulk: same fields for every row, names auto-numbered from the entered
-      // one. The whole batch shares one created_at (single INSERT), so give
-      // rows explicit sort_order — otherwise their list order is arbitrary.
+      // Bulk: shared fields + per-row overrides (name, areas). Empty row
+      // fields fall back to the shared values from the form.
+      const finalNames = bulkNames.map((auto, i) => (bulkRows[i]?.name.trim() || auto))
+      const existingNames = new Set(properties.map(p => p.name))
+      const seen = new Set<string>()
+      for (const n of finalNames) {
+        if (seen.has(n) || existingNames.has(n)) {
+          showToast({ type: 'error', title: 'Ім\'я повторюється', subtitle: `«${n}» вже існує або вжито двічі` })
+          return
+        }
+        seen.add(n)
+      }
+
+      const rows: { au?: number; at?: number }[] = []
+      for (let i = 0; i < count; i++) {
+        const rawAu = bulkRows[i]?.areaUseful ?? ''
+        const rawAt = bulkRows[i]?.areaTotal ?? ''
+        if (rawAu && numOrUndef(rawAu) === undefined) {
+          showToast({ type: 'error', title: 'Некоректне значення', subtitle: `${finalNames[i]}: площа — лише число` }); return
+        }
+        if (rawAt && numOrUndef(rawAt) === undefined) {
+          showToast({ type: 'error', title: 'Некоректне значення', subtitle: `${finalNames[i]}: площа — лише число` }); return
+        }
+        const rowAu = numOrUndef(rawAu) ?? numOrUndef(areaUseful)
+        const rowAt = isParking ? undefined : (numOrUndef(rawAt) ?? numOrUndef(areaTotal))
+        if ((rowAu ?? 0) < 0 || (rowAt ?? 0) < 0) {
+          showToast({ type: 'error', title: 'Значення не може бути від\'ємним', subtitle: finalNames[i] }); return
+        }
+        if (rowAu && rowAt && rowAu > rowAt) {
+          showToast({ type: 'error', title: 'Корисна площа більша за загальну', subtitle: finalNames[i] }); return
+        }
+        rows.push({ au: rowAu, at: rowAt })
+      }
+
+      // The whole batch shares one created_at (single INSERT), so give rows
+      // explicit sort_order — otherwise their list order is arbitrary.
       const sortBase = Math.max(0, ...properties.map(p => p.sort_order ?? 0))
-      const ok = await createProperties(bulkNames.map((n, i) => ({
-        ...payload, name: n, sort_order: sortBase + (i + 1) * 100,
+      const ok = await createProperties(finalNames.map((n, i) => ({
+        ...payload,
+        name: n,
+        area_useful: rows[i].au,
+        area_total: rows[i].at,
+        sort_order: sortBase + (i + 1) * 100,
       })))
       if (ok && draftKey) localStorage.removeItem(draftKey)
     } else {
@@ -430,13 +481,74 @@ export default function PropertyFormScreen() {
           </div>
         </div>
 
-        {/* Bulk preview: which names the batch will get */}
+        {/* Bulk rows: per-object name + areas; everything else is shared.
+            Empty fields inherit the auto name / shared «Площа» values shown
+            as placeholders. */}
         {bulkNames && (
-          <div style={{ margin: '-8px 12px 16px', padding: '0 4px', fontSize: 'var(--fs-cap1)', color: 'var(--t3)', lineHeight: 1.5 }}>
-            Буде створено: {bulkNames.length <= 4
-              ? bulkNames.join(', ')
-              : `${bulkNames.slice(0, 3).join(', ')} … ${bulkNames[bulkNames.length - 1]}`}
-          </div>
+          <>
+            <div className="over">
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <IconLayoutGrid size={13} color="var(--info)" />Буде створено
+              </span>
+              <span className="over-a">{count} {objectsWord(count)}</span>
+            </div>
+            <div
+              className="fg glass-s"
+              style={{
+                margin: '0 12px 16px', padding: '4px 0',
+                maxHeight: 332, overflowY: 'auto',
+                overscrollBehavior: 'contain', WebkitOverflowScrolling: 'touch',
+              }}
+            >
+              {bulkNames.map((auto, i) => {
+                const row = bulkRows[i] ?? { name: '', areaUseful: '', areaTotal: '' }
+                const setRow = (patch: Partial<typeof row>) =>
+                  setBulkRows(prev => prev.map((r, j) => (j === i ? { ...r, ...patch } : r)))
+                const inputStyle: React.CSSProperties = {
+                  width: 62, padding: '7px 8px', textAlign: 'right',
+                  fontSize: 'var(--fs-call)', color: 'var(--t1)',
+                  background: 'var(--glass-2)', border: '.5px solid var(--glass-bd)',
+                  borderRadius: 'var(--r-10)',
+                }
+                return (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 12px' }}>
+                    <input
+                      aria-label={`Назва об'єкта ${i + 1}`}
+                      style={{ ...inputStyle, flex: 1, width: 'auto', minWidth: 0, textAlign: 'left' }}
+                      placeholder={auto}
+                      maxLength={100}
+                      value={row.name}
+                      onChange={e => setRow({ name: e.target.value })}
+                    />
+                    <input
+                      aria-label={`Корисна площа об'єкта ${i + 1}`}
+                      className="num"
+                      style={inputStyle}
+                      type="number" min="0" inputMode="decimal"
+                      placeholder={areaUseful || '—'}
+                      value={row.areaUseful}
+                      onChange={e => setRow({ areaUseful: e.target.value })}
+                    />
+                    {!isParking && (
+                      <>
+                        <span style={{ color: 'var(--t4)', fontSize: 'var(--fs-cap1)' }}>/</span>
+                        <input
+                          aria-label={`Загальна площа об'єкта ${i + 1}`}
+                          className="num"
+                          style={inputStyle}
+                          type="number" min="0" inputMode="decimal"
+                          placeholder={areaTotal || '—'}
+                          value={row.areaTotal}
+                          onChange={e => setRow({ areaTotal: e.target.value })}
+                        />
+                      </>
+                    )}
+                    <span style={{ color: 'var(--t3)', fontSize: 'var(--fs-cap1)', flexShrink: 0 }}>м²</span>
+                  </div>
+                )
+              })}
+            </div>
+          </>
         )}
 
         {/* Sale price — shown only when for_sale */}
