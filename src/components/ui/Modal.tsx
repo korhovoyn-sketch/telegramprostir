@@ -1,6 +1,12 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
 import { scrollFocusedIntoView } from '@/lib/utils'
+
+// Mounted-modal stack: Escape must close only the TOPMOST modal (a confirm
+// nested inside ShareSheet must not tear the sheet down too — backdrop taps
+// never did).
+const modalStack: symbol[] = []
 
 interface ModalProps {
   title: string
@@ -16,6 +22,28 @@ interface ModalProps {
 }
 
 export default function Modal({ title, subtitle, onClose, children, actions }: ModalProps) {
+  const idRef = useRef<symbol | null>(null)
+  if (idRef.current === null) idRef.current = Symbol('modal')
+
+  useEffect(() => {
+    const id = idRef.current!
+    modalStack.push(id)
+    return () => {
+      const i = modalStack.indexOf(id)
+      if (i !== -1) modalStack.splice(i, 1)
+    }
+  }, [])
+
+  // Desktop Telegram / web: Escape mirrors the backdrop tap — but only for
+  // the topmost modal.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && modalStack[modalStack.length - 1] === idRef.current) onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
   return (
     <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div className="modal">

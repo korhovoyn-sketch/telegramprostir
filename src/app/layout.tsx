@@ -8,9 +8,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
       const tg = window.Telegram.WebApp
-      const theme = tg.colorScheme === 'dark' ? tg.themeParams?.secondary_bg_color || '#1a0533' : '#ffffff'
-      tg.setHeaderColor?.(theme)
-      tg.setBackgroundColor?.(theme)
+      // The app is dark-only: the native chrome must match regardless of the
+      // user's Telegram theme (a light theme used to paint the header WHITE
+      // above the dark gradient). #06050e ≈ the near-black top every .bg-*
+      // gradient starts from.
+      const dark = '#06050e'
+      tg.setHeaderColor?.(dark)
+      tg.setBackgroundColor?.(dark)
+      tg.setBottomBarColor?.(dark)
     }
 
     // Global error capture — logs structured data without exposing PII.

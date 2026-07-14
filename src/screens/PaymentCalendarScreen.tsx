@@ -10,7 +10,7 @@ import Header from '@/components/ui/Header'
 import Modal from '@/components/ui/Modal'
 import { SkeletonList } from '@/components/ui/SkeletonLoader'
 import { IconCalendar, IconBellRing, IconCheckCircle, IconClock, IconPlus, IconTrash, IconFile } from '@/components/Icons'
-import { formatPrice, monthlyRent, humanizeDbError, objectsWord } from '@/lib/utils'
+import { formatPrice, monthlyRent, humanizeDbError, objectsWord, sanitizeDecimal, sanitizeInt } from '@/lib/utils'
 import type { Property, RentPayment, RentPaymentRecord } from '@/types'
 
 // Expected monthly rent for a property. rent_rate alone is WRONG for per_m2
@@ -696,15 +696,15 @@ export default function PaymentCalendarScreen() {
               <div className="fld">
                 <div className="fld-l"><IconCalendar size={11} />День місяця (1–28)</div>
                 <input
-                  type="number" min={1} max={28} inputMode="numeric"
-                  value={setupDueDay} onChange={e => setSetupDueDay(e.target.value)}
+                  type="text" inputMode="numeric" maxLength={2}
+                  value={setupDueDay} onChange={e => setSetupDueDay(sanitizeInt(e.target.value))}
                 />
               </div>
               <div className="fld">
                 <div className="fld-l"><IconBellRing size={11} />Нагадати за, днів</div>
                 <input
-                  type="number" min={0} max={14} inputMode="numeric"
-                  value={setupNotify} onChange={e => setSetupNotify(e.target.value)}
+                  type="text" inputMode="numeric" maxLength={2}
+                  value={setupNotify} onChange={e => { const v = sanitizeInt(e.target.value); setSetupNotify(v && parseInt(v, 10) > 14 ? '14' : v) }}
                 />
               </div>
             </div>
@@ -766,10 +766,10 @@ export default function PaymentCalendarScreen() {
             <div className="fld">
               <div className="fld-l">Сума отриманого платежу</div>
               <input
-                type="number" min={0} inputMode="decimal"
+                type="text" inputMode="decimal"
                 placeholder="Введіть суму..."
                 value={payConfirmAmount}
-                onChange={e => setPayConfirmAmount(e.target.value)}
+                onChange={e => setPayConfirmAmount(sanitizeDecimal(e.target.value))}
               />
             </div>
             <div className="fld" style={{ marginTop: 10 }}>
