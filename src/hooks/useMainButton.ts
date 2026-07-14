@@ -31,6 +31,9 @@ export function useMainButton({ text, visible, enabled = true, loading = false, 
     const mb = tg.MainButton
     const handler = () => cbRef.current()
     mb.onClick(handler)
+    // Match the app's green CTA (.mbtn.success / --ok) — the default is the
+    // Telegram theme's button color, which reads off-brand (black on iOS).
+    mb.setParams?.({ color: '#34C759', text_color: '#FFFFFF' })
     setAvailable(true)
     return () => {
       mb.offClick(handler)

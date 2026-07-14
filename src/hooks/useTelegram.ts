@@ -32,6 +32,7 @@ interface TelegramWebApp {
     text: string
     isVisible: boolean
     setText: (text: string) => void
+    setParams: (params: { color?: string; text_color?: string; is_active?: boolean; is_visible?: boolean }) => void
     show: () => void
     hide: () => void
     enable: () => void

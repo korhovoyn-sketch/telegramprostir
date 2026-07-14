@@ -183,8 +183,9 @@ test('native MainButton drives the form when Telegram provides one', async ({ pa
     const wa = (window as any).Telegram?.WebApp
     if (!wa) return
     wa.MainButton = {
-      text: '', isVisible: false, _cb: null,
+      text: '', isVisible: false, _cb: null, _params: null,
       setText(t: string) { this.text = t },
+      setParams(p: Record<string, unknown>) { this._params = p },
       show() { this.isVisible = true }, hide() { this.isVisible = false },
       enable() {}, disable() {}, showProgress() {}, hideProgress() {},
       onClick(f: () => void) { this._cb = f }, offClick() { this._cb = null },

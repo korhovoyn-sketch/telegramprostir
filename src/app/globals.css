@@ -326,7 +326,10 @@ body{
 input:focus,textarea:focus{outline:none}
 input:focus-visible,textarea:focus-visible{outline:2px solid var(--tg-blue-light);outline-offset:2px}
 /* iOS Safari auto-zoom fix: font-size < 16px triggers zoom on input focus */
-input,textarea,select{font-size:16px;touch-action:manipulation}
+/* translateZ(0) — окремий композитний шар для полів вводу: iOS WebKit малює
+   каретку зі зміщенням (під полем), коли інпут лежить під backdrop-filter
+   (glass-картки, модалки). Шар ізолює каретку від блюр-компонування. */
+input,textarea,select{font-size:16px;touch-action:manipulation;-webkit-transform:translateZ(0);transform:translateZ(0)}
 .fr:focus-within{background:linear-gradient(90deg,rgba(34,158,217,.08),transparent)}
 .fr:focus-within .fr-l{color:var(--info-fg)}
 
