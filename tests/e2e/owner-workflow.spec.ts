@@ -234,7 +234,10 @@ test('owner: bulk create sends one INSERT with auto-numbered names', async ({ pa
   await page.getByPlaceholder('Офіс 101').fill('Офіс 201')
   await page.getByLabel("Більше об'єктів").click()
   await page.getByLabel("Більше об'єктів").click() // count = 3
-  await expect(page.getByText('Буде створено: Офіс 201, Офіс 202, Офіс 203')).toBeVisible()
+  await expect(page.getByText('Буде створено')).toBeVisible()
+  for (const n of ['Офіс 201', 'Офіс 202', 'Офіс 203']) {
+    await expect(page.getByPlaceholder(n, { exact: true })).toBeVisible()
+  }
 
   await page.getByRole('button', { name: "Додати 3 об'єкти" }).click()
   await expect.poll(() => postBody, { timeout: 10_000 }).not.toBeNull()

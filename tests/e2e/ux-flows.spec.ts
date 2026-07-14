@@ -232,5 +232,65 @@ test('bulk: name run skips names that already exist in the database', async ({ p
   await page.getByPlaceholder('Офіс 101').fill('Офіс 101')
   await page.getByLabel("Більше об'єктів").click()
   await page.getByLabel("Більше об'єктів").click()
-  await expect(page.getByText('Буде створено: Офіс 104, Офіс 105, Офіс 106')).toBeVisible()
+  await expect(page.getByText('Буде створено')).toBeVisible()
+  for (const n of ['Офіс 104', 'Офіс 105', 'Офіс 106']) {
+    await expect(page.getByPlaceholder(n, { exact: true })).toBeVisible()
+  }
+})
+
+test('bulk: per-row areas and a name override land in the INSERT; empty rows fall back', async ({ page }) => {
+  await fixtures(page)
+  let postBody: Record<string, unknown>[] | null = null
+  await page.route('**/rest/v1/properties**', (route) => {
+    if (route.request().method() !== 'POST') return route.fallback()
+    postBody = JSON.parse(route.request().postData() ?? '[]')
+    const rows = (postBody ?? []).map((b, i) => ({ ...PROPERTIES[1], ...b, id: `20000000-0000-0000-0000-00000000020${i}`, photos: [] }))
+    return json(route, rows, 201)
+  })
+
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+  await page.getByText('БЦ Рубін').first().click()
+  await page.getByLabel("Додати об'єкт").click()
+  await expect(page.getByText("Новий об'єкт")).toBeVisible()
+
+  await page.getByPlaceholder('Офіс 101', { exact: true }).fill('Офіс 201')
+  await page.getByLabel("Більше об'єктів").click()
+  await page.getByLabel("Більше об'єктів").click() // count = 3
+
+  // Shared «Площа» acts as the fallback for rows that leave theirs empty
+  await page.getByPlaceholder('47', { exact: true }).fill('40')
+
+  // Row 1: own areas; row 2: name override + own useful area; row 3: untouched
+  await page.getByLabel("Корисна площа об'єкта 1").fill('45')
+  await page.getByLabel("Загальна площа об'єкта 1").fill('52')
+  await page.getByLabel("Назва об'єкта 2").fill('Кабінет 5')
+  await page.getByLabel("Корисна площа об'єкта 2").fill('62')
+
+  await page.getByRole('button', { name: "Додати 3 об'єкти" }).click()
+  await expect.poll(() => postBody, { timeout: 10_000 }).not.toBeNull()
+
+  const rows = postBody!
+  expect(rows.map(r => r.name)).toEqual(['Офіс 201', 'Кабінет 5', 'Офіс 203'])
+  expect(rows.map(r => r.area_useful)).toEqual([45, 62, 40])
+  expect(rows[0].area_total).toBe(52)
+  // Deterministic in-batch order: sequential sort_order past the current max (300)
+  expect(rows.map(r => r.sort_order)).toEqual([400, 500, 600])
+})
+
+test('bulk: a duplicated manual name is rejected with a clear toast', async ({ page }) => {
+  await fixtures(page)
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+  await page.getByText('БЦ Рубін').first().click()
+  await page.getByLabel("Додати об'єкт").click()
+  await expect(page.getByText("Новий об'єкт")).toBeVisible()
+
+  await page.getByPlaceholder('Офіс 101', { exact: true }).fill('Офіс 201')
+  await page.getByLabel("Більше об'єктів").click()
+  // Manual override collides with the existing «Офіс 102»
+  await page.getByLabel("Назва об'єкта 2").fill('Офіс 102')
+
+  await page.getByRole('button', { name: "Додати 2 об'єкти" }).click()
+  await expect(page.getByText('Ім\'я повторюється')).toBeVisible()
 })
