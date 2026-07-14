@@ -12,7 +12,7 @@ import Modal from '@/components/ui/Modal'
 import { IconRuler, IconLayers, IconLayoutGrid, IconActivity, IconBuilding, IconCurrencyDollar, IconBolt, IconCarGarage, IconFile, IconUser, IconKey, IconMapPin } from '@/components/Icons'
 import { UTILITY_META } from '@/lib/utilityMeta'
 import FilesList from '@/components/ui/FilesList'
-import { formatPrice, calcRent, calcUtilities, rentUnitLabel, nextCopyName, bulkCreateNames, objectsWord, scrollFocusedIntoView } from '@/lib/utils'
+import { currencySymbol, formatPrice, calcRent, calcUtilities, rentUnitLabel, nextCopyName, bulkCreateNames, objectsWord, scrollFocusedIntoView } from '@/lib/utils'
 import type { PropertyStatus, RentType, ParkingType } from '@/types'
 
 const PARKING_TYPES: { v: ParkingType; l: string }[] = [
@@ -559,7 +559,7 @@ export default function PropertyFormScreen() {
               <div className="fr">
                 <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconCurrencyDollar size={13} color="var(--t3)" />Ціна продажу</span>
                 <input className="fr-i" type="number" min="0" max="999999999" inputMode="decimal" placeholder="150000" value={salePrice} onChange={e => setSalePrice(e.target.value)} />
-                <span className="fr-u">$</span>
+                <span className="fr-u">{currencySymbol(user?.currency)}</span>
               </div>
             </div>
           </>
@@ -627,7 +627,7 @@ export default function PropertyFormScreen() {
           <div className="fr hi-row">
             <span className="fr-l">{rentType === 'per_m2' ? 'Ставка' : 'Сума'}</span>
             <input className="fr-i" type="number" min="0" inputMode="decimal" placeholder={rentType === 'per_day' ? '150' : '18'} value={rentRate} onChange={e => setRentRate(e.target.value)} />
-            <span className="fr-u">${rentUnitLabel(rentType)}</span>
+            <span className="fr-u">{currencySymbol(user?.currency)}{rentUnitLabel(rentType)}</span>
           </div>
           {rentCalc > 0 && (
             <div className="fr" style={{ background: 'rgba(34,158,217,.08)' }}>
@@ -645,7 +645,7 @@ export default function PropertyFormScreen() {
           <div className="fr">
             <span className="fr-l">{isParking ? 'Сума' : 'Ставка'}</span>
             <input className="fr-i" type="number" min="0" inputMode="decimal" placeholder={isParking ? '30' : '2.5'} value={utilitiesRate} onChange={e => setUtilitiesRate(e.target.value)} />
-            <span className="fr-u">{isParking ? '$/міс' : '$/м²'}</span>
+            <span className="fr-u">{currencySymbol(user?.currency)}{isParking ? '/міс' : '/м²'}</span>
           </div>
           {!isParking && utilsCalc > 0 && (
             <div className="fr" style={{ background: 'rgba(34,158,217,.08)' }}>

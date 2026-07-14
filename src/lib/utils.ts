@@ -70,6 +70,13 @@ export function daysUntil(dateStr: string): number {
   return Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86400000)
 }
 
+// Bare currency sign for unit labels («₴/м²») — same mapping as formatPrice.
+export function currencySymbol(currency?: string | null): string {
+  if (currency === 'EUR') return '€'
+  if (!currency || currency === 'USD') return '$'
+  return '₴'
+}
+
 export function formatPrice(amount: number, currency = 'USD'): string {
   if (currency === 'USD') return `$${amount.toLocaleString('uk-UA')}`
   if (currency === 'EUR') return `€${amount.toLocaleString('uk-UA')}`

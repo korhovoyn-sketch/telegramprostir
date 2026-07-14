@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import { scrollFocusedIntoView } from '@/lib/utils'
 
 interface ModalProps {
@@ -16,6 +17,13 @@ interface ModalProps {
 }
 
 export default function Modal({ title, subtitle, onClose, children, actions }: ModalProps) {
+  // Desktop Telegram / web: Escape mirrors the backdrop tap.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
   return (
     <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div className="modal">

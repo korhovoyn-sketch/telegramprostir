@@ -13,7 +13,7 @@ import { StatusBadge } from '@/components/ui/Badge'
 import { IconEdit, IconShare, IconMapPin, IconPhoto, IconX, IconCamera, IconRuler, IconBuildingSkyscraper, IconCircleCheck, IconCurrencyDollar, IconCarGarage, IconUser, IconKey, IconBolt, IconCalendar, IconFile } from '@/components/Icons'
 import FilesList from '@/components/ui/FilesList'
 import FloatingButton from '@/components/ui/FloatingButton'
-import { formatPrice, calcRent, calcUtilities, calcRentUtils, rentUnitLabel, computedRentUnit, parkingTypeLabel, STATUS_LABELS, formatLeasePeriod, photoUrl, daysUntil } from '@/lib/utils'
+import { currencySymbol, formatPrice, calcRent, calcUtilities, calcRentUtils, rentUnitLabel, computedRentUnit, parkingTypeLabel, STATUS_LABELS, formatLeasePeriod, photoUrl, daysUntil } from '@/lib/utils'
 import { UTILITY_META } from '@/lib/utilityMeta'
 import { supabase } from '@/lib/supabase'
 
@@ -183,6 +183,12 @@ export default function PropertyDetailScreen() {
   function handleRentOut() {
     if (!rentTenantName.trim() || !property) return
     if (offlineGuard()) return
+    // Same rule as PropertyFormScreen — the modal must not accept a lease
+    // that ends before it starts.
+    if (rentLeaseStart && rentLeaseEnd && rentLeaseEnd < rentLeaseStart) {
+      showToast({ type: 'error', title: 'Дата закінчення оренди раніше початку' })
+      return
+    }
     const parsedRate = parseFloat(rentRentRate)
     const parsedUtils = parseFloat(rentUtilitiesRate)
     // Optimistic: the modal closes instantly, the update syncs in the
@@ -703,8 +709,8 @@ export default function PropertyDetailScreen() {
               ? (property.area_total ? calcUtilities(property.area_total, utilVal) : utilVal)
               : 0
             const previewTotal = property.rent_type === 'per_day' ? 0 : previewRent + previewUtils
-            const rateUnit = `$${rentUnitLabel(property.rent_type)}`
-            const utilUnit = isParking ? '$/міс' : '$/м²'
+            const rateUnit = `${currencySymbol(user?.currency)}${rentUnitLabel(property.rent_type)}`
+            const utilUnit = `${currencySymbol(user?.currency)}${isParking ? '/міс' : '/м²'}`
 
             return (
               <div style={{ paddingTop: 4 }}>
