@@ -64,6 +64,7 @@ interface TelegramWebApp {
   isExpanded: boolean
   setHeaderColor?: (color: string) => void
   setBackgroundColor?: (color: string) => void
+  setBottomBarColor?: (color: string) => void
 }
 
 declare global {

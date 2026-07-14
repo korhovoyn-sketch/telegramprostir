@@ -57,6 +57,7 @@ export default function CreateDatabaseScreen() {
     visible: true,
     enabled: canCreate,
     loading,
+    barColor: '#7e58d6', // низ .bg-purple
     onClick: handleSave,
   })
 

@@ -262,6 +262,7 @@ export default function PropertyFormScreen() {
     visible: !showDeleteModal,
     enabled: canSave,
     loading,
+    barColor: '#5480dc', // низ .bg-blue
     onClick: handleSave,
   })
 
