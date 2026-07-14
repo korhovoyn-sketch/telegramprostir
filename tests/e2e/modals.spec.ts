@@ -101,8 +101,8 @@ test('rent modal: disabled CTA, live monthly preview, currency-aware unit labels
   // Live preview: 45 м² × 20 + 52 м² × 5 = 1 160 — recomputes as you type
   await page.getByPlaceholder('ТОВ «Назва» або ФОП').fill('ФОП Петренко')
   await expect(submit).toBeEnabled()
-  const rateInput = page.locator('.modal .fld input[type="number"]').first()
-  const utilInput = page.locator('.modal .fld input[type="number"]').nth(1)
+  const rateInput = page.locator('.modal .fld input[inputmode="decimal"]').first()
+  const utilInput = page.locator('.modal .fld input[inputmode="decimal"]').nth(1)
   await rateInput.fill('20')
   await expect(page.getByText('Разом на місяць')).toBeVisible()
   await expect(page.locator('.modal').getByText(/\$900/)).toBeVisible()
@@ -178,7 +178,7 @@ test('schedule modal: day outside 1–28 shows the range error; valid day saves'
   await page.getByRole('button', { name: /Налаштувати/ }).first().click()
   await expect(page.locator('.modal')).toBeVisible()
 
-  const dayInput = page.locator('.modal input[type="number"]').first()
+  const dayInput = page.locator('.modal input[inputmode="numeric"]').first()
   await dayInput.fill('45')
   await page.getByRole('button', { name: /Зберегти|Створити/ }).click()
   await expect(page.getByText('День платежу має бути від 1 до 28')).toBeVisible()

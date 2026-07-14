@@ -70,6 +70,21 @@ export function daysUntil(dateStr: string): number {
   return Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86400000)
 }
 
+// Controlled decimal input: comma → dot, digits + a single dot only. Used
+// with type="text" inputMode="decimal" — type="number" silently blanks the
+// controlled value on an invalid intermediate state (second dot, trailing
+// comma), «зникає введене», and lets a scroll wheel change the number.
+export function sanitizeDecimal(raw: string): string {
+  let s = raw.replace(/,/g, '.').replace(/[^\d.]/g, '')
+  const i = s.indexOf('.')
+  if (i !== -1) s = s.slice(0, i + 1) + s.slice(i + 1).replace(/\./g, '')
+  return s
+}
+
+export function sanitizeInt(raw: string): string {
+  return raw.replace(/\D/g, '')
+}
+
 // Bare currency sign for unit labels («₴/м²») — same mapping as formatPrice.
 export function currencySymbol(currency?: string | null): string {
   if (currency === 'EUR') return '€'

@@ -13,7 +13,7 @@ import { StatusBadge } from '@/components/ui/Badge'
 import { IconEdit, IconShare, IconMapPin, IconPhoto, IconX, IconCamera, IconRuler, IconBuildingSkyscraper, IconCircleCheck, IconCurrencyDollar, IconCarGarage, IconUser, IconKey, IconBolt, IconCalendar, IconFile } from '@/components/Icons'
 import FilesList from '@/components/ui/FilesList'
 import FloatingButton from '@/components/ui/FloatingButton'
-import { currencySymbol, formatPrice, calcRent, calcUtilities, calcRentUtils, rentUnitLabel, computedRentUnit, parkingTypeLabel, STATUS_LABELS, formatLeasePeriod, photoUrl, daysUntil } from '@/lib/utils'
+import { currencySymbol, sanitizeDecimal, formatPrice, calcRent, calcUtilities, calcRentUtils, rentUnitLabel, computedRentUnit, parkingTypeLabel, STATUS_LABELS, formatLeasePeriod, photoUrl, daysUntil } from '@/lib/utils'
 import { UTILITY_META } from '@/lib/utilityMeta'
 import { supabase } from '@/lib/supabase'
 
@@ -729,21 +729,21 @@ export default function PropertyDetailScreen() {
                   <div className="fld">
                     <div className="fld-l"><IconCurrencyDollar size={11} />Оренда, {rateUnit}</div>
                     <input
-                      type="number"
+                      type="text"
                       inputMode="decimal"
                       placeholder="0"
                       value={rentRentRate}
-                      onChange={e => setRentRentRate(e.target.value)}
+                      onChange={e => setRentRentRate(sanitizeDecimal(e.target.value))}
                     />
                   </div>
                   <div className="fld">
                     <div className="fld-l"><IconBolt size={11} />Комунальні, {utilUnit}</div>
                     <input
-                      type="number"
+                      type="text"
                       inputMode="decimal"
                       placeholder="0"
                       value={rentUtilitiesRate}
-                      onChange={e => setRentUtilitiesRate(e.target.value)}
+                      onChange={e => setRentUtilitiesRate(sanitizeDecimal(e.target.value))}
                     />
                   </div>
                 </div>

@@ -3,7 +3,7 @@ import {
   formatPrice, formatLeaseDate, formatLeasePeriod, formatDate,
   calcRent, calcUtilities, calcRentUtils, monthlyRent, rentUnitLabel, parkingTypeLabel,
   getInitials, greeting, withRetry, humanizeDbError, safeFileName, pluralUk, objectsWord,
-  computedRentUnit, nextCopyName, bulkCreateNames,
+  computedRentUnit, nextCopyName, bulkCreateNames, sanitizeDecimal, sanitizeInt,
 } from '@/lib/utils'
 
 describe('humanizeDbError', () => {
@@ -137,6 +137,28 @@ describe('objectsWord (Ukrainian plural)', () => {
   })
   it('pluralUk picks the passed forms', () =>
     expect(pluralUk(3, 'база', 'бази', 'баз')).toBe('бази'))
+})
+
+describe('sanitizeDecimal / sanitizeInt', () => {
+  it('comma becomes a dot, only one dot survives', () => {
+    expect(sanitizeDecimal('12,5')).toBe('12.5')
+    expect(sanitizeDecimal('12.5.7')).toBe('12.57')
+    expect(sanitizeDecimal('1,2,3')).toBe('1.23')
+  })
+  it('strips everything but digits and the dot', () => {
+    expect(sanitizeDecimal('12e5')).toBe('125')
+    expect(sanitizeDecimal('-40')).toBe('40')
+    expect(sanitizeDecimal('₴1 800')).toBe('1800')
+  })
+  it('intermediate states stay visible (no blanking)', () => {
+    expect(sanitizeDecimal('45.')).toBe('45.')
+    expect(sanitizeDecimal('.')).toBe('.')
+  })
+  it('sanitizeInt keeps digits only', () => {
+    expect(sanitizeInt('2 8')).toBe('28')
+    expect(sanitizeInt('-5')).toBe('5')
+    expect(sanitizeInt('day 7')).toBe('7')
+  })
 })
 
 describe('nextCopyName', () => {

@@ -151,11 +151,16 @@ test('owner: property detail and form validation logic', async ({ page }) => {
   await page.getByRole('button', { name: "Додати об'єкт" }).click()
   await expect(page.getByText('Корисна площа більша за загальну')).toBeVisible()
 
-  // negative rate → error
+  // negative/garbage input can't even be typed — the sanitizer strips it at
+  // entry (the old error-toast path is unreachable from the keyboard now)
   await page.getByPlaceholder('52').fill('120')
-  await page.getByPlaceholder('18').fill('-5')
-  await page.getByRole('button', { name: "Додати об'єкт" }).click()
-  await expect(page.getByText("Значення не може бути від'ємним")).toBeVisible()
+  const rate = page.getByPlaceholder('18')
+  await rate.fill('-5')
+  await expect(rate).toHaveValue('5')
+  await rate.fill('12,5')
+  await expect(rate).toHaveValue('12.5')
+  await rate.fill('12.5.7')
+  await expect(rate).toHaveValue('12.57')
 })
 
 test('owner: empty status tab shows a status message, not a search dead-end', async ({ page }) => {
