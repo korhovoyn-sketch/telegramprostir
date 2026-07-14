@@ -31,9 +31,6 @@ export function useMainButton({ text, visible, enabled = true, loading = false, 
     const mb = tg.MainButton
     const handler = () => cbRef.current()
     mb.onClick(handler)
-    // Match the app's green CTA (.mbtn.success / --ok) — the default is the
-    // Telegram theme's button color, which reads off-brand (black on iOS).
-    mb.setParams?.({ color: '#34C759', text_color: '#FFFFFF' })
     setAvailable(true)
     return () => {
       mb.offClick(handler)
@@ -47,9 +44,17 @@ export function useMainButton({ text, visible, enabled = true, loading = false, 
     const mb = window.Telegram?.WebApp?.MainButton
     if (!mb) return
     mb.setText(text)
+    // Brand green (.mbtn.success / --ok) only while actionable — a custom
+    // setParams color survives disable(), so a disabled button would stay
+    // bright green and read as tappable. Grey it explicitly instead.
+    const actionable = enabled && !loading
+    mb.setParams?.({
+      color: actionable ? '#34C759' : '#3A4149',
+      text_color: actionable ? '#FFFFFF' : '#8E959E',
+    })
     if (loading) mb.showProgress()
     else mb.hideProgress()
-    if (enabled && !loading) mb.enable()
+    if (actionable) mb.enable()
     else mb.disable()
     if (visible) mb.show()
     else mb.hide()

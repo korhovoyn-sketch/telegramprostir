@@ -76,8 +76,20 @@ export function daysUntil(dateStr: string): number {
 // comma), «зникає введене», and lets a scroll wheel change the number.
 export function sanitizeDecimal(raw: string): string {
   let s = raw.replace(/,/g, '.').replace(/[^\d.]/g, '')
-  const i = s.indexOf('.')
-  if (i !== -1) s = s.slice(0, i + 1) + s.slice(i + 1).replace(/\./g, '')
+  const parts = s.split('.')
+  if (parts.length > 2 && parts.slice(1, -1).some(g => g.length === 3)) {
+    // Pasted grouped amount («1,200,000» / «1.200.50»): 3-digit inner groups
+    // are thousand separators. The tail is decimal only when it's 1-2 digits —
+    // otherwise it's another group. Naively keeping the first dot would turn
+    // 1,200,000 into 1.2 and silently store a wrong price.
+    const tail = parts[parts.length - 1]
+    s = tail.length >= 1 && tail.length <= 2
+      ? parts.slice(0, -1).join('') + '.' + tail
+      : parts.join('')
+  } else {
+    const i = s.indexOf('.')
+    if (i !== -1) s = s.slice(0, i + 1) + s.slice(i + 1).replace(/\./g, '')
+  }
   return s
 }
 
@@ -93,9 +105,7 @@ export function currencySymbol(currency?: string | null): string {
 }
 
 export function formatPrice(amount: number, currency = 'USD'): string {
-  if (currency === 'USD') return `$${amount.toLocaleString('uk-UA')}`
-  if (currency === 'EUR') return `€${amount.toLocaleString('uk-UA')}`
-  return `₴${amount.toLocaleString('uk-UA')}`
+  return `${currencySymbol(currency)}${amount.toLocaleString('uk-UA')}`
 }
 
 export function formatLeaseDate(d: string): string {

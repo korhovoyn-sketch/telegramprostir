@@ -154,6 +154,16 @@ describe('sanitizeDecimal / sanitizeInt', () => {
     expect(sanitizeDecimal('45.')).toBe('45.')
     expect(sanitizeDecimal('.')).toBe('.')
   })
+  it('pasted grouped amounts parse as the number the user sees', () => {
+    expect(sanitizeDecimal('1,200,000')).toBe('1200000')
+    expect(sanitizeDecimal('1.200.000')).toBe('1200000')
+    expect(sanitizeDecimal('1,200,50')).toBe('1200.50')
+    expect(sanitizeDecimal('1 200 000')).toBe('1200000')
+  })
+  it('grouping heuristic does not break live typing', () => {
+    expect(sanitizeDecimal('12.5.7')).toBe('12.57') // no 3-digit inner group → typing rule
+    expect(sanitizeDecimal('12.5.')).toBe('12.5')
+  })
   it('sanitizeInt keeps digits only', () => {
     expect(sanitizeInt('2 8')).toBe('28')
     expect(sanitizeInt('-5')).toBe('5')

@@ -558,7 +558,7 @@ export default function PropertyFormScreen() {
             <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
               <div className="fr">
                 <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconCurrencyDollar size={13} color="var(--t3)" />Ціна продажу</span>
-                <input className="fr-i" type="text" inputMode="decimal" placeholder="150000" value={salePrice} onChange={e => setSalePrice(sanitizeDecimal(e.target.value))} />
+                <input className="fr-i" type="text" inputMode="decimal" maxLength={12} placeholder="150000" value={salePrice} onChange={e => setSalePrice(sanitizeDecimal(e.target.value))} />
                 <span className="fr-u">{currencySymbol(user?.currency)}</span>
               </div>
             </div>

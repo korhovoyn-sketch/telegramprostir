@@ -704,7 +704,7 @@ export default function PaymentCalendarScreen() {
                 <div className="fld-l"><IconBellRing size={11} />Нагадати за, днів</div>
                 <input
                   type="text" inputMode="numeric" maxLength={2}
-                  value={setupNotify} onChange={e => setSetupNotify(sanitizeInt(e.target.value))}
+                  value={setupNotify} onChange={e => { const v = sanitizeInt(e.target.value); setSetupNotify(v && parseInt(v, 10) > 14 ? '14' : v) }}
                 />
               </div>
             </div>
