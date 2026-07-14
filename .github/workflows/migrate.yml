@@ -1,0 +1,81 @@
+name: Apply DB Migrations
+
+# Автозастосування supabase/migrations/** до прод-БД.
+#
+# ВАЖЛИВО — перший запуск: усі наявні міграції (001–040) застосовувались
+# вручну через Dashboard, тож у remote-історії CLI їх немає. Сліпий
+# `db push` спробував би накотити ВСЕ з нуля і впав би на першому
+# CREATE TABLE. Тому перед першим користуванням запусти цей workflow
+# руками (Actions → Apply DB Migrations → Run workflow) з baseline=true —
+# він позначить усі НАЯВНІ файли як застосовані, нічого не виконуючи.
+# Після цього кожен пуш нової міграції в main застосовує лише її.
+#
+# Потрібні секрети (Settings → Secrets → Actions):
+#   SUPABASE_ACCESS_TOKEN — токен акаунта (як у deploy-edge-function)
+#   SUPABASE_PROJECT_REF  — ref проєкту
+#   SUPABASE_DB_PASSWORD  — пароль БД (Dashboard → Settings → Database)
+
+on:
+  push:
+    paths:
+      - 'supabase/migrations/**'
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      baseline:
+        description: 'Позначити всі наявні міграції як застосовані (перший запуск, БЕЗ виконання SQL)'
+        type: boolean
+        default: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify secrets
+        run: |
+          missing=0
+          for s in SUPABASE_ACCESS_TOKEN SUPABASE_PROJECT_REF SUPABASE_DB_PASSWORD; do
+            v=""
+            case "$s" in
+              SUPABASE_ACCESS_TOKEN) v="${{ secrets.SUPABASE_ACCESS_TOKEN }}";;
+              SUPABASE_PROJECT_REF)  v="${{ secrets.SUPABASE_PROJECT_REF }}";;
+              SUPABASE_DB_PASSWORD)  v="${{ secrets.SUPABASE_DB_PASSWORD }}";;
+            esac
+            if [ -z "$v" ]; then echo "::error::$s secret is not set."; missing=1; fi
+          done
+          [ "$missing" = "0" ] || exit 1
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link project
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+
+      - name: Baseline (mark existing migrations as applied)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.baseline }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          versions=$(ls supabase/migrations/*.sql | xargs -n1 basename | grep -oE '^[0-9]+' | sort -u)
+          echo "Baseline versions: $versions"
+          supabase migration repair --status applied $versions
+
+      - name: Push new migrations
+        if: ${{ github.event_name == 'push' || !inputs.baseline }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: supabase db push
+
+      - name: Show migration status
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: supabase migration list

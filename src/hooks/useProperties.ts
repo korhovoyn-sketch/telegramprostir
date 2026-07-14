@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { humanizeDbError, objectsWord } from '@/lib/utils'
 import { readSnapshot, writeSnapshot } from '@/lib/snapshot'
+import { compressImage } from '@/lib/image'
 import { useAppStore } from '@/store/appStore'
 import type { Property, PropertyStatus } from '@/types'
 
@@ -338,12 +339,15 @@ export function useProperties(dbId?: string) {
     }
   }, [showToast])
 
-  const uploadPhoto = useCallback(async (propertyId: string, file: File) => {
+  const uploadPhoto = useCallback(async (propertyId: string, rawFile: File) => {
     const MAX_MB = 10
     const ALLOWED = /\.(jpe?g|png|webp|heic|heif)$/i
-    if (!ALLOWED.test(file.name) || !file.type.startsWith('image/')) {
+    if (!ALLOWED.test(rawFile.name) || !rawFile.type.startsWith('image/')) {
       throw new Error('Дозволені лише зображення (JPG, PNG, WEBP, HEIC)')
     }
+    // Resize/re-encode BEFORE the size check: a 12 MB camera shot becomes a
+    // few hundred KB and passes; on any failure the original comes back.
+    const file = await compressImage(rawFile)
     if (file.size > MAX_MB * 1024 * 1024) {
       throw new Error(`Файл занадто великий (макс. ${MAX_MB}МБ)`)
     }

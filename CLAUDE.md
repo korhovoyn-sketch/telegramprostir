@@ -108,7 +108,7 @@ Validates:
 
 #### Deploying Edge Functions
 
-Push to `main` or `claude/lucid-planck-Hjo1u` with changes under `supabase/functions/**` to trigger `.github/workflows/deploy-edge-function.yml`. Requires `SUPABASE_ACCESS_TOKEN` in GitHub repository secrets.
+Push to `main` with changes under `supabase/functions/**` triggers `.github/workflows/deploy-edge-function.yml`, which deploys **all four** functions (telegram-auth, validate-upload, telegram-bot, send-reminders). Requires `SUPABASE_ACCESS_TOKEN` + `SUPABASE_PROJECT_REF` secrets.
 
 ### Database schema & migrations
 
@@ -118,7 +118,7 @@ Two non-obvious things that broke auth historically and must stay correct:
 1. **`current_app_user_id()` resolves identity from the JWT *email* claim**, not a `tg_id` claim (Supabase doesn't add custom claims here). Email is `{tgId}@telegram.propspace.app`; the helper parses tg_id from it. A `tg_id`-claim version silently returns NULL → every RLS check fails → empty data everywhere.
 2. **No `handle_new_user` trigger may exist on `auth.users`.** The Supabase starter template installs one that inserts into `public.users` with stale column names; it makes GoTrue fail with "Database error creating new user". `003_reconcile.sql` drops it. The edge function is the only thing that writes `public.users`.
 
-The container running Claude Code on the web has **no outbound network** (Supabase host returns 403), so migrations cannot be pushed from here. Apply schema changes by running the SQL in the Supabase dashboard SQL Editor, or via the `migrate.yml` workflow on push to `main`.
+The container running Claude Code on the web has **no outbound network** (Supabase host returns 403), so migrations cannot be pushed from here. `.github/workflows/migrate.yml` applies `supabase/migrations/**` on push to `main` (needs `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`, `SUPABASE_DB_PASSWORD` secrets). **One-time baseline required**: усі міграції до 040 застосовувались вручну, тож перед першим використанням запусти workflow вручну з `baseline=true` — він позначить наявні файли як застосовані без виконання SQL. До baseline міграції застосовуються в Dashboard SQL Editor; `supabase/verify_release.sql` перевіряє їхній стан одним запитом.
 
 ### Roles
 
@@ -330,8 +330,7 @@ supabase functions deploy validate-upload --project-ref <PROJECT_REF>
 
 Файли: `supabase/migrations/036_share_management.sql`, `supabase/migrations/037_db_share_fixes.sql`
 
-**Чому критично:** немає workflow, який застосовує міграції автоматично (є лише
-`deploy-edge-function.yml` для telegram-auth). Фронтенд викликає RPC
+**Чому критично:** до baseline `migrate.yml` міграції застосовуються вручну. Фронтенд викликає RPC
 `subscribe_to_shared_db` / `manage_share`, яких немає в БД без 036/037 — через це
 розділ «поділитися базою» не працює (підключення бази падає з «Помилка запиту»).
 
@@ -357,12 +356,11 @@ Verification (в кінці 037 — має показати `null_tokens = 0` і
 - Індекси: `idx_audit_log_user_created`, `idx_audit_log_table_record`
 - Тригер `prune_expired_rate_limits()` — авто-очищення старих записів
 
-### 2. Edge functions — задеплоїти через Supabase CLI (workflow деплоїть лише telegram-auth)
+### 2. Edge functions — деплояться автоматично
 
-```bash
-supabase functions deploy send-reminders --project-ref <PROJECT_REF>
-supabase functions deploy telegram-bot --project-ref <PROJECT_REF>
-```
+`deploy-edge-function.yml` деплоїть усі чотири функції на push у `main`
+(потрібні секрети `SUPABASE_ACCESS_TOKEN` + `SUPABASE_PROJECT_REF`).
+Ручний CLI-деплой потрібен лише поза межами main-пушів.
 
 ### 3. CORS — встановити змінну середовища в Supabase Dashboard → Edge Functions
 
