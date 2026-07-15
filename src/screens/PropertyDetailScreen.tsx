@@ -328,7 +328,7 @@ export default function PropertyDetailScreen() {
             {property.area_useful && (
               <div className="obj-f">
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <IconRuler size={13} color="#7AB3FF" />{isParking ? 'Площа місця' : 'Корисна площа'}
+                  <IconRuler size={13} color="var(--info)" />{isParking ? 'Площа місця' : 'Корисна площа'}
                 </div>
                 <div className="obj-fv">{property.area_useful} м²</div>
               </div>
@@ -336,7 +336,7 @@ export default function PropertyDetailScreen() {
             {property.area_total && (
               <div className="obj-f">
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <IconRuler size={13} color="#7AB3FF" />Загальна площа
+                  <IconRuler size={13} color="var(--info)" />Загальна площа
                 </div>
                 <div className="obj-fv">{property.area_total} м²</div>
               </div>
@@ -428,7 +428,7 @@ export default function PropertyDetailScreen() {
               window.Telegram?.WebApp?.openLink?.(url)
             }}
           >
-            <IconMapPin size={14} color="#7AB3FF" />
+            <IconMapPin size={14} color="var(--info)" />
             <span style={{ fontSize: 'var(--fs-foot)', color: 'var(--t2)', flex: 1 }}>{property.address}</span>
             <svg width="7" height="12" viewBox="0 0 7 12" fill="none"><path d="M1 1l5 5-5 5" stroke="rgba(255,255,255,.3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
           </div>
@@ -485,7 +485,7 @@ export default function PropertyDetailScreen() {
               <div className="cost-row" style={{ marginTop: 4 }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 'var(--fw-semi)', color: 'var(--t1)' }}>
                   <span style={{ width: 24, height: 24, borderRadius: 8, background: 'rgba(122,179,255,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <IconCalendar size={12} color="#7AB3FF" />
+                    <IconCalendar size={12} color="var(--info)" />
                   </span>
                   Разом на місяць
                 </span>
@@ -496,7 +496,7 @@ export default function PropertyDetailScreen() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 4 }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--fs-cap1)', color: 'var(--t3)' }}>
                   <span style={{ width: 24, height: 24, borderRadius: 8, background: 'rgba(122,179,255,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <IconCalendar size={12} color="#7AB3FF" />
+                    <IconCalendar size={12} color="var(--info)" />
                   </span>
                   Разом на місяць
                 </span>
@@ -529,7 +529,7 @@ export default function PropertyDetailScreen() {
             style={{ margin: '0 12px 12px', borderRadius: 'var(--r-md)', padding: '11px 14px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}
             onClick={() => { hapticImpact('light'); navigate('payment-calendar', { propertyId: property.id, dbId: screenParams.dbId }) }}
           >
-            <IconCalendar size={16} color="#7AB3FF" />
+            <IconCalendar size={16} color="var(--info)" />
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 'var(--fs-note)', fontWeight: 'var(--fw-semi)', color: 'var(--t1)' }}>Календар платежів</div>
               <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 1 }}>Відстежувати та відмічати оплати</div>

@@ -9,7 +9,7 @@ import { useMainButton } from '@/hooks/useMainButton'
 import Header from '@/components/ui/Header'
 import Toggle from '@/components/ui/Toggle'
 import Modal from '@/components/ui/Modal'
-import { IconRuler, IconLayers, IconLayoutGrid, IconActivity, IconBuilding, IconCurrencyDollar, IconBolt, IconCarGarage, IconFile, IconUser, IconKey, IconMapPin } from '@/components/Icons'
+import { IconRuler, IconLayers, IconLayoutGrid, IconActivity, IconBuilding, IconCurrencyDollar, IconBolt, IconCarGarage, IconFile, IconUser, IconKey, IconMapPin, IconEdit } from '@/components/Icons'
 import { UTILITY_META } from '@/lib/utilityMeta'
 import FilesList from '@/components/ui/FilesList'
 import { currencySymbol, sanitizeDecimal, sanitizeInt, formatPrice, calcRent, calcUtilities, rentUnitLabel, nextCopyName, bulkCreateNames, objectsWord, scrollFocusedIntoView } from '@/lib/utils'
@@ -423,7 +423,7 @@ export default function PropertyFormScreen() {
         <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconBuilding size={13} color="var(--info)" />Основне</span></div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div className="fr">
-            <span className="fr-l">{isParking ? 'Номер місця' : 'Назва'}</span>
+            <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconEdit size={13} color="var(--t3)" />{isParking ? 'Номер місця' : 'Назва'}</span>
             <input className="fr-i" placeholder={isParking ? '№ 42, A-15' : 'Офіс 101'} maxLength={100} value={name} onChange={e => setName(e.target.value)} autoFocus={!isEdit} />
           </div>
           {!isEdit && (
@@ -431,7 +431,8 @@ export default function PropertyFormScreen() {
               <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                 <IconLayoutGrid size={13} color="var(--t3)" />Кількість
               </span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              {/* marginLeft:auto — контрол праворуч, як інпути/сегменти сусідніх рядків */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto' }}>
                 <button
                   aria-label="Менше об'єктів"
                   onClick={() => { hapticSelection(); setCount(c => Math.max(1, c - 1)) }}

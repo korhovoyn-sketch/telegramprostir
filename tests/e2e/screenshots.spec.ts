@@ -76,6 +76,15 @@ async function ownerRoutes(page: Page) {
     db_id: DB_ID, invite_token: 'cc00112233445566778899aa', label: 'Орендар А',
     guest_user_id: null, status: 'pending', claimed_at: null, created_at: NOW,
   }]))
+  await page.route('**/rest/v1/db_members**', (r) => {
+    // Список членів для TeamScreen; перший запит useDatabases по user_id
+    // теж сюди влучає — йому байдуже, зайві поля він ігнорує
+    if (r.request().url().includes('user_id=eq.')) return json(r, [])
+    return json(r, [
+      { id: '40000000-0000-0000-0000-000000000001', db_id: DB_ID, user_id: '00000000-0000-0000-0000-000000000077', role: 'editor', invite_token: 'dd00112233445566778899', label: 'Менеджер', member_name: 'Оля Петренко', status: 'active', claimed_at: NOW, created_at: NOW },
+      { id: '40000000-0000-0000-0000-000000000002', db_id: DB_ID, user_id: null, role: 'editor', invite_token: 'ee00112233445566778899', label: 'Бухгалтер', member_name: null, status: 'pending', claimed_at: null, created_at: NOW },
+    ])
+  })
   await page.route('**/rest/v1/rent_payments**', (r) => json(r, []))
   await page.route('**/rest/v1/rent_payment_records**', (r) => json(r, []))
   await page.route('**/rest/v1/property_views**', (r) => json(r, []))
@@ -139,6 +148,14 @@ test('screens · owner journey', async ({ page }) => {
     await page.getByLabel('Меню бази').click()
     await page.getByText('Управління гостями').click()
     await page.getByLabel('Запросити гостя').waitFor()
+  })
+  await page.goto('/'); await page.getByText('Мої бази').waitFor()
+  await page.getByText('БЦ Рубін').first().click(); await page.getByText('Всі (3)').waitFor()
+
+  await tryShot(page, 'team', async () => {
+    await page.getByLabel('Меню бази').click()
+    await page.getByText('Команда', { exact: true }).click()
+    await page.getByLabel('Запросити в команду').waitFor()
   })
   await page.goto('/'); await page.getByText('Мої бази').waitFor()
   await page.getByText('БЦ Рубін').first().click(); await page.getByText('Всі (3)').waitFor()

@@ -121,7 +121,7 @@ export default function ProfileScreen() {
         )}
 
         {/* Contacts */}
-        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconMail size={13} color="#7AB3FF" />Контакти</span></div>
+        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconMail size={13} color="var(--info)" />Контакти</span></div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div className="fr">
             <IconMail size={15} color="var(--t3)" />
@@ -188,7 +188,7 @@ export default function ProfileScreen() {
         </div>
 
         {/* Support */}
-        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconMessage size={13} color="#7AB3FF" />Підтримка</span></div>
+        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconMessage size={13} color="var(--info)" />Підтримка</span></div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div
             className="fr" style={{ cursor: 'pointer' }}

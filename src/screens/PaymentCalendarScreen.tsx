@@ -427,19 +427,21 @@ export default function PaymentCalendarScreen() {
       <div className="body">
         {/* Stats row */}
         <div className="stat-g" style={{ gridTemplateColumns: 'repeat(3,1fr)' }}>
+          {/* cap3 на всіх трьох лейблах: «ПРОСТРОЧЕНО» на cap2 не влазить у
+              третину 375px-екрана і обрізався б трикрапкою */}
           <div className="stat glass-s stat-pop-anim" style={{ animationDelay: '0s' }}>
             <div className="stat-n" style={{ color: 'var(--err)' }}>{stats.overdue}</div>
-            <div className="stat-l">Прострочено</div>
+            <div className="stat-l" style={{ fontSize: 'var(--fs-cap3)' }}>Прострочено</div>
           </div>
           <div className="stat glass-s stat-pop-anim" style={{ animationDelay: '.06s' }}>
             <div className="stat-n" style={{ color: 'var(--warn)' }}>{stats.upcoming}</div>
-            <div className="stat-l">Очікується</div>
+            <div className="stat-l" style={{ fontSize: 'var(--fs-cap3)' }}>Очікується</div>
           </div>
           <div className="stat glass-s stat-pop-anim" style={{ animationDelay: '.12s' }}>
-            <div className="stat-n" style={{ color: 'var(--ok)', fontSize: stats.paidAmount >= 100000 ? 14 : undefined }}>
+            <div className="stat-n" style={{ color: 'var(--ok)', fontSize: stats.paidAmount >= 100000 ? 'var(--fs-note)' : undefined }}>
               {stats.paidAmount > 0 ? formatPrice(stats.paidAmount, user?.currency) : stats.paid > 0 ? stats.paid : '—'}
             </div>
-            <div className="stat-l">Отримано</div>
+            <div className="stat-l" style={{ fontSize: 'var(--fs-cap3)' }}>Отримано</div>
           </div>
         </div>
 
