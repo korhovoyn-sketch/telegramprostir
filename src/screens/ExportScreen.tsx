@@ -647,7 +647,7 @@ export default function ExportScreen() {
         {/* Format */}
         <div className="over">
           <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <IconFileExport size={13} color="#7AB3FF" />Формат файлу
+            <IconFileExport size={13} color="var(--info)" />Формат файлу
           </span>
         </div>
         <div className="format-list">

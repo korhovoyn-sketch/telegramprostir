@@ -294,7 +294,7 @@ body{
 /* ── SEGMENT CONTROL ── */
 .seg{display:flex;margin:0 var(--g3) var(--g3);background:var(--glass-2);border-radius:var(--r-sm);padding:2px;border:var(--bd);backdrop-filter:blur(20px) saturate(170%);-webkit-backdrop-filter:blur(20px) saturate(170%)}
 /* Segment tab — Caption 1 Semibold (Apple UISegmentedControl label size) */
-.seg-b{flex:1;padding:8px 6px;text-align:center;font-size:var(--fs-cap1);font-weight:var(--fw-semi);color:var(--t3);border-radius:10px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;transition:all .24s var(--ease),transform 0.12s ease,filter 0.12s ease,opacity 0.12s ease}
+.seg-b{flex:1;padding:8px 3px;text-align:center;font-size:var(--fs-cap1);font-weight:var(--fw-semi);color:var(--t3);border-radius:10px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;transition:all .24s var(--ease),transform 0.12s ease,filter 0.12s ease,opacity 0.12s ease}
 .seg-b.on{background:var(--glass-3);color:var(--t1);box-shadow:0 1.5px 6px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.3)}
 
 /* ── FORM GROUP ── */

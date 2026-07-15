@@ -7,7 +7,7 @@ import { offlineGuard } from '@/lib/offline'
 import { useDatabases } from '@/hooks/useDatabases'
 import { useMainButton } from '@/hooks/useMainButton'
 import Header from '@/components/ui/Header'
-import { IconMapPin, IconBuilding, IconLayoutGrid, IconAdjustments, IconEye, GlassDbIcon } from '@/components/Icons'
+import { IconMapPin, IconBuilding, IconLayoutGrid, IconAdjustments, IconEye, IconEdit, GlassDbIcon } from '@/components/Icons'
 import { DB_COLORS, scrollFocusedIntoView } from '@/lib/utils'
 import type { DatabaseType } from '@/types'
 
@@ -79,10 +79,10 @@ export default function CreateDatabaseScreen() {
 
       <div className="body has-flow-cta" onFocusCapture={scrollFocusedIntoView}>
         {/* Name & address */}
-        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconBuilding size={13} color="#7AB3FF" />Основне</span></div>
+        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconBuilding size={13} color="var(--info)" />Основне</span></div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div className="fr">
-            <span className="fr-l">Назва</span>
+            <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconEdit size={13} color="var(--t3)" />Назва</span>
             <input
               className="fr-i"
               placeholder="БЦ Олімп"
@@ -93,8 +93,7 @@ export default function CreateDatabaseScreen() {
             />
           </div>
           <div className="fr">
-            <IconMapPin size={16} color="var(--t3)" />
-            <span className="fr-l" style={{ marginLeft: 6 }}>Адреса</span>
+            <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconMapPin size={13} color="var(--t3)" />Адреса</span>
             <input
               className="fr-i"
               placeholder="Хрещатик 22"
