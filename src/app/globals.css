@@ -735,8 +735,8 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 .qr-hero::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 50% 0%,rgba(255,255,255,.16),transparent 60%);pointer-events:none}
 .qr-wrap{width:140px;height:140px;background:#fff;border-radius:var(--r-md);padding:8px;box-shadow:0 12px 36px rgba(0,0,0,.36);position:relative;z-index:2;animation:qrPop .5s var(--ease-spr) .2s both}
 .qr-meta{margin-top:12px;text-align:center;position:relative;z-index:2}
-.qr-name{font-size:14px;font-weight:600;color:var(--t1);letter-spacing:-.005em}
-.qr-link{font-size:11px;color:rgba(180,210,255,.9);margin-top:3px;font-family:'SF Mono',monospace}
+.qr-name{font-size:var(--fs-note);font-weight:var(--fw-semi);color:var(--t1);letter-spacing:-.005em}
+.qr-link{font-size:var(--fs-cap2);color:rgba(180,210,255,.9);margin-top:3px;font-family:ui-monospace,'SF Mono',monospace}
 
 /* ── LOADER ── */
 .loader-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:40px}

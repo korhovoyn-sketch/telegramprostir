@@ -55,7 +55,14 @@ export function openTelegramShare(url: string, text?: string): void {
   const shareUrl = text
     ? `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`
     : `https://t.me/share/url?url=${encodeURIComponent(url)}`
-  window.Telegram?.WebApp?.openTelegramLink(shareUrl)
+  const tg = window.Telegram?.WebApp
+  if (tg?.openTelegramLink) {
+    tg.openTelegramLink(shareUrl)
+    return
+  }
+  // Поза Telegram (веб-прев'ю, десктоп-браузер) кнопка інакше мовчки не робила
+  // б нічого — відкриваємо t.me/share у новій вкладці.
+  window.open(shareUrl, '_blank', 'noopener')
 }
 
 /**

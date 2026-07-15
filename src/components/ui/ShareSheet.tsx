@@ -59,7 +59,9 @@ export default function ShareSheet({ kind, id, name, shareText, onClose }: Share
           setExpiresAt(data.share_expires_at)
         } else {
           // Row predates token defaults — generate one now so the link works.
-          await runManage('rotate')
+          // silent: тост «Старе посилання більше не діє» тут збив би з пантелику,
+          // старого посилання ніколи не існувало.
+          await runManage('rotate', undefined, { silent: true })
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -70,7 +72,7 @@ export default function ShareSheet({ kind, id, name, shareText, onClose }: Share
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kind, id])
 
-  async function runManage(action: 'rotate' | 'set_expiry' | 'clear_expiry' | 'revoke', days?: number) {
+  async function runManage(action: 'rotate' | 'set_expiry' | 'clear_expiry' | 'revoke', days?: number, opts?: { silent?: boolean }) {
     if (offlineGuard('Зміни недоступні офлайн')) return
     setBusy(true)
     try {
@@ -82,9 +84,11 @@ export default function ShareSheet({ kind, id, name, shareText, onClose }: Share
       if (!row || row.error) throw new Error(row?.error ?? 'empty response')
       setToken(row.share_token)
       setExpiresAt(row.share_expires_at)
-      hapticNotify('success')
-      if (action === 'rotate') showToast({ type: 'success', title: 'Посилання оновлено', subtitle: 'Старе посилання більше не діє' })
-      if (action === 'revoke') showToast({ type: 'success', title: 'Доступ відкликано' })
+      if (!opts?.silent) {
+        hapticNotify('success')
+        if (action === 'rotate') showToast({ type: 'success', title: 'Посилання оновлено', subtitle: 'Старе посилання більше не діє' })
+        if (action === 'revoke') showToast({ type: 'success', title: 'Доступ відкликано' })
+      }
     } catch {
       showToast({ type: 'error', title: 'Не вдалося змінити посилання' })
     } finally {
@@ -110,7 +114,16 @@ export default function ShareSheet({ kind, id, name, shareText, onClose }: Share
       <div className="qr-hero glass-s" style={{ margin: '0 0 12px' }}>
         <div className="qr-wrap">
           {!loading && url ? (
-            <QRCode value={url} size={124} bgColor="#ffffff" fgColor="#000000" style={{ borderRadius: 6, display: 'block' }} />
+            <>
+              {/* level M: запас корекції для скану з екрана телефону (відблиски,
+                  муар) — дефолтний L на 124px читається нестабільно */}
+              <QRCode value={url} size={124} level="M" bgColor="#ffffff" fgColor="#000000" style={{ borderRadius: 6, display: 'block', opacity: isExpired ? .25 : 1 }} />
+              {isExpired && (
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <IconBan size={40} color="#b91c1c" />
+                </div>
+              )}
+            </>
           ) : (
             <div style={{ width: 124, height: 124, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <div className="loader" />
@@ -119,16 +132,21 @@ export default function ShareSheet({ kind, id, name, shareText, onClose }: Share
         </div>
         <div className="qr-meta">
           <div className="qr-name">{isExpired ? 'Посилання неактивне' : 'Посилання для перегляду'}</div>
-          <div className="qr-link" style={{ wordBreak: 'break-all' }}>{url || '…'}</div>
+          <div className="qr-link" style={{ wordBreak: 'break-all', textDecoration: isExpired ? 'line-through' : 'none', opacity: isExpired ? .6 : 1 }}>{url || '…'}</div>
+          {isExpired && (
+            <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 4 }}>
+              Натисніть «Оновити посилання», щоб створити нове
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Copy + Telegram share */}
+      {/* Copy + Telegram share — для мертвого посилання не даємо його ширити */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-        <button className="modal-btn secondary sm" disabled={loading || !url} onClick={handleCopy}>
+        <button className="modal-btn secondary sm" disabled={loading || !url || isExpired} onClick={handleCopy}>
           Скопіювати
         </button>
-        <button className="modal-btn primary sm" disabled={loading || !url} onClick={() => openTelegramShare(url, shareText)}>
+        <button className="modal-btn primary sm" disabled={loading || !url || isExpired} onClick={() => openTelegramShare(url, shareText)}>
           У Telegram
         </button>
       </div>
