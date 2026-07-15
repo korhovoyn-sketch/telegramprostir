@@ -15,6 +15,7 @@ export function useDatabases() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { user, setDatabases, databases, showToast, navigate, backThenReplace } = useAppStore()
+  const setMemberDbIds = useAppStore(st => st.setMemberDbIds)
 
   const loadDatabases = useCallback(async () => {
     if (!user) return
@@ -34,15 +35,45 @@ export function useDatabases() {
     if (!painted) setLoading(true)
     setError(null)
     try {
-      const { data, error } = await supabase
-        .from('databases')
-        .select(`${DB_COLUMNS}, properties(status, rent_rate, area_useful, rent_type)`)
-        .eq('owner_id', user.id)
-        .order('created_at', { ascending: false })
+      // Власні бази + бази, де користувач — член команди (editor).
+      // Двома запитами: PostgREST не вміє OR із підзапитом, а окремий запит
+      // по membership-ах дає ще й ids для canEdit-шлюзів у сторі.
+      const [{ data, error }, memberRes] = await Promise.all([
+        supabase
+          .from('databases')
+          .select(`${DB_COLUMNS}, properties(status, rent_rate, area_useful, rent_type)`)
+          .eq('owner_id', user.id)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('db_members')
+          .select('db_id')
+          .eq('user_id', user.id)
+          .eq('status', 'active'),
+      ])
 
       if (error) throw error
 
-      const dbs = (data || []).map((d) => {
+      // На бекенді без міграції 041 запит по db_members падає — команда тоді
+      // просто вимкнена, власні бази працюють як раніше.
+      const memberIds = (memberRes.error ? [] : (memberRes.data ?? []))
+        .map((r: { db_id: string }) => r.db_id)
+        .filter((id: string) => !(data ?? []).some((d) => (d as { id: string }).id === id))
+      setMemberDbIds(memberIds)
+
+      let memberRows: typeof data = []
+      if (memberIds.length > 0) {
+        const { data: mData } = await supabase
+          .from('databases')
+          .select(`${DB_COLUMNS}, properties(status, rent_rate, area_useful, rent_type)`)
+          .in('id', memberIds)
+          .order('created_at', { ascending: false })
+        memberRows = mData ?? []
+      }
+
+      const dbs = [
+        ...(data || []),
+        ...(memberRows || []).map((d) => ({ ...(d as Record<string, unknown>), _member: true })),
+      ].map((d) => {
         const row = d as Record<string, unknown>
         type PropRow = { status: string; rent_rate?: number; area_useful?: number; rent_type?: string }
         const props = (row.properties as PropRow[]) ?? []
@@ -71,7 +102,7 @@ export function useDatabases() {
     } finally {
       setLoading(false)
     }
-  }, [user, setDatabases, showToast])
+  }, [user, setDatabases, setMemberDbIds, showToast])
 
   const createDatabase = useCallback(async (payload: Omit<Database, 'id' | 'owner_id' | 'share_token' | 'created_at' | 'updated_at'>) => {
     if (!user) return

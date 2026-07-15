@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { humanizeDbError, objectsWord } from '@/lib/utils'
 import { readSnapshot, writeSnapshot } from '@/lib/snapshot'
+import { compressImage } from '@/lib/image'
 import { useAppStore } from '@/store/appStore'
 import type { Property, PropertyStatus } from '@/types'
 
@@ -105,9 +106,14 @@ export function useProperties(dbId?: string) {
     if (!user) return
     setLoading(true)
     try {
+      // Дані належать власнику БАЗИ: коли створює член команди, owner_id має
+      // бути власників, інакше RLS-власницькі перевірки далі по системі
+      // почнуть «губити» об'єкт (і WITH CHECK редакторської політики це
+      // однаково вимагає).
+      const dbOwner = useAppStore.getState().databases.find(d => d.id === payload.db_id)?.owner_id
       const { data, error } = await supabase
         .from('properties')
-        .insert({ ...payload, owner_id: user.id })
+        .insert({ ...payload, owner_id: dbOwner ?? user.id })
         .select(PROPERTY_WITH_PHOTOS)
         .single()
 
@@ -132,9 +138,10 @@ export function useProperties(dbId?: string) {
     if (!user || payloads.length === 0) return false
     setLoading(true)
     try {
+      const dbOwner = useAppStore.getState().databases.find(d => d.id === payloads[0].db_id)?.owner_id
       const { data, error } = await supabase
         .from('properties')
-        .insert(payloads.map(p => ({ ...p, owner_id: user.id })))
+        .insert(payloads.map(p => ({ ...p, owner_id: dbOwner ?? user.id })))
         .select(PROPERTY_WITH_PHOTOS)
 
       if (error) throw error
@@ -338,12 +345,15 @@ export function useProperties(dbId?: string) {
     }
   }, [showToast])
 
-  const uploadPhoto = useCallback(async (propertyId: string, file: File) => {
+  const uploadPhoto = useCallback(async (propertyId: string, rawFile: File) => {
     const MAX_MB = 10
     const ALLOWED = /\.(jpe?g|png|webp|heic|heif)$/i
-    if (!ALLOWED.test(file.name) || !file.type.startsWith('image/')) {
+    if (!ALLOWED.test(rawFile.name) || !rawFile.type.startsWith('image/')) {
       throw new Error('Дозволені лише зображення (JPG, PNG, WEBP, HEIC)')
     }
+    // Resize/re-encode BEFORE the size check: a 12 MB camera shot becomes a
+    // few hundred KB and passes; on any failure the original comes back.
+    const file = await compressImage(rawFile)
     if (file.size > MAX_MB * 1024 * 1024) {
       throw new Error(`Файл занадто великий (макс. ${MAX_MB}МБ)`)
     }

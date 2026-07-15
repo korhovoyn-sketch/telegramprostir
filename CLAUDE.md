@@ -12,10 +12,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm run dev          # local dev server (localhost:3000)
 npm run build        # static export to out/
 npm run lint         # ESLint via next lint
-npm run type-check   # tsc --noEmit (no tests exist yet)
+npm run type-check   # tsc --noEmit
+npm run test         # vitest — unit + component (tests/unit, tests/components)
+npx playwright test  # e2e — герметичний мок-бекенд, проєкт iphone-se (375×667)
 ```
 
-There are no automated tests. Verify behaviour manually with `npm run dev`.
+Повна верифікація перед пушем: type-check → lint → test → build → playwright.
+Chromium для Playwright уже встановлений (`PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers`) — НЕ запускай `playwright install`.
 
 ## Architecture
 
@@ -108,7 +111,7 @@ Validates:
 
 #### Deploying Edge Functions
 
-Push to `main` or `claude/lucid-planck-Hjo1u` with changes under `supabase/functions/**` to trigger `.github/workflows/deploy-edge-function.yml`. Requires `SUPABASE_ACCESS_TOKEN` in GitHub repository secrets.
+Push to `main` with changes under `supabase/functions/**` triggers `.github/workflows/deploy-edge-function.yml`, which deploys **all four** functions (telegram-auth, validate-upload, telegram-bot, send-reminders). Requires `SUPABASE_ACCESS_TOKEN` + `SUPABASE_PROJECT_REF` secrets.
 
 ### Database schema & migrations
 
@@ -118,13 +121,27 @@ Two non-obvious things that broke auth historically and must stay correct:
 1. **`current_app_user_id()` resolves identity from the JWT *email* claim**, not a `tg_id` claim (Supabase doesn't add custom claims here). Email is `{tgId}@telegram.propspace.app`; the helper parses tg_id from it. A `tg_id`-claim version silently returns NULL → every RLS check fails → empty data everywhere.
 2. **No `handle_new_user` trigger may exist on `auth.users`.** The Supabase starter template installs one that inserts into `public.users` with stale column names; it makes GoTrue fail with "Database error creating new user". `003_reconcile.sql` drops it. The edge function is the only thing that writes `public.users`.
 
-The container running Claude Code on the web has **no outbound network** (Supabase host returns 403), so migrations cannot be pushed from here. Apply schema changes by running the SQL in the Supabase dashboard SQL Editor, or via the `migrate.yml` workflow on push to `main`.
+The container running Claude Code on the web has **no outbound network** (Supabase host returns 403), so migrations cannot be pushed from here. `.github/workflows/migrate.yml` applies `supabase/migrations/**` on push to `main` (needs `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`, `SUPABASE_DB_PASSWORD` secrets). **One-time baseline required**: усі міграції до 040 застосовувались вручну, тож перед першим використанням запусти workflow вручну з `baseline=true` — він позначить наявні файли як застосовані без виконання SQL. До baseline міграції застосовуються в Dashboard SQL Editor; `supabase/verify_release.sql` перевіряє їхній стан одним запитом.
 
 ### Roles
 
 - `owner` — creates and manages property databases; sees `db-list` after login.
 - `realtor` — subscribes to owner databases via share token; sees `realtor-dashboard` after login.
 - New users get `role: 'owner'` by default but are sent to `role-select` if `user.role` is falsy.
+
+**Team editors (не роль, а membership — 041).** `db_members` дає користувачу
+право редагувати чужу базу (CRUD об'єктів, фото, файли, платежі), не змінюючи
+`users.role`. Потік: власник створює інвайт у TeamScreen → deep link
+`team_<invite_token>` → `claim_team_invite()` (SECURITY DEFINER, ідемпотентний).
+Клієнт: `useDatabases` другим запитом тягне member-бази (тегує `_member: true`,
+ids → `appStore.memberDbIds`), `isOwner`-шлюзи в екранах розширені
+`memberDbIds.includes(dbId)`. **Owner-only лишаються**: шаринг-аналітика,
+гості, команда — gated `db.owner_id === user?.id` (для об'єкта —
+`property.owner_id`), НЕ через `isOwner`. Інваріант даних: усе, що створює
+редактор, отримує `owner_id` власника бази (RLS `WITH CHECK` це форсить;
+клієнт передає `owner_id` бази явно в `useProperties`/календарі). На бекенді
+без 041 запит `db_members` падає — `useDatabases` це толерує (команда просто
+вимкнена), тож фронт можна деплоїти до міграції.
 
 ### Environment variables
 
@@ -134,6 +151,9 @@ The container running Claude Code on the web has **no outbound network** (Supaba
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | frontend supabase client |
 | `SUPABASE_SERVICE_ROLE_KEY` | Edge Function only (Deno env) |
 | `TELEGRAM_BOT_TOKEN` | Edge Function HMAC validation |
+| `ALLOWED_ORIGIN` | Edge Functions CORS (Supabase dashboard) — прод-домен Vercel |
+| `SUPABASE_DB_PASSWORD` | лише GitHub Actions secret — для `migrate.yml` (db push) |
+| `NEXT_PUBLIC_BUILD_SHA` | інжектиться `next.config.ts` з `VERCEL_GIT_COMMIT_SHA`; показується у футері Профілю («prostir v1.0.0 · abc1234») — щоб бачити, який білд відкрито на пристрої |
 
 Frontend env vars must be set in Vercel project settings before building. Edge Function env vars are set in the Supabase dashboard under Project Settings → Edge Functions.
 
@@ -205,6 +225,53 @@ The session-start hook (`.claude/hooks/session-start.sh`) runs `npm install` and
 
 ---
 
+## Testing
+
+- **Unit/component**: vitest 3 + jsdom + Testing Library (`tests/unit`, `tests/components`). Утиліти в `src/lib/utils.ts` покриті прицільно — плюрали, санітайзери, bulk-імена, розрахунки оренди.
+- **E2e**: Playwright, один проєкт `iphone-se` (375×667). Харнес `tests/e2e/helpers/harness.ts` — стаб `window.Telegram.WebApp` (initData, CloudStorage, BackButton; MainButton додають окремі тести) + повний мок Supabase REST/Auth через `page.route`. Тести НЕ ходять у мережу.
+- **Флейки, які вже ловили** (перевір перед «лагодженням» коду):
+  - клік у ЦЕНТР короткої `.obj-card` влучає в рядок дій — клікай `.locator('.obj-t')`;
+  - заголовок календаря залежить від точки входу («Платежі — <назва>» vs «Календар платежів») — матч regex-ом;
+  - миттєва мок-відповідь закриває вікно optimistic-стану до першого assert — додай `setTimeout` ~400мс у route перед відповіддю;
+  - `screenshots.spec.ts` — скріншот-тур всіх екранів у `screenshots/` (gitignored), запускається разом з усіма.
+
+---
+
+## Form & input rules (вистраждано на iOS)
+
+- **НІКОЛИ `type="number"`.** Контрольований number-інпут повертає `''` на проміжному стані (друга крапка/кома) — «введене зникає»; скрол міняє значення. Правильно: `type="text"` + `inputMode="decimal|numeric"` + `sanitizeDecimal`/`sanitizeInt` з utils в onChange. Санітайзер розпізнає вставлені розрядні роздільники («1,200,000» → 1200000, НЕ 1.2).
+- **`:hover` тільки під `@media (hover: hover)`** — інакше на iOS перший тап «залипає» (FAB лишається збільшеним, рядки підсвіченими). `:active` — поза media, це тач-фідбек.
+- **Каретка під backdrop-filter** малюється зі зміщенням (WebKit-баг) — глобальне правило дає текстовим інпутам `translateZ(0)` (окремий шар). НЕ поширювати на date/select: у них немає каретки, а стекінг-контекст може клiпати нативні поповери.
+- **Модалки** (`components/ui/Modal.tsx`): клавіатуро-свідомі (`--keyboard-h`), скрол-тіло + sticky-екшени, бекдроп-тап закриває, Escape закриває ЛИШЕ верхню модалку стеку (module-level `modalStack`). Не додавай window-keydown у вкладені компоненти.
+- **PropertyFormScreen — три режими**: create / edit (`propertyId`) / duplicate (`duplicateId` — префіл усього крім орендаря/дат/фото, ім'я через `nextCopyName`). Create-режим: чернетка автозберігається в localStorage (600мс debounce, ключ per user+db), відновлюється з тостом «Очистити»; bulk-режим (`count` > 1) — редаговані рядки (ім'я + площі, фолбек на спільні поля), збереження ОДНИМ insert-ом з послідовним `sort_order`, `bulkCreateNames` пропускає зайняті імена (для цього create-режим ТЕЖ вантажить список).
+- **Валюта в підписах**: `currencySymbol(user?.currency)` (utils) — ніколи literal `$` в лейблах одиниць.
+
+---
+
+## Utils quick reference (src/lib/)
+
+| Хелпер | Правило використання |
+|---|---|
+| `rentUnitLabel(type)` | суфікс для СИРОЇ ставки (`/м²`, `/добу`, `/міс`) — тільки поряд із rent_rate |
+| `computedRentUnit(type)` | суфікс для ПОРАХОВАНОЇ суми — `/добу` лише per_day, інакше `/міс`. Плутанина з попереднім давала «$1 800/м²» на місячному тоталі |
+| `pluralUk(n, one, few, many)` / `objectsWord(n)` | українські плюрали (11–14 → many); ніяких інлайн-тернарів |
+| `sanitizeDecimal` / `sanitizeInt` | єдиний шлях для числових інпутів (див. Form rules) |
+| `currencySymbol(cur)` | ₴/€/$ для лейблів; `formatPrice` делегує сюди |
+| `nextCopyName` / `bulkCreateNames` | інкремент хвостового числа зі збереженням нулів, пропуск зайнятих |
+| `snapshot.ts` (`readSnapshot`/`writeSnapshot`) | SWR-кеш списків: малюємо з localStorage миттєво, оновлюємо тихо; ключі per-user, TTL 24h. Скелетон — лише коли реально нічого малювати |
+| `image.ts` (`compressImage`) | стиснення фото до ≤1920px JPEG перед аплоудом; **fail-open** — будь-який збій повертає оригінал |
+| `updateProperty(id, payload, { optimistic, silent })` | optimistic-мутації з відкатом; патерн undo-тоста: `showToast({ actionLabel: 'Скасувати', onAction })` |
+
+---
+
+## Native Telegram chrome & MainButton
+
+- Хедер/фон/нижній бар — ЗАВЖДИ `#06050e` (верх усіх `.bg-*` градієнтів), незалежно від теми Telegram (застосунок темний; світла тема давала білі смуги). Ставиться в `layout.tsx`.
+- `useMainButton({ text, visible, enabled, loading, barColor, onClick })` — нативна кнопка форм. Зелена `#34C759` коли actionable, СІРА коли disabled (кастомний колір переживає `disable()` — треба перемикати вручну). `barColor` — нижній стоп градієнта екрана (форма об'єкта `.bg-blue` → `#5480dc`, створення бази `.bg-purple` → `#7e58d6`), скидається на unmount. DOM `.mbtn` лишається фолбеком поза Telegram (`!tg.initData`).
+- Всі виклики нових API Telegram (`setBottomBarColor`, `setParams`) — через `?.` (старі клієнти і тест-стаби).
+
+---
+
 ## Navigation patterns (appStore.ts)
 
 | Action | Use case |
@@ -263,14 +330,35 @@ Triggered by reports like "text/buttons are black", "gradient disappeared", "ico
 
 ### 3. Full-workflow verification (auth → CRUD → upload → UI)
 
-This sandboxed environment has **no Playwright browser binaries** (`apt` returns 403) and **no outbound network** to Vercel/Supabase preview URLs (403 host-not-in-allowlist). Verify changes by:
-1. `npm run type-check && npm run lint && npm run build` — all three must pass clean.
+This sandboxed environment has **no outbound network** to Vercel/Supabase preview URLs (403 host-not-in-allowlist), але Playwright Chromium ПРАЦЮЄ (`/opt/pw-browsers`) — 57+ e2e ганяються локально проти статичної збірки з герметичним мок-бекендом (`tests/e2e/helpers/harness.ts`). Verify changes by:
+1. `npm run type-check && npm run lint && npm run test && npm run build && npx playwright test` — все має бути зелене.
 2. Inspect the compiled output directly: `grep` the generated `out/_next/static/css/*.css` and `out/_next/static/chunks/**/*.js` for the literal class names/color values you changed. CSS gets minified and `::before`/`::after` rules get merged onto shared selectors — search for the property value (e.g. a hex color or class name string), not the exact original selector text.
 3. State explicitly to the user that this substitutes for live browser/Vercel verification, since neither is reachable from this environment.
 
 ---
 
 ## Pending manual actions (зробити в Supabase Dashboard)
+
+### 0d. Команда бази (editors) — виконати SQL в Dashboard → SQL Editor
+
+Файл: `supabase/migrations/041_team_members.sql` (застосовувати ПІСЛЯ 038 —
+паралельні editor-політики спираються на її storage-хелпери й патерни).
+
+Що робить:
+- Таблиця `db_members` (invite_token з дефолтом, status pending/active/revoked,
+  RLS: власник бази — все, користувач бачить власні membership-рядки).
+- Хелпери `get_editor_db_ids(_from_auth_uid)` + паралельні `*_editor_*` політики
+  на databases/properties/photos/files/rent_payments/rent_records/storage.
+  `WITH CHECK` форсить `owner_id` = власник бази — редактор не може привласнити
+  рядки собі.
+- `claim_team_invite(p_token)` — SECURITY DEFINER клейм (ідемпотентний,
+  `users.role` НЕ чіпає — на відміну від `claim_guest_link`).
+
+Разом з цим деплоїться оновлена `validate-upload` (дозволяє upload редакторам
+через перевірку власного active-membership; деплой автоматичний по пушу в main).
+
+Без 041 фронт працює як раніше: `useDatabases` толерує помилку запиту
+`db_members`, розділ «Команда» в меню бази просто не дасть створити інвайт.
 
 ### 0c. Публічний /v — валюта, ціна продажу, порядок, перегляди — виконати SQL в Dashboard → SQL Editor
 
@@ -330,8 +418,7 @@ supabase functions deploy validate-upload --project-ref <PROJECT_REF>
 
 Файли: `supabase/migrations/036_share_management.sql`, `supabase/migrations/037_db_share_fixes.sql`
 
-**Чому критично:** немає workflow, який застосовує міграції автоматично (є лише
-`deploy-edge-function.yml` для telegram-auth). Фронтенд викликає RPC
+**Чому критично:** до baseline `migrate.yml` міграції застосовуються вручну. Фронтенд викликає RPC
 `subscribe_to_shared_db` / `manage_share`, яких немає в БД без 036/037 — через це
 розділ «поділитися базою» не працює (підключення бази падає з «Помилка запиту»).
 
@@ -357,15 +444,38 @@ Verification (в кінці 037 — має показати `null_tokens = 0` і
 - Індекси: `idx_audit_log_user_created`, `idx_audit_log_table_record`
 - Тригер `prune_expired_rate_limits()` — авто-очищення старих записів
 
-### 2. Edge functions — задеплоїти через Supabase CLI (workflow деплоїть лише telegram-auth)
+### 2. Edge functions — деплояться автоматично
 
-```bash
-supabase functions deploy send-reminders --project-ref <PROJECT_REF>
-supabase functions deploy telegram-bot --project-ref <PROJECT_REF>
-```
+`deploy-edge-function.yml` деплоїть усі чотири функції на push у `main`
+(потрібні секрети `SUPABASE_ACCESS_TOKEN` + `SUPABASE_PROJECT_REF`).
+Ручний CLI-деплой потрібен лише поза межами main-пушів.
 
 ### 3. CORS — встановити змінну середовища в Supabase Dashboard → Edge Functions
 
 ```
 ALLOWED_ORIGIN=https://<your-vercel-domain>.vercel.app
 ```
+
+---
+
+## Changelog — сесія липень 2026 (PR #33–#35)
+
+Що зроблено в цій ітерації (довідка для майбутніх сесій — детальні правила вище вже враховують усе це):
+
+**Багфікси**
+- Одиниця оренди: порахований місячний тотал показувався як `/м²` → `computedRentUnit()`.
+- Hero об'єкта: гігантський обрізаний гліф «О» (inline `<svg><style>` рендерився текстом через `svg{display:block}` з Tailwind preflight + колапс flex-обгортки назви).
+- Публічна `/v`: невидимий аватар бази (`db_color` — іменований токен, `${color}88` = невалідний CSS), захардкоджений `$` для ₴/€-власників, відсутня ціна продажу в списках, зламані плюрали 21+, лексикографічний порядок.
+- iOS: каретка під полем (backdrop-filter), липкий hover, «зникаюче» введення `type="number"`, чорна MainButton, білі нативні бари.
+- Модалки: Escape закривав увесь стек, rent-модалка приймала договір «кінець < початок», вставка «1,200,000» → 1.2.
+
+**Фічі**
+- Bulk-створення об'єктів (степер + редаговані рядки з площами), дублювання об'єкта, чернетки форми, optimistic UI + undo-тости, SWR-кеш холодного старту, нативна MainButton, стиснення фото, скелетони скрізь, sheen/каскадні мікроанімації на `/v`.
+- Трекінг відкриттів бази/підбірки (`record_public_view(p_token, p_kind)`, migration 040).
+- Команда бази (migration 041): `db_members` + editor-RLS, TeamScreen, deep link `team_<token>`, `claim_team_invite`, editors у `validate-upload`, бейдж «Команда» у списку баз — див. «Team editors» у Roles.
+
+**Інфраструктура**
+- `migrate.yml` (CI-міграції з baseline-режимом), `verify_release.sql` (go/no-go перевірка БД одним запитом), штамп білда в Профілі, vitest 3 (critical advisories усунуті), тестова база 111 unit + 57 e2e.
+
+**Безпека** (аудит пройдено повністю)
+- Constant-time bearer у `send-reminders`; підтверджено: RLS 15/15 таблиць, HMAC constant-time, rate-limit fails-closed, нуль PII в логах, нуль секретів у клієнті. Залишковий advisory: `xlsx` (high) — незастосовний, лише запис.

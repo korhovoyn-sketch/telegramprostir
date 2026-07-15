@@ -54,6 +54,14 @@ WITH checks(ord, item, migration, ok) AS (VALUES
       (SELECT count(*)=2 FROM information_schema.columns
        WHERE table_name='property_views' AND column_name IN ('db_id','collection_id'))),
 
+  -- 041: team members
+  (18, 'db_members існує з RLS', '041_team_members.sql',
+      EXISTS (SELECT 1 FROM pg_class WHERE relname='db_members' AND relrowsecurity)),
+  (19, 'редакторські політики на properties/payments', '041_team_members.sql',
+      (SELECT count(*)>=2 FROM pg_policies WHERE policyname IN ('props_editor_all','rent_payments_editor_all'))),
+  (20, 'RPC claim_team_invite', '041_team_members.sql',
+      EXISTS (SELECT 1 FROM pg_proc WHERE proname='claim_team_invite')),
+
   -- Наскрізні інваріанти
   (15, 'RLS увімкнено на всіх 15 таблицях', 'будь-яка пропущена',
       (SELECT count(*)>=15 FROM pg_tables t JOIN pg_class c ON c.relname=t.tablename

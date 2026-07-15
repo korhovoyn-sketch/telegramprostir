@@ -110,8 +110,8 @@ export default function PaymentCalendarScreen() {
         .from('properties')
         .select('id, db_id, owner_id, name, floor, status, rent_type, rent_rate, utilities_rate, tenant_name, lease_start_date, lease_end_date, area_useful, area_total, sort_order, has_parking, parking_spaces, created_at, updated_at')
         .eq('status', 'occupied')
-      // Guests access only their linked properties via RLS — no owner_id filter needed
-      if (user.role !== 'guest') propsQuery = propsQuery.eq('owner_id', user.id)
+      // Видимість обмежує RLS (власник / член команди / гість) — клієнтський
+      // owner_id-фільтр ховав би бази команди від редактора.
 
       if (propertyId)      propsQuery = propsQuery.eq('id', propertyId)
       else if (dbId)       propsQuery = propsQuery.eq('db_id', dbId)
@@ -282,7 +282,7 @@ export default function PaymentCalendarScreen() {
     const optimisticRec: RentPaymentRecord = {
       id: item.record?.id ?? `tmp_${item.property.id}_${item.dueDate}`,
       property_id: item.property.id,
-      owner_id:    user.id,
+      owner_id:    item.property.owner_id,
       due_date:    item.dueDate,
       paid_at:     now,
       amount:      amount ?? (expectedRent(item.property) || null),
@@ -311,7 +311,7 @@ export default function PaymentCalendarScreen() {
         .upsert(
           {
             property_id: item.property.id,
-            owner_id:    user.id,
+            owner_id:    item.property.owner_id,
             due_date:    item.dueDate,
             paid_at:     now,
             amount:      optimisticRec.amount,
@@ -350,7 +350,7 @@ export default function PaymentCalendarScreen() {
         .upsert(
           {
             property_id:        setupProp.id,
-            owner_id:           user.id,
+            owner_id:           setupProp.owner_id,
             due_day:            day,
             notify_days_before: isFinite(notify) ? Math.min(14, Math.max(0, notify)) : 3,
             is_active:          true,

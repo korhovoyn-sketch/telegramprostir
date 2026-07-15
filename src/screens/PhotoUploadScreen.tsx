@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { offlineGuard } from '@/lib/offline'
+import { compressImage } from '@/lib/image'
 import Header from '@/components/ui/Header'
 import { supabase } from '@/lib/supabase'
 import { humanizeDbError } from '@/lib/utils'
@@ -71,9 +72,13 @@ export default function PhotoUploadScreen() {
     async function uploadNext() {
       if (idx >= files.length) return
 
-      const file = files[idx]
       const currentIdx = idx
       setQueue((q) => q.map((x, i) => i === currentIdx ? { ...x, status: 'uploading', progress: 10 } : x))
+
+      // Resize/re-encode before upload — a 10 MB camera shot becomes a few
+      // hundred KB. compressImage fails open, so the original goes up if the
+      // device can't decode it (old WebView / exotic HEIC).
+      const file = await compressImage(files[idx])
 
       const rawExt = file.name.split('.').pop() ?? ''
       const ext = /^[a-z0-9]{2,5}$/i.test(rawExt) ? rawExt.toLowerCase() : 'jpg'
