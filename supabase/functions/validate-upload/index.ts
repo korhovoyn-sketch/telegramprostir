@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
 
     const { data: prop, error: propErr } = await userClient
       .from('properties')
-      .select('owner_id')
+      .select('owner_id, db_id')
       .eq('id', propertyId)
       .single()
 
@@ -82,8 +82,25 @@ Deno.serve(async (req) => {
       .select('id')
       .maybeSingle()
 
-    if (meErr || !me || me.id !== prop.owner_id) {
+    if (meErr || !me) {
       return errResponse(cors, 403, 'Property not found or access denied')
+    }
+
+    if (me.id !== prop.owner_id) {
+      // Не власник — може бути редактором команди (041). members_self_select
+      // показує лише власні membership-рядки, тож userClient-запит не може
+      // підтвердити чуже членство. Fail closed: помилка запиту = відмова.
+      const { data: membership, error: memberErr } = await userClient
+        .from('db_members')
+        .select('id')
+        .eq('db_id', prop.db_id)
+        .eq('user_id', me.id)
+        .eq('status', 'active')
+        .maybeSingle()
+
+      if (memberErr || !membership) {
+        return errResponse(cors, 403, 'Property not found or access denied')
+      }
     }
 
     // Verify file count (max 10 per property) via userClient to enforce RLS.

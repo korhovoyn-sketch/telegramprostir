@@ -228,6 +228,9 @@ export default function DatabaseListScreen() {
                   )}
                 </div>
                 <div className="row-r">
+                  {db._member && (
+                    <span className="bdg bdg-info">Команда</span>
+                  )}
                   <span className="bdg bdg-info">{db._property_count ?? 0} об.</span>
                   {(db._free_count ?? 0) > 0 && (
                     <span className="bdg bdg-ok">{db._free_count} вільно</span>

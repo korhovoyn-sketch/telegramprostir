@@ -13,7 +13,7 @@ import SearchBar from '@/components/ui/SearchBar'
 import { StatusBadge } from '@/components/ui/Badge'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import Modal from '@/components/ui/Modal'
-import { IconPlus, IconDots, IconPhoto, IconShare, IconChevronUp, IconChevronDown, GlassDbIcon, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconCopy, IconFile, IconLayers, IconLayoutGrid, IconChartBar, IconKey, IconFileExport, IconCircleCheck, IconAdjustments, IconTrash, IconChevronRight } from '@/components/Icons'
+import { IconPlus, IconDots, IconPhoto, IconShare, IconChevronUp, IconChevronDown, GlassDbIcon, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconCopy, IconUsers, IconFile, IconLayers, IconLayoutGrid, IconChartBar, IconKey, IconFileExport, IconCircleCheck, IconAdjustments, IconTrash, IconChevronRight } from '@/components/Icons'
 import DatabaseStatsPanel from '@/components/ui/DatabaseStatsPanel'
 import { formatPrice, calcRent, calcRentUtils, computedRentUnit, objectsWord, DB_TYPE_LABELS, formatLeasePeriod } from '@/lib/utils'
 import type { PropertyStatus } from '@/types'
@@ -24,7 +24,9 @@ export default function DatabaseObjectsScreen() {
   const { screenParams, navigate, databases, user } = useAppStore()
   const { deleteDatabase } = useDatabases()
   const { properties, loading, error, loadProperties, reorderProperty, batchDeleteProperties, batchUpdateStatus } = useProperties(screenParams.dbId)
-  const isOwner = user?.role === 'owner'
+  const memberDbIds = useAppStore(st => st.memberDbIds)
+  // Редактор команди отримує ту саму edit-поверхню, що власник…
+  const isOwner = user?.role === 'owner' || memberDbIds.includes(screenParams.dbId ?? '')
 
   const [search, setSearch] = useState('')
   const [tab, setTab] = useState<'all' | PropertyStatus>('all')
@@ -166,7 +168,9 @@ export default function DatabaseObjectsScreen() {
               <span>{counts.free} вільно</span>
             </div>
           </div>
-          {isOwner && (
+          {/* Шаринг-аналітика — лише справжній власник (редактор команди не
+              керує токенами/гостями, RLS все одно відхилить) */}
+          {db.owner_id === user?.id && (
             <button
               className="info-act"
               aria-label="Аналітика та поширення"
@@ -619,9 +623,15 @@ export default function DatabaseObjectsScreen() {
         >
           <div className="sheet-group">
             {[
-              { Icon: IconChartBar,    label: 'Аналітика і поширення', nav: true,  danger: false, action: () => { setShowMenu(false); navigate('sharing-analytics', { dbId: db.id }) } },
+              // …але шаринг/гості/команда — тільки для справжнього власника
+              ...(db.owner_id === user?.id ? [
+                { Icon: IconChartBar,  label: 'Аналітика і поширення', nav: true,  danger: false, action: () => { setShowMenu(false); navigate('sharing-analytics', { dbId: db.id }) } },
+              ] : []),
               { Icon: IconCalendar,    label: 'Календар платежів',     nav: true,  danger: false, action: () => { setShowMenu(false); navigate('payment-calendar', { dbId: db.id }) } },
-              { Icon: IconKey,         label: 'Управління гостями',    nav: true,  danger: false, action: () => { setShowMenu(false); navigate('manage-guests', { dbId: db.id }) } },
+              ...(db.owner_id === user?.id ? [
+                { Icon: IconKey,       label: 'Управління гостями',    nav: true,  danger: false, action: () => { setShowMenu(false); navigate('manage-guests', { dbId: db.id }) } },
+                { Icon: IconUsers,     label: 'Команда',               nav: true,  danger: false, action: () => { setShowMenu(false); navigate('team', { dbId: db.id }) } },
+              ] : []),
               { Icon: IconFileExport,  label: 'Експорт',               nav: true,  danger: false, action: () => { setShowMenu(false); navigate('export', { dbId: db.id }) } },
               { Icon: IconCircleCheck, label: 'Виділити об\'єкти',      nav: false, danger: false, action: enterSelectMode },
               { Icon: IconAdjustments, label: 'Змінити порядок',       nav: false, danger: false, action: enterReorderMode },

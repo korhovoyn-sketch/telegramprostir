@@ -113,7 +113,9 @@ test('drive-through: home → objects → compact → action sheet → form → 
   // ── 4. Apple action sheet ───────────────────────────────────────────────────
   await page.getByLabel('Меню бази').click()
   await expect(page.getByText('Дії з базою')).toBeVisible()
-  await expect(page.locator('.sheet-row')).toHaveCount(8)
+  // 9 пунктів для власника: аналітика, календар, гості, команда (041), експорт,
+  // виділити, порядок, редагувати, видалити
+  await expect(page.locator('.sheet-row')).toHaveCount(9)
   await expect(page.locator('.sheet-row.danger')).toHaveCount(1)
   await page.screenshot({ path: testInfo.outputPath('04-action-sheet.png') })
   await page.getByText('Скасувати').click()

@@ -86,6 +86,35 @@ export function useDeepLink() {
           return
         }
 
+        // ── team_<invite_token> — team member (editor) invite ───────────────
+        if (startParam.startsWith('team_')) {
+          const token = startParam.slice(5)
+          const { data, error } = await supabase.rpc('claim_team_invite', { p_token: token })
+          // claim_team_invite повертає {db_id} при успіху або {error: 'revoked'|
+          // 'already_claimed'|'not_found'|'cannot_claim_own_link'} — ніколи обидва
+          // ключі разом (той самий контракт, що й claim_guest_link).
+          const result = (data && typeof data === 'object' && ('db_id' in data || 'error' in data)) ? data as { db_id?: string; error?: string } : null
+
+          if (error || !result || result.error) {
+            const msg = result?.error === 'revoked' ? 'Запрошення відкликано власником'
+              : result?.error === 'already_claimed' ? 'Це запрошення вже використано'
+              : result?.error === 'cannot_claim_own_link' ? 'Це ваша власна база'
+              : 'Запрошення не знайдено або недійсне'
+            showToast({ type: 'error', title: 'Помилка доступу', subtitle: msg })
+            navigateFallback()
+            return
+          }
+
+          hapticNotify('success')
+          showToast({ type: 'success', title: 'Ви в команді! 🎉', subtitle: 'База доступна для редагування' })
+          // db-list підтягне member-бази через useDatabases (roles не змінюються)
+          useAppStore.getState().navigateRoot('db-list')
+          if (result.db_id) {
+            navigate('db-objects', { dbId: result.db_id })
+          }
+          return
+        }
+
         // ── prop_<share_token> — property share link ────────────────────────
         // Lookup via SECURITY DEFINER RPC — handles both new share_token (24-char hex)
         // and legacy UUID format for backward compatibility.

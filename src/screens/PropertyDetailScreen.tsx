@@ -107,7 +107,8 @@ export default function PropertyDetailScreen() {
   const [rentUtilitiesRate, setRentUtilitiesRate] = useState('')
 
   const property = properties.find(p => p.id === screenParams.propertyId)
-  const isOwner = user?.role === 'owner'
+  const memberDbIds = useAppStore(st => st.memberDbIds)
+  const isOwner = user?.role === 'owner' || memberDbIds.includes((screenParams.dbId as string) ?? '')
   const isGuest = user?.role === 'guest'
 
   // Fetch only this property on every mount — avoids loading the entire DB for detail view.
@@ -294,8 +295,9 @@ export default function PropertyDetailScreen() {
             {STATUS_LABELS[property.status]}
           </div>
 
-          {/* For for_sale the bottom CTA is the share entry point — avoid a second one in the hero */}
-          {isOwner && property.status !== 'for_sale' && (
+          {/* For for_sale the bottom CTA is the share entry point — avoid a second one in the hero.
+              Шаринг-аналітика керує токенами — лише справжній власник об'єкта. */}
+          {property.owner_id === user?.id && property.status !== 'for_sale' && (
             <div className="obj-hero-r">
               <button
                 className="obj-hero-a"
@@ -663,7 +665,7 @@ export default function PropertyDetailScreen() {
           onClick={() => { hapticImpact('light'); handleFreeProperty() }}
         />
       )}
-      {isOwner && property.status === 'for_sale' && (
+      {property.owner_id === user?.id && property.status === 'for_sale' && (
         <FloatingButton
           variant="info"
           icon={<IconShare size={16} />}

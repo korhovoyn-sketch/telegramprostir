@@ -38,6 +38,8 @@ interface AppState {
   showToast: (toast: Toast) => void
   hideToast: () => void
   setDatabases: (dbs: Database[]) => void
+  memberDbIds: string[]
+  setMemberDbIds: (ids: string[]) => void
   setNotifications: (notifs: Notification[]) => void
   markAllRead: () => void
   setOnline: (online: boolean) => void
@@ -55,6 +57,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   user: null,
   toast: null,
   databases: [],
+  memberDbIds: [],
   notifications: [],
   unreadCount: 0,
   isOnline: true,
@@ -108,6 +111,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   setUser: (user) => set({ user }),
+
+  setMemberDbIds: (memberDbIds) => set({ memberDbIds }),
 
   showToast: (toast) => {
     if (_toastTimer) clearTimeout(_toastTimer)

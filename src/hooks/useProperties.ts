@@ -106,9 +106,14 @@ export function useProperties(dbId?: string) {
     if (!user) return
     setLoading(true)
     try {
+      // Дані належать власнику БАЗИ: коли створює член команди, owner_id має
+      // бути власників, інакше RLS-власницькі перевірки далі по системі
+      // почнуть «губити» об'єкт (і WITH CHECK редакторської політики це
+      // однаково вимагає).
+      const dbOwner = useAppStore.getState().databases.find(d => d.id === payload.db_id)?.owner_id
       const { data, error } = await supabase
         .from('properties')
-        .insert({ ...payload, owner_id: user.id })
+        .insert({ ...payload, owner_id: dbOwner ?? user.id })
         .select(PROPERTY_WITH_PHOTOS)
         .single()
 
@@ -133,9 +138,10 @@ export function useProperties(dbId?: string) {
     if (!user || payloads.length === 0) return false
     setLoading(true)
     try {
+      const dbOwner = useAppStore.getState().databases.find(d => d.id === payloads[0].db_id)?.owner_id
       const { data, error } = await supabase
         .from('properties')
-        .insert(payloads.map(p => ({ ...p, owner_id: user.id })))
+        .insert(payloads.map(p => ({ ...p, owner_id: dbOwner ?? user.id })))
         .select(PROPERTY_WITH_PHOTOS)
 
       if (error) throw error

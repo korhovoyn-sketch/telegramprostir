@@ -40,6 +40,7 @@ const QRScannerScreen = dynamic(() => import('@/screens/QRScannerScreen'), { loa
 const GuestDatabaseScreen = dynamic(() => import('@/screens/GuestDatabaseScreen'), { loading: () => screenFallback })
 const GuestHomeScreen = dynamic(() => import('@/screens/GuestHomeScreen'), { loading: () => screenFallback })
 const ManageGuestsScreen = dynamic(() => import('@/screens/ManageGuestsScreen'), { loading: () => screenFallback })
+const TeamScreen = dynamic(() => import('@/screens/TeamScreen'), { loading: () => screenFallback })
 const SharedCollectionScreen = dynamic(() => import('@/screens/SharedCollectionScreen'), { loading: () => screenFallback })
 const PaymentCalendarScreen = dynamic(() => import('@/screens/PaymentCalendarScreen'), { loading: () => screenFallback })
 
@@ -194,6 +195,7 @@ export default function Page() {
       case 'guest-database': return <GuestDatabaseScreen />
       case 'guest-home': return <GuestHomeScreen />
       case 'manage-guests': return <ManageGuestsScreen />
+      case 'team': return <TeamScreen />
       case 'shared-collection': return <SharedCollectionScreen />
       case 'payment-calendar': return <PaymentCalendarScreen />
       default: return <SplashScreen />

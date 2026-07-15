@@ -38,6 +38,8 @@ export interface Database {
   updated_at: string
   _property_count?: number
   _free_count?: number
+  // true коли база доступна користувачу як члену команди (не власнику)
+  _member?: boolean
   _occupied_count?: number
   _monthly_income?: number
 }
@@ -100,6 +102,19 @@ export interface RealtorSubscription {
   db_id: string
   created_at: string
   database?: Database
+}
+
+export interface DbMember {
+  id: string
+  db_id: string
+  user_id: string | null
+  role: 'editor'
+  invite_token: string
+  label: string | null
+  member_name: string | null
+  status: 'pending' | 'active' | 'revoked'
+  claimed_at: string | null
+  created_at: string
 }
 
 export interface GuestLink {
@@ -190,6 +205,7 @@ export type ScreenName =
   | 'guest-database'
   | 'guest-home'
   | 'manage-guests'
+  | 'team'
   | 'shared-collection'
   | 'success'
   | 'error'

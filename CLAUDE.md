@@ -129,6 +129,20 @@ The container running Claude Code on the web has **no outbound network** (Supaba
 - `realtor` — subscribes to owner databases via share token; sees `realtor-dashboard` after login.
 - New users get `role: 'owner'` by default but are sent to `role-select` if `user.role` is falsy.
 
+**Team editors (не роль, а membership — 041).** `db_members` дає користувачу
+право редагувати чужу базу (CRUD об'єктів, фото, файли, платежі), не змінюючи
+`users.role`. Потік: власник створює інвайт у TeamScreen → deep link
+`team_<invite_token>` → `claim_team_invite()` (SECURITY DEFINER, ідемпотентний).
+Клієнт: `useDatabases` другим запитом тягне member-бази (тегує `_member: true`,
+ids → `appStore.memberDbIds`), `isOwner`-шлюзи в екранах розширені
+`memberDbIds.includes(dbId)`. **Owner-only лишаються**: шаринг-аналітика,
+гості, команда — gated `db.owner_id === user?.id` (для об'єкта —
+`property.owner_id`), НЕ через `isOwner`. Інваріант даних: усе, що створює
+редактор, отримує `owner_id` власника бази (RLS `WITH CHECK` це форсить;
+клієнт передає `owner_id` бази явно в `useProperties`/календарі). На бекенді
+без 041 запит `db_members` падає — `useDatabases` це толерує (команда просто
+вимкнена), тож фронт можна деплоїти до міграції.
+
 ### Environment variables
 
 | Variable | Where used |
@@ -325,6 +339,27 @@ This sandboxed environment has **no outbound network** to Vercel/Supabase previe
 
 ## Pending manual actions (зробити в Supabase Dashboard)
 
+### 0d. Команда бази (editors) — виконати SQL в Dashboard → SQL Editor
+
+Файл: `supabase/migrations/041_team_members.sql` (застосовувати ПІСЛЯ 038 —
+паралельні editor-політики спираються на її storage-хелпери й патерни).
+
+Що робить:
+- Таблиця `db_members` (invite_token з дефолтом, status pending/active/revoked,
+  RLS: власник бази — все, користувач бачить власні membership-рядки).
+- Хелпери `get_editor_db_ids(_from_auth_uid)` + паралельні `*_editor_*` політики
+  на databases/properties/photos/files/rent_payments/rent_records/storage.
+  `WITH CHECK` форсить `owner_id` = власник бази — редактор не може привласнити
+  рядки собі.
+- `claim_team_invite(p_token)` — SECURITY DEFINER клейм (ідемпотентний,
+  `users.role` НЕ чіпає — на відміну від `claim_guest_link`).
+
+Разом з цим деплоїться оновлена `validate-upload` (дозволяє upload редакторам
+через перевірку власного active-membership; деплой автоматичний по пушу в main).
+
+Без 041 фронт працює як раніше: `useDatabases` толерує помилку запиту
+`db_members`, розділ «Команда» в меню бази просто не дасть створити інвайт.
+
 ### 0c. Публічний /v — валюта, ціна продажу, порядок, перегляди — виконати SQL в Dashboard → SQL Editor
 
 Файл: `supabase/migrations/040_public_preview_fixes.sql` (застосовувати ПІСЛЯ 039 —
@@ -437,6 +472,7 @@ ALLOWED_ORIGIN=https://<your-vercel-domain>.vercel.app
 **Фічі**
 - Bulk-створення об'єктів (степер + редаговані рядки з площами), дублювання об'єкта, чернетки форми, optimistic UI + undo-тости, SWR-кеш холодного старту, нативна MainButton, стиснення фото, скелетони скрізь, sheen/каскадні мікроанімації на `/v`.
 - Трекінг відкриттів бази/підбірки (`record_public_view(p_token, p_kind)`, migration 040).
+- Команда бази (migration 041): `db_members` + editor-RLS, TeamScreen, deep link `team_<token>`, `claim_team_invite`, editors у `validate-upload`, бейдж «Команда» у списку баз — див. «Team editors» у Roles.
 
 **Інфраструктура**
 - `migrate.yml` (CI-міграції з baseline-режимом), `verify_release.sql` (go/no-go перевірка БД одним запитом), штамп білда в Профілі, vitest 3 (critical advisories усунуті), тестова база 111 unit + 57 e2e.
