@@ -130,3 +130,25 @@ export async function setupApp(page: Page, opts: HarnessOptions = {}) {
   await installTelegram(page, opts)
   await mockBackend(page, opts)
 }
+
+/** Standard JSON fulfill for page.route handlers — import instead of
+ *  re-declaring per spec (the inline copies had already drifted on `status`). */
+export const jsonRoute = (route: Route, body: unknown, status = 200) =>
+  route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
+
+/** Every onboarding coachmark pre-dismissed — one source for the id list so a
+ *  new coachmark can't silently re-appear and steal clicks in old specs. */
+export function skipCoachmarks(page: Page) {
+  return page.addInitScript(() => {
+    localStorage.setItem('ob_v1', JSON.stringify(['owner-fab', 'obj-fab', 'realtor-qr', 'col-fab']))
+  })
+}
+
+/** Cached profile → Fast Path 0 restores the session instantly (no splash
+ *  detour to the public preview screens on deep links). Includes coachmarks. */
+export function seedSession(page: Page, user: Record<string, unknown>) {
+  return page.addInitScript((u) => {
+    localStorage.setItem('ps_user', JSON.stringify(u))
+    localStorage.setItem('ob_v1', JSON.stringify(['owner-fab', 'obj-fab', 'realtor-qr', 'col-fab']))
+  }, user)
+}

@@ -1,5 +1,5 @@
-import { test, expect, type Page, type Route } from '@playwright/test'
-import { setupApp, DEFAULT_USER } from './helpers/harness'
+import { test, expect, type Page } from '@playwright/test'
+import { setupApp, DEFAULT_USER, skipCoachmarks, jsonRoute as json } from './helpers/harness'
 
 // ─── Глибокі сценарії: платіжний цикл, аварійні режими, офлайн, фото ───────────
 // Драйвимо ланцюги, які поодинокі тести не проходять цілком: розклад → платіж →
@@ -29,9 +29,6 @@ const PROP = {
   created_at: NOW, updated_at: NOW, photos: [],
 }
 
-const json = (route: Route, body: unknown, status = 200) =>
-  route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
-
 async function fixtures(page: Page) {
   await setupApp(page, { user: USER })
   await page.route('**/rest/v1/databases**', (route) => {
@@ -44,9 +41,7 @@ async function fixtures(page: Page) {
     if (req.method() !== 'GET') return route.fallback()
     return json(route, accept.includes('object') ? PROP : [PROP])
   })
-  await page.addInitScript(() => {
-    localStorage.setItem('ob_v1', JSON.stringify(['owner-fab', 'obj-fab', 'realtor-qr', 'col-fab']))
-  })
+  await skipCoachmarks(page)
 }
 
 async function openCalendar(page: Page) {
@@ -122,11 +117,10 @@ test('payment lifecycle: schedule → due item → mark paid → stats → unpay
   await expect(page.getByText('✓ Сплачено')).toBeVisible()
   await expect(page.locator('.stat-n', { hasText: '1 800' })).toBeVisible()
 
-  // 5. Скасування платежу (×) повертає item у неоплачені
+  // 5. Скасування платежу (×) — ЗАВЖДИ через confirm-модалку
   await page.getByTitle('Скасувати платіж').click()
-  // Модалка підтвердження скасування — якщо є; інакше одразу
-  const confirmUnpay = page.getByRole('button', { name: /Скасувати платіж|Так/ })
-  if (await confirmUnpay.count() > 0) await confirmUnpay.first().click()
+  await expect(page.getByText('Скасувати платіж?')).toBeVisible()
+  await page.getByRole('button', { name: 'Скасувати платіж', exact: true }).click()
   await expect(page.getByText('Платіж скасовано')).toBeVisible({ timeout: 10_000 })
   await expect(page.getByRole('button', { name: /Отримано/ }).first()).toBeVisible()
 })
@@ -217,8 +211,7 @@ test('photo upload: file → storage POST + property_photos INSERT → success t
   await expect(page.getByText('Збережено', { exact: true })).toBeVisible()
 
   expect(storagePosts.length).toBe(1)
-  // Шлях сторінки: {propertyId}/{timestamp}_{rand}.{ext} — без user-controlled сегментів
-  // Формат шляху: {propertyId}/{timestamp}_{queueIdx}_{rand}.{ext}
+  // Формат шляху: {propertyId}/{timestamp}_{queueIdx}_{rand}.{ext} — без user-controlled сегментів
   expect(storagePosts[0]).toMatch(new RegExp(`/photos/${PROP.id}/\\d+_\\d+_[a-z0-9]+\\.png$`))
   expect(photoRows[0]).toMatchObject({ property_id: PROP.id })
   expect((photoRows[0] as { storage_path: string }).storage_path).toMatch(new RegExp(`^${PROP.id}/`))

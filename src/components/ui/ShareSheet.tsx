@@ -41,6 +41,10 @@ export default function ShareSheet({ kind, id, name, shareText, onClose }: Share
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [confirmAction, setConfirmAction] = useState<'rotate' | 'revoke' | null>(null)
+  // Реактивація мертвого лінка пресетом терміну — тільки через підтвердження:
+  // revoke лишає токен, тож set_expiry/clear_expiry повернули б доступ УСІМ,
+  // хто зберіг старе посилання, непомітно для власника.
+  const [pendingRevive, setPendingRevive] = useState<{ action: 'set_expiry' | 'clear_expiry'; days?: number } | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -73,7 +77,14 @@ export default function ShareSheet({ kind, id, name, shareText, onClose }: Share
   }, [kind, id])
 
   async function runManage(action: 'rotate' | 'set_expiry' | 'clear_expiry' | 'revoke', days?: number, opts?: { silent?: boolean }) {
-    if (offlineGuard('Зміни недоступні офлайн')) return
+    // silent-режим (фонове першогенерування при відкритті шита) не має права
+    // показувати ЖОДНИХ тостів — ні офлайн-гарда, ні помилки: користувач
+    // нічого не робив. Ретрай доступний кнопкою «Створити посилання».
+    if (opts?.silent) {
+      if (!useAppStore.getState().isOnline) return
+    } else if (offlineGuard('Зміни недоступні офлайн')) {
+      return
+    }
     setBusy(true)
     try {
       const { data, error } = await supabase.rpc('manage_share', {
@@ -90,7 +101,7 @@ export default function ShareSheet({ kind, id, name, shareText, onClose }: Share
         if (action === 'revoke') showToast({ type: 'success', title: 'Доступ відкликано' })
       }
     } catch {
-      showToast({ type: 'error', title: 'Не вдалося змінити посилання' })
+      if (!opts?.silent) showToast({ type: 'error', title: 'Не вдалося змінити посилання' })
     } finally {
       setBusy(false)
     }
@@ -119,24 +130,27 @@ export default function ShareSheet({ kind, id, name, shareText, onClose }: Share
                   муар) — дефолтний L на 124px читається нестабільно */}
               <QRCode value={url} size={124} level="M" bgColor="#ffffff" fgColor="#000000" style={{ borderRadius: 6, display: 'block', opacity: isExpired ? .25 : 1 }} />
               {isExpired && (
-                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div className="qr-dead-ov">
+                  {/* літерал: бан лежить на БІЛІЙ QR-картці, --err-fg тюнений під темний фон */}
                   <IconBan size={40} color="#b91c1c" />
                 </div>
               )}
             </>
+          ) : loading ? (
+            <div className="qr-empty"><div className="loader" /></div>
           ) : (
-            <div style={{ width: 124, height: 124, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <div className="loader" />
-            </div>
+            /* Легасі-рядок без токена + фонове генерування не вдалося (офлайн,
+               помилка RPC): без цієї кнопки тут висів би вічний спінер. */
+            <button className="qr-empty qr-retry" onClick={() => runManage('rotate')} disabled={busy}>
+              Створити посилання
+            </button>
           )}
         </div>
         <div className="qr-meta">
-          <div className="qr-name">{isExpired ? 'Посилання неактивне' : 'Посилання для перегляду'}</div>
+          <div className="qr-name">{isExpired ? 'Посилання неактивне' : url ? 'Посилання для перегляду' : 'Посилання ще не створено'}</div>
           <div className="qr-link" style={{ wordBreak: 'break-all', textDecoration: isExpired ? 'line-through' : 'none', opacity: isExpired ? .6 : 1 }}>{url || '…'}</div>
           {isExpired && (
-            <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 4 }}>
-              Натисніть «Оновити посилання», щоб створити нове
-            </div>
+            <div className="qr-hint">Натисніть «Оновити посилання», щоб створити нове</div>
           )}
         </div>
       </div>
@@ -163,11 +177,20 @@ export default function ShareSheet({ kind, id, name, shareText, onClose }: Share
         <div style={{ padding: '10px 14px 12px' }}>
           <div className="fr-seg">
             {([
-              { label: '7 днів',  action: () => runManage('set_expiry', 7),  on: daysLeft !== null && daysLeft > 0 && daysLeft <= 7 },
-              { label: '30 днів', action: () => runManage('set_expiry', 30), on: daysLeft !== null && daysLeft > 7 && daysLeft <= 30 },
-              { label: 'Без обмежень', action: () => runManage('clear_expiry'), on: !expiresAt },
-            ]).map(({ label, action, on }) => (
-              <div key={label} className={`fr-seg-b ${on ? 'on' : ''}`} onClick={busy ? undefined : action}>{label}</div>
+              { label: '7 днів',  action: 'set_expiry' as const,   days: 7,          on: daysLeft !== null && daysLeft > 0 && daysLeft <= 7 },
+              { label: '30 днів', action: 'set_expiry' as const,   days: 30,         on: daysLeft !== null && daysLeft > 7 && daysLeft <= 30 },
+              { label: 'Без обмежень', action: 'clear_expiry' as const, days: undefined, on: !expiresAt },
+            ]).map(({ label, action, days, on }) => (
+              <div
+                key={label}
+                className={`fr-seg-b ${on ? 'on' : ''}`}
+                onClick={busy ? undefined : () => {
+                  // Мертвий лінк (revoke/протухання) пресет ОЖИВЛЯЄ з тим самим
+                  // токеном — це має бути свідоме рішення, не випадковий тап
+                  if (isExpired) setPendingRevive({ action, days })
+                  else runManage(action, days)
+                }}
+              >{label}</div>
             ))}
           </div>
         </div>
@@ -185,6 +208,22 @@ export default function ShareSheet({ kind, id, name, shareText, onClose }: Share
           <span className="sheet-lbl">Відкликати доступ</span>
         </div>
       </div>
+
+      {pendingRevive && (
+        <Modal
+          title="Активувати старе посилання?"
+          subtitle="Воно знову запрацює для ВСІХ, хто його вже має — включно з тими, у кого ви відкликали доступ. Щоб роздати доступ заново, скористайтесь «Оновити посилання»."
+          onClose={() => setPendingRevive(null)}
+          actions={[
+            {
+              label: 'Активувати старе',
+              variant: 'danger',
+              onClick: async () => { const p = pendingRevive; setPendingRevive(null); await runManage(p.action, p.days) },
+            },
+            { label: 'Скасувати', variant: 'secondary', onClick: () => setPendingRevive(null) },
+          ]}
+        />
+      )}
 
       {confirmAction && (
         <Modal

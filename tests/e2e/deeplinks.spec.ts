@@ -1,5 +1,5 @@
-import { test, expect, type Page, type Route } from '@playwright/test'
-import { setupApp, DEFAULT_USER } from './helpers/harness'
+import { test, expect } from '@playwright/test'
+import { setupApp, DEFAULT_USER, seedSession, jsonRoute as json } from './helpers/harness'
 
 // ─── Вхідні воркфлоу ролей через deep links ────────────────────────────────────
 // guest_ → claim_guest_link; db_ → subscribe_to_shared_db; prop_/col_ — лукапи
@@ -27,18 +27,6 @@ const PROP = {
   share_expires_at: null, created_at: NOW, updated_at: NOW, photos: [],
 }
 
-const json = (route: Route, body: unknown, status = 200) =>
-  route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
-
-// Кешований профіль → Fast Path 0 відновлює сесію миттєво. Без сесії Splash
-// веде db_/guest_ на публічний превʼю-екран (окремий флоу «подивись → підключи»);
-// нам потрібна гілка залогіненого користувача, яку обробляє useDeepLink.
-function seedSession(page: Page, user: Record<string, unknown>) {
-  return page.addInitScript((u) => {
-    localStorage.setItem('ps_user', JSON.stringify(u))
-    localStorage.setItem('ob_v1', JSON.stringify(['owner-fab', 'obj-fab', 'realtor-qr', 'col-fab']))
-  }, user)
-}
 
 // ─── guest_<invite_token> ───────────────────────────────────────────────────────
 
