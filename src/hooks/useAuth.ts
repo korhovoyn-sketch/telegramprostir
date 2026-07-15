@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react'
 import { supabase, getSessionUngated, USER_COLUMNS } from '@/lib/supabase'
 import { humanizeDbError } from '@/lib/utils'
 import { openSessionGate, closeSessionGate } from '@/lib/sessionGate'
+import { isDeepLinkStartParam } from '@/lib/telegram'
 import { useAppStore } from '@/store/appStore'
 import type { User } from '@/types'
 
@@ -312,7 +313,7 @@ export function useAuth() {
       const startParam = typeof window !== 'undefined'
         ? window?.Telegram?.WebApp?.initDataUnsafe?.start_param
         : null
-      if (startParam?.startsWith('db_') || startParam?.startsWith('prop_') || startParam?.startsWith('guest_') || startParam?.startsWith('col_')) return
+      if (isDeepLinkStartParam(startParam)) return
 
       if (is_new || !dbUser.role) {
         navigateRoot('role-select')

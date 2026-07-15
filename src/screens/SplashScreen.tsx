@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { useAuth, RESTORE_BUDGET_MS } from '@/hooks/useAuth'
 import { useTelegram } from '@/hooks/useTelegram'
+import { isDeepLinkStartParam } from '@/lib/telegram'
 
 // How long to wait for a stored session to restore before giving up and
 // showing WelcomeScreen. Auto-login (Edge Function) is intentionally NOT done
@@ -94,7 +95,7 @@ export default function SplashScreen() {
         const user = useAppStore.getState().user
         if (!user) { navigateRoot('welcome'); return }
         const startParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param
-        if (startParam?.startsWith('db_') || startParam?.startsWith('prop_') || startParam?.startsWith('col_') || startParam?.startsWith('guest_')) return
+        if (isDeepLinkStartParam(startParam)) return
         if (!user.role) { navigateRoot('role-select'); return }
         if (user.role === 'guest') { navigateRoot('guest-home'); return }
         navigateRoot(user.role === 'owner' ? 'db-list' : 'realtor-dashboard')

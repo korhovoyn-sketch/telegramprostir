@@ -44,6 +44,15 @@ export function buildDeepLink(startParam: string): string {
  * Recipients open this in any browser — no Telegram required.
  * Format: https://<origin>/v/?prop=<share_token>
  */
+/** start_param-префікси, які обробляє useDeepLink. Splash/Welcome/useAuth не
+ *  мають навігувати додому, коли такий параметр присутній — інакше екран
+ *  блимає домашнім перед лендингом diп-лінка. Єдине джерело правди: три
+ *  інлайн-копії списку вже якось розійшлися (team_ був пропущений скрізь). */
+const DEEP_LINK_PREFIXES = ['db_', 'prop_', 'col_', 'guest_', 'team_'] as const
+export function isDeepLinkStartParam(p: string | null | undefined): boolean {
+  return !!p && DEEP_LINK_PREFIXES.some((x) => p.startsWith(x))
+}
+
 export function buildPublicUrl(type: 'prop' | 'db' | 'col', token: string): string {
   const origin = typeof window !== 'undefined' ? window.location.origin : ''
   return `${origin}/v/?${type}=${encodeURIComponent(token)}`

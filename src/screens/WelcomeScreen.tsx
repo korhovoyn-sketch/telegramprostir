@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { useAppStore } from '@/store/appStore'
 import { useTelegram } from '@/hooks/useTelegram'
+import { isDeepLinkStartParam } from '@/lib/telegram'
 import ProxMascot from '@/components/ProxMascot'
 import { IconTelegram, GlassTelegram, GlassShield, GlassBolt } from '@/components/Icons'
 
@@ -42,7 +43,7 @@ export default function WelcomeScreen() {
   useEffect(() => {
     if (!user) return
     const startParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param
-    if (startParam?.startsWith('db_') || startParam?.startsWith('prop_') || startParam?.startsWith('col_') || startParam?.startsWith('guest_')) return
+    if (isDeepLinkStartParam(startParam)) return
     if (!user.role) {
       navigateRoot('role-select')
     } else if (user.role === 'owner') {
