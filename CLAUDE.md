@@ -12,10 +12,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm run dev          # local dev server (localhost:3000)
 npm run build        # static export to out/
 npm run lint         # ESLint via next lint
-npm run type-check   # tsc --noEmit (no tests exist yet)
+npm run type-check   # tsc --noEmit
+npm run test         # vitest — unit + component (tests/unit, tests/components)
+npx playwright test  # e2e — герметичний мок-бекенд, проєкт iphone-se (375×667)
 ```
 
-There are no automated tests. Verify behaviour manually with `npm run dev`.
+Повна верифікація перед пушем: type-check → lint → test → build → playwright.
+Chromium для Playwright уже встановлений (`PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers`) — НЕ запускай `playwright install`.
 
 ## Architecture
 
@@ -134,6 +137,9 @@ The container running Claude Code on the web has **no outbound network** (Supaba
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | frontend supabase client |
 | `SUPABASE_SERVICE_ROLE_KEY` | Edge Function only (Deno env) |
 | `TELEGRAM_BOT_TOKEN` | Edge Function HMAC validation |
+| `ALLOWED_ORIGIN` | Edge Functions CORS (Supabase dashboard) — прод-домен Vercel |
+| `SUPABASE_DB_PASSWORD` | лише GitHub Actions secret — для `migrate.yml` (db push) |
+| `NEXT_PUBLIC_BUILD_SHA` | інжектиться `next.config.ts` з `VERCEL_GIT_COMMIT_SHA`; показується у футері Профілю («prostir v1.0.0 · abc1234») — щоб бачити, який білд відкрито на пристрої |
 
 Frontend env vars must be set in Vercel project settings before building. Edge Function env vars are set in the Supabase dashboard under Project Settings → Edge Functions.
 
@@ -205,6 +211,53 @@ The session-start hook (`.claude/hooks/session-start.sh`) runs `npm install` and
 
 ---
 
+## Testing
+
+- **Unit/component**: vitest 3 + jsdom + Testing Library (`tests/unit`, `tests/components`). Утиліти в `src/lib/utils.ts` покриті прицільно — плюрали, санітайзери, bulk-імена, розрахунки оренди.
+- **E2e**: Playwright, один проєкт `iphone-se` (375×667). Харнес `tests/e2e/helpers/harness.ts` — стаб `window.Telegram.WebApp` (initData, CloudStorage, BackButton; MainButton додають окремі тести) + повний мок Supabase REST/Auth через `page.route`. Тести НЕ ходять у мережу.
+- **Флейки, які вже ловили** (перевір перед «лагодженням» коду):
+  - клік у ЦЕНТР короткої `.obj-card` влучає в рядок дій — клікай `.locator('.obj-t')`;
+  - заголовок календаря залежить від точки входу («Платежі — <назва>» vs «Календар платежів») — матч regex-ом;
+  - миттєва мок-відповідь закриває вікно optimistic-стану до першого assert — додай `setTimeout` ~400мс у route перед відповіддю;
+  - `screenshots.spec.ts` — скріншот-тур всіх екранів у `screenshots/` (gitignored), запускається разом з усіма.
+
+---
+
+## Form & input rules (вистраждано на iOS)
+
+- **НІКОЛИ `type="number"`.** Контрольований number-інпут повертає `''` на проміжному стані (друга крапка/кома) — «введене зникає»; скрол міняє значення. Правильно: `type="text"` + `inputMode="decimal|numeric"` + `sanitizeDecimal`/`sanitizeInt` з utils в onChange. Санітайзер розпізнає вставлені розрядні роздільники («1,200,000» → 1200000, НЕ 1.2).
+- **`:hover` тільки під `@media (hover: hover)`** — інакше на iOS перший тап «залипає» (FAB лишається збільшеним, рядки підсвіченими). `:active` — поза media, це тач-фідбек.
+- **Каретка під backdrop-filter** малюється зі зміщенням (WebKit-баг) — глобальне правило дає текстовим інпутам `translateZ(0)` (окремий шар). НЕ поширювати на date/select: у них немає каретки, а стекінг-контекст може клiпати нативні поповери.
+- **Модалки** (`components/ui/Modal.tsx`): клавіатуро-свідомі (`--keyboard-h`), скрол-тіло + sticky-екшени, бекдроп-тап закриває, Escape закриває ЛИШЕ верхню модалку стеку (module-level `modalStack`). Не додавай window-keydown у вкладені компоненти.
+- **PropertyFormScreen — три режими**: create / edit (`propertyId`) / duplicate (`duplicateId` — префіл усього крім орендаря/дат/фото, ім'я через `nextCopyName`). Create-режим: чернетка автозберігається в localStorage (600мс debounce, ключ per user+db), відновлюється з тостом «Очистити»; bulk-режим (`count` > 1) — редаговані рядки (ім'я + площі, фолбек на спільні поля), збереження ОДНИМ insert-ом з послідовним `sort_order`, `bulkCreateNames` пропускає зайняті імена (для цього create-режим ТЕЖ вантажить список).
+- **Валюта в підписах**: `currencySymbol(user?.currency)` (utils) — ніколи literal `$` в лейблах одиниць.
+
+---
+
+## Utils quick reference (src/lib/)
+
+| Хелпер | Правило використання |
+|---|---|
+| `rentUnitLabel(type)` | суфікс для СИРОЇ ставки (`/м²`, `/добу`, `/міс`) — тільки поряд із rent_rate |
+| `computedRentUnit(type)` | суфікс для ПОРАХОВАНОЇ суми — `/добу` лише per_day, інакше `/міс`. Плутанина з попереднім давала «$1 800/м²» на місячному тоталі |
+| `pluralUk(n, one, few, many)` / `objectsWord(n)` | українські плюрали (11–14 → many); ніяких інлайн-тернарів |
+| `sanitizeDecimal` / `sanitizeInt` | єдиний шлях для числових інпутів (див. Form rules) |
+| `currencySymbol(cur)` | ₴/€/$ для лейблів; `formatPrice` делегує сюди |
+| `nextCopyName` / `bulkCreateNames` | інкремент хвостового числа зі збереженням нулів, пропуск зайнятих |
+| `snapshot.ts` (`readSnapshot`/`writeSnapshot`) | SWR-кеш списків: малюємо з localStorage миттєво, оновлюємо тихо; ключі per-user, TTL 24h. Скелетон — лише коли реально нічого малювати |
+| `image.ts` (`compressImage`) | стиснення фото до ≤1920px JPEG перед аплоудом; **fail-open** — будь-який збій повертає оригінал |
+| `updateProperty(id, payload, { optimistic, silent })` | optimistic-мутації з відкатом; патерн undo-тоста: `showToast({ actionLabel: 'Скасувати', onAction })` |
+
+---
+
+## Native Telegram chrome & MainButton
+
+- Хедер/фон/нижній бар — ЗАВЖДИ `#06050e` (верх усіх `.bg-*` градієнтів), незалежно від теми Telegram (застосунок темний; світла тема давала білі смуги). Ставиться в `layout.tsx`.
+- `useMainButton({ text, visible, enabled, loading, barColor, onClick })` — нативна кнопка форм. Зелена `#34C759` коли actionable, СІРА коли disabled (кастомний колір переживає `disable()` — треба перемикати вручну). `barColor` — нижній стоп градієнта екрана (форма об'єкта `.bg-blue` → `#5480dc`, створення бази `.bg-purple` → `#7e58d6`), скидається на unmount. DOM `.mbtn` лишається фолбеком поза Telegram (`!tg.initData`).
+- Всі виклики нових API Telegram (`setBottomBarColor`, `setParams`) — через `?.` (старі клієнти і тест-стаби).
+
+---
+
 ## Navigation patterns (appStore.ts)
 
 | Action | Use case |
@@ -263,8 +316,8 @@ Triggered by reports like "text/buttons are black", "gradient disappeared", "ico
 
 ### 3. Full-workflow verification (auth → CRUD → upload → UI)
 
-This sandboxed environment has **no Playwright browser binaries** (`apt` returns 403) and **no outbound network** to Vercel/Supabase preview URLs (403 host-not-in-allowlist). Verify changes by:
-1. `npm run type-check && npm run lint && npm run build` — all three must pass clean.
+This sandboxed environment has **no outbound network** to Vercel/Supabase preview URLs (403 host-not-in-allowlist), але Playwright Chromium ПРАЦЮЄ (`/opt/pw-browsers`) — 57+ e2e ганяються локально проти статичної збірки з герметичним мок-бекендом (`tests/e2e/helpers/harness.ts`). Verify changes by:
+1. `npm run type-check && npm run lint && npm run test && npm run build && npx playwright test` — все має бути зелене.
 2. Inspect the compiled output directly: `grep` the generated `out/_next/static/css/*.css` and `out/_next/static/chunks/**/*.js` for the literal class names/color values you changed. CSS gets minified and `::before`/`::after` rules get merged onto shared selectors — search for the property value (e.g. a hex color or class name string), not the exact original selector text.
 3. State explicitly to the user that this substitutes for live browser/Vercel verification, since neither is reachable from this environment.
 
@@ -367,3 +420,26 @@ Verification (в кінці 037 — має показати `null_tokens = 0` і
 ```
 ALLOWED_ORIGIN=https://<your-vercel-domain>.vercel.app
 ```
+
+---
+
+## Changelog — сесія липень 2026 (PR #33–#35)
+
+Що зроблено в цій ітерації (довідка для майбутніх сесій — детальні правила вище вже враховують усе це):
+
+**Багфікси**
+- Одиниця оренди: порахований місячний тотал показувався як `/м²` → `computedRentUnit()`.
+- Hero об'єкта: гігантський обрізаний гліф «О» (inline `<svg><style>` рендерився текстом через `svg{display:block}` з Tailwind preflight + колапс flex-обгортки назви).
+- Публічна `/v`: невидимий аватар бази (`db_color` — іменований токен, `${color}88` = невалідний CSS), захардкоджений `$` для ₴/€-власників, відсутня ціна продажу в списках, зламані плюрали 21+, лексикографічний порядок.
+- iOS: каретка під полем (backdrop-filter), липкий hover, «зникаюче» введення `type="number"`, чорна MainButton, білі нативні бари.
+- Модалки: Escape закривав увесь стек, rent-модалка приймала договір «кінець < початок», вставка «1,200,000» → 1.2.
+
+**Фічі**
+- Bulk-створення об'єктів (степер + редаговані рядки з площами), дублювання об'єкта, чернетки форми, optimistic UI + undo-тости, SWR-кеш холодного старту, нативна MainButton, стиснення фото, скелетони скрізь, sheen/каскадні мікроанімації на `/v`.
+- Трекінг відкриттів бази/підбірки (`record_public_view(p_token, p_kind)`, migration 040).
+
+**Інфраструктура**
+- `migrate.yml` (CI-міграції з baseline-режимом), `verify_release.sql` (go/no-go перевірка БД одним запитом), штамп білда в Профілі, vitest 3 (critical advisories усунуті), тестова база 111 unit + 57 e2e.
+
+**Безпека** (аудит пройдено повністю)
+- Constant-time bearer у `send-reminders`; підтверджено: RLS 15/15 таблиць, HMAC constant-time, rate-limit fails-closed, нуль PII в логах, нуль секретів у клієнті. Залишковий advisory: `xlsx` (high) — незастосовний, лише запис.
