@@ -16,7 +16,8 @@ import Modal from '@/components/ui/Modal'
 import { IconPlus, IconDots, IconPhoto, IconShare, IconChevronUp, IconChevronDown, GlassDbIcon, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconCopy, IconUsers, IconFile, IconLayers, IconLayoutGrid, IconChartBar, IconKey, IconFileExport, IconCircleCheck, IconAdjustments, IconTrash, IconChevronRight } from '@/components/Icons'
 import DatabaseStatsPanel from '@/components/ui/DatabaseStatsPanel'
 import { formatPrice, calcRent, calcRentUtils, computedRentUnit, objectsWord, DB_TYPE_LABELS, formatLeasePeriod } from '@/lib/utils'
-import type { PropertyStatus } from '@/types'
+import { supabase } from '@/lib/supabase'
+import type { Database, PropertyStatus } from '@/types'
 import CoachMark from '@/components/ui/CoachMark'
 import { useOnboarding } from '@/hooks/useOnboarding'
 
@@ -97,6 +98,30 @@ export default function DatabaseObjectsScreen() {
   useEffect(() => {
     if (screenParams.dbId) loadProperties(screenParams.dbId)
   }, [screenParams.dbId, loadProperties])
+
+  // Deep link (own_db / team_ / db-гість) веде сюди повз db-list на холодному
+  // старті — стор порожній, і без власного довантаження екран висів би на
+  // вічному спінері (!db нижче). Тягнемо одну базу за id: RLS сам вирішує
+  // видимість для будь-якої ролі (owner/editor/guest/realtor), на відміну від
+  // loadDatabases, що фільтрує по owner_id + membership.
+  const dbMissing = !db
+  useEffect(() => {
+    if (!dbMissing || !screenParams.dbId) return
+    let stale = false
+    supabase
+      .from('databases')
+      .select('id,owner_id,name,address,type,color,share_token,share_expires_at,created_at,updated_at')
+      .eq('id', screenParams.dbId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (stale || !data) return
+        const cur = useAppStore.getState().databases
+        if (!cur.some((d) => d.id === (data as Database).id)) {
+          useAppStore.getState().setDatabases([...cur, data as Database])
+        }
+      })
+    return () => { stale = true }
+  }, [dbMissing, screenParams.dbId])
 
   const filtered = useMemo(() => {
     const base = properties.filter((p) => {
