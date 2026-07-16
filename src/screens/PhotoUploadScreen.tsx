@@ -61,7 +61,13 @@ export default function PhotoUploadScreen() {
     return () => clearTimeout(timer)
   }, [done, doneCount, showToast, back])
 
+  // Гард від подвійного старту черги: StrictMode у dev проганяє mount-ефекти
+  // двічі — без гарда КОЖНЕ фото вантажилось двома копіями (два файли в
+  // storage + два рядки property_photos). Ref переживає double-invoke.
+  const startedRef = useRef(false)
   useEffect(() => {
+    if (startedRef.current) return
+    startedRef.current = true
     if (files.length === 0) return
     if (offlineGuard('Завантаження фото недоступне офлайн')) { back(); return }
     if (validFiles.length > MAX_PHOTOS) {

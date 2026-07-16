@@ -119,3 +119,37 @@ test('share: revoke requires confirm then calls manage_share revoke', async ({ p
   await expect(page.getByText('Доступ відкликано')).toBeVisible()
   await expect(page.getByText('закінчився')).toBeVisible()
 })
+
+test('share: revoked link — dead QR is dimmed, copy/telegram disabled, hint shown', async ({ page }) => {
+  await setup(page)
+  await openShareSheet(page)
+
+  await page.getByText('Відкликати доступ').click()
+  await page.getByRole('button', { name: 'Відкликати', exact: true }).click()
+
+  // Мертвий QR не має виглядати живим: бан-оверлей + підказка + disabled-кнопки
+  await expect(page.getByText('Посилання неактивне')).toBeVisible()
+  await expect(page.locator('.qr-dead-ov')).toBeVisible()
+  await expect(page.getByText('Натисніть «Оновити посилання», щоб створити нове')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Скопіювати' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'У Telegram' })).toBeDisabled()
+
+  // Пресет терміну на мертвому лінку НЕ оживляє його мовчки — спершу підтвердження
+  const callsBefore = manageCalls.length
+  await page.locator('.fr-seg-b', { hasText: 'Без обмежень' }).click()
+  await expect(page.getByText('Активувати старе посилання?')).toBeVisible()
+  await page.getByRole('button', { name: 'Скасувати', exact: true }).click()
+  expect(manageCalls.length).toBe(callsBefore) // RPC не викликався
+
+  // Свідома реактивація через підтвердження — працює
+  await page.locator('.fr-seg-b', { hasText: 'Без обмежень' }).click()
+  await page.getByRole('button', { name: 'Активувати старе' }).click()
+  await expect.poll(() => manageCalls.at(-1)).toMatchObject({ p_action: 'clear_expiry' })
+  await expect(page.getByRole('button', { name: 'Скопіювати' })).toBeEnabled()
+  await expect(page.locator('.qr-dead-ov')).toHaveCount(0)
+
+  // «Оновити посилання» (ротація) також доступне
+  await page.getByText('Оновити посилання', { exact: true }).click()
+  await page.getByRole('button', { name: 'Оновити', exact: true }).click()
+  await expect.poll(() => manageCalls.at(-1)).toMatchObject({ p_action: 'rotate' })
+})

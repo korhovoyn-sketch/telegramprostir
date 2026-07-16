@@ -1,10 +1,9 @@
-import { test, expect, type Page, type Route } from '@playwright/test'
-import { setupApp, DEFAULT_USER } from './helpers/harness'
+import { test, expect } from '@playwright/test'
+import { setupApp, DEFAULT_USER, seedSession, jsonRoute as json } from './helpers/harness'
 
 // ─── Вхідні воркфлоу ролей через deep links ────────────────────────────────────
-// guest_<token> → claim_guest_link → гість бачить розшарений об'єкт;
-// db_<token> → subscribe_to_shared_db → рієлтор підключає базу.
-// (team_<token> покритий у team.spec.ts; prop_/col_ — лукапи тих самих рейок.)
+// guest_ → claim_guest_link; db_ → subscribe_to_shared_db; prop_/col_ — лукапи
+// шерених об'єктів/підбірок. (team_ покритий у team.spec.ts.)
 
 const NOW = new Date().toISOString()
 const FOREIGN_OWNER = '00000000-0000-0000-0000-000000000099'
@@ -28,18 +27,6 @@ const PROP = {
   share_expires_at: null, created_at: NOW, updated_at: NOW, photos: [],
 }
 
-const json = (route: Route, body: unknown, status = 200) =>
-  route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
-
-// Кешований профіль → Fast Path 0 відновлює сесію миттєво. Без сесії Splash
-// веде db_/guest_ на публічний превʼю-екран (окремий флоу «подивись → підключи»);
-// нам потрібна гілка залогіненого користувача, яку обробляє useDeepLink.
-function seedSession(page: Page, user: Record<string, unknown>) {
-  return page.addInitScript((u) => {
-    localStorage.setItem('ps_user', JSON.stringify(u))
-    localStorage.setItem('ob_v1', JSON.stringify(['owner-fab', 'obj-fab', 'realtor-qr', 'col-fab']))
-  }, user)
-}
 
 // ─── guest_<invite_token> ───────────────────────────────────────────────────────
 
@@ -149,4 +136,44 @@ test('db share deep link: owner tapping their own link opens the db directly (no
   // Без тосту підписки — одразу власні об'єкти бази
   await expect(page.getByText('Всі (1)')).toBeVisible({ timeout: 20_000 })
   await expect(page.getByText('Офіс 1').first()).toBeVisible()
+})
+
+// ─── prop_<share_token> та col_<share_token> ────────────────────────────────────
+
+test('prop share deep link: lookup lands on the property detail', async ({ page }) => {
+  const owner = { ...DEFAULT_USER, role: 'owner' as const }
+  await setupApp(page, { user: owner, startParam: `prop_${PROP.share_token}` })
+  await seedSession(page, owner)
+
+  await page.route('**/rest/v1/rpc/lookup_shared_property', (route) =>
+    json(route, [{ id: PROP_ID, db_id: DB_ID }]))
+  await page.route('**/rest/v1/properties**', (route) => {
+    const accept = route.request().headers()['accept'] ?? ''
+    return json(route, accept.includes('object') ? PROP : [PROP])
+  })
+  await page.route('**/rest/v1/databases**', (route) => {
+    const accept = route.request().headers()['accept'] ?? ''
+    return json(route, accept.includes('object') ? DB : [DB])
+  })
+
+  await page.goto('/')
+  await expect(page.getByText('Квартира 12').first()).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByText('Назад', { exact: true }).first()).toBeVisible()
+})
+
+test('col share deep link: foreign collection opens the read-only shared view', async ({ page }) => {
+  const owner = { ...DEFAULT_USER, role: 'owner' as const }
+  const COL_ID = '90000000-0000-0000-0000-000000000001'
+  await setupApp(page, { user: owner, startParam: 'col_cc00112233445566778899dd' })
+  await seedSession(page, owner)
+
+  await page.route('**/rest/v1/rpc/lookup_shared_collection', (route) =>
+    json(route, [{ id: COL_ID, realtor_id: FOREIGN_OWNER }]))
+  await page.route('**/rest/v1/rpc/get_shared_collection', (route) =>
+    json(route, { id: COL_ID, name: 'Топ офіси', description: null, properties: [] }))
+
+  await page.goto('/')
+  // Чужа підбірка → read-only SharedCollectionScreen з її назвою
+  await expect(page.getByText('Топ офіси')).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByText("0 об'єктів")).toBeVisible()
 })
