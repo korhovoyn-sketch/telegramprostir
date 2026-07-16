@@ -227,13 +227,16 @@ The session-start hook (`.claude/hooks/session-start.sh`) runs `npm install` and
 
 ## Testing
 
-- **Unit/component**: vitest 3 + jsdom + Testing Library (`tests/unit`, `tests/components`). Утиліти в `src/lib/utils.ts` покриті прицільно — плюрали, санітайзери, bulk-імена, розрахунки оренди.
-- **E2e**: Playwright, один проєкт `iphone-se` (375×667). Харнес `tests/e2e/helpers/harness.ts` — стаб `window.Telegram.WebApp` (initData, CloudStorage, BackButton; MainButton додають окремі тести) + повний мок Supabase REST/Auth через `page.route`. Тести НЕ ходять у мережу.
+- **Unit/component**: vitest 3 + jsdom + Testing Library (`tests/unit`, `tests/components`). Утиліти в `src/lib/utils.ts` покриті прицільно — плюрали, санітайзери, bulk-імена, розрахунки оренди. 111 unit.
+- **E2e**: Playwright, один проєкт `iphone-se` (375×667), 74 тести. Харнес `tests/e2e/helpers/harness.ts` — стаб `window.Telegram.WebApp` (initData, CloudStorage, BackButton; MainButton додають окремі тести) + повний мок Supabase REST/Auth через `page.route`. Тести НЕ ходять у мережу.
+- **Спільні хелпери харнеса** (імпортуй, НЕ передекларовуй у спеку — легасі-копії в старих спеках мігруються поступово): `jsonRoute` (fulfill JSON), `skipCoachmarks` (сідить `ob_v1`), `seedSession` (сідить `ps_user` → Fast Path 0; без сесії Splash веде `db_`/`guest_` на публічний превʼю-екран замість useDeepLink-гілки — deep-link тести МУСЯТЬ сідити сесію).
+- **Ключові спеки**: `deeplinks.spec.ts` (вхідні флоу ролей: guest_/db_/prop_/col_; team_ у `team.spec.ts`), `deep-lifecycle.spec.ts` (платіжний цикл цілком, RLS 403, офлайн, фото наскрізно зі строгим лічильником storage-POST-ів — ловить регресію дабл-аплоуду), `share-flow.spec.ts` (manage_share рейки + revoked-стан), `screenshots.spec.ts` — скріншот-тур всіх екранів у `screenshots/` (gitignored).
 - **Флейки, які вже ловили** (перевір перед «лагодженням» коду):
   - клік у ЦЕНТР короткої `.obj-card` влучає в рядок дій — клікай `.locator('.obj-t')`;
   - заголовок календаря залежить від точки входу («Платежі — <назва>» vs «Календар платежів») — матч regex-ом;
   - миттєва мок-відповідь закриває вікно optimistic-стану до першого assert — додай `setTimeout` ~400мс у route перед відповіддю;
-  - `screenshots.spec.ts` — скріншот-тур всіх екранів у `screenshots/` (gitignored), запускається разом з усіма.
+  - `getByText` без `{ exact: true }` ловить і хедер, і hint-текст із тим самим фрагментом (strict mode violation) — особливо після додавання підказок;
+  - на екрані два `input[type="file"]` (фото + документи) — селект по `accept`.
 
 ---
 
@@ -307,7 +310,7 @@ The session-start hook (`.claude/hooks/session-start.sh`) runs `npm install` and
 
 ## Audit playbook
 
-This repo gets audited in three recurring flavors. Each has its own checklist and gotchas learned the hard way across past sessions — check these before assuming a finding is new.
+This repo gets audited in four recurring flavors. Each has its own checklist and gotchas learned the hard way across past sessions — check these before assuming a finding is new.
 
 ### 1. DevSecOps / security audit
 
@@ -334,6 +337,25 @@ This sandboxed environment has **no outbound network** to Vercel/Supabase previe
 1. `npm run type-check && npm run lint && npm run test && npm run build && npx playwright test` — все має бути зелене.
 2. Inspect the compiled output directly: `grep` the generated `out/_next/static/css/*.css` and `out/_next/static/chunks/**/*.js` for the literal class names/color values you changed. CSS gets minified and `::before`/`::after` rules get merged onto shared selectors — search for the property value (e.g. a hex color or class name string), not the exact original selector text.
 3. State explicitly to the user that this substitutes for live browser/Vercel verification, since neither is reachable from this environment.
+4. **Прод перевіряється через API** (мережа до GitHub/Vercel MCP є, до самих хостів — ні): статус workflow-ранів на merge-коміті (`deploy-edge-function.yml` — success?) і Vercel-деплой merge-коміту (`target: production`, `state: READY`). Порівняй sha деплою з `origin/main`.
+
+### 4. Глибокий bug-hunt (коли просять «перевір, щоб багів не було»)
+
+Процес, який у липні 2026 знайшов 8 реальних багів за чотири раунди:
+
+1. **Воркфлоу ролей наскрізно** — не окремі екрани, а вхідні ланцюги: deep link → клейм/підписка → лендинг → CRUD. Всі п'ять префіксів (`guest_/db_/prop_/col_/team_`) мають e2e; новий вид лінка = новий тест У ТОЙ ЖЕ ПР.
+2. **Довгі ланцюги, які поодинокі тести не проходять** — платіжний цикл цілком, аплоуд з підрахунком запитів, аварійні режими (403 від RLS, офлайн-гард, відновлення).
+3. **Багатокутовий code-review дифу** — 8 паралельних finder-кутів (порядковий скан, видалена поведінка, крос-файловий трасер, reuse/спрощення/ефективність/altitude/конвенції) → дедуплікація → верифікація КОЖНОГО кандидата з цитатами коду (CONFIRMED/PLAUSIBLE/REFUTED). Найкращі знахідки дає скан незмінених рядків у зачеплених функціях.
+4. **Пошук класу знайденого бага** — після кожного фікса грепни той самий патерн скрізь: один інстанс класу майже ніколи не єдиний.
+
+**Класи багів, які тут уже ловили** (перевіряй нові входження):
+- **Мутація в mount-ефекті без гарда** — StrictMode у dev проганяє ефекти двічі → дабл-INSERT/аплоуд. Гард: `startedRef` (ref переживає double-invoke). Легальні альтернативи: серверний дедуп (`record_public_view` 1/хв), виклик із event handler (не з ефекту).
+- **Інлайн-копії спискових констант** — список deep-link-префіксів жив 4 копіями і розійшовся (team_ був пропущений скрізь). Єдине джерело: `isDeepLinkStartParam()` у `lib/telegram.ts`. Відомий залишок боргу: диспетчер `useDeepLink` і no-session гілка Splash (slice-офсети) досі тримають власні копії — кандидат на `parseStartParam()`.
+- **Екран бере дані ТІЛЬКИ зі стору** — стор наповнює інший екран, тож прямий вхід (deep link) на холодному старті = вічний спінер. Self-contained правило: екран, що вміє бути точкою входу, довантажує свій рядок сам (одиночний select за id — RLS вирішує видимість для будь-якої ролі; `loadDatabases` фільтрує по owner+membership і чужі бази не поверне).
+- **`?.` на Telegram API = мовчазний no-op поза Telegram** — кнопка виглядає живою і нічого не робить. Кожен такий виклик потребує фолбека (`openTelegramShare` → `window.open`) або DOM-фолбека (MainButton → `.mbtn`).
+- **Дії, що скасовують ефект безпекової операції** — revoke ставить `share_expires_at=now()`, але токен ЛИШАЄТЬСЯ: будь-який `set_expiry`/`clear_expiry` оживляє відкликаний лінк для всіх, хто його зберіг. Реактивація мертвого лінка — тільки через явне підтвердження. Перевіряй цей патерн для нових «м'яких» відкликань.
+- **`opts.silent` має глушити ВСІ тости шляху** — і офлайн-гард, і catch, не лише success (фонова операція не має лякати користувача, який нічого не робив).
+- Відомий борг (задокументовано в PR #39): дубльований конвеєр аплоуду `PhotoUploadScreen` vs `useProperties.uploadPhoto` (вже розійшлись: queueIdx у шляху, sort_order) — уніфікувати при наступному дотику.
 
 ---
 
@@ -479,3 +501,12 @@ ALLOWED_ORIGIN=https://<your-vercel-domain>.vercel.app
 
 **Безпека** (аудит пройдено повністю)
 - Constant-time bearer у `send-reminders`; підтверджено: RLS 15/15 таблиць, HMAC constant-time, rate-limit fails-closed, нуль PII в логах, нуль секретів у клієнті. Залишковий advisory: `xlsx` (high) — незастосовний, лише запис.
+
+**Раунди перевірок (PR #37–#39) — 8 реальних багів знайдено і виправлено**
+- Аудит вирівнювання (скріншот-тур 375px): іконковий ритм лейблів форм, степер праворуч, стат-лейбли календаря без трикрапок, сегмент-таби з лічильниками, 12× `#7AB3FF` → токен.
+- Воркфлоу ролей: вічний спінер db-objects на deep links (екран не довантажував свою базу) — фікс + повна deep-link матриця e2e.
+- Share/QR: німа «У Telegram» поза Telegram; мертвий QR виглядав живим; level M; QR-сканер/копіювання/manage_share перевірені як робочі.
+- Глибокі ланцюги: дабл-аплоуд фото (StrictMode double-invoke mount-ефекту); платіжний цикл/403/офлайн покриті e2e.
+- Gap-огляд: дрейф deep-link-префіксів (3 копії без team_) → `isDeepLinkStartParam()`.
+- 8-кутовий code-review дифу: revoke оживлявся пресетом терміну без підтвердження; вічний спінер share-шита для легасі-рядка офлайн; error-тости на silent-шляху. Деталі процесу і класи багів — «Audit playbook §4».
+- Тестова база: 111 unit + 74 e2e; спільні тест-хелпери в harness.ts.
