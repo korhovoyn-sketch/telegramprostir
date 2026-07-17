@@ -1,6 +1,6 @@
 -- Ensure the photos storage bucket exists with correct settings.
 -- This migration reconciles the two conflicting policy sets created by
--- 003_reconcile.sql (storage_photos_*) and 007_storage_policies.sql (photos_*).
+-- 003_reconcile.sql (storage_photos_*) and 0071_storage_policies.sql (photos_*).
 
 -- ── 1. Bucket ───────────────────────────────────────────────────────────────
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
@@ -19,7 +19,7 @@ DROP POLICY IF EXISTS "storage_photos_select" ON storage.objects;
 DROP POLICY IF EXISTS "storage_photos_insert" ON storage.objects;
 DROP POLICY IF EXISTS "storage_photos_update" ON storage.objects;
 DROP POLICY IF EXISTS "storage_photos_delete" ON storage.objects;
--- From 007_storage_policies.sql
+-- From 0071_storage_policies.sql
 DROP POLICY IF EXISTS "photos_upload_owner"   ON storage.objects;
 DROP POLICY IF EXISTS "photos_delete_owner"   ON storage.objects;
 DROP POLICY IF EXISTS "photos_update_owner"   ON storage.objects;

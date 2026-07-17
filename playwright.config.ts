@@ -1,7 +1,15 @@
 import { defineConfig, devices } from '@playwright/test'
+import { existsSync } from 'node:fs'
 
 // Hermetic E2E: a dev server with dummy Supabase env (real network calls are
 // intercepted per-test via page.route). No live Supabase/Telegram needed.
+
+// Пісочниця Claude Code на вебі має предвстановлений Chromium поза стандартним
+// кешем Playwright — там цей шлях існує і МУСИТЬ використовуватись (playwright
+// install у пісочниці заборонений). На CI/локалі шляху немає — Playwright
+// резолвить браузер зі свого кешу (npx playwright install --with-deps chromium).
+const SANDBOX_CHROMIUM = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
+const launchOptions = existsSync(SANDBOX_CHROMIUM) ? { executablePath: SANDBOX_CHROMIUM } : {}
 export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: true,
@@ -23,9 +31,7 @@ export default defineConfig({
         isMobile: true,
         hasTouch: true,
         userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1',
-        launchOptions: {
-          executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
-        },
+        launchOptions,
       },
     },
   ],
