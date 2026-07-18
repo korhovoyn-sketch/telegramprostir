@@ -55,19 +55,28 @@ export default function WelcomeScreen() {
     }
   }, [user, navigateRoot])
 
-  // Silent auto-login: 200 ms grace so an in-flight restore can finish first
+  // Silent auto-login: 200 ms grace so an in-flight restore can finish first.
+  // Deps МУСЯТЬ бути стабільними значеннями (рядок initData, не об'єкт tg, і
+  // колбек через ref): attempted-гард ставиться ДО таймера, тож будь-який
+  // повторний запуск ефекту в 200мс-вікні (нова ідентичність tg/loginViaTelegram
+  // від паралельного ре-рендеру) скасовував таймер у cleanup і впирався в гард —
+  // автологін мовчки вмирав, користувач застрягав на Welcome. У dev це маскував
+  // StrictMode, наживо било повільні пристрої.
+  const loginRef = useRef(loginViaTelegram)
+  loginRef.current = loginViaTelegram
+  const initData = tg?.initData
   useEffect(() => {
     if (autoLoginAttempted.current) return
-    if (!tg?.initData) return
+    if (!initData) return
     if (screenParams.fromLogout) return
     if (useAppStore.getState().user) return
     autoLoginAttempted.current = true
     const delay = setTimeout(() => {
       if (useAppStore.getState().user) return
-      loginViaTelegram(tg!.initData)
+      loginRef.current(initData)
     }, 200)
     return () => clearTimeout(delay)
-  }, [tg, loginViaTelegram, screenParams.fromLogout])
+  }, [initData, screenParams.fromLogout])
 
   async function handleLogin() {
     if (!tg?.initData) {

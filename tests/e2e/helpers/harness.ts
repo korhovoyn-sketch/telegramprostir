@@ -82,6 +82,13 @@ export async function installTelegram(page: Page, opts: HarnessOptions = {}) {
 
 /** Intercept every Supabase REST / Auth / Edge call with deterministic fixtures. */
 export async function mockBackend(page: Page, opts: HarnessOptions = {}) {
+  // Герметичність БУКВАЛЬНО: справжній telegram-web-app.js з telegram.org
+  // ПЕРЕЗАПИСУЄ наш стаб window.Telegram (initData стає '', start_param зникає,
+  // методи кидають WebAppMethodUnsupported). У пісочниці Claude Code зовнішня
+  // мережа закрита і це маскувалось; на GitHub-раннерах SDK вантажився і валив
+  // 7 тестів. Віддаємо порожній скрипт.
+  await page.route('**/telegram-web-app.js', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/javascript', body: '' }))
   const user = opts.user ?? DEFAULT_USER
   const jwt = makeJwt(user)
   const json = (route: Route, body: unknown, status = 200) =>

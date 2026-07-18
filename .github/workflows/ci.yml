@@ -43,6 +43,15 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
+      # Снапшоти сторінки на момент падіння — прямо в лог, без викачування
+      # артефакту (page state видно одразу при діагностиці ран-онлі падінь)
+      - name: Dump error contexts
+        if: failure()
+        run: |
+          find test-results -name 'error-context.md' | while read -r f; do
+            echo "════════ $f"
+            cat "$f"
+          done
       - name: Upload Playwright report
         if: always()
         uses: actions/upload-artifact@v4
