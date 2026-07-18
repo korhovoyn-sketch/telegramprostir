@@ -36,10 +36,16 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run dev',
+    // CI ганяє тести проти ПРОДАКШН static export (як у Vercel): dev-сервер з
+    // on-demand компіляцією на 2-ядерному раннері + паралельні Chromium давали
+    // масові таймаути (62/74 падали, /v-статика проходила). Локально/пісочниця —
+    // швидкий ітеративний dev.
+    command: process.env.CI
+      ? 'npm run build && npx serve@14 out -l 3000'
+      : 'npm run dev',
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    timeout: 300_000,
     env: {
       NEXT_PUBLIC_SUPABASE_URL: 'http://localhost:9999',
       NEXT_PUBLIC_SUPABASE_ANON_KEY: 'test-anon-key',
