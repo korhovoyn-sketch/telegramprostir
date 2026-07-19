@@ -15,7 +15,7 @@ import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import Modal from '@/components/ui/Modal'
 import { IconPlus, IconDots, IconPhoto, IconShare, IconChevronUp, IconChevronDown, GlassDbIcon, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconCopy, IconUsers, IconFile, IconLayers, IconLayoutGrid, IconChartBar, IconKey, IconFileExport, IconCircleCheck, IconAdjustments, IconTrash, IconChevronRight } from '@/components/Icons'
 import DatabaseStatsPanel from '@/components/ui/DatabaseStatsPanel'
-import { formatPrice, calcRent, calcRentUtils, computedRentUnit, objectsWord, DB_TYPE_LABELS, formatLeasePeriod } from '@/lib/utils'
+import { formatPrice, calcRent, calcRentUtils, computedRentUnit, rentUnitLabel, objectsWord, DB_TYPE_LABELS, formatLeasePeriod } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import type { Database, PropertyStatus } from '@/types'
 import CoachMark from '@/components/ui/CoachMark'
@@ -38,12 +38,14 @@ export default function DatabaseObjectsScreen() {
   const [selectMode, setSelectMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [showBatchDeleteModal, setShowBatchDeleteModal] = useState(false)
-  const [occCompact, setOccCompact] = useState(() =>
+  // Одне вподобання «компактно» на обидві статусні вкладки (зайняті + вільні).
+  // Ключ лишається історичним 'ps:occCompact', щоб не скидати вибір користувачам.
+  const [statusCompact, setStatusCompact] = useState(() =>
     typeof window !== 'undefined' && localStorage.getItem('ps:occCompact') === '1')
 
-  function toggleOccCompact(next: boolean) {
+  function toggleStatusCompact(next: boolean) {
     hapticSelection()
-    setOccCompact(next)
+    setStatusCompact(next)
     try { localStorage.setItem('ps:occCompact', next ? '1' : '0') } catch { /* private mode blocks storage */ }
   }
 
@@ -150,7 +152,7 @@ export default function DatabaseObjectsScreen() {
     for_sale: properties.filter(p => p.status === 'for_sale').length,
   }), [properties])
 
-  const compactView = tab === 'occupied' && occCompact && !reorderMode && !selectMode
+  const compactView = (tab === 'occupied' || tab === 'free') && statusCompact && !reorderMode && !selectMode
 
   if (!db) return (
     <div className="scr bg-blue">
@@ -260,13 +262,13 @@ export default function DatabaseObjectsScreen() {
           </div>
         )}
 
-        {/* View-mode toggle — occupied tab only */}
-        {tab === 'occupied' && !reorderMode && !selectMode && filtered.length > 0 && (
+        {/* View-mode toggle — статусні вкладки (зайняті + вільні) */}
+        {(tab === 'occupied' || tab === 'free') && !reorderMode && !selectMode && filtered.length > 0 && (
           <div className="fr-seg" style={{ margin: '0 12px 8px', width: 'auto', maxWidth: 220, marginLeft: 'auto' }}>
-            <div className={`fr-seg-b ${!occCompact ? 'on' : ''}`} onClick={() => toggleOccCompact(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+            <div className={`fr-seg-b ${!statusCompact ? 'on' : ''}`} onClick={() => toggleStatusCompact(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
               <IconLayoutGrid size={13} />Картки
             </div>
-            <div className={`fr-seg-b ${occCompact ? 'on' : ''}`} onClick={() => toggleOccCompact(true)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+            <div className={`fr-seg-b ${statusCompact ? 'on' : ''}`} onClick={() => toggleStatusCompact(true)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
               <IconLayers size={13} />Компактно
             </div>
           </div>
@@ -361,6 +363,12 @@ export default function DatabaseObjectsScreen() {
 
               if (compactView) {
                 const title = p.tenant_name?.trim() || p.name
+                // Вільний об'єкт — це оголошення: показуємо СИРУ ставку
+                // (rentUnitLabel, «$18/м²»), а не порахований тотал — його
+                // нема з кого отримувати. Зайнятий — фактичний дохід/міс.
+                const isFree = p.status === 'free'
+                const compVal  = isFree ? (p.rent_rate ?? 0) : dispVal
+                const compUnit = isFree ? rentUnitLabel(p.rent_type) : dispUnit
                 return (
                   <div
                     key={p.id}
@@ -376,8 +384,8 @@ export default function DatabaseObjectsScreen() {
                       </div>
                     </div>
                     <div className="row-r">
-                      <span className="row-tot">{dispVal > 0 ? formatPrice(dispVal, user?.currency) : '—'}</span>
-                      {dispVal > 0 && <span className="row-tot-u">{dispUnit}</span>}
+                      <span className="row-tot">{compVal > 0 ? formatPrice(compVal, user?.currency) : '—'}</span>
+                      {compVal > 0 && <span className="row-tot-u">{compUnit}</span>}
                     </div>
                   </div>
                 )

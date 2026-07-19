@@ -62,7 +62,7 @@ function prop(n: number, over: Record<string, unknown>) {
 const PROPERTIES = [
   prop(1, { status: 'occupied', tenant_name: 'ТОВ «Ромашка»', rent_rate: 18, area_useful: 100, area_total: 120, utilities_rate: 2.5, lease_end_date: '2029-02-28' }),
   prop(2, { status: 'occupied', tenant_name: 'ФОП Іванов', rent_type: 'fixed', rent_rate: 2500, area_useful: 80, area_total: 90 }),
-  prop(3, {}),
+  prop(3, { rent_rate: 15 }),
 ]
 
 async function setupFixtures(page: Page) {
@@ -109,6 +109,13 @@ test('drive-through: home → objects → compact → action sheet → form → 
   // green monthly total = rent 100*18 + utils 120*2.5 = 2100
   await expect(page.locator('.row-tot').first()).toContainText('2')
   await page.screenshot({ path: testInfo.outputPath('03-compact-list.png') })
+
+  // ── 3b. Вільно tab shares the compact preference; right column = СИРА ставка
+  await page.getByText('Вільно (1)').click()
+  await expect(page.getByText('Компактно')).toBeVisible()
+  await expect(page.locator('.row-tot').first()).toContainText('15')
+  await expect(page.locator('.row-tot-u').first()).toHaveText('/м²')
+  await page.screenshot({ path: testInfo.outputPath('03b-compact-free.png') })
 
   // ── 4. Apple action sheet ───────────────────────────────────────────────────
   await page.getByLabel('Меню бази').click()
