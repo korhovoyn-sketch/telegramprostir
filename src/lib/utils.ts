@@ -317,14 +317,23 @@ export const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   for_sale: { bg: 'rgba(122,179,255,.18)', color: '#7ab3ff' },
 }
 
-export const DB_COLORS: Record<string, string> = {
-  purple: 'linear-gradient(135deg,#7B30EB,#5B1FD4)',
-  blue: 'linear-gradient(135deg,#2AABEE,#1070B8)',
-  green: 'linear-gradient(135deg,#34C759,#1A8A38)',
-  orange: 'linear-gradient(135deg,#FF9500,#D06000)',
-  pink: 'linear-gradient(135deg,#FF7AB8,#C42378)',
-  teal: 'linear-gradient(135deg,#5AC8FA,#2A8AB0)',
+// Єдине джерело стопів для кольору мітки бази. Раніше пікер (DB_COLORS) і
+// сама іконка (GLASS_GRADS в Icons.tsx) малювались із РІЗНИХ палітр: «teal»
+// у пікері виглядав другим блакитним і після вибору ставав бірюзовим на
+// іконці — «обираєш одне, отримуєш інше». Icons.tsx деривує свої градієнти
+// звідси; glow-кольори лишаються локально в Icons.
+export const DB_COLOR_STOPS: Record<string, { from: string; to: string }> = {
+  purple: { from: '#D4B8FF', to: '#7330E0' },
+  blue:   { from: '#8CC8FF', to: '#1D52E0' },
+  green:  { from: '#9FF4B4', to: '#1F9C4C' },
+  orange: { from: '#FFCF8C', to: '#D9700F' },
+  pink:   { from: '#FFB0DA', to: '#D62B8C' },
+  teal:   { from: '#8FF8E4', to: '#0E9C92' },
 }
+
+export const DB_COLORS: Record<string, string> = Object.fromEntries(
+  Object.entries(DB_COLOR_STOPS).map(([name, { from, to }]) => [name, `linear-gradient(135deg,${from},${to})`])
+)
 
 // Cancelled by the next focus event so rapid tab-through doesn't stack scrolls.
 let _scrollTimer: ReturnType<typeof setTimeout> | undefined

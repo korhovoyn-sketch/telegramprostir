@@ -1,6 +1,7 @@
 'use client'
 
 import { useId } from 'react'
+import { DB_COLOR_STOPS } from '@/lib/utils'
 
 /* ── Glass icon system — reference style: filled glassy shapes with a
    vertical gradient (light top → saturated bottom) and a soft neon glow,
@@ -14,14 +15,17 @@ export function toNeonColor(c?: string | null): NeonColor {
   return c && NEON_COLORS.includes(c) ? (c as NeonColor) : 'purple'
 }
 
+// Стопи 6 користувацьких кольорів мітки деривуються з DB_COLOR_STOPS (utils) —
+// пікер, /v-аватар і ця іконка малюють ІДЕНТИЧНІ градієнти. red/cyan — суто
+// внутрішні (статуси/фічі), у пікері їх немає, тож живуть тут.
 const GLASS_GRADS: Record<NeonColor, { from: string; to: string; glow: string }> = {
-  purple: { from: '#D4B8FF', to: '#7330E0', glow: 'rgba(150,90,255,.55)' },
-  blue:   { from: '#8CC8FF', to: '#1D52E0', glow: 'rgba(60,130,255,.55)' },
-  pink:   { from: '#FFB0DA', to: '#D62B8C', glow: 'rgba(255,80,170,.55)' },
+  purple: { ...DB_COLOR_STOPS.purple, glow: 'rgba(150,90,255,.55)' },
+  blue:   { ...DB_COLOR_STOPS.blue,   glow: 'rgba(60,130,255,.55)' },
+  pink:   { ...DB_COLOR_STOPS.pink,   glow: 'rgba(255,80,170,.55)' },
   red:    { from: '#FFA898', to: '#D8232E', glow: 'rgba(255,70,60,.55)' },
-  teal:   { from: '#8FF8E4', to: '#0E9C92', glow: 'rgba(40,220,200,.55)' },
-  green:  { from: '#9FF4B4', to: '#1F9C4C', glow: 'rgba(60,220,120,.55)' },
-  orange: { from: '#FFCF8C', to: '#D9700F', glow: 'rgba(255,150,40,.55)' },
+  teal:   { ...DB_COLOR_STOPS.teal,   glow: 'rgba(40,220,200,.55)' },
+  green:  { ...DB_COLOR_STOPS.green,  glow: 'rgba(60,220,120,.55)' },
+  orange: { ...DB_COLOR_STOPS.orange, glow: 'rgba(255,150,40,.55)' },
   cyan:   { from: '#9FE9FF', to: '#1577D8', glow: 'rgba(60,190,255,.55)' },
 }
 

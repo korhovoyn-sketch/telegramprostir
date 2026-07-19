@@ -859,7 +859,6 @@ svg.ico{overflow:visible}
 .row:active{transform:scale(.99);opacity:0.85;background:var(--glass-3) !important}
 .obj-card:active{transform:scale(.985)}
 .tab:active{transform:scale(.92);opacity:0.75}
-.color-c:active{transform:scale(1.15)}
 .hdr-back:active{transform:scale(.92)}
 .fab:active{transform:scale(.92) !important;box-shadow:0 3px 10px rgba(196,35,120,.22) !important}
 .share-i:active{transform:scale(.93)}
