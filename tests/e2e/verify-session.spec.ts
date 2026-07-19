@@ -63,6 +63,7 @@ const PROPERTIES = [
   prop(1, { status: 'occupied', tenant_name: 'ТОВ «Ромашка»', rent_rate: 18, area_useful: 100, area_total: 120, utilities_rate: 2.5, lease_end_date: '2029-02-28' }),
   prop(2, { status: 'occupied', tenant_name: 'ФОП Іванов', rent_type: 'fixed', rent_rate: 2500, area_useful: 80, area_total: 90 }),
   prop(3, { rent_rate: 15 }),
+  prop(4, { status: 'for_sale', sale_price: 120000 }),
 ]
 
 async function setupFixtures(page: Page) {
@@ -97,7 +98,7 @@ test('drive-through: home → objects → compact → action sheet → form → 
 
   // ── 2. Open the database ────────────────────────────────────────────────────
   await page.getByText('БЦ Рубін').first().click()
-  await expect(page.getByText('Всі (3)')).toBeVisible()
+  await expect(page.getByText('Всі (4)')).toBeVisible()
   await page.screenshot({ path: testInfo.outputPath('02-objects-cards.png') })
 
   // ── 3. Occupied tab → compact toggle → compact rows ────────────────────────
@@ -117,6 +118,21 @@ test('drive-through: home → objects → compact → action sheet → form → 
   await expect(page.locator('.row-tot-u').first()).toHaveText('/м²')
   await page.screenshot({ path: testInfo.outputPath('03b-compact-free.png') })
 
+  // ── 3c. Продаж tab: права колонка = ціна продажу (без суфікса)
+  await page.getByText('Продаж (1)').click()
+  await expect(page.locator('.row-tot').first()).toContainText('120')
+  await expect(page.locator('.row-tot-u')).toHaveCount(0)
+
+  // ── 3d. Всі tab: компакт успадковується, статусні крапки, стат-панель схована
+  await page.getByText('Всі (4)').click()
+  await expect(page.locator('.list .fdot')).toHaveCount(4)
+  await expect(page.getByText('Зайнятість')).toHaveCount(0)
+  await page.screenshot({ path: testInfo.outputPath('03d-compact-all.png') })
+  // Повернення до карток показує панель знову
+  await page.getByText('Картки').click()
+  await expect(page.getByText('Зайнятість')).toBeVisible()
+  await page.getByText('Компактно').click()
+
   // ── 4. Apple action sheet ───────────────────────────────────────────────────
   await page.getByLabel('Меню бази').click()
   await expect(page.getByText('Дії з базою')).toBeVisible()
@@ -128,7 +144,7 @@ test('drive-through: home → objects → compact → action sheet → form → 
   await page.getByText('Скасувати').click()
 
   // ── 5. Property form: CTA is in-flow at the end of the fields ──────────────
-  await page.getByText('Всі (3)').click()
+  await page.getByText('Всі (4)').click()
   await page.getByLabel("Додати об'єкт").click()
   await expect(page.getByText("Новий об'єкт")).toBeVisible()
   const cta = page.locator('button.mbtn-flow')
