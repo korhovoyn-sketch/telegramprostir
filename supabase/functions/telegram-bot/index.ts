@@ -23,7 +23,9 @@ const UpdateSchema = z.object({
 
 // Deep-link params our Mini App understands (see src/hooks/useDeepLink.ts).
 // Tokens are url-safe — anything else is ignored, never echoed back.
-const START_PARAM_RE = /^(db|prop|col)_[A-Za-z0-9_-]{1,128}$/
+// МУСИТЬ покривати ВСІ префікси useDeepLink: guest_/team_ тут колись бракувало,
+// і бот губив параметр запрошень, відповідаючи голим лінком на застосунок.
+const START_PARAM_RE = /^(db|prop|col|guest|team)_[A-Za-z0-9_-]{1,128}$/
 
 function buildAppLink(startParam?: string): string {
   const bot = Deno.env.get('TELEGRAM_BOT_USERNAME') ?? ''
@@ -91,6 +93,8 @@ Deno.serve(async (req) => {
       if (param) {
         const noun = param.startsWith('db_') ? 'базою нерухомості'
           : param.startsWith('prop_') ? "об'єктом нерухомості"
+          : param.startsWith('guest_') ? 'запрошенням гостя'
+          : param.startsWith('team_') ? 'запрошенням до команди'
           : 'підбіркою'
         await sendMessage(
           chatId,

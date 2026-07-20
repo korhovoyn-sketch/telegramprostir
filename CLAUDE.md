@@ -154,6 +154,9 @@ ids → `appStore.memberDbIds`), `isOwner`-шлюзи в екранах розш
 | `ALLOWED_ORIGIN` | Edge Functions CORS (Supabase dashboard) — прод-домен Vercel |
 | `SUPABASE_DB_PASSWORD` | лише GitHub Actions secret — для `migrate.yml` (db push) |
 | `NEXT_PUBLIC_BUILD_SHA` | інжектиться `next.config.ts` з `VERCEL_GIT_COMMIT_SHA`; показується у футері Профілю («prostir v1.0.0 · abc1234») — щоб бачити, який білд відкрито на пристрої |
+| `NEXT_PUBLIC_TELEGRAM_BOT_USERNAME` | Vercel — юзернейм бота для deep links (`buildDeepLink`); без нього лінки = «#» |
+| `NEXT_PUBLIC_TELEGRAM_APP_NAME` | Vercel — **short name Mini App з BotFather (/newapp)**. КРИТИЧНО для шарингу: без нього deep links мають форму `t.me/bot?startapp=…`, яка ГУБИТЬ параметр, якщо в BotFather не налаштований Main Mini App — одержувач лінка бачить порожній чат бота замість бази |
+| `TELEGRAM_BOT_USERNAME`, `TELEGRAM_APP_NAME` | Supabase Edge (Deno) — ті самі значення для `telegram-bot`: його рятувальна відповідь на `/start db_…` будує кнопку тим же `t.me/bot/app?startapp=` форматом |
 
 Frontend env vars must be set in Vercel project settings before building. Edge Function env vars are set in the Supabase dashboard under Project Settings → Edge Functions.
 
