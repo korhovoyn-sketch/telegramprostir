@@ -224,14 +224,18 @@ test('screens · guest', async ({ page }) => {
     label: 'Мій орендар', guest_user_id: GUEST.id, status: 'active', claimed_at: NOW,
     created_at: NOW, property: PROPERTY, database: null,
   }]))
-  await page.route('**/rest/v1/properties**', (r) => json(r, [PROPERTY]))
+  await page.route('**/rest/v1/properties**', (r) => {
+    // .single() детальної чекає ОБ'ЄКТ — масив у відповідь лишає екран на спінері
+    const accept = r.request().headers()['accept'] ?? ''
+    return json(r, accept.includes('object') ? PROPERTY : [PROPERTY])
+  })
 
   await tryShot(page, 'guest-home', async () => {
     await page.goto('/'); await page.getByText("Мої об'єкти").waitFor({ timeout: 20_000 })
   })
   await tryShot(page, 'guest-property', async () => {
     await page.getByText('Офіс 101').first().click()
-    await page.waitForTimeout(400)
+    await page.getByText('Корисна площа').waitFor({ timeout: 15_000 })
   })
 })
 
