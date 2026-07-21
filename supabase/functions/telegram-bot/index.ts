@@ -27,9 +27,18 @@ const UpdateSchema = z.object({
 // і бот губив параметр запрошень, відповідаючи голим лінком на застосунок.
 const START_PARAM_RE = /^(db|prop|col|guest|team)_[A-Za-z0-9_-]{1,128}$/
 
+// Reduce a human-entered env value to a bare handle/short-name. TELEGRAM_APP_NAME
+// has been mis-entered as a full t.me URL instead of the bare short name, which
+// makes buildAppLink emit a doubled, unresolvable link — same trap as the
+// frontend's tgHandle in src/lib/telegram.ts. Drop scheme/host/query/@, keep the
+// last path segment (short names never contain '/').
+function tgHandle(v: string | undefined): string {
+  return (v ?? '').trim().replace(/^@/, '').split(/[?#]/)[0].split('/').filter(Boolean).pop() ?? ''
+}
+
 function buildAppLink(startParam?: string): string {
-  const bot = Deno.env.get('TELEGRAM_BOT_USERNAME') ?? ''
-  const app = Deno.env.get('TELEGRAM_APP_NAME') ?? ''
+  const bot = tgHandle(Deno.env.get('TELEGRAM_BOT_USERNAME'))
+  const app = tgHandle(Deno.env.get('TELEGRAM_APP_NAME'))
   const base = app ? `https://t.me/${bot}/${app}` : `https://t.me/${bot}`
   return startParam ? `${base}?startapp=${encodeURIComponent(startParam)}` : base
 }
