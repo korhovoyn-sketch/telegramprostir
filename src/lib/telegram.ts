@@ -1,7 +1,21 @@
-export const TG_BOT = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME ?? ''
+/**
+ * Reduce a human-entered env value to a bare Telegram handle/short-name.
+ * These vars are typed into the Vercel dashboard by hand and have been
+ * mis-entered as a full URL before — NEXT_PUBLIC_TELEGRAM_APP_NAME set to
+ * "https://t.me/prostirapplbot/prostir" instead of the bare short name
+ * "prostir" made buildDeepLink emit a doubled, unresolvable link
+ * (t.me/bot/https://t.me/bot/app?startapp=…), so shares silently 404'd in
+ * Telegram. Normalise: drop scheme/host/query/@, keep the last path segment.
+ * Mini App short names and bot usernames never contain '/' so this is lossless.
+ */
+function tgHandle(v: string | undefined): string {
+  return (v ?? '').trim().replace(/^@/, '').split(/[?#]/)[0].split('/').filter(Boolean).pop() ?? ''
+}
+
+export const TG_BOT = tgHandle(process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME)
 
 /** Mini App short name from BotFather (/newapp). Enables direct-link format. */
-const TG_APP = process.env.NEXT_PUBLIC_TELEGRAM_APP_NAME ?? ''
+const TG_APP = tgHandle(process.env.NEXT_PUBLIC_TELEGRAM_APP_NAME)
 
 // ── Haptics ──────────────────────────────────────────────────────────────────
 // Read window.Telegram directly (optional-chained) so these work from event
