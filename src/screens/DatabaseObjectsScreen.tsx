@@ -15,7 +15,7 @@ import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import Modal from '@/components/ui/Modal'
 import { IconPlus, IconDots, IconPhoto, IconShare, IconChevronUp, IconChevronDown, GlassDbIcon, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconCopy, IconUsers, IconFile, IconLayers, IconLayoutGrid, IconChartBar, IconKey, IconFileExport, IconCircleCheck, IconAdjustments, IconTrash, IconChevronRight } from '@/components/Icons'
 import DatabaseStatsPanel from '@/components/ui/DatabaseStatsPanel'
-import { formatPrice, calcRent, calcRentUtils, computedRentUnit, rentUnitLabel, objectsWord, DB_TYPE_LABELS, formatLeasePeriod } from '@/lib/utils'
+import { formatPrice, calcRent, calcRentUtils, computedRentUnit, rentUnitLabel, objectsWord, DB_TYPE_LABELS, formatLeasePeriod, STATUS_COLORS } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import type { Database, PropertyStatus } from '@/types'
 import CoachMark from '@/components/ui/CoachMark'
@@ -152,7 +152,7 @@ export default function DatabaseObjectsScreen() {
     for_sale: properties.filter(p => p.status === 'for_sale').length,
   }), [properties])
 
-  const compactView = (tab === 'occupied' || tab === 'free') && statusCompact && !reorderMode && !selectMode
+  const compactView = statusCompact && !reorderMode && !selectMode
 
   if (!db) return (
     <div className="scr bg-blue">
@@ -262,8 +262,8 @@ export default function DatabaseObjectsScreen() {
           </div>
         )}
 
-        {/* View-mode toggle — статусні вкладки (зайняті + вільні) */}
-        {(tab === 'occupied' || tab === 'free') && !reorderMode && !selectMode && filtered.length > 0 && (
+        {/* View-mode toggle — на всіх вкладках; вподобання одне на екран */}
+        {!reorderMode && !selectMode && filtered.length > 0 && (
           <div className="fr-seg" style={{ margin: '0 12px 8px', width: 'auto', maxWidth: 220, marginLeft: 'auto' }}>
             <div className={`fr-seg-b ${!statusCompact ? 'on' : ''}`} onClick={() => toggleStatusCompact(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
               <IconLayoutGrid size={13} />Картки
@@ -274,8 +274,9 @@ export default function DatabaseObjectsScreen() {
           </div>
         )}
 
-        {/* Stats dashboard */}
-        {!reorderMode && !selectMode && (
+        {/* Stats dashboard — у компакті ховаємо: користувач попросив щільності,
+            а панель з'їдала пів першого екрана списку */}
+        {!reorderMode && !selectMode && !compactView && (
           <DatabaseStatsPanel properties={properties} currency={user?.currency} />
         )}
 
@@ -363,12 +364,15 @@ export default function DatabaseObjectsScreen() {
 
               if (compactView) {
                 const title = p.tenant_name?.trim() || p.name
-                // Вільний об'єкт — це оголошення: показуємо СИРУ ставку
-                // (rentUnitLabel, «$18/м²»), а не порахований тотал — його
-                // нема з кого отримувати. Зайнятий — фактичний дохід/міс.
-                const isFree = p.status === 'free'
-                const compVal  = isFree ? (p.rent_rate ?? 0) : dispVal
-                const compUnit = isFree ? rentUnitLabel(p.rent_type) : dispUnit
+                // Права колонка за статусом: вільний — це оголошення, СИРА
+                // ставка (rentUnitLabel, «$18/м²»); продаж — ціна продажу без
+                // суфікса; зайнятий — фактичний порахований дохід «/міс».
+                const compVal = p.status === 'free' ? (p.rent_rate ?? 0)
+                  : p.status === 'for_sale' ? (p.sale_price ?? 0)
+                  : dispVal
+                const compUnit = p.status === 'free' ? rentUnitLabel(p.rent_type)
+                  : p.status === 'for_sale' ? ''
+                  : dispUnit
                 return (
                   <div
                     key={p.id}
@@ -376,7 +380,11 @@ export default function DatabaseObjectsScreen() {
                     onClick={() => navigate('property-detail', { propertyId: p.id, dbId: db.id })}
                   >
                     <div className="row-mn">
-                      <div className="row-t">{title}</div>
+                      <div className="row-t" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {/* На змішаній вкладці «Всі» рядки без статусної крапки нерозрізненні */}
+                        {tab === 'all' && <span className="fdot" style={{ background: STATUS_COLORS[p.status].color, flexShrink: 0 }} />}
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</span>
+                      </div>
                       <div className="row-s">
                         {p.tenant_name?.trim() && <><IconBuilding size={13} color="var(--t3)" /><span>{p.name}</span></>}
                         {p.floor && <><IconLayers size={13} color="var(--t3)" /><span>{p.floor} пов.</span></>}
@@ -385,7 +393,7 @@ export default function DatabaseObjectsScreen() {
                     </div>
                     <div className="row-r">
                       <span className="row-tot">{compVal > 0 ? formatPrice(compVal, user?.currency) : '—'}</span>
-                      {compVal > 0 && <span className="row-tot-u">{compUnit}</span>}
+                      {compVal > 0 && compUnit && <span className="row-tot-u">{compUnit}</span>}
                     </div>
                   </div>
                 )

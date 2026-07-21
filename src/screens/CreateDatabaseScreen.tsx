@@ -21,6 +21,10 @@ const TYPES: { id: DatabaseType; label: string; desc: string; neon: 'blue' | 'gr
 ]
 
 const COLOR_NAMES = Object.keys(DB_COLORS)
+const COLOR_LABELS: Record<string, string> = {
+  purple: 'Фіолетовий', blue: 'Синій', green: 'Зелений',
+  orange: 'Помаранчевий', pink: 'Рожевий', teal: 'Бірюзовий',
+}
 
 export default function CreateDatabaseScreen() {
   const { screenParams, databases, backThenReplace } = useAppStore()
@@ -122,14 +126,24 @@ export default function CreateDatabaseScreen() {
 
         {/* Color */}
         <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconAdjustments size={13} color="#fb923c" />Колір мітки</span></div>
-        <div className="color-row">
+        <div className="color-row" role="radiogroup" aria-label="Колір мітки">
           {COLOR_NAMES.map((c) => (
             <div
               key={c}
+              role="radio"
+              aria-checked={color === c}
+              aria-label={COLOR_LABELS[c] ?? c}
               className={`color-c ${color === c ? 'sel' : ''}`}
               style={{ background: DB_COLORS[c] }}
               onClick={() => { hapticSelection(); setColor(c) }}
-            />
+            >
+              {/* ✓ на вибраній: біла обводка слабко читається на світлих градієнтах */}
+              {color === c && (
+                <svg width="16" height="12" viewBox="0 0 16 12" fill="none" style={{ position: 'absolute', inset: 0, margin: 'auto', filter: 'drop-shadow(0 1px 2px rgba(0,0,0,.45))' }}>
+                  <path d="M1.5 6l4.2 4L14.5 1.5" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              )}
+            </div>
           ))}
         </div>
 

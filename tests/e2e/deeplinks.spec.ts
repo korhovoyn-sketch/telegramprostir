@@ -177,3 +177,59 @@ test('col share deep link: foreign collection opens the read-only shared view', 
   await expect(page.getByText('Топ офіси')).toBeVisible({ timeout: 20_000 })
   await expect(page.getByText("0 об'єктів")).toBeVisible()
 })
+
+// ─── Незареєстрований користувач: /v → Telegram → превʼю → підключення ─────────
+// Повний першозаходовий ланцюг БЕЗ сесії: Splash веде db_ на публічний
+// превʼю-екран, «Підключити базу та зареєструватись» логінить і підписує.
+
+test('unregistered user: db_ link shows the public preview, CTA registers and subscribes', async ({ page }) => {
+  // Свіжий користувач: ні сесії (ps_user не сідимо), ні ролі
+  await setupApp(page, { user: { ...DEFAULT_USER, role: null }, startParam: `db_${DB.share_token}` })
+  await page.addInitScript(() => {
+    localStorage.setItem('ob_v1', JSON.stringify(['owner-fab', 'obj-fab', 'realtor-qr', 'col-fab']))
+  })
+
+  // Публічне превʼю бази (той самий RPC, що на /v)
+  await page.route('**/rest/v1/rpc/get_public_db_preview', (route) =>
+    json(route, [{
+      db_id: DB_ID, db_name: DB.name, db_type: DB.type, db_color: DB.color,
+      share_expires_at: null,
+      property_id: PROP_ID, property_name: PROP.name, property_status: PROP.status,
+      property_floor: PROP.floor, property_area_useful: PROP.area_useful,
+      property_area_total: PROP.area_total, property_rent_type: PROP.rent_type,
+      property_rent_rate: PROP.rent_rate, property_description: null,
+    }]))
+
+  let subscribed = false
+  await page.route('**/rest/v1/rpc/subscribe_to_shared_db', (route) => {
+    subscribed = true
+    return json(route, [{ db_id: DB_ID, db_name: DB.name, error: null }])
+  })
+  // Після підписки RPC нормалізує роль → рефетч users віддає realtor
+  await page.route('**/rest/v1/users**', (route) => {
+    const accept = route.request().headers()['accept'] ?? ''
+    const realtor = { ...DEFAULT_USER, role: 'realtor' }
+    return json(route, accept.includes('object') ? realtor : [realtor])
+  })
+  await page.route('**/rest/v1/databases**', (route) => {
+    const accept = route.request().headers()['accept'] ?? ''
+    return json(route, accept.includes('object') ? DB : [DB])
+  })
+  await page.route('**/rest/v1/properties**', (route) => json(route, [PROP]))
+  await page.route('**/rest/v1/realtor_subscriptions**', (route) => json(route, []))
+
+  await page.goto('/')
+
+  // 1. Публічний превʼю-екран усередині застосунку — БЕЗ логіну
+  await expect(page.getByText('Публічний перегляд')).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByText('ЖК Світанок').first()).toBeVisible()
+  await expect(page.getByText('Квартира 12').first()).toBeVisible()
+
+  // 2. CTA: реєстрація + підключення одним тапом
+  await page.getByRole('button', { name: 'Підключити базу та зареєструватись' }).click()
+
+  // 3. Лендинг: підписка створена, користувач усередині бази
+  await expect(page.getByText('Базу підключено! 🎉')).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByText('ЖК Світанок').first()).toBeVisible()
+  expect(subscribed).toBe(true)
+})
