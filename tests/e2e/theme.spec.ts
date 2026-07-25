@@ -115,3 +115,42 @@ for (const scheme of ['light', 'dark'] as const) {
     }
   })
 }
+
+// Edge case: old Telegram clients / cold start where the SDK exposes NO
+// colorScheme and NO themeParams at all. The app must still render dark and
+// readable — never blank or default-browser-light.
+test('theme · missing colorScheme + themeParams (old client / cold start) stays dark', async ({ browser }) => {
+  const { ctx, page } = await newDevicePage(browser)
+  try {
+    await setupApp(page, { user: OWNER })
+    await page.addInitScript(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const tg = (window as any).Telegram?.WebApp
+      if (!tg) return
+      delete tg.colorScheme
+      delete tg.themeParams
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(window as any).__tgColors = []
+      for (const m of ['setHeaderColor', 'setBackgroundColor', 'setBottomBarColor']) {
+        tg[m] = (c: string) => { (window as any).__tgColors.push([m, c]) } // eslint-disable-line @typescript-eslint/no-explicit-any
+      }
+    })
+    await ownerRoutes(page)
+    await page.goto('/')
+    await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+
+    // No colorScheme → page.tsx guards, so data-tg-theme is never set.
+    await expect(page.locator('html')).not.toHaveAttribute('data-tg-theme', /.+/)
+    // Text still white, background still a gradient, chrome still dark.
+    const headingColor = await page.getByText('Мої бази').evaluate((el) => getComputedStyle(el).color)
+    expect(luminance(headingColor), `heading ${headingColor} light without themeParams`).toBeGreaterThan(200)
+    const bgImage = await page.locator('.scr').first().evaluate((el) => getComputedStyle(el).backgroundImage)
+    expect(bgImage).toContain('gradient')
+    const chrome = await page.evaluate(() => (window as { __tgColors?: [string, string][] }).__tgColors ?? [])
+    for (const [method, color] of chrome) {
+      expect(luminance(color), `${method}(${color}) dark`).toBeLessThan(30)
+    }
+  } finally {
+    await ctx.close()
+  }
+})
