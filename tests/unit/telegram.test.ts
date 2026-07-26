@@ -12,6 +12,31 @@ async function buildDeepLink(env: { bot?: string; app?: string }, param: string)
   return mod.buildDeepLink(param)
 }
 
+describe('parseStartParam', () => {
+  it('splits each known prefix into kind + token', async () => {
+    const { parseStartParam } = await import('@/lib/telegram')
+    expect(parseStartParam('db_abc123')).toEqual({ kind: 'db', token: 'abc123' })
+    expect(parseStartParam('prop_xyz')).toEqual({ kind: 'prop', token: 'xyz' })
+    expect(parseStartParam('col_c1')).toEqual({ kind: 'col', token: 'c1' })
+    expect(parseStartParam('guest_g1')).toEqual({ kind: 'guest', token: 'g1' })
+    expect(parseStartParam('team_t1')).toEqual({ kind: 'team', token: 't1' })
+  })
+
+  it('does not confuse the db_ / guest_ prefixes (token keeps its full remainder)', async () => {
+    const { parseStartParam } = await import('@/lib/telegram')
+    // A token that itself starts with another prefix must not be re-split.
+    expect(parseStartParam('db_guest_weird')).toEqual({ kind: 'db', token: 'guest_weird' })
+  })
+
+  it('returns null for non-deep-link, empty, and nullish input', async () => {
+    const { parseStartParam } = await import('@/lib/telegram')
+    expect(parseStartParam('random')).toBeNull()
+    expect(parseStartParam('')).toBeNull()
+    expect(parseStartParam(null)).toBeNull()
+    expect(parseStartParam(undefined)).toBeNull()
+  })
+})
+
 describe('buildDeepLink env normalisation', () => {
   afterEach(() => vi.unstubAllEnvs())
 

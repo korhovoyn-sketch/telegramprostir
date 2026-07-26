@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react'
 import { supabase, USER_COLUMNS } from '@/lib/supabase'
 import { useAppStore } from '@/store/appStore'
-import { hapticNotify } from '@/lib/telegram'
+import { hapticNotify, parseStartParam } from '@/lib/telegram'
 import type { ScreenName, User } from '@/types'
 
 export function useDeepLink() {
@@ -39,18 +39,19 @@ export function useDeepLink() {
       }
 
       try {
-        if (!startParam) {
+        const parsed = parseStartParam(startParam)
+        if (!parsed) {
           navigateFallback()
           return
         }
 
         // ── guest_<invite_token> — guest invite link ────────────────────────
-        if (startParam.startsWith('guest_')) {
+        if (parsed.kind === 'guest') {
           // Consume the stored token up front: whether the claim succeeds or the
           // link is already claimed/revoked, replaying it on every app launch
           // would show the same error toast forever.
           localStorage.removeItem('ps_guest_join_token')
-          const token = startParam.slice(6)
+          const token = parsed.token
           const { data, error } = await supabase.rpc('claim_guest_link', { p_token: token })
           // claim_guest_link returns either {property_id, db_id} on success or
           // {error: 'revoked'|'already_claimed'|...} on failure — never both keys
@@ -87,8 +88,8 @@ export function useDeepLink() {
         }
 
         // ── team_<invite_token> — team member (editor) invite ───────────────
-        if (startParam.startsWith('team_')) {
-          const token = startParam.slice(5)
+        if (parsed.kind === 'team') {
+          const token = parsed.token
           const { data, error } = await supabase.rpc('claim_team_invite', { p_token: token })
           // claim_team_invite повертає {db_id} при успіху або {error: 'revoked'|
           // 'already_claimed'|'not_found'|'cannot_claim_own_link'} — ніколи обидва
@@ -118,8 +119,8 @@ export function useDeepLink() {
         // ── prop_<share_token> — property share link ────────────────────────
         // Lookup via SECURITY DEFINER RPC — handles both new share_token (24-char hex)
         // and legacy UUID format for backward compatibility.
-        if (startParam.startsWith('prop_')) {
-          const token = startParam!.slice(5)
+        if (parsed.kind === 'prop') {
+          const token = parsed.token
           const { data: rows, error: rpcErr } = await supabase
             .rpc('lookup_shared_property', { p_token: token })
           if (rpcErr) throw rpcErr
@@ -138,8 +139,8 @@ export function useDeepLink() {
 
         // ── col_<share_token> — collection share link ───────────────────────
         // Handles both new share_token and legacy UUID.
-        if (startParam.startsWith('col_')) {
-          const token = startParam!.slice(4)
+        if (parsed.kind === 'col') {
+          const token = parsed.token
           const { data: rows, error: rpcErr } = await supabase
             .rpc('lookup_shared_collection', { p_token: token })
           if (rpcErr) throw rpcErr
@@ -165,13 +166,10 @@ export function useDeepLink() {
         }
 
         // ── db_<shareToken> — database share link ────────────────────────────
-        if (!startParam.startsWith('db_')) {
-          navigateFallback()
-          return
-        }
-
+        // parseStartParam only yields known kinds, so anything not handled above
+        // is 'db' — no redundant prefix re-check needed.
         localStorage.removeItem('ps_guest_join_token')
-        const token = startParam.slice(3)
+        const token = parsed.token
 
         if (!useAppStore.getState().isOnline) {
           showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Підключення до бази недоступне офлайн' })
