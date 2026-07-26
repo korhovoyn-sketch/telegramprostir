@@ -211,8 +211,9 @@ test('photo upload: file → storage POST + property_photos INSERT → success t
   await expect(page.getByText('Збережено', { exact: true })).toBeVisible()
 
   expect(storagePosts.length).toBe(1)
-  // Формат шляху: {propertyId}/{timestamp}_{queueIdx}_{rand}.{ext} — без user-controlled сегментів
-  expect(storagePosts[0]).toMatch(new RegExp(`/photos/${PROP.id}/\\d+_\\d+_[a-z0-9]+\\.png$`))
+  // Формат шляху (уніфікований конвеєр lib/photoUpload): {propertyId}/{timestamp}_{rand}.{ext}
+  // — без user-controlled сегментів; перший сегмент = propertyId (storage RLS).
+  expect(storagePosts[0]).toMatch(new RegExp(`/photos/${PROP.id}/\\d+_[a-z0-9]+\\.png$`))
   expect(photoRows[0]).toMatchObject({ property_id: PROP.id })
   expect((photoRows[0] as { storage_path: string }).storage_path).toMatch(new RegExp(`^${PROP.id}/`))
 })

@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { humanizeDbError, objectsWord } from '@/lib/utils'
 import { readSnapshot, writeSnapshot } from '@/lib/snapshot'
-import { compressImage } from '@/lib/image'
+import { uploadPropertyPhoto } from '@/lib/photoUpload'
 import { useAppStore } from '@/store/appStore'
 import type { Property, PropertyStatus } from '@/types'
 
@@ -345,37 +345,12 @@ export function useProperties(dbId?: string) {
     }
   }, [showToast])
 
-  const uploadPhoto = useCallback(async (propertyId: string, rawFile: File) => {
-    const MAX_MB = 10
-    const ALLOWED = /\.(jpe?g|png|webp|heic|heif)$/i
-    if (!ALLOWED.test(rawFile.name) || !rawFile.type.startsWith('image/')) {
-      throw new Error('Дозволені лише зображення (JPG, PNG, WEBP, HEIC)')
-    }
-    // Resize/re-encode BEFORE the size check: a 12 MB camera shot becomes a
-    // few hundred KB and passes; on any failure the original comes back.
-    const file = await compressImage(rawFile)
-    if (file.size > MAX_MB * 1024 * 1024) {
-      throw new Error(`Файл занадто великий (макс. ${MAX_MB}МБ)`)
-    }
-
-    const rawExt = file.name.split('.').pop() ?? ''
-    const ext = /^[a-z0-9]{2,5}$/i.test(rawExt) ? rawExt.toLowerCase() : 'jpg'
-    const path = `${propertyId}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
-    const { error: upErr } = await supabase.storage.from('photos').upload(path, file)
-    if (upErr) throw upErr
-
-    const { error: dbErr } = await supabase.from('property_photos').insert({
-      property_id: propertyId,
-      storage_path: path,
-    })
-    if (dbErr) {
-      // Clean up the orphaned storage file so it doesn't accumulate
-      await supabase.storage.from('photos').remove([path]).catch(() => {})
-      throw dbErr
-    }
-
-    return path
-  }, [])
+  // Thin wrapper over the shared pipeline (src/lib/photoUpload.ts) — single add,
+  // no sort_order. PhotoUploadScreen's batch flow calls the same primitive.
+  const uploadPhoto = useCallback(
+    (propertyId: string, rawFile: File) => uploadPropertyPhoto(propertyId, rawFile),
+    [],
+  )
 
   return {
     loading,
