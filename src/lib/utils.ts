@@ -150,6 +150,14 @@ export function basisArea(
   return chosen ?? fallback ?? 0
 }
 
+// Numeric key for floor sorting. Floors are free-text ("1", "-1", "B-1", "МП",
+// "підвал"); take the leading signed integer so "-1" < "1" < "2" < "10", and
+// push floors with no number (parking levels, "підвал") to the end.
+export function floorSortKey(floor?: string | null): number {
+  const m = floor?.match(/-?\d+/)
+  return m ? parseInt(m[0], 10) : Number.POSITIVE_INFINITY
+}
+
 export function calcRent(areaUseful: number, rentRate: number, rentType: string): number {
   // per_m2 multiplies by useful area; fixed (monthly) and per_day (daily) store
   // the rate itself. calcRent returns the raw figure for that unit — for a

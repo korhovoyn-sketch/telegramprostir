@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import {
   formatPrice, formatLeaseDate, formatLeasePeriod, formatDate,
-  calcRent, calcUtilities, calcRentUtils, basisArea, monthlyRent, rentUnitLabel, parkingTypeLabel,
+  calcRent, calcUtilities, calcRentUtils, basisArea, floorSortKey, monthlyRent, rentUnitLabel, parkingTypeLabel,
   getInitials, greeting, withRetry, humanizeDbError, safeFileName, pluralUk, objectsWord,
   computedRentUnit, nextCopyName, bulkCreateNames, sanitizeDecimal, sanitizeInt,
 } from '@/lib/utils'
@@ -215,6 +215,25 @@ describe('parkingTypeLabel', () => {
 describe('calcUtilities', () => {
   it('multiplies total area by utilities rate', () =>
     expect(calcUtilities(100, 5)).toBe(500))
+})
+
+describe('floorSortKey', () => {
+  it('sorts floors ground-up by the leading signed number (10 after 2, basement first)', () => {
+    const floors = ['10', '2', '-1', '1']
+    const sorted = [...floors].sort((a, b) => floorSortKey(a) - floorSortKey(b))
+    expect(sorted).toEqual(['-1', '1', '2', '10'])
+  })
+  it('pushes floors with no number (parking levels) to the end', () => {
+    expect(floorSortKey('МП')).toBe(Number.POSITIVE_INFINITY)
+    expect(floorSortKey('підвал')).toBe(Number.POSITIVE_INFINITY)
+    expect(floorSortKey(undefined)).toBe(Number.POSITIVE_INFINITY)
+    expect(floorSortKey('')).toBe(Number.POSITIVE_INFINITY)
+  })
+  it('parses the signed integer', () => {
+    expect(floorSortKey('1')).toBe(1)
+    expect(floorSortKey('-1')).toBe(-1)
+    expect(floorSortKey('B-1')).toBe(-1)
+  })
 })
 
 describe('basisArea', () => {

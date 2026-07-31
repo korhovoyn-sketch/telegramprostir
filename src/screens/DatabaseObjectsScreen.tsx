@@ -15,7 +15,7 @@ import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import Modal from '@/components/ui/Modal'
 import { IconPlus, IconDots, IconPhoto, IconShare, IconChevronUp, IconChevronDown, GlassDbIcon, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconCopy, IconUser, IconUsers, IconFile, IconLayers, IconLayoutGrid, IconChartBar, IconKey, IconFileExport, IconCircleCheck, IconAdjustments, IconTrash, IconChevronRight } from '@/components/Icons'
 import DatabaseStatsPanel from '@/components/ui/DatabaseStatsPanel'
-import { formatPrice, calcRent, calcRentUtils, basisArea, computedRentUnit, rentUnitLabel, objectsWord, DB_TYPE_LABELS, formatLeasePeriod, STATUS_COLORS } from '@/lib/utils'
+import { formatPrice, calcRent, calcRentUtils, basisArea, floorSortKey, computedRentUnit, rentUnitLabel, objectsWord, DB_TYPE_LABELS, formatLeasePeriod, STATUS_COLORS } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import type { Database, PropertyStatus } from '@/types'
 import CoachMark from '@/components/ui/CoachMark'
@@ -31,7 +31,7 @@ export default function DatabaseObjectsScreen() {
 
   const [search, setSearch] = useState('')
   const [tab, setTab] = useState<'all' | PropertyStatus>('all')
-  const [sortBy, setSortBy] = useState<'default' | 'name' | 'status' | 'area' | 'rent'>('default')
+  const [sortBy, setSortBy] = useState<'default' | 'floor' | 'area' | 'rent'>('default')
   const [showMenu, setShowMenu] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [reorderMode, setReorderMode] = useState(false)
@@ -131,10 +131,13 @@ export default function DatabaseObjectsScreen() {
       const matchTab = tab === 'all' || p.status === tab
       return matchSearch && matchTab
     })
-    const STATUS_ORDER: Record<string, number> = { occupied: 0, for_sale: 1, free: 2 }
     switch (sortBy) {
-      case 'name':   return [...base].sort((a, b) => a.name.localeCompare(b.name, 'uk'))
-      case 'status': return [...base].sort((a, b) => (STATUS_ORDER[a.status] ?? 3) - (STATUS_ORDER[b.status] ?? 3))
+      // Ascending by floor, ground up. Floors are free-text ("1", "-1", "B-1",
+      // "МП") — sort by the leading signed number, non-numeric floors last.
+      case 'floor':  return [...base].sort((a, b) => {
+        const fa = floorSortKey(a.floor), fb = floorSortKey(b.floor)
+        return fa !== fb ? fa - fb : (a.floor ?? '').localeCompare(b.floor ?? '', 'uk')
+      })
       case 'area':   return [...base].sort((a, b) => (b.area_useful ?? 0) - (a.area_useful ?? 0))
       case 'rent':   return [...base].sort((a, b) => {
         const aR = calcRent(basisArea(a.area_useful, a.area_total, a.area_basis), a.rent_rate ?? 0, a.rent_type ?? 'per_m2')
@@ -239,10 +242,9 @@ export default function DatabaseObjectsScreen() {
             <IconActivity size={12} color="var(--t4)" />
             {([
               { id: 'default', label: 'За порядком' },
-              { id: 'status',  label: 'За статусом' },
+              { id: 'floor',   label: 'За поверхом' },
               { id: 'rent',    label: 'За орендою'  },
               { id: 'area',    label: 'За площею'   },
-              { id: 'name',    label: 'За назвою'   },
             ] as const).map(opt => (
               <button
                 key={opt.id}
