@@ -137,6 +137,19 @@ export function formatDate(iso: string): string {
   return d.toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' })
 }
 
+// Which area a per-m² rate multiplies by. Owners choose per object (form
+// toggle); default is 'total' (розрахункова, the renamed area_total). When the
+// chosen area is missing, fall back to the other so nothing computes to zero.
+export function basisArea(
+  areaUseful: number | null | undefined,
+  areaTotal: number | null | undefined,
+  areaBasis: string | null | undefined,
+): number {
+  const chosen = areaBasis === 'useful' ? areaUseful : areaTotal
+  const fallback = areaBasis === 'useful' ? areaTotal : areaUseful
+  return chosen ?? fallback ?? 0
+}
+
 export function calcRent(areaUseful: number, rentRate: number, rentType: string): number {
   // per_m2 multiplies by useful area; fixed (monthly) and per_day (daily) store
   // the rate itself. calcRent returns the raw figure for that unit — for a
@@ -267,15 +280,18 @@ export function calcRentUtils(
   rentRate: number | null | undefined,
   rentType: string | null | undefined,
   utilitiesRate: number | null | undefined,
+  areaBasis?: string | null,
 ): { rent: number; utils: number; total: number } {
-  // per_m2 needs a useful area to multiply; fixed/per_day carry the rate itself,
-  // so they must NOT be gated on area (a fixed monthly rent or a parking spot
-  // with no m² still has a rent).
+  // per_m2 multiplies rate × the chosen basis area (корисна/розрахункова);
+  // fixed/per_day carry the rate itself, so they must NOT be gated on area (a
+  // fixed monthly rent or a parking spot with no m² still has a rent).
   const rt = rentType ?? 'per_m2'
-  const rent = rentRate ? calcRent(areaUseful ?? 0, rentRate, rt) : 0
-  // Utilities: $/m² when a total area is present, otherwise a flat charge
-  // (parking utilities are flat — there's no total area to multiply).
-  const utils = utilitiesRate ? (areaTotal ? calcUtilities(areaTotal, utilitiesRate) : Math.round(utilitiesRate)) : 0
+  const area = basisArea(areaUseful, areaTotal, areaBasis)
+  const rent = rentRate ? calcRent(area, rentRate, rt) : 0
+  // Expenses (експлуатаційні) are $/m² × the basis area for objects that carry a
+  // розрахункова (total) area; a flat monthly charge otherwise — parking has a
+  // single area and no total, so its expenses stay flat.
+  const utils = utilitiesRate ? (areaTotal ? calcUtilities(area, utilitiesRate) : Math.round(utilitiesRate)) : 0
   return { rent, utils, total: rent + utils }
 }
 
@@ -342,8 +358,11 @@ let _scrollTimer: ReturnType<typeof setTimeout> | undefined
  * onFocusCapture handler: scrolls the focused input/textarea into view once the
  * on-screen keyboard has opened. Telegram's webview overlays the keyboard without
  * resizing the layout viewport on iOS, so fields below the fold stay hidden.
- * Two-pass: immediate nearest-scroll (no jank) + delayed visual-viewport-aware
- * centering after the iOS keyboard finishes opening (~450 ms).
+ * Two-pass: immediate nearest-scroll (no jank) + a delayed MINIMAL nudge after
+ * the iOS keyboard finishes opening (~500 ms) that reveals the field only if it
+ * is actually obscured. It deliberately does NOT re-center: force-centering every
+ * focused field yanked already-visible fields to mid-screen on each focus, which
+ * read as the caret "jumping" between fields while typing.
  */
 export function scrollFocusedIntoView(e: import('react').FocusEvent<HTMLElement>): void {
   const el = e.target as HTMLElement
@@ -356,21 +375,21 @@ export function scrollFocusedIntoView(e: import('react').FocusEvent<HTMLElement>
   // 'nearest' avoids jarring jumps when the element is already partially visible.
   el.scrollIntoView({ behavior: 'instant' as ScrollBehavior, block: 'nearest' })
 
-  // Pass 2: once the keyboard is fully open, re-center within the visual viewport
-  // (the area actually visible above the keyboard).
+  // Pass 2: once the keyboard is fully open, nudge by the MINIMUM needed to clear
+  // the sticky header (top) or the keyboard (bottom). A field already comfortably
+  // in view is left exactly where it is — no re-centering, no jump.
   _scrollTimer = setTimeout(() => {
     const vh = window.visualViewport?.height ?? window.innerHeight
     const rect = el.getBoundingClientRect()
-    if (rect.top < 56 || rect.bottom > vh - 20) {
-      const scrollParent = el.closest('.body') as HTMLElement | null
-      if (scrollParent) {
-        // Scroll so element is centered in the visual viewport, not the layout viewport.
-        const elMid = rect.top + rect.height / 2
-        const targetMid = vh / 2
-        scrollParent.scrollBy({ top: elMid - targetMid, behavior: 'smooth' })
-      } else {
-        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-      }
-    }
+    const TOP_GAP = 56    // keep clear of the sticky header
+    const BOTTOM_GAP = 20 // small breathing room above the keyboard
+    let delta = 0
+    if (rect.bottom > vh - BOTTOM_GAP) delta = rect.bottom - (vh - BOTTOM_GAP)
+    else if (rect.top < TOP_GAP) delta = rect.top - TOP_GAP
+    if (delta === 0) return // already visible — do nothing
+
+    const scrollParent = el.closest('.body') as HTMLElement | null
+    if (scrollParent) scrollParent.scrollBy({ top: delta, behavior: 'smooth' })
+    else el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   }, 500)
 }

@@ -264,7 +264,7 @@ test('bulk: per-row areas and a name override land in the INSERT; empty rows fal
 
   // Row 1: own areas; row 2: name override + own useful area; row 3: untouched
   await page.getByLabel("Корисна площа об'єкта 1").fill('45')
-  await page.getByLabel("Загальна площа об'єкта 1").fill('52')
+  await page.getByLabel("Розрахункова площа об'єкта 1").fill('52')
   await page.getByLabel("Назва об'єкта 2").fill('Кабінет 5')
   await page.getByLabel("Корисна площа об'єкта 2").fill('62')
 
@@ -294,4 +294,35 @@ test('bulk: a duplicated manual name is rejected with a clear toast', async ({ p
 
   await page.getByRole('button', { name: "Додати 2 об'єкти" }).click()
   await expect(page.getByText('Ім\'я повторюється')).toBeVisible()
+})
+
+test('area basis: form toggle drives the preview and lands in the create INSERT', async ({ page }) => {
+  await fixtures(page)
+  let postBody: Record<string, unknown> | null = null
+  await page.route('**/rest/v1/properties**', (route) => {
+    if (route.request().method() !== 'POST') return route.fallback()
+    postBody = JSON.parse(route.request().postData() ?? '{}')
+    return json(route, { ...PROPERTIES[1], ...postBody, id: '20000000-0000-0000-0000-0000000002ab', photos: [] }, 201)
+  })
+
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+  await page.getByText('БЦ Рубін').first().click()
+  await page.getByLabel("Додати об'єкт").click()
+  await expect(page.getByText("Новий об'єкт")).toBeVisible()
+
+  await page.getByPlaceholder('Офіс 101', { exact: true }).fill('Офіс 301')
+  await page.getByPlaceholder('47', { exact: true }).fill('40')  // корисна
+  await page.getByPlaceholder('52', { exact: true }).fill('80')  // розрахункова
+  await page.getByPlaceholder('18', { exact: true }).fill('10')  // ставка $/м²
+
+  // Default basis = розрахункова (total 80): rent preview = 80 × 10 = 800
+  await expect(page.locator('.body')).toContainText('800')
+  // Toggle to Корисної (40): rent preview = 40 × 10 = 400
+  await page.getByText('Корисної', { exact: true }).click()
+  await expect(page.locator('.body')).toContainText('400')
+
+  await page.locator('button.mbtn-flow').click()
+  await expect.poll(() => postBody, { timeout: 10_000 }).not.toBeNull()
+  expect(postBody!.area_basis).toBe('useful')
 })

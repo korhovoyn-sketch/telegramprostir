@@ -6,7 +6,7 @@ import { useAppStore } from '@/store/appStore'
 import { StatusBadge } from '@/components/ui/Badge'
 import Header from '@/components/ui/Header'
 import { IconBuilding } from '@/components/Icons'
-import { formatPrice, calcRent, computedRentUnit, photoUrl } from '@/lib/utils'
+import { formatPrice, calcRent, basisArea, computedRentUnit, photoUrl } from '@/lib/utils'
 import type { PropertyStatus, RentType } from '@/types'
 
 interface SharedProperty {
@@ -15,6 +15,9 @@ interface SharedProperty {
   status: PropertyStatus
   area_useful: number | null
   area_total: number | null
+  // Not returned by get_shared_collection — undefined defaults basisArea to
+  // 'total' (розрахункова), matching the app-wide default for this read-only view.
+  area_basis?: string | null
   rent_rate: number | null
   rent_type: RentType
   floor: string | null
@@ -95,7 +98,7 @@ export default function SharedCollectionScreen() {
             {data.properties.map((p) => {
               const thumbUrl = p.first_photo ? photoUrl(p.first_photo) : null
               const rent = p.rent_rate
-                ? calcRent(p.area_useful ?? 0, p.rent_rate, p.rent_type)
+                ? calcRent(basisArea(p.area_useful, p.area_total, p.area_basis), p.rent_rate, p.rent_type)
                 : 0
 
               return (

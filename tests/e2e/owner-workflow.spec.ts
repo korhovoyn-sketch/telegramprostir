@@ -149,7 +149,7 @@ test('owner: property detail and form validation logic', async ({ page }) => {
   await page.getByPlaceholder('47').fill('100')  // useful
   await page.getByPlaceholder('52').fill('50')   // total < useful → error
   await page.getByRole('button', { name: "Додати об'єкт" }).click()
-  await expect(page.getByText('Корисна площа більша за загальну')).toBeVisible()
+  await expect(page.getByText('Корисна площа більша за розрахункову')).toBeVisible()
 
   // negative/garbage input can't even be typed — the sanitizer strips it at
   // entry (the old error-toast path is unreachable from the keyboard now)

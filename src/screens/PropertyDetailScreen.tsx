@@ -13,7 +13,7 @@ import { StatusBadge } from '@/components/ui/Badge'
 import { IconEdit, IconShare, IconMapPin, IconPhoto, IconX, IconCamera, IconRuler, IconBuildingSkyscraper, IconCircleCheck, IconCurrencyDollar, IconCarGarage, IconUser, IconKey, IconBolt, IconCalendar, IconFile } from '@/components/Icons'
 import FilesList from '@/components/ui/FilesList'
 import FloatingButton from '@/components/ui/FloatingButton'
-import { currencySymbol, sanitizeDecimal, formatPrice, calcRent, calcUtilities, calcRentUtils, rentUnitLabel, computedRentUnit, parkingTypeLabel, STATUS_LABELS, formatLeasePeriod, photoUrl, daysUntil } from '@/lib/utils'
+import { currencySymbol, sanitizeDecimal, formatPrice, calcRent, calcUtilities, calcRentUtils, basisArea, rentUnitLabel, computedRentUnit, parkingTypeLabel, STATUS_LABELS, formatLeasePeriod, photoUrl, daysUntil } from '@/lib/utils'
 import { UTILITY_META } from '@/lib/utilityMeta'
 import { supabase } from '@/lib/supabase'
 
@@ -170,7 +170,7 @@ export default function PropertyDetailScreen() {
     </div>
   )
 
-  const { rent, utils, total } = calcRentUtils(property.area_useful, property.area_total, property.rent_rate, property.rent_type, property.utilities_rate)
+  const { rent, utils, total } = calcRentUtils(property.area_useful, property.area_total, property.rent_rate, property.rent_type, property.utilities_rate, property.area_basis)
   const isParking = databases.find(d => d.id === property.db_id)?.type === 'parking'
   // A daily rate can't be summed with a monthly utilities charge into a monthly
   // total — for per_day we show the line items but no combined "Разом на місяць".
@@ -336,7 +336,7 @@ export default function PropertyDetailScreen() {
             {property.area_total && (
               <div className="obj-f">
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <IconRuler size={13} color="var(--info)" />Загальна площа
+                  <IconRuler size={13} color="var(--info)" />Розрахункова площа
                 </div>
                 <div className="obj-fv">{property.area_total} м²</div>
               </div>
@@ -437,7 +437,7 @@ export default function PropertyDetailScreen() {
         {/* Utilities */}
         {(property.utilities ?? []).length > 0 && (
           <div style={{ margin: '0 12px 12px' }}>
-            <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', fontWeight: 'var(--fw-semi)', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 10 }}>Комунальні послуги</div>
+            <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', fontWeight: 'var(--fw-semi)', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 10 }}>Експлуатаційні послуги</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
               {(property.utilities ?? []).map(uid => {
                 const meta = UTILITY_META.find(m => m.id === uid)
@@ -476,7 +476,7 @@ export default function PropertyDetailScreen() {
                   <span style={{ width: 24, height: 24, borderRadius: 8, background: 'rgba(251,191,36,.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <IconBolt size={12} color="#fbbf24" />
                   </span>
-                  Комунальні
+                  Експлуатаційні
                 </span>
                 <span style={{ color: 'var(--t2)', fontWeight: 'var(--fw-semi)' }}>+{formatPrice(utils, user?.currency)}/міс</span>
               </div>
@@ -704,11 +704,12 @@ export default function PropertyDetailScreen() {
           {(() => {
             const rateVal = parseFloat(rentRentRate)
             const utilVal = parseFloat(rentUtilitiesRate)
+            const previewArea = basisArea(property.area_useful, property.area_total, property.area_basis)
             const previewRent = isFinite(rateVal) && rateVal > 0
-              ? calcRent(property.area_useful ?? 0, rateVal, property.rent_type)
+              ? calcRent(previewArea, rateVal, property.rent_type)
               : 0
             const previewUtils = isFinite(utilVal) && utilVal > 0
-              ? (property.area_total ? calcUtilities(property.area_total, utilVal) : utilVal)
+              ? (property.area_total ? calcUtilities(previewArea, utilVal) : utilVal)
               : 0
             const previewTotal = property.rent_type === 'per_day' ? 0 : previewRent + previewUtils
             const rateUnit = `${currencySymbol(user?.currency)}${rentUnitLabel(property.rent_type)}`
@@ -739,7 +740,7 @@ export default function PropertyDetailScreen() {
                     />
                   </div>
                   <div className="fld">
-                    <div className="fld-l"><IconBolt size={11} />Комунальні, {utilUnit}</div>
+                    <div className="fld-l"><IconBolt size={11} />Експлуатаційні, {utilUnit}</div>
                     <input
                       type="text"
                       inputMode="decimal"

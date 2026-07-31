@@ -12,7 +12,7 @@ import type { Property, PropertyStatus } from '@/types'
 // four query sites can't drift apart (and none falls back to select('*')).
 const PROPERTY_COLUMNS = `
   id, db_id, owner_id, name, floor, status,
-  area_useful, area_total, rent_type, rent_rate, utilities_rate,
+  area_useful, area_total, area_basis, rent_type, rent_rate, utilities_rate,
   has_parking, parking_spaces, description,
   address, utilities,
   sale_price, tenant_name, lease_start_date, lease_end_date,

@@ -364,6 +364,28 @@ This sandboxed environment has **no outbound network** to Vercel/Supabase previe
 
 ## Pending manual actions (зробити в Supabase Dashboard)
 
+### 0e. Вибір базової площі розрахунку (area_basis) — виконати SQL в Dashboard → SQL Editor (ПОТРІБНО ПЕРЕД деплоєм)
+
+Файл: `supabase/migrations/042_area_basis.sql`.
+
+Що робить:
+- `properties.area_basis TEXT NOT NULL DEFAULT 'total' CHECK IN ('useful','total')` —
+  на яку площу множиться $/м²-ставка оренди ТА експлуатаційних послуг: `useful`
+  (корисна) чи `total` (розрахункова, перейменована `area_total`). Дефолт
+  `total`. Власник обирає per-object перемикачем у формі об'єкта.
+- `get_public_property_preview()` тепер віддає `property_area_basis` (публічна
+  `/v` детальна рахує місячний тотал тим же `calcRentUtils` і має знати базу).
+
+**ВАЖЛИВО — порядок:** на відміну від 041, `area_basis` додається в основний
+SELECT `properties` (`PROPERTY_COLUMNS`), тож застосуй 042 в Dashboard **до**
+мержу/деплою фронта. Без колонки список об'єктів дасть «Помилка завантаження»
+(PostgREST 400 на невідому колонку). `migrate.yml` без секрета
+`SUPABASE_DB_PASSWORD` це не накотить автоматично.
+
+Термінологія (лише лейбли, без зміни колонок): «Комунальні» → «Експлуатаційні»,
+«Загальна площа» → «Розрахункова площа» на всіх поверхнях (форма, детальна,
+дашборд, `/v`, експорт). Колонки лишаються `utilities_rate` / `area_total`.
+
 ### 0d. Команда бази (editors) — виконати SQL в Dashboard → SQL Editor
 
 Файл: `supabase/migrations/041_team_members.sql` (застосовувати ПІСЛЯ 038 —

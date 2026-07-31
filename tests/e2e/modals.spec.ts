@@ -96,18 +96,19 @@ test('rent modal: disabled CTA, live monthly preview, currency-aware unit labels
 
   // Unit labels carry the owner's currency symbol (USD user → $)
   await expect(page.getByText('Оренда, $/м²')).toBeVisible()
-  await expect(page.getByText('Комунальні, $/м²')).toBeVisible()
+  await expect(page.getByText('Експлуатаційні, $/м²')).toBeVisible()
 
-  // Live preview: 45 м² × 20 + 52 м² × 5 = 1 160 — recomputes as you type
+  // Live preview on the default basis (розрахункова/total area 52):
+  // 52 м² × 20 + 52 м² × 5 = 1 300 — recomputes as you type
   await page.getByPlaceholder('ТОВ «Назва» або ФОП').fill('ФОП Петренко')
   await expect(submit).toBeEnabled()
   const rateInput = page.locator('.modal .fld input[inputmode="decimal"]').first()
   const utilInput = page.locator('.modal .fld input[inputmode="decimal"]').nth(1)
   await rateInput.fill('20')
   await expect(page.getByText('Разом на місяць')).toBeVisible()
-  await expect(page.locator('.modal').getByText(/\$900/)).toBeVisible()
+  await expect(page.locator('.modal').getByText(/\$1\s?040/)).toBeVisible()
   await utilInput.fill('5')
-  await expect(page.locator('.modal').getByText(/\$1\s?160/)).toBeVisible()
+  await expect(page.locator('.modal').getByText(/\$1\s?300/)).toBeVisible()
 
   // All modal inputs obey the 16px anti-zoom floor
   const sizes = await page.locator('.modal input').evaluateAll(els =>

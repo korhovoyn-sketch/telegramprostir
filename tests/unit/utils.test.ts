@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import {
   formatPrice, formatLeaseDate, formatLeasePeriod, formatDate,
-  calcRent, calcUtilities, calcRentUtils, monthlyRent, rentUnitLabel, parkingTypeLabel,
+  calcRent, calcUtilities, calcRentUtils, basisArea, monthlyRent, rentUnitLabel, parkingTypeLabel,
   getInitials, greeting, withRetry, humanizeDbError, safeFileName, pluralUk, objectsWord,
   computedRentUnit, nextCopyName, bulkCreateNames, sanitizeDecimal, sanitizeInt,
 } from '@/lib/utils'
@@ -217,20 +217,46 @@ describe('calcUtilities', () => {
     expect(calcUtilities(100, 5)).toBe(500))
 })
 
+describe('basisArea', () => {
+  it('picks the chosen area', () => {
+    expect(basisArea(50, 100, 'useful')).toBe(50)
+    expect(basisArea(50, 100, 'total')).toBe(100)
+  })
+  it('defaults to total (розрахункова) when basis is null/undefined', () => {
+    expect(basisArea(50, 100, undefined)).toBe(100)
+    expect(basisArea(50, 100, null)).toBe(100)
+  })
+  it('falls back to the other area when the chosen one is missing', () => {
+    expect(basisArea(50, null, 'total')).toBe(50)   // wanted total, only useful set
+    expect(basisArea(null, 100, 'useful')).toBe(100) // wanted useful, only total set
+    expect(basisArea(null, null, 'total')).toBe(0)
+  })
+})
+
 describe('calcRentUtils', () => {
-  it('sums rent + utilities (per_m2)', () =>
-    expect(calcRentUtils(50, 100, 20, 'per_m2', 5).total).toBe(1000 + 500))
-  it('sums flat rent + utilities (fixed rent ignores area)', () =>
-    expect(calcRentUtils(50, 100, 800, 'fixed', 5).total).toBe(800 + 500))
+  it('default basis is total (розрахункова): rent & expenses use area_total', () => {
+    const r = calcRentUtils(50, 100, 20, 'per_m2', 5) // no basis → total
+    expect(r.rent).toBe(2000)   // 100 × 20
+    expect(r.utils).toBe(500)   // 100 × 5
+    expect(r.total).toBe(2500)
+  })
+  it("basis 'useful' multiplies both by area_useful", () => {
+    const r = calcRentUtils(50, 100, 20, 'per_m2', 5, 'useful')
+    expect(r.rent).toBe(1000)   // 50 × 20
+    expect(r.utils).toBe(250)   // 50 × 5
+  })
+  it("basis 'total' multiplies both by area_total", () =>
+    expect(calcRentUtils(50, 100, 20, 'per_m2', 5, 'total').total).toBe(2000 + 500))
+  it('flat rent (fixed) ignores area; expenses still scale on the basis area', () =>
+    expect(calcRentUtils(50, 100, 800, 'fixed', 5, 'total').total).toBe(800 + 500))
   it('per_day rent carries the daily rate, not gated on area', () =>
     expect(calcRentUtils(0, null, 150, 'per_day', null).rent).toBe(150))
-  it('rent is 0 when rate missing; per_m2 with no area is 0', () => {
-    expect(calcRentUtils(null, 100, 20, 'per_m2', 5).rent).toBe(0)
-    expect(calcRentUtils(50, 100, null, 'per_m2', 5).rent).toBe(0)
-  })
-  it('utils are $/m² with a total area, flat charge without one (parking)', () => {
+  it('rent is 0 when the rate is missing', () =>
+    expect(calcRentUtils(50, 100, null, 'per_m2', 5).rent).toBe(0))
+  it('expenses are flat (no total area) for parking, $/m² otherwise', () => {
+    // parking: single area, no total → flat charge regardless of basis
+    expect(calcRentUtils(13, null, 0, 'fixed', 30, 'useful').utils).toBe(30)
     expect(calcRentUtils(50, 100, 20, 'per_m2', 5).utils).toBe(500)
-    expect(calcRentUtils(13, null, 0, 'fixed', 30).utils).toBe(30)
     expect(calcRentUtils(50, 100, 20, 'per_m2', null).utils).toBe(0)
   })
 })
