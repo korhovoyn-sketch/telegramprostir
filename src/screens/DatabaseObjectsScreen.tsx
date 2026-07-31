@@ -13,7 +13,7 @@ import SearchBar from '@/components/ui/SearchBar'
 import { StatusBadge } from '@/components/ui/Badge'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import Modal from '@/components/ui/Modal'
-import { IconPlus, IconDots, IconPhoto, IconShare, IconChevronUp, IconChevronDown, GlassDbIcon, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconCopy, IconUsers, IconFile, IconLayers, IconLayoutGrid, IconChartBar, IconKey, IconFileExport, IconCircleCheck, IconAdjustments, IconTrash, IconChevronRight } from '@/components/Icons'
+import { IconPlus, IconDots, IconPhoto, IconShare, IconChevronUp, IconChevronDown, GlassDbIcon, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconCopy, IconUser, IconUsers, IconFile, IconLayers, IconLayoutGrid, IconChartBar, IconKey, IconFileExport, IconCircleCheck, IconAdjustments, IconTrash, IconChevronRight } from '@/components/Icons'
 import DatabaseStatsPanel from '@/components/ui/DatabaseStatsPanel'
 import { formatPrice, calcRent, calcRentUtils, basisArea, computedRentUnit, rentUnitLabel, objectsWord, DB_TYPE_LABELS, formatLeasePeriod, STATUS_COLORS } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
@@ -504,41 +504,55 @@ export default function DatabaseObjectsScreen() {
                           <div className="obj-t" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {p.name}
                           </div>
+                          {/* Один рядок фактів: поверх · площа — компактно, без розсипаної сітки */}
                           <div className="obj-s">
                             {p.floor && <><IconBuilding size={13} color="var(--t3)" /><span>{p.floor} поверх</span></>}
+                            {p.area_useful != null && <>
+                              {p.floor && <span className="obj-s-sep">·</span>}
+                              <IconRuler size={13} color="var(--t3)" /><span>{p.area_useful}/{p.area_total ?? p.area_useful} м²</span>
+                            </>}
                           </div>
                         </div>
                         <div style={{ flexShrink: 0 }}>
                           <StatusBadge status={p.status} />
                         </div>
                       </div>
-                      <div className="obj-met">
-                        {p.area_useful && (
-                          <div className="obj-mt">
-                            <IconRuler size={13} color="var(--t3)" />
-                            <span>{p.area_useful}/{p.area_total ?? p.area_useful} м²</span>
-                          </div>
-                        )}
-                        {p.has_parking && (
-                          <div className="obj-mt">
-                            <IconParking size={13} color="var(--t3)" />
-                            <span>{p.parking_spaces} місць</span>
-                          </div>
-                        )}
-                        {(p.photos?.length ?? 0) > 0 && (
-                          <div className="obj-mt">
-                            <IconPhoto size={13} />
-                            <span>{p.photos!.length}</span>
-                          </div>
-                        )}
 
-                        {p.status === 'occupied' && formatLeasePeriod(p.lease_start_date, p.lease_end_date) && (
-                          <div className="obj-mt" style={{ gridColumn: '1 / -1', color: 'var(--t3)' }}>
-                            <IconCalendar size={13} color="var(--t3)" />
-                            <span>{formatLeasePeriod(p.lease_start_date, p.lease_end_date)}</span>
-                          </div>
-                        )}
-                      </div>
+                      {/* Зайнятий об'єкт: хто орендує і до якого терміну — ключова інформація картки */}
+                      {p.status === 'occupied' && (p.tenant_name?.trim() || formatLeasePeriod(p.lease_start_date, p.lease_end_date)) && (
+                        <div className="obj-ten">
+                          {p.tenant_name?.trim() && (
+                            <div className="obj-ten-name">
+                              <IconUser size={13} color="var(--accent)" />
+                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.tenant_name}</span>
+                            </div>
+                          )}
+                          {formatLeasePeriod(p.lease_start_date, p.lease_end_date) && (
+                            <div className="obj-ten-lease">
+                              <IconCalendar size={13} color="var(--t3)" />
+                              <span>{formatLeasePeriod(p.lease_start_date, p.lease_end_date)}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Другорядні позначки — лише коли є що показати */}
+                      {(p.has_parking || (p.photos?.length ?? 0) > 0) && (
+                        <div className="obj-met">
+                          {p.has_parking && (
+                            <div className="obj-mt">
+                              <IconParking size={13} color="var(--t3)" />
+                              <span>{p.parking_spaces} місць</span>
+                            </div>
+                          )}
+                          {(p.photos?.length ?? 0) > 0 && (
+                            <div className="obj-mt">
+                              <IconPhoto size={13} />
+                              <span>{p.photos!.length}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
                       {dispVal > 0 && (
                         <div className="obj-tot">
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
