@@ -364,6 +364,32 @@ This sandboxed environment has **no outbound network** to Vercel/Supabase previe
 
 ## Pending manual actions (зробити в Supabase Dashboard)
 
+### 0f. Папки об'єктів (property_folders) — виконати SQL в Dashboard → SQL Editor
+
+Файл: `supabase/migrations/043_property_folders.sql` (застосовувати ПІСЛЯ 041 —
+спирається на її `get_owner_db_ids`/`get_editor_db_ids` хелпери).
+
+Що робить:
+- Таблиця `property_folders` (id, db_id FK CASCADE, owner_id FK CASCADE, name,
+  sort_order) + RLS: `folders_owner_all` (get_owner_db_ids) і `folders_editor_all`
+  (get_editor_db_ids), обидві `WITH CHECK owner_id` = власник бази (редактор не
+  привласнить папку собі).
+- `properties.folder_id UUID NULL REFERENCES property_folders(id) ON DELETE SET NULL`
+  — видалення папки РОЗГРУПОВУЄ об'єкти (не видаляє їх).
+
+**Порядок — толерантно:** `folder_id` додано в основний SELECT `properties`
+(`PROPERTY_COLUMNS`), АЛЕ клієнт це переживає без міграції: `useProperties`
+ретраїть select/insert без `folder_id` на `42703`, а `useFolders` при відсутній
+таблиці (`42P01`) вимикає весь фолдер-UI (`unavailable`). Тож фронт безпечно
+деплоїться до 043 — список працює пласким, розділ «Папки» просто не з'являється.
+Застосуй 043, щоб увімкнути фічу. На відміну від 042, порядок деплою НЕ критичний.
+
+Клієнт: `useFolders` (CRUD + reorder), `FolderManageModal` (створити/перейменувати/
+видалити/порядок — з action-sheet бази «Папки»), `FolderPickerModal` (bulk
+«У папку» в select-режимі + селектор у формі об'єкта), акордеон-секції в
+`DatabaseObjectsScreen` (згорнутий стан per user+db у localStorage, «Без папки»
+секція, авто-розгортання під час пошуку).
+
 ### 0e. Вибір базової площі розрахунку (area_basis) — виконати SQL в Dashboard → SQL Editor (ПОТРІБНО ПЕРЕД деплоєм)
 
 Файл: `supabase/migrations/042_area_basis.sql`.

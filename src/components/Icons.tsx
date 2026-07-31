@@ -153,6 +153,15 @@ function Icon({ className = '', size = 24, color = 'currentColor', children, vie
 export function IconChevronLeft(p: IconProps) {
   return <Icon {...p}><polyline points="15 6 9 12 15 18"/></Icon>
 }
+export function IconFolder(p: IconProps) {
+  return <Icon {...p}><path d="M3 6a2 2 0 0 1 2 -2h4l2 2h6a2 2 0 0 1 2 2v9a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-11"/></Icon>
+}
+export function IconFolderPlus(p: IconProps) {
+  return <Icon {...p}><path d="M3 6a2 2 0 0 1 2 -2h4l2 2h6a2 2 0 0 1 2 2v9a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-11"/><line x1="12" y1="10" x2="12" y2="16"/><line x1="9" y1="13" x2="15" y2="13"/></Icon>
+}
+export function IconInbox(p: IconProps) {
+  return <Icon {...p}><path d="M4 13h4l1 2h6l1 -2h4"/><path d="M4 13v5a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-5l-3 -8a2 2 0 0 0 -2 -1h-8a2 2 0 0 0 -2 1z"/></Icon>
+}
 export function IconChevronRight(p: IconProps) {
   return <Icon {...p}><polyline points="9 6 15 12 9 18"/></Icon>
 }

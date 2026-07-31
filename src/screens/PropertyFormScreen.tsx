@@ -5,11 +5,13 @@ import { useAppStore } from '@/store/appStore'
 import { hapticSelection, hapticNotify } from '@/lib/telegram'
 import { offlineGuard } from '@/lib/offline'
 import { useProperties } from '@/hooks/useProperties'
+import { useFolders } from '@/hooks/useFolders'
 import { useMainButton } from '@/hooks/useMainButton'
 import Header from '@/components/ui/Header'
 import Toggle from '@/components/ui/Toggle'
 import Modal from '@/components/ui/Modal'
-import { IconRuler, IconLayers, IconLayoutGrid, IconActivity, IconBuilding, IconCurrencyDollar, IconBolt, IconCarGarage, IconFile, IconUser, IconKey, IconMapPin, IconEdit } from '@/components/Icons'
+import FolderPickerModal from '@/components/ui/FolderPickerModal'
+import { IconRuler, IconLayers, IconLayoutGrid, IconActivity, IconBuilding, IconCurrencyDollar, IconBolt, IconCarGarage, IconFile, IconUser, IconKey, IconMapPin, IconEdit, IconFolder, IconChevronRight } from '@/components/Icons'
 import { UTILITY_META } from '@/lib/utilityMeta'
 import FilesList from '@/components/ui/FilesList'
 import { currencySymbol, sanitizeDecimal, sanitizeInt, formatPrice, calcRent, calcUtilities, basisArea, rentUnitLabel, nextCopyName, bulkCreateNames, objectsWord, scrollFocusedIntoView } from '@/lib/utils'
@@ -24,6 +26,7 @@ const PARKING_TYPES: { v: ParkingType; l: string }[] = [
 export default function PropertyFormScreen() {
   const { screenParams, backThenReplace, showToast, user, isOnline, databases } = useAppStore()
   const { properties, loadProperties, createProperty, createProperties, updateProperty, deleteProperty, loading } = useProperties(screenParams.dbId)
+  const { folders, unavailable: foldersUnavailable, loadFolders, createFolder } = useFolders(screenParams.dbId)
 
   const editId = screenParams.propertyId
   const isEdit = !!editId
@@ -59,6 +62,10 @@ export default function PropertyFormScreen() {
   const [leaseEndDate, setLeaseEndDate] = useState('')
   const [address, setAddress] = useState('')
   const [utilities, setUtilities] = useState<string[]>([])
+  // Папка призначення. Create-режим може успадкувати з контексту (FAB усередині
+  // папки передає screenParams.folderId).
+  const [folderId, setFolderId] = useState<string | null>((screenParams.folderId as string | undefined) ?? null)
+  const [showFolderPicker, setShowFolderPicker] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   // Bulk creation: how many objects to create from this one form (create mode
   // only). Names are auto-numbered from the entered name.
@@ -77,6 +84,10 @@ export default function PropertyFormScreen() {
       return next
     })
   }, [count])
+
+  useEffect(() => {
+    if (screenParams.dbId) loadFolders(screenParams.dbId)
+  }, [screenParams.dbId, loadFolders])
 
   useEffect(() => {
     const tg = window.Telegram?.WebApp
@@ -120,6 +131,7 @@ export default function PropertyFormScreen() {
       setLeaseEndDate(String(d.leaseEndDate ?? ''))
       setAddress(String(d.address ?? ''))
       setUtilities(Array.isArray(d.utilities) ? (d.utilities as string[]) : [])
+      setFolderId((d.folderId as string | null) ?? null)
       showToast({
         type: 'info',
         title: 'Чернетку відновлено',
@@ -131,7 +143,7 @@ export default function PropertyFormScreen() {
           setRentType('per_m2'); setRentRate(''); setUtilitiesRate(''); setHasParking(false)
           setParkingSpaces('1'); setParkingType(''); setEvCharger(false); setDescription('')
           setSalePrice(''); setTenantName(''); setLeaseStartDate(''); setLeaseEndDate('')
-          setAddress(''); setUtilities([])
+          setAddress(''); setUtilities([]); setFolderId(null)
         },
       })
     } catch { /* corrupted draft — ignore */ }
@@ -146,7 +158,7 @@ export default function PropertyFormScreen() {
             name, floor, status, areaUseful, areaTotal, areaBasis, rentType, rentRate,
             utilitiesRate, hasParking, parkingSpaces, parkingType, evCharger,
             description, salePrice, tenantName, leaseStartDate, leaseEndDate,
-            address, utilities,
+            address, utilities, folderId,
           }))
         } else {
           localStorage.removeItem(draftKey)
@@ -156,7 +168,7 @@ export default function PropertyFormScreen() {
     return () => clearTimeout(t)
   }, [isNewBlank, draftKey, name, floor, status, areaUseful, areaTotal, areaBasis, rentType,
       rentRate, utilitiesRate, hasParking, parkingSpaces, parkingType, evCharger,
-      description, salePrice, tenantName, leaseStartDate, leaseEndDate, address, utilities])
+      description, salePrice, tenantName, leaseStartDate, leaseEndDate, address, utilities, folderId])
 
   useEffect(() => {
     if (isEdit && existing) {
@@ -180,6 +192,7 @@ export default function PropertyFormScreen() {
       setTenantName(existing.tenant_name ?? '')
       setLeaseStartDate(existing.lease_start_date ?? '')
       setLeaseEndDate(existing.lease_end_date ?? '')
+      setFolderId(existing.folder_id ?? null)
     } else if (isEdit) {
       loadProperties(screenParams.dbId)
     }
@@ -215,6 +228,7 @@ export default function PropertyFormScreen() {
     setAddress(dupSource.address ?? '')
     setUtilities(dupSource.utilities ?? [])
     setSalePrice(String(dupSource.sale_price ?? ''))
+    setFolderId(dupSource.folder_id ?? null)
   }, [isEdit, duplicateId, dupSource, properties, screenParams.dbId, loadProperties])
 
   // Parking rate is monthly-per-spot or daily — never $/m². Default a new
@@ -263,9 +277,9 @@ export default function PropertyFormScreen() {
   // the fallback for browsers outside Telegram.
   const nativeMain = useMainButton({
     text: saveLabel,
-    // Hidden while the delete modal is up — its danger action must be the
-    // only actionable primary button on screen.
-    visible: !showDeleteModal,
+    // Hidden while a modal is up — its actions must be the only actionable
+    // primary button on screen.
+    visible: !showDeleteModal && !showFolderPicker,
     enabled: canSave,
     loading,
     barColor: '#5480dc', // низ .bg-blue
@@ -327,6 +341,9 @@ export default function PropertyFormScreen() {
       floor: floor.trim() || undefined,
       address: address.trim() || undefined,
       status,
+      // Пропускаємо, коли папки недоступні на бекенді (043 не застосовано) —
+      // useProperties однаково зріже folder_id, але не варто слати зайве.
+      folder_id: foldersUnavailable ? undefined : folderId,
       area_useful: numOrUndef(areaUseful),
       // A parking spot has a single area; the office useful/total split doesn't apply.
       area_total: isParking ? undefined : numOrUndef(areaTotal),
@@ -489,6 +506,17 @@ export default function PropertyFormScreen() {
               ))}
             </div>
           </div>
+          {!foldersUnavailable && (
+            <div className="fr" onClick={() => { hapticSelection(); setShowFolderPicker(true) }} style={{ cursor: 'pointer' }}>
+              <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconFolder size={13} color="var(--t3)" />Папка</span>
+              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, color: folderId ? 'var(--t1)' : 'var(--t3)', fontSize: 'var(--fs-call)' }}>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 180 }}>
+                  {folders.find(f => f.id === folderId)?.name ?? 'Без папки'}
+                </span>
+                <IconChevronRight size={16} color="var(--t4)" />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Bulk rows: per-object name + areas; everything else is shared.
@@ -789,6 +817,18 @@ export default function PropertyFormScreen() {
           </button>
         )}
       </div>
+
+      {showFolderPicker && (
+        <FolderPickerModal
+          folders={folders}
+          title="Папка об'єкта"
+          subtitle="Оберіть папку або створіть нову"
+          currentFolderId={folderId}
+          onPick={(id) => { setFolderId(id); setShowFolderPicker(false) }}
+          onCreate={createFolder}
+          onClose={() => setShowFolderPicker(false)}
+        />
+      )}
 
       {showDeleteModal && editId && (
         <Modal
