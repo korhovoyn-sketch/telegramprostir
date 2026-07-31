@@ -7,24 +7,28 @@ import { hapticSelection, hapticNotify } from '@/lib/telegram'
 import { offlineGuard } from '@/lib/offline'
 import { useDatabases } from '@/hooks/useDatabases'
 import { useProperties } from '@/hooks/useProperties'
+import { useFolders } from '@/hooks/useFolders'
 import Header from '@/components/ui/Header'
 import TabBar from '@/components/ui/TabBar'
 import SearchBar from '@/components/ui/SearchBar'
 import { StatusBadge } from '@/components/ui/Badge'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import Modal from '@/components/ui/Modal'
-import { IconPlus, IconDots, IconPhoto, IconShare, IconChevronUp, IconChevronDown, GlassDbIcon, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconCopy, IconUser, IconUsers, IconFile, IconLayers, IconLayoutGrid, IconChartBar, IconKey, IconFileExport, IconCircleCheck, IconAdjustments, IconTrash, IconChevronRight } from '@/components/Icons'
+import FolderManageModal from '@/components/ui/FolderManageModal'
+import FolderPickerModal from '@/components/ui/FolderPickerModal'
+import { IconPlus, IconDots, IconPhoto, IconShare, IconChevronUp, IconChevronDown, GlassDbIcon, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconCopy, IconUser, IconUsers, IconFile, IconLayers, IconLayoutGrid, IconChartBar, IconKey, IconFileExport, IconCircleCheck, IconAdjustments, IconTrash, IconChevronRight, IconFolder, IconInbox } from '@/components/Icons'
 import DatabaseStatsPanel from '@/components/ui/DatabaseStatsPanel'
 import { formatPrice, calcRent, calcRentUtils, basisArea, floorSortKey, computedRentUnit, rentUnitLabel, objectsWord, DB_TYPE_LABELS, formatLeasePeriod, STATUS_COLORS } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
-import type { Database, PropertyStatus } from '@/types'
+import type { Database, Property, PropertyStatus } from '@/types'
 import CoachMark from '@/components/ui/CoachMark'
 import { useOnboarding } from '@/hooks/useOnboarding'
 
 export default function DatabaseObjectsScreen() {
   const { screenParams, navigate, databases, user } = useAppStore()
   const { deleteDatabase } = useDatabases()
-  const { properties, loading, error, loadProperties, reorderProperty, batchDeleteProperties, batchUpdateStatus } = useProperties(screenParams.dbId)
+  const { properties, loading, error, loadProperties, reorderProperty, batchDeleteProperties, batchUpdateStatus, moveToFolder } = useProperties(screenParams.dbId)
+  const { folders, unavailable: foldersUnavailable, loadFolders, createFolder, renameFolder, deleteFolder, reorderFolder } = useFolders(screenParams.dbId)
   const memberDbIds = useAppStore(st => st.memberDbIds)
   // Редактор команди отримує ту саму edit-поверхню, що власник…
   const isOwner = user?.role === 'owner' || memberDbIds.includes(screenParams.dbId ?? '')
@@ -38,6 +42,34 @@ export default function DatabaseObjectsScreen() {
   const [selectMode, setSelectMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [showBatchDeleteModal, setShowBatchDeleteModal] = useState(false)
+  const [showFolderManage, setShowFolderManage] = useState(false)
+  const [showFolderPicker, setShowFolderPicker] = useState(false)
+  // Згорнуті папки — ключі папок ('__none__' для «Без папки»), персист per user+db.
+  const collapseKey = user && screenParams.dbId ? `ps:foldCollapse:${user.id}:${screenParams.dbId}` : ''
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => {
+    try {
+      const raw = collapseKey && localStorage.getItem(collapseKey)
+      return raw ? new Set<string>(JSON.parse(raw)) : new Set<string>()
+    } catch { return new Set<string>() }
+  })
+
+  function toggleFolder(key: string) {
+    hapticSelection()
+    setCollapsed(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      try { if (collapseKey) localStorage.setItem(collapseKey, JSON.stringify([...next])) } catch { /* private mode */ }
+      return next
+    })
+  }
+
+  async function handleBulkMove(folderId: string | null) {
+    setShowFolderPicker(false)
+    if (offlineGuard()) return
+    await moveToFolder([...selectedIds], folderId)
+    exitSelectMode()
+  }
   // Одне вподобання «компактно» на обидві статусні вкладки (зайняті + вільні).
   // Ключ лишається історичним 'ps:occCompact', щоб не скидати вибір користувачам.
   const [statusCompact, setStatusCompact] = useState(() =>
@@ -101,6 +133,10 @@ export default function DatabaseObjectsScreen() {
     if (screenParams.dbId) loadProperties(screenParams.dbId)
   }, [screenParams.dbId, loadProperties])
 
+  useEffect(() => {
+    if (screenParams.dbId) loadFolders(screenParams.dbId)
+  }, [screenParams.dbId, loadFolders])
+
   // Deep link (own_db / team_ / db-гість) веде сюди повз db-list на холодному
   // старті — стор порожній, і без власного довантаження екран висів би на
   // вічному спінері (!db нижче). Тягнемо одну базу за id: RLS сам вирішує
@@ -157,11 +193,304 @@ export default function DatabaseObjectsScreen() {
 
   const compactView = statusCompact && !reorderMode && !selectMode
 
+  // Кількість об'єктів у кожній папці — по ВСІХ об'єктах (для modal керування).
+  const folderCounts = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const p of properties) if (p.folder_id) m.set(p.folder_id, (m.get(p.folder_id) ?? 0) + 1)
+    return m
+  }, [properties])
+
+  const foldersById = useMemo(() => new Map(folders.map(f => [f.id, f])), [folders])
+  const foldersEnabled = !foldersUnavailable && folders.length > 0
+
+  // Групування filtered-списку в акордеон-секції. Порожні папки ховаємо під час
+  // фільтрації (пошук/вкладка), але показуємо в нейтральному вигляді, щоб було
+  // куди складати. Reorder-режим — завжди плаский список (глобальний sort_order).
+  const sections = useMemo(() => {
+    if (!foldersEnabled || reorderMode) return null
+    const byFolder = new Map<string, Property[]>()
+    const none: Property[] = []
+    for (const p of filtered) {
+      if (p.folder_id && foldersById.has(p.folder_id)) {
+        const arr = byFolder.get(p.folder_id) ?? []
+        arr.push(p)
+        byFolder.set(p.folder_id, arr)
+      } else none.push(p)
+    }
+    const isFiltering = search.trim() !== '' || tab !== 'all'
+    const out: { key: string; id: string | null; name: string; items: Property[] }[] = []
+    for (const f of folders) {
+      const items = byFolder.get(f.id) ?? []
+      if (items.length === 0 && isFiltering) continue
+      out.push({ key: f.id, id: f.id, name: f.name, items })
+    }
+    if (none.length > 0) out.push({ key: '__none__', id: null, name: 'Без папки', items: none })
+    return out
+  }, [foldersEnabled, reorderMode, filtered, folders, foldersById, search, tab])
+
+  // Під час пошуку розгортаємо всі секції, щоб знахідки не ховались у згорнутій папці.
+  const forceExpand = search.trim() !== ''
+
   if (!db) return (
     <div className="scr bg-blue">
       <div className="loader-wrap" style={{ paddingTop: 80 }}><div className="loader" /></div>
     </div>
   )
+
+  // idx матеріальний лише в reorder-режимі (межі ↑/↓); у групованому/плоскому
+  // списку передаємо 0 — там кнопок реордера немає.
+  const renderCard = (p: Property, idx: number) => {
+    const { rent, utils, total } = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate, p.area_basis)
+    // A daily rate can't be summed with monthly utilities — show the raw
+    // daily rate (/добу); everything else shows the monthly total (/міс).
+    const isDaily = p.rent_type === 'per_day'
+    const dispVal = isDaily ? rent : total
+    const dispUnit = computedRentUnit(p.rent_type)
+
+    if (compactView) {
+      const title = p.tenant_name?.trim() || p.name
+      // Права колонка за статусом: вільний — це оголошення, СИРА
+      // ставка (rentUnitLabel, «$18/м²»); продаж — ціна продажу без
+      // суфікса; зайнятий — фактичний порахований дохід «/міс».
+      const compVal = p.status === 'free' ? (p.rent_rate ?? 0)
+        : p.status === 'for_sale' ? (p.sale_price ?? 0)
+        : dispVal
+      const compUnit = p.status === 'free' ? rentUnitLabel(p.rent_type)
+        : p.status === 'for_sale' ? ''
+        : dispUnit
+      return (
+        <div
+          key={p.id}
+          className="row glass-s"
+          onClick={() => navigate('property-detail', { propertyId: p.id, dbId: db.id })}
+        >
+          <div className="row-mn">
+            <div className="row-t" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              {/* На змішаній вкладці «Всі» рядки без статусної крапки нерозрізненні */}
+              {tab === 'all' && <span className="fdot" style={{ background: STATUS_COLORS[p.status].color, flexShrink: 0 }} />}
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</span>
+            </div>
+            <div className="row-s">
+              {p.tenant_name?.trim() && <><IconBuilding size={13} color="var(--t3)" /><span>{p.name}</span></>}
+              {p.floor && <><IconLayers size={13} color="var(--t3)" /><span>{p.floor} пов.</span></>}
+              {p.area_useful && <><IconRuler size={13} color="var(--t3)" /><span>{p.area_useful} м²</span></>}
+            </div>
+          </div>
+          <div className="row-r">
+            <span className="row-tot">{compVal > 0 ? formatPrice(compVal, user?.currency) : '—'}</span>
+            {compVal > 0 && compUnit && <span className="row-tot-u">{compUnit}</span>}
+          </div>
+        </div>
+      )
+    }
+
+    return (
+      <div
+        key={p.id}
+        className="obj-card glass-s"
+        style={reorderMode ? {
+          display: 'flex', alignItems: 'stretch', overflow: 'hidden', cursor: 'default',
+        } : selectMode ? {
+          display: 'flex', alignItems: 'stretch', overflow: 'hidden',
+          outline: selectedIds.has(p.id) ? '2px solid var(--accent)' : undefined,
+        } : undefined}
+        onClick={
+          selectMode ? () => toggleSelect(p.id) :
+          !reorderMode ? () => navigate('property-detail', { propertyId: p.id, dbId: db.id }) :
+          undefined
+        }
+      >
+        {/* Select checkbox */}
+        {selectMode && (
+          <div style={{
+            width: 48, flexShrink: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            borderRight: 'var(--bd)',
+          }}>
+            <div style={{
+              width: 22, height: 22, borderRadius: 11,
+              border: `2px solid ${selectedIds.has(p.id) ? 'var(--accent)' : 'var(--t4)'}`,
+              background: selectedIds.has(p.id) ? 'var(--accent)' : 'transparent',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'background .15s, border-color .15s',
+              flexShrink: 0,
+            }}>
+              {selectedIds.has(p.id) && (
+                <svg width="11" height="8" viewBox="0 0 11 8" fill="none">
+                  <path d="M1 4l3 3 6-6" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Reorder controls */}
+        {reorderMode && (
+          <div style={{
+            width: 44, flexShrink: 0,
+            display: 'flex', flexDirection: 'column',
+            borderRight: '.5px solid rgba(255,255,255,.10)',
+            background: 'rgba(255,255,255,.04)',
+          }}>
+            <button
+              onClick={(e) => { e.stopPropagation(); hapticSelection(); reorderProperty(p.id, 'up') }}
+              disabled={idx === 0}
+              aria-label="Вгору"
+              style={{
+                flex: 1, background: 'none', border: 'none', minHeight: 26,
+                color: idx === 0 ? 'rgba(255,255,255,.18)' : 'var(--t2)',
+                cursor: idx === 0 ? 'default' : 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                borderBottom: '.5px solid rgba(255,255,255,.08)',
+                transition: 'color .15s',
+              }}
+            >
+              <IconChevronUp size={14} />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); hapticSelection(); reorderProperty(p.id, 'down') }}
+              disabled={idx === filtered.length - 1}
+              aria-label="Вниз"
+              style={{
+                flex: 1, background: 'none', border: 'none', minHeight: 26,
+                color: idx === filtered.length - 1 ? 'rgba(255,255,255,.18)' : 'var(--t2)',
+                cursor: idx === filtered.length - 1 ? 'default' : 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'color .15s',
+              }}
+            >
+              <IconChevronDown size={14} />
+            </button>
+          </div>
+        )}
+
+        {/* Card content */}
+        {reorderMode ? (
+          /* Simplified row in reorder mode */
+          <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', padding: '0 12px', gap: 8, height: 52 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 'var(--fs-note)', fontWeight: 'var(--fw-semi)', color: 'var(--t1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.2 }}>
+                {p.name}
+              </div>
+              {p.floor && (
+                <div style={{ fontSize: 'var(--fs-cap2)', color: 'var(--t3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 3 }}>
+                  <IconBuilding size={13} color="var(--t3)" />{p.floor} поверх
+                </div>
+              )}
+            </div>
+            <div style={{ flexShrink: 0 }}>
+              <StatusBadge status={p.status} />
+            </div>
+          </div>
+        ) : (
+          <div style={selectMode ? { flex: 1, minWidth: 0 } : undefined}>
+            <div className="obj-hd">
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div className="obj-t" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {p.name}
+                </div>
+                {/* Один рядок фактів: поверх · площа — компактно, без розсипаної сітки */}
+                <div className="obj-s">
+                  {p.floor && <><IconBuilding size={13} color="var(--t3)" /><span>{p.floor} поверх</span></>}
+                  {p.area_useful != null && <>
+                    {p.floor && <span className="obj-s-sep">·</span>}
+                    <IconRuler size={13} color="var(--t3)" /><span>{p.area_useful}/{p.area_total ?? p.area_useful} м²</span>
+                  </>}
+                </div>
+              </div>
+              <div style={{ flexShrink: 0 }}>
+                <StatusBadge status={p.status} />
+              </div>
+            </div>
+
+            {/* Зайнятий об'єкт: хто орендує і до якого терміну — ключова інформація картки */}
+            {p.status === 'occupied' && (p.tenant_name?.trim() || formatLeasePeriod(p.lease_start_date, p.lease_end_date)) && (
+              <div className="obj-ten">
+                {p.tenant_name?.trim() && (
+                  <div className="obj-ten-name">
+                    <IconUser size={13} color="var(--accent)" />
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.tenant_name}</span>
+                  </div>
+                )}
+                {formatLeasePeriod(p.lease_start_date, p.lease_end_date) && (
+                  <div className="obj-ten-lease">
+                    <IconCalendar size={13} color="var(--t3)" />
+                    <span>{formatLeasePeriod(p.lease_start_date, p.lease_end_date)}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Другорядні позначки — лише коли є що показати */}
+            {(p.has_parking || (p.photos?.length ?? 0) > 0) && (
+              <div className="obj-met">
+                {p.has_parking && (
+                  <div className="obj-mt">
+                    <IconParking size={13} color="var(--t3)" />
+                    <span>{p.parking_spaces} місць</span>
+                  </div>
+                )}
+                {(p.photos?.length ?? 0) > 0 && (
+                  <div className="obj-mt">
+                    <IconPhoto size={13} />
+                    <span>{p.photos!.length}</span>
+                  </div>
+                )}
+              </div>
+            )}
+            {dispVal > 0 && (
+              <div className="obj-tot">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 22, height: 22, borderRadius: 7, background: 'var(--ok-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <IconCurrencyDollar size={12} color="var(--ok-fg)" />
+                  </span>
+                  <div>
+                    <div className="obj-tot-l">{isDaily ? 'За добу' : 'На місяць'}</div>
+                    <div className="obj-tot-sub">{isDaily ? 'подобово' : rent > 0 && utils > 0 ? 'оренда + експлуатаційні' : rent > 0 ? 'оренда' : 'експлуатаційні'}</div>
+                  </div>
+                </div>
+                <div className="obj-tot-v">{formatPrice(dispVal, user?.currency)}</div>
+              </div>
+            )}
+            {!selectMode && !reorderMode && (
+              <div className="obj-act" onClick={e => e.stopPropagation()}>
+                {isOwner && (
+                  <button
+                    className="obj-act-btn"
+                    onClick={() => navigate('property-form', { propertyId: p.id, dbId: db.id })}
+                  >
+                    <IconEdit size={12} /> Редагувати
+                  </button>
+                )}
+                {isOwner && (
+                  <button
+                    className="obj-act-btn"
+                    onClick={() => { hapticSelection(); navigate('property-form', { dbId: db.id, duplicateId: p.id }) }}
+                  >
+                    <IconCopy size={12} /> Дублювати
+                  </button>
+                )}
+                {p.status === 'occupied' && (
+                  <button
+                    className="obj-act-btn"
+                    onClick={() => navigate('payment-calendar', { propertyId: p.id, dbId: db.id })}
+                  >
+                    <IconCalendar size={12} /> Платежі
+                  </button>
+                )}
+                <button
+                  className="obj-act-btn"
+                  onClick={() => navigate('property-detail', { propertyId: p.id, dbId: db.id, scrollTo: 'files' })}
+                >
+                  <IconFile size={12} /> Файли
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="scr bg-blue">
@@ -354,260 +683,26 @@ export default function DatabaseObjectsScreen() {
               Показати всі
             </button>
           </div>
-        ) : (
+        ) : sections ? (
           <div className="list">
-            {filtered.map((p, idx) => {
-              const { rent, utils, total } = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate, p.area_basis)
-              // A daily rate can't be summed with monthly utilities — show the raw
-              // daily rate (/добу); everything else shows the monthly total (/міс).
-              const isDaily = p.rent_type === 'per_day'
-              const dispVal = isDaily ? rent : total
-              const dispUnit = computedRentUnit(p.rent_type)
-
-              if (compactView) {
-                const title = p.tenant_name?.trim() || p.name
-                // Права колонка за статусом: вільний — це оголошення, СИРА
-                // ставка (rentUnitLabel, «$18/м²»); продаж — ціна продажу без
-                // суфікса; зайнятий — фактичний порахований дохід «/міс».
-                const compVal = p.status === 'free' ? (p.rent_rate ?? 0)
-                  : p.status === 'for_sale' ? (p.sale_price ?? 0)
-                  : dispVal
-                const compUnit = p.status === 'free' ? rentUnitLabel(p.rent_type)
-                  : p.status === 'for_sale' ? ''
-                  : dispUnit
-                return (
-                  <div
-                    key={p.id}
-                    className="row glass-s"
-                    onClick={() => navigate('property-detail', { propertyId: p.id, dbId: db.id })}
-                  >
-                    <div className="row-mn">
-                      <div className="row-t" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        {/* На змішаній вкладці «Всі» рядки без статусної крапки нерозрізненні */}
-                        {tab === 'all' && <span className="fdot" style={{ background: STATUS_COLORS[p.status].color, flexShrink: 0 }} />}
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</span>
-                      </div>
-                      <div className="row-s">
-                        {p.tenant_name?.trim() && <><IconBuilding size={13} color="var(--t3)" /><span>{p.name}</span></>}
-                        {p.floor && <><IconLayers size={13} color="var(--t3)" /><span>{p.floor} пов.</span></>}
-                        {p.area_useful && <><IconRuler size={13} color="var(--t3)" /><span>{p.area_useful} м²</span></>}
-                      </div>
-                    </div>
-                    <div className="row-r">
-                      <span className="row-tot">{compVal > 0 ? formatPrice(compVal, user?.currency) : '—'}</span>
-                      {compVal > 0 && compUnit && <span className="row-tot-u">{compUnit}</span>}
-                    </div>
-                  </div>
-                )
-              }
-
+            {sections.map((sec) => {
+              const open = forceExpand || !collapsed.has(sec.key)
               return (
-                <div
-                  key={p.id}
-                  className="obj-card glass-s"
-                  style={reorderMode ? {
-                    display: 'flex', alignItems: 'stretch', overflow: 'hidden', cursor: 'default',
-                  } : selectMode ? {
-                    display: 'flex', alignItems: 'stretch', overflow: 'hidden',
-                    outline: selectedIds.has(p.id) ? '2px solid var(--accent)' : undefined,
-                  } : undefined}
-                  onClick={
-                    selectMode ? () => toggleSelect(p.id) :
-                    !reorderMode ? () => navigate('property-detail', { propertyId: p.id, dbId: db.id }) :
-                    undefined
-                  }
-                >
-                  {/* Select checkbox */}
-                  {selectMode && (
-                    <div style={{
-                      width: 48, flexShrink: 0,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      borderRight: 'var(--bd)',
-                    }}>
-                      <div style={{
-                        width: 22, height: 22, borderRadius: 11,
-                        border: `2px solid ${selectedIds.has(p.id) ? 'var(--accent)' : 'var(--t4)'}`,
-                        background: selectedIds.has(p.id) ? 'var(--accent)' : 'transparent',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        transition: 'background .15s, border-color .15s',
-                        flexShrink: 0,
-                      }}>
-                        {selectedIds.has(p.id) && (
-                          <svg width="11" height="8" viewBox="0 0 11 8" fill="none">
-                            <path d="M1 4l3 3 6-6" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Reorder controls */}
-                  {reorderMode && (
-                    <div style={{
-                      width: 44, flexShrink: 0,
-                      display: 'flex', flexDirection: 'column',
-                      borderRight: '.5px solid rgba(255,255,255,.10)',
-                      background: 'rgba(255,255,255,.04)',
-                    }}>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); hapticSelection(); reorderProperty(p.id, 'up') }}
-                        disabled={idx === 0}
-                        aria-label="Вгору"
-                        style={{
-                          flex: 1, background: 'none', border: 'none', minHeight: 26,
-                          color: idx === 0 ? 'rgba(255,255,255,.18)' : 'var(--t2)',
-                          cursor: idx === 0 ? 'default' : 'pointer',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          borderBottom: '.5px solid rgba(255,255,255,.08)',
-                          transition: 'color .15s',
-                        }}
-                      >
-                        <IconChevronUp size={14} />
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); hapticSelection(); reorderProperty(p.id, 'down') }}
-                        disabled={idx === filtered.length - 1}
-                        aria-label="Вниз"
-                        style={{
-                          flex: 1, background: 'none', border: 'none', minHeight: 26,
-                          color: idx === filtered.length - 1 ? 'rgba(255,255,255,.18)' : 'var(--t2)',
-                          cursor: idx === filtered.length - 1 ? 'default' : 'pointer',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          transition: 'color .15s',
-                        }}
-                      >
-                        <IconChevronDown size={14} />
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Card content */}
-                  {reorderMode ? (
-                    /* Simplified row in reorder mode */
-                    <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', padding: '0 12px', gap: 8, height: 52 }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 'var(--fs-note)', fontWeight: 'var(--fw-semi)', color: 'var(--t1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.2 }}>
-                          {p.name}
-                        </div>
-                        {p.floor && (
-                          <div style={{ fontSize: 'var(--fs-cap2)', color: 'var(--t3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 3 }}>
-                            <IconBuilding size={13} color="var(--t3)" />{p.floor} поверх
-                          </div>
-                        )}
-                      </div>
-                      <div style={{ flexShrink: 0 }}>
-                        <StatusBadge status={p.status} />
-                      </div>
-                    </div>
-                  ) : (
-                    <div style={selectMode ? { flex: 1, minWidth: 0 } : undefined}>
-                      <div className="obj-hd">
-                        <div style={{ minWidth: 0, flex: 1 }}>
-                          <div className="obj-t" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {p.name}
-                          </div>
-                          {/* Один рядок фактів: поверх · площа — компактно, без розсипаної сітки */}
-                          <div className="obj-s">
-                            {p.floor && <><IconBuilding size={13} color="var(--t3)" /><span>{p.floor} поверх</span></>}
-                            {p.area_useful != null && <>
-                              {p.floor && <span className="obj-s-sep">·</span>}
-                              <IconRuler size={13} color="var(--t3)" /><span>{p.area_useful}/{p.area_total ?? p.area_useful} м²</span>
-                            </>}
-                          </div>
-                        </div>
-                        <div style={{ flexShrink: 0 }}>
-                          <StatusBadge status={p.status} />
-                        </div>
-                      </div>
-
-                      {/* Зайнятий об'єкт: хто орендує і до якого терміну — ключова інформація картки */}
-                      {p.status === 'occupied' && (p.tenant_name?.trim() || formatLeasePeriod(p.lease_start_date, p.lease_end_date)) && (
-                        <div className="obj-ten">
-                          {p.tenant_name?.trim() && (
-                            <div className="obj-ten-name">
-                              <IconUser size={13} color="var(--accent)" />
-                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.tenant_name}</span>
-                            </div>
-                          )}
-                          {formatLeasePeriod(p.lease_start_date, p.lease_end_date) && (
-                            <div className="obj-ten-lease">
-                              <IconCalendar size={13} color="var(--t3)" />
-                              <span>{formatLeasePeriod(p.lease_start_date, p.lease_end_date)}</span>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Другорядні позначки — лише коли є що показати */}
-                      {(p.has_parking || (p.photos?.length ?? 0) > 0) && (
-                        <div className="obj-met">
-                          {p.has_parking && (
-                            <div className="obj-mt">
-                              <IconParking size={13} color="var(--t3)" />
-                              <span>{p.parking_spaces} місць</span>
-                            </div>
-                          )}
-                          {(p.photos?.length ?? 0) > 0 && (
-                            <div className="obj-mt">
-                              <IconPhoto size={13} />
-                              <span>{p.photos!.length}</span>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      {dispVal > 0 && (
-                        <div className="obj-tot">
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <span style={{ width: 22, height: 22, borderRadius: 7, background: 'var(--ok-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                              <IconCurrencyDollar size={12} color="var(--ok-fg)" />
-                            </span>
-                            <div>
-                              <div className="obj-tot-l">{isDaily ? 'За добу' : 'На місяць'}</div>
-                              <div className="obj-tot-sub">{isDaily ? 'подобово' : rent > 0 && utils > 0 ? 'оренда + експлуатаційні' : rent > 0 ? 'оренда' : 'експлуатаційні'}</div>
-                            </div>
-                          </div>
-                          <div className="obj-tot-v">{formatPrice(dispVal, user?.currency)}</div>
-                        </div>
-                      )}
-                      {!selectMode && !reorderMode && (
-                        <div className="obj-act" onClick={e => e.stopPropagation()}>
-                          {isOwner && (
-                            <button
-                              className="obj-act-btn"
-                              onClick={() => navigate('property-form', { propertyId: p.id, dbId: db.id })}
-                            >
-                              <IconEdit size={12} /> Редагувати
-                            </button>
-                          )}
-                          {isOwner && (
-                            <button
-                              className="obj-act-btn"
-                              onClick={() => { hapticSelection(); navigate('property-form', { dbId: db.id, duplicateId: p.id }) }}
-                            >
-                              <IconCopy size={12} /> Дублювати
-                            </button>
-                          )}
-                          {p.status === 'occupied' && (
-                            <button
-                              className="obj-act-btn"
-                              onClick={() => navigate('payment-calendar', { propertyId: p.id, dbId: db.id })}
-                            >
-                              <IconCalendar size={12} /> Платежі
-                            </button>
-                          )}
-                          <button
-                            className="obj-act-btn"
-                            onClick={() => navigate('property-detail', { propertyId: p.id, dbId: db.id, scrollTo: 'files' })}
-                          >
-                            <IconFile size={12} /> Файли
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                <div key={sec.key}>
+                  <div className="fold-hd" onClick={() => toggleFolder(sec.key)}>
+                    <span className={`fold-hd-chev ${open ? 'open' : ''}`}><IconChevronRight size={16} /></span>
+                    <span className="fold-hd-ic">{sec.id ? <IconFolder size={16} /> : <IconInbox size={16} />}</span>
+                    <span className="fold-hd-name">{sec.name}</span>
+                    <span className="fold-hd-cnt">{sec.items.length}</span>
+                  </div>
+                  {open && sec.items.map((p) => renderCard(p, 0))}
                 </div>
               )
             })}
+          </div>
+        ) : (
+          <div className="list">
+            {filtered.map((p, idx) => renderCard(p, idx))}
           </div>
         )}
       </div>
@@ -659,6 +754,14 @@ export default function DatabaseObjectsScreen() {
             >
               Продаж
             </button>
+            {!foldersUnavailable && (
+              <button
+                onClick={() => setShowFolderPicker(true)}
+                style={{ padding: '6px 10px', borderRadius: 'var(--r-pill)', background: 'var(--glass-2)', border: 'none', color: 'var(--t2)', fontSize: 'var(--fs-cap1)', cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+              >
+                <IconFolder size={13} /> У папку
+              </button>
+            )}
             <button
               onClick={() => setShowBatchDeleteModal(true)}
               style={{ padding: '6px 10px', borderRadius: 'var(--r-pill)', background: 'rgba(255,59,48,.18)', border: 'none', color: 'var(--err)', fontSize: 'var(--fs-cap1)', cursor: 'pointer', whiteSpace: 'nowrap', marginLeft: 'auto' }}
@@ -690,6 +793,9 @@ export default function DatabaseObjectsScreen() {
                 { Icon: IconUsers,     label: 'Команда',               nav: true,  danger: false, action: () => { setShowMenu(false); navigate('team', { dbId: db.id }) } },
               ] : []),
               { Icon: IconFileExport,  label: 'Експорт',               nav: true,  danger: false, action: () => { setShowMenu(false); navigate('export', { dbId: db.id }) } },
+              ...(!foldersUnavailable ? [
+                { Icon: IconFolder,    label: 'Папки',                 nav: false, danger: false, action: () => { setShowMenu(false); setShowFolderManage(true) } },
+              ] : []),
               { Icon: IconCircleCheck, label: 'Виділити об\'єкти',      nav: false, danger: false, action: enterSelectMode },
               { Icon: IconAdjustments, label: 'Змінити порядок',       nav: false, danger: false, action: enterReorderMode },
               { Icon: IconEdit,        label: 'Редагувати базу',       nav: true,  danger: false, action: () => { setShowMenu(false); navigate('edit-db', { dbId: db.id }) } },
@@ -704,6 +810,31 @@ export default function DatabaseObjectsScreen() {
           </div>
           <button className="sheet-cancel" onClick={() => setShowMenu(false)}>Скасувати</button>
         </Modal>
+      )}
+
+      {/* Folder management */}
+      {showFolderManage && (
+        <FolderManageModal
+          folders={folders}
+          counts={folderCounts}
+          onCreate={createFolder}
+          onRename={renameFolder}
+          onDelete={async (id) => { const ok = await deleteFolder(id); if (ok) await loadProperties(screenParams.dbId); return ok }}
+          onReorder={reorderFolder}
+          onClose={() => setShowFolderManage(false)}
+        />
+      )}
+
+      {/* Bulk move to folder */}
+      {showFolderPicker && (
+        <FolderPickerModal
+          folders={folders}
+          title={`Перемістити ${selectedIds.size} ${objectsWord(selectedIds.size)}`}
+          subtitle="Оберіть папку або створіть нову"
+          onPick={handleBulkMove}
+          onCreate={createFolder}
+          onClose={() => setShowFolderPicker(false)}
+        />
       )}
 
       {/* Batch delete confirm */}

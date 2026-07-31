@@ -12,7 +12,7 @@ import type { Property, PropertyStatus } from '@/types'
 // four query sites can't drift apart (and none falls back to select('*')).
 const PROPERTY_COLUMNS = `
   id, db_id, owner_id, name, floor, status,
-  area_useful, area_total, area_basis, rent_type, rent_rate, utilities_rate,
+  area_useful, area_total, area_basis, folder_id, rent_type, rent_rate, utilities_rate,
   has_parking, parking_spaces, description,
   address, utilities,
   sale_price, tenant_name, lease_start_date, lease_end_date,
@@ -23,6 +23,16 @@ const PROPERTY_WITH_PHOTOS = `${PROPERTY_COLUMNS}, photos:property_photos(id, st
 // loadProperties/loadSingleProperty additionally pull the view relation so the
 // card can show a view count; create/update don't need it (a fresh row has none).
 const PROPERTY_SELECT = `${PROPERTY_WITH_PHOTOS}, views:property_views(id)`
+
+// Deploy-order safety: folder_id lives in the main SELECT, but migration 043
+// may not be applied yet. On a "column does not exist" error we retry with
+// folder_id stripped out, so the object list never breaks pre-migration.
+const PROPERTY_SELECT_PRE043 = PROPERTY_SELECT.replace('folder_id, ', '')
+const PROPERTY_WITH_PHOTOS_PRE043 = PROPERTY_WITH_PHOTOS.replace('folder_id, ', '')
+const isMissingFolderColumn = (e: unknown): boolean => {
+  const err = e as { code?: string; message?: string } | null
+  return err?.code === '42703' || /folder_id/i.test(err?.message ?? '')
+}
 
 export function useProperties(dbId?: string) {
   const [loading, setLoading] = useState(false)
@@ -54,15 +64,27 @@ export function useProperties(dbId?: string) {
     if (!painted) setLoading(true)
     setError(null)
     try {
-      const { data, error } = await supabase
+      const primary = await supabase
         .from('properties')
         .select(PROPERTY_SELECT)
         .eq('db_id', targetDbId)
         .order('sort_order', { ascending: true })
         .order('created_at', { ascending: true })
 
-      if (error) throw error
-      const mapped = (data ?? []).map((p) => {
+      let rows = primary.data as unknown as Record<string, unknown>[] | null
+      let err = primary.error
+      if (err && isMissingFolderColumn(err)) {
+        const fb = await supabase
+          .from('properties')
+          .select(PROPERTY_SELECT_PRE043)
+          .eq('db_id', targetDbId)
+          .order('sort_order', { ascending: true })
+          .order('created_at', { ascending: true })
+        rows = fb.data as unknown as Record<string, unknown>[] | null
+        err = fb.error
+      }
+      if (err) throw err
+      const mapped = (rows ?? []).map((p) => {
         const { views, ...rest } = p as Record<string, unknown>
         return { ...rest, _view_count: (views as unknown[])?.length ?? 0 }
       })
@@ -81,14 +103,25 @@ export function useProperties(dbId?: string) {
     setLoading(true)
     setError(null)
     try {
-      const { data, error } = await supabase
+      const primary = await supabase
         .from('properties')
         .select(PROPERTY_SELECT)
         .eq('id', propertyId)
         .single()
 
-      if (error) throw error
-      const { views, ...rest } = data as Record<string, unknown>
+      let row = primary.data as unknown as Record<string, unknown> | null
+      let err = primary.error
+      if (err && isMissingFolderColumn(err)) {
+        const fb = await supabase
+          .from('properties')
+          .select(PROPERTY_SELECT_PRE043)
+          .eq('id', propertyId)
+          .single()
+        row = fb.data as unknown as Record<string, unknown> | null
+        err = fb.error
+      }
+      if (err) throw err
+      const { views, ...rest } = row as Record<string, unknown>
       const mapped = { ...rest, _view_count: (views as unknown[])?.length ?? 0 } as unknown as Property
       setProperties([mapped])
     } catch (e) {
@@ -111,14 +144,28 @@ export function useProperties(dbId?: string) {
       // почнуть «губити» об'єкт (і WITH CHECK редакторської політики це
       // однаково вимагає).
       const dbOwner = useAppStore.getState().databases.find(d => d.id === payload.db_id)?.owner_id
-      const { data, error } = await supabase
+      const row = { ...payload, owner_id: dbOwner ?? user.id }
+      const primary = await supabase
         .from('properties')
-        .insert({ ...payload, owner_id: dbOwner ?? user.id })
+        .insert(row)
         .select(PROPERTY_WITH_PHOTOS)
         .single()
 
-      if (error) throw error
-      setProperties((prev) => [data as Property, ...prev])
+      let created = primary.data as unknown as Property | null
+      let err = primary.error
+      if (err && isMissingFolderColumn(err)) {
+        const pre043 = { ...row }
+        delete pre043.folder_id
+        const fb = await supabase
+          .from('properties')
+          .insert(pre043)
+          .select(PROPERTY_WITH_PHOTOS_PRE043)
+          .single()
+        created = fb.data as unknown as Property | null
+        err = fb.error
+      }
+      if (err) throw err
+      setProperties((prev) => [created as Property, ...prev])
       showToast({ type: 'success', title: 'Об\'єкт додано' })
       backThenReplace('db-objects', { dbId: payload.db_id })
       return true
@@ -139,13 +186,25 @@ export function useProperties(dbId?: string) {
     setLoading(true)
     try {
       const dbOwner = useAppStore.getState().databases.find(d => d.id === payloads[0].db_id)?.owner_id
-      const { data, error } = await supabase
+      const rows = payloads.map(p => ({ ...p, owner_id: dbOwner ?? user.id }))
+      const primary = await supabase
         .from('properties')
-        .insert(payloads.map(p => ({ ...p, owner_id: dbOwner ?? user.id })))
+        .insert(rows)
         .select(PROPERTY_WITH_PHOTOS)
 
-      if (error) throw error
-      setProperties((prev) => [...((data ?? []) as Property[]), ...prev])
+      let created = primary.data as unknown as Property[] | null
+      let err = primary.error
+      if (err && isMissingFolderColumn(err)) {
+        const pre043 = rows.map((r) => { const c = { ...r }; delete c.folder_id; return c })
+        const fb = await supabase
+          .from('properties')
+          .insert(pre043)
+          .select(PROPERTY_WITH_PHOTOS_PRE043)
+        created = fb.data as unknown as Property[] | null
+        err = fb.error
+      }
+      if (err) throw err
+      setProperties((prev) => [...((created ?? []) as Property[]), ...prev])
       showToast({ type: 'success', title: `Додано ${payloads.length} ${objectsWord(payloads.length)}` })
       backThenReplace('db-objects', { dbId: payloads[0].db_id })
       return true
@@ -289,6 +348,29 @@ export function useProperties(dbId?: string) {
     }
   }, [showToast])
 
+  // Move one or more objects into a folder (folderId = null → ungroup).
+  const moveToFolder = useCallback(async (ids: string[], folderId: string | null) => {
+    if (ids.length === 0) return
+    const prevList = propertiesRef.current
+    setProperties(prev => prev.map(p => ids.includes(p.id) ? { ...p, folder_id: folderId } : p))
+    try {
+      const { error } = await supabase
+        .from('properties')
+        .update({ folder_id: folderId, updated_at: new Date().toISOString() })
+        .in('id', ids)
+      if (error) throw error
+      showToast({
+        type: 'success',
+        title: folderId
+          ? `${ids.length} ${objectsWord(ids.length)} переміщено`
+          : `${ids.length} ${objectsWord(ids.length)} без папки`,
+      })
+    } catch (e) {
+      setProperties(prevList)
+      showToast({ type: 'error', title: 'Не вдалося перемістити', subtitle: humanizeDbError(e) })
+    }
+  }, [showToast])
+
   const reorderProperty = useCallback(async (id: string, direction: 'up' | 'down') => {
     const idx = properties.findIndex(p => p.id === id)
     if (idx === -1) return
@@ -365,6 +447,7 @@ export function useProperties(dbId?: string) {
     reorderProperty,
     batchDeleteProperties,
     batchUpdateStatus,
+    moveToFolder,
     deleteProperty,
     deletePhoto,
     uploadPhoto,

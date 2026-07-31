@@ -56,6 +56,7 @@ export interface Property {
   area_useful?: number
   area_total?: number
   area_basis?: AreaBasis
+  folder_id?: string | null
   rent_type: RentType
   rent_rate?: number
   utilities_rate?: number
@@ -85,6 +86,17 @@ export interface PropertyPhoto {
   storage_path: string
   sort_order: number
   created_at: string
+}
+
+// A named group of objects inside one database (owner/editor organisation tool).
+export interface PropertyFolder {
+  id: string
+  db_id: string
+  owner_id: string
+  name: string
+  sort_order: number
+  created_at: string
+  updated_at: string
 }
 
 export interface PropertyFile {
