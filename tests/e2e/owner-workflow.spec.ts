@@ -104,6 +104,9 @@ test('owner: objects — sort, search, select & reorder modes', async ({ page })
   // Sort by rent: fixed 2500 (Офіс 102) must come before 100×18=1800 (Офіс 101)
   await page.getByText('За орендою').click()
   await expect(page.locator('.obj-t').first()).toHaveText('Офіс 102')
+  // Sort by floor: ascending ground-up (Офіс 101 = floor 2) → first, unlike rent
+  await page.getByText('За поверхом').click()
+  await expect(page.locator('.obj-t').first()).toHaveText('Офіс 101')
   await page.getByText('За порядком').click()
 
   // Search filters the list
