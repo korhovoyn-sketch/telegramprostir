@@ -32,21 +32,9 @@ export default function FolderPickerModal({ folders, title, subtitle, currentFol
 
   return (
     <Modal title={title} subtitle={subtitle} onClose={onClose}>
-      <div className="sheet-group">
-        <div className="sheet-row" onClick={() => onPick(null)}>
-          <span className="sheet-ic"><IconInbox size={17} /></span>
-          <span className="sheet-lbl">Без папки</span>
-          {currentFolderId === null && <IconCheck size={16} className="sheet-chev" />}
-        </div>
-        {folders.map((f) => (
-          <div key={f.id} className="sheet-row" onClick={() => onPick(f.id)}>
-            <span className="sheet-ic"><IconFolder size={17} /></span>
-            <span className="sheet-lbl">{f.name}</span>
-            {currentFolderId === f.id && <IconCheck size={16} className="sheet-chev" />}
-          </div>
-        ))}
-      </div>
-
+      {/* Add UI at the TOP (near the header) — on iOS Telegram the keyboard
+          overlays the webview without lifting the sheet, so a bottom input would
+          be covered. */}
       {adding ? (
         <div className="fold-mng-new">
           <span className="fold-mng-ic"><IconPlus size={16} /></span>
@@ -62,10 +50,26 @@ export default function FolderPickerModal({ folders, title, subtitle, currentFol
           <button className="fold-mng-add" disabled={!newName.trim() || busy} onClick={handleCreate}>Створити</button>
         </div>
       ) : (
-        <button className="sheet-cancel" style={{ marginBottom: 10 }} onClick={() => setAdding(true)}>
-          + Нова папка
+        <button className="fold-pick-new" onClick={() => setAdding(true)}>
+          <IconPlus size={16} /> Нова папка
         </button>
       )}
+
+      <div className="sheet-group">
+        <div className="sheet-row" onClick={() => onPick(null)}>
+          <span className="sheet-ic"><IconInbox size={17} /></span>
+          <span className="sheet-lbl">Без папки</span>
+          {currentFolderId === null && <IconCheck size={16} className="sheet-chev" />}
+        </div>
+        {folders.map((f) => (
+          <div key={f.id} className="sheet-row" onClick={() => onPick(f.id)}>
+            <span className="sheet-ic"><IconFolder size={17} /></span>
+            <span className="sheet-lbl">{f.name}</span>
+            {currentFolderId === f.id && <IconCheck size={16} className="sheet-chev" />}
+          </div>
+        ))}
+      </div>
+
       <button className="sheet-cancel" onClick={onClose}>Скасувати</button>
     </Modal>
   )
