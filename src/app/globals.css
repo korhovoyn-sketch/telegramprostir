@@ -389,8 +389,14 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 /* Card title — Subhead Semibold (same tier as row-t for visual consistency) */
 .obj-t{font-size:var(--fs-sub);font-weight:var(--fw-semi);color:var(--t1);line-height:var(--lh-snug);letter-spacing:-.01em}
 /* Card subtitle / floor — Caption 1 */
-.obj-s{font-size:var(--fs-cap1);color:var(--t3);margin-top:5px;display:flex;align-items:center;gap:5px;line-height:var(--lh-snug)}
-.obj-met{display:grid;grid-template-columns:1fr 1fr;gap:10px 0;padding:8px var(--pad-card) 13px}
+.obj-s{font-size:var(--fs-cap1);color:var(--t3);margin-top:5px;display:flex;align-items:center;gap:5px;line-height:var(--lh-snug);flex-wrap:wrap}
+.obj-s-sep{color:var(--t4)}
+/* Tenant block — «хто орендує» на картці зайнятого об'єкта */
+.obj-ten{padding:2px var(--pad-card) 12px;display:flex;flex-direction:column;gap:4px}
+.obj-ten-name{font-size:var(--fs-foot);font-weight:var(--fw-semi);color:var(--t1);display:flex;align-items:center;gap:6px;line-height:var(--lh-snug);min-width:0}
+.obj-ten-lease{font-size:var(--fs-cap1);color:var(--t3);display:flex;align-items:center;gap:6px;line-height:var(--lh-snug)}
+/* Secondary chips — compact wrapped row, not a loose 2-col grid */
+.obj-met{display:flex;flex-wrap:wrap;gap:6px 16px;padding:2px var(--pad-card) 12px}
 /* Metadata chips — Caption 1 */
 .obj-mt{font-size:13px;color:var(--t2);display:flex;align-items:center;gap:6px;line-height:1;font-weight:500}
 /* Total bar — bottom accent strip */
