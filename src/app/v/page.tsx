@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { TG_BOT, buildDeepLink } from '@/lib/telegram'
 import { IconBuilding, IconRuler, IconMapPin } from '@/components/Icons'
-import { photoUrl, calcRentUtils, rentUnitLabel, parkingTypeLabel, formatPrice, objectsWord, pluralUk, DB_COLORS } from '@/lib/utils'
+import { photoUrl, calcRentUtils, basisArea, rentUnitLabel, parkingTypeLabel, formatPrice, objectsWord, pluralUk, DB_COLORS } from '@/lib/utils'
 
 // ── data types returned by the RPCs ──────────────────────────────────────────
 
@@ -16,6 +16,7 @@ interface PropertyPreview {
   property_floor: string | null
   property_area_useful: number | null
   property_area_total: number | null
+  property_area_basis: string | null
   property_rent_type: 'per_m2' | 'fixed' | 'per_day'
   property_rent_rate: number | null
   property_utilities_rate: number | null
@@ -443,14 +444,16 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
   useEffect(() => { document.title = `${data.property_name} — prostir` }, [data.property_name])
 
   // Use the same helper as the app so the public page shows an identical figure
-  // (rounding + utilities keyed off total area, not useful area).
+  // (rounding + rent/expenses keyed off the object's chosen basis area).
   const { total: rentTotal } = calcRentUtils(
     data.property_area_useful,
     data.property_area_total,
     data.property_rent_rate,
     data.property_rent_type,
     data.property_utilities_rate,
+    data.property_area_basis,
   )
+  const basisAreaVal = basisArea(data.property_area_useful, data.property_area_total, data.property_area_basis)
 
   return (
     <div style={s.wrap}>
@@ -504,7 +507,7 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
             )}
             {data.property_area_total && (
               <div style={{ flex: 1, padding: '12px 16px' }}>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>Загальна площа</div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>Розрахункова площа</div>
                 <div style={{ fontSize: 20, fontWeight: 700 }}>{data.property_area_total} <span style={{ fontSize: 14 }}>м²</span></div>
               </div>
             )}
@@ -536,9 +539,9 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
             </div>
             {data.property_utilities_rate && (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 13, color: 'rgba(255,255,255,.6)' }}>Комунальні</span>
+                <span style={{ fontSize: 13, color: 'rgba(255,255,255,.6)' }}>Експлуатаційні</span>
                 <span style={{ fontSize: 17, fontWeight: 700 }}>
-                  {fmtPrice(data.property_utilities_rate, currency, data.property_area_total ? '/м²' : '/міс')}
+                  {fmtPrice(data.property_utilities_rate, currency, basisAreaVal ? '/м²' : '/міс')}
                 </span>
               </div>
             )}

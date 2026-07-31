@@ -12,8 +12,8 @@ import Modal from '@/components/ui/Modal'
 import { IconRuler, IconLayers, IconLayoutGrid, IconActivity, IconBuilding, IconCurrencyDollar, IconBolt, IconCarGarage, IconFile, IconUser, IconKey, IconMapPin, IconEdit } from '@/components/Icons'
 import { UTILITY_META } from '@/lib/utilityMeta'
 import FilesList from '@/components/ui/FilesList'
-import { currencySymbol, sanitizeDecimal, sanitizeInt, formatPrice, calcRent, calcUtilities, rentUnitLabel, nextCopyName, bulkCreateNames, objectsWord, scrollFocusedIntoView } from '@/lib/utils'
-import type { PropertyStatus, RentType, ParkingType } from '@/types'
+import { currencySymbol, sanitizeDecimal, sanitizeInt, formatPrice, calcRent, calcUtilities, basisArea, rentUnitLabel, nextCopyName, bulkCreateNames, objectsWord, scrollFocusedIntoView } from '@/lib/utils'
+import type { PropertyStatus, RentType, ParkingType, AreaBasis } from '@/types'
 
 const PARKING_TYPES: { v: ParkingType; l: string }[] = [
   { v: 'underground', l: 'Підземний' },
@@ -43,6 +43,8 @@ export default function PropertyFormScreen() {
   const [status, setStatus] = useState<PropertyStatus>('free')
   const [areaUseful, setAreaUseful] = useState('')
   const [areaTotal, setAreaTotal] = useState('')
+  // Which area the per-m² rate multiplies by; default розрахункова (total).
+  const [areaBasis, setAreaBasis] = useState<AreaBasis>('total')
   const [rentType, setRentType] = useState<RentType>('per_m2')
   const [rentRate, setRentRate] = useState('')
   const [utilitiesRate, setUtilitiesRate] = useState('')
@@ -103,6 +105,7 @@ export default function PropertyFormScreen() {
       setStatus((d.status as PropertyStatus) ?? 'free')
       setAreaUseful(String(d.areaUseful ?? ''))
       setAreaTotal(String(d.areaTotal ?? ''))
+      setAreaBasis((d.areaBasis as AreaBasis) ?? 'total')
       setRentType((d.rentType as RentType) ?? 'per_m2')
       setRentRate(String(d.rentRate ?? ''))
       setUtilitiesRate(String(d.utilitiesRate ?? ''))
@@ -124,7 +127,7 @@ export default function PropertyFormScreen() {
         actionLabel: 'Очистити',
         onAction: () => {
           localStorage.removeItem(draftKey)
-          setName(''); setFloor(''); setStatus('free'); setAreaUseful(''); setAreaTotal('')
+          setName(''); setFloor(''); setStatus('free'); setAreaUseful(''); setAreaTotal(''); setAreaBasis('total')
           setRentType('per_m2'); setRentRate(''); setUtilitiesRate(''); setHasParking(false)
           setParkingSpaces('1'); setParkingType(''); setEvCharger(false); setDescription('')
           setSalePrice(''); setTenantName(''); setLeaseStartDate(''); setLeaseEndDate('')
@@ -140,7 +143,7 @@ export default function PropertyFormScreen() {
       try {
         if (name.trim() || description.trim() || rentRate) {
           localStorage.setItem(draftKey, JSON.stringify({
-            name, floor, status, areaUseful, areaTotal, rentType, rentRate,
+            name, floor, status, areaUseful, areaTotal, areaBasis, rentType, rentRate,
             utilitiesRate, hasParking, parkingSpaces, parkingType, evCharger,
             description, salePrice, tenantName, leaseStartDate, leaseEndDate,
             address, utilities,
@@ -151,7 +154,7 @@ export default function PropertyFormScreen() {
       } catch { /* quota — best-effort */ }
     }, 600)
     return () => clearTimeout(t)
-  }, [isNewBlank, draftKey, name, floor, status, areaUseful, areaTotal, rentType,
+  }, [isNewBlank, draftKey, name, floor, status, areaUseful, areaTotal, areaBasis, rentType,
       rentRate, utilitiesRate, hasParking, parkingSpaces, parkingType, evCharger,
       description, salePrice, tenantName, leaseStartDate, leaseEndDate, address, utilities])
 
@@ -162,6 +165,7 @@ export default function PropertyFormScreen() {
       setStatus(existing.status)
       setAreaUseful(String(existing.area_useful ?? ''))
       setAreaTotal(String(existing.area_total ?? ''))
+      setAreaBasis(existing.area_basis ?? 'total')
       setRentType(existing.rent_type)
       setRentRate(String(existing.rent_rate ?? ''))
       setUtilitiesRate(String(existing.utilities_rate ?? ''))
@@ -199,6 +203,7 @@ export default function PropertyFormScreen() {
     setStatus('free')
     setAreaUseful(String(dupSource.area_useful ?? ''))
     setAreaTotal(String(dupSource.area_total ?? ''))
+    setAreaBasis(dupSource.area_basis ?? 'total')
     setRentType(dupSource.rent_type)
     setRentRate(String(dupSource.rent_rate ?? ''))
     setUtilitiesRate(String(dupSource.utilities_rate ?? ''))
@@ -221,14 +226,15 @@ export default function PropertyFormScreen() {
 
   // Only per_m2 needs a useful area to multiply; fixed (monthly) and per_day
   // (daily) are the rate itself, so don't gate them on area.
-  const rentCalc = parseFloat(rentRate) && (rentType !== 'per_m2' || parseFloat(areaUseful))
-    ? calcRent(parseFloat(areaUseful) || 0, parseFloat(rentRate), rentType)
+  const previewArea = basisArea(parseFloat(areaUseful) || undefined, parseFloat(areaTotal) || undefined, areaBasis)
+  const rentCalc = parseFloat(rentRate) && (rentType !== 'per_m2' || previewArea)
+    ? calcRent(previewArea, parseFloat(rentRate), rentType)
     : 0
-  // Parking utilities are a flat monthly charge (no $/m²); offices multiply the
-  // rate by the total area.
+  // Parking expenses are a flat monthly charge (no $/m²); offices multiply the
+  // rate by the chosen basis area.
   const utilsCalc = isParking
     ? (parseFloat(utilitiesRate) || 0)
-    : (parseFloat(areaTotal) && parseFloat(utilitiesRate) ? calcUtilities(parseFloat(areaTotal), parseFloat(utilitiesRate)) : 0)
+    : (parseFloat(areaTotal) && parseFloat(utilitiesRate) ? calcUtilities(previewArea, parseFloat(utilitiesRate)) : 0)
   // A daily rate and a monthly utilities charge aren't the same unit — only sum
   // them into a monthly total when the rent itself is monthly.
   const total = rentType === 'per_day' ? 0 : rentCalc + utilsCalc
@@ -284,13 +290,13 @@ export default function PropertyFormScreen() {
       showToast({ type: 'error', title: 'Некоректне значення', subtitle: 'Корисна площа — лише число' }); return
     }
     if (areaTotal && numOrUndef(areaTotal) === undefined) {
-      showToast({ type: 'error', title: 'Некоректне значення', subtitle: 'Загальна площа — лише число' }); return
+      showToast({ type: 'error', title: 'Некоректне значення', subtitle: 'Розрахункова площа — лише число' }); return
     }
     if (rentRate && numOrUndef(rentRate) === undefined) {
       showToast({ type: 'error', title: 'Некоректне значення', subtitle: 'Орендна ставка — лише число' }); return
     }
     if (utilitiesRate && numOrUndef(utilitiesRate) === undefined) {
-      showToast({ type: 'error', title: 'Некоректне значення', subtitle: 'Ставка комунальних — лише число' }); return
+      showToast({ type: 'error', title: 'Некоректне значення', subtitle: 'Ставка експлуатаційних — лише число' }); return
     }
 
     if (status === 'for_sale' && salePrice && numOrUndef(salePrice) === undefined) {
@@ -307,7 +313,7 @@ export default function PropertyFormScreen() {
       return
     }
     if (au > 0 && at > 0 && au > at) {
-      showToast({ type: 'error', title: 'Корисна площа більша за загальну' })
+      showToast({ type: 'error', title: 'Корисна площа більша за розрахункову' })
       return
     }
     if (status === 'occupied' && leaseStartDate && leaseEndDate && leaseEndDate < leaseStartDate) {
@@ -324,6 +330,8 @@ export default function PropertyFormScreen() {
       area_useful: numOrUndef(areaUseful),
       // A parking spot has a single area; the office useful/total split doesn't apply.
       area_total: isParking ? undefined : numOrUndef(areaTotal),
+      // A parking spot has one area, so its basis is always that area (useful).
+      area_basis: isParking ? 'useful' : areaBasis,
       rent_type: rentType,
       rent_rate: numOrUndef(rentRate),
       utilities_rate: numOrUndef(utilitiesRate),
@@ -377,7 +385,7 @@ export default function PropertyFormScreen() {
           showToast({ type: 'error', title: 'Значення не може бути від\'ємним', subtitle: finalNames[i] }); return
         }
         if (rowAu && rowAt && rowAu > rowAt) {
-          showToast({ type: 'error', title: 'Корисна площа більша за загальну', subtitle: finalNames[i] }); return
+          showToast({ type: 'error', title: 'Корисна площа більша за розрахункову', subtitle: finalNames[i] }); return
         }
         rows.push({ au: rowAu, at: rowAt })
       }
@@ -535,7 +543,7 @@ export default function PropertyFormScreen() {
                       <>
                         <span style={{ color: 'var(--t4)', fontSize: 'var(--fs-cap1)' }}>/</span>
                         <input
-                          aria-label={`Загальна площа об'єкта ${i + 1}`}
+                          aria-label={`Розрахункова площа об'єкта ${i + 1}`}
                           className="num"
                           style={inputStyle}
                           type="text" inputMode="decimal"
@@ -600,9 +608,19 @@ export default function PropertyFormScreen() {
           </div>
           {!isParking && (
             <div className="fr">
-              <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconRuler size={13} color="var(--t3)" />Загальна</span>
+              <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconRuler size={13} color="var(--t3)" />Розрахункова</span>
               <input className="fr-i" type="text" inputMode="decimal" placeholder="52" value={areaTotal} onChange={e => setAreaTotal(sanitizeDecimal(e.target.value))} />
               <span className="fr-u">м²</span>
+            </div>
+          )}
+          {/* Which area the per-m² rate (rent AND expenses) multiplies by. */}
+          {!isParking && (
+            <div className="fr">
+              <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconRuler size={13} color="var(--t3)" />Рахувати від</span>
+              <div className="fr-seg" style={{ maxWidth: 220 }}>
+                <div className={`fr-seg-b ${areaBasis === 'useful' ? 'on' : ''}`} onClick={() => { hapticSelection(); setAreaBasis('useful') }}>Корисної</div>
+                <div className={`fr-seg-b ${areaBasis === 'total' ? 'on' : ''}`} onClick={() => { hapticSelection(); setAreaBasis('total') }}>Розрахункової</div>
+              </div>
             </div>
           )}
         </div>
@@ -642,7 +660,7 @@ export default function PropertyFormScreen() {
         </div>
 
         {/* Utilities */}
-        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconBolt size={13} color="#fbbf24" />Комунальні</span></div>
+        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconBolt size={13} color="#fbbf24" />Експлуатаційні</span></div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div className="fr">
             <span className="fr-l">{isParking ? 'Сума' : 'Ставка'}</span>
@@ -698,7 +716,7 @@ export default function PropertyFormScreen() {
             </div>
 
             {/* Utility services */}
-            <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconBolt size={13} color="#fbbf24" />Комунальні послуги</span></div>
+            <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconBolt size={13} color="#fbbf24" />Експлуатаційні послуги</span></div>
             <div className="glass-s" style={{ margin: '0 12px 16px', borderRadius: 'var(--r-md)' }}>
               <div className="util-tags">
                 {UTILITY_META.map(({ id, label, Icon, color }) => {
@@ -750,7 +768,7 @@ export default function PropertyFormScreen() {
             )}
             {utilsCalc > 0 && (
               <div className="sum-r">
-                <span>Комунальні</span>
+                <span>Експлуатаційні</span>
                 <span>{formatPrice(utilsCalc, user?.currency)}/міс</span>
               </div>
             )}

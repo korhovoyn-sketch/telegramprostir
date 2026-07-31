@@ -3,6 +3,8 @@ export type UserPlan = 'free' | 'pro'
 export type DatabaseType = 'business_center' | 'residential' | 'retail' | 'warehouse' | 'individual' | 'parking'
 export type PropertyStatus = 'free' | 'occupied' | 'for_sale'
 export type RentType = 'per_m2' | 'fixed' | 'per_day'
+// Which area a per-m² rate multiplies by: корисна (useful) or розрахункова (total).
+export type AreaBasis = 'useful' | 'total'
 export type ParkingType = 'underground' | 'covered' | 'open'
 export type NotificationAction = 'view' | 'photo' | 'document' | 'share' | 'favorite'
 
@@ -53,6 +55,7 @@ export interface Property {
   status: PropertyStatus
   area_useful?: number
   area_total?: number
+  area_basis?: AreaBasis
   rent_type: RentType
   rent_rate?: number
   utilities_rate?: number

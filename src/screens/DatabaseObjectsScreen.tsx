@@ -15,7 +15,7 @@ import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import Modal from '@/components/ui/Modal'
 import { IconPlus, IconDots, IconPhoto, IconShare, IconChevronUp, IconChevronDown, GlassDbIcon, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconCopy, IconUsers, IconFile, IconLayers, IconLayoutGrid, IconChartBar, IconKey, IconFileExport, IconCircleCheck, IconAdjustments, IconTrash, IconChevronRight } from '@/components/Icons'
 import DatabaseStatsPanel from '@/components/ui/DatabaseStatsPanel'
-import { formatPrice, calcRent, calcRentUtils, computedRentUnit, rentUnitLabel, objectsWord, DB_TYPE_LABELS, formatLeasePeriod, STATUS_COLORS } from '@/lib/utils'
+import { formatPrice, calcRent, calcRentUtils, basisArea, computedRentUnit, rentUnitLabel, objectsWord, DB_TYPE_LABELS, formatLeasePeriod, STATUS_COLORS } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import type { Database, PropertyStatus } from '@/types'
 import CoachMark from '@/components/ui/CoachMark'
@@ -137,8 +137,8 @@ export default function DatabaseObjectsScreen() {
       case 'status': return [...base].sort((a, b) => (STATUS_ORDER[a.status] ?? 3) - (STATUS_ORDER[b.status] ?? 3))
       case 'area':   return [...base].sort((a, b) => (b.area_useful ?? 0) - (a.area_useful ?? 0))
       case 'rent':   return [...base].sort((a, b) => {
-        const aR = calcRent(a.area_useful ?? 0, a.rent_rate ?? 0, a.rent_type ?? 'per_m2')
-        const bR = calcRent(b.area_useful ?? 0, b.rent_rate ?? 0, b.rent_type ?? 'per_m2')
+        const aR = calcRent(basisArea(a.area_useful, a.area_total, a.area_basis), a.rent_rate ?? 0, a.rent_type ?? 'per_m2')
+        const bR = calcRent(basisArea(b.area_useful, b.area_total, b.area_basis), b.rent_rate ?? 0, b.rent_type ?? 'per_m2')
         return bR - aR
       })
       default: return base
@@ -355,7 +355,7 @@ export default function DatabaseObjectsScreen() {
         ) : (
           <div className="list">
             {filtered.map((p, idx) => {
-              const { rent, utils, total } = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate)
+              const { rent, utils, total } = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate, p.area_basis)
               // A daily rate can't be summed with monthly utilities — show the raw
               // daily rate (/добу); everything else shows the monthly total (/міс).
               const isDaily = p.rent_type === 'per_day'
@@ -547,7 +547,7 @@ export default function DatabaseObjectsScreen() {
                             </span>
                             <div>
                               <div className="obj-tot-l">{isDaily ? 'За добу' : 'На місяць'}</div>
-                              <div className="obj-tot-sub">{isDaily ? 'подобово' : rent > 0 && utils > 0 ? 'оренда + комунальні' : rent > 0 ? 'оренда' : 'комунальні'}</div>
+                              <div className="obj-tot-sub">{isDaily ? 'подобово' : rent > 0 && utils > 0 ? 'оренда + експлуатаційні' : rent > 0 ? 'оренда' : 'експлуатаційні'}</div>
                             </div>
                           </div>
                           <div className="obj-tot-v">{formatPrice(dispVal, user?.currency)}</div>

@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAppStore } from '@/store/appStore'
-import { monthlyRent, humanizeDbError } from '@/lib/utils'
+import { monthlyRent, basisArea, humanizeDbError } from '@/lib/utils'
 import { readSnapshot, writeSnapshot } from '@/lib/snapshot'
 import type { Database } from '@/types'
 
@@ -41,7 +41,7 @@ export function useDatabases() {
       const [{ data, error }, memberRes] = await Promise.all([
         supabase
           .from('databases')
-          .select(`${DB_COLUMNS}, properties(status, rent_rate, area_useful, rent_type)`)
+          .select(`${DB_COLUMNS}, properties(status, rent_rate, area_useful, area_total, area_basis, rent_type)`)
           .eq('owner_id', user.id)
           .order('created_at', { ascending: false }),
         supabase
@@ -64,7 +64,7 @@ export function useDatabases() {
       if (memberIds.length > 0) {
         const { data: mData } = await supabase
           .from('databases')
-          .select(`${DB_COLUMNS}, properties(status, rent_rate, area_useful, rent_type)`)
+          .select(`${DB_COLUMNS}, properties(status, rent_rate, area_useful, area_total, area_basis, rent_type)`)
           .in('id', memberIds)
           .order('created_at', { ascending: false })
         memberRows = mData ?? []
@@ -75,13 +75,13 @@ export function useDatabases() {
         ...(memberRows || []).map((d) => ({ ...(d as Record<string, unknown>), _member: true })),
       ].map((d) => {
         const row = d as Record<string, unknown>
-        type PropRow = { status: string; rent_rate?: number; area_useful?: number; rent_type?: string }
+        type PropRow = { status: string; rent_rate?: number; area_useful?: number; area_total?: number; area_basis?: string; rent_type?: string }
         const props = (row.properties as PropRow[]) ?? []
         const monthlyIncome = props
           .filter(p => p.status === 'occupied' && p.rent_rate)
           .reduce((sum, p) => {
             if (!p.rent_rate) return sum
-            return sum + monthlyRent(p.area_useful ?? 0, p.rent_rate, p.rent_type ?? 'per_m2')
+            return sum + monthlyRent(basisArea(p.area_useful, p.area_total, p.area_basis), p.rent_rate, p.rent_type ?? 'per_m2')
           }, 0)
         return {
           ...row,

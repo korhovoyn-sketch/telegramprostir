@@ -67,6 +67,26 @@ export function isDeepLinkStartParam(p: string | null | undefined): boolean {
   return !!p && DEEP_LINK_PREFIXES.some((x) => p.startsWith(x))
 }
 
+/** Deep-link kind = the prefix without its trailing underscore. */
+export type DeepLinkKind = 'db' | 'prop' | 'col' | 'guest' | 'team'
+
+/**
+ * Parse a start_param into its kind + token. Single source for the
+ * prefix→token split — previously the `.slice(3|4|5|6)` offsets lived inline
+ * (with magic numbers) in useDeepLink's dispatcher AND Splash's no-session
+ * branch, which is exactly how a prefix once drifted out of sync. Returns null
+ * for anything that isn't a known deep link.
+ */
+export function parseStartParam(p: string | null | undefined): { kind: DeepLinkKind; token: string } | null {
+  if (!p) return null
+  for (const prefix of DEEP_LINK_PREFIXES) {
+    if (p.startsWith(prefix)) {
+      return { kind: prefix.slice(0, -1) as DeepLinkKind, token: p.slice(prefix.length) }
+    }
+  }
+  return null
+}
+
 export function buildPublicUrl(type: 'prop' | 'db' | 'col', token: string): string {
   const origin = typeof window !== 'undefined' ? window.location.origin : ''
   return `${origin}/v/?${type}=${encodeURIComponent(token)}`

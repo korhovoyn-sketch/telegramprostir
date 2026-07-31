@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { useAuth, RESTORE_BUDGET_MS } from '@/hooks/useAuth'
 import { useTelegram } from '@/hooks/useTelegram'
-import { isDeepLinkStartParam } from '@/lib/telegram'
+import { isDeepLinkStartParam, parseStartParam } from '@/lib/telegram'
 
 // How long to wait for a stored session to restore before giving up and
 // showing WelcomeScreen. Auto-login (Edge Function) is intentionally NOT done
@@ -102,17 +102,18 @@ export default function SplashScreen() {
         return
       }
 
-      // No session — check for public share links that work without login
-      const startParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param ?? ''
-      if (startParam.startsWith('db_')) {
+      // No session — check for public share links that work without login.
+      // Same parser as useDeepLink, so the prefix→token split can't drift apart.
+      const parsed = parseStartParam(window.Telegram?.WebApp?.initDataUnsafe?.start_param)
+      if (parsed?.kind === 'db') {
         setProgress(100)
-        navigateRoot('guest-database', { token: startParam.slice(3) })
+        navigateRoot('guest-database', { token: parsed.token })
         return
       }
-      if (startParam.startsWith('guest_')) {
+      if (parsed?.kind === 'guest') {
         // Guest invite — show preview then prompt to register
         setProgress(100)
-        navigateRoot('guest-database', { token: startParam.slice(6), guestMode: true })
+        navigateRoot('guest-database', { token: parsed.token, guestMode: true })
         return
       }
 

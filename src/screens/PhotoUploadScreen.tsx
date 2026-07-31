@@ -3,9 +3,8 @@
 import { useEffect, useState, useRef } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { offlineGuard } from '@/lib/offline'
-import { compressImage } from '@/lib/image'
+import { uploadPropertyPhoto } from '@/lib/photoUpload'
 import Header from '@/components/ui/Header'
-import { supabase } from '@/lib/supabase'
 import { humanizeDbError } from '@/lib/utils'
 import { IconCheck, IconX } from '@/components/Icons'
 
@@ -81,39 +80,12 @@ export default function PhotoUploadScreen() {
       const currentIdx = idx
       setQueue((q) => q.map((x, i) => i === currentIdx ? { ...x, status: 'uploading', progress: 10 } : x))
 
-      // Resize/re-encode before upload — a 10 MB camera shot becomes a few
-      // hundred KB. compressImage fails open, so the original goes up if the
-      // device can't decode it (old WebView / exotic HEIC).
-      const file = await compressImage(files[idx])
-
-      const rawExt = file.name.split('.').pop() ?? ''
-      const ext = /^[a-z0-9]{2,5}$/i.test(rawExt) ? rawExt.toLowerCase() : 'jpg'
-      const path = `${propertyId}/${Date.now()}_${currentIdx}_${Math.random().toString(36).slice(2)}.${ext}`
-
+      // Shared pipeline (lib/photoUpload) handles compress → path → upload →
+      // insert → orphan cleanup; the queue index becomes the row's sort_order.
       try {
-        const { error: upErr } = await supabase.storage
-          .from('photos')
-          .upload(path, file)
-
-        if (upErr) {
-          setQueue((q) => q.map((x, i) => i === currentIdx
-            ? { ...x, status: 'error', progress: 0, errorMsg: upErr.message } : x))
-          showToast({ type: 'error', title: 'Помилка завантаження', subtitle: upErr.message })
-        } else {
-          const { error: dbErr } = await supabase
-            .from('property_photos')
-            .insert({ property_id: propertyId, storage_path: path, sort_order: currentIdx })
-          if (dbErr) {
-            // File uploaded but DB record failed — clean up storage
-            await supabase.storage.from('photos').remove([path]).catch(() => {})
-            setQueue((q) => q.map((x, i) => i === currentIdx
-              ? { ...x, status: 'error', progress: 0, errorMsg: dbErr.message } : x))
-            showToast({ type: 'error', title: 'Помилка збереження', subtitle: dbErr.message })
-          } else {
-            setQueue((q) => q.map((x, i) => i === currentIdx
-              ? { ...x, status: 'done', progress: 100, path } : x))
-          }
-        }
+        const path = await uploadPropertyPhoto(propertyId, files[currentIdx], currentIdx)
+        setQueue((q) => q.map((x, i) => i === currentIdx
+          ? { ...x, status: 'done', progress: 100, path } : x))
       } catch (e) {
         const msg = humanizeDbError(e, 'Невідома помилка')
         setQueue((q) => q.map((x, i) => i === currentIdx

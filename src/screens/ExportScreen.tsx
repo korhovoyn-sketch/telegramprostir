@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase'
 import Header from '@/components/ui/Header'
 import Toggle from '@/components/ui/Toggle'
 import { IconFileExport, IconFile, IconAdjustments } from '@/components/Icons'
-import { calcRent, calcUtilities, rentUnitLabel, objectsWord, DB_TYPE_LABELS, STATUS_LABELS, formatDate, humanizeDbError, safeFileName } from '@/lib/utils'
+import { calcRentUtils, rentUnitLabel, objectsWord, DB_TYPE_LABELS, STATUS_LABELS, formatDate, humanizeDbError, safeFileName } from '@/lib/utils'
 import type { Property, Database } from '@/types'
 
 const FORMATS = [
@@ -161,7 +161,7 @@ async function generatePDF(
   const occupiedCount = rows.filter(p => p.status === 'occupied').length
   const saleCount     = rows.filter(p => p.status === 'for_sale').length
   const totalRent     = rows.reduce((s, p) => {
-    const r = p.rent_rate && p.area_useful ? calcRent(p.area_useful, p.rent_rate, p.rent_type) : 0
+    const r = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate, p.area_basis).rent
     return s + r
   }, 0)
 
@@ -194,8 +194,7 @@ async function generatePDF(
   const tableY = cardY + 24
 
   const tableRows = rows.map(p => {
-    const rent  = p.rent_rate && p.area_useful ? calcRent(p.area_useful, p.rent_rate, p.rent_type) : 0
-    const utils = p.utilities_rate && p.area_total ? calcUtilities(p.area_total, p.utilities_rate) : 0
+    const { rent, utils } = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate, p.area_basis)
     return [
       p.name,
       p.floor ?? '—',
@@ -211,7 +210,7 @@ async function generatePDF(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ;(doc as unknown as any).autoTable({
     startY: tableY,
-    head: [['Назва', 'Пов.', 'Статус', 'Корисна', 'Загальна', 'Ставка', 'Комун.', 'Разом/міс']],
+    head: [['Назва', 'Пов.', 'Статус', 'Корисна', 'Розрах.', 'Ставка', 'Експл.', 'Разом/міс']],
     body: tableRows,
     styles: {
       font: 'Roboto',
@@ -261,8 +260,7 @@ async function generatePDF(
     doc.addPage()
     fillBg()
 
-    const rent  = p.rent_rate && p.area_useful ? calcRent(p.area_useful, p.rent_rate, p.rent_type) : 0
-    const utils = p.utilities_rate && p.area_total ? calcUtilities(p.area_total, p.utilities_rate) : 0
+    const { rent, utils } = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate, p.area_basis)
     const total = rent + utils
     const st    = STATUS_STYLE[p.status] ?? STATUS_STYLE.free
 
@@ -344,7 +342,7 @@ async function generatePDF(
     drawSection('ПЛОЩА', y)
     y += 5
     const yL1 = drawField('Корисна площа', p.area_useful ? `${p.area_useful} м²` : '—', CL, y, CW)
-    const yR1 = drawField('Загальна площа', p.area_total  ? `${p.area_total} м²`  : '—', CR, y, CW)
+    const yR1 = drawField('Розрахункова площа', p.area_total  ? `${p.area_total} м²`  : '—', CR, y, CW)
     y = Math.max(yL1, yR1) + 3
     const yL2 = drawField('Поверх', p.floor ? `${p.floor} поверх` : '—', CL, y, CW)
     y = yL2 + 6
@@ -359,8 +357,8 @@ async function generatePDF(
     const yR3 = drawField('Оренда на місяць', rent  ? `$${rent}`  : '—', CR, y, CW)
     y = Math.max(yL3, yR3) + 3
     const utilsRateStr = p.utilities_rate ? `${p.utilities_rate} $ / м² / міс` : '—'
-    const yL4 = drawField('Ставка комунальних',    utilsRateStr,          CL, y, CW)
-    const yR4 = drawField('Комунальні на місяць',  utils ? `$${utils}` : '—', CR, y, CW)
+    const yL4 = drawField('Ставка експлуатаційних',    utilsRateStr,          CL, y, CW)
+    const yR4 = drawField('Експлуатаційні на місяць',  utils ? `$${utils}` : '—', CR, y, CW)
     y = Math.max(yL4, yR4) + 4
 
     // Total highlight box
@@ -377,7 +375,7 @@ async function generatePDF(
     doc.setFont('Roboto', 'normal')
     doc.setFontSize(8.5)
     doc.setTextColor(...TXSEC)
-    doc.text('Разом на місяць (оренда + комунальні)', M + 5, y + 10)
+    doc.text('Разом на місяць (оренда + експлуатаційні)', M + 5, y + 10)
     doc.setFont('Roboto', 'bold')
     doc.setFontSize(16)
     doc.setTextColor(...ACC)
@@ -463,9 +461,9 @@ async function generateExcel(
   // Header
   const headers = [
     '№', 'Назва', 'Поверх', 'Статус',
-    'Площа корисна (м²)', 'Площа загальна (м²)',
+    'Площа корисна (м²)', 'Площа розрахункова (м²)',
     'Ставка оренди', 'Тип ставки',
-    'Оренда на місяць ($)', 'Комунальні на місяць ($)',
+    'Оренда на місяць ($)', 'Експлуатаційні на місяць ($)',
     'Разом на місяць ($)',
     'Паркінг', 'Місць паркінгу',
     'Опис', 'Додано',
@@ -476,8 +474,7 @@ async function generateExcel(
 
   // Data rows
   rows.forEach((p, idx) => {
-    const rent  = p.rent_rate && p.area_useful ? calcRent(p.area_useful, p.rent_rate, p.rent_type) : 0
-    const utils = p.utilities_rate && p.area_total ? calcUtilities(p.area_total, p.utilities_rate) : 0
+    const { rent, utils } = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate, p.area_basis)
     sheetData.push([
       idx + 1,
       p.name,
@@ -522,11 +519,11 @@ async function generateExcel(
     { wch: 8  }, // Поверх
     { wch: 12 }, // Статус
     { wch: 18 }, // Площа корисна
-    { wch: 18 }, // Площа загальна
+    { wch: 18 }, // Площа розрахункова
     { wch: 14 }, // Ставка
     { wch: 18 }, // Тип ставки
     { wch: 18 }, // Оренда
-    { wch: 18 }, // Комунальні
+    { wch: 18 }, // Експлуатаційні
     { wch: 18 }, // Разом
     { wch: 10 }, // Паркінг
     { wch: 12 }, // Місць
@@ -541,7 +538,7 @@ async function generateExcel(
   const summaryData: (string | number)[][] = [
     ['Зведена таблиця', `${db.name}`],
     [],
-    ['Статус', 'Кількість', 'Загальна площа (м²)', 'Сума оренди ($/міс)'],
+    ['Статус', 'Кількість', 'Розрахункова площа (м²)', 'Сума оренди ($/міс)'],
   ]
   const statuses: Array<{ key: string; label: string }> = [
     { key: 'free',     label: 'Вільно'  },
@@ -552,7 +549,7 @@ async function generateExcel(
     const group = properties.filter(p => p.status === key)
     const totalArea = group.reduce((s, p) => s + (p.area_useful ?? 0), 0)
     const totalRent = group.reduce((s, p) => {
-      const r = p.rent_rate && p.area_useful ? calcRent(p.area_useful, p.rent_rate, p.rent_type) : 0
+      const r = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate, p.area_basis).rent
       return s + r
     }, 0)
     summaryData.push([label, group.length, totalArea, totalRent])
@@ -562,7 +559,7 @@ async function generateExcel(
     properties.length,
     properties.reduce((s, p) => s + (p.area_useful ?? 0), 0),
     properties.reduce((s, p) => {
-      const r = p.rent_rate && p.area_useful ? calcRent(p.area_useful, p.rent_rate, p.rent_type) : 0
+      const r = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate, p.area_basis).rent
       return s + r
     }, 0),
   ])
