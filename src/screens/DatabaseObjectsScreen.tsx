@@ -576,7 +576,7 @@ export default function DatabaseObjectsScreen() {
                               className="obj-act-btn"
                               onClick={() => navigate('property-form', { propertyId: p.id, dbId: db.id })}
                             >
-                              <IconEdit size={13} /> Редагувати
+                              <IconEdit size={12} /> Редагувати
                             </button>
                           )}
                           {isOwner && (
@@ -584,7 +584,7 @@ export default function DatabaseObjectsScreen() {
                               className="obj-act-btn"
                               onClick={() => { hapticSelection(); navigate('property-form', { dbId: db.id, duplicateId: p.id }) }}
                             >
-                              <IconCopy size={13} /> Дублювати
+                              <IconCopy size={12} /> Дублювати
                             </button>
                           )}
                           {p.status === 'occupied' && (
@@ -592,14 +592,14 @@ export default function DatabaseObjectsScreen() {
                               className="obj-act-btn"
                               onClick={() => navigate('payment-calendar', { propertyId: p.id, dbId: db.id })}
                             >
-                              <IconCalendar size={13} /> Платежі
+                              <IconCalendar size={12} /> Платежі
                             </button>
                           )}
                           <button
                             className="obj-act-btn"
                             onClick={() => navigate('property-detail', { propertyId: p.id, dbId: db.id, scrollTo: 'files' })}
                           >
-                            <IconFile size={13} /> Файли
+                            <IconFile size={12} /> Файли
                           </button>
                         </div>
                       )}
