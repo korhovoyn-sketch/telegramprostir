@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useId, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { scrollFocusedIntoView } from '@/lib/utils'
 
 // Mounted-modal stack: Escape must close only the TOPMOST modal (a confirm
@@ -32,6 +33,12 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
   // then onClose actually unmounts us (open slid up but close used to just pop).
   const [closing, setClosing] = useState(false)
   const firedRef = useRef(false)
+  // Portal target only exists in the browser (static export prerenders on Node).
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
+  // Re-entry guard: a destructive action is usually async and leaves the modal
+  // up while it flies, so a fast double-tap fired it twice (double DELETE).
+  const [busy, setBusy] = useState(false)
 
   const requestClose = () => {
     if (firedRef.current) return
@@ -169,7 +176,12 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [closing])
 
-  return (
+  if (!mounted) return null
+
+  // Portal to <body>: .modal uses backdrop-filter, which makes it a containing
+  // block for position:fixed descendants — a nested confirm rendered in-tree was
+  // clipped to the parent sheet (floated mid-screen, backdrop covered only it).
+  return createPortal(
     <div
       ref={overlayRef}
       className={`modal-overlay${closing ? ' closing' : ''}`}
@@ -208,8 +220,12 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
                   <button
                     key={a.label}
                     className={`modal-btn ${a.variant}`}
-                    onClick={a.onClick}
-                    disabled={a.disabled}
+                    onClick={async () => {
+                      if (busy) return
+                      setBusy(true)
+                      try { await a.onClick() } finally { setBusy(false) }
+                    }}
+                    disabled={a.disabled || busy}
                   >
                     {a.label}
                   </button>
@@ -219,6 +235,7 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

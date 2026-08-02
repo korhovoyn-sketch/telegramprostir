@@ -70,6 +70,10 @@ async function fixtures(page: Page) {
     return json(route, [])
   })
   await page.route('**/rest/v1/rent_payment_records**', (route) => json(route, []))
+  await page.route('**/rest/v1/property_folders**', (route) => json(route, [{
+    id: '40000000-0000-0000-0000-0000000000a1', db_id: DB_ID, owner_id: USER.id,
+    name: 'Перший поверх', sort_order: 100, created_at: NOW, updated_at: NOW,
+  }]))
   await page.addInitScript(() => {
     localStorage.setItem('ob_v1', JSON.stringify(['owner-fab', 'obj-fab', 'realtor-qr', 'col-fab']))
   })
@@ -187,6 +191,40 @@ test('modal: swipe down on the header dismisses', async ({ page }) => {
   })
 
   await expect(page.locator('.modal')).toHaveCount(0)
+})
+
+test('nested modal fills the viewport, not the parent sheet', async ({ page }) => {
+  await fixtures(page)
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+  await page.getByText('БЦ Рубін').first().click()
+  await expect(page.getByText('Всі (3)')).toBeVisible()
+
+  // Меню бази → Папки → підтвердження видалення = модалка ВСЕРЕДИНІ модалки.
+  await page.getByLabel('Меню бази').click()
+  await page.getByText('Папки', { exact: true }).click()
+  await expect(page.getByText('Групуйте').first()).toBeVisible()
+  await page.getByLabel('Видалити').first().click()
+  await expect(page.getByText(/Видалити папку/)).toBeVisible()
+  await page.waitForTimeout(500) // дочекатись кінця slide-up, інакше міряємо на льоту
+
+  // .modal має backdrop-filter → containing block для position:fixed нащадків.
+  // Без порталу вкладений оверлей затискався в батьківський шит (плавав по
+  // центру з чорною діркою знизу). Портал у <body> це лікує.
+  const geo = await page.evaluate(() => {
+    const ovs = [...document.querySelectorAll('.modal-overlay')]
+    const last = ovs[ovs.length - 1] as HTMLElement
+    const r = last.getBoundingClientRect()
+    const modal = last.querySelector('.modal') as HTMLElement
+    return {
+      count: ovs.length, top: Math.round(r.top), height: Math.round(r.height),
+      vh: window.innerHeight, modalBottom: Math.round(modal.getBoundingClientRect().bottom),
+    }
+  })
+  expect(geo.count).toBe(2)
+  expect(geo.top).toBe(0)
+  expect(geo.height).toBe(geo.vh)
+  expect(geo.modalBottom).toBe(geo.vh) // шит притиснутий до низу екрана
 })
 
 test('schedule modal: day outside 1–28 shows the range error; valid day saves', async ({ page }) => {
