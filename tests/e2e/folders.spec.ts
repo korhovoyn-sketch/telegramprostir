@@ -113,6 +113,24 @@ test('folders: manage modal creates a folder', async ({ page }) => {
   expect(JSON.parse(req.postData() ?? '{}').name).toBe('Підвал')
 })
 
+test('folders: duplicate name is rejected without a POST', async ({ page }) => {
+  await setupFixtures(page)
+  let posted = false
+  await page.route('**/rest/v1/property_folders**', (route) => {
+    if (route.request().method() === 'POST') { posted = true; return jsonRoute(route, [], 201) }
+    return route.fallback()
+  })
+  await openObjects(page)
+
+  await page.getByLabel('Меню бази').click()
+  await page.getByText('Папки', { exact: true }).click()
+  // "Перший поверх" already exists in the fixture folders.
+  await page.getByPlaceholder('Нова папка…').fill('Перший поверх')
+  await page.getByRole('button', { name: 'Додати', exact: true }).click()
+  await expect(page.getByText('Така папка вже є')).toBeVisible()
+  expect(posted).toBe(false)
+})
+
 test('folders: bulk move sends a folder_id PATCH', async ({ page }) => {
   await setupFixtures(page)
   let patchBody: Record<string, unknown> | null = null
