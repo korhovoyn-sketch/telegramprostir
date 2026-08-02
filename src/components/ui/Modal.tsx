@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { scrollFocusedIntoView } from '@/lib/utils'
 
 // Mounted-modal stack: Escape must close only the TOPMOST modal (a confirm
@@ -24,6 +24,22 @@ interface ModalProps {
 export default function Modal({ title, subtitle, onClose, children, actions }: ModalProps) {
   const idRef = useRef<symbol | null>(null)
   if (idRef.current === null) idRef.current = Symbol('modal')
+  const titleId = useId()
+  const modalRef = useRef<HTMLDivElement>(null)
+  // Exit animation: dismiss gestures set `closing`, the slide-down/​fade plays,
+  // then onClose actually unmounts us (open slid up but close used to just pop).
+  const [closing, setClosing] = useState(false)
+  const firedRef = useRef(false)
+
+  const requestClose = () => {
+    if (firedRef.current) return
+    setClosing(true)
+  }
+  const finishClose = () => {
+    if (firedRef.current) return
+    firedRef.current = true
+    onClose()
+  }
 
   useEffect(() => {
     const id = idRef.current!
@@ -34,22 +50,55 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
     }
   }, [])
 
-  // Desktop Telegram / web: Escape mirrors the backdrop tap — but only for
-  // the topmost modal.
+  // Desktop Telegram / web: Escape mirrors the backdrop tap — topmost only.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && modalStack[modalStack.length - 1] === idRef.current) onClose()
+      if (e.key === 'Escape' && modalStack[modalStack.length - 1] === idRef.current) requestClose()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+  }, [])
+
+  // Lock background scroll while open (nesting-safe: each restores the prior value).
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [])
+
+  // Move focus into the dialog for a11y — unless an inner input already grabbed
+  // it (e.g. an autoFocus rename field), which we must not steal.
+  useEffect(() => {
+    const el = modalRef.current
+    if (el && !el.contains(document.activeElement)) el.focus()
+  }, [])
+
+  // Safety net: if the exit animation never fires (reduced-motion edge cases,
+  // interrupted paint), still unmount shortly after a close was requested.
+  useEffect(() => {
+    if (!closing) return
+    const t = setTimeout(finishClose, 320)
+    return () => clearTimeout(t)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [closing])
 
   return (
-    <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div className="modal">
+    <div
+      className={`modal-overlay${closing ? ' closing' : ''}`}
+      onClick={(e) => { if (e.target === e.currentTarget) requestClose() }}
+    >
+      <div
+        ref={modalRef}
+        className={`modal${closing ? ' closing' : ''}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        onAnimationEnd={(e) => { if (closing && e.target === modalRef.current) finishClose() }}
+      >
         {/* Fixed header — never scrolls */}
         <div className="modal-head">
-          <div className="modal-h">{title}</div>
+          <div className="modal-h" id={titleId}>{title}</div>
           {subtitle && <div className="modal-s">{subtitle}</div>}
         </div>
 
