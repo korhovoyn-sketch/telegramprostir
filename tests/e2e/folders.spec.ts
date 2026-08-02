@@ -91,9 +91,10 @@ test('folders: accordion sections group objects and collapse', async ({ page }) 
   await expect(page.locator('.obj-card', { hasText: 'Офіс 101' })).toBeVisible()
   await expect(page.locator('.obj-card', { hasText: 'Офіс 102' })).toBeVisible()
 
-  // Collapsing folder A hides its objects.
+  // Collapsing folder A hides its objects (kept mounted for the animation, but
+  // visibility:hidden once collapsed).
   await page.locator('.fold-hd', { hasText: 'Перший поверх' }).click()
-  await expect(page.locator('.obj-card', { hasText: 'Офіс 101' })).toHaveCount(0)
+  await expect(page.locator('.obj-card', { hasText: 'Офіс 101' })).toBeHidden()
   // The unfoldered object stays visible (different section).
   await expect(page.locator('.obj-card', { hasText: 'Офіс 103' })).toBeVisible()
 })
