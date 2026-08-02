@@ -684,20 +684,20 @@ export default function DatabaseObjectsScreen() {
             </button>
           </div>
         ) : sections ? (
+          // Header + cards are flat siblings of .list so its gap spaces them
+          // uniformly (a wrapper div would swallow the inter-card gap).
           <div className="list">
-            {sections.map((sec) => {
+            {sections.flatMap((sec) => {
               const open = forceExpand || !collapsed.has(sec.key)
-              return (
-                <div key={sec.key}>
-                  <div className="fold-hd" onClick={() => toggleFolder(sec.key)}>
-                    <span className={`fold-hd-chev ${open ? 'open' : ''}`}><IconChevronRight size={16} /></span>
-                    <span className="fold-hd-ic">{sec.id ? <IconFolder size={16} /> : <IconInbox size={16} />}</span>
-                    <span className="fold-hd-name">{sec.name}</span>
-                    <span className="fold-hd-cnt">{sec.items.length}</span>
-                  </div>
-                  {open && sec.items.map((p) => renderCard(p, 0))}
+              const header = (
+                <div key={`fold-${sec.key}`} className={`fold-hd ${open ? 'open' : ''}`} onClick={() => toggleFolder(sec.key)}>
+                  <span className={`fold-hd-chev ${open ? 'open' : ''}`}><IconChevronRight size={16} /></span>
+                  <span className="fold-hd-ic">{sec.id ? <IconFolder size={16} /> : <IconInbox size={16} />}</span>
+                  <span className="fold-hd-name">{sec.name}</span>
+                  <span className="fold-hd-cnt">{sec.items.length}</span>
                 </div>
               )
+              return open ? [header, ...sec.items.map((p) => renderCard(p, 0))] : [header]
             })}
           </div>
         ) : (
