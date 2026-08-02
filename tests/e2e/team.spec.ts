@@ -204,8 +204,8 @@ test('deep link: claim_team_invite success lands on the team db', async ({ page 
 
   await page.goto('/')
   await expect(page.getByText('Ви в команді! 🎉')).toBeVisible({ timeout: 20_000 })
-  // Лендинг: db-objects бази команди
-  await expect(page.getByText('БЦ Чужий', { exact: true })).toBeVisible()
+  // Лендинг: db-objects бази команди (назва — у хедері екрана)
+  await expect(page.locator('.hdr-t', { hasText: 'БЦ Чужий' })).toBeVisible()
   await expect(page.getByText('Всі (1)')).toBeVisible()
   expect(claimedToken).toBe('feedfacecafe00112233')
 })

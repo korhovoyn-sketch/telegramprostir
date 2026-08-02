@@ -11,7 +11,7 @@ import Header from '@/components/ui/Header'
 import Toggle from '@/components/ui/Toggle'
 import Modal from '@/components/ui/Modal'
 import FolderPickerModal from '@/components/ui/FolderPickerModal'
-import { IconRuler, IconLayers, IconLayoutGrid, IconActivity, IconBuilding, IconCurrencyDollar, IconBolt, IconCarGarage, IconFile, IconUser, IconKey, IconMapPin, IconEdit, IconFolder, IconChevronRight } from '@/components/Icons'
+import { IconRuler, IconLayers, IconLayoutGrid, IconActivity, IconBuilding, IconCurrencyDollar, IconBolt, IconCarGarage, IconFile, IconUser, IconKey, IconMapPin, IconEdit, IconFolder, IconChevronRight, IconTrash } from '@/components/Icons'
 import { UTILITY_META } from '@/lib/utilityMeta'
 import FilesList from '@/components/ui/FilesList'
 import { currencySymbol, sanitizeDecimal, sanitizeInt, formatPrice, calcRent, calcUtilities, basisArea, rentUnitLabel, nextCopyName, bulkCreateNames, objectsWord, scrollFocusedIntoView } from '@/lib/utils'
@@ -437,7 +437,7 @@ export default function PropertyFormScreen() {
               onClick={() => setShowDeleteModal(true)}
               style={{ background: 'none', border: 'var(--bd)', color: 'var(--err)' }}
             >
-              🗑️
+              <IconTrash size={16} />
             </button>
           ) : <div className="hdr-sp" />
         }
@@ -614,12 +614,12 @@ export default function PropertyFormScreen() {
               </div>
               <div className="fr">
                 <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconKey size={13} color="var(--t3)" />Договір з</span>
-                <input className="fr-i" type="date" value={leaseStartDate} onChange={e => setLeaseStartDate(e.target.value)}
+                <input className="fr-i" type="date" lang="uk-UA" value={leaseStartDate} onChange={e => setLeaseStartDate(e.target.value)}
                   style={{ colorScheme: 'dark' }} />
               </div>
               <div className="fr">
                 <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconKey size={13} color="var(--t3)" />Договір до</span>
-                <input className="fr-i" type="date" value={leaseEndDate} onChange={e => setLeaseEndDate(e.target.value)}
+                <input className="fr-i" type="date" lang="uk-UA" value={leaseEndDate} onChange={e => setLeaseEndDate(e.target.value)}
                   style={{ colorScheme: 'dark' }} />
               </div>
             </div>
