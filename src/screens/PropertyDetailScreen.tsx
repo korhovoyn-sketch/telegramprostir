@@ -309,17 +309,19 @@ export default function PropertyDetailScreen() {
             </div>
           )}
 
-          <div className="obj-hero-meta">
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div className="obj-hero-name">{property.name}</div>
-            </div>
-            {photos.length > 0 && (
+          {/* Name overlay is a photo caption; without a photo it only duplicates
+              the header title, so show the meta bar only when there's a photo. */}
+          {photos.length > 0 && (
+            <div className="obj-hero-meta">
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="obj-hero-name">{property.name}</div>
+              </div>
               <div className="obj-hero-photos" onClick={(e) => { e.stopPropagation(); openGallery(0) }}>
                 <IconPhoto size={10} />
                 {photos.length} фото
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Details grid */}
@@ -640,6 +642,12 @@ export default function PropertyDetailScreen() {
 
         <div style={{ height: 100 }} />
       </div>
+
+      {/* Scrim so scrolled content fades under the floating CTA (не «наїжджає») */}
+      {((isOwner && (property.status === 'free' || property.status === 'occupied')) ||
+        (property.owner_id === user?.id && property.status === 'for_sale')) && (
+        <div className="cta-scrim" aria-hidden />
+      )}
 
       {isOwner && property.status === 'free' && (
         <FloatingButton

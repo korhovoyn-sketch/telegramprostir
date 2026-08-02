@@ -241,12 +241,6 @@ export default function DatabaseListScreen() {
             ))}
           </div>
         ) : null}
-
-        {/* CTA */}
-        <div className="cta" onClick={() => { hapticImpact('light'); navigate('create-db') }}>
-          <IconPlus size={16} />
-          Створити нову базу
-        </div>
       </div>
 
       <button

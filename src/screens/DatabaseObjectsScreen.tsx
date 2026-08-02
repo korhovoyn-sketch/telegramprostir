@@ -16,7 +16,7 @@ import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import Modal from '@/components/ui/Modal'
 import FolderManageModal from '@/components/ui/FolderManageModal'
 import FolderPickerModal from '@/components/ui/FolderPickerModal'
-import { IconPlus, IconDots, IconPhoto, IconShare, IconChevronUp, IconChevronDown, GlassDbIcon, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconCopy, IconUser, IconUsers, IconFile, IconLayers, IconLayoutGrid, IconChartBar, IconKey, IconFileExport, IconCircleCheck, IconAdjustments, IconTrash, IconChevronRight, IconFolder, IconInbox } from '@/components/Icons'
+import { IconPlus, IconDots, IconPhoto, IconChevronUp, IconChevronDown, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconCopy, IconUser, IconUsers, IconFile, IconLayers, IconLayoutGrid, IconChartBar, IconKey, IconFileExport, IconCircleCheck, IconAdjustments, IconTrash, IconChevronRight, IconFolder, IconInbox } from '@/components/Icons'
 import DatabaseStatsPanel from '@/components/ui/DatabaseStatsPanel'
 import { formatPrice, calcRent, calcRentUtils, basisArea, floorSortKey, computedRentUnit, rentUnitLabel, objectsWord, DB_TYPE_LABELS, formatLeasePeriod, STATUS_COLORS } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
@@ -516,29 +516,9 @@ export default function DatabaseObjectsScreen() {
       />
 
       <div className="body has-fab">
-        {/* DB info card */}
-        <div className="info-card glass-s" style={{ margin: '0 12px 12px' }}>
-          <GlassDbIcon type={db.type} color={db.color} size={36} />
-          <div className="info-mn">
-            <div className="info-t">{db.name}</div>
-            <div className="info-s">
-              <span>{properties.length} {objectsWord(properties.length)}</span>
-              <span>·</span>
-              <span>{counts.free} вільно</span>
-            </div>
-          </div>
-          {/* Шаринг-аналітика — лише справжній власник (редактор команди не
-              керує токенами/гостями, RLS все одно відхилить) */}
-          {db.owner_id === user?.id && (
-            <button
-              className="info-act"
-              aria-label="Аналітика та поширення"
-              onClick={() => navigate('sharing-analytics', { dbId: db.id })}
-            >
-              <IconShare size={14} />
-            </button>
-          )}
-        </div>
+        {/* No summary card here — the header already names the DB, the segment
+            tabs carry the counts, and share lives in the «⋯» menu. Dropping it
+            lifts real content above the fold. */}
 
         {/* Segment tabs — hidden while reordering */}
         {!reorderMode && (
@@ -565,42 +545,43 @@ export default function DatabaseObjectsScreen() {
           <SearchBar value={search} onChange={setSearch} placeholder="Пошук об'єкту..." />
         )}
 
-        {/* Sort selector — hidden while reordering/selecting */}
-        {!reorderMode && !selectMode && properties.length > 1 && (
-          <div style={{ margin: '0 12px 8px', display: 'flex', alignItems: 'center', gap: 6, overflowX: 'auto', paddingBottom: 2 }}>
-            <IconActivity size={12} color="var(--t4)" />
-            {([
-              { id: 'default', label: 'За порядком' },
-              { id: 'floor',   label: 'За поверхом' },
-              { id: 'rent',    label: 'За орендою'  },
-              { id: 'area',    label: 'За площею'   },
-            ] as const).map(opt => (
-              <button
-                key={opt.id}
-                onClick={() => setSortBy(opt.id)}
-                style={{
-                  flexShrink: 0,
-                  padding: '3px 9px', borderRadius: 8,
-                  background: sortBy === opt.id ? 'rgba(122,179,255,.22)' : 'var(--glass-1)',
-                  color:      sortBy === opt.id ? '#7AB3FF' : 'var(--t3)',
-                  border:     sortBy === opt.id ? '.5px solid rgba(122,179,255,.4)' : 'var(--bd)',
-                  fontSize: 'var(--fs-cap2)', fontWeight: 'var(--fw-semi)', cursor: 'pointer', whiteSpace: 'nowrap',
-                }}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* View-mode toggle — на всіх вкладках; вподобання одне на екран */}
+        {/* Sort + view toggle — one row: chips scroll left, toggle pinned right */}
         {!reorderMode && !selectMode && filtered.length > 0 && (
-          <div className="fr-seg" style={{ margin: '0 12px 8px', width: 'auto', maxWidth: 220, marginLeft: 'auto' }}>
-            <div className={`fr-seg-b ${!statusCompact ? 'on' : ''}`} onClick={() => toggleStatusCompact(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
-              <IconLayoutGrid size={13} />Картки
-            </div>
-            <div className={`fr-seg-b ${statusCompact ? 'on' : ''}`} onClick={() => toggleStatusCompact(true)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
-              <IconLayers size={13} />Компактно
+          <div style={{ margin: '0 12px 8px', display: 'flex', alignItems: 'center', gap: 8 }}>
+            {properties.length > 1 ? (
+              <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6, overflowX: 'auto', paddingBottom: 2 }}>
+                <span style={{ display: 'flex', flexShrink: 0 }}><IconActivity size={12} color="var(--t4)" /></span>
+                {([
+                  { id: 'default', label: 'За порядком' },
+                  { id: 'floor',   label: 'За поверхом' },
+                  { id: 'rent',    label: 'За орендою'  },
+                  { id: 'area',    label: 'За площею'   },
+                ] as const).map(opt => (
+                  <button
+                    key={opt.id}
+                    className="sort-chip"
+                    onClick={() => setSortBy(opt.id)}
+                    style={{
+                      flexShrink: 0,
+                      padding: '4px 10px', borderRadius: 8,
+                      background: sortBy === opt.id ? 'rgba(122,179,255,.22)' : 'var(--glass-1)',
+                      color:      sortBy === opt.id ? '#7AB3FF' : 'var(--t3)',
+                      border:     sortBy === opt.id ? '.5px solid rgba(122,179,255,.4)' : 'var(--bd)',
+                      fontSize: 'var(--fs-cap2)', fontWeight: 'var(--fw-semi)', cursor: 'pointer', whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            ) : <div style={{ flex: 1 }} />}
+            <div className="fr-seg" style={{ flexShrink: 0, width: 'auto', maxWidth: 200 }}>
+              <div className={`fr-seg-b ${!statusCompact ? 'on' : ''}`} onClick={() => toggleStatusCompact(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                <IconLayoutGrid size={13} />Картки
+              </div>
+              <div className={`fr-seg-b ${statusCompact ? 'on' : ''}`} onClick={() => toggleStatusCompact(true)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                <IconLayers size={13} />Компактно
+              </div>
             </div>
           </div>
         )}

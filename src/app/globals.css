@@ -414,9 +414,9 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 .cost-ttl{font-size:22px;font-weight:700;color:var(--t1);letter-spacing:-.02em}
 
 /* ── DASHBOARD STATS PANEL ── */
-.dash-panel{display:flex;gap:8px;padding:0 12px 12px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;flex-shrink:0}
+.dash-panel{display:flex;gap:8px;padding:0 12px 12px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;flex-shrink:0;scroll-snap-type:x proximity;scroll-padding-left:12px}
 .dash-panel::-webkit-scrollbar{display:none}
-.dash-card{flex-shrink:0;width:152px;border-radius:16px;padding:14px 14px;backdrop-filter:blur(28px) saturate(185%);-webkit-backdrop-filter:blur(28px) saturate(185%);border:.5px solid transparent;box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 4px 20px rgba(0,0,0,.18)}
+.dash-card{flex-shrink:0;width:146px;border-radius:16px;padding:14px 14px;scroll-snap-align:start;backdrop-filter:blur(28px) saturate(185%);-webkit-backdrop-filter:blur(28px) saturate(185%);border:.5px solid transparent;box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 4px 20px rgba(0,0,0,.18)}
 .dash-ic{margin-bottom:10px;line-height:1}
 /* Dash number — Title 3 Bold */
 .dash-n{font-size:var(--fs-t3);font-weight:var(--fw-bold);color:var(--t1);letter-spacing:-.04em;line-height:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -428,7 +428,7 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 .dash-sub{font-size:var(--fs-cap2);color:rgba(255,255,255,.48);margin-top:3px;line-height:var(--lh-snug)}
 
 /* ── OBJ HERO ── */
-.obj-hero{height:min(220px,32vh);position:relative;background:linear-gradient(145deg,#152d52,#2563a8);display:flex;align-items:center;justify-content:center}
+.obj-hero{height:min(184px,27vh);position:relative;background:linear-gradient(145deg,#152d52,#2563a8);display:flex;align-items:center;justify-content:center}
 .obj-hero::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 40%,rgba(0,0,0,.55))}
 /* Building3DHero animation — kept in the global sheet, never as an inline SVG <style>:
    @tailwind base sets svg{display:block}, which defeats the SVG UA `style{display:none}`
@@ -456,7 +456,9 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 .obj-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 16px;margin-bottom:14px}
 .obj-f{display:flex;flex-direction:column;gap:4px}
 /* Field label — Caption 2 uppercase (Apple detail label pattern) */
-.obj-fl{font-size:var(--fs-cap2);color:var(--t3);text-transform:uppercase;letter-spacing:.05em;font-weight:var(--fw-semi);line-height:1}
+/* min-height reserves two label lines so values stay baseline-aligned across
+   the two-column grid even when one label wraps (e.g. «Розрахункова площа»). */
+.obj-fl{font-size:var(--fs-cap2);color:var(--t3);text-transform:uppercase;letter-spacing:.05em;font-weight:var(--fw-semi);line-height:1.25;min-height:2.3em;align-items:flex-start!important}
 /* Field value — Footnote Semibold */
 .obj-fv{font-size:var(--fs-foot);font-weight:var(--fw-semi);color:var(--t1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:var(--lh-snug)}
 
@@ -904,6 +906,12 @@ svg.ico{overflow:visible}
 /* ── Active / press states (feel native on mobile) ── */
 .mbtn:active{animation:btnPress .28s var(--ease-spr) both;filter:brightness(0.92);box-shadow:0 4px 14px rgba(34,158,217,.5)}
 .seg-b:active{transform:scale(.95)}
+/* Sort filter chips — tap feedback to match cards/segments (were "dead" on tap) */
+.sort-chip{transition:transform .12s ease,background .18s,color .18s,border-color .18s}
+.sort-chip:active{transform:scale(.95)}
+/* Scrim behind a bottom floating CTA so scrolled content fades under it
+   (reads as a bar, not an overlap). Sits below the button (z 19 < 20). */
+.cta-scrim{position:absolute;left:0;right:0;bottom:0;height:calc(120px + var(--safe-bottom));background:linear-gradient(0deg,rgba(6,5,14,.72),rgba(6,5,14,.42) 45%,transparent);pointer-events:none;z-index:19}
 .type-card:active{transform:scale(.97)}
 .format-card:active{transform:scale(.97)}
 .hdr-a:active{transform:scale(.92);opacity:0.7}
