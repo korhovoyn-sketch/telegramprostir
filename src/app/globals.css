@@ -876,6 +876,11 @@ svg.ico{overflow:visible}
 @keyframes toastSlideIn{from{opacity:0;transform:translateY(-80px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}
 @keyframes modalSlideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
 @keyframes overlayFade{from{opacity:0}to{opacity:1}}
+@keyframes modalSlideDown{from{transform:translateY(0)}to{transform:translateY(100%)}}
+@keyframes overlayFadeOut{from{opacity:1}to{opacity:0}}
+/* Exit animation — mirrors the open (slide-down + backdrop fade). */
+.modal.closing{animation:modalSlideDown .24s var(--ease-out) forwards}
+.modal-overlay.closing{animation:overlayFadeOut .22s ease forwards;pointer-events:none}
 @keyframes cascadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 @keyframes fabPop{from{transform:scale(0);opacity:0}50%{transform:scale(1.15)}to{transform:scale(1);opacity:1}}
 @keyframes tabbarIn{from{transform:translateY(140%) scale(.92);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
