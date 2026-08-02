@@ -16,6 +16,7 @@ import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import Modal from '@/components/ui/Modal'
 import FolderManageModal from '@/components/ui/FolderManageModal'
 import FolderPickerModal from '@/components/ui/FolderPickerModal'
+import Collapsible from '@/components/ui/Collapsible'
 import { IconPlus, IconDots, IconPhoto, IconChevronUp, IconChevronDown, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconCopy, IconUser, IconUsers, IconFile, IconLayers, IconLayoutGrid, IconChartBar, IconKey, IconFileExport, IconCircleCheck, IconAdjustments, IconTrash, IconChevronRight, IconFolder, IconInbox } from '@/components/Icons'
 import DatabaseStatsPanel from '@/components/ui/DatabaseStatsPanel'
 import { formatPrice, calcRent, calcRentUtils, basisArea, floorSortKey, computedRentUnit, rentUnitLabel, objectsWord, DB_TYPE_LABELS, formatLeasePeriod, STATUS_COLORS } from '@/lib/utils'
@@ -575,13 +576,14 @@ export default function DatabaseObjectsScreen() {
                 ))}
               </div>
             ) : <div style={{ flex: 1 }} />}
-            <div className="fr-seg" style={{ flexShrink: 0, width: 'auto', maxWidth: 200 }}>
-              <div className={`fr-seg-b ${!statusCompact ? 'on' : ''}`} onClick={() => toggleStatusCompact(false)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
-                <IconLayoutGrid size={13} />Картки
-              </div>
-              <div className={`fr-seg-b ${statusCompact ? 'on' : ''}`} onClick={() => toggleStatusCompact(true)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
-                <IconLayers size={13} />Компактно
-              </div>
+            {/* Icon-only view switch — compact, no labels */}
+            <div className="view-seg">
+              <button className={`view-seg-b ${!statusCompact ? 'on' : ''}`} aria-label="Картки" onClick={() => toggleStatusCompact(false)}>
+                <IconLayoutGrid size={16} />
+              </button>
+              <button className={`view-seg-b ${statusCompact ? 'on' : ''}`} aria-label="Компактно" onClick={() => toggleStatusCompact(true)}>
+                <IconLayers size={16} />
+              </button>
             </div>
           </div>
         )}
@@ -665,9 +667,8 @@ export default function DatabaseObjectsScreen() {
             </button>
           </div>
         ) : sections ? (
-          // Кожна секція — хедер + анімований контейнер (.fold-wrap grid 0fr↔1fr),
-          // тож розгортання/згортання плавне. Картки лишаються змонтованими, щоб
-          // анімувалась висота, а не миготів mount/unmount.
+          // Секція = хедер + Collapsible (JS-анімація висоти). Картки лишаються
+          // змонтованими, щоб плавно анімувалась висота, а не миготів mount.
           <div className="list">
             {sections.map((sec) => {
               const open = forceExpand || !collapsed.has(sec.key)
@@ -679,11 +680,9 @@ export default function DatabaseObjectsScreen() {
                     <span className="fold-hd-name">{sec.name}</span>
                     <span className="fold-hd-cnt">{sec.items.length}</span>
                   </div>
-                  <div className={`fold-wrap ${open ? 'open' : ''}`}>
-                    <div className="fold-wrap-inner">
-                      {sec.items.map((p) => renderCard(p, 0))}
-                    </div>
-                  </div>
+                  <Collapsible open={open} className="fold-wrap-inner">
+                    {sec.items.map((p) => renderCard(p, 0))}
+                  </Collapsible>
                 </div>
               )
             })}

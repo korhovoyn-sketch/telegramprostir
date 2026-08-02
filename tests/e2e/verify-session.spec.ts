@@ -103,8 +103,8 @@ test('drive-through: home → objects → compact → action sheet → form → 
 
   // ── 3. Occupied tab → compact toggle → compact rows ────────────────────────
   await page.getByText('Зайнято (2)').click()
-  await expect(page.getByText('Компактно')).toBeVisible()
-  await page.getByText('Компактно').click()
+  await expect(page.getByLabel('Компактно')).toBeVisible()
+  await page.getByLabel('Компактно').click()
   await expect(page.getByText('ТОВ «Ромашка»')).toBeVisible()
   await expect(page.getByText('ФОП Іванов')).toBeVisible()
   // green monthly total = rent 100*18 + utils 120*2.5 = 2100
@@ -113,7 +113,7 @@ test('drive-through: home → objects → compact → action sheet → form → 
 
   // ── 3b. Вільно tab shares the compact preference; right column = СИРА ставка
   await page.getByText('Вільно (1)').click()
-  await expect(page.getByText('Компактно')).toBeVisible()
+  await expect(page.getByLabel('Компактно')).toBeVisible()
   await expect(page.locator('.row-tot').first()).toContainText('15')
   await expect(page.locator('.row-tot-u').first()).toHaveText('/м²')
   await page.screenshot({ path: testInfo.outputPath('03b-compact-free.png') })
@@ -129,9 +129,9 @@ test('drive-through: home → objects → compact → action sheet → form → 
   await expect(page.getByText('Зайнятість')).toHaveCount(0)
   await page.screenshot({ path: testInfo.outputPath('03d-compact-all.png') })
   // Повернення до карток показує панель знову
-  await page.getByText('Картки').click()
+  await page.getByLabel('Картки').click()
   await expect(page.getByText('Зайнятість')).toBeVisible()
-  await page.getByText('Компактно').click()
+  await page.getByLabel('Компактно').click()
 
   // ── 4. Apple action sheet ───────────────────────────────────────────────────
   await page.getByLabel('Меню бази').click()
