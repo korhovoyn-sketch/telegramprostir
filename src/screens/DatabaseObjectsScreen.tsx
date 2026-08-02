@@ -684,20 +684,27 @@ export default function DatabaseObjectsScreen() {
             </button>
           </div>
         ) : sections ? (
-          // Header + cards are flat siblings of .list so its gap spaces them
-          // uniformly (a wrapper div would swallow the inter-card gap).
+          // Кожна секція — хедер + анімований контейнер (.fold-wrap grid 0fr↔1fr),
+          // тож розгортання/згортання плавне. Картки лишаються змонтованими, щоб
+          // анімувалась висота, а не миготів mount/unmount.
           <div className="list">
-            {sections.flatMap((sec) => {
+            {sections.map((sec) => {
               const open = forceExpand || !collapsed.has(sec.key)
-              const header = (
-                <div key={`fold-${sec.key}`} className={`fold-hd ${open ? 'open' : ''}`} onClick={() => toggleFolder(sec.key)}>
-                  <span className={`fold-hd-chev ${open ? 'open' : ''}`}><IconChevronRight size={16} /></span>
-                  <span className="fold-hd-ic">{sec.id ? <IconFolder size={16} /> : <IconInbox size={16} />}</span>
-                  <span className="fold-hd-name">{sec.name}</span>
-                  <span className="fold-hd-cnt">{sec.items.length}</span>
+              return (
+                <div key={sec.key} className="fold-sec">
+                  <div className={`fold-hd ${open ? 'open' : ''}`} onClick={() => toggleFolder(sec.key)}>
+                    <span className={`fold-hd-chev ${open ? 'open' : ''}`}><IconChevronRight size={16} /></span>
+                    <span className="fold-hd-ic">{sec.id ? <IconFolder size={16} /> : <IconInbox size={16} />}</span>
+                    <span className="fold-hd-name">{sec.name}</span>
+                    <span className="fold-hd-cnt">{sec.items.length}</span>
+                  </div>
+                  <div className={`fold-wrap ${open ? 'open' : ''}`}>
+                    <div className="fold-wrap-inner">
+                      {sec.items.map((p) => renderCard(p, 0))}
+                    </div>
+                  </div>
                 </div>
               )
-              return open ? [header, ...sec.items.map((p) => renderCard(p, 0))] : [header]
             })}
           </div>
         ) : (

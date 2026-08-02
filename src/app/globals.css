@@ -591,7 +591,7 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 .notif-del:active{background:var(--glass-2);color:var(--err)}
 
 /* ── MODAL ── */
-.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:50;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-end;padding-bottom:var(--keyboard-h,0px);transition:padding-bottom .25s ease-out}
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:50;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-end;padding-bottom:var(--keyboard-h,0px);transition:padding-bottom .25s ease-out;animation:overlayFade .26s ease both}
 /* Sheet never exceeds 88vh — even without keyboard. With keyboard, it shrinks but body stays scrollable. */
 .modal{width:100%;background:rgba(14,11,32,.72);backdrop-filter:blur(48px) saturate(220%) brightness(1.10);-webkit-backdrop-filter:blur(48px) saturate(220%) brightness(1.10);border-top:.5px solid rgba(255,255,255,.18);border-radius:20px 20px 0 0;position:relative;animation:modalSlideUp .38s var(--ease-spr) both;max-height:min(88vh,calc(var(--tg-vh,100svh) - var(--keyboard-h,0px) - 20px));display:flex;flex-direction:column;overflow:hidden;will-change:transform;box-shadow:inset 0 1.5px 0 rgba(255,255,255,.22),inset 0 .5px 0 rgba(255,255,255,.10)}
 .modal::before{content:'';position:absolute;top:6px;left:50%;transform:translateX(-50%);width:36px;height:4px;border-radius:2px;background:rgba(255,255,255,.2);z-index:1;pointer-events:none}
@@ -641,12 +641,18 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 .sheet-cancel:active{transform:scale(.98);background:var(--glass-3)}
 
 /* ── FOLDERS ── */
-/* Accordion section header — a flat child of .list, so it uses the list's
-   horizontal padding (no own side margin) and the list gap for vertical rhythm.
-   A small top margin gives each group a touch more separation than card-to-card. */
-.fold-hd{display:flex;align-items:center;gap:8px;margin:6px 0 0;padding:10px 12px;border-radius:var(--r-md);background:var(--glass-1);border:var(--bd);cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .14s var(--ease),transform .12s ease}
-.fold-hd:first-child{margin-top:0}
+/* Accordion section = header + collapsible body. Sections are the .list children;
+   the list gap + a small top margin give groups a touch more air than cards. */
+.fold-sec{display:flex;flex-direction:column}
+.fold-sec:not(:first-child){margin-top:6px}
+.fold-hd{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:var(--r-md);background:var(--glass-1);border:var(--bd);cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .14s var(--ease),transform .12s ease}
 .fold-hd:active{background:var(--glass-2);transform:scale(.99)}
+/* Collapsible body — grid-rows 0fr↔1fr animates height without measuring JS;
+   inner clips (overflow+min-height:0) so the reveal is a smooth slide, and its
+   padding-top gives the header→first-card gap only while open. */
+.fold-wrap{display:grid;grid-template-rows:0fr;opacity:0;visibility:hidden;transition:grid-template-rows .3s var(--ease-out),opacity .24s ease,visibility 0s linear .3s}
+.fold-wrap.open{grid-template-rows:1fr;opacity:1;visibility:visible;transition:grid-template-rows .3s var(--ease-out),opacity .24s ease,visibility 0s linear 0s}
+.fold-wrap-inner{min-height:0;overflow:hidden;display:flex;flex-direction:column;gap:10px;padding-top:10px}
 .fold-hd-ic{color:var(--t2);flex-shrink:0;display:flex}
 .fold-hd-name{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:var(--fs-sub);font-weight:var(--fw-semi);color:var(--t1)}
 .fold-hd-cnt{flex-shrink:0;font-size:var(--fs-cap1);color:var(--t3);font-variant-numeric:tabular-nums}
@@ -862,6 +868,7 @@ svg.ico{overflow:visible}
 @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 @keyframes toastSlideIn{from{opacity:0;transform:translateY(-80px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}
 @keyframes modalSlideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+@keyframes overlayFade{from{opacity:0}to{opacity:1}}
 @keyframes cascadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 @keyframes fabPop{from{transform:scale(0);opacity:0}50%{transform:scale(1.15)}to{transform:scale(1);opacity:1}}
 @keyframes tabbarIn{from{transform:translateY(140%) scale(.92);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
@@ -1001,12 +1008,13 @@ svg.ico{overflow:visible}
 .scr .list .row:nth-child(7){animation:cascadeIn .38s var(--ease) .31s both}
 .scr .list .row:nth-child(n+8){animation:cascadeIn .38s var(--ease) .33s both}
 /* Obj-cards */
-.list .obj-card:nth-child(1){animation:cascadeIn .36s var(--ease) .04s both}
-.list .obj-card:nth-child(2){animation:cascadeIn .36s var(--ease) .09s both}
-.list .obj-card:nth-child(3){animation:cascadeIn .36s var(--ease) .14s both}
-.list .obj-card:nth-child(4){animation:cascadeIn .36s var(--ease) .19s both}
-.list .obj-card:nth-child(5){animation:cascadeIn .36s var(--ease) .24s both}
-.list .obj-card:nth-child(n+6){animation:cascadeIn .36s var(--ease) .28s both}
+/* Flat list only (no folders) — accordion cards reveal via .fold-wrap instead. */
+.list > .obj-card:nth-child(1){animation:cascadeIn .36s var(--ease) .04s both}
+.list > .obj-card:nth-child(2){animation:cascadeIn .36s var(--ease) .09s both}
+.list > .obj-card:nth-child(3){animation:cascadeIn .36s var(--ease) .14s both}
+.list > .obj-card:nth-child(4){animation:cascadeIn .36s var(--ease) .19s both}
+.list > .obj-card:nth-child(5){animation:cascadeIn .36s var(--ease) .24s both}
+.list > .obj-card:nth-child(n+6){animation:cascadeIn .36s var(--ease) .28s both}
 /* Collection cards */
 .list .collection-c:nth-child(1){animation:cascadeIn .36s var(--ease) .04s both}
 .list .collection-c:nth-child(2){animation:cascadeIn .36s var(--ease) .09s both}
