@@ -44,8 +44,12 @@ function prop(i: number, over: Record<string, unknown>) {
     created_at: NOW, updated_at: NOW, photos: [], ...over,
   }
 }
+const FOLDER_ID = '40000000-0000-0000-0000-0000000000a1'
+const FOLDERS = [
+  { id: FOLDER_ID, db_id: DB_ID, owner_id: OWNER.id, name: 'Перший поверх', sort_order: 100, created_at: NOW, updated_at: NOW },
+]
 const PROPERTIES = [
-  prop(1, { status: 'occupied', tenant_name: 'ТОВ «Ромашка»', rent_rate: 18, area_useful: 100, area_total: 120, utilities_rate: 2.5 }),
+  prop(1, { status: 'occupied', tenant_name: 'ТОВ «Ромашка»', rent_rate: 18, area_useful: 100, area_total: 120, utilities_rate: 2.5, folder_id: FOLDER_ID }),
   prop(2, { status: 'free' }),
 ]
 
@@ -62,6 +66,7 @@ async function ownerRoutes(page: Page) {
     }
     return json(r, PROPERTIES)
   })
+  await page.route('**/rest/v1/property_folders**', (r) => json(r, FOLDERS))
   await page.route('**/rest/v1/db_members**', (r) => json(r, []))
   await page.route('**/rest/v1/rent_payments**', (r) => json(r, []))
   await page.route('**/rest/v1/rent_payment_records**', (r) => json(r, []))
@@ -115,7 +120,17 @@ for (const d of DEVICES) {
       await page.getByText('БЦ Рубін').first().click()
       await expect(page.getByText('Всі (2)')).toBeVisible({ timeout: 15_000 })
       await expectNoHScroll(page, `${d.id} db-objects`)
+      // Accordion folder section renders (foldered object + «Без папки»)
+      await expect(page.locator('.fold-hd-name', { hasText: 'Перший поверх' })).toBeVisible()
       await page.screenshot({ path: `screenshots/resp-${d.id}-db-objects.png` })
+
+      // ── Folder manage modal (new UI) — no h-scroll, fields fit ───────────────
+      await page.getByLabel('Меню бази').click()
+      await page.getByText('Папки', { exact: true }).click()
+      await expect(page.getByText('Групуйте об\'єкти всередині бази')).toBeVisible()
+      await expectNoHScroll(page, `${d.id} folder-modal`)
+      await page.screenshot({ path: `screenshots/resp-${d.id}-folder-modal.png` })
+      await page.keyboard.press('Escape')
 
       // ── Public /v database surface (bespoke CSS, different from app) ─────────
       await page.route('**/rest/v1/rpc/get_public_db_preview', (r) => json(r, [{
