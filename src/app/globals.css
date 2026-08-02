@@ -641,9 +641,12 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 .sheet-cancel:active{transform:scale(.98);background:var(--glass-3)}
 
 /* ── FOLDERS ── */
-/* Accordion section header inside the object list */
-.fold-hd{display:flex;align-items:center;gap:8px;margin:0 12px 8px;padding:8px 12px;border-radius:var(--r-md);background:var(--glass-1);border:var(--bd);cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .14s var(--ease)}
-.fold-hd:active{background:var(--glass-2)}
+/* Accordion section header — a flat child of .list, so it uses the list's
+   horizontal padding (no own side margin) and the list gap for vertical rhythm.
+   A small top margin gives each group a touch more separation than card-to-card. */
+.fold-hd{display:flex;align-items:center;gap:8px;margin:6px 0 0;padding:10px 12px;border-radius:var(--r-md);background:var(--glass-1);border:var(--bd);cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .14s var(--ease),transform .12s ease}
+.fold-hd:first-child{margin-top:0}
+.fold-hd:active{background:var(--glass-2);transform:scale(.99)}
 .fold-hd-ic{color:var(--t2);flex-shrink:0;display:flex}
 .fold-hd-name{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:var(--fs-sub);font-weight:var(--fw-semi);color:var(--t1)}
 .fold-hd-cnt{flex-shrink:0;font-size:var(--fs-cap1);color:var(--t3);font-variant-numeric:tabular-nums}
