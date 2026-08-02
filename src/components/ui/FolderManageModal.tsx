@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Modal from '@/components/ui/Modal'
 import { IconFolder, IconEdit, IconTrash, IconChevronUp, IconChevronDown, IconCheck, IconX, IconPlus } from '@/components/Icons'
-import { hapticSelection } from '@/lib/telegram'
+import { hapticSelection, hapticNotify } from '@/lib/telegram'
 import { objectsWord } from '@/lib/utils'
 import type { PropertyFolder } from '@/types'
 
@@ -40,8 +40,10 @@ export default function FolderManageModal({ folders, counts, onCreate, onRename,
     setCreating(true)
     const created = await onCreate(name)
     setCreating(false)
-    if (created) setNewName('')
+    if (created) { setNewName(''); hapticNotify('success') }
   }
+
+  const delFolder = folders.find(f => f.id === confirmDeleteId)
 
   return (
     <Modal title="Папки" subtitle="Групуйте об'єкти всередині бази" onClose={onClose}>
@@ -110,7 +112,7 @@ export default function FolderManageModal({ folders, counts, onCreate, onRename,
 
       {confirmDeleteId && (
         <Modal
-          title="Видалити папку?"
+          title={`Видалити папку «${delFolder?.name ?? ''}»?`}
           subtitle={
             (counts.get(confirmDeleteId) ?? 0) > 0
               ? `${counts.get(confirmDeleteId)} ${objectsWord(counts.get(confirmDeleteId) ?? 0)} залишаться в базі, але без папки.`
@@ -118,7 +120,7 @@ export default function FolderManageModal({ folders, counts, onCreate, onRename,
           }
           onClose={() => setConfirmDeleteId(null)}
           actions={[
-            { label: 'Видалити', variant: 'danger', onClick: async () => { const id = confirmDeleteId; setConfirmDeleteId(null); await onDelete(id) } },
+            { label: 'Видалити', variant: 'danger', onClick: async () => { const id = confirmDeleteId; setConfirmDeleteId(null); hapticNotify('warning'); await onDelete(id) } },
             { label: 'Скасувати', variant: 'secondary', onClick: () => setConfirmDeleteId(null) },
           ]}
         />

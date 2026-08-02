@@ -55,6 +55,11 @@ export function useFolders(dbId?: string) {
     if (!targetDbId || !user) return null
     const trimmed = name.trim()
     if (!trimmed) return null
+    // Дублікати імен збивають з пантелику (дві однакові папки в списку) — не даємо.
+    if (foldersRef.current.some(f => f.name.trim().toLowerCase() === trimmed.toLowerCase())) {
+      showToast({ type: 'error', title: 'Така папка вже є', subtitle: `«${trimmed}» вже існує в цій базі` })
+      return null
+    }
     try {
       // Дані належать власнику БАЗИ (як і об'єкти): editor-політика це форсить
       // через WITH CHECK, тож owner_id має бути власників, не творця.
@@ -80,6 +85,12 @@ export function useFolders(dbId?: string) {
     const trimmed = name.trim()
     if (!trimmed) return
     const prev = foldersRef.current
+    const current = prev.find(f => f.id === id)
+    if (current && current.name === trimmed) return // без змін — не смикаємо мережу
+    if (prev.some(f => f.id !== id && f.name.trim().toLowerCase() === trimmed.toLowerCase())) {
+      showToast({ type: 'error', title: 'Така папка вже є', subtitle: `«${trimmed}» вже існує в цій базі` })
+      return
+    }
     setFolders(list => list.map(f => f.id === id ? { ...f, name: trimmed } : f))
     try {
       const { error } = await supabase
