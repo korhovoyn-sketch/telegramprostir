@@ -165,6 +165,30 @@ test('modal closes on Escape and on backdrop tap, not on inner tap', async ({ pa
   await expect(page.locator('.modal')).toHaveCount(0)
 })
 
+test('modal: swipe down on the header dismisses', async ({ page }) => {
+  await fixtures(page)
+  await openRentModal(page)
+
+  // Simulate a downward drag on the grabber/header past the dismiss threshold.
+  await page.locator('.modal-head').evaluate((el) => {
+    const r = el.getBoundingClientRect()
+    const x = r.x + r.width / 2
+    const y = r.y + 8
+    const fire = (type: string, cy: number, ended = false) => {
+      const t = new Touch({ identifier: 1, target: el as Element, clientX: x, clientY: cy })
+      el.dispatchEvent(new TouchEvent(type, {
+        touches: ended ? [] : [t], changedTouches: [t], bubbles: true, cancelable: true,
+      }))
+    }
+    fire('touchstart', y)
+    fire('touchmove', y + 70)
+    fire('touchmove', y + 150)
+    fire('touchend', y + 150, true)
+  })
+
+  await expect(page.locator('.modal')).toHaveCount(0)
+})
+
 test('schedule modal: day outside 1–28 shows the range error; valid day saves', async ({ page }) => {
   await fixtures(page)
   await page.goto('/')
