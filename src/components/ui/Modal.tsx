@@ -25,6 +25,7 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
   const idRef = useRef<symbol | null>(null)
   if (idRef.current === null) idRef.current = Symbol('modal')
   const titleId = useId()
+  const descId = useId()
   const modalRef = useRef<HTMLDivElement>(null)
   const overlayRef = useRef<HTMLDivElement>(null)
   // Exit animation: dismiss gestures set `closing`, the slide-down/​fade plays,
@@ -119,11 +120,44 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
     return () => { document.body.style.overflow = prev }
   }, [])
 
+  // Return focus to whatever opened the dialog when it closes (APG dialog).
+  // Captured before the initial-focus effect below steals it.
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null
+    return () => { opener?.focus?.() }
+  }, [])
+
   // Move focus into the dialog for a11y — unless an inner input already grabbed
   // it (e.g. an autoFocus rename field), which we must not steal.
   useEffect(() => {
     const el = modalRef.current
     if (el && !el.contains(document.activeElement)) el.focus()
+  }, [])
+
+  // Focus trap: keep Tab / Shift+Tab cycling inside the topmost dialog so focus
+  // never lands on the background behind the backdrop (aria-modal hides it from
+  // AT, but doesn't stop keyboard Tab on its own).
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return
+      if (modalStack[modalStack.length - 1] !== idRef.current) return
+      const el = modalRef.current
+      if (!el) return
+      const nodes = el.querySelectorAll<HTMLElement>(
+        'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])',
+      )
+      if (nodes.length === 0) { e.preventDefault(); el.focus(); return }
+      const first = nodes[0]
+      const last = nodes[nodes.length - 1]
+      const active = document.activeElement
+      if (e.shiftKey) {
+        if (active === first || active === el || !el.contains(active)) { e.preventDefault(); last.focus() }
+      } else if (active === last || !el.contains(active)) {
+        e.preventDefault(); first.focus()
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
 
   // Safety net: if the exit animation never fires (reduced-motion edge cases,
@@ -147,6 +181,7 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        aria-describedby={subtitle ? descId : undefined}
         tabIndex={-1}
         onAnimationEnd={(e) => { if (closing && e.target === modalRef.current) finishClose() }}
       >
@@ -159,7 +194,7 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
           onTouchCancel={onDragEnd}
         >
           <div className="modal-h" id={titleId}>{title}</div>
-          {subtitle && <div className="modal-s">{subtitle}</div>}
+          {subtitle && <div className="modal-s" id={descId}>{subtitle}</div>}
         </div>
 
         {/* Scrollable body — inputs scroll freely; action buttons are sticky at the bottom
