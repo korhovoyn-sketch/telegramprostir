@@ -46,9 +46,26 @@ export default function FolderManageModal({ folders, counts, onCreate, onRename,
   return (
     <Modal title="Папки" subtitle="Групуйте об'єкти всередині бази" onClose={onClose}>
       <div className="fold-mng">
+        {/* Create row FIRST — on iOS Telegram the keyboard overlays the webview
+            without resizing it (--keyboard-h reads 0), so a bottom-anchored input
+            would be hidden. Kept near the header, it stays in the visible upper
+            band above the keyboard. */}
+        <div className="fold-mng-new">
+          <span className="fold-mng-ic"><IconPlus size={16} /></span>
+          <input
+            className="fold-mng-input"
+            value={newName}
+            placeholder="Нова папка…"
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleCreate() }}
+            maxLength={40}
+          />
+          <button className="fold-mng-add" disabled={!newName.trim() || creating} onClick={handleCreate}>Додати</button>
+        </div>
+
         {folders.length === 0 && (
-          <div style={{ padding: '16px 4px', textAlign: 'center', color: 'var(--t3)', fontSize: 'var(--fs-foot)' }}>
-            Ще немає папок. Створіть першу нижче.
+          <div style={{ padding: '20px 4px', textAlign: 'center', color: 'var(--t3)', fontSize: 'var(--fs-foot)' }}>
+            Ще немає папок. Введіть назву вгорі й натисніть «Додати».
           </div>
         )}
         {folders.map((f, i) => {
@@ -89,19 +106,6 @@ export default function FolderManageModal({ folders, counts, onCreate, onRename,
             </div>
           )
         })}
-
-        <div className="fold-mng-new">
-          <span className="fold-mng-ic"><IconPlus size={16} /></span>
-          <input
-            className="fold-mng-input"
-            value={newName}
-            placeholder="Нова папка…"
-            onChange={(e) => setNewName(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleCreate() }}
-            maxLength={40}
-          />
-          <button className="fold-mng-add" disabled={!newName.trim() || creating} onClick={handleCreate}>Додати</button>
-        </div>
       </div>
 
       {confirmDeleteId && (
