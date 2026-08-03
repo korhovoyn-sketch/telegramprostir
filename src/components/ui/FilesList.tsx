@@ -104,10 +104,11 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
           <button
             onClick={() => fileInputRef.current?.click()}
             style={{
-              display: 'flex', alignItems: 'center', gap: 4,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
               background: 'rgba(122,179,255,.14)',
               border: '.5px solid rgba(122,179,255,.3)',
-              borderRadius: 10, padding: '4px 10px',
+              // minHeight — комфортна ціль тапу (було 22px, нижче за WCAG-мінімум)
+              borderRadius: 10, padding: '0 12px', minHeight: 32,
               color: '#7AB3FF', fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', cursor: 'pointer',
             }}
           >
