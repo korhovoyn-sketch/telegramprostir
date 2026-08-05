@@ -1303,3 +1303,17 @@ svg.ico{overflow:visible}
   .scr { animation: none }
   .shimmer-ring,.glow-orb,.sticker,.sparkle { animation: none !important }
 }
+
+/* ── LEGAL PAGES (/privacy, /terms) ──────────────────────────────────────────
+   Standalone static pages (Telegram + GDPR require reachable documents).
+   Own minimal styling: they render outside the app shell, also in a browser. */
+.lg-wrap{min-height:100svh;background:linear-gradient(180deg,#06050e,#140a2e 60%,#1a0f38);padding:calc(24px + var(--safe-top)) 16px calc(40px + var(--safe-bottom));display:flex;justify-content:center}
+.lg-card{width:100%;max-width:640px}
+.lg-back{display:inline-block;margin-bottom:18px;color:var(--t3);font-size:var(--fs-foot);text-decoration:none}
+.lg-t{font-size:var(--fs-t2);font-weight:var(--fw-bold);color:var(--t1);letter-spacing:-.02em;line-height:var(--lh-tight);margin-bottom:6px}
+.lg-upd{font-size:var(--fs-cap1);color:var(--t4);margin-bottom:22px}
+.lg-h{font-size:var(--fs-call);font-weight:var(--fw-semi);color:var(--t1);margin:22px 0 8px}
+.lg-p{font-size:var(--fs-sub);color:var(--t2);line-height:1.62;margin-bottom:10px}
+.lg-p b{color:var(--t1);font-weight:var(--fw-semi)}
+.lg-ul{margin:0 0 12px;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+.lg-ul li{font-size:var(--fs-sub);color:var(--t2);line-height:1.55;list-style:disc}
