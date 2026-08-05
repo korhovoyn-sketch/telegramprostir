@@ -81,7 +81,9 @@ export default function PhotoGalleryScreen() {
     } else if (tg?.openLink) {
       tg.openLink(url)
     } else {
-      window.open(url, '_blank')
+      // noopener: без нього нова вкладка отримує window.opener і може
+      // перенаправити нашу (reverse tabnabbing)
+      window.open(url, '_blank', 'noopener')
     }
   }
 
