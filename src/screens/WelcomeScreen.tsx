@@ -240,8 +240,8 @@ export default function WelcomeScreen() {
 
         <div style={{ textAlign: 'center', fontSize: 'var(--fs-cap1)', color: 'var(--t4)', padding: '10px 28px 6px', lineHeight: 1.5 }}>
           Натискаючи «Увійти», ви погоджуєтесь з{' '}
-          <span style={{ color: 'var(--t3)' }}>Умовами використання</span> та{' '}
-          <span style={{ color: 'var(--t3)' }}>Політикою конфіденційності</span>
+          <a href="/terms/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--t2)', textDecoration: 'underline' }}>Умовами використання</a> та{' '}
+          <a href="/privacy/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--t2)', textDecoration: 'underline' }}>Політикою конфіденційності</a>
         </div>
 
         <button

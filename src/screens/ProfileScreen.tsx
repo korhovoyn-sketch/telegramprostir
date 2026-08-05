@@ -205,7 +205,14 @@ export default function ProfileScreen() {
           {' '}Вийти з акаунту
         </div>
 
-        <div className="num" style={{ textAlign: 'center', fontSize: 'var(--fs-cap1)', color: 'var(--t4)', paddingBottom: 80 }}>
+        {/* Юридичні документи мають лишатись досяжними і ПІСЛЯ входу — на
+            welcome-екрані користувач їх уже не побачить. */}
+        <div style={{ textAlign: 'center', fontSize: 'var(--fs-cap1)', paddingTop: 4, display: 'flex', justifyContent: 'center', gap: 14 }}>
+          <a href="/privacy/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--t3)', textDecoration: 'none' }}>Конфіденційність</a>
+          <a href="/terms/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--t3)', textDecoration: 'none' }}>Умови</a>
+        </div>
+
+        <div className="num" style={{ textAlign: 'center', fontSize: 'var(--fs-cap1)', color: 'var(--t4)', paddingTop: 10, paddingBottom: 80 }}>
           prostir v1.0.0 · {process.env.NEXT_PUBLIC_BUILD_SHA}
         </div>
       </div>
