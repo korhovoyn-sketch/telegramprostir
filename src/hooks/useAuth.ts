@@ -413,13 +413,24 @@ export function useAuth() {
   const updateProfile = useCallback(async (updates: Partial<User>, silent = false): Promise<boolean> => {
     setLoading(true)
     try {
-      const { data: { user: authUser } } = await supabase.auth.getUser()
-      if (!authUser) throw new Error('Not authenticated')
-
-      // auth.users.id !== public.users.id — update by tg_id extracted from email
-      const tgIdStr = (authUser.email ?? '').replace('@telegram.propspace.app', '')
-      const tgId = parseInt(tgIdStr, 10)
-      if (isNaN(tgId) || tgId <= 0) throw new Error('Cannot determine tg_id from session')
+      // Кого патчимо. Профіль у сторі вже прийшов із сесії, тож його id — це
+      // готова адреса рядка; RLS усе одно пускає лише `id = current_app_user_id()`,
+      // тож підмінити чужий id неможливо. Раніше тут БЕЗУМОВНО стояв
+      // supabase.auth.getUser() — сітьовий виклик до /auth/v1/user, і будь-який
+      // його збій (мобільний блимк, протермінований refresh) валив збереження
+      // налаштувань як «Не автентифіковано», хоча сесія була жива. Мережевий
+      // фолбек лишаємо на випадок, коли стор порожній (одразу після логіну).
+      const storeUser = useAppStore.getState().user
+      let match: { col: 'id' | 'tg_id'; val: string | number } | null =
+        storeUser?.id ? { col: 'id', val: storeUser.id } : null
+      if (!match) {
+        const { data: { user: authUser } } = await supabase.auth.getUser()
+        if (!authUser) throw new Error('Not authenticated')
+        // auth.users.id !== public.users.id — шукаємо за tg_id з email сесії
+        const tgId = parseInt((authUser.email ?? '').replace('@telegram.propspace.app', ''), 10)
+        if (isNaN(tgId) || tgId <= 0) throw new Error('Cannot determine tg_id from session')
+        match = { col: 'tg_id', val: tgId }
+      }
 
       // Strip plan, id, tg_id always. Strip role unless the current user has none
       // (first-time onboarding via RoleSelectScreen). After role is set, only the
@@ -432,7 +443,7 @@ export function useAuth() {
       const { data, error } = await supabase
         .from('users')
         .update({ ...safeUpdates, updated_at: new Date().toISOString() })
-        .eq('tg_id', tgId)
+        .eq(match.col, match.val)
         .select(USER_COLUMNS)
         .single()
 

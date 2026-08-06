@@ -411,6 +411,58 @@ export function useProperties(dbId?: string) {
     }
   }, [showToast])
 
+  // Перенести обʼєкти в ІНШУ базу. Три речі, які мусять статися разом:
+  //  • folder_id скидається — папка належить базі-джерелу, інакше обʼєкт у новій
+  //    базі посилався б на чужу папку і зник би з її списку;
+  //  • owner_id стає власником БАЗИ-приймача (той самий інваріант, що в create:
+  //    RLS WITH CHECK редакторської політики це вимагає, і редактор не має
+  //    привласнювати рядки собі);
+  //  • sort_order дописується в кінець приймача, інакше перенесені вклинюються
+  //    в середину за старими номерами.
+  const moveToDatabase = useCallback(async (
+    ids: string[],
+    targetDbId: string,
+    targetOwnerId: string,
+    targetName: string,
+  ): Promise<boolean> => {
+    if (ids.length === 0) return false
+    const prevList = propertiesRef.current
+    setProperties((prev) => prev.filter((p) => !ids.includes(p.id)))
+    try {
+      const { error } = await supabase
+        .from('properties')
+        .update({ db_id: targetDbId, owner_id: targetOwnerId, folder_id: null, updated_at: new Date().toISOString() })
+        .in('id', ids)
+      if (error) throw error
+
+      // Порядок — окремим, НЕобовʼязковим кроком: сам перенос уже стався одним
+      // запитом (усе або нічого), а невдале перенумерування зіпсує лише порядок.
+      try {
+        const { data: tail } = await supabase
+          .from('properties')
+          .select('sort_order')
+          .eq('db_id', targetDbId)
+          .order('sort_order', { ascending: false })
+          .limit(1)
+        const base = Math.max(0, (tail?.[0]?.sort_order as number | undefined) ?? 0)
+        await Promise.all(ids.map((id, i) =>
+          supabase.from('properties').update({ sort_order: base + (i + 1) * 100 }).eq('id', id)))
+      } catch { /* порядок — не критично */ }
+
+      showToast({
+        type: 'success',
+        title: `${ids.length} ${objectsWord(ids.length)} у базі «${targetName}»`,
+        actionLabel: 'Відкрити',
+        onAction: () => navigate('db-objects', { dbId: targetDbId }),
+      })
+      return true
+    } catch (e) {
+      setProperties(prevList)
+      showToast({ type: 'error', title: 'Не вдалося перенести', subtitle: humanizeDbError(e) })
+      return false
+    }
+  }, [showToast, navigate])
+
   const reorderProperty = useCallback(async (id: string, direction: 'up' | 'down') => {
     const idx = properties.findIndex(p => p.id === id)
     if (idx === -1) return
@@ -488,6 +540,7 @@ export function useProperties(dbId?: string) {
     batchDeleteProperties,
     batchUpdateStatus,
     moveToFolder,
+    moveToDatabase,
     deleteProperty,
     deletePhoto,
     uploadPhoto,
