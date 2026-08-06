@@ -552,7 +552,7 @@ export default function DatabaseObjectsScreen() {
         {!reorderMode && !selectMode && filtered.length > 0 && (
           <div style={{ margin: '0 12px 8px', display: 'flex', alignItems: 'center', gap: 8 }}>
             {properties.length > 1 ? (
-              <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6, overflowX: 'auto', paddingBottom: 2 }}>
+              <div className="sort-scroll" style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6, overflowX: 'auto', paddingBottom: 2 }}>
                 <span style={{ display: 'flex', flexShrink: 0 }}><IconActivity size={12} color="var(--t4)" /></span>
                 {([
                   { id: 'default', label: 'За порядком' },

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAppStore } from '@/store/appStore'
 import { useAuth } from '@/hooks/useAuth'
-import { DB_TYPE_LABELS, rentUnitLabel, objectsWord, DB_COLORS } from '@/lib/utils'
+import { DB_TYPE_LABELS, rentUnitLabel, objectsWord, DB_COLORS, STATUS_BADGE_CLS } from '@/lib/utils'
 import { IconBuilding, IconRuler, IconCurrencyDollar } from '@/components/Icons'
 
 // Public DB preview (realtor flow)
@@ -64,11 +64,6 @@ const STATUS_LABELS: Record<string, string> = {
   for_sale: 'Продаж',
 }
 
-const STATUS_BADGE_CLS: Record<string, string> = {
-  free: 'bdg-ok',
-  occupied: 'bdg-busy',
-  for_sale: 'bdg-sale',
-}
 
 export default function GuestDatabaseScreen() {
   const { screenParams, back } = useAppStore()

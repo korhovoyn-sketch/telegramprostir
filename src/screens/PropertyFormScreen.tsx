@@ -36,6 +36,8 @@ export default function PropertyFormScreen() {
   const duplicateId = screenParams.duplicateId as string | undefined
   const dupSource = properties.find(p => p.id === duplicateId)
   const dupFilledRef = useRef(false)
+  // id об'єкта, яким уже заповнено форму (щоб не префілити повторно)
+  const prefilledRef = useRef<string | null>(null)
 
   // Parking DBs get a spot-oriented field set (number/area/level/type/EV, flat
   // utilities, monthly-or-daily rate) instead of the office/apartment layout.
@@ -171,7 +173,12 @@ export default function PropertyFormScreen() {
       description, salePrice, tenantName, leaseStartDate, leaseEndDate, address, utilities, folderId])
 
   useEffect(() => {
-    if (isEdit && existing) {
+    // Префіл РІВНО ОДИН раз на об'єкт. Ефект залежить від `existing`, а це
+    // об'єкт зі списку properties — будь-яке фонове оновлення списку давало
+    // нову ідентичність, ефект перезапускався і ЗАТИРАВ уже введений текст
+    // значеннями з БД (користувач бачив «зміни не зберігаються»).
+    if (isEdit && existing && prefilledRef.current !== existing.id) {
+      prefilledRef.current = existing.id
       setName(existing.name)
       setFloor(existing.floor ?? '')
       setStatus(existing.status)
