@@ -371,6 +371,13 @@ This sandboxed environment has **no outbound network** to Vercel/Supabase previe
 RPC `delete_my_account()` (SECURITY DEFINER, лише `authenticated`) — самостійне
 стирання акаунта, обіцяне в Політиці конфіденційності §5.
 
+**42P13 при повторному застосуванні:** `CREATE OR REPLACE` не змінює тип
+результату наявної функції. Міграція тому починається з `DO`-блоку, що дропає
+ВСІ перевантаження `public.delete_my_account` за іменем (через
+`oid::regprocedure`), і лише потім робить `CREATE`. Той самий патерн потрібен
+будь-якій міграції, що переоголошує `RETURNS TABLE` (пор. явний
+`DROP FUNCTION IF EXISTS get_public_property_preview(TEXT)` у 042).
+
 **Нюанс порядку, який ламав би DELETE:** майже все каскадить від `users(id)`,
 АЛЕ `property_views.viewer_id` оголошений БЕЗ `ON DELETE` (тобто NO ACTION), і
 одна переглядова позначка заблокувала б видалення. RPC спершу знеособлює її

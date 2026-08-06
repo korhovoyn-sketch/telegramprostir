@@ -18,7 +18,24 @@
 -- прив'язані до рядків, яких уже немає.
 -- ============================================================================
 
-CREATE OR REPLACE FUNCTION delete_my_account()
+-- CREATE OR REPLACE не може змінити тип результату наявної функції (42P13), а в
+-- БД може лежати попередня версія з іншим RETURNS (або інший набір аргументів).
+-- Тому спершу знімаємо ВСІ перевантаження за іменем — так міграція лишається
+-- ідемпотентною і при повторному, і при першому застосуванні.
+DO $$
+DECLARE r RECORD;
+BEGIN
+  FOR r IN
+    SELECT p.oid::regprocedure::TEXT AS sig
+      FROM pg_proc p
+      JOIN pg_namespace n ON n.oid = p.pronamespace
+     WHERE n.nspname = 'public' AND p.proname = 'delete_my_account'
+  LOOP
+    EXECUTE 'DROP FUNCTION ' || r.sig;
+  END LOOP;
+END $$;
+
+CREATE FUNCTION delete_my_account()
 RETURNS TABLE (deleted BOOLEAN, error TEXT)
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
@@ -69,7 +86,10 @@ GRANT EXECUTE ON FUNCTION delete_my_account() TO authenticated;
 
 -- ── Діагностика ──────────────────────────────────────────────────────────────
 SELECT '════ delete_my_account ════' AS check;
-SELECT p.proname, pg_get_function_identity_arguments(p.oid) AS args, p.prosecdef AS security_definer
+SELECT p.proname,
+       pg_get_function_identity_arguments(p.oid) AS args,
+       pg_get_function_result(p.oid)             AS returns,
+       p.prosecdef                               AS security_definer
 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
 WHERE n.nspname = 'public' AND p.proname = 'delete_my_account';
 
