@@ -193,6 +193,27 @@ test('modal: swipe down on the header dismisses', async ({ page }) => {
   await expect(page.locator('.modal')).toHaveCount(0)
 })
 
+test('modal не схлопується при некоректній висоті клавіатури', async ({ page }) => {
+  await fixtures(page)
+  await openRentModal(page)
+  await page.waitForTimeout(400)
+  const before = await page.locator('.modal').boundingBox()
+  expect(before!.height).toBeGreaterThan(100)
+
+  // Платформа може повідомити абсурдну висоту клавіатури (iOS + зум/скрол у
+  // Telegram). Без нижньої межі max-height ставав ≈0 і модалка ЗНИКАЛА,
+  // лишаючи тільки затемнення — саме це користувач бачив як «не відкривається».
+  for (const kb of [600, 900, 2000]) {
+    await page.evaluate((k) => document.documentElement.style.setProperty('--keyboard-h', `${k}px`), kb)
+    await page.waitForTimeout(250)
+    const box = await page.locator('.modal').boundingBox()
+    expect(box, `модалка існує при --keyboard-h:${kb}px`).not.toBeNull()
+    expect(box!.height, `модалка не схлопнулась при --keyboard-h:${kb}px`).toBeGreaterThan(100)
+    // Заголовок лишається читабельним
+    await expect(page.getByText('Здати в оренду', { exact: true }).first()).toBeVisible()
+  }
+})
+
 test('nested modal fills the viewport, not the parent sheet', async ({ page }) => {
   await fixtures(page)
   await page.goto('/')
