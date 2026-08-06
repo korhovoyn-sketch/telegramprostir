@@ -212,7 +212,10 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
         {/* Scrollable body — inputs scroll freely; action buttons are sticky at the bottom
             so they never overlap inputs when the keyboard is open */}
         {(children || actions) && (
-          <div className="modal-body" onFocusCapture={scrollFocusedIntoView}>
+          <div
+            className="modal-body"
+            onFocusCapture={scrollFocusedIntoView}
+          >
             {children}
             {actions && (
               <div className={`modal-actions ${actions.length === 2 ? 'two' : ''}`}>

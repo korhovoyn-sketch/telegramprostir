@@ -806,7 +806,10 @@ export default function DatabaseObjectsScreen() {
           counts={folderCounts}
           onCreate={createFolder}
           onRename={renameFolder}
-          onDelete={async (id) => { const ok = await deleteFolder(id); if (ok) await loadProperties(screenParams.dbId); return ok }}
+          // Перезавантажувати список НЕ треба: секції групують лише по папках, що
+          // існують (foldersById.has), тож обʼєкти видаленої папки самі падають у
+          // «Без папки». Зайвий раунд-трип лише підвішував модалку.
+          onDelete={deleteFolder}
           onReorder={reorderFolder}
           onClose={() => setShowFolderManage(false)}
         />
