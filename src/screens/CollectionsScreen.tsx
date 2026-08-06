@@ -16,6 +16,7 @@ import ShareSheet from '@/components/ui/ShareSheet'
 import type { Property, Collection } from '@/types'
 import CoachMark from '@/components/ui/CoachMark'
 import { useOnboarding } from '@/hooks/useOnboarding'
+import { useHideOnScrollDown } from '@/hooks/useHideOnScrollDown'
 
 // ─── Extended types ────────────────────────────────────────────────────────────
 
@@ -111,6 +112,7 @@ function CollectionDetail({
   onDelete: (id: string) => void
 }) {
   const { user, showToast, isOnline } = useAppStore()
+  const fabHidden = useHideOnScrollDown()
 
   const [collectionProps, setCollectionProps] = useState<CollectionProperty[]>([])
   const [loadingProps, setLoadingProps] = useState(true)
@@ -368,7 +370,7 @@ function CollectionDetail({
       </div>
 
       {/* Add button */}
-      <button className="fab" aria-label="Додати об'єкт" onClick={openAddModal}>
+      <button className={`fab ${fabHidden ? 'fab-off' : ''}`} aria-label="Додати об'єкт" onClick={openAddModal}>
         <IconPlus size={20} />
       </button>
 
@@ -465,6 +467,7 @@ function CollectionDetail({
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function CollectionsScreen() {
+  const fabHidden = useHideOnScrollDown()
   const { user, showToast, screenParams } = useAppStore()
   const [collections, setCollections] = useState<CollectionWithCount[]>([])
   const [loading, setLoading] = useState(true)
@@ -638,7 +641,7 @@ export default function CollectionsScreen() {
       </div>
 
       {/* FAB */}
-      <button ref={fabRef} className="fab" aria-label="Створити підбірку" onClick={createCollection}>
+      <button ref={fabRef} className={`fab ${fabHidden ? 'fab-off' : ''}`} aria-label="Створити підбірку" onClick={createCollection}>
         <IconPlus size={20} />
       </button>
 

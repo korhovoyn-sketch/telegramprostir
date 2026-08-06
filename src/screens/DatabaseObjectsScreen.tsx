@@ -24,8 +24,10 @@ import { supabase } from '@/lib/supabase'
 import type { Database, Property, PropertyStatus } from '@/types'
 import CoachMark from '@/components/ui/CoachMark'
 import { useOnboarding } from '@/hooks/useOnboarding'
+import { useHideOnScrollDown } from '@/hooks/useHideOnScrollDown'
 
 export default function DatabaseObjectsScreen() {
+  const fabHidden = useHideOnScrollDown()
   const { screenParams, navigate, databases, user } = useAppStore()
   const { deleteDatabase } = useDatabases()
   const { properties, loading, error, loadProperties, reorderProperty, batchDeleteProperties, batchUpdateStatus, moveToFolder } = useProperties(screenParams.dbId)
@@ -698,7 +700,7 @@ export default function DatabaseObjectsScreen() {
 
       {/* FAB — owner only, hidden while reordering or selecting */}
       {isOwner && !reorderMode && !selectMode && (
-        <button ref={fabRef} className="fab" aria-label="Додати об'єкт" onClick={() => navigate('property-form', { dbId: db.id })}>
+        <button ref={fabRef} className={`fab ${fabHidden ? 'fab-off' : ''}`} aria-label="Додати об'єкт" onClick={() => navigate('property-form', { dbId: db.id })}>
           <IconPlus size={20} />
         </button>
       )}

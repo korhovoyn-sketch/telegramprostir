@@ -777,7 +777,7 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 @keyframes tabUserNod{0%{transform:scale(.7) translateY(3px)}55%{transform:scale(1.1) translateY(-1.5px)}100%{transform:scale(1) translateY(0)}}
 
 /* ── FAB ── */
-.fab{position:absolute;right:14px;bottom:calc(80px + var(--safe-bottom));width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#FF7AB8,#C42378);display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;box-shadow:0 8px 22px rgba(196,35,120,.42),inset 0 1px 0 rgba(255,255,255,.3);z-index:18;cursor:pointer;border:none;animation:fabPop .5s var(--ease-spr) .3s both;transition:transform .2s var(--ease-spr),box-shadow .2s}
+.fab{position:absolute;right:14px;bottom:calc(80px + var(--safe-bottom));width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#FF7AB8,#C42378);display:flex;align-items:center;justify-content:center;color:#fff;font-size:20px;box-shadow:0 8px 22px rgba(196,35,120,.42),inset 0 1px 0 rgba(255,255,255,.3);z-index:18;cursor:pointer;border:none;animation:fabPop .5s var(--ease-spr) .3s both;transition:transform .2s var(--ease-spr),box-shadow .2s,translate .26s var(--ease-out),opacity .22s ease}
 @media (hover: hover){.fab:hover{transform:scale(1.08);box-shadow:0 12px 28px rgba(196,35,120,.55),inset 0 1px 0 rgba(255,255,255,.35)}}
 .fab:active{transform:scale(.94)}
 
@@ -1342,3 +1342,11 @@ svg.ico{overflow:visible}
   -webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 26px),transparent);
   mask-image:linear-gradient(90deg,#000 calc(100% - 26px),transparent)}
 .sort-scroll::-webkit-scrollbar{display:none}
+
+/* FAB ховається на гортанні вниз (варіант «б»): інакше він постійно накриває
+   статус-бейдж картки — і кнопка, і бейдж притиснуті до правого краю.
+   Використовуємо окрему властивість `translate`, а НЕ transform: у .fab висить
+   animation:fabPop із fill:both, чий transform:scale(1) переміг би transform,
+   але з translate вони композуються. Де translate не підтримано — кнопка просто
+   лишається видимою (деградація без поломки). */
+.fab.fab-off{translate:0 calc(100% + 96px);opacity:0;pointer-events:none}
