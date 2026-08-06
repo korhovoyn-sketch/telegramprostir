@@ -17,6 +17,31 @@ export const TG_BOT = tgHandle(process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME)
 /** Mini App short name from BotFather (/newapp). Enables direct-link format. */
 const TG_APP = tgHandle(process.env.NEXT_PUBLIC_TELEGRAM_APP_NAME)
 
+// ── Клавіатура ───────────────────────────────────────────────────────────────
+
+/**
+ * Чи СТИСНУВ webview лейаут під клавіатуру. Це принципова розвилка:
+ *  • перекриття (класичний iOS) — лейаут на всю висоту, відступ знизу мусимо
+ *    додати ми;
+ *  • стиснення (Android, новий Telegram iOS) — лейаут УЖЕ без клавіатури, і
+ *    будь-який наш відступ віднімає її ВДРУГЕ. Саме подвійне віднімання
+ *    затискало модалку до ~180px: тіло починало прокручуватись і sticky-кнопки
+ *    накривали поле, у яке користувач друкував.
+ * Ознака стиснення: висота вікна збіглася з поточною (урізаною) висотою
+ * Telegram, а не зі стабільною.
+ */
+export function layoutShrunkByKeyboard(): boolean {
+  if (typeof window === 'undefined') return false
+  // deno-lint-ignore no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const tg = window.Telegram?.WebApp as any
+  const stable = tg?.viewportStableHeight ?? 0
+  const current = tg?.viewportHeight ?? stable
+  if (!(stable > 0) || stable <= current) return false
+  const innerH = window.innerHeight || stable
+  return Math.abs(innerH - current) < Math.abs(innerH - stable)
+}
+
 // ── Haptics ──────────────────────────────────────────────────────────────────
 // Read window.Telegram directly (optional-chained) so these work from event
 // handlers, hooks, and plain modules alike — no hook/tg-state wiring, no throw
