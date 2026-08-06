@@ -187,7 +187,7 @@ body{
 /* Header subtitle — Caption 1 */
 .hdr-t-sub{font-size:var(--fs-cap1);color:var(--t3);font-weight:var(--fw-reg);margin-top:2px;line-height:1}
 /* 44×44 tap target (WCAG 2.5.8): visual icon stays small, padding compensates */
-.hdr-a{width:32px;height:32px;display:flex;align-items:center;justify-content:center;color:var(--t1);font-size:16px;background:none;border:none;cursor:pointer;position:relative;transition:transform var(--dur-xs) ease,filter var(--dur-sm) ease,opacity var(--dur-xs) ease;min-width:44px;min-height:44px;padding:6px}
+.hdr-a{width:auto;height:32px;display:flex;align-items:center;justify-content:center;color:var(--t1);font-size:16px;background:none;border:none;cursor:pointer;position:relative;transition:transform var(--dur-xs) ease,filter var(--dur-sm) ease,opacity var(--dur-xs) ease;min-width:44px;min-height:44px;padding:6px;white-space:nowrap;flex-shrink:0}
 .hdr-a.txt{width:auto;padding:0 12px;font-size:13px;font-weight:600;color:#aae2ff}
 .hdr-a-dot{position:absolute;top:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:#FF3B30;border:1.5px solid #06051a}
 .hdr-sp{width:44px;flex-shrink:0}
@@ -1331,3 +1331,7 @@ svg.ico{overflow:visible}
 .del-acc{margin:0 var(--g3) 4px;padding:10px;border-radius:var(--r-md);text-align:center;font-size:var(--fs-foot);color:var(--t3);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;min-height:40px;transition:color .16s}
 .del-acc:active{color:var(--err-fg)}
 
+
+/* У режимі вибору знизу зʼявляється фіксований бар масових дій — резервуємо під
+   нього місце, інакше він накриває останні картки списку. */
+.body.has-batchbar{padding-bottom:calc(236px + var(--safe-bottom))}

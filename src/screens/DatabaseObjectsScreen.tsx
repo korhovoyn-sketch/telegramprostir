@@ -293,7 +293,9 @@ export default function DatabaseObjectsScreen() {
           display: 'flex', alignItems: 'stretch', overflow: 'hidden', cursor: 'default',
         } : selectMode ? {
           display: 'flex', alignItems: 'stretch', overflow: 'hidden',
-          outline: selectedIds.has(p.id) ? '2px solid var(--accent)' : undefined,
+          // inset-ring замість outline: outline малюється ЗА межами border-box,
+          // і contain:paint на картці обрізав його по боках
+          boxShadow: selectedIds.has(p.id) ? 'inset 0 0 0 2px var(--accent)' : undefined,
         } : undefined}
         onClick={
           selectMode ? () => toggleSelect(p.id) :
@@ -516,7 +518,7 @@ export default function DatabaseObjectsScreen() {
         }
       />
 
-      <div className="body has-fab">
+      <div className={`body has-fab${selectMode ? ' has-batchbar' : ''}`}>
         {/* No summary card here — the header already names the DB, the segment
             tabs carry the counts, and share lives in the «⋯» menu. Dropping it
             lifts real content above the fold. */}
