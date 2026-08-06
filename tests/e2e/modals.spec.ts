@@ -342,3 +342,38 @@ test('ліфт НЕ дублюється, коли платформа рапор
   expect(pad.inline, 'локальний fallback не застосовано').toBe('')
   expect(Math.round(pad.computed), 'працює лише реальна висота').toBe(300)
 })
+
+test('поле у фокусі не ховається під кнопками дій навіть у затиснутій модалці', async ({ page }) => {
+  // Реальний скрін від користувача: клавіатура стиснула шит, тіло стало
+  // прокручуваним — і sticky-кнопки «Скасувати/Зберегти» накрили поле «День
+  // місяця», у яке він саме друкував.
+  await fixtures(page)
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+  await page.getByText('БЦ Рубін').first().click()
+  await expect(page.getByText('Всі (3)')).toBeVisible()
+  await page.locator('.obj-card', { hasText: 'Офіс 101' })
+    .getByRole('button', { name: 'Платежі' }).click()
+  await expect(page.getByText(/Платежі — Офіс 101|Календар платежів/)).toBeVisible({ timeout: 15_000 })
+  await page.getByRole('button', { name: /Налаштувати/ }).first().click()
+  await expect(page.locator('.modal')).toBeVisible()
+
+  // Затискаємо шит так само, як це робить клавіатура на пристрої
+  await page.evaluate(() => document.documentElement.style.setProperty('--keyboard-h', '430px'))
+  await page.waitForTimeout(400)
+
+  const dayInput = page.locator('.modal input[inputmode="numeric"]').first()
+  await dayInput.focus()
+  await page.waitForTimeout(900)
+
+  const geo = await page.evaluate(() => {
+    const el = document.querySelector('.modal input[inputmode="numeric"]') as HTMLElement
+    const act = document.querySelector('.modal-actions') as HTMLElement
+    const f = el.getBoundingClientRect()
+    const a = act.getBoundingClientRect()
+    return { fieldBottom: Math.round(f.bottom), fieldTop: Math.round(f.top), actionsTop: Math.round(a.top) }
+  })
+  expect(geo.fieldBottom, 'нижній край поля вище за кнопки').toBeLessThanOrEqual(geo.actionsTop)
+  expect(geo.fieldTop, 'поле не виїхало за верх екрана').toBeGreaterThan(0)
+  await expect(dayInput).toBeVisible()
+})

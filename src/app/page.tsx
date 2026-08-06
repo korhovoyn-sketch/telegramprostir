@@ -3,7 +3,7 @@
 import { useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import { useAppStore } from '@/store/appStore'
-import { hapticNotify } from '@/lib/telegram'
+import { hapticNotify, layoutShrunkByKeyboard } from '@/lib/telegram'
 import { useAuth } from '@/hooks/useAuth'
 import { useDeepLink } from '@/hooks/useDeepLink'
 import { useNotifications } from '@/hooks/useNotifications'
@@ -86,8 +86,20 @@ export default function Page() {
     function applyViewportHeight() {
       const stable = tgAny.viewportStableHeight ?? tgAny.viewportHeight ?? 0
       const current = tgAny.viewportHeight ?? stable
-      if (stable > 0) document.documentElement.style.setProperty('--tg-vh', `${stable}px`)
-      tgKbH = Math.max(0, Math.round(stable - current))
+      const reported = Math.max(0, Math.round(stable - current))
+      // Клавіатура «з'їдає» екран двома різними способами, і плутати їх не можна:
+      //  • ПЕРЕКРИВАЄ (iOS): лейаут лишається на всю висоту, і відступ знизу
+      //    мусимо додати ми;
+      //  • СТИСКАЄ webview (Android, новий Telegram iOS): лейаут УЖЕ без
+      //    клавіатури — додатковий відступ віднімає її вдруге. Саме так модалку
+      //    затискало до ~180px, її тіло починало прокручуватись, і sticky-кнопки
+      //    накривали поле, у яке користувач друкував.
+      const innerH = window.innerHeight || stable
+      const layoutShrunk = layoutShrunkByKeyboard()
+      // Висота, доступна лейауту ЗАРАЗ: у режимі стиснення це вже урізана.
+      const vh = stable > 0 ? Math.min(stable, innerH) : innerH
+      if (vh > 0) document.documentElement.style.setProperty('--tg-vh', `${vh}px`)
+      tgKbH = layoutShrunk ? 0 : reported
       applyKeyboardHeight()
     }
     function onActivated() {

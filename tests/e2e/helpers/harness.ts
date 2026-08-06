@@ -54,6 +54,9 @@ export async function installTelegram(page: Page, opts: HarnessOptions = {}) {
   await page.addInitScript(
     ({ tgId, firstName, username, startParam }) => {
       const cloud = new Map<string, string>()
+      // Реальний емітер подій: без нього застосунок ніколи не бачить
+      // viewportChanged, і всю клавіатурну логіку неможливо перевірити.
+      const listeners = new Map<string, ((...a: unknown[]) => void)[]>()
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ;(window as any).Telegram = {
         WebApp: {
@@ -65,7 +68,13 @@ export async function installTelegram(page: Page, opts: HarnessOptions = {}) {
           ready() {}, expand() {}, close() {},
           enableClosingConfirmation() {}, disableClosingConfirmation() {},
           setHeaderColor() {}, setBackgroundColor() {}, disableVerticalSwipes() {},
-          openTelegramLink() {}, onEvent() {}, offEvent() {},
+          openTelegramLink() {},
+          onEvent(name: string, cb: (...a: unknown[]) => void) {
+            listeners.set(name, [...(listeners.get(name) ?? []), cb])
+          },
+          offEvent(name: string, cb: (...a: unknown[]) => void) {
+            listeners.set(name, (listeners.get(name) ?? []).filter((f) => f !== cb))
+          },
           BackButton: { isVisible: false, show() { this.isVisible = true }, hide() { this.isVisible = false }, onClick() {}, offClick() {} },
           HapticFeedback: { impactOccurred() {}, notificationOccurred() {}, selectionChanged() {} },
           CloudStorage: {
@@ -74,6 +83,23 @@ export async function installTelegram(page: Page, opts: HarnessOptions = {}) {
             removeItem: (k: string, cb?: (e: unknown, ok: boolean) => void) => { cloud.delete(k); cb?.(null, true) },
           },
         },
+      }
+      // Тестовий хелпер: імітує відкриття клавіатури так, як це робить Telegram.
+      // `resized` — режим, у якому webview СТИСНУВСЯ (лейаут уже без клавіатури).
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(window as any).__tgKeyboard = (height: number) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const tg = (window as any).Telegram.WebApp
+        tg.viewportHeight = tg.viewportStableHeight - height
+        for (const cb of listeners.get('viewportChanged') ?? []) cb({ isStateStable: false })
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(window as any).__tgViewportStable = (h: number) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const tg = (window as any).Telegram.WebApp
+        tg.viewportStableHeight = h
+        tg.viewportHeight = h
+        for (const cb of listeners.get('viewportChanged') ?? []) cb({ isStateStable: true })
       }
     },
     { tgId: user.tg_id, firstName: user.first_name, username: user.tg_username, startParam: opts.startParam },

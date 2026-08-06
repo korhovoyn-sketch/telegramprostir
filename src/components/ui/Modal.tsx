@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { scrollFocusedIntoView } from '@/lib/utils'
+import { layoutShrunkByKeyboard } from '@/lib/telegram'
 
 // Mounted-modal stack: Escape must close only the TOPMOST modal (a confirm
 // nested inside ShareSheet must not tear the sheet down too — backdrop taps
@@ -54,6 +55,7 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
   const [kbFallback, setKbFallback] = useState(false)
   const kbProbeRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const kbDropRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const kbFixRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   function reportedKeyboardPx(): number {
     const css = parseFloat(
@@ -64,23 +66,43 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
     return Math.max(Number.isFinite(css) ? css : 0, measured)
   }
 
+  // Кнопки дій — sticky на дні тіла шита, тобто вміст ПРОЇЖДЖАЄ ПІД ними. Коли
+  // клавіатура стискає шит, поле у фокусі опиняється саме там: користувач
+  // друкує «під кнопками». scrollIntoView це не рятує — для нього поле в межах
+  // контейнера вже «видиме». Тому дотягуємо тіло рівно на перекриття.
+  function clearStickyActions(el: HTMLElement) {
+    const body = el.closest('.modal-body')
+    const actions = body?.querySelector('.modal-actions')
+    if (!body || !actions) return
+    const overlap = el.getBoundingClientRect().bottom - actions.getBoundingClientRect().top + 8
+    if (overlap > 0) body.scrollTop += overlap
+  }
+
   function onFieldFocus(e: React.FocusEvent<HTMLElement>) {
     scrollFocusedIntoView(e)
-    const tag = (e.target as HTMLElement).tagName
-    if (tag !== 'INPUT' && tag !== 'TEXTAREA') return
+    const el = e.target as HTMLElement
+    if (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA') return
     clearTimeout(kbDropRef.current)
     clearTimeout(kbProbeRef.current)
     // Тільки для тач-пристроїв: на десктопі клавіатура фізична, ліфт лишив би
     // порожню діру під шитом.
     const touch = navigator.maxTouchPoints > 0 || window.matchMedia('(pointer: coarse)').matches
-    if (!touch) return
+    if (!touch) { clearStickyActions(el); return }
     kbProbeRef.current = setTimeout(() => {
-      if (reportedKeyboardPx() < KB_TRUSTED_PX) setKbFallback(true)
+      // У режимі стиснення webview лейаут уже без клавіатури — власний ліфт
+      // відняв би її вдруге і затиснув шит (див. layoutShrunkByKeyboard).
+      const lift = !layoutShrunkByKeyboard() && reportedKeyboardPx() < KB_TRUSTED_PX
+      if (lift) setKbFallback(true)
+      // Ліфт змінює геометрію і їде transition-ом (.25s) — міряємо ПІСЛЯ нього,
+      // інакше скоригуємо на застарілих координатах.
+      clearTimeout(kbFixRef.current)
+      kbFixRef.current = setTimeout(() => clearStickyActions(el), lift ? 320 : 0)
     }, KB_PROBE_MS)
   }
 
   function onFieldBlur() {
     clearTimeout(kbProbeRef.current)
+    clearTimeout(kbFixRef.current)
     // Перехід між сусідніми полями — це blur+focus; пауза не дає шиту стрибати.
     clearTimeout(kbDropRef.current)
     kbDropRef.current = setTimeout(() => setKbFallback(false), 180)
@@ -89,6 +111,7 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
   useEffect(() => () => {
     clearTimeout(kbProbeRef.current)
     clearTimeout(kbDropRef.current)
+    clearTimeout(kbFixRef.current)
   }, [])
 
   const requestClose = () => {
