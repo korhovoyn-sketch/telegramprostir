@@ -227,7 +227,14 @@ test('nested modal fills the viewport, not the parent sheet', async ({ page }) =
   await expect(page.getByText('Групуйте').first()).toBeVisible()
   await page.getByLabel('Видалити').first().click()
   await expect(page.getByText(/Видалити папку/)).toBeVisible()
-  await page.waitForTimeout(500) // дочекатись кінця slide-up, інакше міряємо на льоту
+  // Чекаємо, доки slide-up ЗАВЕРШИТЬСЯ, а не фіксовану паузу: під паралельним
+  // навантаженням 500мс іноді не вистачало і замір ловив кадр анімації.
+  await page.waitForFunction(() => {
+    const ovs = document.querySelectorAll('.modal-overlay')
+    const m = ovs[ovs.length - 1]?.querySelector('.modal') as HTMLElement | undefined
+    if (!m) return false
+    return m.getAnimations().every(a => a.playState !== 'running')
+  }, undefined, { timeout: 5000 })
 
   // .modal має backdrop-filter → containing block для position:fixed нащадків.
   // Без порталу вкладений оверлей затискався в батьківський шит (плавав по

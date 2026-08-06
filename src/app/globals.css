@@ -280,8 +280,8 @@ body{
 /* ── BADGES ── */
 .bdg{font-size:11px;font-weight:600;padding:2.5px 8px;border-radius:var(--r-xs);white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
 .bdg-ok{background:var(--ok-bg);color:var(--ok-fg);border:.5px solid var(--ok-bd);box-shadow:0 0 8px rgba(52,199,89,.25),inset 0 1px 0 rgba(52,199,89,.12);transition:box-shadow 0.3s ease}
-.bdg-busy{background:var(--err-bg);color:var(--err-fg);border:.5px solid var(--err-bd);box-shadow:0 0 8px rgba(255,59,48,.22),inset 0 1px 0 rgba(255,59,48,.12);transition:box-shadow 0.3s ease}
-.bdg-sale{background:var(--warn-bg);color:var(--warn-fg);border:.5px solid var(--warn-bd);box-shadow:0 0 8px rgba(255,149,0,.22),inset 0 1px 0 rgba(255,149,0,.12);transition:box-shadow 0.3s ease}
+.bdg-busy{background:var(--warn-bg);color:var(--warn-fg);border:.5px solid var(--warn-bd);box-shadow:0 0 8px rgba(255,149,0,.22),inset 0 1px 0 rgba(255,149,0,.12);transition:box-shadow 0.3s ease}
+.bdg-sale{background:var(--info-bg);color:var(--info-fg);border:.5px solid rgba(122,179,255,.32);box-shadow:0 0 8px rgba(122,179,255,.22),inset 0 1px 0 rgba(122,179,255,.12);transition:box-shadow 0.3s ease}
 .bdg-fav{background:rgba(255,80,180,.2);color:#ffb8e0;border:.5px solid rgba(255,80,180,.32)}
 .bdg-info{background:var(--info-bg);color:var(--info-fg);border:.5px solid rgba(122,179,255,.32)}
 .bdg-new{background:linear-gradient(135deg,rgba(255,200,100,.3),rgba(255,80,170,.22));color:#FFD700;border:.5px solid rgba(255,200,100,.4)}
@@ -1335,3 +1335,10 @@ svg.ico{overflow:visible}
 /* У режимі вибору знизу зʼявляється фіксований бар масових дій — резервуємо під
    нього місце, інакше він накриває останні картки списку. */
 .body.has-batchbar{padding-bottom:calc(236px + var(--safe-bottom))}
+
+/* Стрічка сортування впритул до перемикача вигляду читалась як ОБРІЗАНА, а не
+   як прокручувана. Маска зі згасанням праворуч + відступ роблять намір явним. */
+.sort-scroll{scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-right:10px;
+  -webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 26px),transparent);
+  mask-image:linear-gradient(90deg,#000 calc(100% - 26px),transparent)}
+.sort-scroll::-webkit-scrollbar{display:none}

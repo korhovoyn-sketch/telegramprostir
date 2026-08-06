@@ -13,7 +13,7 @@ import { StatusBadge } from '@/components/ui/Badge'
 import { IconEdit, IconShare, IconMapPin, IconPhoto, IconX, IconCamera, IconRuler, IconBuildingSkyscraper, IconCircleCheck, IconCurrencyDollar, IconCarGarage, IconUser, IconKey, IconBolt, IconCalendar, IconFile } from '@/components/Icons'
 import FilesList from '@/components/ui/FilesList'
 import FloatingButton from '@/components/ui/FloatingButton'
-import { currencySymbol, sanitizeDecimal, formatPrice, calcRent, calcUtilities, calcRentUtils, basisArea, rentUnitLabel, computedRentUnit, parkingTypeLabel, STATUS_LABELS, formatLeasePeriod, photoUrl, daysUntil } from '@/lib/utils'
+import { currencySymbol, sanitizeDecimal, formatPrice, calcRent, calcUtilities, calcRentUtils, basisArea, rentUnitLabel, computedRentUnit, parkingTypeLabel, STATUS_LABELS, STATUS_COLORS, formatLeasePeriod, photoUrl, daysUntil } from '@/lib/utils'
 import { UTILITY_META } from '@/lib/utilityMeta'
 import { supabase } from '@/lib/supabase'
 
@@ -290,8 +290,11 @@ export default function PropertyDetailScreen() {
             <Building3DHero />
           )}
 
-          <div className="obj-hero-bdg">
-            <span className="fdot" style={{ background: property.status === 'free' ? 'var(--ok)' : property.status === 'occupied' ? 'var(--err)' : 'var(--warn)' }} />
+          {/* Колір беремо з ЄДИНОГО джерела STATUS_COLORS: раніше пігулка була
+              захардкоджено зелена для будь-якого статусу, крапка — з третьої
+              палітри, а бейдж у сітці нижче показував ще інший колір. */}
+          <div className="obj-hero-bdg" style={{ background: STATUS_COLORS[property.status].bg, color: STATUS_COLORS[property.status].color }}>
+            <span className="fdot" style={{ background: STATUS_COLORS[property.status].color }} />
             {STATUS_LABELS[property.status]}
           </div>
 
