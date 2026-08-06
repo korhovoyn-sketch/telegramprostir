@@ -7,18 +7,20 @@ import { useAuth } from '@/hooks/useAuth'
 import TabBar from '@/components/ui/TabBar'
 import Toggle from '@/components/ui/Toggle'
 import Modal from '@/components/ui/Modal'
-import { IconMail, IconPhone, IconLanguage, IconCurrencyDollar, IconLogout, GlassCrown, IconBell, IconBellRing, IconChartLine, IconEye, IconMessage, IconAdjustments } from '@/components/Icons'
-import { TG_BOT , hapticSelection } from '@/lib/telegram'
+import { IconMail, IconPhone, IconLanguage, IconCurrencyDollar, IconLogout, IconTrash, GlassCrown, IconBell, IconBellRing, IconChartLine, IconEye, IconMessage, IconAdjustments } from '@/components/Icons'
+import { TG_BOT , hapticSelection, hapticNotify } from '@/lib/telegram'
 import { getInitials, scrollFocusedIntoView } from '@/lib/utils'
 
 export default function ProfileScreen() {
   const { user, databases } = useAppStore()
-  const { logout, updateProfile } = useAuth()
+  const { logout, deleteAccount, updateProfile } = useAuth()
 
   const [pushEnabled, setPushEnabled] = useState(user?.notification_push ?? true)
   const [weeklyReport, setWeeklyReport] = useState(user?.notification_weekly ?? true)
   const [newViews, setNewViews] = useState(user?.notification_views ?? true)
   const [showLogoutModal, setShowLogoutModal] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [savingLang, setSavingLang] = useState(false)
   const [savingCur, setSavingCur] = useState(false)
   const emailRef = useRef<HTMLInputElement>(null)
@@ -205,6 +207,13 @@ export default function ProfileScreen() {
           {' '}Вийти з акаунту
         </div>
 
+        {/* Право на стирання (Політика конфіденційності §5). Незворотно, тому
+            підтвердження вимагає вписати слово — випадковий тап не спрацює. */}
+        <div className="del-acc" onClick={() => { setDeleteConfirmText(''); setShowDeleteModal(true) }}>
+          <IconTrash size={14} />
+          {' '}Видалити акаунт
+        </div>
+
         {/* Юридичні документи мають лишатись досяжними і ПІСЛЯ входу — на
             welcome-екрані користувач їх уже не побачить. */}
         <div style={{ textAlign: 'center', fontSize: 'var(--fs-cap1)', paddingTop: 4, display: 'flex', justifyContent: 'center', gap: 14 }}>
@@ -229,6 +238,42 @@ export default function ProfileScreen() {
             { label: 'Скасувати', variant: 'secondary', onClick: () => setShowLogoutModal(false) },
           ]}
         />
+      )}
+
+      {showDeleteModal && (
+        <Modal
+          title="Видалити акаунт?"
+          subtitle="Буде НАЗАВЖДИ видалено: усі бази та об'єкти, фото й документи, платежі, підбірки й доступи. Відновити неможливо."
+          onClose={() => setShowDeleteModal(false)}
+          actions={[
+            {
+              label: 'Видалити назавжди',
+              variant: 'danger',
+              disabled: deleteConfirmText.trim().toUpperCase() !== 'ВИДАЛИТИ',
+              onClick: async () => {
+                if (offlineGuard()) return
+                hapticNotify('warning')
+                const ok = await deleteAccount()
+                if (ok) setShowDeleteModal(false)
+              },
+            },
+            { label: 'Скасувати', variant: 'secondary', onClick: () => setShowDeleteModal(false) },
+          ]}
+        >
+          <div className="fg glass-s" style={{ margin: '0 0 4px' }}>
+            <div className="fr">
+              <span className="fr-l">Впишіть <b style={{ color: 'var(--t1)' }}>ВИДАЛИТИ</b></span>
+              <input
+                className="fr-i"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="ВИДАЛИТИ"
+                autoCapitalize="characters"
+                aria-label="Підтвердження видалення"
+              />
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   )

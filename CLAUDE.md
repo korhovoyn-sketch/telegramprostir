@@ -364,6 +364,29 @@ This sandboxed environment has **no outbound network** to Vercel/Supabase previe
 
 ## Pending manual actions (зробити в Supabase Dashboard)
 
+### 0g. Видалення акаунта (delete_my_account) — виконати SQL в Dashboard → SQL Editor
+
+Файл: `supabase/migrations/044_delete_account.sql`.
+
+RPC `delete_my_account()` (SECURITY DEFINER, лише `authenticated`) — самостійне
+стирання акаунта, обіцяне в Політиці конфіденційності §5.
+
+**Нюанс порядку, який ламав би DELETE:** майже все каскадить від `users(id)`,
+АЛЕ `property_views.viewer_id` оголошений БЕЗ `ON DELETE` (тобто NO ACTION), і
+одна переглядова позначка заблокувала б видалення. RPC спершу знеособлює її
+(`viewer_id = NULL`), відвʼязує гостьові лінки й членства в чужих командах, і
+лише тоді видаляє `public.users` (каскад) + рядок у `auth.users` (без цього
+наступний вхід із того ж Telegram підняв би сесію на порожній профіль).
+
+Файли зі storage прибирає КЛІЄНТ (`useAuth.deleteAccount`) ДО виклику RPC —
+після каскаду шляхи вже недоступні. Осиротілий файл не є витоком: політики
+читання прив'язані до рядків, яких уже немає.
+
+UI: `ProfileScreen` → «Видалити акаунт» (приглушений стиль, щоб не запрошував до
+тапу) → модалка з **типізованим підтвердженням**: кнопка активна, лише коли
+вписано `ВИДАЛИТИ`. Без міграції кнопка є, але RPC поверне помилку — тост
+«Не вдалося видалити акаунт», користувач лишається в акаунті.
+
 ### 0f. Папки об'єктів (property_folders) — виконати SQL в Dashboard → SQL Editor
 
 Файл: `supabase/migrations/043_property_folders.sql` (застосовувати ПІСЛЯ 041 —
