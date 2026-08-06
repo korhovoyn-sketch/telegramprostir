@@ -4,18 +4,20 @@ import { useEffect, useState } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { hapticSelection, hapticImpact, hapticNotify } from '@/lib/telegram'
 import { useNotifications } from '@/hooks/useNotifications'
+import { useLeaseAlerts, type LeaseAlert } from '@/hooks/useLeaseAlerts'
 import TabBar from '@/components/ui/TabBar'
 import { SkeletonList } from '@/components/ui/SkeletonLoader'
 import { IconX } from '@/components/Icons'
-import { formatDate, daysSince } from '@/lib/utils'
+import { formatDate, daysSince, pluralUk, formatLeaseDate } from '@/lib/utils'
 import type { Notification } from '@/types'
 
-type NotifTab = 'all' | 'views' | 'chats' | 'system'
+type NotifTab = 'all' | 'lease' | 'views' | 'chats' | 'system'
 
 export default function NotificationsScreen() {
   const unreadCount = useAppStore((s) => s.unreadCount)
   const navigate = useAppStore((s) => s.navigate)
   const { notifications, loading, loadNotifications, markRead, markAllAsRead, deleteNotification, subscribeToNotifications } = useNotifications()
+  const { alerts: leaseAlerts, loadLeaseAlerts } = useLeaseAlerts()
   const [tab, setTab] = useState<NotifTab>('all')
 
   useEffect(() => {
@@ -24,6 +26,20 @@ export default function NotificationsScreen() {
     const cleanup = subscribeToNotifications()
     return cleanup
   }, [loadNotifications, subscribeToNotifications, markAllAsRead])
+
+  useEffect(() => { loadLeaseAlerts() }, [loadLeaseAlerts])
+
+  // Показуємо у «Всі» і в окремій вкладці «Договори».
+  const showLease = tab === 'all' || tab === 'lease'
+
+  function leaseText(a: LeaseAlert): string {
+    if (a.days < 0) {
+      const d = Math.abs(a.days)
+      return `Договір закінчився ${d} ${pluralUk(d, 'день', 'дні', 'днів')} тому`
+    }
+    if (a.days === 0) return 'Договір закінчується сьогодні'
+    return `Залишилось ${a.days} ${pluralUk(a.days, 'день', 'дні', 'днів')}`
+  }
 
   const filtered = notifications.filter((n) => {
     if (tab === 'all') return true
@@ -90,6 +106,7 @@ export default function NotificationsScreen() {
         <div className="notif-tabs">
           {([
             { id: 'all', label: `Всі${unreadCount > 0 ? ` (${unreadCount})` : ''}` },
+            { id: 'lease', label: `Договори${leaseAlerts.length > 0 ? ` (${leaseAlerts.length})` : ''}` },
             { id: 'views', label: 'Перегляди' },
             { id: 'chats', label: 'Повідомлення' },
             { id: 'system', label: 'Система' },
@@ -104,13 +121,41 @@ export default function NotificationsScreen() {
           ))}
         </div>
 
+        {/* Кінець договору — стан, а не подія, тож окремим закріпленим блоком
+            НАД датованими групами, і без кнопки видалення: поки термін
+            наближається, сповіщення мусить лишатись на екрані. */}
+        {showLease && leaseAlerts.length > 0 && (
+          <>
+            <div className="notif-grp">Терміни договорів</div>
+            <div className="notif-l glass-s" style={{ margin: '0 12px 12px' }}>
+              {leaseAlerts.map((a) => (
+                <div
+                  key={a.propertyId}
+                  className={`notif-i unread lease-${a.level}`}
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => { hapticImpact('light'); navigate('property-detail', { propertyId: a.propertyId, dbId: a.dbId }) }}
+                >
+                  <div className="notif-ic glass-s">{a.level === 'overdue' ? '⛔' : a.level === 'critical' ? '⏰' : '📅'}</div>
+                  <div className="notif-mn">
+                    <div className="notif-n">{a.name}</div>
+                    <div className="notif-s">
+                      {a.tenantName ? `${a.tenantName} · ` : ''}{leaseText(a)}
+                    </div>
+                  </div>
+                  <span className="notif-t">{formatLeaseDate(a.leaseEnd)}</span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
         {loading ? (
           <SkeletonList count={5} />
-        ) : filtered.length === 0 ? (
+        ) : filtered.length === 0 && !(showLease && leaseAlerts.length > 0) ? (
           <div className="empty-state" style={{ paddingTop: 32 }}>
             <div className="empty-ic">🔔</div>
             <div className="empty-h">Немає сповіщень</div>
-            <div className="empty-s">Тут з&apos;являться сповіщення про перегляди та події</div>
+            <div className="empty-s">Тут з&apos;являться перегляди, події та попередження про кінець договору</div>
           </div>
         ) : (
           Object.entries(groupedByDate).map(([group, items]) => (

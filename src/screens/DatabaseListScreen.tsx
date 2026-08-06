@@ -12,6 +12,7 @@ import SearchBar from '@/components/ui/SearchBar'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import CoachMark from '@/components/ui/CoachMark'
 import { useOnboarding } from '@/hooks/useOnboarding'
+import { useHideOnScrollDown } from '@/hooks/useHideOnScrollDown'
 import { IconChevronRight, IconPlus, GlassDbIcon } from '@/components/Icons'
 import { DB_TYPE_LABELS, formatPrice, STATUS_COLORS, STATUS_LABELS, greeting } from '@/lib/utils'
 import type { PropertyStatus } from '@/types'
@@ -26,6 +27,7 @@ interface PropSearchResult {
 }
 
 export default function DatabaseListScreen() {
+  const fabHidden = useHideOnScrollDown()
   const { user, navigate } = useAppStore()
   const { databases, loading, error, loadDatabases } = useDatabases()
   useSlowLoadingToast(loading)
@@ -245,7 +247,7 @@ export default function DatabaseListScreen() {
 
       <button
         ref={fabRef}
-        className="fab"
+        className={`fab ${fabHidden ? 'fab-off' : ''}`}
         aria-label="Створити базу"
         onClick={() => { hapticImpact('light'); navigate('create-db') }}
       >
