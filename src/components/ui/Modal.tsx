@@ -9,6 +9,17 @@ import { scrollFocusedIntoView } from '@/lib/utils'
 // never did).
 const modalStack: symbol[] = []
 
+// Консервативна висота клавіатури для платформ, які її НЕ повідомляють (iOS у
+// Telegram часто не ресайзить webview: і viewportChanged, і visualViewport
+// показують 0). Шит прив'язаний до низу екрана, тож без цього поля вводу
+// опиняються ПІД клавіатурою. Ліфт застосовуємо тим самим `--keyboard-h`, лише
+// локально на оверлеї — щоб працювали наявні клампи padding і max-height.
+const KB_FALLBACK_PX = 320
+// Скільком px звітованої висоти вже можна вірити (0–2px трапляються як шум).
+const KB_TRUSTED_PX = 100
+// Скільки чекати після фокуса, щоб клавіатура встигла відрапортуватись.
+const KB_PROBE_MS = 350
+
 interface ModalProps {
   title: string
   subtitle?: string
@@ -39,6 +50,46 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
   // Re-entry guard: a destructive action is usually async and leaves the modal
   // up while it flies, so a fast double-tap fired it twice (double DELETE).
   const [busy, setBusy] = useState(false)
+  // Ліфт шита, коли платформа не повідомляє висоту клавіатури (див. константи).
+  const [kbFallback, setKbFallback] = useState(false)
+  const kbProbeRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const kbDropRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+  function reportedKeyboardPx(): number {
+    const css = parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue('--keyboard-h'),
+    )
+    const vv = window.visualViewport
+    const measured = vv ? Math.max(0, Math.round(window.innerHeight - vv.height)) : 0
+    return Math.max(Number.isFinite(css) ? css : 0, measured)
+  }
+
+  function onFieldFocus(e: React.FocusEvent<HTMLElement>) {
+    scrollFocusedIntoView(e)
+    const tag = (e.target as HTMLElement).tagName
+    if (tag !== 'INPUT' && tag !== 'TEXTAREA') return
+    clearTimeout(kbDropRef.current)
+    clearTimeout(kbProbeRef.current)
+    // Тільки для тач-пристроїв: на десктопі клавіатура фізична, ліфт лишив би
+    // порожню діру під шитом.
+    const touch = navigator.maxTouchPoints > 0 || window.matchMedia('(pointer: coarse)').matches
+    if (!touch) return
+    kbProbeRef.current = setTimeout(() => {
+      if (reportedKeyboardPx() < KB_TRUSTED_PX) setKbFallback(true)
+    }, KB_PROBE_MS)
+  }
+
+  function onFieldBlur() {
+    clearTimeout(kbProbeRef.current)
+    // Перехід між сусідніми полями — це blur+focus; пауза не дає шиту стрибати.
+    clearTimeout(kbDropRef.current)
+    kbDropRef.current = setTimeout(() => setKbFallback(false), 180)
+  }
+
+  useEffect(() => () => {
+    clearTimeout(kbProbeRef.current)
+    clearTimeout(kbDropRef.current)
+  }, [])
 
   const requestClose = () => {
     if (firedRef.current) return
@@ -185,6 +236,7 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
     <div
       ref={overlayRef}
       className={`modal-overlay${closing ? ' closing' : ''}`}
+      style={kbFallback ? ({ '--keyboard-h': `${KB_FALLBACK_PX}px` } as React.CSSProperties) : undefined}
       onClick={(e) => { if (e.target === e.currentTarget) requestClose() }}
     >
       <div
@@ -214,7 +266,8 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
         {(children || actions) && (
           <div
             className="modal-body"
-            onFocusCapture={scrollFocusedIntoView}
+            onFocusCapture={onFieldFocus}
+            onBlurCapture={onFieldBlur}
           >
             {children}
             {actions && (
