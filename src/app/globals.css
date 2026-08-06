@@ -1350,3 +1350,8 @@ svg.ico{overflow:visible}
    але з translate вони композуються. Де translate не підтримано — кнопка просто
    лишається видимою (деградація без поломки). */
 .fab.fab-off{translate:0 calc(100% + 96px);opacity:0;pointer-events:none}
+
+/* Сповіщення про кінець договору: ліва смужка кодує терміновість */
+.notif-i.lease-soon{box-shadow:inset 3px 0 0 var(--info)}
+.notif-i.lease-critical{box-shadow:inset 3px 0 0 var(--warn)}
+.notif-i.lease-overdue{box-shadow:inset 3px 0 0 var(--err)}
