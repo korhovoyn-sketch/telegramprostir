@@ -660,7 +660,12 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
    inner clips (overflow+min-height:0) so the reveal is a smooth slide, and its
    padding-top gives the header→first-card gap only while open. */
 /* Body content inside the height-animated Collapsible (natural height, measured). */
+.fold-wrap{overflow:hidden;will-change:height}
 .fold-wrap-inner{display:flex;flex-direction:column;gap:10px;padding-top:10px}
+/* Під час розгортання/згортання глушимо backdrop-filter на картках усередині:
+   переблюрювати 24 скляні шари щокадру — головна причина рваної анімації.
+   На швидкості різниці не видно, а кадри перестають падати. */
+.fold-wrap.fold-anim .glass-s{backdrop-filter:none;-webkit-backdrop-filter:none}
 
 /* Icon-only view switch (cards / compact) — compact segmented pill, no labels */
 .view-seg{display:flex;gap:2px;flex-shrink:0;background:var(--glass-2);border:var(--bd);border-radius:11px;padding:2px;backdrop-filter:blur(20px) saturate(170%);-webkit-backdrop-filter:blur(20px) saturate(170%)}

@@ -2,55 +2,92 @@
 
 import { useEffect, useRef, useState } from 'react'
 
-// Height-animated accordion body. We measure scrollHeight and transition the
-// px height (not CSS grid 0fr↔1fr — that fr-interpolation needs Safari 16+ and
-// simply snaps in older Telegram WebViews, so the reveal looked instant).
-// Once open we release to height:auto so late content changes don't clip.
+// Height-animated accordion body.
+//
+// Why the Web Animations API and not a CSS transition on a React state value:
+// the collapse path needs two committed styles in a row (auto → current px → 0).
+// React batches those updates, so the browser only ever saw the final value and
+// snapped — the reveal looked torn (content popped to full size, then faded).
+// el.animate() takes explicit from/to keyframes, so the animation always runs
+// and `finished` tells us exactly when to hand height back to the layout.
+//
+// Cost: the list can hold 24+ glass cards, each with backdrop-filter: blur(28px).
+// Re-blurring all of them on every animation frame is what made it stutter, so
+// the wrapper carries `.fold-anim` while moving — that switches the blur off for
+// the duration (invisible at speed, dramatically cheaper).
+const DURATION = 300
+const EASE = 'cubic-bezier(.16,1,.3,1)'
+
 export default function Collapsible({ open, className, children }: {
   open: boolean
   className?: string
   children: React.ReactNode
 }) {
+  const outerRef = useRef<HTMLDivElement>(null)
   const innerRef = useRef<HTMLDivElement>(null)
-  const [height, setHeight] = useState<number | 'auto'>(open ? 'auto' : 0)
+  const animRef = useRef<Animation | null>(null)
   const firstRef = useRef(true)
+  // Only used for the very first paint; afterwards the element's inline style is
+  // driven imperatively so React re-renders can't fight the running animation.
+  const [initialOpen] = useState(open)
 
   useEffect(() => {
-    const el = innerRef.current
-    if (!el) return
-    // First run only syncs to the initial state — no animation on mount.
-    if (firstRef.current) { firstRef.current = false; return }
+    const outer = outerRef.current
+    const inner = innerRef.current
+    if (!outer || !inner) return
 
-    if (open) {
-      setHeight(el.scrollHeight)
-      const t = setTimeout(() => setHeight('auto'), 340)
-      return () => clearTimeout(t)
+    // Mount just syncs to the current state — never animate on first paint.
+    if (firstRef.current) {
+      firstRef.current = false
+      outer.style.height = open ? 'auto' : '0px'
+      outer.style.opacity = open ? '1' : '0'
+      outer.style.visibility = open ? 'visible' : 'hidden'
+      return
     }
-    // Collapse: go from auto → current px, then to 0 on the next frame so the
-    // browser has a concrete start value to interpolate from.
-    setHeight(el.scrollHeight)
-    let raf2 = 0
-    const raf1 = requestAnimationFrame(() => {
-      void el.offsetHeight // force reflow so the px height commits
-      raf2 = requestAnimationFrame(() => setHeight(0))
-    })
-    return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2) }
+
+    animRef.current?.cancel()
+
+    const from = outer.getBoundingClientRect().height
+    const to = open ? inner.getBoundingClientRect().height : 0
+
+    // Fix the start height so the animation has a concrete origin (height:auto
+    // is not interpolable), and make sure a collapsing section stays painted
+    // until it has finished shrinking.
+    outer.style.height = `${from}px`
+    outer.style.visibility = 'visible'
+    outer.classList.add('fold-anim')
+
+    const anim = outer.animate(
+      [
+        { height: `${from}px`, opacity: open ? 0 : 1 },
+        { height: `${to}px`, opacity: open ? 1 : 0 },
+      ],
+      { duration: DURATION, easing: EASE, fill: 'forwards' },
+    )
+    animRef.current = anim
+
+    anim.finished
+      .then(() => {
+        if (animRef.current !== anim) return // superseded by a newer toggle
+        anim.cancel() // drop fill:forwards so inline styles take over cleanly
+        outer.classList.remove('fold-anim')
+        // Release to auto so later content changes (rename, move) aren't clipped.
+        outer.style.height = open ? 'auto' : '0px'
+        outer.style.opacity = open ? '1' : '0'
+        outer.style.visibility = open ? 'visible' : 'hidden'
+      })
+      .catch(() => { /* cancelled by a newer toggle — nothing to clean up */ })
+
+    return () => { anim.cancel() }
   }, [open])
 
   return (
     <div
-      style={{
-        height: height === 'auto' ? 'auto' : `${height}px`,
-        overflow: 'hidden',
-        opacity: open ? 1 : 0,
-        visibility: open ? 'visible' : 'hidden',
-        transitionProperty: 'height, opacity, visibility',
-        transitionDuration: '.32s, .26s, 0s',
-        transitionTimingFunction: 'cubic-bezier(.16,1,.3,1), ease, linear',
-        // Keep it visible through the collapse, then hide (a11y + hit-testing).
-        transitionDelay: open ? '0s' : '0s, 0s, .32s',
-        willChange: 'height',
-      }}
+      ref={outerRef}
+      className="fold-wrap"
+      style={initialOpen
+        ? { height: 'auto', opacity: 1 }
+        : { height: 0, opacity: 0, visibility: 'hidden' }}
     >
       <div ref={innerRef} className={className}>{children}</div>
     </div>
