@@ -12,7 +12,7 @@ import { TG_BOT , hapticSelection, hapticNotify } from '@/lib/telegram'
 import { getInitials, scrollFocusedIntoView } from '@/lib/utils'
 
 export default function ProfileScreen() {
-  const { user, databases } = useAppStore()
+  const { user, databases, setUser } = useAppStore()
   const { logout, deleteAccount, updateProfile } = useAuth()
 
   const [pushEnabled, setPushEnabled] = useState(user?.notification_push ?? true)
@@ -47,12 +47,18 @@ export default function ProfileScreen() {
     if (!ok) setNewViews(!v)
   }
 
+  // Обидва перемикачі — оптимістичні: сегмент переїзжає одразу, бо на мобільній
+  // мережі пауза до відповіді сервера читається як «перемикач не працює».
+  // Помилка — відкат плюс тост із причиною (updateProfile його показує).
   async function handleLangChange(lang: 'uk' | 'en') {
     if ((user?.language_code ?? 'uk') === lang) return
     if (offlineGuard()) return
     hapticSelection()
+    const prev = user!
     setSavingLang(true)
-    await updateProfile({ language_code: lang })
+    setUser({ ...prev, language_code: lang })
+    const ok = await updateProfile({ language_code: lang })
+    if (!ok) setUser(prev)
     setSavingLang(false)
   }
 
@@ -60,8 +66,11 @@ export default function ProfileScreen() {
     if ((user?.currency ?? 'USD') === cur) return
     if (offlineGuard()) return
     hapticSelection()
+    const prev = user!
     setSavingCur(true)
-    await updateProfile({ currency: cur })
+    setUser({ ...prev, currency: cur })
+    const ok = await updateProfile({ currency: cur })
+    if (!ok) setUser(prev)
     setSavingCur(false)
   }
 
@@ -150,7 +159,7 @@ export default function ProfileScreen() {
                   className={`fr-seg-b ${(user.language_code ?? 'uk') === lang ? 'on' : ''}`}
                   onClick={() => handleLangChange(lang)}
                 >
-                  {savingLang && (user.language_code ?? 'uk') !== lang ? '...' : lang === 'uk' ? 'Укр' : 'Eng'}
+                  {lang === 'uk' ? 'Укр' : 'Eng'}
                 </div>
               ))}
             </div>

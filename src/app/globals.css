@@ -311,7 +311,7 @@ body{
 .fr-u{font-size:var(--fs-cap1);color:var(--t3);flex-shrink:0;min-width:32px;text-align:right}
 .fr-textarea{min-height:96px;padding:12px var(--pad-card);resize:vertical;font-family:inherit;background:transparent;border:none;outline:none;font-size:var(--fs-call);color:var(--t1);width:100%;line-height:var(--lh-norm)}
 .fr-seg{display:flex;background:var(--glass-2);border-radius:10px;padding:2px;gap:2px;width:100%;border:var(--bd)}
-.fr-seg-b{flex:1;padding:6px 4px;border-radius:8px;font-size:11px;font-weight:600;text-align:center;color:var(--t3);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;transition:all .22s var(--ease)}
+.fr-seg-b{flex:1;padding:6px 4px;border-radius:8px;font-size:11px;font-weight:600;text-align:center;color:var(--t3);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;transition:all .22s var(--ease);display:flex;align-items:center;justify-content:center;min-height:36px}
 .fr-seg-b.on{background:var(--glass-3);color:var(--t1);box-shadow:0 1.5px 6px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.3)}
 /* ── Utility tags ── */
 .util-tags{display:flex;flex-wrap:wrap;gap:8px;padding:10px var(--pad-card) 6px}
@@ -1342,6 +1342,34 @@ svg.ico{overflow:visible}
   -webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 26px),transparent);
   mask-image:linear-gradient(90deg,#000 calc(100% - 26px),transparent)}
 .sort-scroll::-webkit-scrollbar{display:none}
+
+/* Панель дій над обраними об'єктами. Стояло background:var(--bg2) — такого
+   токена НЕМАЄ, тож панель була ПОВНІСТЮ прозорою: пілюлі накладались на картку
+   під ними і читались як каша. Тепер власний непрозорий шар. */
+.batchbar{position:fixed;left:0;right:0;bottom:calc(56px + var(--safe-bottom));z-index:100;
+  display:flex;align-items:center;gap:8px;padding:8px 12px;
+  background:rgba(10,8,24,.94);backdrop-filter:blur(24px) saturate(180%);
+  -webkit-backdrop-filter:blur(24px) saturate(180%);
+  border-top:.5px solid rgba(255,255,255,.10);box-shadow:0 -8px 24px rgba(0,0,0,.38)}
+.batchbar-n{font-size:var(--fs-cap1);color:var(--t3);white-space:nowrap}
+.batch-pill{display:inline-flex;align-items:center;justify-content:center;gap:4px;
+  padding:8px 12px;min-height:36px;border:none;border-radius:var(--r-pill);
+  background:var(--glass-2);color:var(--t2);font-size:var(--fs-cap1);font-weight:var(--fw-semi);
+  white-space:nowrap;cursor:pointer;transition:transform .12s var(--ease),background .14s}
+.batch-pill:active{transform:scale(.96)}
+.batch-pill.ok{background:var(--ok-bg);color:var(--ok-fg)}
+.batch-pill.warn{background:var(--warn-bg);color:var(--warn-fg)}
+.batch-pill.info{background:var(--info-bg);color:var(--info-fg)}
+.batch-pill.err{background:var(--err-bg);color:var(--err-fg);margin-left:auto}
+
+/* Пілюль більше, ніж вміщає 375px, тож той самий афорданс прокрутки, що в
+   стрічці сортування. Порядок — «У папку»/«В базу» першими: переміщення
+   шукають частіше за масову зміну статусу. */
+.batch-scroll{flex:1;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;
+  -webkit-overflow-scrolling:touch;padding-right:10px;
+  -webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 26px),transparent);
+  mask-image:linear-gradient(90deg,#000 calc(100% - 26px),transparent)}
+.batch-scroll::-webkit-scrollbar{display:none}
 
 /* FAB ховається на гортанні вниз (варіант «б»): інакше він постійно накриває
    статус-бейдж картки — і кнопка, і бейдж притиснуті до правого краю.

@@ -104,8 +104,14 @@ export function useDatabases() {
     }
   }, [user, setDatabases, setMemberDbIds, showToast])
 
-  const createDatabase = useCallback(async (payload: Omit<Database, 'id' | 'owner_id' | 'share_token' | 'created_at' | 'updated_at'>) => {
-    if (!user) return
+  // `opts.navigate: false` — коли база створюється ЯК КРОК іншої дії (перенос
+  // обраних обʼєктів у нову базу): тоді екран лишається на місці, а викликач
+  // сам вирішує, куди вести після переносу.
+  const createDatabase = useCallback(async (
+    payload: Omit<Database, 'id' | 'owner_id' | 'share_token' | 'created_at' | 'updated_at'>,
+    opts?: { navigate?: boolean },
+  ): Promise<Database | null> => {
+    if (!user) return null
     setLoading(true)
     try {
       const { data, error } = await supabase
@@ -118,9 +124,11 @@ export function useDatabases() {
 
       setDatabases([data as Database, ...databases])
       showToast({ type: 'success', title: 'Базу створено' })
-      backThenReplace('db-objects', { dbId: data.id })
+      if (opts?.navigate !== false) backThenReplace('db-objects', { dbId: data.id })
+      return data as Database
     } catch (e) {
       showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
+      return null
     } finally {
       setLoading(false)
     }

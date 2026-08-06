@@ -22,6 +22,7 @@ import DatabaseStatsPanel from '@/components/ui/DatabaseStatsPanel'
 import { formatPrice, calcRent, calcRentUtils, basisArea, floorSortKey, computedRentUnit, rentUnitLabel, objectsWord, DB_TYPE_LABELS, formatLeasePeriod, STATUS_COLORS } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import type { Database, Property, PropertyStatus } from '@/types'
+import DbPickerModal from '@/components/ui/DbPickerModal'
 import CoachMark from '@/components/ui/CoachMark'
 import { useOnboarding } from '@/hooks/useOnboarding'
 import { useHideOnScrollDown } from '@/hooks/useHideOnScrollDown'
@@ -29,8 +30,8 @@ import { useHideOnScrollDown } from '@/hooks/useHideOnScrollDown'
 export default function DatabaseObjectsScreen() {
   const fabHidden = useHideOnScrollDown()
   const { screenParams, navigate, databases, user } = useAppStore()
-  const { deleteDatabase } = useDatabases()
-  const { properties, loading, error, loadProperties, reorderProperty, batchDeleteProperties, batchUpdateStatus, moveToFolder } = useProperties(screenParams.dbId)
+  const { deleteDatabase, createDatabase } = useDatabases()
+  const { properties, loading, error, loadProperties, reorderProperty, batchDeleteProperties, batchUpdateStatus, moveToFolder, moveToDatabase } = useProperties(screenParams.dbId)
   const { folders, unavailable: foldersUnavailable, loadFolders, createFolder, renameFolder, deleteFolder, reorderFolder } = useFolders(screenParams.dbId)
   const memberDbIds = useAppStore(st => st.memberDbIds)
   // Редактор команди отримує ту саму edit-поверхню, що власник…
@@ -47,6 +48,7 @@ export default function DatabaseObjectsScreen() {
   const [showBatchDeleteModal, setShowBatchDeleteModal] = useState(false)
   const [showFolderManage, setShowFolderManage] = useState(false)
   const [showFolderPicker, setShowFolderPicker] = useState(false)
+  const [showDbPicker, setShowDbPicker] = useState(false)
   // Згорнуті папки — ключі папок ('__none__' для «Без папки»), персист per user+db.
   const collapseKey = user && screenParams.dbId ? `ps:foldCollapse:${user.id}:${screenParams.dbId}` : ''
   const [collapsed, setCollapsed] = useState<Set<string>>(() => {
@@ -72,6 +74,20 @@ export default function DatabaseObjectsScreen() {
     if (offlineGuard()) return
     await moveToFolder([...selectedIds], folderId)
     exitSelectMode()
+  }
+
+  async function handleMoveToDb(target: Database) {
+    setShowDbPicker(false)
+    if (offlineGuard()) return
+    await moveToDatabase([...selectedIds], target.id, target.owner_id, target.name)
+    exitSelectMode()
+  }
+
+  // Нова база під перенос успадковує тип і колір поточної — обрані обʼєкти майже
+  // завжди тієї ж природи (форма обʼєкта залежить від типу бази).
+  async function handleCreateDbForMove(name: string): Promise<Database | null> {
+    if (!db) return null
+    return createDatabase({ name, address: db.address, type: db.type, color: db.color }, { navigate: false })
   }
   // Одне вподобання «компактно» на обидві статусні вкладки (зайняті + вільні).
   // Ключ лишається історичним 'ps:occCompact', щоб не скидати вибір користувачам.
@@ -717,47 +733,22 @@ export default function DatabaseObjectsScreen() {
 
       {/* Batch action bar — owner only */}
       {isOwner && selectMode && selectedIds.size > 0 && (
-        <div style={{
-          position: 'fixed', left: 0, right: 0, zIndex: 100,
-          bottom: 'calc(56px + var(--safe-bottom))',
-          background: 'var(--bg2)', borderTop: 'var(--bd)',
-          padding: '8px 12px', display: 'flex', gap: 8, alignItems: 'center',
-        }}>
-          <span style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', whiteSpace: 'nowrap' }}>
-            {selectedIds.size} обрано
-          </span>
-          <div style={{ flex: 1, display: 'flex', gap: 6, overflowX: 'auto' }}>
-            <button
-              onClick={() => handleBatchStatus('free')}
-              style={{ padding: '6px 10px', borderRadius: 'var(--r-pill)', background: 'rgba(52,199,89,.18)', border: 'none', color: '#34c759', fontSize: 'var(--fs-cap1)', cursor: 'pointer', whiteSpace: 'nowrap' }}
-            >
-              Вільно
-            </button>
-            <button
-              onClick={() => handleBatchStatus('occupied')}
-              style={{ padding: '6px 10px', borderRadius: 'var(--r-pill)', background: 'rgba(255,159,10,.18)', border: 'none', color: '#ff9f0a', fontSize: 'var(--fs-cap1)', cursor: 'pointer', whiteSpace: 'nowrap' }}
-            >
-              Зайнято
-            </button>
-            <button
-              onClick={() => handleBatchStatus('for_sale')}
-              style={{ padding: '6px 10px', borderRadius: 'var(--r-pill)', background: 'rgba(122,179,255,.18)', border: 'none', color: '#7ab3ff', fontSize: 'var(--fs-cap1)', cursor: 'pointer', whiteSpace: 'nowrap' }}
-            >
-              Продаж
-            </button>
+        <div className="batchbar">
+          <span className="batchbar-n">{selectedIds.size} обрано</span>
+          <div className="batch-scroll">
             {!foldersUnavailable && (
-              <button
-                onClick={() => setShowFolderPicker(true)}
-                style={{ padding: '6px 10px', borderRadius: 'var(--r-pill)', background: 'var(--glass-2)', border: 'none', color: 'var(--t2)', fontSize: 'var(--fs-cap1)', cursor: 'pointer', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4 }}
-              >
+              <button className="batch-pill" onClick={() => setShowFolderPicker(true)}>
                 <IconFolder size={13} /> У папку
               </button>
             )}
-            <button
-              onClick={() => setShowBatchDeleteModal(true)}
-              style={{ padding: '6px 10px', borderRadius: 'var(--r-pill)', background: 'rgba(255,59,48,.18)', border: 'none', color: 'var(--err)', fontSize: 'var(--fs-cap1)', cursor: 'pointer', whiteSpace: 'nowrap', marginLeft: 'auto' }}
-            >
-              🗑 Видалити
+            <button className="batch-pill" onClick={() => setShowDbPicker(true)}>
+              <IconBuilding size={13} /> В базу
+            </button>
+            <button className="batch-pill ok" onClick={() => handleBatchStatus('free')}>Вільно</button>
+            <button className="batch-pill warn" onClick={() => handleBatchStatus('occupied')}>Зайнято</button>
+            <button className="batch-pill info" onClick={() => handleBatchStatus('for_sale')}>Продаж</button>
+            <button className="batch-pill err" onClick={() => setShowBatchDeleteModal(true)}>
+              <IconTrash size={13} /> Видалити
             </button>
           </div>
         </div>
@@ -828,6 +819,17 @@ export default function DatabaseObjectsScreen() {
           onPick={handleBulkMove}
           onCreate={createFolder}
           onClose={() => setShowFolderPicker(false)}
+        />
+      )}
+
+      {/* Bulk move to another database (or a brand-new one) */}
+      {showDbPicker && (
+        <DbPickerModal
+          databases={databases.filter((d) => d.id !== screenParams.dbId)}
+          count={selectedIds.size}
+          onPick={handleMoveToDb}
+          onCreate={handleCreateDbForMove}
+          onClose={() => setShowDbPicker(false)}
         />
       )}
 
