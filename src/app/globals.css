@@ -1317,3 +1317,7 @@ svg.ico{overflow:visible}
 .lg-p b{color:var(--t1);font-weight:var(--fw-semi)}
 .lg-ul{margin:0 0 12px;padding-left:20px;display:flex;flex-direction:column;gap:6px}
 .lg-ul li{font-size:var(--fs-sub);color:var(--t2);line-height:1.55;list-style:disc}
+
+/* Незворотне видалення акаунта — тихіше за «Вийти», щоб не запрошувати до тапу */
+.del-acc{margin:0 var(--g3) 4px;padding:10px;border-radius:var(--r-md);text-align:center;font-size:var(--fs-foot);color:var(--t3);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;min-height:40px;transition:color .16s}
+.del-acc:active{color:var(--err-fg)}
