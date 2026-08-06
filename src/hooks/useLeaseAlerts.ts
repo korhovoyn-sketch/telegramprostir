@@ -53,10 +53,16 @@ export function useLeaseAlerts() {
       // Тихо: екран сповіщень не має падати через цю додаткову вибірку.
       if (error) { setAlerts([]); return }
 
-      setAlerts((data ?? []).map((p) => {
-        const row = p as { id: string; db_id: string; name: string; tenant_name: string | null; lease_end_date: string }
+      // Фільтри дублюються на клієнті НЕ через недовіру до RLS, а тому що це
+      // ЄДИНЕ джерело сенсу тексту: рядок без дати дав би «закінчився 20671
+      // день тому» (епоха), а рядок поза вікном — попередження без причини.
+      const mapped: LeaseAlert[] = []
+      for (const p of data ?? []) {
+        const row = p as { id: string; db_id: string; name: string; tenant_name: string | null; lease_end_date: string | null }
+        if (!row.lease_end_date) continue
         const days = daysUntil(row.lease_end_date)
-        return {
+        if (!Number.isFinite(days) || days > LEASE_ALERT_DAYS) continue
+        mapped.push({
           propertyId: row.id,
           dbId: row.db_id,
           name: row.name,
@@ -64,8 +70,9 @@ export function useLeaseAlerts() {
           leaseEnd: row.lease_end_date,
           days,
           level: levelFor(days),
-        }
-      }))
+        })
+      }
+      setAlerts(mapped)
     } finally {
       setLoading(false)
     }

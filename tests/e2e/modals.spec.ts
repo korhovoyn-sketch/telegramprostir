@@ -279,3 +279,66 @@ test('schedule modal: day outside 1–28 shows the range error; valid day saves'
   await page.getByRole('button', { name: /Зберегти|Створити/ }).click()
   await expect(page.locator('.modal')).toHaveCount(0, { timeout: 10_000 })
 })
+
+test('поле в модалці не залишається під клавіатурою, коли платформа її не рапортує', async ({ page }) => {
+  // Реальний кейс: iOS у Telegram не ресайзить webview — і viewportChanged, і
+  // visualViewport дають 0. Шит прив'язаний до низу, тож поля «День місяця» в
+  // календарі платежів опинялись ПІД клавіатурою. Fallback-ліфт має підняти шит.
+  await fixtures(page)
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+  await page.getByText('БЦ Рубін').first().click()
+  await expect(page.getByText('Всі (3)')).toBeVisible()
+  await page.locator('.obj-card', { hasText: 'Офіс 101' })
+    .getByRole('button', { name: 'Платежі' }).click()
+  await expect(page.getByText(/Платежі — Офіс 101|Календар платежів/)).toBeVisible({ timeout: 15_000 })
+  await page.getByRole('button', { name: /Налаштувати/ }).first().click()
+  await expect(page.locator('.modal')).toBeVisible()
+
+  const dayInput = page.locator('.modal input[inputmode="numeric"]').first()
+  const rest = (await dayInput.boundingBox())!
+  const restBottom = rest.y + rest.height
+  const vh = page.viewportSize()!.height
+  expect(restBottom, 'у спокої поле стоїть низько — саме тут його з\'їдала клавіатура')
+    .toBeGreaterThan(vh - 320)
+
+  await dayInput.focus()
+  // Ліфт застосовується після проби (350мс) + перехід padding-bottom (250мс)
+  await page.waitForFunction(() => {
+    const ov = document.querySelector('.modal-overlay') as HTMLElement | null
+    return !!ov && parseFloat(getComputedStyle(ov).paddingBottom) > 200
+  }, undefined, { timeout: 5000 })
+  await page.waitForTimeout(320)
+
+  const lifted = (await dayInput.boundingBox())!
+  const liftedBottom = lifted.y + lifted.height
+  expect(liftedBottom, 'поле піднялось над зоною клавіатури').toBeLessThan(vh - 300)
+  // Шит лишається цілим і читабельним
+  const modal = (await page.locator('.modal').boundingBox())!
+  expect(modal.height).toBeGreaterThan(100)
+  expect(modal.y).toBeGreaterThanOrEqual(0)
+  await expect(page.locator('.modal-h')).toBeVisible()
+
+  // Знято фокус — шит опускається назад
+  await dayInput.blur()
+  await page.waitForFunction(() => {
+    const ov = document.querySelector('.modal-overlay') as HTMLElement | null
+    return !!ov && parseFloat(getComputedStyle(ov).paddingBottom) < 20
+  }, undefined, { timeout: 5000 })
+})
+
+test('ліфт НЕ дублюється, коли платформа рапортує висоту клавіатури', async ({ page }) => {
+  await fixtures(page)
+  await openRentModal(page)
+  // Android/веб: webview ресайзиться, --keyboard-h реальний. Тоді власного
+  // ліфту бути не повинно — інакше шит підскочив би двічі.
+  await page.evaluate(() => document.documentElement.style.setProperty('--keyboard-h', '300px'))
+  await page.locator('.modal input').first().focus()
+  await page.waitForTimeout(700)
+  const pad = await page.evaluate(() => {
+    const ov = document.querySelector('.modal-overlay') as HTMLElement
+    return { inline: ov.style.getPropertyValue('--keyboard-h'), computed: parseFloat(getComputedStyle(ov).paddingBottom) }
+  })
+  expect(pad.inline, 'локальний fallback не застосовано').toBe('')
+  expect(Math.round(pad.computed), 'працює лише реальна висота').toBe(300)
+})

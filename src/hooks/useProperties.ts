@@ -29,6 +29,13 @@ const PROPERTY_SELECT = `${PROPERTY_WITH_PHOTOS}, views:property_views(id)`
 // folder_id stripped out, so the object list never breaks pre-migration.
 const PROPERTY_SELECT_PRE043 = PROPERTY_SELECT.replace('folder_id, ', '')
 const PROPERTY_WITH_PHOTOS_PRE043 = PROPERTY_WITH_PHOTOS.replace('folder_id, ', '')
+// `.select().single()` мусить повернути обʼєкт, але проксі/мок може віддати
+// масив. Без розгортання рядок у списку став би масивом — і екран падав із
+// «Cannot read properties of undefined» замість того, щоб просто оновитись.
+function one<T>(data: unknown): T {
+  return (Array.isArray(data) ? data[0] : data) as T
+}
+
 const isMissingFolderColumn = (e: unknown): boolean => {
   const err = e as { code?: string; message?: string } | null
   return err?.code === '42703' || /folder_id/i.test(err?.message ?? '')
@@ -46,6 +53,34 @@ export function useProperties(dbId?: string) {
   const propertiesRef = useRef(properties)
   useEffect(() => { propertiesRef.current = properties }, [properties])
 
+  // db_id, для якого `properties` — ПОВНИЙ список (а не один рядок із
+  // loadSingleProperty). Тільки такий стан можна писати в SWR-кеш.
+  const fullListDbIdRef = useRef<string | null>(null)
+
+  // Кеш мусить переживати мутації, а не лише завантаження. Доки цього не було,
+  // після збереження в кеші лишалося СТАРЕ значення: наступний екран малював
+  // його першим, а форма редагування з нього ж робила префіл — користувач бачив
+  // «зміни не зберігаються». Ефект тримає кеш синхронним з будь-якою мутацією,
+  // тож новий мутатор не може про це забути.
+  useEffect(() => {
+    if (!user || properties.some((p) => p._stale)) return
+    const full = fullListDbIdRef.current
+    if (full) { writeSnapshot(`props:${full}`, user.id, properties); return }
+    // Екран деталей тримає ОДИН рядок (loadSingleProperty), але теж його мутує
+    // (здати/звільнити, ставки). Вливаємо рядок у кеш списку його бази, щоб
+    // список не намалював стару картку.
+    for (const p of properties) {
+      if (!p.db_id) continue
+      const key = `props:${p.db_id}`
+      const cached = readSnapshot<Property[]>(key, user.id)
+      const i = cached?.findIndex((c) => c.id === p.id) ?? -1
+      if (!cached || i === -1) continue
+      const next = [...cached]
+      next[i] = { ...cached[i], ...p }
+      writeSnapshot(key, user.id, next)
+    }
+  }, [properties, user])
+
   const loadProperties = useCallback(async (id?: string) => {
     const targetDbId = id || dbId
     if (!targetDbId) return
@@ -57,7 +92,8 @@ export function useProperties(dbId?: string) {
     if (!painted && user) {
       const cached = readSnapshot<Property[]>(`props:${targetDbId}`, user.id)
       if (cached?.length) {
-        setProperties(cached)
+        fullListDbIdRef.current = targetDbId
+        setProperties(cached.map((p) => ({ ...p, _stale: true })))
         painted = true
       }
     }
@@ -88,8 +124,8 @@ export function useProperties(dbId?: string) {
         const { views, ...rest } = p as Record<string, unknown>
         return { ...rest, _view_count: (views as unknown[])?.length ?? 0 }
       })
+      fullListDbIdRef.current = targetDbId
       setProperties(mapped as unknown as Property[])
-      if (user) writeSnapshot(`props:${targetDbId}`, user.id, mapped)
     } catch (e) {
       const msg = humanizeDbError(e)
       setError(msg)
@@ -123,6 +159,8 @@ export function useProperties(dbId?: string) {
       if (err) throw err
       const { views, ...rest } = row as Record<string, unknown>
       const mapped = { ...rest, _view_count: (views as unknown[])?.length ?? 0 } as unknown as Property
+      // Один рядок — не повний список бази: кеш списку з нього писати НЕ можна.
+      fullListDbIdRef.current = null
       setProperties([mapped])
     } catch (e) {
       const msg = humanizeDbError(e)
@@ -235,8 +273,9 @@ export function useProperties(dbId?: string) {
           .select(PROPERTY_WITH_PHOTOS)
           .single()
         if (error) throw error
+        const updated = one<Property>(data)
         setProperties((prev) => prev.map((p) => (
-          p.id === id ? ({ ...(data as Property), _view_count: (p as Property & { _view_count?: number })._view_count } as Property) : p
+          p.id === id ? ({ ...updated, _view_count: (p as Property & { _view_count?: number })._view_count } as Property) : p
         )))
         if (!opts.silent) showToast({ type: 'success', title: 'Збережено' })
         return true
@@ -257,7 +296,8 @@ export function useProperties(dbId?: string) {
         .single()
 
       if (error) throw error
-      setProperties((prev) => prev.map((p) => (p.id === id ? (data as Property) : p)))
+      const updated = one<Property>(data)
+      setProperties((prev) => prev.map((p) => (p.id === id ? updated : p)))
       if (!opts?.silent) showToast({ type: 'success', title: 'Збережено' })
       return true
     } catch (e) {

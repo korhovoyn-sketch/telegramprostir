@@ -24,7 +24,7 @@ const PARKING_TYPES: { v: ParkingType; l: string }[] = [
 ]
 
 export default function PropertyFormScreen() {
-  const { screenParams, backThenReplace, showToast, user, isOnline, databases } = useAppStore()
+  const { screenParams, backThenReplace, back, showToast, user, isOnline, databases } = useAppStore()
   const { properties, loadProperties, createProperty, createProperties, updateProperty, deleteProperty, loading } = useProperties(screenParams.dbId)
   const { folders, unavailable: foldersUnavailable, loadFolders, createFolder } = useFolders(screenParams.dbId)
 
@@ -36,8 +36,15 @@ export default function PropertyFormScreen() {
   const duplicateId = screenParams.duplicateId as string | undefined
   const dupSource = properties.find(p => p.id === duplicateId)
   const dupFilledRef = useRef(false)
+  const dupFilledStaleRef = useRef(false)
   // id об'єкта, яким уже заповнено форму (щоб не префілити повторно)
   const prefilledRef = useRef<string | null>(null)
+  // Префіл зроблено з кеш-рядка (`_stale`) — його треба переграти РІВНО ОДИН
+  // раз, коли мережа підтвердить свіжий рядок.
+  const prefilledStaleRef = useRef(false)
+  // Користувач уже щось увів. Тоді переграння префілу СКАСОВУЄТЬСЯ: свіжий рядок
+  // не має права затерти введене (саме так виглядає «зміни не зберігаються»).
+  const touchedRef = useRef(false)
 
   // Parking DBs get a spot-oriented field set (number/area/level/type/EV, flat
   // utilities, monthly-or-daily rate) instead of the office/apartment layout.
@@ -177,8 +184,16 @@ export default function PropertyFormScreen() {
     // об'єкт зі списку properties — будь-яке фонове оновлення списку давало
     // нову ідентичність, ефект перезапускався і ЗАТИРАВ уже введений текст
     // значеннями з БД (користувач бачив «зміни не зберігаються»).
-    if (isEdit && existing && prefilledRef.current !== existing.id) {
+    //
+    // Виняток — рівно одне переграння: перший кадр списку може прийти з SWR-кешу
+    // (`_stale`), і префіл з нього показав би СТАРУ ставку. Коли мережа
+    // підтверджує рядок, заповнюємо ще раз — далі знову жодного разу. Але якщо
+    // користувач уже почав правити, переграння скасовується: краще показати
+    // введене ним, ніж «випадково» відкотити на серверне.
+    const upgradeFromStale = prefilledStaleRef.current && !existing?._stale && !touchedRef.current
+    if (isEdit && existing && (prefilledRef.current !== existing.id || upgradeFromStale)) {
       prefilledRef.current = existing.id
+      prefilledStaleRef.current = !!existing._stale
       setName(existing.name)
       setFloor(existing.floor ?? '')
       setStatus(existing.status)
@@ -215,9 +230,13 @@ export default function PropertyFormScreen() {
   // Duplicate prefill — everything except tenant/lease/photos/files: a copy
   // starts free. Runs once (ref-guarded) so typing is never overwritten.
   useEffect(() => {
-    if (isEdit || !duplicateId || dupFilledRef.current) return
+    if (isEdit || !duplicateId) return
+    // Те саме одне переграння, що і в edit-режимі: копія, знята з кеш-рядка,
+    // мусить оновитись, коли приїде свіже джерело.
+    if (dupFilledRef.current && !(dupFilledStaleRef.current && !dupSource?._stale)) return
     if (!dupSource) { loadProperties(screenParams.dbId); return }
     dupFilledRef.current = true
+    dupFilledStaleRef.current = !!dupSource._stale
     setName(nextCopyName(dupSource.name, properties.map(p => p.name)))
     setFloor(dupSource.floor ?? '')
     setStatus('free')
@@ -375,10 +394,17 @@ export default function PropertyFormScreen() {
 
     if (isEdit && editId) {
       await updateProperty(editId, payload)
-      // backThenReplace: pops the entry that navigated to property-form (property-detail)
-      // then lands on property-detail fresh — so back() from detail goes to db-objects,
-      // not to a stale duplicate detail entry.
-      backThenReplace('property-detail', { propertyId: editId, dbId: screenParams.dbId })
+      // Повертаємось РІВНО туди, звідки відкрили форму.
+      // • з екрана об'єкта → backThenReplace: знімає попередній (той самий)
+      //   екран деталей і ставить свіжий, щоб у history не було дубля;
+      // • зі списку об'єктів (кнопка «Редагувати» на картці) → просто back:
+      //   раніше тут теж стояв backThenReplace('property-detail') і він ЗʼЇДАВ
+      //   зі стека сам список — Back з деталей стрибав аж у список баз.
+      if (useAppStore.getState().history.at(-1)?.screen === 'property-detail') {
+        backThenReplace('property-detail', { propertyId: editId, dbId: screenParams.dbId })
+      } else {
+        back()
+      }
     } else if (count > 1 && bulkNames) {
       // Bulk: shared fields + per-row overrides (name, areas). Empty row
       // fields fall back to the shared values from the form.
@@ -450,7 +476,11 @@ export default function PropertyFormScreen() {
         }
       />
 
-      <div className="body has-flow-cta" onFocusCapture={scrollFocusedIntoView}>
+      <div
+        className="body has-flow-cta"
+        onFocusCapture={scrollFocusedIntoView}
+        onInputCapture={() => { touchedRef.current = true }}
+      >
         {/* Basic */}
         <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconBuilding size={13} color="var(--info)" />Основне</span></div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>

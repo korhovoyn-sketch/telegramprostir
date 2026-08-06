@@ -52,7 +52,9 @@ async function setup(page: Page, state: ReturnType<typeof makeState>,
     if (rq.method() === 'PATCH') {
       captured.propPatch = JSON.parse(rq.postData() ?? '{}')
       state.prop = { ...state.prop, ...captured.propPatch }
-      return jsonRoute(r, [state.prop])
+      // `.select().single()` просить саме обʼєкт (Accept: …pgrst.object+json)
+      const wantsObject = (rq.headers()['accept'] ?? '').includes('object')
+      return jsonRoute(r, wantsObject ? state.prop : [state.prop])
     }
     if (rq.method() !== 'GET') return r.fallback()
     const accept = rq.headers()['accept'] ?? ''
@@ -96,8 +98,10 @@ test('редагування ОБʼЄКТА: зміни долітають у PA
   expect(Number(p.utilities_rate), 'ставка експлуатації в PATCH').toBe(7.25)
   expect(p.tenant_name, 'орендар у PATCH').toBe('ТОВ «Нова Назва»')
 
-  // Після збереження екран деталей показує НОВІ значення (а не старі з кешу)
-  await expect(page.getByText('Офіс 101-А').first()).toBeVisible({ timeout: 10_000 })
+  // Збереження з картки списку повертає в СПИСОК, і він показує нову назву
+  // (а не стару з SWR-кешу).
+  await expect(page.getByText('Всі (1)')).toBeVisible({ timeout: 10_000 })
+  await expect(page.locator('.obj-card', { hasText: 'Офіс 101-А' })).toBeVisible({ timeout: 10_000 })
 })
 
 test('редагування БАЗИ: зміни долітають у PATCH', async ({ page }) => {

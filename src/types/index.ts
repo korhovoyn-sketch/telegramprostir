@@ -78,6 +78,12 @@ export interface Property {
   updated_at: string
   photos?: PropertyPhoto[]
   _view_count?: number
+  /**
+   * Рядок намальовано з SWR-кешу і він ще НЕ підтверджений мережею. Форма
+   * редагування дивиться на цей прапорець: префіл із кешу треба переграти, коли
+   * приїде свіжий рядок, інакше застаріле значення виглядає як «не збереглося».
+   */
+  _stale?: boolean
 }
 
 export interface PropertyPhoto {
