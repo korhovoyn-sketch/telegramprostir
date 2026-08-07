@@ -98,10 +98,10 @@ export default function FolderManageModal({ folders, counts, onCreate, onRename,
                   </>
                 ) : (
                   <>
-                    <button aria-label="Вгору" disabled={i === 0} onClick={() => { hapticSelection(); onReorder(f.id, 'up') }}><IconChevronUp size={15} /></button>
-                    <button aria-label="Вниз" disabled={i === folders.length - 1} onClick={() => { hapticSelection(); onReorder(f.id, 'down') }}><IconChevronDown size={15} /></button>
-                    <button aria-label="Перейменувати" onClick={() => startEdit(f)}><IconEdit size={15} /></button>
-                    <button aria-label="Видалити" className="danger" onClick={() => setConfirmDeleteId(f.id)}><IconTrash size={15} /></button>
+                    <button aria-label="Вгору" disabled={i === 0} onClick={() => { hapticSelection(); onReorder(f.id, 'up') }}><IconChevronUp size={16} /></button>
+                    <button aria-label="Вниз" disabled={i === folders.length - 1} onClick={() => { hapticSelection(); onReorder(f.id, 'down') }}><IconChevronDown size={16} /></button>
+                    <button aria-label="Перейменувати" onClick={() => startEdit(f)}><IconEdit size={16} /></button>
+                    <button aria-label="Видалити" className="danger" onClick={() => setConfirmDeleteId(f.id)}><IconTrash size={16} /></button>
                   </>
                 )}
               </div>

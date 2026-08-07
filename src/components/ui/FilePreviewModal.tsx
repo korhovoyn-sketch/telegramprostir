@@ -194,7 +194,7 @@ export default function FilePreviewModal({ url, mime, name, onClose }: FilePrevi
                   WebkitTapHighlightColor: 'transparent',
                 }}
               >
-                <IconExternalLink size={17} />
+                <IconExternalLink size={16} />
                 Відкрити
               </button>
               <button

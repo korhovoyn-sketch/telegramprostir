@@ -17,7 +17,7 @@ import Modal from '@/components/ui/Modal'
 import FolderManageModal from '@/components/ui/FolderManageModal'
 import FolderPickerModal from '@/components/ui/FolderPickerModal'
 import Collapsible from '@/components/ui/Collapsible'
-import { IconPlus, IconDots, IconPhoto, IconChevronUp, IconChevronDown, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconCopy, IconUser, IconUsers, IconFile, IconLayers, IconLayoutGrid, IconChartBar, IconKey, IconFileExport, IconCircleCheck, IconAdjustments, IconTrash, IconChevronRight, IconFolder, IconInbox } from '@/components/Icons'
+import { IconCheck, IconPlus, IconDots, IconPhoto, IconChevronUp, IconChevronDown, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconCopy, IconUser, IconUsers, IconFile, IconLayers, IconLayoutGrid, IconChartBar, IconKey, IconFileExport, IconCircleCheck, IconAdjustments, IconTrash, IconChevronRight, IconFolder, IconInbox } from '@/components/Icons'
 import DatabaseStatsPanel from '@/components/ui/DatabaseStatsPanel'
 import { formatPrice, calcRent, calcRentUtils, basisArea, floorSortKey, computedRentUnit, rentUnitLabel, objectsWord, DB_TYPE_LABELS, formatLeasePeriod, STATUS_COLORS } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
@@ -290,9 +290,9 @@ export default function DatabaseObjectsScreen() {
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</span>
             </div>
             <div className="row-s">
-              {p.tenant_name?.trim() && <><IconBuilding size={13} color="var(--t3)" /><span>{p.name}</span></>}
-              {p.floor && <><IconLayers size={13} color="var(--t3)" /><span>{p.floor} пов.</span></>}
-              {p.area_useful && <><IconRuler size={13} color="var(--t3)" /><span>{p.area_useful} м²</span></>}
+              {p.tenant_name?.trim() && <><IconBuilding size={14} color="var(--t3)" /><span>{p.name}</span></>}
+              {p.floor && <><IconLayers size={14} color="var(--t3)" /><span>{p.floor} пов.</span></>}
+              {p.area_useful && <><IconRuler size={14} color="var(--t3)" /><span>{p.area_useful} м²</span></>}
             </div>
           </div>
           <div className="row-r">
@@ -337,9 +337,7 @@ export default function DatabaseObjectsScreen() {
               flexShrink: 0,
             }}>
               {selectedIds.has(p.id) && (
-                <svg width="11" height="8" viewBox="0 0 11 8" fill="none">
-                  <path d="M1 4l3 3 6-6" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
+                <IconCheck size={12} color="var(--t1)" />
               )}
             </div>
           </div>
@@ -395,7 +393,7 @@ export default function DatabaseObjectsScreen() {
               </div>
               {p.floor && (
                 <div style={{ fontSize: 'var(--fs-cap2)', color: 'var(--t3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 3 }}>
-                  <IconBuilding size={13} color="var(--t3)" />{p.floor} поверх
+                  <IconBuilding size={14} color="var(--t3)" />{p.floor} поверх
                 </div>
               )}
             </div>
@@ -412,10 +410,10 @@ export default function DatabaseObjectsScreen() {
                 </div>
                 {/* Один рядок фактів: поверх · площа — компактно, без розсипаної сітки */}
                 <div className="obj-s">
-                  {p.floor && <><IconBuilding size={13} color="var(--t3)" /><span>{p.floor} поверх</span></>}
+                  {p.floor && <><IconBuilding size={14} color="var(--t3)" /><span>{p.floor} поверх</span></>}
                   {p.area_useful != null && <>
                     {p.floor && <span className="obj-s-sep">·</span>}
-                    <IconRuler size={13} color="var(--t3)" /><span>{p.area_useful}/{p.area_total ?? p.area_useful} м²</span>
+                    <IconRuler size={14} color="var(--t3)" /><span>{p.area_useful}/{p.area_total ?? p.area_useful} м²</span>
                   </>}
                 </div>
               </div>
@@ -429,13 +427,13 @@ export default function DatabaseObjectsScreen() {
               <div className="obj-ten">
                 {p.tenant_name?.trim() && (
                   <div className="obj-ten-name">
-                    <IconUser size={13} color="var(--accent)" />
+                    <IconUser size={14} color="var(--accent)" />
                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.tenant_name}</span>
                   </div>
                 )}
                 {formatLeasePeriod(p.lease_start_date, p.lease_end_date) && (
                   <div className="obj-ten-lease">
-                    <IconCalendar size={13} color="var(--t3)" />
+                    <IconCalendar size={14} color="var(--t3)" />
                     <span>{formatLeasePeriod(p.lease_start_date, p.lease_end_date)}</span>
                   </div>
                 )}
@@ -447,13 +445,13 @@ export default function DatabaseObjectsScreen() {
               <div className="obj-met">
                 {p.has_parking && (
                   <div className="obj-mt">
-                    <IconParking size={13} color="var(--t3)" />
+                    <IconParking size={14} color="var(--t3)" />
                     <span>{p.parking_spaces} місць</span>
                   </div>
                 )}
                 {(p.photos?.length ?? 0) > 0 && (
                   <div className="obj-mt">
-                    <IconPhoto size={13} />
+                    <IconPhoto size={14} />
                     <span>{p.photos!.length}</span>
                   </div>
                 )}
@@ -741,11 +739,11 @@ export default function DatabaseObjectsScreen() {
           <div className="batch-scroll">
             {!foldersUnavailable && (
               <button className="batch-pill" onClick={() => setShowFolderPicker(true)}>
-                <IconFolder size={13} /> У папку
+                <IconFolder size={14} /> У папку
               </button>
             )}
             <button className="batch-pill" onClick={() => setShowDbPicker(true)}>
-              <IconBuilding size={13} /> В базу
+              <IconBuilding size={14} /> В базу
             </button>
             <button className="batch-pill ok" onClick={() => handleBatchStatus('free')}>Вільно</button>
             <button className="batch-pill warn" onClick={() => handleBatchStatus('occupied')}>Зайнято</button>
@@ -756,7 +754,7 @@ export default function DatabaseObjectsScreen() {
             aria-label={`Видалити ${selectedIds.size} ${objectsWord(selectedIds.size)}`}
             onClick={() => setShowBatchDeleteModal(true)}
           >
-            <IconTrash size={15} />
+            <IconTrash size={16} />
           </button>
         </div>
       )}
@@ -791,7 +789,7 @@ export default function DatabaseObjectsScreen() {
               { Icon: IconTrash,       label: 'Видалити базу',         nav: false, danger: true,  action: () => { setShowMenu(false); setShowDeleteModal(true) } },
             ].map(({ Icon, label, nav, danger, action }) => (
               <div key={label} className={`sheet-row${danger ? ' danger' : ''}`} onClick={action}>
-                <span className="sheet-ic"><Icon size={17} /></span>
+                <span className="sheet-ic"><Icon size={16} /></span>
                 <span className="sheet-lbl">{label}</span>
                 {nav && <IconChevronRight size={16} className="sheet-chev" />}
               </div>

@@ -132,25 +132,25 @@ export default function ProfileScreen() {
         )}
 
         {/* Contacts */}
-        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconMail size={13} color="var(--info)" />Контакти</span></div>
+        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconMail size={14} color="var(--info)" />Контакти</span></div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div className="fr">
-            <IconMail size={15} color="var(--t3)" />
+            <IconMail size={16} color="var(--t3)" />
             <span className="fr-l" style={{ marginLeft: 6 }}>Email</span>
             <input ref={emailRef} className="fr-i" type="email" placeholder="Не вказано" defaultValue={user.email ?? ''} onBlur={async e => { const val = e.target.value; if (val === (user.email ?? '')) return; const ok = await updateProfile({ email: val }); if (!ok && emailRef.current) emailRef.current.value = user.email ?? '' }} />
           </div>
           <div className="fr">
-            <IconPhone size={15} color="var(--t3)" />
+            <IconPhone size={16} color="var(--t3)" />
             <span className="fr-l" style={{ marginLeft: 6 }}>Телефон</span>
             <input ref={phoneRef} className="fr-i" type="tel" placeholder="Не вказано" defaultValue={user.phone ?? ''} onBlur={async e => { const val = e.target.value; if (val === (user.phone ?? '')) return; const ok = await updateProfile({ phone: val }); if (!ok && phoneRef.current) phoneRef.current.value = user.phone ?? '' }} />
           </div>
         </div>
 
         {/* Settings */}
-        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconAdjustments size={13} color="var(--violet)" />Налаштування</span></div>
+        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconAdjustments size={14} color="var(--violet)" />Налаштування</span></div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div className="fr">
-            <IconLanguage size={15} color="var(--t3)" />
+            <IconLanguage size={16} color="var(--t3)" />
             <span className="fr-l" style={{ marginLeft: 6 }}>Мова</span>
             <div className="fr-seg" style={{ maxWidth: 130, opacity: savingLang ? 0.5 : 1, pointerEvents: savingLang ? 'none' : 'auto' }}>
               {(['uk', 'en'] as const).map(lang => (
@@ -165,7 +165,7 @@ export default function ProfileScreen() {
             </div>
           </div>
           <div className="fr">
-            <IconCurrencyDollar size={15} color="var(--t3)" />
+            <IconCurrencyDollar size={16} color="var(--t3)" />
             <span className="fr-l" style={{ marginLeft: 6 }}>Валюта</span>
             <div className="fr-seg" style={{ maxWidth: 180, opacity: savingCur ? 0.5 : 1, pointerEvents: savingCur ? 'none' : 'auto' }}>
               {(['USD', 'UAH', 'EUR'] as const).map(cur => (
@@ -182,7 +182,7 @@ export default function ProfileScreen() {
         </div>
 
         {/* Notifications */}
-        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconBell size={13} color="#fbbf24" />Сповіщення</span></div>
+        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconBell size={14} color="#fbbf24" />Сповіщення</span></div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div className="fr">
             <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconBellRing size={14} color="var(--t3)" />Telegram Push</span>
@@ -199,7 +199,7 @@ export default function ProfileScreen() {
         </div>
 
         {/* Support */}
-        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconMessage size={13} color="var(--info)" />Підтримка</span></div>
+        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconMessage size={14} color="var(--info)" />Підтримка</span></div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div
             className="fr" style={{ cursor: 'pointer' }}

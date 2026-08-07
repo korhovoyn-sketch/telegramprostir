@@ -57,13 +57,13 @@ export default function FolderPickerModal({ folders, title, subtitle, currentFol
 
       <div className="sheet-group">
         <div className="sheet-row" onClick={() => onPick(null)}>
-          <span className="sheet-ic"><IconInbox size={17} /></span>
+          <span className="sheet-ic"><IconInbox size={16} /></span>
           <span className="sheet-lbl">Без папки</span>
           {currentFolderId === null && <IconCheck size={16} className="sheet-chev" />}
         </div>
         {folders.map((f) => (
           <div key={f.id} className="sheet-row" onClick={() => onPick(f.id)}>
-            <span className="sheet-ic"><IconFolder size={17} /></span>
+            <span className="sheet-ic"><IconFolder size={16} /></span>
             <span className="sheet-lbl">{f.name}</span>
             {currentFolderId === f.id && <IconCheck size={16} className="sheet-chev" />}
           </div>

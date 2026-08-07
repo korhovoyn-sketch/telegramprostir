@@ -128,7 +128,7 @@ export default function TeamScreen() {
             onClick={() => { setLabelText(''); setShowCreateModal(true) }}
             style={{ background: 'none', border: 'var(--bd)' }}
           >
-            <IconPlus size={15} />
+            <IconPlus size={16} />
           </button>
         }
       />

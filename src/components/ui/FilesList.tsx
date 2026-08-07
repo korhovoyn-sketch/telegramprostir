@@ -125,7 +125,7 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
           borderRadius: 'var(--r-md)', padding: '18px 16px',
           display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
         }}>
-          <IconCloudUpload size={28} color="var(--t4)" />
+          <IconCloudUpload size={26} color="var(--t4)" />
           <div style={{ fontSize: 'var(--fs-foot)', color: 'var(--t3)', textAlign: 'center', lineHeight: 1.4 }}>
             {isOwner
               ? `Додайте PDF або Word файли (до ${maxFiles} шт., макс. 20 МБ)`

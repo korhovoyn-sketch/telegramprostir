@@ -168,7 +168,7 @@ export default function ShareSheet({ kind, id, name, shareText, onClose }: Share
       {/* Expiry */}
       <div className="sheet-group">
         <div className="sheet-row" style={{ cursor: 'default' }}>
-          <span className="sheet-ic"><IconClock size={17} /></span>
+          <span className="sheet-ic"><IconClock size={16} /></span>
           <span className="sheet-lbl">Термін дії</span>
           <span style={{ color: isExpired ? 'var(--err-fg)' : 'var(--t3)', fontSize: 'var(--fs-foot)', flexShrink: 0 }}>
             {isExpired ? 'закінчився' : expiresAt ? `до ${formatLeaseDate(expiresAt)}` : 'безстрокове'}
@@ -199,12 +199,12 @@ export default function ShareSheet({ kind, id, name, shareText, onClose }: Share
       {/* Management */}
       <div className="sheet-group" style={{ marginBottom: 16 }}>
         <div className="sheet-row" onClick={busy ? undefined : () => setConfirmAction('rotate')}>
-          <span className="sheet-ic"><IconRefresh size={17} /></span>
+          <span className="sheet-ic"><IconRefresh size={16} /></span>
           <span className="sheet-lbl">Оновити посилання</span>
           <IconChevronRight size={16} className="sheet-chev" />
         </div>
         <div className="sheet-row danger" onClick={busy ? undefined : () => setConfirmAction('revoke')}>
-          <span className="sheet-ic"><IconBan size={17} /></span>
+          <span className="sheet-ic"><IconBan size={16} /></span>
           <span className="sheet-lbl">Відкликати доступ</span>
         </div>
       </div>

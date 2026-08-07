@@ -7,7 +7,7 @@ import { offlineGuard } from '@/lib/offline'
 import { useDatabases } from '@/hooks/useDatabases'
 import { useMainButton } from '@/hooks/useMainButton'
 import Header from '@/components/ui/Header'
-import { IconMapPin, IconBuilding, IconLayoutGrid, IconAdjustments, IconEye, IconEdit, GlassDbIcon } from '@/components/Icons'
+import { IconCheck, IconMapPin, IconBuilding, IconLayoutGrid, IconAdjustments, IconEye, IconEdit, GlassDbIcon } from '@/components/Icons'
 import { DB_COLORS, scrollFocusedIntoView } from '@/lib/utils'
 import type { DatabaseType } from '@/types'
 
@@ -83,10 +83,10 @@ export default function CreateDatabaseScreen() {
 
       <div className="body has-flow-cta" onFocusCapture={scrollFocusedIntoView}>
         {/* Name & address */}
-        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconBuilding size={13} color="var(--info)" />Основне</span></div>
+        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconBuilding size={14} color="var(--info)" />Основне</span></div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div className="fr">
-            <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconEdit size={13} color="var(--t3)" />Назва</span>
+            <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconEdit size={14} color="var(--t3)" />Назва</span>
             <input
               className="fr-i"
               placeholder="БЦ Олімп"
@@ -97,7 +97,7 @@ export default function CreateDatabaseScreen() {
             />
           </div>
           <div className="fr">
-            <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconMapPin size={13} color="var(--t3)" />Адреса</span>
+            <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconMapPin size={14} color="var(--t3)" />Адреса</span>
             <input
               className="fr-i"
               placeholder="Хрещатик 22"
@@ -109,7 +109,7 @@ export default function CreateDatabaseScreen() {
         </div>
 
         {/* Type selection */}
-        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconLayoutGrid size={13} color="var(--violet)" />Тип нерухомості</span></div>
+        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconLayoutGrid size={14} color="var(--violet)" />Тип нерухомості</span></div>
         <div className="type-grid">
           {TYPES.map((t) => (
             <div
@@ -117,7 +117,7 @@ export default function CreateDatabaseScreen() {
               className={`type-card ${type === t.id ? 'sel' : ''}`}
               onClick={() => { hapticSelection(); setType(t.id) }}
             >
-              <GlassDbIcon type={t.id} color={t.neon} size={30} />
+              <GlassDbIcon type={t.id} color={t.neon} size={32} />
               <div className="type-n">{t.label}</div>
               <div className="type-s">{t.desc}</div>
             </div>
@@ -125,7 +125,7 @@ export default function CreateDatabaseScreen() {
         </div>
 
         {/* Color */}
-        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconAdjustments size={13} color="#fb923c" />Колір мітки</span></div>
+        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconAdjustments size={14} color="#fb923c" />Колір мітки</span></div>
         <div className="color-row" role="radiogroup" aria-label="Колір мітки">
           {COLOR_NAMES.map((c) => (
             <div
@@ -139,9 +139,9 @@ export default function CreateDatabaseScreen() {
             >
               {/* ✓ на вибраній: біла обводка слабко читається на світлих градієнтах */}
               {color === c && (
-                <svg width="16" height="12" viewBox="0 0 16 12" fill="none" style={{ position: 'absolute', inset: 0, margin: 'auto', filter: 'drop-shadow(0 1px 2px rgba(0,0,0,.45))' }}>
-                  <path d="M1.5 6l4.2 4L14.5 1.5" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+                <span style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', filter: 'drop-shadow(0 1px 2px rgba(0,0,0,.45))' }}>
+                  <IconCheck size={16} color="var(--t1)" />
+                </span>
               )}
             </div>
           ))}
@@ -150,7 +150,7 @@ export default function CreateDatabaseScreen() {
         {/* Preview */}
         {name && type && (
           <div style={{ margin: '8px 12px 80px' }}>
-            <div className="over" style={{ paddingTop: 12 }}><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconEye size={13} color="var(--t3)" />Попередній вигляд</span></div>
+            <div className="over" style={{ paddingTop: 12 }}><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconEye size={14} color="var(--t3)" />Попередній вигляд</span></div>
             <div className="row glass-s">
               <GlassDbIcon type={type ?? undefined} color={color} size={32} />
               <div className="row-mn">

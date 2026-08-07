@@ -485,7 +485,7 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
           {data.property_name}
         </div>
         <div style={{ fontSize: 'var(--fs-foot)', color: 'rgba(255,255,255,.5)', display: 'flex', alignItems: 'center', gap: 6 }}>
-          <IconMapPin size={13} color="rgba(255,255,255,.5)" />
+          <IconMapPin size={14} color="rgba(255,255,255,.5)" />
           {[data.db_name, DB_TYPE_LABEL[data.db_type]].filter(Boolean).join(' • ')}
         </div>
         {data.property_address && (
@@ -691,8 +691,8 @@ function DatabaseView({ rows, token }: { rows: DbRow[]; token: string }) {
                     )}
                   </div>
                   <div style={{ display: 'flex', gap: 12, marginTop: 6, flexWrap: 'wrap' }}>
-                    {p.property_floor && <span style={{ fontSize: 'var(--fs-cap1)', color: 'rgba(255,255,255,.5)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconBuilding size={11} color="rgba(255,255,255,.5)" />{p.property_floor} пов.</span>}
-                    {p.property_area_useful && <span style={{ fontSize: 'var(--fs-cap1)', color: 'rgba(255,255,255,.5)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconRuler size={11} color="rgba(255,255,255,.5)" />{p.property_area_useful} м²</span>}
+                    {p.property_floor && <span style={{ fontSize: 'var(--fs-cap1)', color: 'rgba(255,255,255,.5)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconBuilding size={12} color="rgba(255,255,255,.5)" />{p.property_floor} пов.</span>}
+                    {p.property_area_useful && <span style={{ fontSize: 'var(--fs-cap1)', color: 'rgba(255,255,255,.5)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconRuler size={12} color="rgba(255,255,255,.5)" />{p.property_area_useful} м²</span>}
                     {p.property_status === 'for_sale' && p.property_sale_price ? (
                       <span className="num" style={{ fontSize: 'var(--fs-cap1)', fontWeight: 700, color: '#60a5fa' }}>
                         {fmtPrice(p.property_sale_price, p.owner_currency)}

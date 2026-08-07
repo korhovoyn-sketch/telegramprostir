@@ -131,7 +131,7 @@ export default function PhotoUploadScreen() {
           }}>
             {done ? (
               <span className="icon-check-pop">
-                <IconCheck size={28} color="#4ade80" />
+                <IconCheck size={26} color="#4ade80" />
               </span>
             ) : (
               <>
