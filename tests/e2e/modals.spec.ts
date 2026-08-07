@@ -377,3 +377,40 @@ test('поле у фокусі не ховається під кнопками �
   expect(geo.fieldTop, 'поле не виїхало за верх екрана').toBeGreaterThan(0)
   await expect(dayInput).toBeVisible()
 })
+
+test('кнопки дій — напівпрозоре скло, неактивна лишається видимою', async ({ page }) => {
+  // Дії були єдиними суцільними заливками в інтерфейсі, збудованому на склі.
+  await fixtures(page)
+  await openRentModal(page)
+  await page.waitForTimeout(450)
+
+  const cta = await page.evaluate(() => {
+    const btn = [...document.querySelectorAll('.modal-btn')]
+      .find((b) => (b.textContent ?? '').includes('Здати')) as HTMLElement
+    const cs = getComputedStyle(btn)
+    return { cls: btn.className, bgImage: cs.backgroundImage, bf: cs.backdropFilter, disabled: (btn as HTMLButtonElement).disabled }
+  })
+  expect(cta.cls, 'первинна дія — скляна').toContain('btn-glass')
+  expect(cta.disabled, 'без орендаря кнопка неактивна').toBe(true)
+
+  // Неактивна: нейтральне скло, а не привид (opacity .45 над темним шитом
+  // робив кнопку майже невидимою)
+  const offAlpha = await page.evaluate(() => parseFloat(getComputedStyle(
+    [...document.querySelectorAll('.modal-btn')].find((b) => (b.textContent ?? '').includes('Здати'))!,
+  ).opacity))
+  expect(offAlpha).toBe(1)
+
+  // Активуємо — тон стає кольоровим і НАПІВПРОЗОРИМ
+  await page.locator('.modal input').first().fill('ТОВ «Ромашка»')
+  await page.waitForTimeout(250)
+  const on = await page.evaluate(() => {
+    const btn = [...document.querySelectorAll('.modal-btn')]
+      .find((b) => (b.textContent ?? '').includes('Здати')) as HTMLElement
+    const cs = getComputedStyle(btn)
+    return { bgImage: cs.backgroundImage, bf: cs.backdropFilter }
+  })
+  const alphas = [...on.bgImage.matchAll(/rgba\([^)]*?,\s*([\d.]+)\)/g)].map((m) => Number(m[1]))
+  expect(alphas.length, 'фон — тонований градієнт').toBeGreaterThan(0)
+  expect(Math.max(...alphas), 'жоден стоп не суцільний').toBeLessThan(0.8)
+  expect(on.bf, 'liquid glass = блюр підкладки').toContain('blur')
+})
