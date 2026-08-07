@@ -10,6 +10,13 @@ import { layoutShrunkByKeyboard } from '@/lib/telegram'
 // never did).
 const modalStack: symbol[] = []
 
+// Первинна і небезпечна дії — скляні (див. .btn-glass); «Скасувати» лишається
+// нейтральним склом .modal-btn.secondary.
+const MODAL_BTN_GLASS: Record<string, string> = {
+  primary: 'btn-glass info',
+  danger: 'btn-glass err',
+}
+
 // Консервативна висота клавіатури для платформ, які її НЕ повідомляють (iOS у
 // Telegram часто не ресайзить webview: і viewportChanged, і visualViewport
 // показують 0). Шит прив'язаний до низу екрана, тож без цього поля вводу
@@ -298,7 +305,7 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
                 {actions.map((a) => (
                   <button
                     key={a.label}
-                    className={`modal-btn ${a.variant}`}
+                    className={`modal-btn ${a.variant} ${MODAL_BTN_GLASS[a.variant] ?? ''}`}
                     onClick={async () => {
                       if (busy) return
                       setBusy(true)

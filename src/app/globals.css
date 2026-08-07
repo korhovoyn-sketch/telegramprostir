@@ -665,11 +665,51 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 .modal-btn{height:var(--btn-h);border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;font-size:var(--fs-sub);font-weight:600;cursor:pointer;gap:7px;border:none;width:100%;transition:opacity .15s,transform .12s}
 .modal-btn:active{transform:scale(.97)}
 .modal-btn:disabled{opacity:.45;cursor:default}
-.modal-btn.primary{background:linear-gradient(180deg,#2AABEE,#229ED9);color:#fff;box-shadow:0 6px 16px rgba(34,158,217,.32)}
-.modal-btn.danger{background:linear-gradient(180deg,#FF6B61,#E24B4A);color:#fff;box-shadow:0 6px 16px rgba(226,75,74,.32)}
+.modal-btn.primary{color:var(--t1)}
+.modal-btn.danger{color:var(--t1)}
 .modal-btn.secondary{background:var(--glass-2);color:var(--t1);border:var(--bd)}
 /* Compact variant for menu-style modals with many items */
 .modal-btn.sm{height:44px;font-size:var(--fs-note)}
+
+/* ── Liquid Glass action buttons ─────────────────────────────────────────────
+   Дії («Здати в оренду», «Звільнити об'єкт», «Підтвердити») були суцільними
+   заливками — єдині непрозорі плями в інтерфейсі, збудованому на склі. Тепер
+   той самий рецепт, що в шита й панелі обраних: напівпрозорий тонований шар,
+   важкий блюр, верхній внутрішній відблиск, нижня тінь-підкладка і кольорове
+   світіння назовні. Товщина тону тримається так, щоб білий текст лишався
+   контрастним навіть над світлою карткою під скримом. */
+.btn-glass{
+  position:relative;display:flex;align-items:center;justify-content:center;gap:8px;
+  color:var(--t1);font-size:var(--fs-sub);font-weight:var(--fw-semi);cursor:pointer;
+  white-space:nowrap;border:.5px solid transparent;
+  backdrop-filter:blur(28px) saturate(200%) brightness(1.06);
+  -webkit-backdrop-filter:blur(28px) saturate(200%) brightness(1.06);
+  transition:transform var(--dur-xs) var(--ease),filter var(--dur-xs) ease,box-shadow var(--dur-xs) var(--ease)}
+.btn-glass:active{transform:scale(.97);filter:brightness(1.1)}
+.btn-glass.ok{
+  background:linear-gradient(180deg,rgba(52,199,89,.52),rgba(52,199,89,.34));
+  border-color:rgba(64,212,107,.48);
+  box-shadow:0 8px 26px rgba(52,199,89,.28),inset 0 1px 0 rgba(255,255,255,.30),inset 0 -1px 0 rgba(0,0,0,.20)}
+.btn-glass.err{
+  background:linear-gradient(180deg,rgba(255,59,48,.52),rgba(255,59,48,.34));
+  border-color:rgba(255,107,97,.46);
+  box-shadow:0 8px 26px rgba(226,75,74,.26),inset 0 1px 0 rgba(255,255,255,.28),inset 0 -1px 0 rgba(0,0,0,.20)}
+.btn-glass.info{
+  background:linear-gradient(180deg,rgba(42,171,238,.52),rgba(34,158,217,.34));
+  border-color:rgba(42,171,238,.46);
+  box-shadow:0 8px 26px rgba(34,158,217,.28),inset 0 1px 0 rgba(255,255,255,.30),inset 0 -1px 0 rgba(0,0,0,.20)}
+
+/* Неактивна дія — нейтральне скло, а не привид: прозорий шар під opacity:.45
+   майже зникав над темним шитом, і кнопку не було видно взагалі. */
+.btn-glass:disabled{background:var(--glass-2);border-color:var(--glass-bd);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.10);color:var(--t3);
+  opacity:1;cursor:default;pointer-events:none}
+
+/* Плаваюча дія над списком (детальна картка обʼєкта). Скрим під нею — уже є
+   (.cta-scrim), тож скло лишається читабельним навіть над яскравою карткою. */
+.fbtn{position:absolute;bottom:calc(14px + var(--safe-bottom));left:50%;translate:-50% 0;
+  height:var(--btn-h);padding:0 32px;min-width:200px;border-radius:var(--r-pill);z-index:20}
+
 
 /* ── ACTION SHEET (Apple inset-grouped menu) ── */
 .sheet-group{background:var(--glass-1);border:var(--bd);border-radius:var(--r-md);overflow:hidden;margin-bottom:10px}
@@ -974,7 +1014,7 @@ svg.ico{overflow:visible}
 .sort-chip:active{transform:scale(.95)}
 /* Scrim behind a bottom floating CTA so scrolled content fades under it
    (reads as a bar, not an overlap). Sits below the button (z 19 < 20). */
-.cta-scrim{position:absolute;left:0;right:0;bottom:0;height:calc(120px + var(--safe-bottom));background:linear-gradient(0deg,rgba(6,5,14,.72),rgba(6,5,14,.42) 45%,transparent);pointer-events:none;z-index:19}
+.cta-scrim{position:absolute;left:0;right:0;bottom:0;height:calc(140px + var(--safe-bottom));background:linear-gradient(0deg,rgba(6,5,14,.92),rgba(6,5,14,.62) 45%,transparent);pointer-events:none;z-index:19}
 .type-card:active{transform:scale(.97)}
 .format-card:active{transform:scale(.97)}
 .hdr-a:active{transform:scale(.92);opacity:0.7}
