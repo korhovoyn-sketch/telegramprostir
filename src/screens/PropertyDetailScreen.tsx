@@ -272,7 +272,7 @@ export default function PropertyDetailScreen() {
             onClick={() => { hapticImpact('light'); navigate('property-form', { propertyId: property.id, dbId: screenParams.dbId, editMode: true }) }}
             style={{ background: 'none', border: 'var(--bd)' }}
           >
-            <IconEdit size={15} />
+            <IconEdit size={16} />
           </button>
         ) : <div className="hdr-sp" />}
       />
@@ -320,7 +320,7 @@ export default function PropertyDetailScreen() {
                 <div className="obj-hero-name">{property.name}</div>
               </div>
               <div className="obj-hero-photos" onClick={(e) => { e.stopPropagation(); openGallery(0) }}>
-                <IconPhoto size={10} />
+                <IconPhoto size={12} />
                 {photos.length} фото
               </div>
             </div>
@@ -333,7 +333,7 @@ export default function PropertyDetailScreen() {
             {property.area_useful && (
               <div className="obj-f">
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <IconRuler size={13} color="var(--info)" />{isParking ? 'Площа місця' : 'Корисна площа'}
+                  <IconRuler size={14} color="var(--info)" />{isParking ? 'Площа місця' : 'Корисна площа'}
                 </div>
                 <div className="obj-fv">{property.area_useful} м²</div>
               </div>
@@ -341,7 +341,7 @@ export default function PropertyDetailScreen() {
             {property.area_total && (
               <div className="obj-f">
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <IconRuler size={13} color="var(--info)" />Розрахункова площа
+                  <IconRuler size={14} color="var(--info)" />Розрахункова площа
                 </div>
                 <div className="obj-fv">{property.area_total} м²</div>
               </div>
@@ -349,14 +349,14 @@ export default function PropertyDetailScreen() {
             {property.floor && (
               <div className="obj-f">
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <IconBuildingSkyscraper size={13} color="var(--violet)" />Поверх
+                  <IconBuildingSkyscraper size={14} color="var(--violet)" />Поверх
                 </div>
                 <div className="obj-fv">{property.floor}</div>
               </div>
             )}
             <div className="obj-f">
               <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                <IconCircleCheck size={13} color="#4ade80" />Статус
+                <IconCircleCheck size={14} color="#4ade80" />Статус
               </div>
               <div className="obj-fv">
                 <StatusBadge status={property.status} />
@@ -365,7 +365,7 @@ export default function PropertyDetailScreen() {
             {property.has_parking && !isParking && (
               <div className="obj-f">
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <IconCarGarage size={13} color="var(--warn)" />Паркінг
+                  <IconCarGarage size={14} color="var(--warn)" />Паркінг
                 </div>
                 <div className="obj-fv">{property.parking_spaces} місць</div>
               </div>
@@ -373,7 +373,7 @@ export default function PropertyDetailScreen() {
             {parkingTypeLabel(property.parking_type) && (
               <div className="obj-f">
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <IconCarGarage size={13} color="var(--warn)" />Тип місця
+                  <IconCarGarage size={14} color="var(--warn)" />Тип місця
                 </div>
                 <div className="obj-fv">{parkingTypeLabel(property.parking_type)}</div>
               </div>
@@ -381,7 +381,7 @@ export default function PropertyDetailScreen() {
             {property.ev_charger && (
               <div className="obj-f">
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <IconBolt size={13} color="#4ade80" />Зарядка EV
+                  <IconBolt size={14} color="#4ade80" />Зарядка EV
                 </div>
                 <div className="obj-fv">Є</div>
               </div>
@@ -389,7 +389,7 @@ export default function PropertyDetailScreen() {
             {rent > 0 && (
               <div className="obj-f">
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <IconCurrencyDollar size={13} color="var(--ok-fg)" />Оренда
+                  <IconCurrencyDollar size={14} color="var(--ok-fg)" />Оренда
                 </div>
                 <div className="obj-fv">{formatPrice(rent, user?.currency)}{computedRentUnit(property.rent_type)}</div>
               </div>
@@ -397,7 +397,7 @@ export default function PropertyDetailScreen() {
             {property.sale_price != null && (
               <div className="obj-f">
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <IconCurrencyDollar size={13} color="var(--ok-fg)" />Ціна продажу
+                  <IconCurrencyDollar size={14} color="var(--ok-fg)" />Ціна продажу
                 </div>
                 <div className="obj-fv">{formatPrice(property.sale_price, user?.currency)}</div>
               </div>
@@ -405,7 +405,7 @@ export default function PropertyDetailScreen() {
             {property.tenant_name && (
               <div className="obj-f" style={{ gridColumn: '1 / -1' }}>
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <IconUser size={13} color="var(--violet)" />Орендар
+                  <IconUser size={14} color="var(--violet)" />Орендар
                 </div>
                 <div className="obj-fv">{property.tenant_name}</div>
               </div>
@@ -413,7 +413,7 @@ export default function PropertyDetailScreen() {
             {(property.lease_start_date || property.lease_end_date) && (
               <div className="obj-f" style={{ gridColumn: '1 / -1' }}>
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <IconKey size={13} color="var(--violet)" />Строк договору
+                  <IconKey size={14} color="var(--violet)" />Строк договору
                 </div>
                 <div className="obj-fv">
                   {formatLeasePeriod(property.lease_start_date, property.lease_end_date)}
@@ -449,7 +449,7 @@ export default function PropertyDetailScreen() {
                 if (!meta) return null
                 return (
                   <div key={uid} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 13px', borderRadius: 'var(--r-pill)', background: 'var(--glass-2)', border: '.5px solid var(--glass-3)', fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-med)', color: meta.color }}>
-                    <meta.Icon size={13} />
+                    <meta.Icon size={14} />
                     {meta.label}
                   </div>
                 )
@@ -602,7 +602,7 @@ export default function PropertyDetailScreen() {
                     color: 'var(--t1)', cursor: 'pointer', zIndex: 2,
                   }}
                 >
-                  <IconX size={10} />
+                  <IconX size={12} />
                 </button>
               )}
             </div>
@@ -636,7 +636,7 @@ export default function PropertyDetailScreen() {
 
         {property.description && (
           <>
-            <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconFile size={13} color="var(--violet)" />Опис</span></div>
+            <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconFile size={14} color="var(--violet)" />Опис</span></div>
             <div className="descr glass-s">
               <div className="descr-t">{property.description}</div>
             </div>
@@ -730,7 +730,7 @@ export default function PropertyDetailScreen() {
               <div style={{ paddingTop: 4 }}>
                 <div className="fld-row">
                   <div className="fld">
-                    <div className="fld-l"><IconUser size={11} />Орендар</div>
+                    <div className="fld-l"><IconUser size={12} />Орендар</div>
                     <input
                       ref={tenantInputRef}
                       placeholder="ТОВ «Назва» або ФОП"
@@ -741,7 +741,7 @@ export default function PropertyDetailScreen() {
                 </div>
                 <div className="fld-row">
                   <div className="fld">
-                    <div className="fld-l"><IconCurrencyDollar size={11} />Оренда, {rateUnit}</div>
+                    <div className="fld-l"><IconCurrencyDollar size={12} />Оренда, {rateUnit}</div>
                     <input
                       type="text"
                       inputMode="decimal"
@@ -751,7 +751,7 @@ export default function PropertyDetailScreen() {
                     />
                   </div>
                   <div className="fld">
-                    <div className="fld-l"><IconBolt size={11} />Експлуатаційні, {utilUnit}</div>
+                    <div className="fld-l"><IconBolt size={12} />Експлуатаційні, {utilUnit}</div>
                     <input
                       type="text"
                       inputMode="decimal"
@@ -763,7 +763,7 @@ export default function PropertyDetailScreen() {
                 </div>
                 <div className="fld-row">
                   <div className="fld">
-                    <div className="fld-l"><IconKey size={11} />Договір з</div>
+                    <div className="fld-l"><IconKey size={12} />Договір з</div>
                     <input
                       type="date"
                       value={rentLeaseStart}
@@ -772,7 +772,7 @@ export default function PropertyDetailScreen() {
                     />
                   </div>
                   <div className="fld">
-                    <div className="fld-l"><IconKey size={11} />Договір до</div>
+                    <div className="fld-l"><IconKey size={12} />Договір до</div>
                     <input
                       type="date"
                       value={rentLeaseEnd}

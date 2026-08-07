@@ -182,7 +182,7 @@ export default function NotificationsScreen() {
                       aria-label="Видалити сповіщення"
                       onClick={(e) => { e.stopPropagation(); hapticNotify('warning'); deleteNotification(n.id) }}
                     >
-                      <IconX size={13} />
+                      <IconX size={14} />
                     </button>
                   </div>
                 ))}

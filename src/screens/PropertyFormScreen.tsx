@@ -482,16 +482,16 @@ export default function PropertyFormScreen() {
         onInputCapture={() => { touchedRef.current = true }}
       >
         {/* Basic */}
-        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconBuilding size={13} color="var(--info)" />Основне</span></div>
+        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconBuilding size={14} color="var(--info)" />Основне</span></div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div className="fr">
-            <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconEdit size={13} color="var(--t3)" />{isParking ? 'Номер місця' : 'Назва'}</span>
+            <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconEdit size={14} color="var(--t3)" />{isParking ? 'Номер місця' : 'Назва'}</span>
             <input className="fr-i" placeholder={isParking ? '№ 42, A-15' : 'Офіс 101'} maxLength={100} value={name} onChange={e => setName(e.target.value)} autoFocus={!isEdit} />
           </div>
           {!isEdit && (
             <div className="fr">
               <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                <IconLayoutGrid size={13} color="var(--t3)" />Кількість
+                <IconLayoutGrid size={14} color="var(--t3)" />Кількість
               </span>
               {/* marginLeft:auto — контрол праворуч, як інпути/сегменти сусідніх рядків */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto' }}>
@@ -524,15 +524,15 @@ export default function PropertyFormScreen() {
             </div>
           )}
           <div className="fr">
-            <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconLayers size={13} color="var(--t3)" />{isParking ? 'Рівень / поверх' : 'Поверх'}</span>
+            <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconLayers size={14} color="var(--t3)" />{isParking ? 'Рівень / поверх' : 'Поверх'}</span>
             <input className="fr-i" type="text" inputMode="text" placeholder={isParking ? '-1, 2, підвал' : '1, 2, B-1, МП'} maxLength={20} value={floor} onChange={e => setFloor(e.target.value)} />
           </div>
           <div className="fr">
-            <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconMapPin size={13} color="var(--t3)" />Адреса</span>
+            <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconMapPin size={14} color="var(--t3)" />Адреса</span>
             <input className="fr-i" type="text" placeholder="вул. Хрещатик, 1" maxLength={200} value={address} onChange={e => setAddress(e.target.value)} />
           </div>
           <div className="fr">
-            <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconActivity size={13} color="var(--t3)" />Статус</span>
+            <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconActivity size={14} color="var(--t3)" />Статус</span>
             <div className="fr-seg" style={{ maxWidth: 200 }}>
               {([
                 { v: 'free', l: 'Вільно' },
@@ -545,7 +545,7 @@ export default function PropertyFormScreen() {
           </div>
           {!foldersUnavailable && (
             <div className="fr" onClick={() => { hapticSelection(); setShowFolderPicker(true) }} style={{ cursor: 'pointer' }}>
-              <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconFolder size={13} color="var(--t3)" />Папка</span>
+              <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconFolder size={14} color="var(--t3)" />Папка</span>
               <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, color: folderId ? 'var(--t1)' : 'var(--t3)', fontSize: 'var(--fs-call)' }}>
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 180 }}>
                   {folders.find(f => f.id === folderId)?.name ?? 'Без папки'}
@@ -563,7 +563,7 @@ export default function PropertyFormScreen() {
           <>
             <div className="over">
               <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <IconLayoutGrid size={13} color="var(--info)" />Буде створено
+                <IconLayoutGrid size={14} color="var(--info)" />Буде створено
               </span>
               <span className="over-a">{count} {objectsWord(count)}</span>
             </div>
@@ -629,10 +629,10 @@ export default function PropertyFormScreen() {
         {/* Sale price — shown only when for_sale */}
         {status === 'for_sale' && (
           <>
-            <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconCurrencyDollar size={13} color="var(--ok-fg)" />Продаж</span></div>
+            <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconCurrencyDollar size={14} color="var(--ok-fg)" />Продаж</span></div>
             <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
               <div className="fr">
-                <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconCurrencyDollar size={13} color="var(--t3)" />Ціна продажу</span>
+                <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconCurrencyDollar size={14} color="var(--t3)" />Ціна продажу</span>
                 <input className="fr-i" type="text" inputMode="decimal" maxLength={12} placeholder="150000" value={salePrice} onChange={e => setSalePrice(sanitizeDecimal(e.target.value))} />
                 <span className="fr-u">{currencySymbol(user?.currency)}</span>
               </div>
@@ -643,19 +643,19 @@ export default function PropertyFormScreen() {
         {/* Tenant info — shown only when occupied */}
         {status === 'occupied' && (
           <>
-            <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconUser size={13} color="var(--violet)" />Орендар</span></div>
+            <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconUser size={14} color="var(--violet)" />Орендар</span></div>
             <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
               <div className="fr">
-                <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconUser size={13} color="var(--t3)" />Найменування</span>
+                <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconUser size={14} color="var(--t3)" />Найменування</span>
                 <input className="fr-i" placeholder="ТОВ «Назва» або ФОП Іванов" maxLength={200} value={tenantName} onChange={e => setTenantName(e.target.value)} />
               </div>
               <div className="fr">
-                <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconKey size={13} color="var(--t3)" />Договір з</span>
+                <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconKey size={14} color="var(--t3)" />Договір з</span>
                 <input className="fr-i" type="date" lang="uk-UA" value={leaseStartDate} onChange={e => setLeaseStartDate(e.target.value)}
                   style={{ colorScheme: 'dark' }} />
               </div>
               <div className="fr">
-                <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconKey size={13} color="var(--t3)" />Договір до</span>
+                <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconKey size={14} color="var(--t3)" />Договір до</span>
                 <input className="fr-i" type="date" lang="uk-UA" value={leaseEndDate} onChange={e => setLeaseEndDate(e.target.value)}
                   style={{ colorScheme: 'dark' }} />
               </div>
@@ -664,16 +664,16 @@ export default function PropertyFormScreen() {
         )}
 
         {/* Area */}
-        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconRuler size={13} color="var(--info)" />Площа</span></div>
+        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconRuler size={14} color="var(--info)" />Площа</span></div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div className="fr">
-            <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconRuler size={13} color="var(--t3)" />{isParking ? 'Площа місця' : 'Корисна'}</span>
+            <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconRuler size={14} color="var(--t3)" />{isParking ? 'Площа місця' : 'Корисна'}</span>
             <input className="fr-i" type="text" inputMode="decimal" placeholder={isParking ? '13.5' : '47'} value={areaUseful} onChange={e => setAreaUseful(sanitizeDecimal(e.target.value))} />
             <span className="fr-u">м²</span>
           </div>
           {!isParking && (
             <div className="fr">
-              <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconRuler size={13} color="var(--t3)" />Розрахункова</span>
+              <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconRuler size={14} color="var(--t3)" />Розрахункова</span>
               <input className="fr-i" type="text" inputMode="decimal" placeholder="52" value={areaTotal} onChange={e => setAreaTotal(sanitizeDecimal(e.target.value))} />
               <span className="fr-u">м²</span>
             </div>
@@ -681,7 +681,7 @@ export default function PropertyFormScreen() {
           {/* Which area the per-m² rate (rent AND expenses) multiplies by. */}
           {!isParking && (
             <div className="fr">
-              <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconRuler size={13} color="var(--t3)" />Рахувати від</span>
+              <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconRuler size={14} color="var(--t3)" />Рахувати від</span>
               <div className="fr-seg" style={{ maxWidth: 220 }}>
                 <div className={`fr-seg-b ${areaBasis === 'useful' ? 'on' : ''}`} onClick={() => { hapticSelection(); setAreaBasis('useful') }}>Корисної</div>
                 <div className={`fr-seg-b ${areaBasis === 'total' ? 'on' : ''}`} onClick={() => { hapticSelection(); setAreaBasis('total') }}>Розрахункової</div>
@@ -691,7 +691,7 @@ export default function PropertyFormScreen() {
         </div>
 
         {/* Rent */}
-        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconCurrencyDollar size={13} color="var(--ok-fg)" />Орендна ставка</span></div>
+        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconCurrencyDollar size={14} color="var(--ok-fg)" />Орендна ставка</span></div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div className="fr">
             <span className="fr-l">Тип</span>
@@ -725,7 +725,7 @@ export default function PropertyFormScreen() {
         </div>
 
         {/* Utilities */}
-        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconBolt size={13} color="#fbbf24" />Експлуатаційні</span></div>
+        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconBolt size={14} color="#fbbf24" />Експлуатаційні</span></div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div className="fr">
             <span className="fr-l">{isParking ? 'Сума' : 'Ставка'}</span>
@@ -745,7 +745,7 @@ export default function PropertyFormScreen() {
         {/* Parking spot attributes — parking DBs only */}
         {isParking && (
           <>
-            <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconCarGarage size={13} color="#fb923c" />Місце</span></div>
+            <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconCarGarage size={14} color="#fb923c" />Місце</span></div>
             <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
               <div className="fr">
                 <span className="fr-l">Тип</span>
@@ -756,7 +756,7 @@ export default function PropertyFormScreen() {
                 </div>
               </div>
               <div className="fr">
-                <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconBolt size={13} color="var(--t3)" />Зарядка для електромобіля</span>
+                <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconBolt size={14} color="var(--t3)" />Зарядка для електромобіля</span>
                 <Toggle value={evCharger} onChange={setEvCharger} />
               </div>
             </div>
@@ -766,7 +766,7 @@ export default function PropertyFormScreen() {
         {/* Parking (office/apartment DBs) */}
         {!isParking && (
           <>
-            <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconCarGarage size={13} color="#fb923c" />Паркінг</span></div>
+            <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconCarGarage size={14} color="#fb923c" />Паркінг</span></div>
             <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
               <div className="fr">
                 <span className="fr-l">Є паркінг</span>
@@ -781,7 +781,7 @@ export default function PropertyFormScreen() {
             </div>
 
             {/* Utility services */}
-            <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconBolt size={13} color="#fbbf24" />Експлуатаційні послуги</span></div>
+            <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconBolt size={14} color="#fbbf24" />Експлуатаційні послуги</span></div>
             <div className="glass-s" style={{ margin: '0 12px 16px', borderRadius: 'var(--r-md)' }}>
               <div className="util-tags">
                 {UTILITY_META.map(({ id, label, Icon, color }) => {
@@ -804,7 +804,7 @@ export default function PropertyFormScreen() {
         )}
 
         {/* Description */}
-        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconFile size={13} color="var(--violet)" />Опис</span></div>
+        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconFile size={14} color="var(--violet)" />Опис</span></div>
         <div className="glass-s" style={{ margin: '0 12px 16px', borderRadius: 'var(--r-md)', padding: '10px 14px' }}>
           <textarea
             className="fr-textarea"

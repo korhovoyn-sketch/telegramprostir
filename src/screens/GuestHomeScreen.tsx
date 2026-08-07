@@ -6,7 +6,7 @@ import RetryState from '@/components/ui/RetryState'
 import { supabase } from '@/lib/supabase'
 import TabBar from '@/components/ui/TabBar'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
-import { IconKey, IconBuilding } from '@/components/Icons'
+import { IconKey, IconBuilding, IconChevronRight } from '@/components/Icons'
 import { StatusBadge } from '@/components/ui/Badge'
 import { greeting, humanizeDbError } from '@/lib/utils'
 import type { GuestLink } from '@/types'
@@ -124,9 +124,7 @@ export default function GuestHomeScreen() {
                       <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 2 }}>База об&apos;єктів</div>
                     )}
                   </div>
-                  <svg width="7" height="12" viewBox="0 0 7 12" fill="none">
-                    <path d="M1 1l5 5-5 5" stroke="rgba(255,255,255,.3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
+                  <IconChevronRight size={12} color="var(--t4)" />
                 </div>
               )
             })}

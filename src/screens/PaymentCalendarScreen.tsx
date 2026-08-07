@@ -513,7 +513,7 @@ export default function PaymentCalendarScreen() {
             {propsWithoutSchedule.length > 0 && (
               <>
                 <div className="over">
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconFile size={13} color="#fb923c" />Немає розкладу</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconFile size={14} color="#fb923c" />Немає розкладу</span>
                   <span className="over-a">{propsWithoutSchedule.length} {objectsWord(propsWithoutSchedule.length)}</span>
                 </div>
                 <div className="list" style={{ marginBottom: 12 }}>
@@ -542,8 +542,8 @@ export default function PaymentCalendarScreen() {
                   <div className="over">
                     <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       {section.isFirst
-                        ? <IconCalendar size={13} color="var(--info)" />
-                        : <IconClock    size={13} color="var(--t3)" />
+                        ? <IconCalendar size={14} color="var(--info)" />
+                        : <IconClock size={14} color="var(--t3)" />
                       }
                       {section.label}
                     </span>
@@ -629,7 +629,7 @@ export default function PaymentCalendarScreen() {
                 {archiveByMonth.map(group => (
                   <div key={group.label}>
                     <div className="over">
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconCalendar size={13} color="var(--info)" />{group.label}</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconCalendar size={14} color="var(--info)" />{group.label}</span>
                       {group.total > 0 && (
                         <span style={{ fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-bold)', color: 'var(--ok-fg)' }}>
                           {formatPrice(group.total, user?.currency)}
@@ -696,14 +696,14 @@ export default function PaymentCalendarScreen() {
           <div style={{ paddingTop: 4 }}>
             <div className="fld-row">
               <div className="fld">
-                <div className="fld-l"><IconCalendar size={11} />День місяця (1–28)</div>
+                <div className="fld-l"><IconCalendar size={12} />День місяця (1–28)</div>
                 <input
                   type="text" inputMode="numeric" maxLength={2}
                   value={setupDueDay} onChange={e => setSetupDueDay(sanitizeInt(e.target.value))}
                 />
               </div>
               <div className="fld">
-                <div className="fld-l"><IconBellRing size={11} />Нагадати за, днів</div>
+                <div className="fld-l"><IconBellRing size={12} />Нагадати за, днів</div>
                 <input
                   type="text" inputMode="numeric" maxLength={2}
                   value={setupNotify} onChange={e => { const v = sanitizeInt(e.target.value); setSetupNotify(v && parseInt(v, 10) > 14 ? '14' : v) }}
@@ -873,7 +873,7 @@ function PaymentItemCard({ item, statusColor, label, onMarkPaid, onEdit, onDelet
           onClick={onDeleteSchedule}
           style={{ fontSize: 'var(--fs-cap2)', color: 'var(--err)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0', marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}
         >
-          <IconTrash size={11} /> Видалити
+          <IconTrash size={12} /> Видалити
         </button>
       </div>
     </div>

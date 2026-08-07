@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useMemo, type ReactNode } from 'react'
 import { monthlyRent, calcUtilities, basisArea, formatPrice, objectsWord } from '@/lib/utils'
+import { IconActivity, IconCurrencyDollar, IconBolt, IconRuler, IconLayers, IconCircleCheck } from '@/components/Icons'
 import type { Property } from '@/types'
 
 interface Props {
@@ -45,6 +46,12 @@ function useCountUp(target: number, duration = 620): number {
   return val
 }
 
+/**
+ * Кольорова плитка під іконку. Сама іконка — з єдиної бібліотеки Icons.tsx:
+ * раніше панель тримала ВЛАСНИЙ набір SVG-шляхів (інша геометрія, інша товщина
+ * обведення 2.5), і дашборд читався як третій стиль поруч із картками й
+ * модалками.
+ */
 function GradientIcon({ from, to, glow, children }: {
   from: string
   to: string
@@ -55,7 +62,7 @@ function GradientIcon({ from, to, glow, children }: {
     <div style={{
       width: 32,
       height: 32,
-      borderRadius: 9,
+      borderRadius: 'var(--r-10)',
       background: `linear-gradient(135deg, ${from}, ${to})`,
       boxShadow: `0 4px 12px ${glow}, inset 0 1px 0 rgba(255,255,255,.28)`,
       display: 'flex',
@@ -63,62 +70,30 @@ function GradientIcon({ from, to, glow, children }: {
       justifyContent: 'center',
       flexShrink: 0,
     }}>
-      <svg
-        width="16" height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="rgba(255,255,255,.95)"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        {children}
-      </svg>
+      {children}
     </div>
   )
 }
 
+const CHIP = 'rgba(255,255,255,.95)'
+
 const ICON_ACTIVITY = (
-  <GradientIcon from="#4F8EF7" to="#7AB3FF" glow="rgba(79,142,247,.42)">
-    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-  </GradientIcon>
+  <GradientIcon from="#4F8EF7" to="#7AB3FF" glow="rgba(79,142,247,.42)"><IconActivity size={16} color={CHIP} /></GradientIcon>
 )
-
 const ICON_DOLLAR = (
-  <GradientIcon from="#2CC459" to="#4ADB7A" glow="rgba(44,196,89,.42)">
-    <line x1="12" y1="1" x2="12" y2="23"/>
-    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-  </GradientIcon>
+  <GradientIcon from="#2CC459" to="#4ADB7A" glow="rgba(44,196,89,.42)"><IconCurrencyDollar size={16} color={CHIP} /></GradientIcon>
 )
-
 const ICON_ZAP = (
-  <GradientIcon from="#FF9500" to="#FFB340" glow="rgba(255,149,0,.42)">
-    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-  </GradientIcon>
+  <GradientIcon from="#FF9500" to="#FFB340" glow="rgba(255,149,0,.42)"><IconBolt size={16} color={CHIP} /></GradientIcon>
 )
-
 const ICON_EXPAND = (
-  <GradientIcon from="#A855F7" to="#C084FC" glow="rgba(168,85,247,.42)">
-    <polyline points="15 3 21 3 21 9"/>
-    <polyline points="9 21 3 21 3 15"/>
-    <line x1="21" y1="3" x2="14" y2="10"/>
-    <line x1="3" y1="21" x2="10" y2="14"/>
-  </GradientIcon>
+  <GradientIcon from="#A855F7" to="#C084FC" glow="rgba(168,85,247,.42)"><IconRuler size={16} color={CHIP} /></GradientIcon>
 )
-
 const ICON_LAYERS = (
-  <GradientIcon from="#6366F1" to="#818CF8" glow="rgba(99,102,241,.42)">
-    <polygon points="12 2 2 7 12 12 22 7 12 2"/>
-    <polyline points="2 17 12 22 22 17"/>
-    <polyline points="2 12 12 17 22 12"/>
-  </GradientIcon>
+  <GradientIcon from="#6366F1" to="#818CF8" glow="rgba(99,102,241,.42)"><IconLayers size={16} color={CHIP} /></GradientIcon>
 )
-
 const ICON_CHECK = (
-  <GradientIcon from="#06B6D4" to="#22D3EE" glow="rgba(6,182,212,.42)">
-    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-    <polyline points="22 4 12 14.01 9 11.01"/>
-  </GradientIcon>
+  <GradientIcon from="#06B6D4" to="#22D3EE" glow="rgba(6,182,212,.42)"><IconCircleCheck size={16} color={CHIP} /></GradientIcon>
 )
 
 function StatCard({ icon, label, value, sub, accentBg, accentBorder, bar, barColor, delay }: CardData & { delay: number }) {

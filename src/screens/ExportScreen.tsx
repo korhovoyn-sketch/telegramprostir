@@ -644,7 +644,7 @@ export default function ExportScreen() {
         {/* Format */}
         <div className="over">
           <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <IconFileExport size={13} color="var(--info)" />Формат файлу
+            <IconFileExport size={14} color="var(--info)" />Формат файлу
           </span>
         </div>
         <div className="format-list">
@@ -671,7 +671,7 @@ export default function ExportScreen() {
           <>
             <div className="over" style={{ marginTop: 8 }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <IconFile size={13} color="#fb923c" />Стиль PDF
+                <IconFile size={14} color="#fb923c" />Стиль PDF
               </span>
             </div>
             <div className="tmpl-row">
@@ -699,7 +699,7 @@ export default function ExportScreen() {
         {/* Options */}
         <div className="over" style={{ marginTop: 8 }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <IconAdjustments size={13} color="var(--violet)" />Налаштування
+            <IconAdjustments size={14} color="var(--violet)" />Налаштування
           </span>
         </div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>

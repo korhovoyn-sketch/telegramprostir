@@ -219,12 +219,12 @@ export default function GuestDatabaseScreen() {
               <div style={{ marginTop: 12, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                 {p.floor && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--fs-foot)', color: 'var(--t2)' }}>
-                    <IconBuilding size={13} color="var(--t3)" />{p.floor} поверх
+                    <IconBuilding size={14} color="var(--t3)" />{p.floor} поверх
                   </div>
                 )}
                 {p.area_useful != null && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--fs-foot)', color: 'var(--t2)' }}>
-                    <IconRuler size={13} color="var(--t3)" />{p.area_useful}{p.area_total ? `/${p.area_total}` : ''} м²
+                    <IconRuler size={14} color="var(--t3)" />{p.area_useful}{p.area_total ? `/${p.area_total}` : ''} м²
                   </div>
                 )}
                 {p.status && (
@@ -261,7 +261,7 @@ export default function GuestDatabaseScreen() {
                       <div>
                         <div className="obj-t">{prop.name}</div>
                         {prop.floor && (
-                          <div className="obj-s"><IconBuilding size={13} color="var(--t3)" />{prop.floor} поверх</div>
+                          <div className="obj-s"><IconBuilding size={14} color="var(--t3)" />{prop.floor} поверх</div>
                         )}
                       </div>
                       <span className={`bdg ${STATUS_BADGE_CLS[prop.status] ?? ''}`}>
@@ -271,7 +271,7 @@ export default function GuestDatabaseScreen() {
                     {prop.area_useful != null && (
                       <div className="obj-met">
                         <div className="obj-mt">
-                          <IconRuler size={13} color="var(--t3)" />
+                          <IconRuler size={14} color="var(--t3)" />
                           <span>{prop.area_useful}{prop.area_total ? `/${prop.area_total}` : ''} м²</span>
                         </div>
                       </div>
@@ -341,7 +341,7 @@ export default function GuestDatabaseScreen() {
                   <div>
                     <div className="obj-t">{p.property_name}</div>
                     {p.property_floor && (
-                      <div className="obj-s"><IconBuilding size={13} color="var(--t3)" />{p.property_floor} поверх</div>
+                      <div className="obj-s"><IconBuilding size={14} color="var(--t3)" />{p.property_floor} поверх</div>
                     )}
                   </div>
                   {p.property_status && (
@@ -353,13 +353,13 @@ export default function GuestDatabaseScreen() {
                 <div className="obj-met">
                   {p.property_area_useful != null && (
                     <div className="obj-mt">
-                      <IconRuler size={13} color="var(--t3)" />
+                      <IconRuler size={14} color="var(--t3)" />
                       <span>{p.property_area_useful}{p.property_area_total != null ? `/${p.property_area_total}` : ''} м²</span>
                     </div>
                   )}
                   {p.property_rent_rate != null && (
                     <div className="obj-mt">
-                      <IconCurrencyDollar size={13} color="var(--t3)" />
+                      <IconCurrencyDollar size={14} color="var(--t3)" />
                       <span>{p.property_rent_rate.toLocaleString('uk-UA')} {rentUnitLabel(p.property_rent_type)}</span>
                     </div>
                   )}

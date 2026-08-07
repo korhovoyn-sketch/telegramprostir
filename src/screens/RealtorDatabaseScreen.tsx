@@ -108,7 +108,7 @@ export default function RealtorDatabaseScreen() {
               aria-label="Написати власнику"
               onClick={() => window.Telegram?.WebApp?.openTelegramLink(`https://t.me/${owner.tg_username}`)}
             >
-              <IconMessage size={15} />
+              <IconMessage size={16} />
             </button>
           )}
         </div>
@@ -159,17 +159,17 @@ export default function RealtorDatabaseScreen() {
                   <div className="obj-hd">
                     <div>
                       <div className="obj-t">{p.name}</div>
-                      {p.floor && <div className="obj-s" style={{ display: 'flex', alignItems: 'center', gap: 3 }}><IconBuilding size={10} color="var(--t3)" />{p.floor} поверх</div>}
+                      {p.floor && <div className="obj-s" style={{ display: 'flex', alignItems: 'center', gap: 3 }}><IconBuilding size={12} color="var(--t3)" />{p.floor} поверх</div>}
                     </div>
                     <StatusBadge status={p.status} />
                   </div>
                   <div className="obj-met">
-                    {p.area_useful && <div className="obj-mt"><IconRuler size={10} color="var(--t3)" /><span>{p.area_useful}/{p.area_total ?? p.area_useful} м²</span></div>}
-                    {p.has_parking && <div className="obj-mt"><IconParking size={10} color="var(--t3)" /><span>{p.parking_spaces} м.</span></div>}
-                    {(p.photos?.length ?? 0) > 0 && <div className="obj-mt"><IconPhoto size={11} /> {p.photos!.length}</div>}
+                    {p.area_useful && <div className="obj-mt"><IconRuler size={12} color="var(--t3)" /><span>{p.area_useful}/{p.area_total ?? p.area_useful} м²</span></div>}
+                    {p.has_parking && <div className="obj-mt"><IconParking size={12} color="var(--t3)" /><span>{p.parking_spaces} м.</span></div>}
+                    {(p.photos?.length ?? 0) > 0 && <div className="obj-mt"><IconPhoto size={12} /> {p.photos!.length}</div>}
                     {p.status === 'occupied' && formatLeasePeriod(p.lease_start_date, p.lease_end_date) && (
                       <div className="obj-mt" style={{ gridColumn: '1 / -1', color: 'var(--t3)' }}>
-                        <IconCalendar size={10} color="var(--t3)" />
+                        <IconCalendar size={12} color="var(--t3)" />
                         <span>{formatLeasePeriod(p.lease_start_date, p.lease_end_date)}</span>
                       </div>
                     )}

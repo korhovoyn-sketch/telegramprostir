@@ -11,7 +11,7 @@ interface SearchBarProps {
 export default function SearchBar({ value, onChange, placeholder = 'Пошук...' }: SearchBarProps) {
   return (
     <div className="search-inline">
-      <IconSearch size={15} color="var(--t3)" />
+      <IconSearch size={16} color="var(--t3)" />
       <input
         type="text"
         placeholder={placeholder}

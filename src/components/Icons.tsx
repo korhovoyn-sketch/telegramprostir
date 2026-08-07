@@ -131,7 +131,14 @@ interface IconProps {
   color?: string
 }
 
-function Icon({ className = '', size = 24, color = 'currentColor', children, viewBox = '0 0 24 24' }: IconProps & { children?: React.ReactNode; viewBox?: string }) {
+// Оптична вага: 2px обведення при 26px виглядає важчим, ніж при 14px. Великі
+// іконки (таббар) тому тонші — це те саме правило, що вже застосоване вручну
+// до вкладок, тільки тепер спільне для всієї бібліотеки.
+function strokeFor(size: number): number {
+  return size >= 24 ? 1.7 : 2
+}
+
+function Icon({ className = '', size = 16, color = 'currentColor', children, viewBox = '0 0 24 24' }: IconProps & { children?: React.ReactNode; viewBox?: string }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -140,7 +147,7 @@ function Icon({ className = '', size = 24, color = 'currentColor', children, vie
       viewBox={viewBox}
       fill="none"
       stroke={color}
-      strokeWidth="2"
+      strokeWidth={strokeFor(size)}
       strokeLinecap="round"
       strokeLinejoin="round"
       className={`ico ${className}`}
@@ -386,35 +393,19 @@ export function IconExternalLink(p: IconProps) {
 }
 
 export function IconCalendar(p: IconProps) {
-  return (
-    <svg width={p.size ?? 16} height={p.size ?? 16} viewBox="0 0 24 24" fill="none" stroke={p.color ?? 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-    </svg>
-  )
+  return <Icon {...p}><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></Icon>
 }
 
 export function IconBellRing(p: IconProps) {
-  return (
-    <svg width={p.size ?? 16} height={p.size ?? 16} viewBox="0 0 24 24" fill="none" stroke={p.color ?? 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><path d="M21 8A9 9 0 0 0 3 8"/>
-    </svg>
-  )
+  return <Icon {...p}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><path d="M21 8A9 9 0 0 0 3 8"/></Icon>
 }
 
 export function IconCheckCircle(p: IconProps) {
-  return (
-    <svg width={p.size ?? 16} height={p.size ?? 16} viewBox="0 0 24 24" fill="none" stroke={p.color ?? 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
-    </svg>
-  )
+  return <Icon {...p}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></Icon>
 }
 
 export function IconClock(p: IconProps) {
-  return (
-    <svg width={p.size ?? 16} height={p.size ?? 16} viewBox="0 0 24 24" fill="none" stroke={p.color ?? 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-    </svg>
-  )
+  return <Icon {...p}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></Icon>
 }
 
 /* ── Tab bar icons — Telegram-style: outline when idle, filled silhouette when active.
@@ -433,7 +424,7 @@ function TabIcon({ size = 24, active = false, color, outline, filled }: TabIconP
   const g = GLASS_GRADS[color]
   return (
     <span className={`tabico ${active ? 'is-on' : ''}`} style={{ width: size, height: size }}>
-      <svg className="tabico-o" xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+      <svg className="tabico-o" xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeFor(size)} strokeLinecap="round" strokeLinejoin="round">
         {outline}
       </svg>
       <svg className="tabico-f" xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" stroke="none">

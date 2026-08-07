@@ -71,7 +71,7 @@ export default function RoleSelectScreen() {
               justifyContent: 'center',
               boxShadow: '0 6px 18px rgba(122,179,255,.36)',
             }}>
-              <IconBuildingSkyscraper size={22} color="#fff" />
+              <IconBuildingSkyscraper size={20} color="#fff" />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 'var(--fs-head)', fontWeight: 'var(--fw-bold)', color: 'var(--t1)', letterSpacing: '-.01em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -122,7 +122,7 @@ export default function RoleSelectScreen() {
               justifyContent: 'center',
               boxShadow: '0 6px 18px rgba(196,35,120,.36)',
             }}>
-              <IconUser size={22} color="#fff" />
+              <IconUser size={20} color="#fff" />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 'var(--fs-head)', fontWeight: 'var(--fw-bold)', color: 'var(--t1)', letterSpacing: '-.01em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
