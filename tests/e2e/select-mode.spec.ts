@@ -47,3 +47,51 @@ test('режим вибору: нічого не обрізано по края�
   expect(r.worstRight, 'картки не вилазять праворуч').toBeLessThanOrEqual(r.vw)
   expect(r.worstLeft, 'картки не вилазять ліворуч').toBeGreaterThanOrEqual(0)
 })
+
+// Панель дій над обраними: скляна плитка, а не «мертва» плашка. Раніше в неї
+// стояв неоголошений var(--bg2) — фон не малювався взагалі.
+test('панель обраних: напівпрозоре скло, скрим і закріплене «Видалити»', async ({ page }) => {
+  await setup(page); await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20000 })
+  await page.getByText('Міком Палац').first().click()
+  await expect(page.getByText('Всі (5)')).toBeVisible()
+  await page.getByLabel('Меню бази').click()
+  await page.getByText("Виділити об'єкти").click()
+  await page.locator('.obj-card').first().locator('.obj-t').click()
+  await expect(page.locator('.batchbar')).toBeVisible()
+  await page.waitForTimeout(450)
+
+  const geo = await page.evaluate(() => {
+    const bar = document.querySelector('.batchbar') as HTMLElement
+    const cs = getComputedStyle(bar)
+    const b = bar.getBoundingClientRect()
+    const tab = document.querySelector('.tabbar')!.getBoundingClientRect()
+    const scrim = document.querySelector('.batchbar-scrim')
+    const del = document.querySelector('.batch-pill.err')!.getBoundingClientRect()
+    const scroll = document.querySelector('.batch-scroll')!.getBoundingClientRect()
+    return {
+      bg: cs.backgroundColor, radius: cs.borderTopLeftRadius,
+      left: Math.round(b.left), right: Math.round(b.right), vw: window.innerWidth,
+      barBottom: Math.round(b.bottom), tabTop: Math.round(tab.top),
+      hasScrim: !!scrim,
+      delOutsideScroll: del.left >= scroll.right - 1,
+      delW: Math.round(del.width), delH: Math.round(del.height),
+    }
+  })
+
+  // Фон саме напівпрозорий (≈50%), а не суцільний і не відсутній
+  const alpha = Number(geo.bg.match(/rgba?\([^)]*?,\s*([\d.]+)\)/)?.[1] ?? '1')
+  expect(alpha, 'панель напівпрозора').toBeGreaterThan(0.3)
+  expect(alpha, 'панель не суцільна').toBeLessThan(0.8)
+  expect(parseFloat(geo.radius), 'скруглена як шит').toBeGreaterThanOrEqual(16)
+  // Плаваюча плитка з відступами, а не смуга на всю ширину
+  expect(geo.left).toBeGreaterThan(4)
+  expect(geo.right).toBeLessThan(geo.vw - 4)
+  // Над таббаром, не поверх нього
+  expect(geo.barBottom, 'панель не налазить на таббар').toBeLessThanOrEqual(geo.tabTop)
+  expect(geo.hasScrim, 'скрим під панеллю').toBe(true)
+  // Небезпечна дія завжди на видноті — поза прокруткою пілюль
+  expect(geo.delOutsideScroll, '«Видалити» закріплене праворуч').toBe(true)
+  expect(geo.delH, 'тач-таргет не менше 36px').toBeGreaterThanOrEqual(36)
+  await expect(page.getByLabel(/Видалити 1 об/)).toBeVisible()
+})

@@ -107,7 +107,7 @@ export default function PhotoGalleryScreen() {
           onClick={back}
           style={{
             width: 36, height: 36, borderRadius: '50%',
-            background: 'rgba(255,255,255,.15)',
+            background: 'var(--glass-3)',
             border: '1px solid rgba(255,255,255,.2)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             color: 'var(--t1)',
@@ -124,7 +124,7 @@ export default function PhotoGalleryScreen() {
             onClick={handleDownload}
             style={{
               width: 36, height: 36, borderRadius: '50%',
-              background: 'rgba(255,255,255,.15)',
+              background: 'var(--glass-3)',
               border: '1px solid rgba(255,255,255,.2)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               color: 'var(--t1)',
@@ -137,7 +137,7 @@ export default function PhotoGalleryScreen() {
             onClick={handleShare}
             style={{
               width: 36, height: 36, borderRadius: '50%',
-              background: 'rgba(255,255,255,.15)',
+              background: 'var(--glass-3)',
               border: '1px solid rgba(255,255,255,.2)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               color: 'var(--t1)',
@@ -183,7 +183,7 @@ export default function PhotoGalleryScreen() {
               style={{
                 position: 'absolute', left: 16,
                 width: 40, height: 40, borderRadius: '50%',
-                background: 'rgba(255,255,255,.15)',
+                background: 'var(--glass-3)',
                 border: '1px solid rgba(255,255,255,.2)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 color: 'var(--t1)',
@@ -197,7 +197,7 @@ export default function PhotoGalleryScreen() {
               style={{
                 position: 'absolute', right: 16,
                 width: 40, height: 40, borderRadius: '50%',
-                background: 'rgba(255,255,255,.15)',
+                background: 'var(--glass-3)',
                 border: '1px solid rgba(255,255,255,.2)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 color: 'var(--t1)',
@@ -235,7 +235,7 @@ export default function PhotoGalleryScreen() {
                   overflow: 'hidden',
                   border: i === current ? '2px solid #a78bfa' : '2px solid transparent',
                   cursor: 'pointer',
-                  background: 'rgba(255,255,255,.1)',
+                  background: 'var(--glass-2)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   transition: 'border-color .2s ease',
                 }}

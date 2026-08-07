@@ -554,7 +554,7 @@ export default function PaymentCalendarScreen() {
                         </span>
                         <span style={{ display: 'flex', gap: 2 }}>
                           {Array.from({ length: section.totalCount }, (_, k) => (
-                            <span key={k} style={{ width: 14, height: 4, borderRadius: 2, background: k < section.paidCount ? 'var(--ok)' : 'rgba(255,255,255,.15)', transition: 'background .35s ease' }} />
+                            <span key={k} style={{ width: 14, height: 4, borderRadius: 2, background: k < section.paidCount ? 'var(--ok)' : 'var(--glass-3)', transition: 'background .35s ease' }} />
                           ))}
                         </span>
                       </span>

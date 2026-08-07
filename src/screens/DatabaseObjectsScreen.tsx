@@ -351,7 +351,7 @@ export default function DatabaseObjectsScreen() {
             width: 44, flexShrink: 0,
             display: 'flex', flexDirection: 'column',
             borderRight: '.5px solid rgba(255,255,255,.10)',
-            background: 'rgba(255,255,255,.04)',
+            background: 'var(--glass-1)',
           }}>
             <button
               onClick={(e) => { e.stopPropagation(); hapticSelection(); reorderProperty(p.id, 'up') }}
@@ -733,6 +733,9 @@ export default function DatabaseObjectsScreen() {
 
       {/* Batch action bar — owner only */}
       {isOwner && selectMode && selectedIds.size > 0 && (
+        <div className="batchbar-scrim" aria-hidden />
+      )}
+      {isOwner && selectMode && selectedIds.size > 0 && (
         <div className="batchbar">
           <span className="batchbar-n">{selectedIds.size} обрано</span>
           <div className="batch-scroll">
@@ -747,10 +750,14 @@ export default function DatabaseObjectsScreen() {
             <button className="batch-pill ok" onClick={() => handleBatchStatus('free')}>Вільно</button>
             <button className="batch-pill warn" onClick={() => handleBatchStatus('occupied')}>Зайнято</button>
             <button className="batch-pill info" onClick={() => handleBatchStatus('for_sale')}>Продаж</button>
-            <button className="batch-pill err" onClick={() => setShowBatchDeleteModal(true)}>
-              <IconTrash size={13} /> Видалити
-            </button>
           </div>
+          <button
+            className="batch-pill err"
+            aria-label={`Видалити ${selectedIds.size} ${objectsWord(selectedIds.size)}`}
+            onClick={() => setShowBatchDeleteModal(true)}
+          >
+            <IconTrash size={15} />
+          </button>
         </div>
       )}
 

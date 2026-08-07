@@ -52,7 +52,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
   --ok:#34C759;--ok-light:#40D46B;--ok-bg:rgba(52,199,89,.18);--ok-fg:#a4f0c1;--ok-bd:rgba(52,199,89,.28);
   --warn:#FF9500;--warn-bg:rgba(255,149,0,.18);--warn-fg:#ffc985;--warn-bd:rgba(255,149,0,.28);
   --err:#FF3B30;--err-bg:rgba(255,59,48,.16);--err-fg:#ffacac;--err-bd:rgba(255,59,48,.26);
-  --info:#7AB3FF;--info-bg:rgba(34,158,217,.18);--info-fg:#a8d4ff;
+  --info:#7AB3FF;--info-bg:rgba(34,158,217,.18);--info-fg:#a8d4ff;--info-bd:rgba(122,179,255,.28);
   --purple:#7B30EB;--purple-bg:rgba(123,48,235,.18);--purple-bd:rgba(123,48,235,.28);
   --tg-blue:#229ED9;--tg-blue-light:#2AABEE;--accent:var(--tg-blue-light);
   --r-icon:11px;
@@ -142,13 +142,18 @@ body{
 }
 
 /* ── SCREEN TRANSITIONS ── */
-.nav-wrap{position:absolute;inset:0;display:flex;flex-direction:column;overflow:hidden;will-change:transform,opacity}
+/* Без will-change: воно тримає обгортку окремим композитним шаром назавжди, а
+   це backdrop root — усе скло всередині екрана перестає бачити контент під
+   собою (панель дій над обраними виглядала як плоска плашка, крізь яку
+   читався текст картки). Перехід між екранами і так триває 0.28s і не
+   потребує підказки браузеру. */
+.nav-wrap{position:absolute;inset:0;display:flex;flex-direction:column;overflow:hidden}
 @keyframes navRight{from{transform:translateX(48px);opacity:0}}
 @keyframes navLeft{from{transform:translateX(-48px);opacity:0}}
 @keyframes navFade{from{opacity:0}}
-.nav-forward{animation:navRight .28s cubic-bezier(.16,1,.3,1) both}
-.nav-back{animation:navLeft .24s cubic-bezier(.16,1,.3,1) both}
-.nav-root{animation:navFade .2s ease both}
+.nav-forward{animation:navRight .28s cubic-bezier(.16,1,.3,1) backwards}
+.nav-back{animation:navLeft .24s cubic-bezier(.16,1,.3,1) backwards}
+.nav-root{animation:navFade .2s ease backwards}
 
 /* ── BACKGROUNDS — reference: a rich multi-tone color field fills the
    lower ~70% of the screen and dissolves into black across the top
@@ -929,7 +934,12 @@ svg.ico{overflow:visible}
 @keyframes progressFill{from{width:0}to{width:var(--pw,100%)}}
 
 /* ── Screen entrance ── */
-.scr{animation:screenEnter .34s var(--ease-out) both}
+/* fill:backwards, а НЕ both. При `both` елемент назавжди лишається з кінцевим
+   transform (нехай і одиничним) — а це новий backdrop root: усе скло всередині
+   екрана перестає бачити контент під собою і перетворюється на плоску
+   напівпрозору плашку. Кінцевий кадр і так дорівнює природному стану, тож
+   візуально нічого не змінюється, зате backdrop-filter починає працювати. */
+.scr{animation:screenEnter .34s var(--ease-out) backwards}
 
 /* ── Active / press states (feel native on mobile) ── */
 .mbtn:active{animation:btnPress .28s var(--ease-spr) both;filter:brightness(0.92);box-shadow:0 4px 14px rgba(34,158,217,.5)}
@@ -1349,32 +1359,57 @@ svg.ico{overflow:visible}
   mask-image:linear-gradient(90deg,#000 calc(100% - 26px),transparent)}
 .sort-scroll::-webkit-scrollbar{display:none}
 
-/* Панель дій над обраними об'єктами. Стояло background:var(--bg2) — такого
-   токена НЕМАЄ, тож панель була ПОВНІСТЮ прозорою: пілюлі накладались на картку
-   під ними і читались як каша. Тепер власний непрозорий шар. */
-.batchbar{position:fixed;left:0;right:0;bottom:calc(56px + var(--safe-bottom));z-index:100;
-  display:flex;align-items:center;gap:8px;padding:8px 12px;
-  background:rgba(10,8,24,.94);backdrop-filter:blur(24px) saturate(180%);
-  -webkit-backdrop-filter:blur(24px) saturate(180%);
-  border-top:.5px solid rgba(255,255,255,.10);box-shadow:0 -8px 24px rgba(0,0,0,.38)}
-.batchbar-n{font-size:var(--fs-cap1);color:var(--t3);white-space:nowrap}
-.batch-pill{display:inline-flex;align-items:center;justify-content:center;gap:4px;
-  padding:8px 12px;min-height:36px;border:none;border-radius:var(--r-pill);
-  background:var(--glass-2);color:var(--t2);font-size:var(--fs-cap1);font-weight:var(--fw-semi);
-  white-space:nowrap;cursor:pointer;transition:transform .12s var(--ease),background .14s}
-.batch-pill:active{transform:scale(.96)}
-.batch-pill.ok{background:var(--ok-bg);color:var(--ok-fg)}
-.batch-pill.warn{background:var(--warn-bg);color:var(--warn-fg)}
-.batch-pill.info{background:var(--info-bg);color:var(--info-fg)}
-.batch-pill.err{background:var(--err-bg);color:var(--err-fg);margin-left:auto}
+/* Панель дій над обраними об'єктами — плаваюча скляна плитка тієї ж мови, що
+   модальний шит: напівпрозорий фон, важкий блюр, hairline-рамка і верхній
+   внутрішній відблиск. `brightness(.62)` притемнює те, що просвічує знизу, —
+   без нього 50%-прозорість над яскравою карткою вбиває контраст підписів.
+   (Колись тут стояв background:var(--bg2) — неоголошений токен, тобто взагалі
+   без фону: пілюлі накладались на картку і читались як каша.)
+   Рендериться порталом у #app-root — інакше анімована обгортка екрана з'їдає
+   backdrop-filter. Тому `absolute`, а не `fixed`: у #app-root висота
+   застосунку, і панель стає над таббаром, а не над краєм вікна. */
+/* Скрим під панеллю — та сама мова, що .cta-scrim під плаваючою CTA: список
+   розчиняється в темряві, і панель читається як окремий шар. Потрібен ще й
+   тому, що backdrop-filter усередині екрана Chromium не показує вміст
+   прокрутного контейнера — сама лише 50%-плитка над яскравою карткою давала
+   кашу з текстом, що просвічує. */
+.batchbar-scrim{position:absolute;left:0;right:0;bottom:0;height:150px;z-index:19;
+  pointer-events:none;
+  background:linear-gradient(0deg,rgba(6,5,14,.94),rgba(6,5,14,.74) 42%,transparent)}
+
+.batchbar{position:absolute;left:12px;right:12px;z-index:100;
+  bottom:calc(66px + var(--safe-bottom));
+  display:flex;align-items:center;gap:8px;padding:8px;
+  border-radius:var(--r-lg);border:var(--bd-s);
+  background:rgba(14,11,32,.50);
+  backdrop-filter:blur(40px) saturate(200%) brightness(.62);
+  -webkit-backdrop-filter:blur(40px) saturate(200%) brightness(.62);
+  box-shadow:0 14px 34px rgba(0,0,0,.42),inset 0 1px 0 rgba(255,255,255,.16);
+  animation:batchbarIn .34s var(--ease-spr) backwards}
+@keyframes batchbarIn{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:none}}
+.batchbar-n{flex-shrink:0;padding-left:4px;font-size:var(--fs-cap2);font-weight:var(--fw-bold);
+  color:var(--t2);white-space:nowrap;letter-spacing:.02em;text-transform:uppercase}
+.batch-pill{display:inline-flex;align-items:center;justify-content:center;gap:5px;
+  padding:0 12px;min-height:36px;flex-shrink:0;border:.5px solid transparent;
+  border-radius:var(--r-pill);background:var(--glass-2);color:var(--t2);
+  font-size:var(--fs-cap1);font-weight:var(--fw-semi);white-space:nowrap;cursor:pointer;
+  transition:transform var(--dur-xs) var(--ease),background var(--dur-sm) var(--ease)}
+.batch-pill:active{transform:scale(.94)}
+.batch-pill.ok{background:var(--ok-bg);border-color:var(--ok-bd);color:var(--ok-fg)}
+.batch-pill.warn{background:var(--warn-bg);border-color:var(--warn-bd);color:var(--warn-fg)}
+.batch-pill.info{background:var(--info-bg);border-color:var(--info-bd);color:var(--info-fg)}
+/* Небезпечна дія закріплена ПОЗА прокруткою — інакше «Видалити» ховається за
+   краєм разом з рештою пілюль і його доводиться шукати гортанням. */
+.batch-pill.err{width:36px;padding:0;flex-shrink:0;
+  background:var(--err-bg);border-color:var(--err-bd);color:var(--err-fg)}
 
 /* Пілюль більше, ніж вміщає 375px, тож той самий афорданс прокрутки, що в
    стрічці сортування. Порядок — «У папку»/«В базу» першими: переміщення
    шукають частіше за масову зміну статусу. */
-.batch-scroll{flex:1;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;
-  -webkit-overflow-scrolling:touch;padding-right:10px;
-  -webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 26px),transparent);
-  mask-image:linear-gradient(90deg,#000 calc(100% - 26px),transparent)}
+.batch-scroll{flex:1;min-width:0;display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;
+  -webkit-overflow-scrolling:touch;padding-right:8px;
+  -webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 22px),transparent);
+  mask-image:linear-gradient(90deg,#000 calc(100% - 22px),transparent)}
 .batch-scroll::-webkit-scrollbar{display:none}
 
 /* FAB ховається на гортанні вниз (варіант «б»): інакше він постійно накриває
