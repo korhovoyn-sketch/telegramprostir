@@ -109,7 +109,7 @@ export default function SharedCollectionScreen() {
                       backgroundImage: thumbUrl ? `url(${thumbUrl})` : undefined,
                       backgroundSize: 'cover',
                       backgroundPosition: 'center',
-                      background: thumbUrl ? undefined : 'rgba(123,48,235,.18)',
+                      background: thumbUrl ? undefined : 'var(--purple-bg)',
                       flexShrink: 0,
                     }}
                   >

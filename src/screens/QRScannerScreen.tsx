@@ -145,7 +145,7 @@ export default function QRScannerScreen() {
               style={{
                 position: 'absolute',
                 width: 24, height: 24,
-                borderColor: '#a78bfa',
+                borderColor: 'var(--violet)',
                 borderStyle: 'solid',
                 borderWidth: 0,
                 ...(pos === 'tl' ? { top: -2, left: -2, borderTopWidth: 3, borderLeftWidth: 3, borderTopLeftRadius: 6 } : {}),

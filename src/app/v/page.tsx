@@ -149,14 +149,14 @@ const s = {
     width: 32, height: 32, borderRadius: 9,
     background: 'linear-gradient(135deg,#7AB3FF 0%,#A87CFF 50%,#FF7AB8 100%)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontSize: 16, fontWeight: 700, color: '#fff',
+    fontSize: 'var(--fs-call)', fontWeight: 700, color: '#fff',
   } as React.CSSProperties,
-  logoName: { fontSize: 15, fontWeight: 700, letterSpacing: '-.02em' } as React.CSSProperties,
+  logoName: { fontSize: 'var(--fs-sub)', fontWeight: 700, letterSpacing: '-.02em' } as React.CSSProperties,
   tgBtn: {
     display: 'flex', alignItems: 'center', gap: 6,
     padding: '7px 14px', borderRadius: 20,
     background: 'linear-gradient(135deg,#2AABEE,#229ED9)',
-    color: '#fff', fontSize: 13, fontWeight: 600,
+    color: '#fff', fontSize: 'var(--fs-foot)', fontWeight: 600,
     textDecoration: 'none', border: 'none', cursor: 'pointer',
     boxShadow: '0 3px 12px rgba(34,158,217,.35)',
     whiteSpace: 'nowrap',
@@ -180,7 +180,7 @@ const s = {
   } as React.CSSProperties,
   pad: { padding: '14px 16px' } as React.CSSProperties,
   sectionTitle: {
-    fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.4)',
+    fontSize: 'var(--fs-cap2)', fontWeight: 700, color: 'rgba(255,255,255,.4)',
     letterSpacing: '.08em', textTransform: 'uppercase',
     marginBottom: 10,
   } as React.CSSProperties,
@@ -199,7 +199,7 @@ const s = {
     display: 'block', width: '100%',
     padding: '15px 24px', borderRadius: 15,
     background: 'linear-gradient(135deg,#3BB7F5 0%,#2AABEE 45%,#1E96D2 100%)',
-    color: '#fff', fontSize: 16, fontWeight: 700,
+    color: '#fff', fontSize: 'var(--fs-call)', fontWeight: 700,
     textDecoration: 'none', textAlign: 'center',
     border: '.5px solid rgba(255,255,255,.22)',
     boxShadow: '0 8px 28px rgba(34,158,217,.45), 0 2px 6px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.3)',
@@ -207,7 +207,7 @@ const s = {
   } as React.CSSProperties,
   contactBtn: {
     flex: 1, padding: '12px 16px', borderRadius: 13,
-    fontSize: 14, fontWeight: 600, textAlign: 'center',
+    fontSize: 'var(--fs-note)', fontWeight: 600, textAlign: 'center',
     textDecoration: 'none', display: 'flex',
     alignItems: 'center', justifyContent: 'center', gap: 7,
     boxShadow: 'inset 0 1px 0 rgba(255,255,255,.08)',
@@ -333,19 +333,19 @@ function PhotoGallery({ paths }: { paths: string[] }) {
               position: 'absolute', bottom: 10, right: 12,
               background: 'rgba(0,0,0,.55)', backdropFilter: 'blur(8px)',
               borderRadius: 10, padding: '3px 9px',
-              fontSize: 12, fontWeight: 600, color: '#fff',
+              fontSize: 'var(--fs-cap1)', fontWeight: 600, color: '#fff',
             }}>
               {active + 1}/{paths.length}
             </div>
             <button
               className="v-btn"
               onClick={() => setActive(a => Math.max(0, a - 1))}
-              style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,.5)', border: 'none', borderRadius: '50%', width: 32, height: 32, color: '#fff', fontSize: 18, cursor: 'pointer', display: active === 0 ? 'none' : 'flex', alignItems: 'center', justifyContent: 'center' }}
+              style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,.5)', border: 'none', borderRadius: '50%', width: 32, height: 32, color: '#fff', fontSize: 'var(--fs-lead)', cursor: 'pointer', display: active === 0 ? 'none' : 'flex', alignItems: 'center', justifyContent: 'center' }}
             >‹</button>
             <button
               className="v-btn"
               onClick={() => setActive(a => Math.min(paths.length - 1, a + 1))}
-              style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,.5)', border: 'none', borderRadius: '50%', width: 32, height: 32, color: '#fff', fontSize: 18, cursor: 'pointer', display: active === paths.length - 1 ? 'none' : 'flex', alignItems: 'center', justifyContent: 'center' }}
+              style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,.5)', border: 'none', borderRadius: '50%', width: 32, height: 32, color: '#fff', fontSize: 'var(--fs-lead)', cursor: 'pointer', display: active === paths.length - 1 ? 'none' : 'flex', alignItems: 'center', justifyContent: 'center' }}
             >›</button>
           </>
         )}
@@ -396,7 +396,7 @@ function ContactRow({ firstName, lastName, phone, tgUsername, label }: {
   return (
     <div className="v-rise" style={{ ...s.card, ...s.pad, animationDelay: '280ms' }}>
       <div style={s.sectionTitle}>{label}</div>
-      <div style={{ fontSize: 15, fontWeight: 600, color: 'rgba(255,255,255,.9)', marginBottom: 12 }}>
+      <div style={{ fontSize: 'var(--fs-sub)', fontWeight: 600, color: 'rgba(255,255,255,.9)', marginBottom: 12 }}>
         {fullName}
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
@@ -427,7 +427,7 @@ function ContactRow({ firstName, lastName, phone, tgUsername, label }: {
           </a>
         )}
         {!phone && !tgUsername && (
-          <span style={{ fontSize: 13, color: 'rgba(255,255,255,.4)' }}>Контакти не вказані</span>
+          <span style={{ fontSize: 'var(--fs-foot)', color: 'rgba(255,255,255,.4)' }}>Контакти не вказані</span>
         )}
       </div>
     </div>
@@ -469,27 +469,27 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
       <div className="v-rise" style={{ ...s.card, ...s.pad, animationDelay: '40ms' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
           <span style={{
-            fontSize: 12, fontWeight: 700, padding: '4px 10px', borderRadius: 8,
+            fontSize: 'var(--fs-cap1)', fontWeight: 700, padding: '4px 10px', borderRadius: 8,
             background: STATUS_BG[status] ?? STATUS_BG.free,
             color: STATUS_COLOR[status] ?? STATUS_COLOR.free,
           }}>
             {STATUS_LABEL[status] ?? status}
           </span>
           {data.property_floor && (
-            <span style={{ fontSize: 13, color: 'rgba(255,255,255,.55)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ fontSize: 'var(--fs-foot)', color: 'rgba(255,255,255,.55)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
               <IconBuilding size={12} color="rgba(255,255,255,.55)" />{data.property_floor} поверх
             </span>
           )}
         </div>
-        <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-.02em', marginBottom: 6 }}>
+        <div style={{ fontSize: 'var(--fs-t2)', fontWeight: 700, letterSpacing: '-.02em', marginBottom: 6 }}>
           {data.property_name}
         </div>
-        <div style={{ fontSize: 13, color: 'rgba(255,255,255,.5)', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ fontSize: 'var(--fs-foot)', color: 'rgba(255,255,255,.5)', display: 'flex', alignItems: 'center', gap: 6 }}>
           <IconMapPin size={13} color="rgba(255,255,255,.5)" />
           {[data.db_name, DB_TYPE_LABEL[data.db_type]].filter(Boolean).join(' • ')}
         </div>
         {data.property_address && (
-          <div style={{ fontSize: 13, color: 'rgba(255,255,255,.5)', marginTop: 4 }}>
+          <div style={{ fontSize: 'var(--fs-foot)', color: 'rgba(255,255,255,.5)', marginTop: 4 }}>
             {data.property_address}
           </div>
         )}
@@ -501,14 +501,14 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
           <div style={{ display: 'flex' }}>
             {data.property_area_useful && (
               <div style={{ flex: 1, padding: '12px 16px', borderRight: '.5px solid rgba(255,255,255,.08)' }}>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>Корисна площа</div>
-                <div style={{ fontSize: 20, fontWeight: 700 }}>{data.property_area_useful} <span style={{ fontSize: 14 }}>м²</span></div>
+                <div style={{ fontSize: 'var(--fs-cap2)', color: 'rgba(255,255,255,.4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>Корисна площа</div>
+                <div style={{ fontSize: 'var(--fs-t3)', fontWeight: 700 }}>{data.property_area_useful} <span style={{ fontSize: 'var(--fs-note)' }}>м²</span></div>
               </div>
             )}
             {data.property_area_total && (
               <div style={{ flex: 1, padding: '12px 16px' }}>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,.4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>Розрахункова площа</div>
-                <div style={{ fontSize: 20, fontWeight: 700 }}>{data.property_area_total} <span style={{ fontSize: 14 }}>м²</span></div>
+                <div style={{ fontSize: 'var(--fs-cap2)', color: 'rgba(255,255,255,.4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>Розрахункова площа</div>
+                <div style={{ fontSize: 'var(--fs-t3)', fontWeight: 700 }}>{data.property_area_total} <span style={{ fontSize: 'var(--fs-note)' }}>м²</span></div>
               </div>
             )}
           </div>
@@ -519,28 +519,28 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
       {status === 'for_sale' && data.property_sale_price ? (
         <div className="v-rise" style={{ ...s.card, ...s.pad, animationDelay: '120ms' }}>
           <div style={s.sectionTitle}>Ціна продажу</div>
-          <div className="num" style={{ fontSize: 28, fontWeight: 800, color: '#60a5fa', letterSpacing: '-.03em' }}>
+          <div className="num" style={{ fontSize: 'var(--fs-t1)', fontWeight: 800, color: '#60a5fa', letterSpacing: '-.03em' }}>
             {fmtPrice(data.property_sale_price, currency)}
           </div>
         </div>
       ) : data.property_rent_rate ? (
         <div className="v-rise" style={{ ...s.card, ...s.pad, animationDelay: '120ms' }}>
           <div style={s.sectionTitle}>Орендна ставка</div>
-          <div style={{ fontSize: 13, color: 'rgba(255,255,255,.5)', marginBottom: 6 }}>
+          <div style={{ fontSize: 'var(--fs-foot)', color: 'rgba(255,255,255,.5)', marginBottom: 6 }}>
             {data.property_rent_type === 'fixed' ? 'Фіксована оплата'
               : data.property_rent_type === 'per_day' ? 'Подобова оплата' : 'За м²'}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 13, color: 'rgba(255,255,255,.6)' }}>Оренда</span>
-              <span style={{ fontSize: 17, fontWeight: 700 }}>
+              <span style={{ fontSize: 'var(--fs-foot)', color: 'rgba(255,255,255,.6)' }}>Оренда</span>
+              <span style={{ fontSize: 'var(--fs-head)', fontWeight: 700 }}>
                 {fmtPrice(data.property_rent_rate, currency, rentUnitLabel(data.property_rent_type))}
               </span>
             </div>
             {data.property_utilities_rate && (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 13, color: 'rgba(255,255,255,.6)' }}>Експлуатаційні</span>
-                <span style={{ fontSize: 17, fontWeight: 700 }}>
+                <span style={{ fontSize: 'var(--fs-foot)', color: 'rgba(255,255,255,.6)' }}>Експлуатаційні</span>
+                <span style={{ fontSize: 'var(--fs-head)', fontWeight: 700 }}>
                   {fmtPrice(data.property_utilities_rate, currency, basisAreaVal ? '/м²' : '/міс')}
                 </span>
               </div>
@@ -549,8 +549,8 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
               <>
                 <div style={{ height: .5, background: 'rgba(255,255,255,.1)', margin: '4px 0' }} />
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: 'rgba(255,255,255,.8)' }}>Разом / місяць</span>
-                  <span className="num" style={{ fontSize: 22, fontWeight: 800, color: '#4ade80', letterSpacing: '-.02em' }}>
+                  <span style={{ fontSize: 'var(--fs-note)', fontWeight: 600, color: 'rgba(255,255,255,.8)' }}>Разом / місяць</span>
+                  <span className="num" style={{ fontSize: 'var(--fs-t2)', fontWeight: 800, color: '#4ade80', letterSpacing: '-.02em' }}>
                     {fmtPrice(rentTotal, currency)}
                   </span>
                 </div>
@@ -566,12 +566,12 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
           <div style={s.sectionTitle}>Паркомісце</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {parkingTypeLabel(data.property_parking_type) && (
-              <span style={{ fontSize: 13, fontWeight: 600, padding: '5px 11px', borderRadius: 9, background: 'rgba(168,124,255,.15)', color: 'rgba(168,124,255,.95)' }}>
+              <span style={{ fontSize: 'var(--fs-foot)', fontWeight: 600, padding: '5px 11px', borderRadius: 9, background: 'rgba(168,124,255,.15)', color: 'rgba(168,124,255,.95)' }}>
                 {parkingTypeLabel(data.property_parking_type)}
               </span>
             )}
             {data.property_ev_charger && (
-              <span style={{ fontSize: 13, fontWeight: 600, padding: '5px 11px', borderRadius: 9, background: 'rgba(74,222,128,.15)', color: '#4ade80' }}>
+              <span style={{ fontSize: 'var(--fs-foot)', fontWeight: 600, padding: '5px 11px', borderRadius: 9, background: 'rgba(74,222,128,.15)', color: '#4ade80' }}>
                 ⚡ Зарядка EV
               </span>
             )}
@@ -583,7 +583,7 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
       {data.property_description && (
         <div className="v-rise" style={{ ...s.card, ...s.pad, animationDelay: '200ms' }}>
           <div style={s.sectionTitle}>Опис</div>
-          <div style={{ fontSize: 14, color: 'rgba(255,255,255,.75)', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>
+          <div style={{ fontSize: 'var(--fs-note)', color: 'rgba(255,255,255,.75)', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>
             {data.property_description}
           </div>
         </div>
@@ -592,8 +592,8 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
       {/* Parking */}
       {data.property_has_parking && data.property_parking_spaces > 0 && (
         <div className="v-rise" style={{ ...s.card, ...s.pad, animationDelay: '240ms' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: 'rgba(255,255,255,.75)' }}>
-            <span style={{ fontSize: 18 }}>🅟</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--fs-note)', color: 'rgba(255,255,255,.75)' }}>
+            <span style={{ fontSize: 'var(--fs-lead)' }}>🅟</span>
             Паркінг: {data.property_parking_spaces} {pluralUk(data.property_parking_spaces, 'місце', 'місця', 'місць')}
           </div>
         </div>
@@ -646,14 +646,14 @@ function DatabaseView({ rows, token }: { rows: DbRow[]; token: string }) {
             background: DB_COLORS[info.db_color] ?? DB_COLORS.purple,
           }} />
           <div>
-            <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-.02em' }}>{info.db_name}</div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', marginTop: 2 }}>
+            <div style={{ fontSize: 'var(--fs-lead)', fontWeight: 700, letterSpacing: '-.02em' }}>{info.db_name}</div>
+            <div style={{ fontSize: 'var(--fs-cap1)', color: 'rgba(255,255,255,.5)', marginTop: 2 }}>
               {DB_TYPE_LABEL[info.db_type] ?? info.db_type}
               {properties.length > 0 && ` • ${properties.length} ${objectsWord(properties.length)}`}
             </div>
           </div>
           <span style={{
-            marginLeft: 'auto', fontSize: 11, fontWeight: 700,
+            marginLeft: 'auto', fontSize: 'var(--fs-cap2)', fontWeight: 700,
             color: 'rgba(168,124,255,.9)', background: 'rgba(168,124,255,.15)',
             borderRadius: 8, padding: '3px 9px', letterSpacing: '.04em',
           }}>Публічний перегляд</span>
@@ -679,10 +679,10 @@ function DatabaseView({ rows, token }: { rows: DbRow[]; token: string }) {
                 )}
                 <div style={{ flex: 1, padding: '12px 16px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                    <div style={{ fontSize: 15, fontWeight: 600, flex: 1 }}>{p.property_name}</div>
+                    <div style={{ fontSize: 'var(--fs-sub)', fontWeight: 600, flex: 1 }}>{p.property_name}</div>
                     {p.property_status && (
                       <span style={{
-                        fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 7, flexShrink: 0,
+                        fontSize: 'var(--fs-cap2)', fontWeight: 700, padding: '3px 8px', borderRadius: 7, flexShrink: 0,
                         background: STATUS_BG[p.property_status] ?? STATUS_BG.free,
                         color: STATUS_COLOR[p.property_status] ?? STATUS_COLOR.free,
                       }}>
@@ -691,21 +691,21 @@ function DatabaseView({ rows, token }: { rows: DbRow[]; token: string }) {
                     )}
                   </div>
                   <div style={{ display: 'flex', gap: 12, marginTop: 6, flexWrap: 'wrap' }}>
-                    {p.property_floor && <span style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconBuilding size={11} color="rgba(255,255,255,.5)" />{p.property_floor} пов.</span>}
-                    {p.property_area_useful && <span style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconRuler size={11} color="rgba(255,255,255,.5)" />{p.property_area_useful} м²</span>}
+                    {p.property_floor && <span style={{ fontSize: 'var(--fs-cap1)', color: 'rgba(255,255,255,.5)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconBuilding size={11} color="rgba(255,255,255,.5)" />{p.property_floor} пов.</span>}
+                    {p.property_area_useful && <span style={{ fontSize: 'var(--fs-cap1)', color: 'rgba(255,255,255,.5)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconRuler size={11} color="rgba(255,255,255,.5)" />{p.property_area_useful} м²</span>}
                     {p.property_status === 'for_sale' && p.property_sale_price ? (
-                      <span className="num" style={{ fontSize: 12, fontWeight: 700, color: '#60a5fa' }}>
+                      <span className="num" style={{ fontSize: 'var(--fs-cap1)', fontWeight: 700, color: '#60a5fa' }}>
                         {fmtPrice(p.property_sale_price, p.owner_currency)}
                       </span>
                     ) : p.property_rent_rate ? (
-                      <span className="num" style={{ fontSize: 12, fontWeight: 700, color: '#4ade80' }}>
+                      <span className="num" style={{ fontSize: 'var(--fs-cap1)', fontWeight: 700, color: '#4ade80' }}>
                         {fmtPrice(p.property_rent_rate, p.owner_currency, rentUnitLabel(p.property_rent_type))}
                       </span>
                     ) : null}
                   </div>
                   {p.property_description && (
                     <div style={{
-                      fontSize: 12, color: 'rgba(255,255,255,.45)', marginTop: 6, lineHeight: 1.4,
+                      fontSize: 'var(--fs-cap1)', color: 'rgba(255,255,255,.45)', marginTop: 6, lineHeight: 1.4,
                       display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
                     }}>
                       {p.property_description}
@@ -718,8 +718,8 @@ function DatabaseView({ rows, token }: { rows: DbRow[]; token: string }) {
         </div>
       ) : (
         <div className="v-rise" style={{ ...s.card, ...s.pad, textAlign: 'center', animationDelay: '60ms' }}>
-          <div className="v-float" style={{ fontSize: 28, marginBottom: 8 }}>🏢</div>
-          <div style={{ fontSize: 14, color: 'rgba(255,255,255,.6)' }}>У базі поки немає об&apos;єктів</div>
+          <div className="v-float" style={{ fontSize: 'var(--fs-t1)', marginBottom: 8 }}>🏢</div>
+          <div style={{ fontSize: 'var(--fs-note)', color: 'rgba(255,255,255,.6)' }}>У базі поки немає об&apos;єктів</div>
         </div>
       )}
 
@@ -759,9 +759,9 @@ function CollectionView({ rows, token }: { rows: ColRow[]; token: string }) {
       <PageHeader deepLink={deepLink} />
 
       <div className="v-rise" style={{ ...s.card, ...s.pad }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.4)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 6 }}>Підбірка</div>
-        <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-.02em', marginBottom: 6 }}>{info.collection_name}</div>
-        <div style={{ fontSize: 13, color: 'rgba(255,255,255,.5)' }}>
+        <div style={{ fontSize: 'var(--fs-cap2)', fontWeight: 700, color: 'rgba(255,255,255,.4)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 6 }}>Підбірка</div>
+        <div style={{ fontSize: 'var(--fs-t3)', fontWeight: 700, letterSpacing: '-.02em', marginBottom: 6 }}>{info.collection_name}</div>
+        <div style={{ fontSize: 'var(--fs-foot)', color: 'rgba(255,255,255,.5)' }}>
           {[info.realtor_first_name, info.realtor_last_name].filter(Boolean).join(' ')} •{' '}
           {properties.length} {objectsWord(properties.length)}
         </div>
@@ -784,10 +784,10 @@ function CollectionView({ rows, token }: { rows: ColRow[]; token: string }) {
                 )}
                 <div style={{ flex: 1, padding: '10px 12px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 6, marginBottom: 4 }}>
-                    <div style={{ fontSize: 14, fontWeight: 600 }}>{p.property_name}</div>
+                    <div style={{ fontSize: 'var(--fs-note)', fontWeight: 600 }}>{p.property_name}</div>
                     {p.property_status && (
                       <span style={{
-                        fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 6, flexShrink: 0,
+                        fontSize: 'var(--fs-cap3)', fontWeight: 700, padding: '2px 7px', borderRadius: 6, flexShrink: 0,
                         background: STATUS_BG[p.property_status] ?? STATUS_BG.free,
                         color: STATUS_COLOR[p.property_status] ?? STATUS_COLOR.free,
                       }}>
@@ -795,7 +795,7 @@ function CollectionView({ rows, token }: { rows: ColRow[]; token: string }) {
                       </span>
                     )}
                   </div>
-                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,.5)' }}>
+                  <div style={{ fontSize: 'var(--fs-cap1)', color: 'rgba(255,255,255,.5)' }}>
                     {[
                       p.property_floor ? `${p.property_floor} пов.` : null,
                       fmtArea(p.property_area_useful),
@@ -808,14 +808,14 @@ function CollectionView({ rows, token }: { rows: ColRow[]; token: string }) {
                   </div>
                   {p.property_description && (
                     <div style={{
-                      fontSize: 11, color: 'rgba(255,255,255,.4)', marginTop: 4, lineHeight: 1.4,
+                      fontSize: 'var(--fs-cap2)', color: 'rgba(255,255,255,.4)', marginTop: 4, lineHeight: 1.4,
                       display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
                     }}>
                       {p.property_description}
                     </div>
                   )}
                   {p.db_name && (
-                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,.35)', marginTop: 4 }}>{p.db_name}</div>
+                    <div style={{ fontSize: 'var(--fs-cap2)', color: 'rgba(255,255,255,.35)', marginTop: 4 }}>{p.db_name}</div>
                   )}
                 </div>
               </div>
@@ -824,8 +824,8 @@ function CollectionView({ rows, token }: { rows: ColRow[]; token: string }) {
         </div>
       ) : (
         <div className="v-rise" style={{ ...s.card, ...s.pad, textAlign: 'center', animationDelay: '60ms' }}>
-          <div className="v-float" style={{ fontSize: 28, marginBottom: 8 }}>🔖</div>
-          <div style={{ fontSize: 14, color: 'rgba(255,255,255,.6)' }}>У підбірці поки немає об&apos;єктів</div>
+          <div className="v-float" style={{ fontSize: 'var(--fs-t1)', marginBottom: 8 }}>🔖</div>
+          <div style={{ fontSize: 'var(--fs-note)', color: 'rgba(255,255,255,.6)' }}>У підбірці поки немає об&apos;єктів</div>
         </div>
       )}
 
@@ -852,9 +852,9 @@ function CollectionView({ rows, token }: { rows: ColRow[]; token: string }) {
 function Loader() {
   return (
     <div style={{ ...s.wrap, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-      <div className="v-pulse" style={{ width: 44, height: 44, borderRadius: 14, background: 'linear-gradient(135deg,#7AB3FF,#A87CFF,#FF7AB8)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 700, marginBottom: 20 }}>P</div>
+      <div className="v-pulse" style={{ width: 44, height: 44, borderRadius: 14, background: 'linear-gradient(135deg,#7AB3FF,#A87CFF,#FF7AB8)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--fs-t2)', fontWeight: 700, marginBottom: 20 }}>P</div>
       <div className="v-spin" style={{ width: 22, height: 22, borderRadius: '50%', border: '2.5px solid rgba(255,255,255,.15)', borderTopColor: '#A87CFF', marginBottom: 14 }} />
-      <div style={{ fontSize: 14, color: 'rgba(255,255,255,.5)' }}>Завантаження...</div>
+      <div style={{ fontSize: 'var(--fs-note)', color: 'rgba(255,255,255,.5)' }}>Завантаження...</div>
     </div>
   )
 }
@@ -863,8 +863,8 @@ function ErrorView({ msg, icon, title, onRetry }: { msg: string; icon?: string; 
   return (
     <div style={{ ...s.wrap, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: 24, textAlign: 'center' }}>
       <div className="v-float" style={{ fontSize: 48, marginBottom: 16 }}>{icon ?? '🔗'}</div>
-      <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>{title ?? 'Посилання недійсне'}</div>
-      <div style={{ fontSize: 14, color: 'rgba(255,255,255,.5)', lineHeight: 1.5 }}>{msg}</div>
+      <div style={{ fontSize: 'var(--fs-lead)', fontWeight: 700, marginBottom: 8 }}>{title ?? 'Посилання недійсне'}</div>
+      <div style={{ fontSize: 'var(--fs-note)', color: 'rgba(255,255,255,.5)', lineHeight: 1.5 }}>{msg}</div>
       {onRetry && (
         <button className="v-btn v-cta" onClick={onRetry} style={{ ...s.mainBtn, marginTop: 24, cursor: 'pointer' }}>
           Спробувати ще раз

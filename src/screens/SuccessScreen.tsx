@@ -44,7 +44,7 @@ export default function SuccessScreen() {
                   width: i === 0 ? 20 : 6,
                   height: 6,
                   borderRadius: 3,
-                  background: i === 0 ? '#fff' : 'rgba(255,255,255,.4)',
+                  background: i === 0 ? 'var(--t1)' : 'rgba(255,255,255,.4)',
                 }}
               />
             ))}

@@ -148,7 +148,7 @@ function StatCard({ icon, label, value, sub, accentBg, accentBorder, bar, barCol
             className="dash-bar-fill"
             style={{
               width: on ? `${Math.round(bar * 100)}%` : '0%',
-              background: barColor ?? 'rgba(255,255,255,.6)',
+              background: barColor ?? 'var(--t2)',
               transition: 'width .9s cubic-bezier(.16,1,.3,1)',
             }}
           />
@@ -215,50 +215,50 @@ export default function DatabaseStatsPanel({ properties, currency = 'USD' }: Pro
       sub: stats.forSaleCount > 0
         ? `${Math.round(stats.ratio * 100)}% · ${stats.forSaleCount} на продаж`
         : `${Math.round(stats.ratio * 100)}% заповнено`,
-      accentBg: 'rgba(122,179,255,.13)',
-      accentBorder: 'rgba(122,179,255,.26)',
+      accentBg: 'var(--dv-blue-bg)',
+      accentBorder: 'var(--dv-blue-bd)',
       bar: stats.ratio,
-      barColor: '#7AB3FF',
+      barColor: 'var(--dv-blue)',
     },
     ...(stats.totalRent > 0 ? [{
       icon: ICON_DOLLAR,
       label: 'Оренда / міс',
       value: formatPrice(animRent, currency),
       sub: `${stats.occupiedCount} ${objectsWord(stats.occupiedCount)}`,
-      accentBg: 'rgba(52,199,89,.13)',
-      accentBorder: 'rgba(52,199,89,.26)',
+      accentBg: 'var(--dv-green-bg)',
+      accentBorder: 'var(--dv-green-bd)',
     } satisfies CardData] : []),
     ...(stats.totalUtils > 0 ? [{
       icon: ICON_ZAP,
       label: 'Експлуатаційні / міс',
       value: formatPrice(animUtils, currency),
       sub: 'від зайнятих',
-      accentBg: 'rgba(255,149,0,.13)',
-      accentBorder: 'rgba(255,149,0,.26)',
+      accentBg: 'var(--dv-amber-bg)',
+      accentBorder: 'var(--dv-amber-bd)',
     } satisfies CardData] : []),
     ...(stats.occupiedUseful > 0 ? [{
       icon: ICON_EXPAND,
       label: 'Площа зайнятих',
       value: `${animOccupiedUseful.toLocaleString('uk-UA')} м²`,
       sub: stats.occupiedTotal > 0 ? `заг: ${stats.occupiedTotal.toLocaleString('uk-UA')} м²` : undefined,
-      accentBg: 'rgba(168,85,247,.13)',
-      accentBorder: 'rgba(168,85,247,.26)',
+      accentBg: 'var(--dv-purple-bg)',
+      accentBorder: 'var(--dv-purple-bd)',
     } satisfies CardData] : []),
     ...(stats.totalUseful > 0 ? [{
       icon: ICON_LAYERS,
       label: 'Вся корисна площа',
       value: `${animTotalUseful.toLocaleString('uk-UA')} м²`,
       sub: stats.totalArea > 0 ? `заг: ${stats.totalArea.toLocaleString('uk-UA')} м²` : undefined,
-      accentBg: 'rgba(99,102,241,.13)',
-      accentBorder: 'rgba(99,102,241,.26)',
+      accentBg: 'var(--dv-indigo-bg)',
+      accentBorder: 'var(--dv-indigo-bd)',
     } satisfies CardData] : []),
     ...(stats.freeUseful > 0 ? [{
       icon: ICON_CHECK,
       label: 'Вільна площа',
       value: `${animFree.toLocaleString('uk-UA')} м²`,
       sub: `${stats.freeCount} вільних`,
-      accentBg: 'rgba(6,182,212,.13)',
-      accentBorder: 'rgba(6,182,212,.26)',
+      accentBg: 'var(--dv-cyan-bg)',
+      accentBorder: 'var(--dv-cyan-bd)',
     } satisfies CardData] : []),
   ]
 

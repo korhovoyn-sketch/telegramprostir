@@ -117,7 +117,7 @@ export default function PhotoUploadScreen() {
             <circle
               cx="56" cy="56" r={radius}
               fill="none"
-              stroke={done && errorCount === 0 ? '#4ade80' : done && doneCount === 0 ? 'var(--err-fg)' : '#a78bfa'}
+              stroke={done && errorCount === 0 ? '#4ade80' : done && doneCount === 0 ? 'var(--err-fg)' : 'var(--violet)'}
               strokeWidth="8"
               strokeLinecap="round"
               strokeDasharray={circ}

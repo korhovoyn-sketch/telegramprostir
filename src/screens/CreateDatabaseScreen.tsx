@@ -109,7 +109,7 @@ export default function CreateDatabaseScreen() {
         </div>
 
         {/* Type selection */}
-        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconLayoutGrid size={13} color="#a78bfa" />Тип нерухомості</span></div>
+        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconLayoutGrid size={13} color="var(--violet)" />Тип нерухомості</span></div>
         <div className="type-grid">
           {TYPES.map((t) => (
             <div

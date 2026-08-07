@@ -643,7 +643,7 @@ export default function PropertyFormScreen() {
         {/* Tenant info — shown only when occupied */}
         {status === 'occupied' && (
           <>
-            <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconUser size={13} color="#a78bfa" />Орендар</span></div>
+            <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconUser size={13} color="var(--violet)" />Орендар</span></div>
             <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
               <div className="fr">
                 <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconUser size={13} color="var(--t3)" />Найменування</span>
@@ -804,7 +804,7 @@ export default function PropertyFormScreen() {
         )}
 
         {/* Description */}
-        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconFile size={13} color="#a78bfa" />Опис</span></div>
+        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconFile size={13} color="var(--violet)" />Опис</span></div>
         <div className="glass-s" style={{ margin: '0 12px 16px', borderRadius: 'var(--r-md)', padding: '10px 14px' }}>
           <textarea
             className="fr-textarea"

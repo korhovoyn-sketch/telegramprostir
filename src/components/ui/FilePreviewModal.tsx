@@ -77,7 +77,7 @@ export default function FilePreviewModal({ url, mime, name, onClose }: FilePrevi
     background: 'var(--glass-3)',
     border: '1px solid rgba(255,255,255,.2)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    color: '#fff', cursor: 'pointer', flexShrink: 0,
+    color: 'var(--t1)', cursor: 'pointer', flexShrink: 0,
     WebkitTapHighlightColor: 'transparent',
   }
 
@@ -109,7 +109,7 @@ export default function FilePreviewModal({ url, mime, name, onClose }: FilePrevi
           <IconX size={20} />
         </button>
         <div style={{
-          flex: 1, fontSize: 'var(--fs-note)', fontWeight: 'var(--fw-semi)', color: '#fff',
+          flex: 1, fontSize: 'var(--fs-note)', fontWeight: 'var(--fw-semi)', color: 'var(--t1)',
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           paddingLeft: 2,
         }}>
@@ -164,8 +164,8 @@ export default function FilePreviewModal({ url, mime, name, onClose }: FilePrevi
           >
             <div style={{
               width: 64, height: 64, borderRadius: 16,
-              background: isPdf ? 'rgba(255,107,107,.15)' : 'rgba(122,179,255,.15)',
-              border: `.5px solid ${isPdf ? 'rgba(255,107,107,.3)' : 'rgba(122,179,255,.3)'}`,
+              background: isPdf ? 'var(--file-pdf-bg)' : 'var(--info-bg)',
+              border: `.5px solid ${isPdf ? 'var(--file-pdf-bd)' : 'var(--info-bd)'}`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 'var(--fs-t1)',
             }}>
@@ -173,12 +173,12 @@ export default function FilePreviewModal({ url, mime, name, onClose }: FilePrevi
             </div>
             <div style={{ textAlign: 'center' }}>
               <div style={{
-                fontSize: 'var(--fs-sub)', fontWeight: 'var(--fw-bold)', color: '#fff', marginBottom: 6,
+                fontSize: 'var(--fs-sub)', fontWeight: 'var(--fw-bold)', color: 'var(--t1)', marginBottom: 6,
                 wordBreak: 'break-all', lineHeight: 1.4,
               }}>
                 {name}
               </div>
-              <div style={{ fontSize: 'var(--fs-cap1)', color: 'rgba(255,255,255,.45)' }}>
+              <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t4)' }}>
                 {isPdf ? 'PDF документ' : 'Word документ'}
               </div>
             </div>
@@ -190,7 +190,7 @@ export default function FilePreviewModal({ url, mime, name, onClose }: FilePrevi
                   width: '100%', padding: '14px 20px', borderRadius: 14,
                   background: 'linear-gradient(135deg,rgba(122,179,255,.25),rgba(167,139,250,.25))',
                   border: '.5px solid rgba(122,179,255,.4)',
-                  color: '#7AB3FF', fontSize: 'var(--fs-sub)', fontWeight: 'var(--fw-semi)', cursor: 'pointer',
+                  color: 'var(--info)', fontSize: 'var(--fs-sub)', fontWeight: 'var(--fw-semi)', cursor: 'pointer',
                   WebkitTapHighlightColor: 'transparent',
                 }}
               >
@@ -202,9 +202,9 @@ export default function FilePreviewModal({ url, mime, name, onClose }: FilePrevi
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                   width: '100%', padding: '13px 20px', borderRadius: 14,
-                  background: 'rgba(255,255,255,.07)',
+                  background: 'var(--glass-0)',
                   border: '.5px solid rgba(255,255,255,.18)',
-                  color: 'rgba(255,255,255,.8)', fontSize: 'var(--fs-note)', fontWeight: 'var(--fw-med)', cursor: 'pointer',
+                  color: 'var(--t2)', fontSize: 'var(--fs-note)', fontWeight: 'var(--fw-med)', cursor: 'pointer',
                   WebkitTapHighlightColor: 'transparent',
                 }}
               >

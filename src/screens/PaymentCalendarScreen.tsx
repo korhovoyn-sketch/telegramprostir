@@ -486,7 +486,7 @@ export default function PaymentCalendarScreen() {
                   onClick={() => setMonthsAhead(n)}
                   style={{
                     padding: '4px 10px', borderRadius: 8,
-                    background: monthsAhead === n ? 'rgba(122,179,255,.22)' : 'var(--glass-1)',
+                    background: monthsAhead === n ? 'var(--info-bg)' : 'var(--glass-1)',
                     color:      monthsAhead === n ? 'var(--info)' : 'var(--t3)',
                     border:     monthsAhead === n ? '.5px solid rgba(122,179,255,.4)' : 'var(--bd)',
                     fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', cursor: 'pointer',
@@ -499,8 +499,8 @@ export default function PaymentCalendarScreen() {
                 onClick={() => setShowOnlyUnpaid(v => !v)}
                 style={{
                   marginLeft: 'auto', padding: '4px 10px', borderRadius: 8,
-                  background: showOnlyUnpaid ? 'rgba(255,107,97,.2)' : 'var(--glass-1)',
-                  color:      showOnlyUnpaid ? '#FF6B61'              : 'var(--t3)',
+                  background: showOnlyUnpaid ? 'var(--err-bg)' : 'var(--glass-1)',
+                  color:      showOnlyUnpaid ? 'var(--err)'              : 'var(--t3)',
                   border:     showOnlyUnpaid ? '.5px solid rgba(255,107,97,.4)' : 'var(--bd)',
                   fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', cursor: 'pointer', whiteSpace: 'nowrap',
                 }}
@@ -525,7 +525,7 @@ export default function PaymentCalendarScreen() {
                       </div>
                       <button
                         onClick={() => { setSetupProp(prop); setSetupDueDay('5'); setSetupNotify('3') }}
-                        style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 'var(--r-pill)', background: 'rgba(122,179,255,.18)', border: '.5px solid rgba(122,179,255,.32)', color: 'var(--info)', fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                        style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 'var(--r-pill)', background: 'var(--info-bg)', border: '.5px solid rgba(122,179,255,.32)', color: 'var(--info)', fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', cursor: 'pointer', whiteSpace: 'nowrap' }}
                       >
                         <IconPlus size={12} /> Налаштувати
                       </button>
@@ -852,7 +852,7 @@ function PaymentItemCard({ item, statusColor, label, onMarkPaid, onEdit, onDelet
             </button>
             <button
               onClick={onUnpay}
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: '50%', background: 'rgba(255,59,48,.12)', border: '.5px solid rgba(255,59,48,.25)', color: 'var(--err)', fontSize: 'var(--fs-note)', cursor: 'pointer', flexShrink: 0 }}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: '50%', background: 'var(--err-bg)', border: '.5px solid rgba(255,59,48,.25)', color: 'var(--err)', fontSize: 'var(--fs-note)', cursor: 'pointer', flexShrink: 0 }}
               title="Скасувати платіж"
             >
               ×
