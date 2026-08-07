@@ -699,7 +699,7 @@ export default function ExportScreen() {
         {/* Options */}
         <div className="over" style={{ marginTop: 8 }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <IconAdjustments size={13} color="#a78bfa" />Налаштування
+            <IconAdjustments size={13} color="var(--violet)" />Налаштування
           </span>
         </div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>

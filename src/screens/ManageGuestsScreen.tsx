@@ -19,8 +19,8 @@ const STATUS_LABEL: Record<string, string> = {
   revoked: 'Відкликано',
 }
 const STATUS_COLOR: Record<string, string> = {
-  pending: '#fbbf24',
-  active: '#4ade80',
+  pending: 'var(--warn)',
+  active: 'var(--ok-light)',
   revoked: 'var(--t4)',
 }
 
@@ -158,7 +158,7 @@ export default function ManageGuestsScreen() {
             {links.map((link) => (
               <div key={link.id} className="glass-s" style={{ margin: '0 12px 10px', borderRadius: 'var(--r-md)', padding: '12px 14px' }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(122,179,255,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--info-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>
                     <IconUser size={16} color="var(--info)" />
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -178,7 +178,7 @@ export default function ManageGuestsScreen() {
                     {link.status !== 'revoked' && (
                       <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
                         <button
-                          style={{ flex: 1, padding: '6px 0', borderRadius: 'var(--r-sm)', background: 'rgba(122,179,255,.14)', border: 'none', fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', color: 'var(--info)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
+                          style={{ flex: 1, padding: '6px 0', borderRadius: 'var(--r-sm)', background: 'var(--info-bg)', border: 'none', fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', color: 'var(--info)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
                           onClick={() => handleShareLink(buildDeepLink(`guest_${link.invite_token}`))}
                         >
                           <IconLink size={12} />Поділитись

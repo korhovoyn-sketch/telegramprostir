@@ -68,7 +68,7 @@ export default function TabBar() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#fff',
+                    color: 'var(--t1)',
                     zIndex: 1,
                   }}>
                     {unreadCount > 9 ? '9+' : unreadCount}

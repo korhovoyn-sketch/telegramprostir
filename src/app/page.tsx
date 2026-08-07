@@ -10,6 +10,9 @@ import { useNotifications } from '@/hooks/useNotifications'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import SplashScreen from '@/screens/SplashScreen'
 
+/** Мусить дорівнювати --bg у globals.css (нативний хром Telegram — не CSS). */
+const TG_CHROME_BG = '#040408'
+
 const screenFallback = (
   <div className="scr bg-purple" style={{ alignItems: 'center', justifyContent: 'center' }}>
     <div className="loader" />
@@ -66,8 +69,10 @@ export default function Page() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const tgAny = tg as any
     try {
-      tgAny.setHeaderColor?.('#040408')
-      tgAny.setBackgroundColor?.('#040408')
+      // Telegram API приймає лише hex — var(--bg) тут не працює, тож тримаємо
+      // одну константу поряд із токеном (значення мусять збігатись).
+      tgAny.setHeaderColor?.(TG_CHROME_BG)
+      tgAny.setBackgroundColor?.(TG_CHROME_BG)
       tgAny.disableVerticalSwipes?.()
     } catch { /* older TMA versions may not support these APIs */ }
     if (tg.colorScheme) {

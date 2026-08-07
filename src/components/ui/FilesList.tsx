@@ -26,14 +26,14 @@ function FileBadge({ mime }: { mime: string }) {
       width: 38, height: 38, borderRadius: 10,
       display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center',
-      background: isPdf ? 'rgba(255,107,107,.15)' : 'rgba(122,179,255,.15)',
-      border: `.5px solid ${isPdf ? 'rgba(255,107,107,.3)' : 'rgba(122,179,255,.3)'}`,
+      background: isPdf ? 'var(--file-pdf-bg)' : 'var(--info-bg)',
+      border: `.5px solid ${isPdf ? 'var(--file-pdf-bd)' : 'var(--info-bd)'}`,
       flexShrink: 0, gap: 1,
     }}>
-      <IconFile size={14} color={isPdf ? '#ff6b6b' : '#7AB3FF'} />
+      <IconFile size={14} color={isPdf ? 'var(--file-pdf)' : 'var(--info)'} />
       <span style={{
         fontSize: 8, fontWeight: 'var(--fw-heavy)', letterSpacing: '.04em',
-        color: isPdf ? '#ff8585' : '#7AB3FF', lineHeight: 1,
+        color: isPdf ? 'var(--file-pdf)' : 'var(--info)', lineHeight: 1,
       }}>
         {isPdf ? 'PDF' : 'DOC'}
       </span>
@@ -89,7 +89,7 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
       {/* ── Section header ── */}
       <div className="over">
         <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <IconFile size={14} color="#a78bfa" />
+          <IconFile size={14} color="var(--violet)" />
           Файли
           {files.length > 0 && (
             <span style={{
@@ -105,11 +105,11 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
             onClick={() => fileInputRef.current?.click()}
             style={{
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
-              background: 'rgba(122,179,255,.14)',
+              background: 'var(--info-bg)',
               border: '.5px solid rgba(122,179,255,.3)',
               // minHeight — комфортна ціль тапу (було 22px, нижче за WCAG-мінімум)
               borderRadius: 10, padding: '0 12px', minHeight: 32,
-              color: '#7AB3FF', fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', cursor: 'pointer',
+              color: 'var(--info)', fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', cursor: 'pointer',
             }}
           >
             <IconPlus size={12} />Додати
@@ -219,12 +219,12 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
             <div style={{
               display: 'flex', alignItems: 'center', gap: 10,
               padding: '10px 12px', borderRadius: 'var(--r-sm)',
-              background: 'rgba(122,179,255,.08)',
+              background: 'var(--info-bg)',
               border: '.5px solid rgba(122,179,255,.25)',
             }}>
               <div className="loader" style={{ width: 16, height: 16, borderWidth: 2, flexShrink: 0 }} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', color: '#7AB3FF', marginBottom: 4 }}>
+                <div style={{ fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', color: 'var(--info)', marginBottom: 4 }}>
                   Завантаження {uploadProgress.done + 1}/{uploadProgress.total}
                 </div>
                 {currentUploadFile && (

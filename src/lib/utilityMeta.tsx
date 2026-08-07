@@ -9,8 +9,8 @@ export interface UtilityMeta {
 
 export const UTILITY_META: UtilityMeta[] = [
   { id: 'electricity', label: 'Електропостачання', Icon: IconBolt, color: '#fbbf24' },
-  { id: 'water', label: 'Водопостачання', Icon: IconDroplet, color: '#7AB3FF' },
+  { id: 'water', label: 'Водопостачання', Icon: IconDroplet, color: 'var(--info)' },
   { id: 'heating', label: 'Теплопостачання', Icon: IconThermometer, color: '#fb923c' },
   { id: 'gas', label: 'Газопостачання', Icon: IconFlame, color: '#4ade80' },
-  { id: 'backup', label: 'Резервне живлення', Icon: IconBatteryCharging, color: '#a78bfa' },
+  { id: 'backup', label: 'Резервне живлення', Icon: IconBatteryCharging, color: 'var(--violet)' },
 ]

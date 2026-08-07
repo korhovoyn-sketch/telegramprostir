@@ -80,7 +80,7 @@ function Building3DHero() {
 
       {/* Sparkle stars */}
       <g className="b3d-s1">
-        <path d="M22,46 L23.4,49.6 L27,50.5 L23.4,51.4 L22,55 L20.6,51.4 L17,50.5 L20.6,49.6Z" fill="#a78bfa"/>
+        <path d="M22,46 L23.4,49.6 L27,50.5 L23.4,51.4 L22,55 L20.6,51.4 L17,50.5 L20.6,49.6Z" fill="var(--violet)"/>
       </g>
       <g className="b3d-s2">
         <path d="M140,60 L141.2,63 L144,63.7 L141.2,64.4 L140,67.4 L138.8,64.4 L136,63.7 L138.8,63Z" fill="#7AB3FF"/>
@@ -349,7 +349,7 @@ export default function PropertyDetailScreen() {
             {property.floor && (
               <div className="obj-f">
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <IconBuildingSkyscraper size={13} color="#a78bfa" />Поверх
+                  <IconBuildingSkyscraper size={13} color="var(--violet)" />Поверх
                 </div>
                 <div className="obj-fv">{property.floor}</div>
               </div>
@@ -365,7 +365,7 @@ export default function PropertyDetailScreen() {
             {property.has_parking && !isParking && (
               <div className="obj-f">
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <IconCarGarage size={13} color="#fb923c" />Паркінг
+                  <IconCarGarage size={13} color="var(--warn)" />Паркінг
                 </div>
                 <div className="obj-fv">{property.parking_spaces} місць</div>
               </div>
@@ -373,7 +373,7 @@ export default function PropertyDetailScreen() {
             {parkingTypeLabel(property.parking_type) && (
               <div className="obj-f">
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <IconCarGarage size={13} color="#fb923c" />Тип місця
+                  <IconCarGarage size={13} color="var(--warn)" />Тип місця
                 </div>
                 <div className="obj-fv">{parkingTypeLabel(property.parking_type)}</div>
               </div>
@@ -405,7 +405,7 @@ export default function PropertyDetailScreen() {
             {property.tenant_name && (
               <div className="obj-f" style={{ gridColumn: '1 / -1' }}>
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <IconUser size={13} color="#a78bfa" />Орендар
+                  <IconUser size={13} color="var(--violet)" />Орендар
                 </div>
                 <div className="obj-fv">{property.tenant_name}</div>
               </div>
@@ -413,7 +413,7 @@ export default function PropertyDetailScreen() {
             {(property.lease_start_date || property.lease_end_date) && (
               <div className="obj-f" style={{ gridColumn: '1 / -1' }}>
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <IconKey size={13} color="#a78bfa" />Строк договору
+                  <IconKey size={13} color="var(--violet)" />Строк договору
                 </div>
                 <div className="obj-fv">
                   {formatLeasePeriod(property.lease_start_date, property.lease_end_date)}
@@ -478,7 +478,7 @@ export default function PropertyDetailScreen() {
             {utils > 0 && (
               <div className="cost-row">
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ width: 24, height: 24, borderRadius: 8, background: 'rgba(251,191,36,.10)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <span style={{ width: 24, height: 24, borderRadius: 8, background: 'var(--warn-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <IconBolt size={12} color="#fbbf24" />
                   </span>
                   Експлуатаційні
@@ -489,7 +489,7 @@ export default function PropertyDetailScreen() {
             {!isDaily && rent > 0 && utils > 0 && (
               <div className="cost-row" style={{ marginTop: 4 }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 'var(--fw-semi)', color: 'var(--t1)' }}>
-                  <span style={{ width: 24, height: 24, borderRadius: 8, background: 'rgba(122,179,255,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <span style={{ width: 24, height: 24, borderRadius: 8, background: 'var(--info-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <IconCalendar size={12} color="var(--info)" />
                   </span>
                   Разом на місяць
@@ -500,7 +500,7 @@ export default function PropertyDetailScreen() {
             {!isDaily && (rent === 0 || utils === 0) && (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 4 }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--fs-cap1)', color: 'var(--t3)' }}>
-                  <span style={{ width: 24, height: 24, borderRadius: 8, background: 'rgba(122,179,255,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <span style={{ width: 24, height: 24, borderRadius: 8, background: 'var(--info-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <IconCalendar size={12} color="var(--info)" />
                   </span>
                   Разом на місяць
@@ -518,7 +518,7 @@ export default function PropertyDetailScreen() {
             style={{ margin: '0 12px 12px', borderRadius: 'var(--r-md)', padding: '11px 14px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}
             onClick={() => { hapticImpact('light'); navigate('manage-guests', { propertyId: property.id }) }}
           >
-            <IconUser size={16} color="#a78bfa" />
+            <IconUser size={16} color="var(--violet)" />
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 'var(--fs-note)', fontWeight: 'var(--fw-semi)', color: 'var(--t1)' }}>Гості</div>
               <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 1 }}>Запрошення та керування доступом</div>
@@ -550,12 +550,12 @@ export default function PropertyDetailScreen() {
           const now = Date.now()
           const progress = Math.min(100, Math.max(0, ((now - start) / (end - start)) * 100))
           const daysLeft = daysUntil(property.lease_end_date!)
-          const barColor = daysLeft < 30 ? '#fb923c' : '#4ade80'
+          const barColor = daysLeft < 30 ? 'var(--warn)' : 'var(--ok-light)'
           return (
             <div className="glass-s" style={{ margin: '0 12px 12px', borderRadius: 'var(--r-md)', padding: '12px 14px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                 <span style={{ fontSize: 'var(--fs-cap2)', color: 'var(--t3)', fontWeight: 'var(--fw-semi)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Договір оренди</span>
-                <span style={{ fontSize: 'var(--fs-cap1)', color: daysLeft < 30 ? '#fb923c' : 'var(--t3)', fontWeight: 'var(--fw-semi)' }}>
+                <span style={{ fontSize: 'var(--fs-cap1)', color: daysLeft < 30 ? 'var(--warn)' : 'var(--t3)', fontWeight: 'var(--fw-semi)' }}>
                   {daysLeft > 0 ? `${daysLeft} дн.` : 'Завершено'}
                 </span>
               </div>
@@ -576,7 +576,7 @@ export default function PropertyDetailScreen() {
         {/* Photo strip with real images + delete + add */}
         <div className="over">
           <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <IconCamera size={14} color="#a78bfa" />
+            <IconCamera size={14} color="var(--violet)" />
             Фотографії
           </span>
         </div>
@@ -611,7 +611,7 @@ export default function PropertyDetailScreen() {
             <div
               className="photo-t"
               onClick={() => fileInputRef.current?.click()}
-              style={{ border: '.5px dashed rgba(255,255,255,.28)', fontSize: 'var(--fs-t1)', color: 'rgba(255,255,255,.4)', cursor: 'pointer' }}
+              style={{ border: '.5px dashed rgba(255,255,255,.28)', fontSize: 'var(--fs-t1)', color: 'var(--t4)', cursor: 'pointer' }}
             >
               +
             </div>
@@ -636,7 +636,7 @@ export default function PropertyDetailScreen() {
 
         {property.description && (
           <>
-            <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconFile size={13} color="#a78bfa" />Опис</span></div>
+            <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconFile size={13} color="var(--violet)" />Опис</span></div>
             <div className="descr glass-s">
               <div className="descr-t">{property.description}</div>
             </div>

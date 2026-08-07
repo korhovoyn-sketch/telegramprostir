@@ -585,8 +585,8 @@ export default function DatabaseObjectsScreen() {
                     style={{
                       flexShrink: 0,
                       padding: '4px 10px', borderRadius: 8,
-                      background: sortBy === opt.id ? 'rgba(122,179,255,.22)' : 'var(--glass-1)',
-                      color:      sortBy === opt.id ? '#7AB3FF' : 'var(--t3)',
+                      background: sortBy === opt.id ? 'var(--info-bg)' : 'var(--glass-1)',
+                      color:      sortBy === opt.id ? 'var(--info)' : 'var(--t3)',
                       border:     sortBy === opt.id ? '.5px solid rgba(122,179,255,.4)' : 'var(--bd)',
                       fontSize: 'var(--fs-cap2)', fontWeight: 'var(--fw-semi)', cursor: 'pointer', whiteSpace: 'nowrap',
                     }}

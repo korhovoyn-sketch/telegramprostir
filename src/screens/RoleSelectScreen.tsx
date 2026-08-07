@@ -54,7 +54,7 @@ export default function RoleSelectScreen() {
             marginBottom: 12,
             cursor: 'pointer',
             border: role === 'owner' ? '.5px solid rgba(120,180,255,.55)' : undefined,
-            background: role === 'owner' ? 'rgba(34,158,217,.18)' : undefined,
+            background: role === 'owner' ? 'var(--info-bg)' : undefined,
             boxShadow: role === 'owner' ? '0 0 0 2px rgba(34,158,217,.18) inset' : undefined,
             transition: 'all .18s var(--ease)',
           }}
@@ -82,7 +82,7 @@ export default function RoleSelectScreen() {
               </div>
             </div>
             {role === 'owner' && (
-              <div style={{ marginLeft: 'auto', width: 24, height: 24, borderRadius: '50%', background: '#7AB3FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ marginLeft: 'auto', width: 24, height: 24, borderRadius: '50%', background: 'var(--info)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <span style={{ fontSize: 'var(--fs-note)', color: 'var(--t1)' }}>✓</span>
               </div>
             )}
@@ -90,7 +90,7 @@ export default function RoleSelectScreen() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {['Створюй бази і об\'єкти', 'Ділись QR з ріелторами', 'Переглядай аналітику'].map((f) => (
               <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--fs-foot)', color: 'var(--t2)' }}>
-                <span style={{ color: '#34C759', fontSize: 'var(--fs-cap1)' }}>✓</span>
+                <span style={{ color: 'var(--ok)', fontSize: 'var(--fs-cap1)' }}>✓</span>
                 {f}
               </div>
             ))}
@@ -105,7 +105,7 @@ export default function RoleSelectScreen() {
             padding: 20,
             cursor: 'pointer',
             border: role === 'realtor' ? '.5px solid rgba(255,122,184,.55)' : undefined,
-            background: role === 'realtor' ? 'rgba(255,80,180,.14)' : undefined,
+            background: role === 'realtor' ? 'var(--pink-bg)' : undefined,
             boxShadow: role === 'realtor' ? '0 0 0 2px rgba(255,80,180,.14) inset' : undefined,
             transition: 'all .18s var(--ease)',
           }}
@@ -133,7 +133,7 @@ export default function RoleSelectScreen() {
               </div>
             </div>
             {role === 'realtor' && (
-              <div style={{ marginLeft: 'auto', width: 24, height: 24, borderRadius: '50%', background: '#FF7AB8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ marginLeft: 'auto', width: 24, height: 24, borderRadius: '50%', background: 'var(--pink)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <span style={{ fontSize: 'var(--fs-note)', color: 'var(--t1)' }}>✓</span>
               </div>
             )}
@@ -141,7 +141,7 @@ export default function RoleSelectScreen() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {['Підписуйся на бази власників', 'Створюй підбірки для клієнтів', 'Зберігай обрані об\'єкти'].map((f) => (
               <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--fs-foot)', color: 'var(--t2)' }}>
-                <span style={{ color: '#FF7AB8', fontSize: 'var(--fs-cap1)' }}>✓</span>
+                <span style={{ color: 'var(--pink)', fontSize: 'var(--fs-cap1)' }}>✓</span>
                 {f}
               </div>
             ))}

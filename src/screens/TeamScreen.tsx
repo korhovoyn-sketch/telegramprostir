@@ -19,8 +19,8 @@ const STATUS_LABEL: Record<string, string> = {
   revoked: 'Відкликано',
 }
 const STATUS_COLOR: Record<string, string> = {
-  pending: '#fbbf24',
-  active: '#4ade80',
+  pending: 'var(--warn)',
+  active: 'var(--ok-light)',
   revoked: 'var(--t4)',
 }
 

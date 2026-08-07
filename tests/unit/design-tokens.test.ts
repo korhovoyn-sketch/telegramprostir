@@ -57,3 +57,68 @@ describe('CSS-токени', () => {
     expect(bare, 'рантаймовий токен без фолбека = порожнє значення до першого запису з JS').toEqual([])
   })
 })
+
+// ── Шкали не мають дублюватись літералами ───────────────────────────────────
+// Токен, повз який пишуть значення руками, перестає бути системою: саме так
+// у проєкті зʼявились дві сімʼї синього і дванадцять акцентів дашборда
+// всередині компонента.
+
+/** Значення токенів із :root → назва, для пошуку «переписаних руками» кольорів. */
+function paletteByValue(): Map<string, string> {
+  const root = stripComments(css).match(/:root\{([\s\S]*?)\n\}/)![1]
+  const map = new Map<string, string>()
+  for (const m of root.matchAll(/(--[a-zA-Z0-9-]+)\s*:\s*(#[0-9a-fA-F]{3,8}|rgba?\([^)]*\))\s*;/g)) {
+    const norm = m[2].toLowerCase().replace(/\s+/g, '')
+    if (!map.has(norm)) map.set(norm, m[1])
+  }
+  return map
+}
+
+// Файли з власною палітрою: публічна /v рендериться окремо від застосунку,
+// іконки/декор — це графіка з градієнтами, експорт малює PDF (не екран).
+const OWN_PALETTE = [
+  // Нативний хром Telegram (setHeaderColor/setBackgroundColor) приймає ЛИШЕ hex,
+  // var() там не працює — колір лежить у названій константі поряд із токеном.
+  'src/app/page.tsx',
+  'src/app/v/page.tsx',
+  'src/components/Icons.tsx',
+  'src/components/Confetti.tsx',
+  'src/components/ProxMascot.tsx',
+  'src/screens/ExportScreen.tsx',
+]
+
+describe('шкали дизайн-системи', () => {
+  it('колір, який уже має токен, не переписують літералом у JSX', () => {
+    const palette = paletteByValue()
+    const bad: string[] = []
+    for (const file of files) {
+      if (!file.endsWith('.tsx') || OWN_PALETTE.some((o) => file.endsWith(o))) continue
+      const txt = stripComments(readFileSync(file, 'utf8'))
+      for (const m of txt.matchAll(/'(#[0-9a-fA-F]{3,8}|rgba?\([^)']*\))'/g)) {
+        const norm = m[1].toLowerCase().replace(/\s+/g, '')
+        const token = palette.get(norm)
+        if (token) bad.push(`${file}: ${m[1]} → var(${token})`)
+      }
+    }
+    expect(bad).toEqual([])
+  })
+
+  it('розміри шрифту зі шкали беруться токеном, а не літералом', () => {
+    const root = stripComments(css).match(/:root\{([\s\S]*?)\n\}/)![1]
+    const scale = new Set(
+      [...root.matchAll(/--fs-[a-z0-9]+\s*:\s*(\d+)px/g)].map((m) => Number(m[1])),
+    )
+    const body = stripComments(css).slice(stripComments(css).indexOf('\n}', stripComments(css).indexOf(':root{')))
+    const bad = [...body.matchAll(/font-size:\s*(\d+)px/g)]
+      .map((m) => Number(m[1]))
+      .filter((v) => scale.has(v))
+    expect(bad, 'значення зі шкали мусить бути var(--fs-*)').toEqual([])
+  })
+
+  it('криві анімацій живуть у токенах, а не літералами в правилах', () => {
+    const nc = stripComments(css)
+    const body = nc.slice(nc.indexOf('\n}', nc.indexOf(':root{')))
+    const bad = [...body.matchAll(/cubic-bezier\([^)]*\)/g)].map((m) => m[0])
+    expect(bad, 'та сама крива має бути --ease*').toEqual([])
+  })
+})

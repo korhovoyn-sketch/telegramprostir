@@ -147,7 +147,7 @@ export default function ProfileScreen() {
         </div>
 
         {/* Settings */}
-        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconAdjustments size={13} color="#a78bfa" />Налаштування</span></div>
+        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconAdjustments size={13} color="var(--violet)" />Налаштування</span></div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div className="fr">
             <IconLanguage size={15} color="var(--t3)" />
