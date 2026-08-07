@@ -168,7 +168,7 @@ export default function PhotoUploadScreen() {
               {/* Thumbnail preview */}
               <div style={{
                 width: 44, height: 44, borderRadius: 8,
-                background: 'rgba(255,255,255,.08)',
+                background: 'var(--glass-2)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 flexShrink: 0, overflow: 'hidden',
                 border: item.status === 'error'
@@ -193,7 +193,7 @@ export default function PhotoUploadScreen() {
                   {item.file.name}
                 </div>
                 {item.status === 'uploading' && (
-                  <div style={{ marginTop: 4, height: 3, background: 'rgba(255,255,255,.1)', borderRadius: 2, overflow: 'hidden' }}>
+                  <div style={{ marginTop: 4, height: 3, background: 'var(--glass-2)', borderRadius: 2, overflow: 'hidden' }}>
                     <div style={{ height: '100%', width: '100%', background: 'var(--info)', transformOrigin: 'left', transform: `scaleX(${item.progress / 100})`, transition: 'transform .3s var(--ease)' }} />
                   </div>
                 )}

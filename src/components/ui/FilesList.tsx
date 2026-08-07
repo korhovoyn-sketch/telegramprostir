@@ -233,7 +233,7 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
                   </div>
                 )}
                 {/* Progress bar */}
-                <div style={{ marginTop: 6, height: 3, borderRadius: 2, background: 'rgba(255,255,255,.1)' }}>
+                <div style={{ marginTop: 6, height: 3, borderRadius: 2, background: 'var(--glass-2)' }}>
                   <div style={{
                     height: '100%', borderRadius: 2,
                     background: 'linear-gradient(90deg,#7AB3FF,#a78bfa)',

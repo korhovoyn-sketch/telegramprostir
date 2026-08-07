@@ -74,7 +74,7 @@ export default function FilePreviewModal({ url, mime, name, onClose }: FilePrevi
   // Button style reused for top-bar icon buttons — 44×44 minimum touch target (Apple HIG)
   const iconBtnStyle: React.CSSProperties = {
     width: 44, height: 44, borderRadius: '50%',
-    background: 'rgba(255,255,255,.15)',
+    background: 'var(--glass-3)',
     border: '1px solid rgba(255,255,255,.2)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     color: '#fff', cursor: 'pointer', flexShrink: 0,
@@ -154,7 +154,7 @@ export default function FilePreviewModal({ url, mime, name, onClose }: FilePrevi
             onClick={e => e.stopPropagation()}
             style={{
               width: '100%', maxWidth: 320,
-              background: 'rgba(255,255,255,.08)',
+              background: 'var(--glass-2)',
               backdropFilter: 'blur(20px)',
               WebkitBackdropFilter: 'blur(20px)',
               borderRadius: 20, padding: '28px 24px',
