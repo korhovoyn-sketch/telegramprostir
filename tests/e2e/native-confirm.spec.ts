@@ -143,3 +143,34 @@ test('у режимі редагування нативна пара «Збер�
   await page.evaluate(() => (window as any).__tgSecondaryClick())
   await expect.poll(() => deletes.length, { timeout: 10_000 }).toBe(1)
 })
+
+test('форма СТВОРЕННЯ не падає, коли Telegram має SecondaryButton, а другорядної дії немає', async ({ page }) => {
+  await setup(page)
+  await page.addInitScript(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).__tgEnableMainButton?.(true)
+  })
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+  await page.getByText('БЦ Рубін').first().click()
+  await expect(page.getByText('Всі (1)')).toBeVisible({ timeout: 15_000 })
+
+  // Створення: другорядної дії тут НЕМА. Порожній підпис Telegram відкидає
+  // (WebAppBottomButtonParamInvalid) синхронно, тож раніше екран падав у
+  // ErrorBoundary — «Не можу створювати обʼєкти».
+  await page.locator('.fab').click()
+  await expect(page.getByText('Новий об\'єкт')).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText('Щось пішло не так')).toHaveCount(0)
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const state = await page.evaluate(() => ({ main: (window as any).__tgMain, sec: (window as any).__tgSecondary }))
+  expect(state.main.text).toBe('Додати об\'єкт')
+  expect(state.main.isVisible).toBe(true)
+  expect(state.sec.isVisible, 'другорядна кнопка лишається схованою').toBe(false)
+
+  // Форма жива: назва вводиться і головна кнопка активується.
+  await page.getByLabel('Назва обʼєкта').fill('Офіс 202')
+  await page.waitForTimeout(200)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  expect(await page.evaluate(() => (window as any).__tgMain.isActive)).toBe(true)
+})

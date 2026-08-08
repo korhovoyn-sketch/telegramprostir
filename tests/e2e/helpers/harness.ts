@@ -146,9 +146,18 @@ export async function installTelegram(page: Page, opts: HarnessOptions = {}) {
           const state: Record<string, unknown> = { name, isVisible: false, text: '', params: {} }
           w[`__tg${name}`] = state
           w[`__tg${name}Click`] = () => { for (const c of clicks) c() }
+          // Стаб ВАЛІДУЄ як справжній клієнт: порожній/пробільний підпис Telegram
+          // відкидає, кидаючи WebAppBottomButtonParamInvalid СИНХРОННО. Без цієї
+          // строгості стаб пропускав `text: ' '` — і падіння форми створення
+          // об'єкта не було видно в тестах узагалі.
+          const badText = (t: unknown) => typeof t !== 'string' || t.trim() === ''
           return {
-            setText(t: string) { state.text = t },
+            setText(t: string) {
+              if (badText(t)) throw new Error('WebAppBottomButtonParamInvalid')
+              state.text = t
+            },
             setParams(p: Record<string, unknown>) {
+              if ('text' in p && badText(p.text)) throw new Error('WebAppBottomButtonParamInvalid')
               state.params = { ...(state.params as object), ...p }
               if (typeof p.text === 'string') state.text = p.text
               if (typeof p.is_visible === 'boolean') state.isVisible = p.is_visible

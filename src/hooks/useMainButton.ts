@@ -32,6 +32,23 @@ interface MainButtonOptions {
 const DEFAULT_BAR = '#06050e'
 const DESTRUCTIVE_FG = '#FF453A'
 
+/**
+ * Виклик до нижньої смуги Telegram, який НЕ має права завалити екран.
+ *
+ * `?.` захищає лише від відсутнього методу — клієнт же кидає СИНХРОННО на
+ * невалідному параметрі (`WebAppBottomButtonParamInvalid`) чи непідтримуваній
+ * версії API. З ефекту цей throw піднімався в ErrorBoundary, і замість форми
+ * користувач бачив «Щось пішло не так». Повертає true, якщо виклик пройшов.
+ */
+function tgSafe(fn: () => void): boolean {
+  try {
+    fn()
+    return true
+  } catch {
+    return false
+  }
+}
+
 interface MainButtonState {
   /** Нативна MainButton керує первинною дією — DOM-фолбек можна ховати. */
   available: boolean
@@ -66,15 +83,16 @@ export function useMainButton(opts: MainButtonOptions): MainButtonState {
 
     const sb = tg.SecondaryButton
     const secHandler = () => secCbRef.current?.()
-    if (sb) sb.onClick(secHandler)
+    if (sb) tgSafe(() => sb.onClick(secHandler))
 
     return () => {
-      mb.offClick(handler)
-      mb.hideProgress()
-      mb.hide()
-      sb?.offClick(secHandler)
-      sb?.hide()
-      tg.setBottomBarColor?.(DEFAULT_BAR)
+      tgSafe(() => {
+        mb.offClick(handler)
+        mb.hideProgress()
+        mb.hide()
+      })
+      tgSafe(() => { sb?.offClick(secHandler); sb?.hide() })
+      tgSafe(() => tg.setBottomBarColor?.(DEFAULT_BAR))
     }
   }, [])
 
@@ -83,22 +101,26 @@ export function useMainButton(opts: MainButtonOptions): MainButtonState {
     const tg = window.Telegram?.WebApp
     const mb = tg?.MainButton
     if (!mb) return
-    mb.setText(text)
-    tg.setBottomBarColor?.(barColor ?? DEFAULT_BAR)
+    // Порожній підпис — теж невалідний параметр; беремо пробіл лише як останній
+    // рубіж, бо кнопку без тексту Telegram однаково не намалює.
+    tgSafe(() => mb.setText(text || ' '))
+    tgSafe(() => tg.setBottomBarColor?.(barColor ?? DEFAULT_BAR))
     // Brand green (.mbtn.success / --ok) only while actionable — a custom
     // setParams color survives disable(), so a disabled button would stay
     // bright green and read as tappable. Grey it explicitly instead.
     const actionable = enabled && !loading
-    mb.setParams?.({
+    tgSafe(() => mb.setParams?.({
       color: actionable ? '#34C759' : '#3A4149',
       text_color: actionable ? '#FFFFFF' : '#8E959E',
+    }))
+    tgSafe(() => {
+      if (loading) mb.showProgress()
+      else mb.hideProgress()
+      if (actionable) mb.enable()
+      else mb.disable()
+      if (visible) mb.show()
+      else mb.hide()
     })
-    if (loading) mb.showProgress()
-    else mb.hideProgress()
-    if (actionable) mb.enable()
-    else mb.disable()
-    if (visible) mb.show()
-    else mb.hide()
   }, [available, text, visible, enabled, loading, barColor])
 
   const secText = secondary?.text
@@ -109,16 +131,26 @@ export function useMainButton(opts: MainButtonOptions): MainButtonState {
     const sb = tg?.SecondaryButton
     if (!sb || typeof sb.setParams !== 'function') return
     const show = visible && !!secText && !loading
+
+    // Порожній `text` Telegram відкидає (WebAppBottomButtonParamInvalid), і
+    // кидає він СИНХРОННО — тобто екран без другорядної дії (створення об'єкта)
+    // падав у ErrorBoundary через кнопку, якої там нема. Тому: без підпису
+    // параметри не надсилаємо взагалі, лише ховаємо.
+    if (!show) {
+      tgSafe(() => sb.hide())
+      setSecondaryAvailable(false)
+      return
+    }
     // Заливка = колір смуги: другорядна дія читається підписом на смузі, а не
     // другою суцільною кнопкою, яка сперечалась би з головною за увагу.
-    sb.setParams({
-      text: secText ?? ' ',
+    const ok = tgSafe(() => sb.setParams({
+      text: secText,
       position: 'left',
       color: barColor ?? DEFAULT_BAR,
       text_color: secDestructive === false ? '#FFFFFF' : DESTRUCTIVE_FG,
-      is_visible: show,
-    })
-    setSecondaryAvailable(show)
+      is_visible: true,
+    }))
+    setSecondaryAvailable(ok)
   }, [available, visible, loading, barColor, secText, secDestructive])
 
   return { available, secondaryAvailable }
