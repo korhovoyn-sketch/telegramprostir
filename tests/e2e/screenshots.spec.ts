@@ -127,6 +127,16 @@ test('screens · owner journey', async ({ page }) => {
     await page.getByText('БЦ Рубін').first().click()
     await page.getByText('Всі (3)').waitFor()
   })
+  // Компактний вигляд — окремий рендер картки, який card-view не покриває.
+  // Саме тут живе плитка іконки 22×22, чий інлайновий радіус був поза шкалою.
+  await snap(page, 'db-objects-compact', async () => {
+    await page.getByLabel('Компактно').click()
+    await page.locator('.row').first().waitFor()
+  })
+  await snap(page, 'db-objects', async () => {
+    await page.getByLabel('Картки').click()
+    await page.locator('.obj-card').first().waitFor()
+  })
   await snap(page, 'property-detail', async () => {
     await page.locator('.obj-card', { hasText: 'Офіс 101' }).click()
     await page.getByText('Назад', { exact: true }).first().waitFor()
