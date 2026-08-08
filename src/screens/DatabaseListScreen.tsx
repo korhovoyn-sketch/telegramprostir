@@ -14,7 +14,7 @@ import CoachMark from '@/components/ui/CoachMark'
 import { useOnboarding } from '@/hooks/useOnboarding'
 import { useHideOnScrollDown } from '@/hooks/useHideOnScrollDown'
 import { IconChevronRight, IconPlus, GlassDbIcon } from '@/components/Icons'
-import { DB_TYPE_LABELS, formatPrice, STATUS_COLORS, STATUS_LABELS, greeting } from '@/lib/utils'
+import { DB_TYPE_LABELS, formatPrice, STATUS_COLORS, STATUS_LABELS, greeting, matchesQuery, searchPattern } from '@/lib/utils'
 import type { PropertyStatus } from '@/types'
 
 interface PropSearchResult {
@@ -41,25 +41,42 @@ export default function DatabaseListScreen() {
 
   // Debounced cross-db property search when query ≥ 3 chars
   useEffect(() => {
-    if (search.length < 3 || !user) { setPropResults([]); return }
+    const pattern = searchPattern(search)
+    if (pattern.length < 3 || !user) { setPropResults([]); return }
     setPropSearching(true)
     const timer = setTimeout(async () => {
       try {
+        // Вибірку звужуємо НАЙДОВШИМ токеном по всіх полях, за якими люди
+        // шукають (не лише назва — орендар, адреса, поверх), а повний
+        // багатослівний збіг доганяємо matchesQuery уже тут: порядок слів у
+        // запиті не мусить впливати на результат.
+        //
+        // owner_id НЕ фільтруємо: у члена команди об'єкти належать власнику
+        // бази, тож звуження «свій owner_id» віддавало йому порожньо. Видимість
+        // вирішує RLS — вона знає і власника, і membership.
+        const like = `%${pattern}%`
         const { data } = await supabase
           .from('properties')
-          .select('id, name, status, db_id, floor')
-          .eq('owner_id', user.id)
-          .ilike('name', `%${search}%`)
-          .limit(20)
+          .select('id, name, status, db_id, floor, tenant_name, address')
+          .or([
+            `name.ilike.${like}`,
+            `tenant_name.ilike.${like}`,
+            `address.ilike.${like}`,
+            `floor.ilike.${like}`,
+          ].join(','))
+          .limit(40)
         setPropResults(
-          (data ?? []).map(p => ({
-            id:     p.id,
-            name:   p.name,
-            status: p.status as PropertyStatus,
-            db_id:  p.db_id,
-            floor:  p.floor,
-            dbName: databases.find(d => d.id === p.db_id)?.name ?? '—',
-          }))
+          (data ?? [])
+            .filter(p => matchesQuery(search, p.name, p.tenant_name, p.floor, p.address))
+            .slice(0, 20)
+            .map(p => ({
+              id:     p.id,
+              name:   p.name,
+              status: p.status as PropertyStatus,
+              db_id:  p.db_id,
+              floor:  p.floor,
+              dbName: databases.find(d => d.id === p.db_id)?.name ?? '—',
+            }))
         )
       } finally {
         setPropSearching(false)
@@ -69,10 +86,7 @@ export default function DatabaseListScreen() {
   }, [search, user, databases])
 
   const filtered = useMemo(() =>
-    databases.filter(db =>
-      (db.name ?? '').toLowerCase().includes(search.toLowerCase()) ||
-      (db.address ?? '').toLowerCase().includes(search.toLowerCase())
-    ),
+    databases.filter(db => matchesQuery(search, db.name, db.address)),
   [databases, search])
 
   const fabRef = useRef<HTMLButtonElement>(null)

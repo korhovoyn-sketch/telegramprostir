@@ -10,7 +10,7 @@ import { StatusBadge } from '@/components/ui/Badge'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import { IconShare, IconPhoto, IconMessage, IconBuilding, IconRuler, IconParking, IconCalendar } from '@/components/Icons'
 import { sharePublicUrl , hapticSelection } from '@/lib/telegram'
-import { formatPrice, calcRentUtils, rentUnitLabel, DB_TYPE_LABELS, getInitials, formatLeasePeriod, humanizeDbError } from '@/lib/utils'
+import { formatPrice, calcRentUtils, rentUnitLabel, DB_TYPE_LABELS, getInitials, formatLeasePeriod, humanizeDbError, matchesQuery } from '@/lib/utils'
 import type { Database, Property, PropertyStatus, User } from '@/types'
 
 export default function RealtorDatabaseScreen() {
@@ -57,7 +57,7 @@ export default function RealtorDatabaseScreen() {
 
   const filtered = useMemo(() =>
     properties.filter((p) => {
-      const matchSearch = p.name.toLowerCase().includes(search.toLowerCase())
+      const matchSearch = matchesQuery(search, p.name, p.tenant_name, p.floor, p.address, p.description)
       const matchTab = tab === 'all' || p.status === tab
       return matchSearch && matchTab
     }),

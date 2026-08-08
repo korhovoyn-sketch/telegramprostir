@@ -401,3 +401,36 @@ export function scrollFocusedIntoView(e: import('react').FocusEvent<HTMLElement>
     else el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   }, 500)
 }
+
+/**
+ * Пошук за КЛЮЧОВОЮ ФРАЗОЮ, а не за точним підрядком.
+ *
+ * Дві причини, чому підрядка мало (обидві — з реальної бази користувача):
+ *  • назви довгі й зі службовими вставками — «Офіс 10 поверху ( мале крило )».
+ *    Запит «офіс мале» як підрядок не збігається НІ з чим, хоч людина ввела
+ *    дві правильні ознаки того самого об'єкта;
+ *  • шукають не лише за назвою — за орендарем, адресою, поверхом.
+ *
+ * Тому: запит ріжеться на токени по пробілах, і КОЖЕН мусить зустрітись у
+ * будь-якому з полів. Порядок слів не важить, зайві слова між ними — теж.
+ * Порожній запит пропускає все (фільтр вимкнено).
+ */
+export function matchesQuery(query: string, ...fields: (string | null | undefined)[]): boolean {
+  const tokens = query.toLowerCase().split(/\s+/).filter(Boolean)
+  if (tokens.length === 0) return true
+  const hay = fields.filter(Boolean).join(' ').toLowerCase()
+  return tokens.every((t) => hay.includes(t))
+}
+
+/**
+ * Найдовший токен запиту — ним звужуємо ВИБІРКУ з бази (ilike), а повний
+ * багатослівний збіг лишається на `matchesQuery` уже на клієнті. Так серверний
+ * запит лишається одним ilike, але не втрачає рядки через порядок слів.
+ *
+ * Символи, зарезервовані фільтрами PostgREST (`,`, `(`, `)`, `*`), вирізаємо:
+ * назви на кшталт «Офіс ( мале крило )» інакше ламають синтаксис `or=(...)`.
+ */
+export function searchPattern(query: string): string {
+  const tokens = query.replace(/[,()*]/g, ' ').split(/\s+/).filter(Boolean)
+  return tokens.reduce((longest, t) => (t.length > longest.length ? t : longest), '')
+}
