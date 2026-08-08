@@ -235,6 +235,18 @@ The session-start hook (`.claude/hooks/session-start.sh`) runs `npm install` and
 - **Спільні хелпери харнеса** (імпортуй, НЕ передекларовуй у спеку — легасі-копії в старих спеках мігруються поступово): `jsonRoute` (fulfill JSON), `skipCoachmarks` (сідить `ob_v1`), `seedSession` (сідить `ps_user` → Fast Path 0; без сесії Splash веде `db_`/`guest_` на публічний превʼю-екран замість useDeepLink-гілки — deep-link тести МУСЯТЬ сідити сесію).
 - **Опційні API Telegram у харнесі — вимкнені за замовчуванням**, бо саме так виглядає слабший клієнт, і фолбеки мусять лишатись покритими: `__tgEnablePopups(answer)` вмикає `showPopup` (`'ok' | 'cancel' | null`, відповідь асинхронна; виклики в `__tgPopups`), `__tgEnableMainButton(withSecondary)` — MainButton/SecondaryButton (стан у `__tgMain`/`__tgSecondary`, тап через `__tgMainClick()`/`__tgSecondaryClick()`). Без них екрани малюють DOM `.mbtn` і скляну модалку — і решта спеків перевіряє саме цей шлях.
 - **`native-client-sweep.spec.ts` — обхід усіх екранів із УВІМКНЕНОЮ нативною смугою і попапами.** Решта спеків ганяє слабший клієнт (DOM-фолбеки), а прод працює саме з нативними API — цей прохід закриває прогалину, через яку падіння форми створення не бачив жоден зі 150 тестів. Перевіряє: ЖОДЕН екран не в ErrorBoundary, підписи кнопок по екранах, і що кнопка не «протікає» на наступний екран після unmount. Новий екран із `useMainButton` = новий крок тут.
+- **`screenshots.spec.ts` — ВІЗУАЛЬНИЙ БЕЙСЛАЙН, а не тур.** 26 кадрів усіх
+  досяжних екранів порівнюються з PNG у `screenshots.spec.ts-snapshots/` (2.9 МБ,
+  `deviceScaleFactor: 1` — для виявлення регресії масштаб не важить, а вага
+  падає вчетверо). Поріг `maxDiffPixelRatio: 0.01` у конфігу: 3px зсуву
+  `--pad-card` дають 0.02 і гард падає. **Після СВІДОМОЇ зміни дизайну оновлюй у
+  ТОМУ Ж коміті:** `npx playwright test screenshots --update-snapshots`.
+  Детермінізм тримається трьома речами, і жодну не можна знімати: `reducedMotion`
+  + `animations:'disabled'`, `clock.setFixedTime` (інакше `formatDate` дає «щойно»,
+  а бейджі протермінування рахуються від справжнього сьогодні й поїдуть за
+  місяць), фіксовані дати у фікстурах (`new Date()` у Node під clock сторінки не
+  підпадає). Раніше замість цього був `tryShot`, що ГЛУШИВ помилки навігації
+  через catch — саме тому тур ніколи нічого не ловив.
 - **Ключові спеки**: `deeplinks.spec.ts` (вхідні флоу ролей: guest_/db_/prop_/col_; team_ у `team.spec.ts`), `deep-lifecycle.spec.ts` (платіжний цикл цілком, RLS 403, офлайн, фото наскрізно зі строгим лічильником storage-POST-ів — ловить регресію дабл-аплоуду), `share-flow.spec.ts` (manage_share рейки + revoked-стан), `native-confirm.spec.ts` (нативний попап + свайп-відмова + фолбек-модалка + пара MainButton/SecondaryButton), `screenshots.spec.ts` — скріншот-тур всіх екранів у `screenshots/` (gitignored).
 - **Флейки, які вже ловили** (перевір перед «лагодженням» коду):
   - клік у ЦЕНТР короткої `.obj-card` влучає в рядок дій — клікай `.locator('.obj-t')`;
