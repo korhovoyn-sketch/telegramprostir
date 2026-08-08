@@ -8,7 +8,7 @@ import TabBar from '@/components/ui/TabBar'
 import SearchBar from '@/components/ui/SearchBar'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import { IconChevronRight, GlassDbIcon } from '@/components/Icons'
-import { DB_TYPE_LABELS, greeting, humanizeDbError } from '@/lib/utils'
+import { DB_TYPE_LABELS, greeting, humanizeDbError, matchesQuery } from '@/lib/utils'
 import type { Database, RealtorSubscription } from '@/types'
 import CoachMark from '@/components/ui/CoachMark'
 import { useOnboarding } from '@/hooks/useOnboarding'
@@ -62,7 +62,7 @@ export default function RealtorDashboardScreen() {
   }, [user])
 
   const filtered = subscriptions.filter((s) =>
-    s.database?.name.toLowerCase().includes(search.toLowerCase()) ?? false
+    matchesQuery(search, s.database?.name, s.database?.address)
   )
 
   const greet = greeting()

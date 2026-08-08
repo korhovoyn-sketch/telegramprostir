@@ -20,7 +20,7 @@ import FolderPickerModal from '@/components/ui/FolderPickerModal'
 import Collapsible from '@/components/ui/Collapsible'
 import { IconCheck, IconPlus, IconDots, IconPhoto, IconChevronUp, IconChevronDown, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconCopy, IconUser, IconUsers, IconFile, IconLayers, IconLayoutGrid, IconChartBar, IconKey, IconFileExport, IconCircleCheck, IconAdjustments, IconTrash, IconChevronRight, IconFolder, IconInbox } from '@/components/Icons'
 import DatabaseStatsPanel from '@/components/ui/DatabaseStatsPanel'
-import { formatPrice, calcRent, calcRentUtils, basisArea, floorSortKey, computedRentUnit, rentUnitLabel, objectsWord, DB_TYPE_LABELS, formatLeasePeriod, STATUS_COLORS } from '@/lib/utils'
+import { formatPrice, calcRent, calcRentUtils, basisArea, floorSortKey, computedRentUnit, rentUnitLabel, objectsWord, DB_TYPE_LABELS, formatLeasePeriod, STATUS_COLORS, matchesQuery } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import type { Database, Property, PropertyStatus } from '@/types'
 import DbPickerModal from '@/components/ui/DbPickerModal'
@@ -200,7 +200,7 @@ export default function DatabaseObjectsScreen() {
 
   const filtered = useMemo(() => {
     const base = properties.filter((p) => {
-      const matchSearch = p.name.toLowerCase().includes(search.toLowerCase())
+      const matchSearch = matchesQuery(search, p.name, p.tenant_name, p.floor, p.address, p.description)
       const matchTab = tab === 'all' || p.status === tab
       return matchSearch && matchTab
     })
