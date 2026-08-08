@@ -46,9 +46,9 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
   --bd-s:.5px solid rgba(255,255,255,.26);
   --bd-strong:1px solid rgba(255,255,255,.32);
   --t1:#fff;
-  --t2:rgba(255,255,255,.72);
-  --t3:rgba(255,255,255,.55);
-  --t4:rgba(255,255,255,.46);
+  --t2:rgba(255,255,255,.84);
+  --t3:rgba(255,255,255,.74);
+  --t4:rgba(255,255,255,.64);
   --ok:#34C759;--ok-light:#40D46B;--ok-bg:rgba(52,199,89,.18);--ok-fg:#a4f0c1;--ok-bd:rgba(52,199,89,.28);
   --warn:#FF9500;--warn-bg:rgba(255,149,0,.18);--warn-fg:#ffc985;--warn-bd:rgba(255,149,0,.28);
   --err:#FF3B30;--err-bg:rgba(255,59,48,.16);--err-fg:#ffacac;--err-bd:rgba(255,59,48,.26);
@@ -470,9 +470,9 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 .dash-bar{height:3px;background:rgba(255,255,255,.1);border-radius:2px;margin:8px 0 5px;overflow:hidden}
 .dash-bar-fill{height:100%;border-radius:2px}
 /* Dash label — Caption 2 uppercase */
-.dash-l{font-size:var(--fs-cap2);color:rgba(255,255,255,.65);font-weight:var(--fw-semi);text-transform:uppercase;letter-spacing:.06em;line-height:1.2}
+.dash-l{font-size:var(--fs-cap2);color:var(--t3);font-weight:var(--fw-semi);text-transform:uppercase;letter-spacing:.06em;line-height:1.2}
 /* Dash subtext — Caption 2 */
-.dash-sub{font-size:var(--fs-cap2);color:rgba(255,255,255,.48);margin-top:3px;line-height:var(--lh-snug)}
+.dash-sub{font-size:var(--fs-cap2);color:var(--t4);margin-top:3px;line-height:var(--lh-snug)}
 
 /* ── OBJ HERO ── */
 .obj-hero{height:min(184px,27vh);position:relative;background:linear-gradient(145deg,#152d52,#2563a8);display:flex;align-items:center;justify-content:center}
