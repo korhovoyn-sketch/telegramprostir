@@ -682,7 +682,7 @@ function DatabaseView({ rows, token }: { rows: DbRow[]; token: string }) {
                     <div style={{ fontSize: 'var(--fs-sub)', fontWeight: 600, flex: 1 }}>{p.property_name}</div>
                     {p.property_status && (
                       <span style={{
-                        fontSize: 'var(--fs-cap2)', fontWeight: 700, padding: '3px 8px', borderRadius: 7, flexShrink: 0,
+                        fontSize: 'var(--fs-cap2)', fontWeight: 700, padding: '3px 8px', borderRadius: 'var(--r-xs)', flexShrink: 0,
                         background: STATUS_BG[p.property_status] ?? STATUS_BG.free,
                         color: STATUS_COLOR[p.property_status] ?? STATUS_COLOR.free,
                       }}>
