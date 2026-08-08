@@ -3,7 +3,7 @@
 import { useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import { useAppStore } from '@/store/appStore'
-import { hapticNotify, layoutShrunkByKeyboard } from '@/lib/telegram'
+import { hapticNotify, layoutShrunkByKeyboard, telegramSafeArea } from '@/lib/telegram'
 import { useAuth } from '@/hooks/useAuth'
 import { useDeepLink } from '@/hooks/useDeepLink'
 import { useNotifications } from '@/hooks/useNotifications'
@@ -75,9 +75,30 @@ export default function Page() {
       tgAny.setBackgroundColor?.(TG_CHROME_BG)
       tgAny.disableVerticalSwipes?.()
     } catch { /* older TMA versions may not support these APIs */ }
+    // Застосунок ТЕМНИЙ незалежно від теми Telegram (світла давала білі смуги
+    // під нативним хромом). Атрибут лишається як діагностичний слід — «яку тему
+    // повідомив клієнт»; жоден CSS його НЕ читає і не має читати: скоупнутий
+    // світлий блок уже колись перефарбовував текст у чорний.
     if (tg.colorScheme) {
       document.documentElement.dataset.tgTheme = tg.colorScheme
     }
+
+    // Врізи від Telegram: у його iOS-webview env(safe-area-inset-*) не
+    // наповнюється, тож весь наш хром (таббар, CTA, панель обраних) сідав би під
+    // home-індикатор. CSS бере max(env, --tg-safe-*), тобто це підсилення, а не
+    // заміна: де env працює, нічого не змінюється.
+    function applySafeArea() {
+      const { top, bottom } = telegramSafeArea()
+      const root = document.documentElement.style
+      root.setProperty('--tg-safe-top', `${top}px`)
+      root.setProperty('--tg-safe-bottom', `${bottom}px`)
+    }
+    applySafeArea()
+    tgAny.onEvent?.('safeAreaChanged', applySafeArea)
+    tgAny.onEvent?.('contentSafeAreaChanged', applySafeArea)
+    // Fullscreen міняє саме contentSafeArea — старі клієнти події не надсилають,
+    // тож перечитуємо ще й на зміні вʼюпорта.
+    tgAny.onEvent?.('fullscreenChanged', applySafeArea)
 
     // Keyboard height comes from two independent signals and we take the max:
     // - Telegram viewportChanged (works on Android where the webview resizes)
@@ -111,8 +132,12 @@ export default function Page() {
       tg!.expand()
       applyViewportHeight()
     }
+    function onViewportChanged() {
+      applyViewportHeight()
+      applySafeArea()
+    }
     applyViewportHeight()
-    tgAny.onEvent?.('viewportChanged', applyViewportHeight)
+    tgAny.onEvent?.('viewportChanged', onViewportChanged)
     tgAny.onEvent?.('activated', onActivated)
 
     // Keyboard height must react only to the keyboard opening/closing (resize),
@@ -129,8 +154,11 @@ export default function Page() {
     window.visualViewport?.addEventListener('resize', applyKeyboardFromVV)
 
     return () => {
-      tgAny.offEvent?.('viewportChanged', applyViewportHeight)
+      tgAny.offEvent?.('viewportChanged', onViewportChanged)
       tgAny.offEvent?.('activated', onActivated)
+      tgAny.offEvent?.('safeAreaChanged', applySafeArea)
+      tgAny.offEvent?.('contentSafeAreaChanged', applySafeArea)
+      tgAny.offEvent?.('fullscreenChanged', applySafeArea)
       window.visualViewport?.removeEventListener('resize', applyKeyboardFromVV)
     }
   }, [])

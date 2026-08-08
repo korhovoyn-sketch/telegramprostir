@@ -43,6 +43,7 @@ export default function DbPickerModal({ databases, count, onPick, onCreate, onCl
           <input
             className="fold-mng-input"
             value={newName}
+            aria-label="Назва нової бази"
             placeholder="Назва нової бази…"
             autoFocus
             onChange={(e) => setNewName(e.target.value)}

@@ -88,6 +88,7 @@ export default function CreateDatabaseScreen() {
           <div className="fr">
             <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconEdit size={14} color="var(--t3)" />Назва</span>
             <input
+              aria-label="Назва бази"
               className="fr-i"
               placeholder="БЦ Олімп"
               value={name}
@@ -99,6 +100,7 @@ export default function CreateDatabaseScreen() {
           <div className="fr">
             <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconMapPin size={14} color="var(--t3)" />Адреса</span>
             <input
+              aria-label="Адреса бази"
               className="fr-i"
               placeholder="Хрещатик 22"
               value={address}

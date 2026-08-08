@@ -11,7 +11,12 @@ const CSS_PATH = 'src/app/globals.css'
 
 // Токени, які задає РАНТАЙМ (JS або інлайн-стиль), а не :root. Кожен такий
 // обов'язково вживається з фолбеком — інакше він нічим не кращий за помилку.
-const RUNTIME_TOKENS = new Set(['--keyboard-h', '--tg-vh', '--pw'])
+const RUNTIME_TOKENS = new Set([
+  '--keyboard-h', '--tg-vh', '--pw',
+  // Врізи від Telegram: env() у його iOS-webview не наповнюється, тож ці два
+  // пише page.tsx із safeAreaInset/contentSafeAreaInset (обидва з фолбеком 0px).
+  '--tg-safe-top', '--tg-safe-bottom',
+])
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {

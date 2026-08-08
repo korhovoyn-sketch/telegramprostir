@@ -92,6 +92,7 @@ export default function ProfileSetupScreen() {
               <IconMail size={16} color="var(--t3)" />
               <span className="fr-l">Email</span>
               <input
+                aria-label="Email"
                 className="fr-i"
                 type="email"
                 placeholder="you@email.com"
@@ -103,6 +104,7 @@ export default function ProfileSetupScreen() {
               <IconPhone size={16} color="var(--t3)" />
               <span className="fr-l">Телефон</span>
               <input
+                aria-label="Телефон"
                 className="fr-i"
                 type="tel"
                 placeholder="+380 67 000 0000"

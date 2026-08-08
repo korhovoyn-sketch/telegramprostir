@@ -215,6 +215,7 @@ export default function TeamScreen() {
               <div className="fr" style={{ borderBottom: 'none' }}>
                 <div className="fr-l">Підпис (необов&apos;язково)</div>
                 <input
+                  aria-label="Підпис інвайта"
                   ref={labelInputRef}
                   className="fr-i"
                   type="text"

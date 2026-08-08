@@ -620,6 +620,7 @@ export default function PropertyDetailScreen() {
 
         {isOwner && (
           <input
+            aria-label="Додати фото"
             ref={fileInputRef}
             type="file"
             accept="image/*"
@@ -732,6 +733,7 @@ export default function PropertyDetailScreen() {
                   <div className="fld">
                     <div className="fld-l"><IconUser size={12} />Орендар</div>
                     <input
+                      aria-label="Орендар"
                       ref={tenantInputRef}
                       placeholder="ТОВ «Назва» або ФОП"
                       value={rentTenantName}
@@ -743,6 +745,7 @@ export default function PropertyDetailScreen() {
                   <div className="fld">
                     <div className="fld-l"><IconCurrencyDollar size={12} />Оренда, {rateUnit}</div>
                     <input
+                      aria-label="Орендна ставка"
                       type="text"
                       inputMode="decimal"
                       placeholder="0"
@@ -753,6 +756,7 @@ export default function PropertyDetailScreen() {
                   <div className="fld">
                     <div className="fld-l"><IconBolt size={12} />Експлуатаційні, {utilUnit}</div>
                     <input
+                      aria-label="Ставка експлуатаційних"
                       type="text"
                       inputMode="decimal"
                       placeholder="0"
@@ -765,6 +769,7 @@ export default function PropertyDetailScreen() {
                   <div className="fld">
                     <div className="fld-l"><IconKey size={12} />Договір з</div>
                     <input
+                      aria-label="Договір від"
                       type="date"
                       value={rentLeaseStart}
                       onChange={e => setRentLeaseStart(e.target.value)}
@@ -774,6 +779,7 @@ export default function PropertyDetailScreen() {
                   <div className="fld">
                     <div className="fld-l"><IconKey size={12} />Договір до</div>
                     <input
+                      aria-label="Договір до"
                       type="date"
                       value={rentLeaseEnd}
                       onChange={e => setRentLeaseEnd(e.target.value)}

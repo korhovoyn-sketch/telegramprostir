@@ -41,6 +41,7 @@ export default function FolderPickerModal({ folders, title, subtitle, currentFol
           <input
             className="fold-mng-input"
             value={newName}
+            aria-label="Назва нової папки"
             placeholder="Назва папки…"
             autoFocus
             onChange={(e) => setNewName(e.target.value)}

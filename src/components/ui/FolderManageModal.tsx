@@ -57,6 +57,7 @@ export default function FolderManageModal({ folders, counts, onCreate, onRename,
           <input
             className="fold-mng-input"
             value={newName}
+            aria-label="Назва нової папки"
             placeholder="Нова папка…"
             onChange={(e) => setNewName(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') handleCreate() }}
