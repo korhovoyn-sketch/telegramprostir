@@ -32,7 +32,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
   /* ── Font weights ── */
   --fw-reg:400;--fw-med:500;--fw-semi:600;--fw-bold:700;--fw-heavy:800;
   --glass-0:rgba(255,255,255,.06);
-  --glass-1:rgba(255,255,255,.04);
+  --glass-1:rgba(255,255,255,.04);--glass-card:rgba(6,5,14,.22);
   --glass-2:rgba(255,255,255,.08);
   --glass-3:rgba(255,255,255,.14);
   --glass-4:rgba(255,255,255,.22);
@@ -46,9 +46,9 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
   --bd-s:.5px solid rgba(255,255,255,.26);
   --bd-strong:1px solid rgba(255,255,255,.32);
   --t1:#fff;
-  --t2:rgba(255,255,255,.72);
-  --t3:rgba(255,255,255,.55);
-  --t4:rgba(255,255,255,.46);
+  --t2:rgba(255,255,255,.84);
+  --t3:rgba(255,255,255,.74);
+  --t4:rgba(255,255,255,.64);
   --ok:#34C759;--ok-light:#40D46B;--ok-bg:rgba(52,199,89,.18);--ok-fg:#a4f0c1;--ok-bd:rgba(52,199,89,.28);
   --warn:#FF9500;--warn-bg:rgba(255,149,0,.18);--warn-fg:#ffc985;--warn-bd:rgba(255,149,0,.28);
   --err:#FF3B30;--err-bg:rgba(255,59,48,.16);--err-fg:#ffacac;--err-bd:rgba(255,59,48,.26);
@@ -211,7 +211,7 @@ body{
 
 /* ── GLASS ── */
 .glass{background:var(--glass-2);backdrop-filter:blur(32px) saturate(180%) brightness(1.06);-webkit-backdrop-filter:blur(32px) saturate(180%) brightness(1.06);border:var(--bd)}
-.glass-s{background:var(--glass-1);backdrop-filter:blur(28px) saturate(170%) brightness(1.04);-webkit-backdrop-filter:blur(28px) saturate(170%) brightness(1.04);border:var(--bd)}
+.glass-s{background:var(--glass-card);backdrop-filter:blur(28px) saturate(170%) brightness(.9);-webkit-backdrop-filter:blur(28px) saturate(170%) brightness(.9);border:var(--bd)}
 .glass-d{background:var(--glass-3);backdrop-filter:blur(36px) saturate(190%) brightness(1.08);-webkit-backdrop-filter:blur(36px) saturate(190%) brightness(1.08);border:var(--bd-s)}
 
 /* ── HEADER — bare floating controls, gradient scrim ──
@@ -470,9 +470,9 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 .dash-bar{height:3px;background:rgba(255,255,255,.1);border-radius:2px;margin:8px 0 5px;overflow:hidden}
 .dash-bar-fill{height:100%;border-radius:2px}
 /* Dash label — Caption 2 uppercase */
-.dash-l{font-size:var(--fs-cap2);color:rgba(255,255,255,.65);font-weight:var(--fw-semi);text-transform:uppercase;letter-spacing:.06em;line-height:1.2}
+.dash-l{font-size:var(--fs-cap2);color:var(--t3);font-weight:var(--fw-semi);text-transform:uppercase;letter-spacing:.06em;line-height:1.2}
 /* Dash subtext — Caption 2 */
-.dash-sub{font-size:var(--fs-cap2);color:rgba(255,255,255,.48);margin-top:3px;line-height:var(--lh-snug)}
+.dash-sub{font-size:var(--fs-cap2);color:var(--t4);margin-top:3px;line-height:var(--lh-snug)}
 
 /* ── OBJ HERO ── */
 .obj-hero{height:min(184px,27vh);position:relative;background:linear-gradient(145deg,#152d52,#2563a8);display:flex;align-items:center;justify-content:center}
@@ -721,6 +721,18 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 .fbtn{position:absolute;bottom:calc(14px + var(--safe-bottom));left:50%;translate:-50% 0;
   height:var(--btn-h);padding:0 32px;min-width:200px;border-radius:var(--r-pill);z-index:20}
 
+
+/* ── ЗОНА ДОТИКУ ДО 44px (Apple HIG) ──────────────────────────────────────────
+   Ці контроли мають висоту 34-36px — компактність рядків тут свідома, тож
+   ВИГЛЯД не змінюємо, а розширюємо лише зону дотику невидимим ::after.
+   Розширювати можна тільки там, де по вертикалі немає ІНШОЇ інтерактивної цілі:
+   сегменти вкладок і мова/валюта стоять між хедером і списком, хедер-назад — у
+   хедері. Кнопки в рядку картки (.obj-act-btn) свідомо НЕ чіпаємо: над ними тіло
+   картки, яке відкриває обʼєкт, і розширена зона крала б у нього тапи. */
+.seg-b,.view-seg-b,.fr-seg-b,.notif-tab,.hdr-back{position:relative}
+.seg-b::after,.view-seg-b::after,.fr-seg-b::after,.notif-tab::after,.hdr-back::after{
+  content:'';position:absolute;left:0;right:0;top:50%;translate:0 -50%;
+  height:44px;pointer-events:auto}
 
 /* ── ACTION SHEET (Apple inset-grouped menu) ── */
 .sheet-group{background:var(--glass-1);border:var(--bd);border-radius:var(--r-md);overflow:hidden;margin-bottom:10px}

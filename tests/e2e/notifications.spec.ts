@@ -143,3 +143,38 @@ test('падіння запиту сповіщень не валить екра�
   await expect(page.getByText('Сповіщення').first()).toBeVisible({ timeout: 15_000 })
   await expect(page.getByText('Щось пішло не так'), 'екран мусить вижити').toHaveCount(0)
 })
+
+test('повільний GET не оживляє бейдж після позначення прочитаним', async ({ page }) => {
+  // Детермінований відтворювач гонки: GET сповіщень відповідає ПОВІЛЬНО, тож
+  // якщо екран не дочікується завантаження перед markAllAsRead, серверні рядки
+  // (де is_read ще false) перетруть локально прочитаний стан — бейдж повернеться,
+  // а рядки намалюються непрочитаними. Саме це й ловив флейк у паралельному
+  // прогоні, коли лічильник перевели на requestIdleCallback.
+  const wire: Wire = { patches: [], deletes: [] }
+  await setupApp(page, { user: USER })
+  await skipCoachmarks(page)
+  const json = (r: Route, body: unknown) =>
+    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+  await page.route('**/rest/v1/databases**', (r) => json(r, [DB]))
+  await page.route('**/rest/v1/properties**', (r) => json(r, []))
+  await page.route('**/rest/v1/notifications**', async (r) => {
+    const m = r.request().method()
+    if (m === 'PATCH') { wire.patches.push(r.request().url()); return json(r, []) }
+    if (m === 'DELETE') { wire.deletes.push(r.request().url()); return json(r, []) }
+    await new Promise((res) => setTimeout(res, 500))
+    return json(r, [notif(1), notif(2)])
+  })
+  for (const t of ['property_folders', 'property_files', 'rent_payments', 'rent_payment_records', 'property_views', 'db_members']) {
+    await page.route(`**/rest/v1/${t}**`, (r) => json(r, []))
+  }
+
+  await openApp(page)
+  await page.locator('.tabbar [aria-label="Сповіщення"]').click()
+  await expect(page.getByText('Перегляд об\'єкта 1')).toBeVisible({ timeout: 15_000 })
+  await expect.poll(() => wire.patches.length, { timeout: 10_000 }).toBeGreaterThan(0)
+
+  // Даємо будь-якій запізнілій відповіді час перетерти стан.
+  await page.waitForTimeout(900)
+  await expect(badge(page), 'бейдж не мусить оживати').toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Прочитано' }), 'кнопки «Прочитано» теж бути не має').toHaveCount(0)
+})

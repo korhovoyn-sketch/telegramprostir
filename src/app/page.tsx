@@ -202,11 +202,26 @@ export default function Page() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Populate notification badge as soon as the user is known — without this
-  // the unreadCount in the TabBar/header dots stays 0 until the user explicitly
-  // opens the Notifications screen in the same session.
+  // Лічильник непрочитаних — щоб бейдж у таббарі не лишався нулем до того, як
+  // користувач сам відкриє екран сповіщень.
+  //
+  // Але НЕ на критичному шляху: цей запит спрацьовував одразу на встановлення
+  // user, тобто вилітав РАНІШЕ за запит даних екрана і конкурував з ним за
+  // зʼєднання. Малює він при цьому лише бейдж. Тож чекаємо, поки головний потік
+  // звільниться — контент має виграти гонку.
   useEffect(() => {
-    if (userId) loadNotifications()
+    if (!userId) return
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ric = (window as any).requestIdleCallback as
+      | ((cb: () => void, o?: { timeout: number }) => number)
+      | undefined
+    const id = ric ? ric(() => loadNotifications(), { timeout: 2000 }) : window.setTimeout(loadNotifications, 500)
+    return () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cancel = (window as any).cancelIdleCallback as ((h: number) => void) | undefined
+      if (ric && cancel) cancel(id)
+      else clearTimeout(id)
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId])
 

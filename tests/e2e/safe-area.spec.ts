@@ -70,12 +70,14 @@ const readVars = (page: Page) => page.evaluate(() => {
  * елементу: у застосунку є нескінченні анімації (shimmer, orbPulse), їхній
  * `finished` не настане ніколи.
  */
-async function settle(page: Page, selector: string) {
-  await page.evaluate(async (sel) => {
-    const el = document.querySelector(sel)
-    if (!el) return
-    await Promise.all(el.getAnimations().map((a) => a.finished.catch(() => {})))
-  }, selector)
+async function settle(page: Page, ...selectors: string[]) {
+  await page.evaluate(async (sels) => {
+    const anims = sels.flatMap((sel) => {
+      const el = document.querySelector(sel)
+      return el ? el.getAnimations() : []
+    })
+    await Promise.all(anims.map((a) => a.finished.catch(() => {})))
+  }, selectors)
 }
 
 /** Відступ таббару від низу застосунку — на ньому найкраще видно вріз. */
@@ -95,7 +97,7 @@ test('вріз від Telegram піднімає хром, навіть коли 
   await page.goto('/')
   await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
 
-  await settle(page, '.tabbar')
+  await settle(page, '.scr', '.tabbar')
   const before = await tabbarGap(page)
   expect(before.paddingBottom, 'без врізу таббар без нижнього відступу').toBe(0)
 
@@ -108,7 +110,7 @@ test('вріз від Telegram піднімає хром, навіть коли 
   expect(vars.bottom, '--safe-bottom = max(env, telegram)').toBe('34px')
   expect(vars.top).toBe('47px')
 
-  await settle(page, '.tabbar')
+  await settle(page, '.scr', '.tabbar')
   const after = await tabbarGap(page)
   expect(after.paddingBottom, 'таббар отримав нижній відступ під індикатор').toBe(34)
   expect(after.height, 'висота таббару зросла на вріз').toBe(before.height + 34)
@@ -137,6 +139,7 @@ test('плаваюча CTA і панель обраних стоять вище 
   await page.locator('.obj-card', { hasText: 'Офіс 101' }).locator('.obj-t').click()
   await expect(page.getByRole('button', { name: /Звільнити/ })).toBeVisible({ timeout: 15_000 })
 
+  await settle(page, '.scr', '.fbtn')
   const gapBefore = await page.evaluate(() => {
     const btn = document.querySelector('.fbtn') as HTMLElement
     const root = document.getElementById('app-root') as HTMLElement
@@ -146,6 +149,7 @@ test('плаваюча CTA і панель обраних стоять вище 
   await page.evaluate(() => (window as unknown as { __tgSafeArea: SafeAreaFn }).__tgSafeArea({ bottom: 34 }))
   await page.waitForTimeout(250)
 
+  await settle(page, '.scr', '.fbtn')
   const gapAfter = await page.evaluate(() => {
     const btn = document.querySelector('.fbtn') as HTMLElement
     const root = document.getElementById('app-root') as HTMLElement

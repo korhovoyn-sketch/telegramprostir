@@ -12,6 +12,11 @@ const SANDBOX_CHROMIUM = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
 const launchOptions = existsSync(SANDBOX_CHROMIUM) ? { executablePath: SANDBOX_CHROMIUM } : {}
 export default defineConfig({
   testDir: './tests/e2e',
+  // Замірні спеки (`_*.spec.ts`) не входять у звичайний прогін: вони не гарди, а
+  // інструмент — друкують хвилю запитів і кадри, свідомо ганяються з
+  // `--workers=1`, і в паралельному прогоні їхні цифри однаково безглузді.
+  // Запуск: npx playwright test _perf --workers=1
+  testIgnore: process.env.PERF ? [] : ['**/_*.spec.ts'],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,

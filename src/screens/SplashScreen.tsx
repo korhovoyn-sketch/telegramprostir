@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '@/store/appStore'
-import { useAuth, RESTORE_BUDGET_MS } from '@/hooks/useAuth'
+import { useAuth, RESTORE_BUDGET_MS, PROFILE_KEY } from '@/hooks/useAuth'
 import { useTelegram } from '@/hooks/useTelegram'
 import { isDeepLinkStartParam, parseStartParam } from '@/lib/telegram'
 
@@ -22,15 +22,46 @@ export default function SplashScreen() {
   const { isReady } = useTelegram()
   const startedRef = useRef(false)
 
-  // Prefetch screens the user will land on right after splash
+  // Префетч екранів. Раніше тягнулись усі сім одразу — тобто на критичному
+  // шляху лежали й екрани ролей, якими цей користувач ніколи не буде (власнику
+  // не потрібні ні дашборд рієлтора, ні гостьовий дім). На повільному звʼязку ці
+  // чанки конкурують із запитом даних, який і малює контент.
+  //
+  // Тепер: ОДРАЗУ лише той екран, куди приведе саме цей старт — роль відома
+  // СИНХРОННО з кешованого профілю. Решта — коли головний потік вільний.
   useEffect(() => {
-    import('@/screens/WelcomeScreen')
-    import('@/screens/DatabaseListScreen')
-    import('@/screens/RealtorDashboardScreen')
-    import('@/screens/GuestHomeScreen')
-    import('@/screens/DatabaseObjectsScreen')
-    import('@/screens/ProfileScreen')
-    import('@/screens/NotificationsScreen')
+    const landing = () => {
+      try {
+        const raw = localStorage.getItem(PROFILE_KEY)
+        const role = raw ? (JSON.parse(raw) as { role?: string }).role : null
+        if (role === 'owner')   return import('@/screens/DatabaseListScreen')
+        if (role === 'realtor') return import('@/screens/RealtorDashboardScreen')
+        if (role === 'guest')   return import('@/screens/GuestHomeScreen')
+      } catch { /* приватний режим або зіпсований кеш — падаємо у Welcome */ }
+      return import('@/screens/WelcomeScreen')
+    }
+    landing()
+
+    const rest = () => {
+      import('@/screens/WelcomeScreen')
+      import('@/screens/DatabaseListScreen')
+      import('@/screens/RealtorDashboardScreen')
+      import('@/screens/GuestHomeScreen')
+      import('@/screens/DatabaseObjectsScreen')
+      import('@/screens/ProfileScreen')
+      import('@/screens/NotificationsScreen')
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ric = (window as any).requestIdleCallback as
+      | ((cb: () => void, o?: { timeout: number }) => number)
+      | undefined
+    const id = ric ? ric(rest, { timeout: 1500 }) : window.setTimeout(rest, 400)
+    return () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cancel = (window as any).cancelIdleCallback as ((h: number) => void) | undefined
+      if (ric && cancel) cancel(id)
+      else clearTimeout(id)
+    }
   }, [])
 
   // Pre-warm the Edge Function immediately so it isn't cold when session restore
