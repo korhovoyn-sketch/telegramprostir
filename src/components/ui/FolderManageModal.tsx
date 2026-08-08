@@ -5,6 +5,7 @@ import Modal from '@/components/ui/Modal'
 import { IconFolder, IconEdit, IconTrash, IconChevronUp, IconChevronDown, IconCheck, IconX, IconPlus } from '@/components/Icons'
 import { hapticSelection, hapticNotify } from '@/lib/telegram'
 import { objectsWord } from '@/lib/utils'
+import { confirmAction } from '@/lib/confirm'
 import type { PropertyFolder } from '@/types'
 
 interface Props {
@@ -24,7 +25,6 @@ export default function FolderManageModal({ folders, counts, onCreate, onRename,
   const [newName, setNewName] = useState('')
   const [creating, setCreating] = useState(false)
   // Видалення непорожньої папки лише ungroup-ає об'єкти — але це варто підтвердити.
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   function startEdit(f: PropertyFolder) {
     setEditingId(f.id)
@@ -43,7 +43,22 @@ export default function FolderManageModal({ folders, counts, onCreate, onRename,
     if (created) { setNewName(''); hapticNotify('success') }
   }
 
-  const delFolder = folders.find(f => f.id === confirmDeleteId)
+
+  async function askDelete(folder: PropertyFolder) {
+    const n = counts.get(folder.id) ?? 0
+    const ok = await confirmAction({
+      title: `Видалити папку «${folder.name}»?`,
+      // Папка не тягне за собою обʼєкти — вони лишаються в базі без групи,
+      // і це головне, що користувач мусить розуміти перед підтвердженням.
+      message: n > 0
+        ? `${n} ${objectsWord(n)} залишаться в базі, але без папки.`
+        : 'Порожня папка буде видалена.',
+      confirmLabel: 'Видалити',
+      destructive: true,
+    })
+    if (!ok) return
+    await onDelete(folder.id)
+  }
 
   return (
     <Modal title="Папки" subtitle="Групуйте об'єкти всередині бази" onClose={onClose}>
@@ -102,7 +117,7 @@ export default function FolderManageModal({ folders, counts, onCreate, onRename,
                     <button aria-label="Вгору" disabled={i === 0} onClick={() => { hapticSelection(); onReorder(f.id, 'up') }}><IconChevronUp size={16} /></button>
                     <button aria-label="Вниз" disabled={i === folders.length - 1} onClick={() => { hapticSelection(); onReorder(f.id, 'down') }}><IconChevronDown size={16} /></button>
                     <button aria-label="Перейменувати" onClick={() => startEdit(f)}><IconEdit size={16} /></button>
-                    <button aria-label="Видалити" className="danger" onClick={() => setConfirmDeleteId(f.id)}><IconTrash size={16} /></button>
+                    <button aria-label="Видалити" className="danger" onClick={() => void askDelete(f)}><IconTrash size={16} /></button>
                   </>
                 )}
               </div>
@@ -111,21 +126,6 @@ export default function FolderManageModal({ folders, counts, onCreate, onRename,
         })}
       </div>
 
-      {confirmDeleteId && (
-        <Modal
-          title={`Видалити папку «${delFolder?.name ?? ''}»?`}
-          subtitle={
-            (counts.get(confirmDeleteId) ?? 0) > 0
-              ? `${counts.get(confirmDeleteId)} ${objectsWord(counts.get(confirmDeleteId) ?? 0)} залишаться в базі, але без папки.`
-              : 'Порожня папка буде видалена.'
-          }
-          onClose={() => setConfirmDeleteId(null)}
-          actions={[
-            { label: 'Видалити', variant: 'danger', onClick: async () => { const id = confirmDeleteId; setConfirmDeleteId(null); hapticNotify('warning'); await onDelete(id) } },
-            { label: 'Скасувати', variant: 'secondary', onClick: () => setConfirmDeleteId(null) },
-          ]}
-        />
-      )}
     </Modal>
   )
 }

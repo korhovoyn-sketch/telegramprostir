@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { offlineGuard } from '@/lib/offline'
+import { confirmAction } from '@/lib/confirm'
 import { supabase } from '@/lib/supabase'
 import { humanizeDbError } from '@/lib/utils'
 import Header from '@/components/ui/Header'
@@ -37,7 +38,6 @@ export default function TeamScreen() {
   const [labelText, setLabelText] = useState('')
   const [newLink, setNewLink] = useState<string | null>(null)
   const [revoking, setRevoking] = useState<string | null>(null)
-  const [revokeTarget, setRevokeTarget] = useState<DbMember | null>(null)
   const labelInputRef = useRef<HTMLInputElement>(null)
 
   async function load() {
@@ -92,8 +92,15 @@ export default function TeamScreen() {
     }
   }
 
-  async function handleRevoke(id: string) {
-    if (offlineGuard()) return
+  async function handleRevoke(member: DbMember) {
+    const ok = await confirmAction({
+      title: 'Відкликати доступ?',
+      message: `«${member.member_name || member.label || 'Учасник'}» втратить право редагувати базу.`,
+      confirmLabel: 'Відкликати',
+      destructive: true,
+    })
+    if (!ok || offlineGuard()) return
+    const id = member.id
     setRevoking(id)
     try {
       const { error } = await supabase
@@ -184,7 +191,7 @@ export default function TeamScreen() {
                         <button
                           style={{ flex: 1, padding: '6px 0', borderRadius: 'var(--r-sm)', background: 'var(--err-bg)', border: 'none', fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', color: 'var(--err-fg)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, opacity: revoking === m.id ? .6 : 1 }}
                           disabled={revoking === m.id}
-                          onClick={() => setRevokeTarget(m)}
+                          onClick={() => handleRevoke(m)}
                         >
                           <IconBan size={12} />Відкликати
                         </button>
@@ -228,27 +235,6 @@ export default function TeamScreen() {
             </div>
           </div>
         </Modal>
-      )}
-
-      {revokeTarget && (
-        <Modal
-          title="Відкликати доступ?"
-          subtitle={`«${revokeTarget.member_name || revokeTarget.label || 'Учасник'}» втратить право редагувати базу.`}
-          onClose={() => setRevokeTarget(null)}
-          actions={[
-            {
-              label: 'Відкликати',
-              variant: 'danger',
-              onClick: () => {
-                hapticNotify('warning')
-                const id = revokeTarget.id
-                setRevokeTarget(null)
-                handleRevoke(id)
-              },
-            },
-            { label: 'Скасувати', variant: 'secondary', onClick: () => setRevokeTarget(null) },
-          ]}
-        />
       )}
 
       {newLink && (

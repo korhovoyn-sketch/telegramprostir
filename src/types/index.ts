@@ -201,6 +201,18 @@ export interface Toast {
   onAction?: () => void
 }
 
+/**
+ * Запит підтвердження для фолбек-модалки (коли нативного попапа Telegram нема).
+ * `resolve` — той самий проміс, який чекає `confirmAction()`.
+ */
+export interface ConfirmRequest {
+  title: string
+  message: string
+  confirmLabel: string
+  destructive?: boolean
+  resolve: (ok: boolean) => void
+}
+
 export type ScreenName =
   | 'splash'
   | 'welcome'

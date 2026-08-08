@@ -6,6 +6,7 @@ import { useAppStore } from '@/store/appStore'
 import RetryState from '@/components/ui/RetryState'
 import { hapticImpact, hapticNotify } from '@/lib/telegram'
 import { offlineGuard } from '@/lib/offline'
+import { confirmAction } from '@/lib/confirm'
 import { useProperties } from '@/hooks/useProperties'
 import Header from '@/components/ui/Header'
 import Modal from '@/components/ui/Modal'
@@ -98,7 +99,6 @@ export default function PropertyDetailScreen() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const tenantInputRef = useRef<HTMLInputElement>(null)
   const filesSectionRef = useRef<HTMLDivElement>(null)
-  const [photoToDelete, setPhotoToDelete] = useState<{ id: string; path: string } | null>(null)
   const [showRentModal, setShowRentModal] = useState(false)
   const [rentTenantName, setRentTenantName] = useState('')
   const [rentLeaseStart, setRentLeaseStart] = useState('')
@@ -241,15 +241,18 @@ export default function PropertyDetailScreen() {
     })
   }
 
-  async function confirmDeletePhoto() {
-    if (!photoToDelete) return
-    if (offlineGuard()) { setPhotoToDelete(null); return }
+  async function askDeletePhoto(photo: { id: string; path: string }) {
+    const ok = await confirmAction({
+      title: 'Видалити фото?',
+      message: 'Фото буде видалено назавжди. Це незворотно.',
+      confirmLabel: 'Видалити',
+      destructive: true,
+    })
+    if (!ok || offlineGuard()) return
     try {
-      await deletePhoto(photoToDelete.id, photoToDelete.path)
+      await deletePhoto(photo.id, photo.path)
     } catch {
       showToast({ type: 'error', title: 'Не вдалося видалити фото' })
-    } finally {
-      setPhotoToDelete(null)
     }
   }
 
@@ -593,7 +596,7 @@ export default function PropertyDetailScreen() {
               {isOwner && (
                 <button
                   aria-label="Видалити фото"
-                  onClick={(e) => { e.stopPropagation(); hapticImpact('light'); setPhotoToDelete({ id: photo.id, path: photo.storage_path }) }}
+                  onClick={(e) => { e.stopPropagation(); hapticImpact('light'); void askDeletePhoto({ id: photo.id, path: photo.storage_path }) }}
                   style={{
                     position: 'absolute', top: 3, right: 3,
                     width: 20, height: 20, borderRadius: '50%',
@@ -686,17 +689,6 @@ export default function PropertyDetailScreen() {
         />
       )}
 
-      {photoToDelete && (
-        <Modal
-          title="Видалити фото?"
-          subtitle="Фото буде видалено назавжди. Це незворотно."
-          onClose={() => setPhotoToDelete(null)}
-          actions={[
-            { label: 'Видалити', variant: 'danger', onClick: confirmDeletePhoto },
-            { label: 'Скасувати', variant: 'secondary', onClick: () => setPhotoToDelete(null) },
-          ]}
-        />
-      )}
 
       {showRentModal && (
         <Modal

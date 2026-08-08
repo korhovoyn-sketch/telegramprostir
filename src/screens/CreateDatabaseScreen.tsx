@@ -56,7 +56,7 @@ export default function CreateDatabaseScreen() {
 
   const canCreate = name.trim().length > 0 && type !== null
 
-  const nativeMain = useMainButton({
+  const { available: nativeMain } = useMainButton({
     text: isEdit ? 'Зберегти зміни' : 'Створити базу',
     visible: true,
     enabled: canCreate,

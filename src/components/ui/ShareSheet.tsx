@@ -5,6 +5,7 @@ import { z } from 'zod'
 import QRCode from 'react-qr-code'
 import { useAppStore } from '@/store/appStore'
 import { offlineGuard } from '@/lib/offline'
+import { confirmAction as confirmDestructive } from '@/lib/confirm'
 import { supabase } from '@/lib/supabase'
 import Modal from '@/components/ui/Modal'
 import { buildPublicUrl, openTelegramShare , hapticNotify } from '@/lib/telegram'
@@ -40,11 +41,6 @@ export default function ShareSheet({ kind, id, name, shareText, onClose }: Share
   const [resolvedName, setResolvedName] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
-  const [confirmAction, setConfirmAction] = useState<'rotate' | 'revoke' | null>(null)
-  // Реактивація мертвого лінка пресетом терміну — тільки через підтвердження:
-  // revoke лишає токен, тож set_expiry/clear_expiry повернули б доступ УСІМ,
-  // хто зберіг старе посилання, непомітно для власника.
-  const [pendingRevive, setPendingRevive] = useState<{ action: 'set_expiry' | 'clear_expiry'; days?: number } | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -105,6 +101,31 @@ export default function ShareSheet({ kind, id, name, shareText, onClose }: Share
     } finally {
       setBusy(false)
     }
+  }
+
+  async function askManage(action: 'rotate' | 'revoke') {
+    const ok = await confirmDestructive({
+      title: action === 'rotate' ? 'Оновити посилання?' : 'Відкликати доступ?',
+      message: action === 'rotate'
+        ? 'Старе посилання та QR-код перестануть працювати. Усі, з ким ви ділились, втратять доступ.'
+        : 'Посилання одразу стане неактивним. Ви зможете створити нове через «Оновити посилання».',
+      confirmLabel: action === 'rotate' ? 'Оновити' : 'Відкликати',
+      destructive: true,
+    })
+    if (ok) await runManage(action)
+  }
+
+  // Реактивація мертвого лінка пресетом терміну — тільки через підтвердження:
+  // revoke лишає токен, тож set_expiry/clear_expiry повернули б доступ УСІМ,
+  // хто зберіг старе посилання, непомітно для власника.
+  async function askRevive(action: 'set_expiry' | 'clear_expiry', days?: number) {
+    const ok = await confirmDestructive({
+      title: 'Активувати старе посилання?',
+      message: 'Воно знову запрацює для ВСІХ, хто його вже має — включно з тими, у кого ви відкликали доступ. Щоб роздати доступ заново, скористайтесь «Оновити посилання».',
+      confirmLabel: 'Активувати старе',
+      destructive: true,
+    })
+    if (ok) await runManage(action, days)
   }
 
   const url = token ? buildPublicUrl(kind, token) : ''
@@ -187,7 +208,7 @@ export default function ShareSheet({ kind, id, name, shareText, onClose }: Share
                 onClick={busy ? undefined : () => {
                   // Мертвий лінк (revoke/протухання) пресет ОЖИВЛЯЄ з тим самим
                   // токеном — це має бути свідоме рішення, не випадковий тап
-                  if (isExpired) setPendingRevive({ action, days })
+                  if (isExpired) askRevive(action, days)
                   else runManage(action, days)
                 }}
               >{label}</div>
@@ -198,50 +219,17 @@ export default function ShareSheet({ kind, id, name, shareText, onClose }: Share
 
       {/* Management */}
       <div className="sheet-group" style={{ marginBottom: 16 }}>
-        <div className="sheet-row" onClick={busy ? undefined : () => setConfirmAction('rotate')}>
+        <div className="sheet-row" onClick={busy ? undefined : () => askManage('rotate')}>
           <span className="sheet-ic"><IconRefresh size={16} /></span>
           <span className="sheet-lbl">Оновити посилання</span>
           <IconChevronRight size={16} className="sheet-chev" />
         </div>
-        <div className="sheet-row danger" onClick={busy ? undefined : () => setConfirmAction('revoke')}>
+        <div className="sheet-row danger" onClick={busy ? undefined : () => askManage('revoke')}>
           <span className="sheet-ic"><IconBan size={16} /></span>
           <span className="sheet-lbl">Відкликати доступ</span>
         </div>
       </div>
 
-      {pendingRevive && (
-        <Modal
-          title="Активувати старе посилання?"
-          subtitle="Воно знову запрацює для ВСІХ, хто його вже має — включно з тими, у кого ви відкликали доступ. Щоб роздати доступ заново, скористайтесь «Оновити посилання»."
-          onClose={() => setPendingRevive(null)}
-          actions={[
-            {
-              label: 'Активувати старе',
-              variant: 'danger',
-              onClick: async () => { const p = pendingRevive; setPendingRevive(null); await runManage(p.action, p.days) },
-            },
-            { label: 'Скасувати', variant: 'secondary', onClick: () => setPendingRevive(null) },
-          ]}
-        />
-      )}
-
-      {confirmAction && (
-        <Modal
-          title={confirmAction === 'rotate' ? 'Оновити посилання?' : 'Відкликати доступ?'}
-          subtitle={confirmAction === 'rotate'
-            ? 'Старе посилання та QR-код перестануть працювати. Усі, з ким ви ділились, втратять доступ.'
-            : 'Посилання одразу стане неактивним. Ви зможете створити нове через «Оновити посилання».'}
-          onClose={() => setConfirmAction(null)}
-          actions={[
-            {
-              label: confirmAction === 'rotate' ? 'Оновити' : 'Відкликати',
-              variant: 'danger',
-              onClick: async () => { const a = confirmAction; setConfirmAction(null); await runManage(a) },
-            },
-            { label: 'Скасувати', variant: 'secondary', onClick: () => setConfirmAction(null) },
-          ]}
-        />
-      )}
     </Modal>
   )
 }

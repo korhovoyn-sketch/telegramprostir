@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { usePropertyFiles } from '@/hooks/usePropertyFiles'
 import { useAppStore } from '@/store/appStore'
-import Modal from '@/components/ui/Modal'
+import { confirmAction } from '@/lib/confirm'
 import FilePreviewModal from '@/components/ui/FilePreviewModal'
 import { IconFile, IconPlus, IconTrash, IconEye, IconCloudUpload } from '@/components/Icons'
 import type { PropertyFile } from '@/types'
@@ -46,7 +46,6 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
     usePropertyFiles(propertyId)
   const { showToast } = useAppStore()
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [toDelete, setToDelete]     = useState<PropertyFile | null>(null)
   const [openingId, setOpeningId]   = useState<string | null>(null)
   const [previewFile, setPreviewFile] = useState<{ url: string; mime: string; name: string } | null>(null)
 
@@ -73,12 +72,17 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
     }
   }
 
-  async function handleDelete() {
-    if (!toDelete) return
-    await deleteFile(toDelete.id, toDelete.storage_path, msg =>
+  async function handleDelete(file: PropertyFile) {
+    const ok = await confirmAction({
+      title: 'Видалити файл?',
+      message: `«${file.file_name}» буде видалено назавжди.`,
+      confirmLabel: 'Видалити',
+      destructive: true,
+    })
+    if (!ok) return
+    await deleteFile(file.id, file.storage_path, msg =>
       showToast({ type: 'error', title: 'Помилка видалення', subtitle: msg })
     )
-    setToDelete(null)
     showToast({ type: 'success', title: 'Файл видалено' })
   }
 
@@ -200,7 +204,7 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
               {/* Delete (owner only) */}
               {isOwner && (
                 <button
-                  onClick={() => setToDelete(file)}
+                  onClick={() => void handleDelete(file)}
                   style={{
                     width: 32, height: 32, borderRadius: '50%',
                     background: 'var(--glass-2)', border: 'var(--bd)',
@@ -292,18 +296,6 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
         />
       )}
 
-      {/* ── Delete confirmation ── */}
-      {toDelete && (
-        <Modal
-          title="Видалити файл?"
-          subtitle={`«${toDelete.file_name}» буде видалено назавжди.`}
-          onClose={() => setToDelete(null)}
-          actions={[
-            { label: 'Видалити', variant: 'danger', onClick: handleDelete },
-            { label: 'Скасувати', variant: 'secondary', onClick: () => setToDelete(null) },
-          ]}
-        />
-      )}
     </>
   )
 }

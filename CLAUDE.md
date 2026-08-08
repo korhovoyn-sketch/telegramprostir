@@ -230,10 +230,11 @@ The session-start hook (`.claude/hooks/session-start.sh`) runs `npm install` and
 
 ## Testing
 
-- **Unit/component**: vitest 3 + jsdom + Testing Library (`tests/unit`, `tests/components`). Утиліти в `src/lib/utils.ts` покриті прицільно — плюрали, санітайзери, bulk-імена, розрахунки оренди. 111 unit.
-- **E2e**: Playwright, один проєкт `iphone-se` (375×667), 74 тести. Харнес `tests/e2e/helpers/harness.ts` — стаб `window.Telegram.WebApp` (initData, CloudStorage, BackButton; MainButton додають окремі тести) + повний мок Supabase REST/Auth через `page.route`. Тести НЕ ходять у мережу.
+- **Unit/component**: vitest 3 + jsdom + Testing Library (`tests/unit`, `tests/components`). Утиліти в `src/lib/utils.ts` покриті прицільно — плюрали, санітайзери, bulk-імена, розрахунки оренди. 136 unit.
+- **E2e**: Playwright, один проєкт `iphone-se` (375×667), 146 тестів. Харнес `tests/e2e/helpers/harness.ts` — стаб `window.Telegram.WebApp` (initData, CloudStorage, BackButton) + повний мок Supabase REST/Auth через `page.route`. Тести НЕ ходять у мережу.
 - **Спільні хелпери харнеса** (імпортуй, НЕ передекларовуй у спеку — легасі-копії в старих спеках мігруються поступово): `jsonRoute` (fulfill JSON), `skipCoachmarks` (сідить `ob_v1`), `seedSession` (сідить `ps_user` → Fast Path 0; без сесії Splash веде `db_`/`guest_` на публічний превʼю-екран замість useDeepLink-гілки — deep-link тести МУСЯТЬ сідити сесію).
-- **Ключові спеки**: `deeplinks.spec.ts` (вхідні флоу ролей: guest_/db_/prop_/col_; team_ у `team.spec.ts`), `deep-lifecycle.spec.ts` (платіжний цикл цілком, RLS 403, офлайн, фото наскрізно зі строгим лічильником storage-POST-ів — ловить регресію дабл-аплоуду), `share-flow.spec.ts` (manage_share рейки + revoked-стан), `screenshots.spec.ts` — скріншот-тур всіх екранів у `screenshots/` (gitignored).
+- **Опційні API Telegram у харнесі — вимкнені за замовчуванням**, бо саме так виглядає слабший клієнт, і фолбеки мусять лишатись покритими: `__tgEnablePopups(answer)` вмикає `showPopup` (`'ok' | 'cancel' | null`, відповідь асинхронна; виклики в `__tgPopups`), `__tgEnableMainButton(withSecondary)` — MainButton/SecondaryButton (стан у `__tgMain`/`__tgSecondary`, тап через `__tgMainClick()`/`__tgSecondaryClick()`). Без них екрани малюють DOM `.mbtn` і скляну модалку — і решта спеків перевіряє саме цей шлях.
+- **Ключові спеки**: `deeplinks.spec.ts` (вхідні флоу ролей: guest_/db_/prop_/col_; team_ у `team.spec.ts`), `deep-lifecycle.spec.ts` (платіжний цикл цілком, RLS 403, офлайн, фото наскрізно зі строгим лічильником storage-POST-ів — ловить регресію дабл-аплоуду), `share-flow.spec.ts` (manage_share рейки + revoked-стан), `native-confirm.spec.ts` (нативний попап + свайп-відмова + фолбек-модалка + пара MainButton/SecondaryButton), `screenshots.spec.ts` — скріншот-тур всіх екранів у `screenshots/` (gitignored).
 - **Флейки, які вже ловили** (перевір перед «лагодженням» коду):
   - клік у ЦЕНТР короткої `.obj-card` влучає в рядок дій — клікай `.locator('.obj-t')`;
   - заголовок календаря залежить від точки входу («Платежі — <назва>» vs «Календар платежів») — матч regex-ом;
@@ -273,8 +274,10 @@ The session-start hook (`.claude/hooks/session-start.sh`) runs `npm install` and
 ## Native Telegram chrome & MainButton
 
 - Хедер/фон/нижній бар — ЗАВЖДИ `#06050e` (верх усіх `.bg-*` градієнтів), незалежно від теми Telegram (застосунок темний; світла тема давала білі смуги). Ставиться в `layout.tsx`.
-- `useMainButton({ text, visible, enabled, loading, barColor, onClick })` — нативна кнопка форм. Зелена `#34C759` коли actionable, СІРА коли disabled (кастомний колір переживає `disable()` — треба перемикати вручну). `barColor` — нижній стоп градієнта екрана (форма об'єкта `.bg-blue` → `#5480dc`, створення бази `.bg-purple` → `#7e58d6`), скидається на unmount. DOM `.mbtn` лишається фолбеком поза Telegram (`!tg.initData`).
-- Всі виклики нових API Telegram (`setBottomBarColor`, `setParams`) — через `?.` (старі клієнти і тест-стаби).
+- `useMainButton({ text, visible, enabled, loading, barColor, onClick, secondary })` — нативна кнопка форм; повертає `{ available, secondaryAvailable }` (не boolean). Зелена `#34C759` коли actionable, СІРА коли disabled (кастомний колір переживає `disable()` — треба перемикати вручну). `barColor` — нижній стоп градієнта екрана (форма об'єкта `.bg-blue` → `#5480dc`, створення бази `.bg-purple` → `#7e58d6`), скидається на unmount. DOM `.mbtn` лишається фолбеком поза Telegram (`!tg.initData`).
+- `secondary: { text, destructive, onClick }` — парна нативна кнопка ЛІВОРУЧ (Bot API 7.10+, `SecondaryButton`). Заливка = `barColor`, тобто вона читається підписом на смузі, а не другою суцільною кнопкою, що сперечається з головною. Використана для пари «Зберегти зміни / Видалити» у формі об'єкта; поки `secondaryAvailable`, іконка-кошик у хедері ХОВАЄТЬСЯ — дублювати незворотну дію двома таргетами не можна. Старий клієнт без `SecondaryButton` лишає хедер-кошик як єдиний шлях.
+- Всі виклики нових API Telegram (`setBottomBarColor`, `setParams`, `SecondaryButton`) — через `?.` (старі клієнти і тест-стаби).
+- **Незворотні дії підтверджує `confirmAction()` з `lib/confirm.ts`, а не власна модалка.** Нативний `showPopup` несе авторитет платформи (видно, що питає Telegram, а не скрипт у webview); фолбек — `ConfirmHost` у `layout.tsx` з ТИМ САМИМ текстом, тож формулювання не розходяться між платформами. Повертає `Promise<boolean>`; патерн виклику — `const ok = await confirmAction({...}); if (!ok || offlineGuard()) return`. **Порядок важливий:** гард офлайну ПІСЛЯ підтвердження, інакше користувач бачить тост про офлайн, ще нічого не підтвердивши. Свайп-закриття попапа віддає `null` → трактується як відмова. НЕ для підтверджень із введенням: нативний попап має лише кнопки, тож видалення акаунта (набір слова «ВИДАЛИТИ») свідомо лишається на власній модалці.
 - **Тема: застосунок ТЕМНИЙ, і це рішення, а не недогляд.** `themeParams` свідомо
   не застосовуються (світла тема давала білі смуги під нативним хромом, а вся
   мова інтерфейсу — темне скло). `data-tg-theme` на `<html>` ставиться лише як
@@ -639,4 +642,8 @@ ALLOWED_ORIGIN=https://<your-vercel-domain>.vercel.app
 - Глибокі ланцюги: дабл-аплоуд фото (StrictMode double-invoke mount-ефекту); платіжний цикл/403/офлайн покриті e2e.
 - Gap-огляд: дрейф deep-link-префіксів (3 копії без team_) → `isDeepLinkStartParam()`.
 - 8-кутовий code-review дифу: revoke оживлявся пресетом терміну без підтвердження; вічний спінер share-шита для легасі-рядка офлайн; error-тости на silent-шляху. Деталі процесу і класи багів — «Audit playbook §4».
-- Тестова база: 111 unit + 74 e2e; спільні тест-хелпери в harness.ts.
+- Тестова база: 136 unit + 146 e2e; спільні тест-хелпери в harness.ts.
+
+**Відповідність платформі (серпень 2026)**
+- Врізи Telegram (`safeAreaInset` + `contentSafeAreaInset`, Bot API 8.0) — `env()` у webview Telegram iOS ненадійний; доступні назви для полів/кнопок/зображень; темна тема оголошена свідомим рішенням.
+- Незворотні дії → нативний `showPopup` через `confirmAction()` (13 місць: бази, об'єкти, фото, файли, папки, розклад платежів, скасування платежу, підбірки, ротація/відкликання шарингу, реактивація мертвого лінка, команда, гості) з фолбеком `ConfirmHost`. Пара «Зберегти зміни / Видалити» у формі об'єкта — на нативній нижній смузі (`SecondaryButton`).

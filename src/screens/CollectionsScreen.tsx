@@ -6,6 +6,7 @@ import RetryState from '@/components/ui/RetryState'
 import { SkeletonList } from '@/components/ui/SkeletonLoader'
 import { hapticNotify } from '@/lib/telegram'
 import { offlineGuard } from '@/lib/offline'
+import { confirmAction } from '@/lib/confirm'
 import { supabase } from '@/lib/supabase'
 import TabBar from '@/components/ui/TabBar'
 import { StatusBadge } from '@/components/ui/Badge'
@@ -121,7 +122,6 @@ function CollectionDetail({
   const [availableProps, setAvailableProps] = useState<Property[]>([])
   const [loadingAvail, setLoadingAvail] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
-  const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showShare, setShowShare] = useState(false)
 
   const loadCollectionProperties = useCallback(async () => {
@@ -246,7 +246,13 @@ function CollectionDetail({
   }
 
   async function deleteCollection() {
-    if (offlineGuard()) return
+    const ok = await confirmAction({
+      title: 'Видалити підбірку?',
+      message: `Підбірку "${collection.name}" буде видалено. Це незворотно.`,
+      confirmLabel: 'Видалити',
+      destructive: true,
+    })
+    if (!ok || offlineGuard()) return
     try {
       const { error } = await supabase
         .from('collections')
@@ -258,8 +264,6 @@ function CollectionDetail({
       onDelete(collection.id)
     } catch (e) {
       showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
-    } finally {
-      setShowDeleteModal(false)
     }
   }
 
@@ -289,7 +293,7 @@ function CollectionDetail({
           <button
             className="hdr-a"
             aria-label="Видалити підбірку"
-            onClick={() => setShowDeleteModal(true)}
+            onClick={deleteCollection}
             style={{ background: 'none', border: 'var(--bd)', color: 'var(--err)' }}
           >
             <IconTrash size={16} />
@@ -437,18 +441,6 @@ function CollectionDetail({
             )}
           </div>
         </Modal>
-      )}
-
-      {showDeleteModal && (
-        <Modal
-          title="Видалити підбірку?"
-          subtitle={`Підбірку "${collection.name}" буде видалено. Це незворотно.`}
-          onClose={() => setShowDeleteModal(false)}
-          actions={[
-            { label: 'Видалити', variant: 'danger', onClick: () => { hapticNotify('warning'); deleteCollection() } },
-            { label: 'Скасувати', variant: 'secondary', onClick: () => setShowDeleteModal(false) },
-          ]}
-        />
       )}
 
       {showShare && (

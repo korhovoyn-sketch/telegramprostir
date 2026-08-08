@@ -116,6 +116,57 @@ export async function installTelegram(page: Page, opts: HarnessOptions = {}) {
         tg.viewportHeight = h
         for (const cb of listeners.get('viewportChanged') ?? []) cb({ isStateStable: true })
       }
+      // Нативний попап — ОПЦІЙНО (клієнти без нього мусять і далі покриватись
+      // фолбек-модалкою, тож базовий стаб його НЕ має). Тест вмикає його сам і
+      // задає відповідь: 'ok' | 'cancel' | null (закриття свайпом).
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(window as any).__tgEnablePopups = (answer: string | null = 'ok') => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const w = window as any
+        w.__tgPopups = []
+        w.__tgPopupAnswer = answer
+        w.Telegram.WebApp.showPopup = (
+          params: unknown,
+          cb?: (id: string | null) => void,
+        ) => {
+          w.__tgPopups.push(params)
+          // Реальний Telegram віддає відповідь асинхронно — синхронний виклик
+          // приховав би гонки, яких у продакшені не буде.
+          setTimeout(() => cb?.(w.__tgPopupAnswer), 30)
+        }
+      }
+      // MainButton/SecondaryButton — теж опційно: без них екрани малюють DOM
+      // `.mbtn`, і саме цей шлях перевіряє решта тестів.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(window as any).__tgEnableMainButton = (withSecondary = true) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const w = window as any
+        const make = (name: string) => {
+          const clicks: (() => void)[] = []
+          const state: Record<string, unknown> = { name, isVisible: false, text: '', params: {} }
+          w[`__tg${name}`] = state
+          w[`__tg${name}Click`] = () => { for (const c of clicks) c() }
+          return {
+            setText(t: string) { state.text = t },
+            setParams(p: Record<string, unknown>) {
+              state.params = { ...(state.params as object), ...p }
+              if (typeof p.text === 'string') state.text = p.text
+              if (typeof p.is_visible === 'boolean') state.isVisible = p.is_visible
+            },
+            show() { state.isVisible = true },
+            hide() { state.isVisible = false },
+            enable() { state.isActive = true },
+            disable() { state.isActive = false },
+            showProgress() { state.progress = true },
+            hideProgress() { state.progress = false },
+            onClick(fn: () => void) { clicks.push(fn) },
+            offClick(fn: () => void) { const i = clicks.indexOf(fn); if (i >= 0) clicks.splice(i, 1) },
+          }
+        }
+        w.Telegram.WebApp.MainButton = make('Main')
+        w.Telegram.WebApp.setBottomBarColor = () => {}
+        if (withSecondary) w.Telegram.WebApp.SecondaryButton = make('Secondary')
+      }
     },
     { tgId: user.tg_id, firstName: user.first_name, username: user.tg_username, startParam: opts.startParam },
   )
