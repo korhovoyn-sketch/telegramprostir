@@ -10,7 +10,7 @@ import { useAppStore } from '@/store/appStore'
 import type { User } from '@/types'
 
 const SESSION_KEY     = 'ps_session'
-const PROFILE_KEY     = 'ps_user'
+export const PROFILE_KEY = 'ps_user'
 const PROFILE_CS_KEY  = 'ps_user_cs'
 
 // Set true before calling signOut so the SIGNED_OUT listener doesn't re-navigate
