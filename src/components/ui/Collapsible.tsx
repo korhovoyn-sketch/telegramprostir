@@ -18,6 +18,20 @@ import { useEffect, useRef, useState } from 'react'
 const DURATION = 300
 const EASE = 'cubic-bezier(.16,1,.3,1)'
 
+/**
+ * `prefers-reduced-motion` мусимо читати ТУТ, у JS.
+ *
+ * Блок `@media (prefers-reduced-motion: reduce)` у globals.css гасить
+ * `animation`/`transition` — але Web Animations API (`el.animate()`) він не
+ * зупиняє в принципі: це не CSS-анімація. Тобто акордеон рухався 300 мс навіть
+ * тоді, коли користувач вимкнув рух у налаштуваннях системи — єдине місце
+ * застосунку, що обходило власне ж правило.
+ */
+function prefersReducedMotion(): boolean {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
 export default function Collapsible({ open, className, children }: {
   open: boolean
   className?: string
@@ -46,6 +60,17 @@ export default function Collapsible({ open, className, children }: {
     }
 
     animRef.current?.cancel()
+
+    // Рух вимкнено — стрибаємо в кінцевий стан тим самим кодом, що й після
+    // завершення анімації. Кінцевий стан ОДИН, тож розходження станів між
+    // шляхами неможливе.
+    if (prefersReducedMotion()) {
+      outer.classList.remove('fold-anim')
+      outer.style.height = open ? 'auto' : '0px'
+      outer.style.opacity = open ? '1' : '0'
+      outer.style.visibility = open ? 'visible' : 'hidden'
+      return
+    }
 
     const from = outer.getBoundingClientRect().height
     const to = open ? inner.getBoundingClientRect().height : 0
