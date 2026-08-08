@@ -231,9 +231,10 @@ The session-start hook (`.claude/hooks/session-start.sh`) runs `npm install` and
 ## Testing
 
 - **Unit/component**: vitest 3 + jsdom + Testing Library (`tests/unit`, `tests/components`). Утиліти в `src/lib/utils.ts` покриті прицільно — плюрали, санітайзери, bulk-імена, розрахунки оренди. 136 unit.
-- **E2e**: Playwright, один проєкт `iphone-se` (375×667), 154 тести. Харнес `tests/e2e/helpers/harness.ts` — стаб `window.Telegram.WebApp` (initData, CloudStorage, BackButton) + повний мок Supabase REST/Auth через `page.route`. Тести НЕ ходять у мережу.
+- **E2e**: Playwright, один проєкт `iphone-se` (375×667), 156 тестів. Харнес `tests/e2e/helpers/harness.ts` — стаб `window.Telegram.WebApp` (initData, CloudStorage, BackButton) + повний мок Supabase REST/Auth через `page.route`. Тести НЕ ходять у мережу.
 - **Спільні хелпери харнеса** (імпортуй, НЕ передекларовуй у спеку — легасі-копії в старих спеках мігруються поступово): `jsonRoute` (fulfill JSON), `skipCoachmarks` (сідить `ob_v1`), `seedSession` (сідить `ps_user` → Fast Path 0; без сесії Splash веде `db_`/`guest_` на публічний превʼю-екран замість useDeepLink-гілки — deep-link тести МУСЯТЬ сідити сесію).
 - **Опційні API Telegram у харнесі — вимкнені за замовчуванням**, бо саме так виглядає слабший клієнт, і фолбеки мусять лишатись покритими: `__tgEnablePopups(answer)` вмикає `showPopup` (`'ok' | 'cancel' | null`, відповідь асинхронна; виклики в `__tgPopups`), `__tgEnableMainButton(withSecondary)` — MainButton/SecondaryButton (стан у `__tgMain`/`__tgSecondary`, тап через `__tgMainClick()`/`__tgSecondaryClick()`). Без них екрани малюють DOM `.mbtn` і скляну модалку — і решта спеків перевіряє саме цей шлях.
+- **`native-client-sweep.spec.ts` — обхід усіх екранів із УВІМКНЕНОЮ нативною смугою і попапами.** Решта спеків ганяє слабший клієнт (DOM-фолбеки), а прод працює саме з нативними API — цей прохід закриває прогалину, через яку падіння форми створення не бачив жоден зі 150 тестів. Перевіряє: ЖОДЕН екран не в ErrorBoundary, підписи кнопок по екранах, і що кнопка не «протікає» на наступний екран після unmount. Новий екран із `useMainButton` = новий крок тут.
 - **Ключові спеки**: `deeplinks.spec.ts` (вхідні флоу ролей: guest_/db_/prop_/col_; team_ у `team.spec.ts`), `deep-lifecycle.spec.ts` (платіжний цикл цілком, RLS 403, офлайн, фото наскрізно зі строгим лічильником storage-POST-ів — ловить регресію дабл-аплоуду), `share-flow.spec.ts` (manage_share рейки + revoked-стан), `native-confirm.spec.ts` (нативний попап + свайп-відмова + фолбек-модалка + пара MainButton/SecondaryButton), `screenshots.spec.ts` — скріншот-тур всіх екранів у `screenshots/` (gitignored).
 - **Флейки, які вже ловили** (перевір перед «лагодженням» коду):
   - клік у ЦЕНТР короткої `.obj-card` влучає в рядок дій — клікай `.locator('.obj-t')`;
@@ -645,7 +646,7 @@ ALLOWED_ORIGIN=https://<your-vercel-domain>.vercel.app
 - Глибокі ланцюги: дабл-аплоуд фото (StrictMode double-invoke mount-ефекту); платіжний цикл/403/офлайн покриті e2e.
 - Gap-огляд: дрейф deep-link-префіксів (3 копії без team_) → `isDeepLinkStartParam()`.
 - 8-кутовий code-review дифу: revoke оживлявся пресетом терміну без підтвердження; вічний спінер share-шита для легасі-рядка офлайн; error-тости на silent-шляху. Деталі процесу і класи багів — «Audit playbook §4».
-- Тестова база: 145 unit + 154 e2e; спільні тест-хелпери в harness.ts.
+- Тестова база: 171 unit + 156 e2e; спільні тест-хелпери в harness.ts.
 
 **Відповідність платформі (серпень 2026)**
 - Врізи Telegram (`safeAreaInset` + `contentSafeAreaInset`, Bot API 8.0) — `env()` у webview Telegram iOS ненадійний; доступні назви для полів/кнопок/зображень; темна тема оголошена свідомим рішенням.
