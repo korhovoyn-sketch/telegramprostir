@@ -180,17 +180,37 @@ test('контраст: екрани власника', async ({ page }) => {
  */
 const smallTargets = (page: Page, min: number) => page.evaluate((m) => {
   const out: { cls: string; label: string; w: number; h: number }[] = []
-  document.querySelectorAll('button,[role="button"],a,input[type="checkbox"],.sheet-row,.notif-tab,.seg-b,.fr-seg-b,.tab,.obj-act-btn').forEach((el) => {
+  const bar = document.querySelector('.tabbar') as HTMLElement | null
+  const fold = bar ? bar.getBoundingClientRect().top : window.innerHeight
+  document.querySelectorAll('button,[role="button"],a,input[type="checkbox"],.sheet-row,.notif-tab,.seg-b,.view-seg-b,.fr-seg-b,.tab,.obj-act-btn,.hdr-back').forEach((el) => {
     const e = el as HTMLElement
     const r = e.getBoundingClientRect()
     if (r.width < 4 || r.height < 4) return
-    if (r.top < 0 || r.bottom > window.innerHeight) return
+    if (r.top < 0 || r.bottom > fold) return
+    // Елемент у горизонтально прокрутному контейнері (напр. таби сповіщень) може
+    // фізично лежати ЗА межами viewport — це «ще не проскролено», а не малий
+    // тап-таргет. elementFromPoint там завжди null і фальшиво позначав effH=1.
+    if (r.left < 0 || r.right > window.innerWidth) return
     if (getComputedStyle(e).visibility === 'hidden') return
-    if (r.width < m || r.height < m) {
+    // ФАКТИЧНА зона дотику, а не бокс елемента: ::after розширює її, не змінюючи
+    // геометрію. Промацуємо вгору й вниз від центру, поки тап ще влучає в сам
+    // контрол — саме це відчуває палець.
+    const cx = Math.round(r.left + r.width / 2)
+    const cy = Math.round(r.top + r.height / 2)
+    const hits = (y: number) => {
+      if (y < 1 || y > fold - 1) return false
+      const h = document.elementFromPoint(cx, y)
+      return !!h && (h === e || e.contains(h) || h.contains(e))
+    }
+    let up = 0, down = 0
+    while (up < 30 && hits(cy - up - 1)) up++
+    while (down < 30 && hits(cy + down + 1)) down++
+    const effH = up + down + 1
+    if (r.width < m || effH < m) {
       out.push({
         cls: e.className?.toString().slice(0, 24) || e.tagName.toLowerCase(),
         label: (e.getAttribute('aria-label') || e.textContent || '').trim().slice(0, 22),
-        w: Math.round(r.width), h: Math.round(r.height),
+        w: Math.round(r.width), h: effH,
       })
     }
   })
@@ -232,4 +252,120 @@ test('тап-таргети проти Apple HIG 44×44', async ({ page }) => {
       console.log(`  ${String(b.w).padStart(3)}×${String(b.h).padStart(3)}  «${b.label}»  .${b.cls}`)
     }
   }
+})
+
+test('дії останньої картки не під таббаром', async ({ page }) => {
+  await setup(page)
+  await page.goto('/')
+  await page.getByText('БЦ Рубін').first().waitFor({ timeout: 20_000 })
+  await page.getByText('БЦ Рубін').first().click()
+  await page.getByText('Всі (1)').waitFor({ timeout: 15_000 })
+  // Прокручуємо в самий низ — саме там дії останньої картки зустрічаються з таббаром.
+  await page.evaluate(() => { const b = document.querySelector('.body') as HTMLElement; b.scrollTop = b.scrollHeight })
+  await page.waitForTimeout(600)
+
+  const res = await page.evaluate(() => {
+    const bar = document.querySelector('.tabbar') as HTMLElement
+    const barTop = bar.getBoundingClientRect().top
+    const acts = [...document.querySelectorAll('.obj-act-btn')] as HTMLElement[]
+    const last = acts[acts.length - 1]
+    const r = last?.getBoundingClientRect()
+    // Чи справді таббар перехоплює тап у центрі кнопки?
+    const cx = r ? Math.round(r.left + r.width / 2) : 0
+    const cy = r ? Math.round(r.top + r.height / 2) : 0
+    const hit = r ? document.elementFromPoint(cx, cy) : null
+    return {
+      barTop: Math.round(barTop),
+      lastBottom: r ? Math.round(r.bottom) : -1,
+      overlap: r ? Math.round(r.bottom - barTop) : -1,
+      hitClass: hit ? (hit.className?.toString().slice(0, 30) || hit.tagName) : 'нічого',
+      hitIsAction: !!hit?.closest('.obj-act-btn'),
+    }
+  })
+  console.log('\n─── ДІЇ КАРТКИ vs ТАББАР ───')
+  console.log(`верх таббару:        ${res.barTop}px`)
+  console.log(`низ останньої дії:   ${res.lastBottom}px`)
+  console.log(`перекриття:          ${res.overlap}px ${res.overlap > 0 ? '⚠' : '✓'}`)
+  console.log(`тап у центр влучає:  ${res.hitClass} → ${res.hitIsAction ? 'у кнопку ✓' : 'НЕ в кнопку ⚠'}`)
+})
+
+test('розширена зона дотику нікому не краде тапи', async ({ page }) => {
+  test.setTimeout(120_000)
+  await setup(page)
+  const steps: [string, () => Promise<void>][] = [
+    ['db-objects', async () => {
+      await page.goto('/'); await page.getByText('БЦ Рубін').first().waitFor({ timeout: 20_000 })
+      await page.getByText('БЦ Рубін').first().click(); await page.getByText('Всі (1)').waitFor({ timeout: 15_000 })
+    }],
+    ['profile', async () => {
+      await page.goto('/'); await page.getByText('Мої бази').waitFor({ timeout: 20_000 })
+      await page.locator('.tabbar [aria-label="Профіль"]').click()
+      await page.getByText('Налаштування').waitFor({ timeout: 15_000 })
+    }],
+    ['notifications', async () => {
+      await page.locator('.tabbar [aria-label="Сповіщення"]').click()
+      await page.getByText('Сповіщення').first().waitFor({ timeout: 15_000 })
+    }],
+  ]
+  for (const [label, go] of steps) {
+    await go()
+    await page.waitForTimeout(500)
+    const res = await page.evaluate(() => {
+      const bad: string[] = []
+      const bar = document.querySelector('.tabbar') as HTMLElement | null
+      const fold = bar ? bar.getBoundingClientRect().top : window.innerHeight
+      const targets = [...document.querySelectorAll('.seg-b,.view-seg-b,.fr-seg-b,.notif-tab,.hdr-back')] as HTMLElement[]
+      for (const t of targets) {
+        const r = t.getBoundingClientRect()
+        // Нижче таббару — це не «вкрадений тап», а просто нижче фолду.
+        if (r.width < 4 || r.top < 0 || r.bottom > fold) continue
+        // Центр і КРАЇ розширеної зони мусять влучати в сам контрол.
+        for (const dy of [-20, 0, 20]) {
+          const x = Math.round(r.left + r.width / 2)
+          const y = Math.round(r.top + r.height / 2 + dy)
+          if (y < 1 || y > fold - 1) continue
+          const hit = document.elementFromPoint(x, y)
+          if (!hit) continue
+          // Влучили або в себе, або в НЕінтерактивне — крадіжки немає.
+          const ownTarget = hit === t || t.contains(hit) || hit.contains(t)
+          const other = (hit as HTMLElement).closest('button,[role="button"],a,.sheet-row,.obj-card,.row,.notif-row')
+          if (!ownTarget && other && !t.contains(other)) {
+            bad.push(`${(t.className || '').toString().slice(0, 18)} @${dy > 0 ? '+' : ''}${dy} → ${(other.className || other.tagName).toString().slice(0, 24)}`)
+          }
+        }
+      }
+      return bad
+    })
+    console.log(`\n─── ${label}: конфліктів зони дотику — ${res.length} ───`)
+    for (const b of [...new Set(res)].slice(0, 8)) console.log('  ' + b)
+  }
+})
+
+test('діагностика: сегменти Профілю vs таббар', async ({ page }) => {
+  await setup(page)
+  await page.goto('/')
+  await page.getByText('Мої бази').waitFor({ timeout: 20_000 })
+  await page.locator('.tabbar [aria-label="Профіль"]').click()
+  await page.getByText('Налаштування').waitFor({ timeout: 15_000 })
+  await page.waitForTimeout(500)
+  const res = await page.evaluate(() => {
+    const bar = document.querySelector('.tabbar') as HTMLElement
+    const bt = bar.getBoundingClientRect()
+    const body = document.querySelector('.body') as HTMLElement
+    const segs = [...document.querySelectorAll('.fr-seg-b')] as HTMLElement[]
+    return {
+      barTop: Math.round(bt.top), barH: Math.round(bt.height),
+      bodyPadBottom: getComputedStyle(body).paddingBottom,
+      bodyClass: body.className,
+      scrollable: body.scrollHeight > body.clientHeight,
+      segs: segs.map((e) => {
+        const r = e.getBoundingClientRect()
+        return { t: Math.round(r.top), b: Math.round(r.bottom), label: (e.textContent || '').trim().slice(0, 6) }
+      }),
+    }
+  })
+  console.log('\n─── ПРОФІЛЬ: сегменти vs таббар ───')
+  console.log(`таббар: top=${res.barTop} height=${res.barH}`)
+  console.log(`.body: ${res.bodyClass} / padding-bottom=${res.bodyPadBottom} / прокрутний=${res.scrollable}`)
+  for (const s of res.segs) console.log(`  «${s.label}» ${s.t}…${s.b}  ${s.b > res.barTop ? '⚠ ПІД таббаром' : '✓'}`)
 })
