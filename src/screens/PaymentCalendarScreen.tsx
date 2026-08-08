@@ -5,6 +5,7 @@ import { useAppStore } from '@/store/appStore'
 import RetryState from '@/components/ui/RetryState'
 import { hapticImpact, hapticNotify } from '@/lib/telegram'
 import { offlineGuard } from '@/lib/offline'
+import { confirmAction } from '@/lib/confirm'
 import { supabase } from '@/lib/supabase'
 import Header from '@/components/ui/Header'
 import Modal from '@/components/ui/Modal'
@@ -68,12 +69,9 @@ export default function PaymentCalendarScreen() {
   const [setupNotify, setSetupNotify] = useState('3')
   const [setupSaving, setSetupSaving] = useState(false)
 
-  const [deleteScheduleProp, setDeleteScheduleProp] = useState<Property | null>(null)
-
   const [payConfirmItem, setPayConfirmItem]     = useState<PaymentItem | null>(null)
   const [payConfirmAmount, setPayConfirmAmount] = useState('')
   const [payConfirmNotes, setPayConfirmNotes]   = useState('')
-  const [unpayTarget, setUnpayTarget]           = useState<RentPaymentRecord | null>(null)
   const [showOnlyUnpaid, setShowOnlyUnpaid]     = useState(false)
 
   const propertyId = screenParams.propertyId as string | undefined
@@ -373,33 +371,41 @@ export default function PaymentCalendarScreen() {
     }
   }, [setupProp, user, setupDueDay, setupNotify, showToast])
 
-  const handleDeleteSchedule = useCallback(async () => {
-    if (!deleteScheduleProp) return
-    if (offlineGuard()) return
+  const handleDeleteSchedule = useCallback(async (prop: Property) => {
+    const ok = await confirmAction({
+      title: 'Видалити розклад?',
+      message: `Розклад платежів для «${prop.name}» буде видалено.`,
+      confirmLabel: 'Видалити',
+      destructive: true,
+    })
+    if (!ok || offlineGuard()) return
     try {
-      await supabase.from('rent_payments').delete().eq('property_id', deleteScheduleProp.id)
-      setSchedules(prev => prev.filter(s => s.property_id !== deleteScheduleProp.id))
+      await supabase.from('rent_payments').delete().eq('property_id', prop.id)
+      setSchedules(prev => prev.filter(s => s.property_id !== prop.id))
       showToast({ type: 'success', title: 'Розклад видалено' })
-      setDeleteScheduleProp(null)
     } catch (e) {
       showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
     }
-  }, [deleteScheduleProp, showToast])
+  }, [showToast])
 
-  const handleUnpay = useCallback(async () => {
-    if (!unpayTarget) return
-    if (offlineGuard()) return
+  const handleUnpay = useCallback(async (rec: RentPaymentRecord, propName: string) => {
+    const ok = await confirmAction({
+      title: 'Скасувати платіж?',
+      message: `${propName} · ${fmtDueDate(rec.due_date)}`,
+      confirmLabel: 'Скасувати платіж',
+      destructive: true,
+    })
+    if (!ok || offlineGuard()) return
     try {
-      const { error } = await supabase.from('rent_payment_records').delete().eq('id', unpayTarget.id)
+      const { error } = await supabase.from('rent_payment_records').delete().eq('id', rec.id)
       if (error) throw error
-      setRecords(prev => prev.filter(r => r.id !== unpayTarget.id))
-      if (archiveLoaded) setArchiveRecords(prev => prev.filter(r => r.id !== unpayTarget.id))
-      setUnpayTarget(null)
+      setRecords(prev => prev.filter(r => r.id !== rec.id))
+      if (archiveLoaded) setArchiveRecords(prev => prev.filter(r => r.id !== rec.id))
       showToast({ type: 'success', title: 'Платіж скасовано' })
     } catch (e) {
       showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
     }
-  }, [unpayTarget, archiveLoaded, showToast])
+  }, [archiveLoaded, showToast])
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
   function getStatusColor(item: PaymentItem): string {
@@ -574,9 +580,9 @@ export default function PaymentCalendarScreen() {
                           setSetupDueDay(String(sc?.due_day ?? 5))
                           setSetupNotify(String(sc?.notify_days_before ?? 3))
                         }}
-                        onDeleteSchedule={() => setDeleteScheduleProp(item.property)}
+                        onDeleteSchedule={() => handleDeleteSchedule(item.property)}
                         onEditPaid={() => setPayConfirmItem(item)}
-                        onUnpay={() => item.record && setUnpayTarget(item.record)}
+                        onUnpay={() => item.record && handleUnpay(item.record, item.property.name)}
                         userCurrency={user?.currency}
                       />
                     ))}
@@ -717,32 +723,6 @@ export default function PaymentCalendarScreen() {
             </div>
           </div>
         </Modal>
-      )}
-
-      {/* ── Delete schedule confirm ── */}
-      {deleteScheduleProp && (
-        <Modal
-          title="Видалити розклад?"
-          subtitle={`Розклад платежів для «${deleteScheduleProp.name}» буде видалено.`}
-          onClose={() => setDeleteScheduleProp(null)}
-          actions={[
-            { label: 'Видалити', variant: 'danger', onClick: () => { hapticNotify('warning'); handleDeleteSchedule() } },
-            { label: 'Скасувати', variant: 'secondary', onClick: () => setDeleteScheduleProp(null) },
-          ]}
-        />
-      )}
-
-      {/* ── Payment confirmation modal ── */}
-      {unpayTarget && (
-        <Modal
-          title="Скасувати платіж?"
-          subtitle={`${properties.find(p => p.id === unpayTarget.property_id)?.name ?? ''} · ${fmtDueDate(unpayTarget.due_date)}`}
-          onClose={() => setUnpayTarget(null)}
-          actions={[
-            { label: 'Скасувати платіж', variant: 'danger', onClick: handleUnpay },
-            { label: 'Назад', variant: 'secondary', onClick: () => setUnpayTarget(null) },
-          ]}
-        />
       )}
 
       {payConfirmItem && (

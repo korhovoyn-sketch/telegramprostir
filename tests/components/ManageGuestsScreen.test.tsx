@@ -7,8 +7,11 @@ import type { GuestLink } from '@/types'
 
 // ManageGuestsScreen loads guest_links via supabase.from('guest_links').select().eq().order(),
 // and revokes via .update({ status: 'revoked' }).eq('id', id). The revoke flow now requires
-// confirming in a Modal (handleRevoke is no longer called directly from the list button) —
-// this guards against the "one mistaken tap permanently revokes guest access" regression.
+// confirming via confirmAction() (handleRevoke is no longer called directly from the list
+// button) — this guards against the "one mistaken tap permanently revokes guest access"
+// regression. The dialog itself is rendered by ConfirmHost (mounted in layout, not in the
+// screen), so it is rendered alongside here; without showPopup in the Telegram mock
+// confirmAction takes exactly this in-app fallback path.
 
 const { updateEq, fromMock } = vi.hoisted(() => ({
   updateEq: vi.fn(),
@@ -21,6 +24,7 @@ vi.mock('@/lib/supabase', () => ({
 }))
 
 import ManageGuestsScreen from '@/screens/ManageGuestsScreen'
+import ConfirmHost from '@/components/ui/ConfirmHost'
 import { useAppStore } from '@/store/appStore'
 
 const OWNER = makeUser({ id: 'owner-uuid', role: 'owner' })
@@ -58,7 +62,7 @@ function installSupabaseMock(links: GuestLink[]) {
 
 beforeEach(() => {
   installTelegramMock({ user: { id: OWNER.tg_id, first_name: 'Test' } })
-  useAppStore.setState({ user: OWNER, screen: 'manage-guests', screenParams: { propertyId: 'prop-1' }, history: [] })
+  useAppStore.setState({ user: OWNER, screen: 'manage-guests', screenParams: { propertyId: 'prop-1' }, history: [], confirmRequest: null })
 })
 
 describe('ManageGuestsScreen — revoke confirmation', () => {
@@ -66,7 +70,7 @@ describe('ManageGuestsScreen — revoke confirmation', () => {
     const link = makeGuestLink()
     installSupabaseMock([link])
     const user = userEvent.setup()
-    render(<ManageGuestsScreen />)
+    render(<><ManageGuestsScreen /><ConfirmHost /></>)
 
     await waitFor(() => expect(screen.getByText('Орендар, кв. 5')).toBeInTheDocument())
 
@@ -80,7 +84,7 @@ describe('ManageGuestsScreen — revoke confirmation', () => {
     const link = makeGuestLink()
     installSupabaseMock([link])
     const user = userEvent.setup()
-    render(<ManageGuestsScreen />)
+    render(<><ManageGuestsScreen /><ConfirmHost /></>)
 
     await waitFor(() => expect(screen.getByText('Орендар, кв. 5')).toBeInTheDocument())
     await user.click(screen.getByRole('button', { name: /Відкликати/i }))
@@ -96,7 +100,7 @@ describe('ManageGuestsScreen — revoke confirmation', () => {
     const link = makeGuestLink()
     installSupabaseMock([link])
     const user = userEvent.setup()
-    render(<ManageGuestsScreen />)
+    render(<><ManageGuestsScreen /><ConfirmHost /></>)
 
     await waitFor(() => expect(screen.getByText('Орендар, кв. 5')).toBeInTheDocument())
     await user.click(screen.getByRole('button', { name: /Відкликати/i }))

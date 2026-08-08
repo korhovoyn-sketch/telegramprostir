@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { offlineGuard } from '@/lib/offline'
+import { confirmAction } from '@/lib/confirm'
 import { supabase } from '@/lib/supabase'
 import { humanizeDbError } from '@/lib/utils'
 import Header from '@/components/ui/Header'
@@ -33,7 +34,6 @@ export default function ManageGuestsScreen() {
   const [labelText, setLabelText] = useState('')
   const [newLink, setNewLink] = useState<string | null>(null)
   const [revoking, setRevoking] = useState<string | null>(null)
-  const [revokeTarget, setRevokeTarget] = useState<GuestLink | null>(null)
   const labelInputRef = useRef<HTMLInputElement>(null)
 
   const isProperty = !!screenParams.propertyId
@@ -98,8 +98,15 @@ export default function ManageGuestsScreen() {
     }
   }
 
-  async function handleRevoke(id: string) {
-    if (offlineGuard()) return
+  async function handleRevoke(link: GuestLink) {
+    const ok = await confirmAction({
+      title: 'Відкликати доступ?',
+      message: `Гість «${link.label ?? 'Гість'}» втратить доступ. Цю дію не можна скасувати.`,
+      confirmLabel: 'Відкликати',
+      destructive: true,
+    })
+    if (!ok || offlineGuard()) return
+    const id = link.id
     setRevoking(id)
     try {
       const { error } = await supabase
@@ -186,7 +193,7 @@ export default function ManageGuestsScreen() {
                         <button
                           style={{ flex: 1, padding: '6px 0', borderRadius: 'var(--r-sm)', background: 'var(--err-bg)', border: 'none', fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', color: 'var(--err-fg)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, opacity: revoking === link.id ? .6 : 1 }}
                           disabled={revoking === link.id}
-                          onClick={() => setRevokeTarget(link)}
+                          onClick={() => handleRevoke(link)}
                         >
                           <IconBan size={12} />Відкликати
                         </button>
@@ -232,26 +239,6 @@ export default function ManageGuestsScreen() {
         </Modal>
       )}
 
-      {revokeTarget && (
-        <Modal
-          title="Відкликати доступ?"
-          subtitle={`Гість «${revokeTarget.label ?? 'Гість'}» втратить доступ. Цю дію не можна скасувати.`}
-          onClose={() => setRevokeTarget(null)}
-          actions={[
-            {
-              label: 'Відкликати',
-              variant: 'danger',
-              onClick: () => {
-                hapticNotify('warning')
-                const id = revokeTarget.id
-                setRevokeTarget(null)
-                handleRevoke(id)
-              },
-            },
-            { label: 'Скасувати', variant: 'secondary', onClick: () => setRevokeTarget(null) },
-          ]}
-        />
-      )}
 
       {newLink && (
         <Modal

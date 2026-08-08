@@ -4,12 +4,12 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { hapticSelection, hapticNotify } from '@/lib/telegram'
 import { offlineGuard } from '@/lib/offline'
+import { confirmAction } from '@/lib/confirm'
 import { useProperties } from '@/hooks/useProperties'
 import { useFolders } from '@/hooks/useFolders'
 import { useMainButton } from '@/hooks/useMainButton'
 import Header from '@/components/ui/Header'
 import Toggle from '@/components/ui/Toggle'
-import Modal from '@/components/ui/Modal'
 import FolderPickerModal from '@/components/ui/FolderPickerModal'
 import { IconRuler, IconLayers, IconLayoutGrid, IconActivity, IconBuilding, IconCurrencyDollar, IconBolt, IconCarGarage, IconFile, IconUser, IconKey, IconMapPin, IconEdit, IconFolder, IconChevronRight, IconTrash } from '@/components/Icons'
 import { UTILITY_META } from '@/lib/utilityMeta'
@@ -75,7 +75,6 @@ export default function PropertyFormScreen() {
   // папки передає screenParams.folderId).
   const [folderId, setFolderId] = useState<string | null>((screenParams.folderId as string | undefined) ?? null)
   const [showFolderPicker, setShowFolderPicker] = useState(false)
-  const [showDeleteModal, setShowDeleteModal] = useState(false)
   // Bulk creation: how many objects to create from this one form (create mode
   // only). Names are auto-numbered from the entered name.
   const [count, setCount] = useState(1)
@@ -301,15 +300,20 @@ export default function PropertyFormScreen() {
 
   // Native Telegram MainButton is the primary action; the DOM button below is
   // the fallback for browsers outside Telegram.
-  const nativeMain = useMainButton({
+  const { available: nativeMain, secondaryAvailable: nativeDelete } = useMainButton({
     text: saveLabel,
-    // Hidden while a modal is up — its actions must be the only actionable
-    // primary button on screen.
-    visible: !showDeleteModal && !showFolderPicker,
+    // Ховаємо під нашими шитами (їхні кнопки мусять бути єдиною первинною
+    // дією). Нативний попап підтвердження ховати не треба — Telegram сам
+    // перекриває MainButton своїм діалогом.
+    visible: !showFolderPicker,
     enabled: canSave,
     loading,
     barColor: '#5480dc', // низ .bg-blue
     onClick: handleSave,
+    // У режимі редагування пара «Зберегти зміни / Видалити» живе на нижній
+    // смузі — там, де її очікує платформа. Іконка в хедері лишається лише як
+    // фолбек для клієнтів без SecondaryButton.
+    secondary: isEdit ? { text: 'Видалити', destructive: true, onClick: handleDeleteProperty } : undefined,
   })
 
   // Returns the numeric value, or undefined if string is empty/invalid.
@@ -318,6 +322,18 @@ export default function PropertyFormScreen() {
     if (s.trim() === '') return undefined
     const n = parseFloat(s)
     return isNaN(n) ? undefined : n
+  }
+
+  async function handleDeleteProperty() {
+    if (!editId) return
+    const ok = await confirmAction({
+      title: 'Видалити об\'єкт?',
+      message: `Об'єкт "${name}" буде видалено. Це незворотно.`,
+      confirmLabel: 'Видалити',
+      destructive: true,
+    })
+    if (!ok) return
+    await deleteProperty(editId, screenParams.dbId!)
   }
 
   async function handleSave() {
@@ -463,11 +479,11 @@ export default function PropertyFormScreen() {
         title={isEdit ? 'Редагування' : 'Новий об\'єкт'}
         backLabel={isEdit ? 'Назад' : 'База'}
         right={
-          isEdit ? (
+          isEdit && !nativeDelete ? (
             <button
               className="hdr-a"
               aria-label="Видалити об'єкт"
-              onClick={() => setShowDeleteModal(true)}
+              onClick={handleDeleteProperty}
               style={{ background: 'none', border: 'var(--bd)', color: 'var(--err)' }}
             >
               <IconTrash size={16} />
@@ -868,17 +884,6 @@ export default function PropertyFormScreen() {
         />
       )}
 
-      {showDeleteModal && editId && (
-        <Modal
-          title="Видалити об'єкт?"
-          subtitle={`Об'єкт "${name}" буде видалено. Це незворотно.`}
-          onClose={() => setShowDeleteModal(false)}
-          actions={[
-            { label: 'Видалити', variant: 'danger', onClick: async () => { hapticNotify('warning'); await deleteProperty(editId, screenParams.dbId!); setShowDeleteModal(false) } },
-            { label: 'Скасувати', variant: 'secondary', onClick: () => setShowDeleteModal(false) },
-          ]}
-        />
-      )}
     </div>
   )
 }

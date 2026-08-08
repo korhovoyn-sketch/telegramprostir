@@ -3,8 +3,9 @@
 import { useEffect, useState, useMemo, useRef } from 'react'
 import { useAppStore } from '@/store/appStore'
 import RetryState from '@/components/ui/RetryState'
-import { hapticSelection, hapticNotify } from '@/lib/telegram'
+import { hapticSelection } from '@/lib/telegram'
 import { offlineGuard } from '@/lib/offline'
+import { confirmAction } from '@/lib/confirm'
 import { useDatabases } from '@/hooks/useDatabases'
 import { useProperties } from '@/hooks/useProperties'
 import { useFolders } from '@/hooks/useFolders'
@@ -41,11 +42,9 @@ export default function DatabaseObjectsScreen() {
   const [tab, setTab] = useState<'all' | PropertyStatus>('all')
   const [sortBy, setSortBy] = useState<'default' | 'floor' | 'area' | 'rent'>('default')
   const [showMenu, setShowMenu] = useState(false)
-  const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [reorderMode, setReorderMode] = useState(false)
   const [selectMode, setSelectMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  const [showBatchDeleteModal, setShowBatchDeleteModal] = useState(false)
   const [showFolderManage, setShowFolderManage] = useState(false)
   const [showFolderPicker, setShowFolderPicker] = useState(false)
   const [showDbPicker, setShowDbPicker] = useState(false)
@@ -131,10 +130,29 @@ export default function DatabaseObjectsScreen() {
   }
 
   async function handleBatchDelete() {
-    setShowBatchDeleteModal(false)
+    const n = selectedIds.size
+    const ok = await confirmAction({
+      title: `Видалити ${n} ${objectsWord(n)}?`,
+      message: 'Всі вибрані об\'єкти і їхні фото будуть видалені. Це незворотно.',
+      confirmLabel: `Видалити (${n})`,
+      destructive: true,
+    })
+    if (!ok) return
     if (offlineGuard()) return
     await batchDeleteProperties([...selectedIds])
     exitSelectMode()
+  }
+
+  async function handleDeleteDatabase() {
+    if (!db) return
+    const ok = await confirmAction({
+      title: 'Видалити базу?',
+      message: `База "${db.name}" і всі ${properties.length} ${objectsWord(properties.length)} будуть видалені. Це незворотно.`,
+      confirmLabel: 'Видалити',
+      destructive: true,
+    })
+    if (!ok || offlineGuard()) return
+    await deleteDatabase(db.id)
   }
 
   async function handleBatchStatus(status: PropertyStatus) {
@@ -752,7 +770,7 @@ export default function DatabaseObjectsScreen() {
           <button
             className="batch-pill err"
             aria-label={`Видалити ${selectedIds.size} ${objectsWord(selectedIds.size)}`}
-            onClick={() => setShowBatchDeleteModal(true)}
+            onClick={handleBatchDelete}
           >
             <IconTrash size={16} />
           </button>
@@ -786,7 +804,7 @@ export default function DatabaseObjectsScreen() {
               { Icon: IconCircleCheck, label: 'Виділити об\'єкти',      nav: false, danger: false, action: enterSelectMode },
               { Icon: IconAdjustments, label: 'Змінити порядок',       nav: false, danger: false, action: enterReorderMode },
               { Icon: IconEdit,        label: 'Редагувати базу',       nav: true,  danger: false, action: () => { setShowMenu(false); navigate('edit-db', { dbId: db.id }) } },
-              { Icon: IconTrash,       label: 'Видалити базу',         nav: false, danger: true,  action: () => { setShowMenu(false); setShowDeleteModal(true) } },
+              { Icon: IconTrash,       label: 'Видалити базу',         nav: false, danger: true,  action: () => { setShowMenu(false); void handleDeleteDatabase() } },
             ].map(({ Icon, label, nav, danger, action }) => (
               <div key={label} className={`sheet-row${danger ? ' danger' : ''}`} onClick={action}>
                 <span className="sheet-ic"><Icon size={16} /></span>
@@ -838,31 +856,6 @@ export default function DatabaseObjectsScreen() {
         />
       )}
 
-      {/* Batch delete confirm */}
-      {showBatchDeleteModal && (
-        <Modal
-          title={`Видалити ${selectedIds.size} ${objectsWord(selectedIds.size)}?`}
-          subtitle="Всі вибрані об'єкти і їхні фото будуть видалені. Це незворотно."
-          onClose={() => setShowBatchDeleteModal(false)}
-          actions={[
-            { label: `Видалити (${selectedIds.size})`, variant: 'danger', onClick: handleBatchDelete },
-            { label: 'Скасувати', variant: 'secondary', onClick: () => setShowBatchDeleteModal(false) },
-          ]}
-        />
-      )}
-
-      {/* Delete confirm */}
-      {showDeleteModal && (
-        <Modal
-          title="Видалити базу?"
-          subtitle={`База "${db.name}" і всі ${properties.length} ${objectsWord(properties.length)} будуть видалені. Це незворотно.`}
-          onClose={() => setShowDeleteModal(false)}
-          actions={[
-            { label: 'Видалити', variant: 'danger', onClick: async () => { if (offlineGuard()) { setShowDeleteModal(false); return } hapticNotify('warning'); await deleteDatabase(db.id); setShowDeleteModal(false) } },
-            { label: 'Скасувати', variant: 'secondary', onClick: () => setShowDeleteModal(false) },
-          ]}
-        />
-      )}
     </div>
   )
 }

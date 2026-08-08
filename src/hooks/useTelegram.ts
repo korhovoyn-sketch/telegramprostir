@@ -42,6 +42,27 @@ interface TelegramWebApp {
     onClick: (fn: () => void) => void
     offClick: (fn: () => void) => void
   }
+  // Bot API 7.10+ — optional: старі клієнти його не мають, тому весь доступ
+  // через `?.` і фолбек на DOM-кнопку.
+  SecondaryButton?: {
+    setText: (text: string) => void
+    setParams: (params: {
+      text?: string
+      color?: string
+      text_color?: string
+      is_active?: boolean
+      is_visible?: boolean
+      position?: 'left' | 'right' | 'top' | 'bottom'
+    }) => void
+    show: () => void
+    hide: () => void
+    enable: () => void
+    disable: () => void
+    showProgress: (leaveActive?: boolean) => void
+    hideProgress: () => void
+    onClick: (fn: () => void) => void
+    offClick: (fn: () => void) => void
+  }
   HapticFeedback: {
     impactOccurred: (style: 'light' | 'medium' | 'heavy' | 'rigid' | 'soft') => void
     notificationOccurred: (type: 'error' | 'success' | 'warning') => void

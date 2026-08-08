@@ -1,7 +1,7 @@
 'use client'
 
 import { create } from 'zustand'
-import type { User, Toast, ScreenName, ScreenParams, Database, Notification } from '@/types'
+import type { User, Toast, ScreenName, ScreenParams, Database, Notification, ConfirmRequest } from '@/types'
 
 interface NavEntry {
   screen: ScreenName
@@ -16,6 +16,12 @@ interface AppState {
   navDirection: 'forward' | 'back' | 'root'
   user: User | null
   toast: Toast | null
+  /**
+   * Запит підтвердження, коли нативний попап Telegram недоступний (браузер,
+   * старий клієнт). Тримаємо в сторі, бо `confirmAction()` — звичайна async
+   * функція: вона не може сама відрендерити React-модалку.
+   */
+  confirmRequest: ConfirmRequest | null
   databases: Database[]
   notifications: Notification[]
   unreadCount: number
@@ -37,6 +43,9 @@ interface AppState {
   setUser: (user: User | null) => void
   showToast: (toast: Toast) => void
   hideToast: () => void
+  requestConfirm: (req: ConfirmRequest) => void
+  /** Відповідь користувача; резолвить проміс, який чекає `confirmAction()`. */
+  answerConfirm: (ok: boolean) => void
   setDatabases: (dbs: Database[]) => void
   memberDbIds: string[]
   setMemberDbIds: (ids: string[]) => void
@@ -56,6 +65,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   navDirection: 'root' as const,
   user: null,
   toast: null,
+  confirmRequest: null,
   databases: [],
   memberDbIds: [],
   notifications: [],
@@ -122,6 +132,14 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ toast: null })
       _toastTimer = null
     }, toast.onAction ? 5000 : 3500)
+  },
+
+  requestConfirm: (confirmRequest) => set({ confirmRequest }),
+
+  answerConfirm: (ok) => {
+    const req = get().confirmRequest
+    set({ confirmRequest: null })
+    req?.resolve(ok)
   },
 
   hideToast: () => {

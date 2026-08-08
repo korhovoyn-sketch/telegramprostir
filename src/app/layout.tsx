@@ -3,6 +3,7 @@
 import './globals.css'
 import { useEffect } from 'react'
 import Toast from '@/components/ui/Toast'
+import ConfirmHost from '@/components/ui/ConfirmHost'
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
@@ -62,6 +63,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div id="app-root">
           {children}
           <Toast />
+          <ConfirmHost />
         </div>
       </body>
     </html>
