@@ -62,6 +62,22 @@ const readVars = (page: Page) => page.evaluate(() => {
   return out
 })
 
+/**
+ * Чекає, поки СКІНЧЕНІ анімації елемента дограють. Без цього вимір геометрії
+ * ловить кадр анімації входу: `.tabbar` заїжджає з `scale(.92)`, тож базова
+ * висота читалась як 55 замість 56 — і `before.height + 34` розходився з
+ * фактичним на 1-2px (флейк, який ретрай маскував). Фільтруємо саме по
+ * елементу: у застосунку є нескінченні анімації (shimmer, orbPulse), їхній
+ * `finished` не настане ніколи.
+ */
+async function settle(page: Page, selector: string) {
+  await page.evaluate(async (sel) => {
+    const el = document.querySelector(sel)
+    if (!el) return
+    await Promise.all(el.getAnimations().map((a) => a.finished.catch(() => {})))
+  }, selector)
+}
+
 /** Відступ таббару від низу застосунку — на ньому найкраще видно вріз. */
 const tabbarGap = (page: Page) => page.evaluate(() => {
   const tab = document.querySelector('.tabbar') as HTMLElement
@@ -79,6 +95,7 @@ test('вріз від Telegram піднімає хром, навіть коли 
   await page.goto('/')
   await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
 
+  await settle(page, '.tabbar')
   const before = await tabbarGap(page)
   expect(before.paddingBottom, 'без врізу таббар без нижнього відступу').toBe(0)
 
@@ -91,6 +108,7 @@ test('вріз від Telegram піднімає хром, навіть коли 
   expect(vars.bottom, '--safe-bottom = max(env, telegram)').toBe('34px')
   expect(vars.top).toBe('47px')
 
+  await settle(page, '.tabbar')
   const after = await tabbarGap(page)
   expect(after.paddingBottom, 'таббар отримав нижній відступ під індикатор').toBe(34)
   expect(after.height, 'висота таббару зросла на вріз').toBe(before.height + 34)

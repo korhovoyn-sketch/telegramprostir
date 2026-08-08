@@ -105,11 +105,20 @@ export function currencySymbol(currency?: string | null): string {
 }
 
 export function formatPrice(amount: number, currency = 'USD'): string {
+  // Через цей форматер проходять УСІ гроші застосунку, тож він мусить бути
+  // невибухаючим: `undefined.toLocaleString` кидає і забирає екран у
+  // ErrorBoundary, а NaN друкує «$NaN» просто в картку. Обидва варіанти гірші
+  // за прочерк. Гарди на місцях виклику лишаються — це остання сітка, не
+  // дозвіл передавати сюди що завгодно.
+  if (!Number.isFinite(amount)) return '—'
   return `${currencySymbol(currency)}${amount.toLocaleString('uk-UA')}`
 }
 
 export function formatLeaseDate(d: string): string {
-  return new Date(d).toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  const dt = new Date(d)
+  // Нерозпізнаний рядок давав літеральне «Invalid Date» просто в картку.
+  if (Number.isNaN(dt.getTime())) return '—'
+  return dt.toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
 export function formatLeasePeriod(start?: string | null, end?: string | null): string | null {
@@ -121,6 +130,7 @@ export function formatLeasePeriod(start?: string | null, end?: string | null): s
 
 export function formatDate(iso: string): string {
   const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return '—'
   const now = new Date()
   const diff = now.getTime() - d.getTime()
   const mins = Math.floor(diff / 60000)
@@ -162,15 +172,26 @@ export function calcRent(areaUseful: number, rentRate: number, rentType: string)
   // per_m2 multiplies by useful area; fixed (monthly) and per_day (daily) store
   // the rate itself. calcRent returns the raw figure for that unit — for a
   // per_day spot that's the DAILY rate; monthlyRent() below scales it to a month.
-  if (rentType === 'fixed' || rentType === 'per_day') return rentRate
-  return Math.round(areaUseful * rentRate)
+  //
+  // Невідома ставка — це НУЛЬ, а не NaN: сирий NaN їхав далі в підсумки (сума
+  // ставала NaN цілком) і в компаратор сортування «за орендою», де будь-яке
+  // порівняння з NaN дає false, тобто порядок ставав довільним.
+  const rate = Number.isFinite(rentRate) ? rentRate : 0
+  if (rentType === 'fixed' || rentType === 'per_day') return rate
+  const area = Number.isFinite(areaUseful) ? areaUseful : 0
+  return Math.round(area * rate)
 }
 
 // Monthly value of a rent, used only for income aggregations (dashboard stats,
 // payment calendar). A daily parking rate is projected across ~30 days.
 const DAYS_PER_MONTH = 30
 export function monthlyRent(areaUseful: number, rentRate: number, rentType: string): number {
-  if (rentType === 'per_day') return Math.round(rentRate * DAYS_PER_MONTH)
+  // Власна гілка per_day не йде через calcRent, тож гард потрібен і тут: цією
+  // функцією рахуються АГРЕГАТИ (дохід дашборда, підсумки календаря), а один
+  // паркінг без добової ставки зробив би NaN усю суму, не свій рядок.
+  if (rentType === 'per_day') {
+    return Number.isFinite(rentRate) ? Math.round(rentRate * DAYS_PER_MONTH) : 0
+  }
   return calcRent(areaUseful, rentRate, rentType)
 }
 

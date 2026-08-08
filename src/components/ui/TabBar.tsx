@@ -54,25 +54,7 @@ export default function TabBar() {
               <div style={{ position: 'relative', display: 'inline-flex' }}>
                 {tab.icon(active)}
                 {tab.id === 'notifications' && unreadCount > 0 && (
-                  <span style={{
-                    position: 'absolute',
-                    top: -4,
-                    right: -4,
-                    width: 17,
-                    height: 17,
-                    borderRadius: '50%',
-                    background: 'var(--err)',
-                    border: '1.5px solid rgba(16,13,36,.9)',
-                    fontSize: 'var(--fs-cap3)',
-                    fontWeight: 'var(--fw-bold)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'var(--t1)',
-                    zIndex: 1,
-                  }}>
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
+                  <span className="tab-badge">{unreadCount > 9 ? '9+' : unreadCount}</span>
                 )}
               </div>
             </div>

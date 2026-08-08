@@ -40,7 +40,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
      обидва раніше використовувались як var(--bg)/var(--glass-bd), не будучи
      оголошеними: невідомий токен робить властивість невалідною, тож фон
      ставав прозорим, а рамка зникала. */
-  --bg:#040408;
+  --bg:#040408;--bg-badge-ring:rgba(16,13,36,.9);
   --glass-bd:rgba(255,255,255,.16);
   --bd:.5px solid rgba(255,255,255,.16);
   --bd-s:.5px solid rgba(255,255,255,.26);
@@ -839,6 +839,12 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 .tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:rgba(255,255,255,.45);cursor:pointer;position:relative;z-index:1;transition:color .25s var(--ease),transform .15s var(--ease)}
 /* Icon hit zone — sizing only, no visual container */
 .tab-ic{position:relative;display:flex;align-items:center;justify-content:center;width:44px;height:44px}
+/* Лічильник непрочитаних. Був інлайн-стилем без класу: інлайн rgba() проти
+   правила токенів, а без класу бейдж ще й неможливо було перевірити тестом. */
+.tab-badge{position:absolute;top:-4px;right:-4px;width:17px;height:17px;border-radius:50%;
+  background:var(--err);border:1.5px solid var(--bg-badge-ring);
+  font-size:var(--fs-cap3);font-weight:var(--fw-bold);color:var(--t1);
+  display:flex;align-items:center;justify-content:center;z-index:1}
 /* Glass glow — active filled icon (gradient fill lives in the SVG) gets a
    soft neon halo in its tab color */
 /* drop-shadow removed — clean minimalist design */
@@ -994,7 +1000,6 @@ svg.ico{overflow:visible}
 @keyframes galleryFadeIn{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:scale(1)}}
 @keyframes fpmSlideUp{from{opacity:0;transform:translateY(32px)}to{opacity:1;transform:translateY(0)}}
 @keyframes pingFx{0%{transform:scale(1)}50%{transform:scale(1.16)}100%{transform:scale(1)}}
-@keyframes drawLine{to{stroke-dashoffset:0}}
 
 /* ── MICRO-ANIMATION SYSTEM ── */
 
