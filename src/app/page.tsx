@@ -123,7 +123,14 @@ export default function Page() {
       const innerH = window.innerHeight || stable
       const layoutShrunk = layoutShrunkByKeyboard()
       // Висота, доступна лейауту ЗАРАЗ: у режимі стиснення це вже урізана.
-      const vh = stable > 0 ? Math.min(stable, innerH) : innerH
+      //
+      // Поки клавіатури НЕМА, авторитет — `viewportStableHeight`, а не
+      // `innerHeight`. Telegram надсилає viewportChanged ще до того, як webview
+      // домалює повернення висоти, тож `innerHeight` у цю мить лишається
+      // урізаним — і `min()` фіксував ту урізану висоту НАЗАВЖДИ (події більше
+      // не буде). Саме так під екраном оселялась чорна смуга після закриття
+      // клавіатури у формі об'єкта.
+      const vh = reported > 0 ? Math.min(stable, innerH) : (stable > 0 ? stable : innerH)
       if (vh > 0) document.documentElement.style.setProperty('--tg-vh', `${vh}px`)
       tgKbH = layoutShrunk ? 0 : reported
       applyKeyboardHeight()
@@ -150,8 +157,16 @@ export default function Page() {
       if (!vv) return
       vvKbH = Math.max(0, Math.round(window.innerHeight - vv.height))
       applyKeyboardHeight()
+      // Висоту оболонки перечитуємо ТУТ ТАКОЖ: resize вʼюпорта приходить уже
+      // після того, як лейаут осів, тобто це єдиний сигнал, який виправляє
+      // значення, зняте зарано на viewportChanged.
+      applyViewportHeight()
     }
     window.visualViewport?.addEventListener('resize', applyKeyboardFromVV)
+    // Telegram не надсилає viewportChanged на кожну зміну лейаута (поворот,
+    // згортання клавіатури «своїм» шляхом), а `#app-root` живе на --tg-vh —
+    // без цього слухача будь-яка пропущена подія лишає порожню смугу.
+    window.addEventListener('resize', applyViewportHeight)
 
     return () => {
       tgAny.offEvent?.('viewportChanged', onViewportChanged)
@@ -160,6 +175,7 @@ export default function Page() {
       tgAny.offEvent?.('contentSafeAreaChanged', applySafeArea)
       tgAny.offEvent?.('fullscreenChanged', applySafeArea)
       window.visualViewport?.removeEventListener('resize', applyKeyboardFromVV)
+      window.removeEventListener('resize', applyViewportHeight)
     }
   }, [])
 

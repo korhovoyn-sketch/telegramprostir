@@ -89,6 +89,35 @@ test('клавіатура СТИСКАЄ webview: другий раз її не
   expect(await vhVar(page), '--tg-vh дорівнює реально доступній висоті').toBe(full - 280)
 })
 
+test('після закриття клавіатури оболонка повертає всю висоту (без чорної смуги)', async ({ page }) => {
+  await setup(page)
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+
+  const width = page.viewportSize()!.width
+  const full = page.viewportSize()!.height
+  const kb = 260
+  const tgEval = (h: number) => page.evaluate((v) => (window as unknown as { __tgKeyboard: (n: number) => void }).__tgKeyboard(v), h)
+  await page.evaluate((v) => (window as unknown as { __tgViewportStable: (n: number) => void }).__tgViewportStable(v), full)
+
+  await page.setViewportSize({ width, height: full - kb })
+  await tgEval(kb)
+  await page.waitForTimeout(200)
+  expect(await vhVar(page)).toBe(full - kb)
+
+  // Ключ регресії: Telegram надсилає viewportChanged РАНІШЕ, ніж webview
+  // домалює повернення висоти, тобто в цю мить innerHeight ще урізаний. Старий
+  // код брав min(stable, innerHeight) і фіксував урізану висоту НАЗАВЖДИ —
+  // під екраном лишалась чорна смуга, і жодної наступної події не було.
+  await tgEval(0)
+  await page.setViewportSize({ width, height: full })
+  await page.waitForTimeout(300)
+
+  expect(await vhVar(page), 'висота оболонки повернулась').toBe(full)
+  const rootH = await page.evaluate(() => document.getElementById('app-root')!.getBoundingClientRect().height)
+  expect(Math.round(rootH), 'оболонка накриває весь екран — порожньої смуги немає').toBe(full)
+})
+
 test('модалка у стиснутому webview не затискається і не ховає поле під кнопки', async ({ page }) => {
   await setup(page)
   await openScheduleModal(page)
