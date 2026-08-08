@@ -14,9 +14,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       // above the dark gradient). #06050e ≈ the near-black top every .bg-*
       // gradient starts from.
       const dark = '#06050e'
-      tg.setHeaderColor?.(dark)
-      tg.setBackgroundColor?.(dark)
-      tg.setBottomBarColor?.(dark)
+      // try/catch, а не лише `?.`: нижня смуга Telegram кидає СИНХРОННО на
+      // невалідному параметрі чи непідтримуваній версії API, а вище layout
+      // ErrorBoundary немає — виняток тут забрав би весь застосунок, не екран.
+      try {
+        tg.setHeaderColor?.(dark)
+        tg.setBackgroundColor?.(dark)
+        tg.setBottomBarColor?.(dark)
+      } catch { /* старий клієнт / відкинутий параметр — хром лишається типовим */ }
     }
 
     // Global error capture — logs structured data without exposing PII.

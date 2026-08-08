@@ -127,3 +127,24 @@ describe('шкали дизайн-системи', () => {
     expect(bad, 'та сама крива має бути --ease*').toEqual([])
   })
 })
+
+// Мертвий @keyframes — це не лише байти в бандлі, а й фальшивий слід: наступний
+// розробник бачить назву й думає, що анімація десь працює. `drawLine` так і
+// пролежав невживаним.
+describe('анімації', () => {
+  it('кожен @keyframes десь вживається', () => {
+    const nc = stripComments(css)
+    const defined = [...nc.matchAll(/@keyframes\s+([a-zA-Z][a-zA-Z0-9]*)/g)].map((m) => m[1])
+    const used = new Set<string>()
+    for (const re of [/animation:\s*([a-zA-Z][a-zA-Z0-9]*)/g, /animation-name:\s*([a-zA-Z][a-zA-Z0-9]*)/g]) {
+      for (const m of nc.matchAll(re)) used.add(m[1])
+    }
+    // Анімації, які вішає JSX інлайн-стилем.
+    for (const file of files) {
+      if (!file.endsWith('.tsx')) continue
+      const txt = stripComments(readFileSync(file, 'utf8'))
+      for (const m of txt.matchAll(/animation:\s*['"`]?([a-zA-Z][a-zA-Z0-9]*)/g)) used.add(m[1])
+    }
+    expect(defined.filter((d) => !used.has(d)), 'невживаний keyframes').toEqual([])
+  })
+})

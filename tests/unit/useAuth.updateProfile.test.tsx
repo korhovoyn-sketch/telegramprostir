@@ -54,6 +54,21 @@ describe('useAuth.updateProfile', () => {
     expect(payload).toHaveProperty('updated_at')
   })
 
+  it('НЕ дає змінити роль, коли вона вже є (A04 — саме це і є самопідвищення)', async () => {
+    // Тест вище ставить user: null, тобто перевіряє ОНБОРДИНГ, де роль ще не
+    // обрано і пройти вона мусить. Справжня атака — у користувача роль уже є, і
+    // він пробує підмінити її запитом. Клієнтський стрип — другий шар над
+    // тригером prevent_privilege_escalation, і він мусить триматись сам.
+    useAppStore.setState({ user: makeUser({ role: 'realtor' }) })
+    const { result } = renderHook(() => useAuth())
+    await act(async () => {
+      await result.current.updateProfile({ role: 'owner', first_name: 'Микола' } as never)
+    })
+    const payload = h.updatePayload.mock.calls[0][0]
+    expect(payload, 'роль не має їхати в запит').not.toHaveProperty('role')
+    expect(payload, 'решта полів зберігається').toHaveProperty('first_name', 'Микола')
+  })
+
   it('returns true and shows a success toast on success (silent=false)', async () => {
     const { result } = renderHook(() => useAuth())
     let ret: boolean | undefined
