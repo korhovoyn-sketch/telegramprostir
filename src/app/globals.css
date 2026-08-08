@@ -692,18 +692,22 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
   -webkit-backdrop-filter:blur(28px) saturate(200%) brightness(1.06);
   transition:transform var(--dur-xs) var(--ease),filter var(--dur-xs) ease,box-shadow var(--dur-xs) var(--ease)}
 .btn-glass:active{transform:scale(.97);filter:brightness(1.1)}
+/* Зовнішня тінь — щільна і НЕЙТРАЛЬНА. Кольорове світіння на 26px читалось
+   ореолом ширше самої кнопки (на .bg-blue червона заливка ще й давала рожеву
+   пляму), тобто підсвічувало не кнопку, а повітря навколо. Об'єм тепер тримають
+   внутрішні відблиски — вони й роблять скло склом. */
 .btn-glass.ok{
   background:linear-gradient(180deg,rgba(52,199,89,.52),rgba(52,199,89,.34));
   border-color:rgba(64,212,107,.48);
-  box-shadow:0 8px 26px rgba(52,199,89,.28),inset 0 1px 0 rgba(255,255,255,.30),inset 0 -1px 0 rgba(0,0,0,.20)}
+  box-shadow:0 4px 12px rgba(0,0,0,.32),inset 0 1px 0 rgba(255,255,255,.30),inset 0 -1px 0 rgba(0,0,0,.20)}
 .btn-glass.err{
   background:linear-gradient(180deg,rgba(255,59,48,.52),rgba(255,59,48,.34));
   border-color:rgba(255,107,97,.46);
-  box-shadow:0 8px 26px rgba(226,75,74,.26),inset 0 1px 0 rgba(255,255,255,.28),inset 0 -1px 0 rgba(0,0,0,.20)}
+  box-shadow:0 4px 12px rgba(0,0,0,.32),inset 0 1px 0 rgba(255,255,255,.28),inset 0 -1px 0 rgba(0,0,0,.20)}
 .btn-glass.info{
   background:linear-gradient(180deg,rgba(42,171,238,.52),rgba(34,158,217,.34));
   border-color:rgba(42,171,238,.46);
-  box-shadow:0 8px 26px rgba(34,158,217,.28),inset 0 1px 0 rgba(255,255,255,.30),inset 0 -1px 0 rgba(0,0,0,.20)}
+  box-shadow:0 4px 12px rgba(0,0,0,.32),inset 0 1px 0 rgba(255,255,255,.30),inset 0 -1px 0 rgba(0,0,0,.20)}
 
 /* Неактивна дія — нейтральне скло, а не привид: прозорий шар під opacity:.45
    майже зникав над темним шитом, і кнопку не було видно взагалі. */
