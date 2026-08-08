@@ -21,8 +21,12 @@ export default function NotificationsScreen() {
   const [tab, setTab] = useState<NotifTab>('all')
 
   useEffect(() => {
-    loadNotifications()
-    markAllAsRead()
+    // Порядок тут ОБОВʼЯЗКОВИЙ, і це не косметика. `markAllAsRead` ставить
+    // прочитане локально одразу, а не-дочекана `loadNotifications` потім
+    // перезаписувала весь список серверними рядками, де `is_read` ще false —
+    // бейдж повертався, а рядки малювались непрочитаними, хоч у БД вони вже
+    // прочитані. Класика «пізня відповідь перетирає новіший стан».
+    void loadNotifications().then(markAllAsRead)
     const cleanup = subscribeToNotifications()
     return cleanup
   }, [loadNotifications, subscribeToNotifications, markAllAsRead])
