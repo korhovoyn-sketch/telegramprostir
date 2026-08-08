@@ -272,6 +272,7 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
       {/* Hidden file input */}
       {isOwner && (
         <input
+          aria-label="Додати документ"
           ref={fileInputRef}
           type="file"
           accept=".pdf,.doc,.docx"

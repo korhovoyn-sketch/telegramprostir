@@ -65,6 +65,10 @@ export async function installTelegram(page: Page, opts: HarnessOptions = {}) {
           colorScheme: 'dark',
           viewportHeight: 568,
           viewportStableHeight: 568,
+          // Bot API 8.0: врізи пристрою і власних контролів Telegram. Нулі —
+          // як на пристрої без нотча; тести піднімають їх через __tgSafeArea.
+          safeAreaInset: { top: 0, bottom: 0, left: 0, right: 0 },
+          contentSafeAreaInset: { top: 0, bottom: 0, left: 0, right: 0 },
           ready() {}, expand() {}, close() {},
           enableClosingConfirmation() {}, disableClosingConfirmation() {},
           setHeaderColor() {}, setBackgroundColor() {}, disableVerticalSwipes() {},
@@ -92,6 +96,17 @@ export async function installTelegram(page: Page, opts: HarnessOptions = {}) {
         const tg = (window as any).Telegram.WebApp
         tg.viewportHeight = tg.viewportStableHeight - height
         for (const cb of listeners.get('viewportChanged') ?? []) cb({ isStateStable: false })
+      }
+      // Тестовий хелпер: Telegram повідомляє врізи (нотч/home-індикатор і власні
+      // контроли). Саме цей шлях працює на iOS, де env() лишається нулем.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(window as any).__tgSafeArea = (device: { top?: number; bottom?: number }, content?: { top?: number; bottom?: number }) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const tg = (window as any).Telegram.WebApp
+        tg.safeAreaInset = { top: 0, bottom: 0, left: 0, right: 0, ...device }
+        tg.contentSafeAreaInset = { top: 0, bottom: 0, left: 0, right: 0, ...(content ?? {}) }
+        for (const cb of listeners.get('safeAreaChanged') ?? []) cb()
+        for (const cb of listeners.get('contentSafeAreaChanged') ?? []) cb()
       }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ;(window as any).__tgViewportStable = (h: number) => {

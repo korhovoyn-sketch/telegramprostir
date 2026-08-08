@@ -698,6 +698,7 @@ export default function PaymentCalendarScreen() {
               <div className="fld">
                 <div className="fld-l"><IconCalendar size={12} />День місяця (1–28)</div>
                 <input
+                  aria-label="День місяця"
                   type="text" inputMode="numeric" maxLength={2}
                   value={setupDueDay} onChange={e => setSetupDueDay(sanitizeInt(e.target.value))}
                 />
@@ -705,6 +706,7 @@ export default function PaymentCalendarScreen() {
               <div className="fld">
                 <div className="fld-l"><IconBellRing size={12} />Нагадати за, днів</div>
                 <input
+                  aria-label="Нагадати за, днів"
                   type="text" inputMode="numeric" maxLength={2}
                   value={setupNotify} onChange={e => { const v = sanitizeInt(e.target.value); setSetupNotify(v && parseInt(v, 10) > 14 ? '14' : v) }}
                 />
@@ -768,6 +770,7 @@ export default function PaymentCalendarScreen() {
             <div className="fld">
               <div className="fld-l">Сума отриманого платежу</div>
               <input
+                aria-label="Сума отриманого платежу"
                 type="text" inputMode="decimal"
                 placeholder="Введіть суму..."
                 value={payConfirmAmount}
@@ -777,6 +780,7 @@ export default function PaymentCalendarScreen() {
             <div className="fld" style={{ marginTop: 10 }}>
               <div className="fld-l">Нотатка (необов&apos;язково)</div>
               <input
+                aria-label="Нотатка до платежу"
                 type="text"
                 placeholder="Готівка, переказ, часткова оплата..."
                 value={payConfirmNotes}

@@ -42,6 +42,35 @@ export function layoutShrunkByKeyboard(): boolean {
   return Math.abs(innerH - current) < Math.abs(innerH - stable)
 }
 
+/**
+ * Врізи, які застосунок мусить обійти знизу і зверху, у px.
+ *
+ * НАВІЩО, якщо є `env(safe-area-inset-*)`: у webview Telegram на iOS ці
+ * CSS-змінні історично не наповнюються (відкритий issue Telegram-iOS #1377) —
+ * саме тому Bot API 8.0 і додав власні `safeAreaInset`/`contentSafeAreaInset`.
+ * У нас на цих значеннях висить УВЕСЬ хром: таббар, плаваюча CTA, панель
+ * обраних, тост, кнопки шита. Якщо вріз читається як 0, кнопка сідає під
+ * home-індикатор — і в Chromium цього не видно, бо там env() працює.
+ *
+ * Складаємо ДВА врізи, бо вони про різне:
+ *  • safeAreaInset — фізичний виріз пристрою (нотч, home-індикатор);
+ *  • contentSafeAreaInset — власні контроли Telegram (у fullscreen шапка
+ *    накриває контент).
+ * Обійти треба обидва, тож беремо суму, а не максимум.
+ */
+export function telegramSafeArea(): { top: number; bottom: number } {
+  if (typeof window === 'undefined') return { top: 0, bottom: 0 }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const tg = window.Telegram?.WebApp as any
+  const px = (v: unknown): number => (typeof v === 'number' && v > 0 ? Math.round(v) : 0)
+  const dev = tg?.safeAreaInset ?? {}
+  const content = tg?.contentSafeAreaInset ?? {}
+  return {
+    top: px(dev.top) + px(content.top),
+    bottom: px(dev.bottom) + px(content.bottom),
+  }
+}
+
 // ── Haptics ──────────────────────────────────────────────────────────────────
 // Read window.Telegram directly (optional-chained) so these work from event
 // handlers, hooks, and plain modules alike — no hook/tg-state wiring, no throw

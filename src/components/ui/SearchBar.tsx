@@ -13,6 +13,7 @@ export default function SearchBar({ value, onChange, placeholder = 'Пошук..
     <div className="search-inline">
       <IconSearch size={16} color="var(--t3)" />
       <input
+        aria-label={placeholder}
         type="text"
         placeholder={placeholder}
         value={value}

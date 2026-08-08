@@ -84,8 +84,14 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
   --ease:cubic-bezier(.34,1.4,.64,1);
   --ease-spr:cubic-bezier(.34,1.56,.64,1);
   --ease-out:cubic-bezier(.16,1,.3,1);
-  --safe-top:env(safe-area-inset-top,0);
-  --safe-bottom:env(safe-area-inset-bottom,0);
+  /* Врізи: env() — базове джерело, --tg-safe-* приходить від Telegram (у його
+     iOS-webview env() не наповнюється, тому Bot API 8.0 і додав власні
+     safeAreaInset/contentSafeAreaInset). max() бере те, що більше, тож там, де
+     env() працює, поведінка не змінюється. Фолбек 0px, а НЕ 0: у calc() до
+     довжини не можна додати безрозмірний нуль — уся декларація стала б
+     невалідною. */
+  --safe-top:max(env(safe-area-inset-top,0px),var(--tg-safe-top,0px));
+  --safe-bottom:max(env(safe-area-inset-bottom,0px),var(--tg-safe-bottom,0px));
   /* Animation duration tokens */
   --dur-xs:.12s;--dur-sm:.18s;--dur-md:.26s;--dur-lg:.38s;--dur-xl:.5s;
   /* Shadow tokens */

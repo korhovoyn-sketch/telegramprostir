@@ -486,7 +486,7 @@ export default function PropertyFormScreen() {
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div className="fr">
             <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconEdit size={14} color="var(--t3)" />{isParking ? 'Номер місця' : 'Назва'}</span>
-            <input className="fr-i" placeholder={isParking ? '№ 42, A-15' : 'Офіс 101'} maxLength={100} value={name} onChange={e => setName(e.target.value)} autoFocus={!isEdit} />
+            <input aria-label={isParking ? 'Номер місця' : 'Назва обʼєкта'} className="fr-i" placeholder={isParking ? '№ 42, A-15' : 'Офіс 101'} maxLength={100} value={name} onChange={e => setName(e.target.value)} autoFocus={!isEdit} />
           </div>
           {!isEdit && (
             <div className="fr">
@@ -525,11 +525,11 @@ export default function PropertyFormScreen() {
           )}
           <div className="fr">
             <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconLayers size={14} color="var(--t3)" />{isParking ? 'Рівень / поверх' : 'Поверх'}</span>
-            <input className="fr-i" type="text" inputMode="text" placeholder={isParking ? '-1, 2, підвал' : '1, 2, B-1, МП'} maxLength={20} value={floor} onChange={e => setFloor(e.target.value)} />
+            <input aria-label={isParking ? 'Рівень' : 'Поверх'} className="fr-i" type="text" inputMode="text" placeholder={isParking ? '-1, 2, підвал' : '1, 2, B-1, МП'} maxLength={20} value={floor} onChange={e => setFloor(e.target.value)} />
           </div>
           <div className="fr">
             <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconMapPin size={14} color="var(--t3)" />Адреса</span>
-            <input className="fr-i" type="text" placeholder="вул. Хрещатик, 1" maxLength={200} value={address} onChange={e => setAddress(e.target.value)} />
+            <input aria-label="Адреса" className="fr-i" type="text" placeholder="вул. Хрещатик, 1" maxLength={200} value={address} onChange={e => setAddress(e.target.value)} />
           </div>
           <div className="fr">
             <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconActivity size={14} color="var(--t3)" />Статус</span>
@@ -633,7 +633,7 @@ export default function PropertyFormScreen() {
             <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
               <div className="fr">
                 <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconCurrencyDollar size={14} color="var(--t3)" />Ціна продажу</span>
-                <input className="fr-i" type="text" inputMode="decimal" maxLength={12} placeholder="150000" value={salePrice} onChange={e => setSalePrice(sanitizeDecimal(e.target.value))} />
+                <input aria-label="Ціна продажу" className="fr-i" type="text" inputMode="decimal" maxLength={12} placeholder="150000" value={salePrice} onChange={e => setSalePrice(sanitizeDecimal(e.target.value))} />
                 <span className="fr-u">{currencySymbol(user?.currency)}</span>
               </div>
             </div>
@@ -647,16 +647,16 @@ export default function PropertyFormScreen() {
             <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
               <div className="fr">
                 <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconUser size={14} color="var(--t3)" />Найменування</span>
-                <input className="fr-i" placeholder="ТОВ «Назва» або ФОП Іванов" maxLength={200} value={tenantName} onChange={e => setTenantName(e.target.value)} />
+                <input aria-label="Орендар" className="fr-i" placeholder="ТОВ «Назва» або ФОП Іванов" maxLength={200} value={tenantName} onChange={e => setTenantName(e.target.value)} />
               </div>
               <div className="fr">
                 <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconKey size={14} color="var(--t3)" />Договір з</span>
-                <input className="fr-i" type="date" lang="uk-UA" value={leaseStartDate} onChange={e => setLeaseStartDate(e.target.value)}
+                <input aria-label="Договір від" className="fr-i" type="date" lang="uk-UA" value={leaseStartDate} onChange={e => setLeaseStartDate(e.target.value)}
                   style={{ colorScheme: 'dark' }} />
               </div>
               <div className="fr">
                 <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconKey size={14} color="var(--t3)" />Договір до</span>
-                <input className="fr-i" type="date" lang="uk-UA" value={leaseEndDate} onChange={e => setLeaseEndDate(e.target.value)}
+                <input aria-label="Договір до" className="fr-i" type="date" lang="uk-UA" value={leaseEndDate} onChange={e => setLeaseEndDate(e.target.value)}
                   style={{ colorScheme: 'dark' }} />
               </div>
             </div>
@@ -668,13 +668,13 @@ export default function PropertyFormScreen() {
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div className="fr">
             <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconRuler size={14} color="var(--t3)" />{isParking ? 'Площа місця' : 'Корисна'}</span>
-            <input className="fr-i" type="text" inputMode="decimal" placeholder={isParking ? '13.5' : '47'} value={areaUseful} onChange={e => setAreaUseful(sanitizeDecimal(e.target.value))} />
+            <input aria-label="Корисна площа, м²" className="fr-i" type="text" inputMode="decimal" placeholder={isParking ? '13.5' : '47'} value={areaUseful} onChange={e => setAreaUseful(sanitizeDecimal(e.target.value))} />
             <span className="fr-u">м²</span>
           </div>
           {!isParking && (
             <div className="fr">
               <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconRuler size={14} color="var(--t3)" />Розрахункова</span>
-              <input className="fr-i" type="text" inputMode="decimal" placeholder="52" value={areaTotal} onChange={e => setAreaTotal(sanitizeDecimal(e.target.value))} />
+              <input aria-label="Розрахункова площа, м²" className="fr-i" type="text" inputMode="decimal" placeholder="52" value={areaTotal} onChange={e => setAreaTotal(sanitizeDecimal(e.target.value))} />
               <span className="fr-u">м²</span>
             </div>
           )}
@@ -711,7 +711,7 @@ export default function PropertyFormScreen() {
           </div>
           <div className="fr hi-row">
             <span className="fr-l">{rentType === 'per_m2' ? 'Ставка' : 'Сума'}</span>
-            <input className="fr-i" type="text" inputMode="decimal" placeholder={rentType === 'per_day' ? '150' : '18'} value={rentRate} onChange={e => setRentRate(sanitizeDecimal(e.target.value))} />
+            <input aria-label={rentType === 'per_m2' ? 'Орендна ставка за м²' : 'Сума оренди'} className="fr-i" type="text" inputMode="decimal" placeholder={rentType === 'per_day' ? '150' : '18'} value={rentRate} onChange={e => setRentRate(sanitizeDecimal(e.target.value))} />
             <span className="fr-u">{currencySymbol(user?.currency)}{rentUnitLabel(rentType)}</span>
           </div>
           {rentCalc > 0 && (
@@ -729,7 +729,7 @@ export default function PropertyFormScreen() {
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div className="fr">
             <span className="fr-l">{isParking ? 'Сума' : 'Ставка'}</span>
-            <input className="fr-i" type="text" inputMode="decimal" placeholder={isParking ? '30' : '2.5'} value={utilitiesRate} onChange={e => setUtilitiesRate(sanitizeDecimal(e.target.value))} />
+            <input aria-label={isParking ? 'Сума експлуатаційних' : 'Ставка експлуатаційних за м²'} className="fr-i" type="text" inputMode="decimal" placeholder={isParking ? '30' : '2.5'} value={utilitiesRate} onChange={e => setUtilitiesRate(sanitizeDecimal(e.target.value))} />
             <span className="fr-u">{currencySymbol(user?.currency)}{isParking ? '/міс' : '/м²'}</span>
           </div>
           {!isParking && utilsCalc > 0 && (
@@ -775,7 +775,7 @@ export default function PropertyFormScreen() {
               {hasParking && (
                 <div className="fr">
                   <span className="fr-l">Місць</span>
-                  <input className="fr-i" type="text" inputMode="numeric" maxLength={3} value={parkingSpaces} onChange={e => setParkingSpaces(sanitizeInt(e.target.value))} />
+                  <input aria-label="Кількість місць" className="fr-i" type="text" inputMode="numeric" maxLength={3} value={parkingSpaces} onChange={e => setParkingSpaces(sanitizeInt(e.target.value))} />
                 </div>
               )}
             </div>
@@ -807,6 +807,7 @@ export default function PropertyFormScreen() {
         <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconFile size={14} color="var(--violet)" />Опис</span></div>
         <div className="glass-s" style={{ margin: '0 12px 16px', borderRadius: 'var(--r-md)', padding: '10px 14px' }}>
           <textarea
+            aria-label="Опис обʼєкта"
             className="fr-textarea"
             placeholder="Додатковий опис об'єкту..."
             value={description}

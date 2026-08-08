@@ -137,12 +137,12 @@ export default function ProfileScreen() {
           <div className="fr">
             <IconMail size={16} color="var(--t3)" />
             <span className="fr-l" style={{ marginLeft: 6 }}>Email</span>
-            <input ref={emailRef} className="fr-i" type="email" placeholder="Не вказано" defaultValue={user.email ?? ''} onBlur={async e => { const val = e.target.value; if (val === (user.email ?? '')) return; const ok = await updateProfile({ email: val }); if (!ok && emailRef.current) emailRef.current.value = user.email ?? '' }} />
+            <input aria-label="Email" ref={emailRef} className="fr-i" type="email" placeholder="Не вказано" defaultValue={user.email ?? ''} onBlur={async e => { const val = e.target.value; if (val === (user.email ?? '')) return; const ok = await updateProfile({ email: val }); if (!ok && emailRef.current) emailRef.current.value = user.email ?? '' }} />
           </div>
           <div className="fr">
             <IconPhone size={16} color="var(--t3)" />
             <span className="fr-l" style={{ marginLeft: 6 }}>Телефон</span>
-            <input ref={phoneRef} className="fr-i" type="tel" placeholder="Не вказано" defaultValue={user.phone ?? ''} onBlur={async e => { const val = e.target.value; if (val === (user.phone ?? '')) return; const ok = await updateProfile({ phone: val }); if (!ok && phoneRef.current) phoneRef.current.value = user.phone ?? '' }} />
+            <input aria-label="Телефон" ref={phoneRef} className="fr-i" type="tel" placeholder="Не вказано" defaultValue={user.phone ?? ''} onBlur={async e => { const val = e.target.value; if (val === (user.phone ?? '')) return; const ok = await updateProfile({ phone: val }); if (!ok && phoneRef.current) phoneRef.current.value = user.phone ?? '' }} />
           </div>
         </div>
 

@@ -181,6 +181,7 @@ export default function QRScannerScreen() {
           <div style={{ color: 'var(--t3)', fontSize: 'var(--fs-cap1)', textAlign: 'center' }}>або вставте посилання / токен</div>
           <div style={{ display: 'flex', gap: 8 }}>
             <input
+              aria-label="Код запрошення"
               type="text"
               value={manualToken}
               onChange={(e) => setManualToken(e.target.value)}

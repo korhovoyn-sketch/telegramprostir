@@ -217,6 +217,7 @@ export default function ManageGuestsScreen() {
               <div className="fr" style={{ borderBottom: 'none' }}>
                 <div className="fr-l">Підпис (необов&apos;язково)</div>
                 <input
+                  aria-label="Підпис гостьового лінка"
                   ref={labelInputRef}
                   className="fr-i"
                   type="text"
