@@ -110,15 +110,46 @@ const alive = (page: Page, where: string) =>
 
 // ── Стабільність лейауту ─────────────────────────────────────────────────────
 
-/** Позиції елементів, які МУСЯТЬ пережити прихід даних не зрушивши. */
-const anchors = (page: Page) => page.evaluate(() => {
-  const out: Record<string, number> = {}
-  for (const sel of ['.hdr', '.display', '.stat-g', '.seg', '.tabbar', '.fbtn']) {
-    const el = document.querySelector(sel) as HTMLElement | null
-    if (el) out[sel] = Math.round(el.getBoundingClientRect().top)
-  }
-  return out
-})
+/**
+ * Позиції елементів, які МУСЯТЬ пережити прихід даних не зрушивши — зняті на
+ * СТАБІЛЬНОМУ кадрі (три однакові кадри підряд).
+ *
+ * Чому не миттєвий замір: **старт застосунку осідає САМ, один раз, і це не має
+ * стосунку до даних.** `#app-root` живе на `var(--tg-vh, 100svh)`, тобто до
+ * того, як mount-ефект `page.tsx` запише реальну висоту від Telegram, лейаут
+ * стоїть на висоті вікна. Коли саме приходить цей запис — залежить від
+ * середовища: локально (dev) він встигає ДО першого скелетона, на CI
+ * (прод-білд під `serve`) — ПІСЛЯ. Через це замір «до» ловив різні боки одного
+ * й того ж осідання, і гард падав на ЧУЖОМУ зсуві (`.tabbar 593 → 512`)
+ * замість зсуву від приходу даних. Очікування самої змінної `--tg-vh` це НЕ
+ * лікує: локально вона вже виставлена на момент першого скелетона, тож
+ * очікування — no-op, і різниця середовищ лишається.
+ */
+const anchors = (page: Page, stableFrames = 20, budgetFrames = 240) =>
+  page.evaluate(({ need, budget }) =>
+    new Promise<Record<string, number>>((resolve, reject) => {
+      const read = () => {
+        const out: Record<string, number> = {}
+        for (const sel of ['.hdr', '.display', '.stat-g', '.seg', '.tabbar', '.fbtn']) {
+          const el = document.querySelector(sel) as HTMLElement | null
+          if (el) out[sel] = Math.round(el.getBoundingClientRect().top)
+        }
+        return out
+      }
+      let prev = ''
+      let same = 0
+      let frames = 0
+      const tick = () => {
+        const cur = read()
+        const key = JSON.stringify(cur)
+        if (key === prev) same++
+        else { same = 0; prev = key }
+        if (same >= need) return resolve(cur)
+        if (++frames > budget) return reject(new Error(`хром не стабілізувався за ${budget} кадрів`))
+        requestAnimationFrame(tick)
+      }
+      requestAnimationFrame(tick)
+    }), { need: stableFrames, budget: budgetFrames })
 
 test('прихід даних не зрушує хром екрана (заміряні позиції + CLS)', async ({ page }) => {
   // Анімація входу екрана рухає ВСЕ піддерево трансформом, тож без reduce
@@ -127,28 +158,38 @@ test('прихід даних не зрушує хром екрана (замі�
   await installCLS(page)
   await setup(page, { delay: 1200 })
 
+  // КРОК 1 — дати застосунку завантажитись ПОВНІСТЮ. Осідання старту («#app-root»
+  // з фолбека `100svh` на реальну висоту від Telegram) — окрема одноразова
+  // подія, і момент її приходу залежить від середовища: локально вона встигає до
+  // першого скелетона, на CI (прод-білд під `serve`) — після нього. Поки замір
+  // «до» робився на першому екрані, у порівняння потрапляв саме цей чужий зсув
+  // (`.tabbar 593 → 512` у CI), а не зсув від даних. Ні очікування самої
+  // змінної `--tg-vh`, ні очікування «стабільного кадру» цього не лікують:
+  // перше локально є no-op, друге завершується ДО осідання, якщо те запізнюється.
   await page.goto('/')
-  await expect(page.locator('.skel').first()).toBeVisible({ timeout: 15_000 })
-  // #app-root починає на фолбеку `100svh`, поки mount-ефект page.tsx не
-  // застосує реальний `--tg-vh` — це ОДНОРАЗОВЕ осідання при завантаженні
-  // застосунку, не пов'язане з приходом даних бази. Без цього чекання «до»
-  // інколи ловило кадр ДО осідання (593), а «після» — вже ПІСЛЯ (512), і гард
-  // валив на чужому зсуві.
-  await page.waitForFunction(() =>
-    getComputedStyle(document.documentElement).getPropertyValue('--tg-vh').trim() !== '',
-  )
-  const before = await anchors(page)
   await expect(page.getByText('БЦ Рубін').first()).toBeVisible({ timeout: 20_000 })
+  await expect(page.locator('.skel')).toHaveCount(0)
+
+  // КРОК 2 — тепер вхід у базу: хром уже осів, тож ЄДИНА змінна тут — прихід
+  // списку об'єктів. Саме це гард і мусить перевіряти.
+  await page.getByText('БЦ Рубін').first().click()
+  await expect(page.locator('.skel').first()).toBeVisible({ timeout: 15_000 })
+  const before = await anchors(page)
+  // Гард від ВАКУУМНОГО заміру: стабілізація мусить настати ще ДО приходу даних.
+  // Якби `before` знімався вже з намальованого списку, він дорівнював би `after`
+  // завжди — і тест «проходив» би, не перевіряючи нічого.
+  await expect(page.locator('.skel').first(), 'замір «до» зроблено вже після приходу даних').toBeVisible()
+  await expect(page.locator('.obj-card').first()).toBeVisible({ timeout: 20_000 })
   await expect(page.locator('.skel')).toHaveCount(0)
   const after = await anchors(page)
 
   for (const sel of Object.keys(before)) {
-    expect(after[sel], `db-list: ${sel} зрушив ${before[sel]} → ${after[sel]} після приходу даних`)
+    expect(after[sel], `db-objects: ${sel} зрушив ${before[sel]} → ${after[sel]} після приходу даних`)
       .toBe(before[sel])
   }
   await page.waitForTimeout(600)
   const cls = await readCLS(page)
-  expect(cls, `db-list: CLS ${cls} — персистентний елемент змінив позицію`).toBeLessThan(0.1)
+  expect(cls, `CLS ${cls} — персистентний елемент змінив позицію`).toBeLessThan(0.1)
 })
 
 test('заглушка має геометрію того, що її замінить', async ({ page }) => {
