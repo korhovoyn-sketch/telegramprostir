@@ -417,7 +417,11 @@ export function scrollFocusedIntoView(e: import('react').FocusEvent<HTMLElement>
     else if (rect.top < TOP_GAP) delta = rect.top - TOP_GAP
     if (delta === 0) return // already visible — do nothing
 
-    const scrollParent = el.closest('.body') as HTMLElement | null
+    // Скрол-контейнер екрана — `.body`; шита модалки — `.modal-body`. Без другого
+    // селектора цей прохід мовчки нічого не знаходив усередині будь-якої з 16
+    // модалок і падав на грубіший `el.scrollIntoView` нижче, який не знає про
+    // TOP_GAP/BOTTOM_GAP і не координується зі sticky-кнопками модалки.
+    const scrollParent = el.closest('.body, .modal-body') as HTMLElement | null
     if (scrollParent) scrollParent.scrollBy({ top: delta, behavior: 'smooth' })
     else el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   }, 500)

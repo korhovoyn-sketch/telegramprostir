@@ -108,3 +108,110 @@ for (const vp of VIEWPORTS) {
     await expect(page.getByText('Розрахунок').first()).toBeVisible()
   })
 }
+
+/**
+ * Правила полів вводу, вистраждані на iOS. Три інваріанти, які раніше не
+ * перевірялись жодним тестом і кожен уже ламався в проді:
+ *
+ * 1. **ЖОДНОГО `type="number"`.** Контрольований number-інпут повертає `''` на
+ *    проміжному стані (друга крапка/кома) — «введене зникає»; скрол міняє
+ *    значення. Правильно: `type="text"` + `inputMode` + санітайзер.
+ * 2. **Числове поле має `inputMode`** — інакше на телефоні відкривається повна
+ *    QWERTY замість цифрової панелі, і саме там користувач і друкує «1,200,000».
+ * 3. **Каретковому полю потрібен власний композитний шар** (`translateZ(0)`):
+ *    під `backdrop-filter` WebKit малює каретку зі зміщенням. date/select свідомо
+ *    виключені — у них немає каретки, а стекінг-контекст клiпає нативні поповери.
+ */
+const fields = (page: Page) => page.evaluate(() =>
+  [...document.querySelectorAll('input,textarea')]
+    .filter((el) => (el as HTMLElement).offsetParent !== null || el.tagName === 'TEXTAREA')
+    .map((el) => {
+      const i = el as HTMLInputElement
+      const cs = getComputedStyle(i)
+      return {
+        tag: i.tagName.toLowerCase(),
+        type: i.type ?? '',
+        inputMode: i.getAttribute('inputmode') ?? '',
+        placeholder: i.placeholder ?? '',
+        label: i.getAttribute('aria-label') ?? '',
+        transform: cs.transform,
+        fs: parseFloat(cs.fontSize),
+      }
+    }))
+
+/** Екрани й модалки, де живуть усі види полів застосунку. */
+async function walkForms(page: Page, visit: (label: string) => Promise<void>) {
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+  await visit('db-list')
+
+  await page.getByLabel('Створити базу').click()
+  await expect(page.getByText('Нова база')).toBeVisible()
+  await visit('create-db')
+
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+  await page.getByText('БЦ Рубін').first().click()
+  await expect(page.getByText(/Всі \(\d\)/)).toBeVisible({ timeout: 15_000 })
+  await page.getByLabel("Додати об'єкт").click()
+  await expect(page.getByText("Новий об'єкт")).toBeVisible({ timeout: 15_000 })
+  await visit('property-form')
+
+  // Частина полів існує лише в певному СТАНІ форми — «Ціна продажу» з'являється
+  // тільки для статусу «Продаж». Без цього кроку гард до неї не дотягується:
+  // навмисно зламане там `type="number"` не валило прогін.
+  await page.locator('.fr-seg-b', { hasText: 'Продаж' }).click()
+  await expect(page.getByLabel('Ціна продажу')).toBeVisible({ timeout: 10_000 })
+  await visit('property-form/продаж')
+
+  // Модалка оренди — найбільше числових і датових полів у застосунку.
+  await page.goto('/')
+  await expect(page.getByText('БЦ Рубін').first()).toBeVisible({ timeout: 20_000 })
+  await page.getByText('БЦ Рубін').first().click()
+  await page.locator('.obj-card').first().locator('.obj-t').click()
+  await expect(page.getByRole('button', { name: /Здати в оренду/ })).toBeVisible({ timeout: 15_000 })
+  await page.getByRole('button', { name: /Здати в оренду/ }).click()
+  await expect(page.locator('.modal')).toBeVisible()
+  await visit('rent-modal')
+}
+
+test('поля вводу: жодного type=number, правильний inputMode, свій шар', async ({ page }) => {
+  test.setTimeout(150_000)
+  await setupFixtures(page)
+
+  const numberType: string[] = []
+  const noInputMode: string[] = []
+  const noLayer: string[] = []
+  const small: string[] = []
+  let seen = 0
+
+  await walkForms(page, async (label) => {
+    for (const f of await fields(page)) {
+      seen++
+      const name = f.label || f.placeholder || `${f.tag}[${f.type}]`
+      if (f.type === 'number') numberType.push(`${label}: «${name}»`)
+      // Числове поле впізнаємо за санітайзером на вході: у проєкті це завжди
+      // text+inputMode, тож ознакою слугує сам inputMode. Перевіряємо ЗВОРОТНЕ —
+      // поле з числовим плейсхолдером, але без inputMode: там і буде QWERTY.
+      if (f.type === 'text' && /^[\d\s.,]+$/.test(f.placeholder.trim()) && f.placeholder.trim() &&
+          !['decimal', 'numeric'].includes(f.inputMode)) {
+        noInputMode.push(`${label}: «${name}» плейсхолдер «${f.placeholder}» без inputMode`)
+      }
+      if (f.inputMode && !['decimal', 'numeric', 'text', 'search', 'tel', 'email', 'url', 'none'].includes(f.inputMode)) {
+        noInputMode.push(`${label}: «${name}» невідомий inputMode="${f.inputMode}"`)
+      }
+      // Каретка є в text/tel/search/textarea; date/checkbox/radio/file — ні.
+      const hasCaret = f.tag === 'textarea' || ['text', 'tel', 'search', 'email', 'url', 'password', ''].includes(f.type)
+      if (hasCaret && f.transform === 'none') {
+        noLayer.push(`${label}: «${name}» (${f.tag}[${f.type}]) без власного шару — каретка поїде під blur`)
+      }
+      if (f.fs < 16) small.push(`${label}: «${name}» ${f.fs}px`)
+    }
+  })
+
+  expect(seen, 'полів не знайдено — обхід форм застарів').toBeGreaterThan(8)
+  expect([...new Set(numberType)], 'type="number" заборонений: контрольований number губить проміжне введення').toEqual([])
+  expect([...new Set(noInputMode)], 'числове поле без inputMode відкриває QWERTY замість цифр').toEqual([])
+  expect([...new Set(noLayer)], 'каретковому полю потрібен translateZ(0) — інакше каретка зміщена під backdrop-filter').toEqual([])
+  expect([...new Set(small)], 'поле дрібніше 16px — iOS зумить екран на фокусі').toEqual([])
+})

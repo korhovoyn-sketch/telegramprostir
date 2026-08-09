@@ -99,7 +99,7 @@ export default function RealtorDashboardScreen() {
         <SearchBar value={search} onChange={setSearch} placeholder="Пошук бази..." />
 
         {loading ? (
-          <SkeletonLoader />
+          <SkeletonLoader rowHeight={88} />
         ) : loadError && subscriptions.length === 0 ? (
           <RetryState subtitle={loadError} onRetry={load} />
         ) : filtered.length === 0 ? (

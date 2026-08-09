@@ -39,6 +39,11 @@ async function determinism(page: Page) {
 /** Крок туру: навігація + порівняння з бейслайном. Падає, а не логує. */
 async function snap(page: Page, name: string, nav: () => Promise<void>) {
   await nav()
+  // Шит меню бази виходить ~320мс уже ПОВЕРХ нового екрана, і його
+  // `backdrop-filter` приглушує ВЕСЬ кадр. Два прогони стабілізувались на різних
+  // станах цього затухання: діф `team.png` показував рівномірну різницю по всьому
+  // тексту без жодного зсуву геометрії — 0.02 при порозі 0.01.
+  await expect(page.locator('.modal-overlay.closing')).toHaveCount(0, { timeout: 6_000 })
   await expect(page).toHaveScreenshot(`${name}.png`, {
     // Смуга заповненості — єдиний елемент, чия ширина залежить від даних, які
     // цей екран рахує наживо.
@@ -164,6 +169,11 @@ test('screens · owner journey', async ({ page }) => {
   await snap(page, 'share-sheet', async () => {
     await page.getByRole('button', { name: /Поділитися/ }).click()
     await page.getByText('Поділитися').first().waitFor()
+    // QR приходить ПІСЛЯ підпису шита і змінює його висоту (шит прив'язаний до
+    // низу екрана, тож увесь вміст їде вгору). Без цього очікування кадр залежав
+    // від того, чи встиг намалюватись код — саме тут dev і прод-білд дали різні
+    // бейслайни на ~8px.
+    await page.locator('.qr-wrap svg').first().waitFor({ timeout: 15_000 })
   })
   await page.goto('/'); await page.getByText('Мої бази').waitFor()
   await page.getByText('БЦ Рубін').first().click(); await page.getByText('Всі (3)').waitFor()

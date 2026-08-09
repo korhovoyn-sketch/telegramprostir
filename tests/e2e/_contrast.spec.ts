@@ -1,17 +1,15 @@
 import { test, type Page, type Route } from '@playwright/test'
 import { setupApp, DEFAULT_USER, seedSession } from './helpers/harness'
-import sharp from 'sharp'
+import { measureContrast, belowAA, smallTargets } from './helpers/contrast'
 
 /**
- * Замір КОНТРАСТУ тексту, як його бачить око, а не як записано в токенах.
+ * ПРИНТЕР найгірших місць читабельності й досяжності — інструмент, не гард.
  *
- * Аналітично тут не порахувати: увесь текст — біле з альфою (.46–.72), а під ним
- * шари скла над градієнтом, який СВІТЛІШАЄ донизу (низ `.bg-blue` — це #5480dc).
- * Тож фон беремо з реального рендера: знімок робиться двічі — звичайний і з
- * прозорим текстом. Другий дає чистий фон, у ньому й усереднюємо пікселі під
- * кожним текстовим блоком.
+ * Гард живе в `contrast.spec.ts` (заморожена база + allowlist). Тут навмисно
+ * лишається друк таблиці: коли борг треба РОЗБИРАТИ, потрібні самі числа й
+ * порядок, а не факт «щось нове». Замірний код спільний — `helpers/contrast.ts`.
  *
- * Не гард (не входить у прогін): друкує таблицю найгірших місць.
+ * Запуск: PERF=1 npx playwright test _contrast --workers=1
  */
 
 const USER = { ...DEFAULT_USER, role: 'owner' as const, first_name: 'Микола' }
@@ -52,92 +50,12 @@ async function setup(page: Page) {
   }
 }
 
-interface TextBox {
-  text: string
-  cls: string
-  color: [number, number, number, number]
-  size: number
-  weight: number
-  x: number; y: number; w: number; h: number
-}
-
-/** Видимі текстові блоки з їхнім кольором і геометрією. */
-const textBoxes = (page: Page) => page.evaluate((): TextBox[] => {
-  const out: TextBox[] = []
-  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT)
-  const seen = new Set<Element>()
-  let n: Node | null
-  while ((n = walker.nextNode())) {
-    const txt = (n.textContent ?? '').trim()
-    if (txt.length < 2) continue
-    const el = n.parentElement
-    if (!el || seen.has(el)) continue
-    seen.add(el)
-    const r = el.getBoundingClientRect()
-    if (r.width < 6 || r.height < 6 || r.top < 0 || r.bottom > window.innerHeight) continue
-    const cs = getComputedStyle(el)
-    if (cs.visibility === 'hidden' || cs.opacity === '0') continue
-    const m = cs.color.match(/[\d.]+/g)
-    if (!m) continue
-    out.push({
-      text: txt.slice(0, 28),
-      cls: el.className?.toString().slice(0, 22) || el.tagName.toLowerCase(),
-      color: [Number(m[0]), Number(m[1]), Number(m[2]), m[3] === undefined ? 1 : Number(m[3])],
-      size: Math.round(parseFloat(cs.fontSize)),
-      weight: Number(cs.fontWeight) || 400,
-      x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height),
-    })
-  }
-  return out
-})
-
-const lum = (r: number, g: number, b: number) => {
-  const f = (v: number) => {
-    const s = v / 255
-    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4)
-  }
-  return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b)
-}
-const ratio = (a: number, b: number) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)
-
 async function audit(page: Page, label: string) {
-  const boxes = await textBoxes(page)
-  // Другий знімок — той самий кадр, але БЕЗ тексту: дає чистий фон під літерами.
-  await page.addStyleTag({ content: '*{color:transparent !important;text-shadow:none !important}' })
-  const bg = await page.screenshot()
-  const { data, info } = await sharp(bg).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
-  const scale = info.width / (page.viewportSize()?.width ?? 375)
-
-  const rows: { r: number; text: string; cls: string; size: number; weight: number }[] = []
-  for (const b of boxes) {
-    let sr = 0, sg = 0, sb = 0, cnt = 0
-    const x0 = Math.max(0, Math.round(b.x * scale)), x1 = Math.min(info.width, Math.round((b.x + b.w) * scale))
-    const y0 = Math.max(0, Math.round(b.y * scale)), y1 = Math.min(info.height, Math.round((b.y + b.h) * scale))
-    for (let y = y0; y < y1; y += 2) {
-      for (let x = x0; x < x1; x += 2) {
-        const i = (y * info.width + x) * info.channels
-        sr += data[i]; sg += data[i + 1]; sb += data[i + 2]; cnt++
-      }
-    }
-    if (!cnt) continue
-    const [br, bgc, bb] = [sr / cnt, sg / cnt, sb / cnt]
-    // Текст із альфою компонується на цей фон.
-    const a = b.color[3]
-    const tr = b.color[0] * a + br * (1 - a)
-    const tg = b.color[1] * a + bgc * (1 - a)
-    const tb = b.color[2] * a + bb * (1 - a)
-    rows.push({
-      r: Math.round(ratio(lum(tr, tg, tb), lum(br, bgc, bb)) * 100) / 100,
-      text: b.text, cls: b.cls, size: b.size, weight: b.weight,
-    })
-  }
-
-  // WCAG AA: 4.5 для звичайного тексту, 3.0 для «великого» (≥18.66px bold або ≥24px).
-  const need = (s: number, w: number) => (s >= 24 || (s >= 18.66 && w >= 700) ? 3 : 4.5)
-  const bad = rows.filter((x) => x.r < need(x.size, x.weight)).sort((a, b) => a.r - b.r)
+  const rows = await measureContrast(page)
+  const bad = belowAA(rows)
   console.log(`\n─── ${label}: ${rows.length} текстових блоків, нижче AA — ${bad.length} ───`)
   for (const x of bad.slice(0, 12)) {
-    console.log(`  ${String(x.r).padStart(5)}:1  (треба ${need(x.size, x.weight)})  ${String(x.size).padStart(2)}px/${x.weight}  «${x.text}»  .${x.cls}`)
+    console.log(`  ${String(x.ratio).padStart(5)}:1  (треба ${x.need})  ${String(x.size).padStart(2)}px/${x.weight}  «${x.text}»  .${x.cls}  [${x.key}]`)
   }
 }
 
@@ -172,50 +90,6 @@ test('контраст: екрани власника', async ({ page }) => {
   await page.waitForTimeout(700)
   await audit(page, 'profile')
 })
-
-/**
- * Тап-таргети проти Apple HIG (44×44). Наш гард в `ui-audit` стоїть на 32 —
- * тобто на 12px лояльніше за стандарт, який проєкт сам цитує в коді. Тут видно
- * реальний розрив: що саме менше за 44 і наскільки.
- */
-const smallTargets = (page: Page, min: number) => page.evaluate((m) => {
-  const out: { cls: string; label: string; w: number; h: number }[] = []
-  const bar = document.querySelector('.tabbar') as HTMLElement | null
-  const fold = bar ? bar.getBoundingClientRect().top : window.innerHeight
-  document.querySelectorAll('button,[role="button"],a,input[type="checkbox"],.sheet-row,.notif-tab,.seg-b,.view-seg-b,.fr-seg-b,.tab,.obj-act-btn,.hdr-back').forEach((el) => {
-    const e = el as HTMLElement
-    const r = e.getBoundingClientRect()
-    if (r.width < 4 || r.height < 4) return
-    if (r.top < 0 || r.bottom > fold) return
-    // Елемент у горизонтально прокрутному контейнері (напр. таби сповіщень) може
-    // фізично лежати ЗА межами viewport — це «ще не проскролено», а не малий
-    // тап-таргет. elementFromPoint там завжди null і фальшиво позначав effH=1.
-    if (r.left < 0 || r.right > window.innerWidth) return
-    if (getComputedStyle(e).visibility === 'hidden') return
-    // ФАКТИЧНА зона дотику, а не бокс елемента: ::after розширює її, не змінюючи
-    // геометрію. Промацуємо вгору й вниз від центру, поки тап ще влучає в сам
-    // контрол — саме це відчуває палець.
-    const cx = Math.round(r.left + r.width / 2)
-    const cy = Math.round(r.top + r.height / 2)
-    const hits = (y: number) => {
-      if (y < 1 || y > fold - 1) return false
-      const h = document.elementFromPoint(cx, y)
-      return !!h && (h === e || e.contains(h) || h.contains(e))
-    }
-    let up = 0, down = 0
-    while (up < 30 && hits(cy - up - 1)) up++
-    while (down < 30 && hits(cy + down + 1)) down++
-    const effH = up + down + 1
-    if (r.width < m || effH < m) {
-      out.push({
-        cls: e.className?.toString().slice(0, 24) || e.tagName.toLowerCase(),
-        label: (e.getAttribute('aria-label') || e.textContent || '').trim().slice(0, 22),
-        w: Math.round(r.width), h: effH,
-      })
-    }
-  })
-  return out
-}, min)
 
 test('тап-таргети проти Apple HIG 44×44', async ({ page }) => {
   test.setTimeout(120_000)

@@ -27,6 +27,13 @@ const KB_FALLBACK_PX = 320
 const KB_TRUSTED_PX = 100
 // Скільки чекати після фокуса, щоб клавіатура встигла відрапортуватись.
 const KB_PROBE_MS = 350
+// Другий, підтверджувальний замір ПІСЛЯ першої проби: на iOS-оверлеї (Telegram
+// не ресайзить webview) звіт про клавіатуру йде через visualViewport.resize,
+// який ІНОДІ приходить пізніше за 350мс. Одноразова проба рівно на цій межі
+// ловила проміжний стан «клавіатури ще не видно» і вмикала фолбек 320px ПОВЕРХ
+// реальної клавіатури, що вже починала з'являтися, — шит сіпався і за мить сам
+// себе «виправляв», щойно приходив справжній розмір.
+const KB_CONFIRM_MS = 200
 
 interface ModalProps {
   title: string
@@ -61,6 +68,7 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
   // Ліфт шита, коли платформа не повідомляє висоту клавіатури (див. константи).
   const [kbFallback, setKbFallback] = useState(false)
   const kbProbeRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const kbConfirmRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const kbDropRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const kbFixRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
@@ -91,6 +99,7 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
     if (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA') return
     clearTimeout(kbDropRef.current)
     clearTimeout(kbProbeRef.current)
+    clearTimeout(kbConfirmRef.current)
     // Тільки для тач-пристроїв: на десктопі клавіатура фізична, ліфт лишив би
     // порожню діру під шитом.
     const touch = navigator.maxTouchPoints > 0 || window.matchMedia('(pointer: coarse)').matches
@@ -98,25 +107,46 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
     kbProbeRef.current = setTimeout(() => {
       // У режимі стиснення webview лейаут уже без клавіатури — власний ліфт
       // відняв би її вдруге і затиснув шит (див. layoutShrunkByKeyboard).
-      const lift = !layoutShrunkByKeyboard() && reportedKeyboardPx() < KB_TRUSTED_PX
-      if (lift) setKbFallback(true)
-      // Ліфт змінює геометрію і їде transition-ом (.25s) — міряємо ПІСЛЯ нього,
-      // інакше скоригуємо на застарілих координатах.
-      clearTimeout(kbFixRef.current)
-      kbFixRef.current = setTimeout(() => clearStickyActions(el), lift ? 320 : 0)
+      const stillNoKeyboard = !layoutShrunkByKeyboard() && reportedKeyboardPx() < KB_TRUSTED_PX
+      if (!stillNoKeyboard) { clearStickyActions(el); return }
+      // Підтверджуємо ще раз замість вмикати фолбек одразу (див. KB_CONFIRM_MS).
+      kbConfirmRef.current = setTimeout(() => {
+        const lift = !layoutShrunkByKeyboard() && reportedKeyboardPx() < KB_TRUSTED_PX
+        if (lift) setKbFallback(true)
+        // Ліфт змінює геометрію і їде transition-ом (.25s) — міряємо ПІСЛЯ нього,
+        // інакше скоригуємо на застарілих координатах.
+        clearTimeout(kbFixRef.current)
+        kbFixRef.current = setTimeout(() => clearStickyActions(el), lift ? 320 : 0)
+      }, KB_CONFIRM_MS)
     }, KB_PROBE_MS)
   }
 
   function onFieldBlur() {
     clearTimeout(kbProbeRef.current)
+    clearTimeout(kbConfirmRef.current)
     clearTimeout(kbFixRef.current)
     // Перехід між сусідніми полями — це blur+focus; пауза не дає шиту стрибати.
     clearTimeout(kbDropRef.current)
     kbDropRef.current = setTimeout(() => setKbFallback(false), 180)
   }
 
+  // Якщо фолбек усе-таки увімкнувся хибно (KB_CONFIRM_MS не врятував — платформа
+  // ще довше мовчала) і РЕАЛЬНА висота клавіатури приходить вже ПІСЛЯ цього, шит
+  // без цього ефекту лишався б на фейкових 320px аж до блура поля, хоч платформа
+  // вже знає точний розмір. Знімаємо локальний ліфт — CSS-змінна одразу впаде до
+  // справжнього глобального `--keyboard-h`.
+  useEffect(() => {
+    if (!kbFallback) return
+    const onViewportResize = () => {
+      if (!layoutShrunkByKeyboard() && reportedKeyboardPx() >= KB_TRUSTED_PX) setKbFallback(false)
+    }
+    window.visualViewport?.addEventListener('resize', onViewportResize)
+    return () => window.visualViewport?.removeEventListener('resize', onViewportResize)
+  }, [kbFallback])
+
   useEffect(() => () => {
     clearTimeout(kbProbeRef.current)
+    clearTimeout(kbConfirmRef.current)
     clearTimeout(kbDropRef.current)
     clearTimeout(kbFixRef.current)
   }, [])

@@ -303,7 +303,8 @@ test('поле в модалці не залишається під клавіа
     .toBeGreaterThan(vh - 320)
 
   await dayInput.focus()
-  // Ліфт застосовується після проби (350мс) + перехід padding-bottom (250мс)
+  // Ліфт застосовується після проби (350мс) + підтвердження (200мс) + перехід
+  // padding-bottom (250мс).
   await page.waitForFunction(() => {
     const ov = document.querySelector('.modal-overlay') as HTMLElement | null
     return !!ov && parseFloat(getComputedStyle(ov).paddingBottom) > 200
@@ -325,6 +326,54 @@ test('поле в модалці не залишається під клавіа
     const ov = document.querySelector('.modal-overlay') as HTMLElement | null
     return !!ov && parseFloat(getComputedStyle(ov).paddingBottom) < 20
   }, undefined, { timeout: 5000 })
+})
+
+test('ліфт вимикається, якщо справжня висота клавіатури приходить ПІЗНІШЕ за пробу', async ({ page }) => {
+  // Реальний кейс із відео користувача: на iOS-оверлеї visualViewport.resize
+  // іноді приходить пізніше за 350мс-пробу. Одноразовий замір рівно на цій межі
+  // бачив «клавіатури ще нема», вмикав фейковий ліфт 320px ПОВЕРХ реальної
+  // клавіатури, що вже відкривалась, — поле «Орендар» сіпалось і модалка
+  // перекомпоновувалась на секунду-дві, поки нічого не приводило її до тями.
+  await fixtures(page)
+  await openRentModal(page)
+
+  await page.locator('.modal input').first().focus()
+  // Нічого не звітуємо ДО проби — фолбек мусить спрацювати (як і раніше).
+  await page.waitForTimeout(600) // 350 проба + 200 підтвердження + запас
+  const guessed = await page.evaluate(() => {
+    const ov = document.querySelector('.modal-overlay') as HTMLElement
+    return { inline: ov.style.getPropertyValue('--keyboard-h'), computed: parseFloat(getComputedStyle(ov).paddingBottom) }
+  })
+  expect(guessed.inline, 'фолбек застосувався фейковими 320px').toBe('320px')
+
+  // Тепер, ПІЗНО, приходить справжня висота — так, як реальна клавіатура
+  // відрапортувала б із запізненням. Headless Chromium не показує нативну
+  // клавіатуру, тож підміняємо `visualViewport.height` напряму (getter на
+  // прототипі, own-property на інстансі його затінює) — це той самий сигнал,
+  // який на реальному iOS обробляє `applyKeyboardFromVV` у page.tsx й записує
+  // в ГЛОБАЛЬНИЙ `--keyboard-h`. Проста подія `resize` без зміни `height`
+  // нічого не симулює: `applyKeyboardFromVV` перерахував би 0 і сам стер би
+  // будь-яке ручне значення `--keyboard-h`, яке виставив би тест.
+  await page.evaluate(() => {
+    const vv = window.visualViewport!
+    Object.defineProperty(vv, 'height', { configurable: true, get: () => window.innerHeight - 260 })
+    vv.dispatchEvent(new Event('resize'))
+  })
+  await page.waitForFunction(() => {
+    const ov = document.querySelector('.modal-overlay') as HTMLElement
+    return ov.style.getPropertyValue('--keyboard-h') === ''
+  }, undefined, { timeout: 2000 })
+  await page.waitForTimeout(300) // .25s padding-bottom transition — читаємо ПІСЛЯ
+
+  const reconciled = await page.evaluate(() => {
+    const ov = document.querySelector('.modal-overlay') as HTMLElement
+    return {
+      inline: ov.style.getPropertyValue('--keyboard-h'),
+      computed: Math.round(parseFloat(getComputedStyle(ov).paddingBottom)),
+    }
+  })
+  expect(reconciled.inline, 'локальний фейковий ліфт знято').toBe('')
+  expect(reconciled.computed, 'падинг тепер зі справжньої висоти, не з вигаданої').toBe(260)
 })
 
 test('ліфт НЕ дублюється, коли платформа рапортує висоту клавіатури', async ({ page }) => {

@@ -335,7 +335,7 @@ body{
 /* ── SEGMENT CONTROL ── */
 .seg{display:flex;margin:0 var(--g3) var(--g3);background:var(--glass-2);border-radius:var(--r-sm);padding:2px;border:var(--bd);backdrop-filter:blur(20px) saturate(170%);-webkit-backdrop-filter:blur(20px) saturate(170%)}
 /* Segment tab — Caption 1 Semibold (Apple UISegmentedControl label size) */
-.seg-b{flex:1;padding:8px 3px;text-align:center;font-size:var(--fs-cap1);font-weight:var(--fw-semi);color:var(--t3);border-radius:10px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;transition:all .24s var(--ease),transform 0.12s ease,filter 0.12s ease,opacity 0.12s ease}
+.seg-b{flex:1;padding:13px 3px;text-align:center;font-size:var(--fs-cap1);font-weight:var(--fw-semi);color:var(--t3);border-radius:10px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;transition:all .24s var(--ease),transform 0.12s ease,filter 0.12s ease,opacity 0.12s ease}
 .seg-b.on{background:var(--glass-3);color:var(--t1);box-shadow:0 1.5px 6px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.3)}
 
 /* ── FORM GROUP ── */
@@ -444,8 +444,10 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 .obj-met{display:flex;flex-wrap:wrap;gap:6px 16px;padding:2px var(--pad-card) 12px}
 /* Metadata chips — Caption 1 */
 .obj-mt{font-size:var(--fs-foot);color:var(--t2);display:flex;align-items:center;gap:6px;line-height:1;font-weight:500}
-/* Total bar — bottom accent strip */
-.obj-tot{padding:10px var(--pad-card);display:flex;justify-content:space-between;align-items:center}
+/* Смуга підсумку — темніший ґрунт, а не лише падінг: градієнт екрана СВІТЛІШАЄ
+   донизу, тож саме тут білий підпис і цифра сходили до 3.8–4.4:1. Це той випадок,
+   де контраст лікується фоном, а не альфою тексту — брайтити біле нікуди. */
+.obj-tot{padding:10px var(--pad-card);display:flex;justify-content:space-between;align-items:center;background:var(--glass-card)}
 /* "На місяць" label — Caption 2 uppercase */
 .obj-tot-l{font-size:var(--fs-cap2);color:var(--t3);font-weight:var(--fw-semi);text-transform:uppercase;letter-spacing:.05em}
 /* Price value — Subhead Bold */
@@ -619,7 +621,7 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 .notif-tabs{display:flex;margin:0 var(--g3) var(--g3);background:var(--glass-2);border-radius:var(--r-sm);padding:2px;border:var(--bd);gap:2px;overflow-x:auto;scrollbar-width:none}
 .notif-tabs::-webkit-scrollbar{display:none}
 /* Tab label — Caption 1 Semibold */
-.notif-tab{padding:8px 12px;border-radius:10px;font-size:var(--fs-cap1);font-weight:var(--fw-semi);color:var(--t3);white-space:nowrap;flex-shrink:0;cursor:pointer;transition:all .22s var(--ease)}
+.notif-tab{padding:13px 12px;border-radius:10px;font-size:var(--fs-cap1);font-weight:var(--fw-semi);color:var(--t3);white-space:nowrap;flex-shrink:0;cursor:pointer;transition:all .22s var(--ease)}
 .notif-tab.on{background:var(--glass-3);color:var(--t1);box-shadow:0 1.5px 6px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.3)}
 /* Date group header — Caption 2 Semibold */
 .notif-grp{padding:8px var(--g3) 4px;font-size:var(--fs-cap2);color:var(--t3);font-weight:var(--fw-semi);letter-spacing:.05em;text-transform:uppercase}
@@ -670,7 +672,10 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 .fld:focus-within .fld-l{color:var(--info-fg)}
 .modal-btn{height:var(--btn-h);border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;font-size:var(--fs-sub);font-weight:600;cursor:pointer;gap:7px;border:none;width:100%;transition:opacity .15s,transform .12s}
 .modal-btn:active{transform:scale(.97)}
-.modal-btn:disabled{opacity:.45;cursor:default}
+/* Неактивна дія — приглушений підпис на нейтральному склі, а не привид: те саме
+   правило, що для .btn-glass. Над темним шитом opacity:.45 з'їдала кнопку так,
+   що «Скасувати» під час збереження просто зникала. */
+.modal-btn:disabled{opacity:1;color:var(--t3);cursor:default}
 .modal-btn.primary{color:var(--t1)}
 .modal-btn.danger{color:var(--t1)}
 .modal-btn.secondary{background:var(--glass-2);color:var(--t1);border:var(--bd)}
@@ -723,14 +728,20 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 
 
 /* ── ЗОНА ДОТИКУ ДО 44px (Apple HIG) ──────────────────────────────────────────
-   Ці контроли мають висоту 34-36px — компактність рядків тут свідома, тож
-   ВИГЛЯД не змінюємо, а розширюємо лише зону дотику невидимим ::after.
-   Розширювати можна тільки там, де по вертикалі немає ІНШОЇ інтерактивної цілі:
-   сегменти вкладок і мова/валюта стоять між хедером і списком, хедер-назад — у
-   хедері. Кнопки в рядку картки (.obj-act-btn) свідомо НЕ чіпаємо: над ними тіло
-   картки, яке відкриває обʼєкт, і розширена зона крала б у нього тапи. */
-.seg-b,.view-seg-b,.fr-seg-b,.notif-tab,.hdr-back{position:relative}
-.seg-b::after,.view-seg-b::after,.fr-seg-b::after,.notif-tab::after,.hdr-back::after{
+   Невидимий ::after розширює зону дотику, не змінюючи вигляд рядка. Розширювати
+   можна лише там, де по вертикалі немає ІНШОЇ інтерактивної цілі: мова/валюта
+   стоять між хедером і списком, хедер-назад — у хедері. Кнопки в рядку картки
+   (.obj-act-btn) свідомо НЕ чіпаємо: над ними тіло картки, яке відкриває обʼєкт,
+   і розширена зона крала б у нього тапи.
+
+   ВАЖЛИВО, чому тут НЕ всі дрібні контроли: ::after обрізається будь-яким
+   предком із overflow ≠ visible, і тоді зона лишається розміром бокса, хоч у CSS
+   вона й виглядає розширеною. Так було з `.seg-b` (власний overflow:hidden під
+   ellipsis) і `.notif-tab` (контейнер .notif-tabs має overflow-x:auto, що за
+   спекою робить і overflow-y не-visible) — обидва «мали» 44px, а фактично 34 і
+   38. Їм підняли РЕАЛЬНУ висоту падінгом; ::after там був би самообманом. */
+.view-seg-b,.fr-seg-b,.hdr-back{position:relative}
+.view-seg-b::after,.fr-seg-b::after,.hdr-back::after{
   content:'';position:absolute;left:0;right:0;top:50%;translate:0 -50%;
   height:44px;pointer-events:auto}
 
@@ -804,8 +815,6 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 /* ── SKELETON ── */
 .skel{background:linear-gradient(90deg,var(--glass-1),var(--glass-2),var(--glass-1));background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:var(--r-sm)}
 .skel-row{height:48px;margin-bottom:8px}
-.skel-stat{height:72px}
-.skel-text{height:14px;margin-bottom:6px}
 .skel:nth-child(2){animation-delay:0.08s}
 .skel:nth-child(3){animation-delay:0.16s}
 .skel:nth-child(4){animation-delay:0.24s}

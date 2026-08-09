@@ -200,7 +200,7 @@ export default function DatabaseListScreen() {
 
         {/* Databases list */}
         {loading ? (
-          <SkeletonLoader />
+          <SkeletonLoader rowHeight={88} />
         ) : error && databases.length === 0 ? (
           <RetryState subtitle={error} onRetry={loadDatabases} />
         ) : !showPropResults && filtered.length === 0 && search ? (

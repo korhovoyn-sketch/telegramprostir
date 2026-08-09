@@ -130,7 +130,7 @@ export default function RealtorDatabaseScreen() {
         <SearchBar value={search} onChange={setSearch} placeholder="Пошук об&apos;єкту..." />
 
         {loading ? (
-          <SkeletonLoader />
+          <SkeletonLoader rowHeight={200} />
         ) : filtered.length === 0 ? (
           <div className="empty-state" style={{ paddingTop: 24 }}>
             <div className="empty-ic">🔍</div>
