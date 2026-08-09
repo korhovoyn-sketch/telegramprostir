@@ -43,6 +43,10 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
+        env:
+          # ТИМЧАСОВО: кадр, що не зійшовся, друкує себе в лог base64 —
+          # артефакти CI недосяжні з пісочниці (blob-хост ріже проксі).
+          SNAP_DUMP: '1'
       # Снапшоти сторінки на момент падіння — прямо в лог, без викачування
       # артефакту (page state видно одразу при діагностиці ран-онлі падінь)
       - name: Dump error contexts

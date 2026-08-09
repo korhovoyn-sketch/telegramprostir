@@ -51,11 +51,29 @@ async function snap(page: Page, name: string, nav: () => Promise<void>) {
   // був стабільні 4184px (0.02) при локально зеленому бейслайні: різні
   // середовища застигали на різних кадрах одного й того ж завантаження.
   await expect(page.locator('.skel')).toHaveCount(0, { timeout: 15_000 })
-  await expect(page).toHaveScreenshot(`${name}.png`, {
+  const opts = {
     // Смуга заповненості — єдиний елемент, чия ширина залежить від даних, які
     // цей екран рахує наживо.
     mask: [page.locator('.dash-bar-fill')],
-  })
+  }
+  // ДІАГНОСТИКА (тимчасова, знімається разом із причиною): пікселі CI звідси не
+  // подивитись — артефакти лежать на blob-хості, який проксі пісочниці ріже 403,
+  // а токена GitHub у середовищі немає. Тому кадр, що не зійшовся, друкує сам
+  // себе в лог: лог читається через API, base64 декодується локально, і зону
+  // розбіжності видно точно, замість вгадування.
+  if (process.env.SNAP_DUMP) {
+    try {
+      await expect(page).toHaveScreenshot(`${name}.png`, opts)
+    } catch (e) {
+      const b64 = (await page.screenshot({ mask: opts.mask })).toString('base64')
+      console.log(`SNAPDUMP_BEGIN ${name} ${b64.length}`)
+      for (let i = 0; i < b64.length; i += 2000) console.log(`SNAPDUMP ${b64.slice(i, i + 2000)}`)
+      console.log(`SNAPDUMP_END ${name}`)
+      throw e
+    }
+    return
+  }
+  await expect(page).toHaveScreenshot(`${name}.png`, opts)
 }
 const json = (route: Route, body: unknown) =>
   route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
