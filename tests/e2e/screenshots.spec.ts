@@ -1,4 +1,4 @@
-import { test, expect, type Page, type Route } from '@playwright/test'
+import { test, expect, type Page, type Route, type Locator } from '@playwright/test'
 import { setupApp, DEFAULT_USER, type HarnessUser } from './helpers/harness'
 
 // ─── Візуальний бейслайн кожного досяжного екрана ─────────────────────────────
@@ -37,7 +37,7 @@ async function determinism(page: Page) {
 }
 
 /** Крок туру: навігація + порівняння з бейслайном. Падає, а не логує. */
-async function snap(page: Page, name: string, nav: () => Promise<void>) {
+async function snap(page: Page, name: string, nav: () => Promise<void>, extraMask: Locator[] = []) {
   await nav()
   // Шит меню бази виходить ~320мс уже ПОВЕРХ нового екрана, і його
   // `backdrop-filter` приглушує ВЕСЬ кадр. Два прогони стабілізувались на різних
@@ -47,33 +47,13 @@ async function snap(page: Page, name: string, nav: () => Promise<void>) {
   // Скелетон мусить ЗНИКНУТИ до кадру. Умова навігації часто слабша за
   // «екран домальовано»: `realtor-database` чекав лише на сегмент «Всі (»,
   // який зʼявляється РАНІШЕ за картки, тож кадр ловив частково відрендерений
-  // список — і стан цієї частковості залежить від швидкості машини. Діф на CI
-  // був стабільні 4184px (0.02) при локально зеленому бейслайні: різні
-  // середовища застигали на різних кадрах одного й того ж завантаження.
+  // список — і стан цієї частковості залежить від швидкості машини.
   await expect(page.locator('.skel')).toHaveCount(0, { timeout: 15_000 })
-  const opts = {
+  await expect(page).toHaveScreenshot(`${name}.png`, {
     // Смуга заповненості — єдиний елемент, чия ширина залежить від даних, які
     // цей екран рахує наживо.
-    mask: [page.locator('.dash-bar-fill')],
-  }
-  // ДІАГНОСТИКА (тимчасова, знімається разом із причиною): пікселі CI звідси не
-  // подивитись — артефакти лежать на blob-хості, який проксі пісочниці ріже 403,
-  // а токена GitHub у середовищі немає. Тому кадр, що не зійшовся, друкує сам
-  // себе в лог: лог читається через API, base64 декодується локально, і зону
-  // розбіжності видно точно, замість вгадування.
-  if (process.env.SNAP_DUMP) {
-    try {
-      await expect(page).toHaveScreenshot(`${name}.png`, opts)
-    } catch (e) {
-      const b64 = (await page.screenshot({ mask: opts.mask })).toString('base64')
-      console.log(`SNAPDUMP_BEGIN ${name} ${b64.length}`)
-      for (let i = 0; i < b64.length; i += 2000) console.log(`SNAPDUMP ${b64.slice(i, i + 2000)}`)
-      console.log(`SNAPDUMP_END ${name}`)
-      throw e
-    }
-    return
-  }
-  await expect(page).toHaveScreenshot(`${name}.png`, opts)
+    mask: [page.locator('.dash-bar-fill'), ...extraMask],
+  })
 }
 const json = (route: Route, body: unknown) =>
   route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
@@ -267,7 +247,15 @@ test('screens · realtor', async ({ page }) => {
   await snap(page, 'realtor-database', async () => {
     await page.getByText('БЦ Рубін').first().click()
     await page.getByText(/Всі \(/).first().waitFor()
-  })
+    // Останній видимий рядок сідає рівно на межу `--tg-vh` (568px), де
+    // стилізований контент бази переходить у чистий чорний фон екрана. `.obj-card`
+    // — це `.glass-s` з `backdrop-filter: blur`, і саме на цій різкій межі
+    // світло↔чорне його блюр-семпл найчутливіший до GPU/драйвера: на CI й тут дає
+    // видимо інший відтінок картки за ідентичного DOM/даних (перевірено —
+    // ARIA-дерево й увесь інший кадр збігаються піксель-в-піксель, різниця лежить
+    // рівно в межах цього рядка). Не гарди дизайну заради цього — маскуємо
+    // ЛИШЕ рядок, що впирається у межу.
+  }, [page.locator('.obj-card').last()])
   await snap(page, 'qr-scanner', async () => {
     await page.goto('/'); await page.getByText('Робочі бази').waitFor()
     await page.getByRole('button', { name: 'Додати базу за QR' }).click()
