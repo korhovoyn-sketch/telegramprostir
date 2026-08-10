@@ -10,7 +10,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 
 export default function ProfileSetupScreen() {
   const user = useAppStore((s) => s.user)
-  const { navigate, showToast } = useAppStore()
+  const { navigateRoot, showToast } = useAppStore()
   const { updateProfile, loading } = useAuth()
 
   const [email, setEmail] = useState(user?.email ?? '')
@@ -33,7 +33,7 @@ export default function ProfileSetupScreen() {
       const ok = await updateProfile({ email: email || undefined, phone: phone || undefined }, true)
       if (!ok) return
     }
-    navigate(dest)
+    navigateRoot(dest)
   }
 
   return (
@@ -122,7 +122,7 @@ export default function ProfileSetupScreen() {
           {!loading && 'Почати роботу →'}
         </button>
         <button
-          onClick={() => navigate(dest)}
+          onClick={() => navigateRoot(dest)}
           disabled={loading}
           style={{
             background: 'none', border: 'none', cursor: 'pointer',

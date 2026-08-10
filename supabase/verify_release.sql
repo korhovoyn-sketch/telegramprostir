@@ -62,6 +62,16 @@ WITH checks(ord, item, migration, ok) AS (VALUES
   (20, 'RPC claim_team_invite', '041_team_members.sql',
       EXISTS (SELECT 1 FROM pg_proc WHERE proname='claim_team_invite')),
 
+  -- 045: КРИТИЧНО — регресія ідентифікації (038/041 стерли фікс 031). Маркер
+  -- `tg_id > 0` унікальний для виправленої версії — вразлива копія (038/041) її
+  -- не має, тож самої substring-перевірки досить (без неоднозначності LIKE-екранування бекслеша в regex-літералі).
+  (21, 'get_app_user_id_from_auth_uid має tg_id>0 (031/045 hardening)', '045_fix_auth_uid_identity_regression.sql',
+      EXISTS (SELECT 1 FROM pg_proc WHERE proname='get_app_user_id_from_auth_uid'
+              AND prosrc LIKE '%tg_id > 0%')),
+  (22, 'get_editor_db_ids_from_auth_uid має tg_id>0 (045 hardening)', '045_fix_auth_uid_identity_regression.sql',
+      EXISTS (SELECT 1 FROM pg_proc WHERE proname='get_editor_db_ids_from_auth_uid'
+              AND prosrc LIKE '%tg_id > 0%')),
+
   -- Наскрізні інваріанти
   (15, 'RLS увімкнено на всіх 15 таблицях', 'будь-яка пропущена',
       (SELECT count(*)>=15 FROM pg_tables t JOIN pg_class c ON c.relname=t.tablename

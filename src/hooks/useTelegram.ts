@@ -23,6 +23,7 @@ interface TelegramWebApp {
   colorScheme: 'light' | 'dark'
   themeParams: Record<string, string>
   BackButton: {
+    isVisible: boolean
     show: () => void
     hide: () => void
     onClick: (fn: () => void) => void

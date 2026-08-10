@@ -105,6 +105,11 @@ test('payment lifecycle: schedule → due item → mark paid → stats → unpay
   const receiveBtn = page.getByRole('button', { name: /Отримано/ }).first()
   await expect(receiveBtn).toBeVisible()
 
+  // 2b. Сума на самій картці due-платежу — НОРМАЛІЗОВАНА (100м² × 18 = 1 800),
+  // не сира ставка rent_rate (18). Картка показувала «$18» замість «$1 800» —
+  // rent_rate для per_m2/per_day є ставкою за одиницю, не сумою до сплати.
+  await expect(page.getByText('1 800', { exact: false }).first()).toBeVisible()
+
   // 3. Підтвердження платежу: сума з оренди (100м² × 18 = 1800) префілиться
   await receiveBtn.click()
   await expect(page.getByText('Підтвердити отримання')).toBeVisible()

@@ -9,14 +9,24 @@ import SearchBar from '@/components/ui/SearchBar'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import { IconChevronRight, GlassDbIcon } from '@/components/Icons'
 import { DB_TYPE_LABELS, greeting, humanizeDbError, matchesQuery } from '@/lib/utils'
-import type { Database, RealtorSubscription } from '@/types'
+import type { Database, DbMember, RealtorSubscription } from '@/types'
 import CoachMark from '@/components/ui/CoachMark'
 import { useOnboarding } from '@/hooks/useOnboarding'
 import { useSlowLoadingToast } from '@/hooks/useSlowLoadingToast'
 
 export default function RealtorDashboardScreen() {
   const { user, navigate, showToast } = useAppStore()
+  const setMemberDbIds = useAppStore(st => st.setMemberDbIds)
   const [subscriptions, setSubscriptions] = useState<RealtorSubscription[]>([])
+  // Бази, куди user запрошений як редактор команди (db_members, migration 041) —
+  // ОКРЕМО від realtor_subscriptions (звичайний перегляд по share-лінку).
+  // Без цього списку редактор із role:'realtor' бачив свою базу РІВНО один раз:
+  // deep link team_<token> примусово веде на db-list (де memberDbIds рахується
+  // правильно), але «Бази» в таббарі для role:'realtor' завжди веде сюди — і
+  // сюди-код ніколи не питав db_members, тож на будь-якому наступному вході
+  // isOwner-шлюзи на db-objects/property-detail мовчки гасли (memberDbIds
+  // лишався порожнім), хоч бекенд і далі дозволяв повний запис.
+  const [memberDatabases, setMemberDatabases] = useState<Database[]>([])
   const [loading, setLoading] = useState(true)
   useSlowLoadingToast(loading)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -30,16 +40,37 @@ export default function RealtorDashboardScreen() {
     setLoading(true)
     setLoadError(null)
     try {
-      const { data, error } = await supabase
-        .from('realtor_subscriptions')
-        .select('*, database:databases(*)')
-        .eq('realtor_id', user.id)
-        .order('created_at', { ascending: false })
+      const [{ data, error }, memberRes] = await Promise.all([
+        supabase
+          .from('realtor_subscriptions')
+          .select('*, database:databases(*)')
+          .eq('realtor_id', user.id)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('db_members')
+          .select('db_id, database:databases(*)')
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+          .eq('role', 'editor'),
+      ])
       if (error) throw error
       setSubscriptions((data ?? []) as RealtorSubscription[])
 
-      // Load real property count across all subscribed databases
-      const dbIds = (data ?? []).map((s) => (s as RealtorSubscription & { database?: { id: string } }).database?.id).filter((id): id is string => Boolean(id))
+      // На бекенді без міграції 041 запит по db_members падає — команда тоді
+      // просто вимкнена (той самий толерантний патерн, що в useDatabases.ts).
+      // PostgREST embed типізується як масив незалежно від кардинальності —
+      // беремо перший елемент.
+      type MemberRow = Pick<DbMember, 'db_id'> & { database?: Database | Database[] | null }
+      const memberRows = memberRes.error ? [] : ((memberRes.data ?? []) as unknown as MemberRow[])
+      const memberDbs = memberRows
+        .map((r) => (Array.isArray(r.database) ? r.database[0] : r.database))
+        .filter((d): d is Database => Boolean(d))
+      setMemberDatabases(memberDbs)
+      setMemberDbIds(memberDbs.map((d) => d.id))
+
+      // Load real property count across all subscribed AND member databases
+      const subDbIds = (data ?? []).map((s) => (s as RealtorSubscription & { database?: { id: string } }).database?.id).filter((id): id is string => Boolean(id))
+      const dbIds = [...subDbIds, ...memberDbs.map((d) => d.id)]
       if (dbIds.length > 0) {
         const { count } = await supabase
           .from('properties')
@@ -64,6 +95,9 @@ export default function RealtorDashboardScreen() {
   const filtered = subscriptions.filter((s) =>
     matchesQuery(search, s.database?.name, s.database?.address)
   )
+  const filteredMemberDbs = memberDatabases.filter((d) =>
+    matchesQuery(search, d.name, d.address)
+  )
 
   const greet = greeting()
 
@@ -87,7 +121,7 @@ export default function RealtorDashboardScreen() {
 
         <div className="stat-g" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
           <div className="stat glass-s">
-            <div className="stat-n">{subscriptions.length}</div>
+            <div className="stat-n">{subscriptions.length + memberDatabases.length}</div>
             <div className="stat-l">Баз</div>
           </div>
           <div className="stat glass-s">
@@ -100,9 +134,9 @@ export default function RealtorDashboardScreen() {
 
         {loading ? (
           <SkeletonLoader rowHeight={88} />
-        ) : loadError && subscriptions.length === 0 ? (
+        ) : loadError && subscriptions.length === 0 && memberDatabases.length === 0 ? (
           <RetryState subtitle={loadError} onRetry={load} />
-        ) : filtered.length === 0 ? (
+        ) : filtered.length === 0 && filteredMemberDbs.length === 0 ? (
           <div className="empty-state" style={{ paddingTop: 32 }}>
             <div className="empty-ic">🏢</div>
             <div className="empty-h">
@@ -114,6 +148,25 @@ export default function RealtorDashboardScreen() {
           </div>
         ) : (
           <div className="list">
+            {/* Бази, де user — редактор команди (db_members): повний CRUD,
+                тож ведуть у db-objects, не в read-only realtor-database. */}
+            {filteredMemberDbs.map((db) => (
+              <div
+                key={db.id}
+                className="row glass-s"
+                onClick={() => navigate('db-objects', { dbId: db.id })}
+              >
+                <GlassDbIcon type={db.type} color={db.color} size={32} />
+                <div className="row-mn">
+                  <div className="row-t">{db.name}</div>
+                  <div className="row-s">
+                    <span>{DB_TYPE_LABELS[db.type]}</span>
+                  </div>
+                </div>
+                <span className="bdg bdg-info">Команда</span>
+                <IconChevronRight size={14} color="var(--t4)" />
+              </div>
+            ))}
             {filtered.map((sub) => {
               const db = sub.database as Database
               if (!db) return null

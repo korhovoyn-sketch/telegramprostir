@@ -643,6 +643,34 @@ This sandboxed environment has **no outbound network** to Vercel/Supabase previe
 
 ## Pending manual actions (зробити в Supabase Dashboard)
 
+### 0h. КРИТИЧНО, ПЕРШИМ — регресія ідентифікації в storage-політиках (038/041 стерли фікс 031)
+
+Файл: `supabase/migrations/045_fix_auth_uid_identity_regression.sql`. **Виконати
+раніше за будь-яку іншу міграцію нижче**, якщо 038 чи 041 вже застосовані.
+
+Знайдено повторним аудитом коду (не в проді — перевірити стан живої БД звідси
+неможливо, мережі до Supabase з цього середовища немає, тож застосувати теж
+не можна; лише SQL-файл готовий).
+
+Що сталось: `031_critical_security_hotfixes.sql` (CRITICAL-2) навмисно додав до
+`get_app_user_id_from_auth_uid()` два захисти — домен-якір
+(`email ~ '^\d{1,20}@telegram\.propspace\.app$'`) і `tg_id > 0`. `038_storage_write_hardening.sql`
+(номер вищий → виконується пізніше) містить власну «самодостатню» копію тієї ж
+функції «про всяк випадок, якщо 030 не застосована» — але скопіювала
+ДО-031-версію без цих двох перевірок, і `CREATE OR REPLACE` мовчки стер фікс.
+`041_team_members.sql` скопіювала вже регресований патерн у нову
+`get_editor_db_ids_from_auth_uid()`, поширивши діру на editor-права.
+
+Експлуатація: без домен-якоря `SPLIT_PART(email,'@',1) = tg_id` — будь-хто, хто
+самостійно реєструється в Supabase Auth email/password з публічним anon key
+під адресою `<чийсь_tg_id>@будь-що.example`, резолвиться в `users.id` жертви
+(домен інший → UNIQUE(email) не конфліктує зі справжнім акаунтом). tg_id не
+секрет (видимий у публічних лінках), тож ціль обирається тривіально. Дає
+запис/видалення фото жертви, а для активного редактора чужої бази — повний
+editor storage-запис.
+
+`verify_release.sql` тепер перевіряє це пунктами 21-22.
+
 ### 0g. Видалення акаунта (delete_my_account) — виконати SQL в Dashboard → SQL Editor
 
 Файл: `supabase/migrations/044_delete_account.sql`.
@@ -874,3 +902,100 @@ ALLOWED_ORIGIN=https://<your-vercel-domain>.vercel.app
 **Відповідність платформі (серпень 2026)**
 - Врізи Telegram (`safeAreaInset` + `contentSafeAreaInset`, Bot API 8.0) — `env()` у webview Telegram iOS ненадійний; доступні назви для полів/кнопок/зображень; темна тема оголошена свідомим рішенням.
 - Незворотні дії → нативний `showPopup` через `confirmAction()` (13 місць: бази, об'єкти, фото, файли, папки, розклад платежів, скасування платежу, підбірки, ротація/відкликання шарингу, реактивація мертвого лінка, команда, гості) з фолбеком `ConfirmHost`. Пара «Зберегти зміни / Видалити» у формі об'єкта — на нативній нижній смузі (`SecondaryButton`).
+
+## Changelog — раунд перед публікацією (серпень 2026)
+
+Наскрізний аудит «готовність до релізу»: три паралельні розвідки (навігаційні
+тупики/необроблені помилки, гроші/CRUD-логіка, RLS/edge functions), кожна
+знахідка перевірена особисто читанням коду перед фіксом, кожен фікс
+falsification-проведений (зламав → впало → відкотив → зелено).
+
+**Знайдено й виправлено:**
+- **КРИТИЧНО, security.** `get_app_user_id_from_auth_uid()` — `031` додав
+  домен-якір (`email ~ '^\d{1,20}@telegram\.propspace\.app$'`) і `tg_id > 0`,
+  але `038_storage_write_hardening.sql` (номер вищий → виконується пізніше)
+  мовчки повернула версію БЕЗ цих перевірок («самодостатня копія про всяк
+  випадок»), а `041_team_members.sql` скопіювала вже регресований патерн у
+  нову `get_editor_db_ids_from_auth_uid()`. Без домен-якоря
+  `SPLIT_PART(email,'@',1)=tg_id` дозволяв самостійну реєстрацію під
+  `<чийсь_tg_id>@будь-що` → права на запис/видалення чужих фото. Фікс:
+  `045_fix_auth_uid_identity_regression.sql` — **застосувати ПЕРШИМ** (Pending
+  manual actions §0h), перевірено, що самостійно з БД тут застосувати
+  неможливо (немає мережі до Supabase з цього середовища).
+- **Тупик онбордингу.** `RoleSelectScreen`/`ProfileSetupScreen` вели через
+  `navigate()`, а не `navigateRoot()` — обидва екрани в `AUTH_SCREENS`,
+  `back()` фільтрує їх з history, тож нативна кнопка Telegram «Назад» лишалась
+  видимою на `profile-setup` й на `empty-state`/`realtor-dashboard` і НІЧОГО
+  не робила. Тест: `onboarding-owner.spec.ts` перевіряє `BackButton.isVisible`
+  на кожному кроці.
+- **Редактор команди з роллю `realtor` губив свою базу назавжди.**
+  `db_members`-членство і `realtor_subscriptions` — окремі таблиці;
+  `RealtorDashboardScreen` (домашній екран для `role:'realtor'`, і
+  ЄДИНИЙ, бо REALTOR_TABS не має вкладки на `db-list`) читав лише
+  `realtor_subscriptions`. Deep link `team_<token>` форсить `db-list` (де
+  `memberDbIds` рахується правильно) лише ОДИН раз — далі «Бази» в таббарі
+  завжди веде на `realtor-dashboard`, який про `db_members` не знав, тож
+  `isOwner`-шлюзи (edit FAB, меню бази) гасли назавжди для не-owner
+  редакторів, хоч бекенд і далі дозволяв запис. Фікс: `RealtorDashboardScreen`
+  тепер тягне обидва джерела, member-бази ведуть у `db-objects` (не в
+  read-only `realtor-database`) з бейджем «Команда». Тест:
+  `team.spec.ts` — `realtor-редактор: бачить member-базу...`.
+- **`calcRentUtils.total` змішував добову ставку з місячними
+  експлуатаційними** для `rent_type: 'per_day'` (паркінг): `rent` — сира
+  ДОБОВА ставка (навмисно, для показу поряд із «/добу»), `utils` — завжди
+  місячна сума, а `total = rent + utils` це не враховував. Кожен ЕКРАН
+  застосунку (DatabaseObjectsScreen, PropertyDetailScreen,
+  RealtorDatabaseScreen, `/v`) вже обходив це локальним `isDaily`-гардом —
+  але `ExportScreen` (PDF і XLSX) такого гарда не мав НІДЕ (5 місць: підсумкова
+  таблиця, деталі об'єкта, stat-плитка «Оренда», рядок і зведення XLSX) і
+  друкував цю суміш у завантажуваному звіті під підписом «Разом на місяць» /
+  «Оренда на місяць ($)». Фікс — на рівні `calcRentUtils` (`total` тепер
+  завжди генуїнно місячний через `monthlyRent()`), плюс прибрані самостійні
+  `rent+utils` перерахунки в `ExportScreen`, які й далі обходили б виправлене
+  поле. Тест: `calcRentUtils` unit-кейс `total for per_day is
+  MONTHLY-normalized`.
+- **PaymentCalendarScreen показував сиру ставку замість суми до сплати** —
+  `displayAmt` для несплаченого item брав `item.property.rent_rate` напряму
+  ($18/м²), а не нормалізований `expectedRent()` ($1800/міс), який уже
+  правильно використовувався як дефолт у модалці підтвердження на цьому ж
+  екрані. Тест: `deep-lifecycle.spec.ts`, крок 2b.
+- **`daysUntil()` (utils.ts) — off-by-one в перші 2-3 год доби для UTC+
+  часових поясів.** `lease_end_date` (дата без часу) парсився як UTC-північ,
+  порівнювався з `Date.now()` — миттю в локальному календарі; оренда, що
+  закінчується «сьогодні» за Києвом, рахувалась як «через 1 день».
+  `PaymentCalendarScreen.tsx` мала власну ЛОКАЛЬНУ версію без цього багу
+  (`dateStr + 'T00:00:00'`) — той самий патерн застосовано до спільної
+  (`useLeaseAlerts`, `PropertyDetailScreen`). Тест: `vi.setSystemTime` +
+  `process.env.TZ='Europe/Kyiv'`.
+
+**Знайдено, НЕ виправлено в цьому раунді (свідомо, з причиною):**
+- Optimistic-rollback у `useProperties.ts` (`updateProperty`, `moveToFolder`,
+  `moveToDatabase`, `reorderProperty`) знімає ВЕСЬ список на снапшот і при
+  невдачі відкочує його цілком — два швидкі паралельні мутейти можуть
+  затерти одне одного. Потребує редизайну (per-item rollback, не
+  whole-list), а не точкового патча.
+- `nextCopyName`/`bulkCreateNames` — необмежений `while`-цикл, теоретичний
+  freeze при дуже щільному діапазоні зайнятих імен. Низька ймовірність у
+  реальних даних.
+- `usePropertyFiles.ts` — лічильник файлів рахується один раз на клієнті,
+  тож другий редактор, що паралельно завантажив 10-й файл, залишає стейл
+  "Додати" видимою; плюс `FilesList.tsx` показує успіх незалежно від
+  фактичної кількості завантажених файлів.
+- `PropertyDetailScreen.tsx`'s `isParking` читає `databases` (глобальний
+  стор), що заповнюється лише `DatabaseListScreen` — на холодному deep-link
+  вході може дати `false` до першого відвідування db-list.
+- `SuccessScreen`/`ErrorScreen` — повністю нереференсований мертвий код
+  (нуль викликів `navigate('success'|'error', ...)` у репо).
+- `GuestDatabaseScreen.tsx` отримав захисний `catch` навколо RPC-виклику
+  (try/finally без catch), АЛЕ емпірично перевірено — `supabase-js` уже
+  перехоплює і мережеві збої (`route.abort`), і невалідний JSON у
+  структуровану `{error}`-відповідь ДО того, як щось може кинути виняток
+  усередині `try`. Тобто конкретний живий шлях відтворити не вдалось: `catch`
+  лишається безпечним посиленням без власного falsification-тесту.
+- Кілька `try {} finally {}` без `catch` у `QRScannerScreen`,
+  `DatabaseListScreen` (крос-базовий пошук), `useLeaseAlerts` — той самий
+  клас, нижчий пріоритет (не на першому екрані входу).
+
+**Не перевірено з цього середовища:** стан застосованих міграцій у Supabase
+(немає мережі з цього середовища — `supabase/verify_release.sql` перевіряє
+одним запитом у Dashboard SQL Editor) і сам факт публікації фіксу 045 в БД.

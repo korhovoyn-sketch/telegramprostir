@@ -791,7 +791,11 @@ interface PaymentItemCardProps {
 
 function PaymentItemCard({ item, statusColor, label, onMarkPaid, onEdit, onDeleteSchedule, onEditPaid, onUnpay, userCurrency }: PaymentItemCardProps) {
   const isPaid     = item.record?.status === 'paid'
-  const displayAmt = isPaid ? (item.record?.amount ?? null) : (item.property.rent_rate ?? null)
+  // rent_rate — сира ставка ($/м² чи $/добу для per_m2/per_day), не сума до
+  // сплати. expectedRent() нормалізує до місяця — той самий шлях, що вже дає
+  // дефолт у модалці підтвердження платежу (рядок вище, expectedRent виклик).
+  // Без цього картка «Офіс, $18» показувала ставку замість реальних $1 800.
+  const displayAmt = isPaid ? (item.record?.amount ?? null) : (expectedRent(item.property) || null)
 
   return (
     <div className="glass-s" style={{ borderRadius: 'var(--r-md)', overflow: 'hidden' }}>

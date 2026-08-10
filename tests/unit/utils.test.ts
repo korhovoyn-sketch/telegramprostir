@@ -1,10 +1,34 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import {
   formatPrice, formatLeaseDate, formatLeasePeriod, formatDate,
   calcRent, calcUtilities, calcRentUtils, basisArea, floorSortKey, monthlyRent, rentUnitLabel, parkingTypeLabel,
   getInitials, greeting, withRetry, humanizeDbError, safeFileName, pluralUk, objectsWord,
-  computedRentUnit, nextCopyName, bulkCreateNames, sanitizeDecimal, sanitizeInt,
+  computedRentUnit, nextCopyName, bulkCreateNames, sanitizeDecimal, sanitizeInt, daysUntil,
 } from '@/lib/utils'
+
+describe('daysUntil', () => {
+  const origTZ = process.env.TZ
+  afterEach(() => {
+    vi.useRealTimers()
+    process.env.TZ = origTZ
+  })
+  it('lease ending "today" in a UTC+ timezone is 0, not 1 (off-by-one near local midnight)', () => {
+    // dateStr — БЕЗ часу, парситься як UTC-північ; порівняння з Date.now()
+    // (мить у ЛОКАЛЬНОМУ календарі) давало «через 1 день» для оренди, що
+    // закінчується сьогодні, у перші 2-3 години доби для Києва (UTC+2/+3).
+    process.env.TZ = 'Europe/Kyiv'
+    vi.useFakeTimers()
+    // 2026-01-14T23:30Z = 2026-01-15 01:30 Київ — локально вже 15-те.
+    vi.setSystemTime(new Date('2026-01-14T23:30:00Z'))
+    expect(daysUntil('2026-01-15')).toBe(0)
+  })
+  it('lease ending tomorrow (local) is 1', () => {
+    process.env.TZ = 'Europe/Kyiv'
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-01-14T23:30:00Z')) // локально 2026-01-15 01:30
+    expect(daysUntil('2026-01-16')).toBe(1)
+  })
+})
 
 describe('humanizeDbError', () => {
   it('maps RLS / permission errors to a no-access message', () => {
@@ -277,6 +301,15 @@ describe('calcRentUtils', () => {
     expect(calcRentUtils(13, null, 0, 'fixed', 30, 'useful').utils).toBe(30)
     expect(calcRentUtils(50, 100, 20, 'per_m2', 5).utils).toBe(500)
     expect(calcRentUtils(50, 100, 20, 'per_m2', null).utils).toBe(0)
+  })
+  it('total for per_day is MONTHLY-normalized, not raw-daily + monthly-utils', () => {
+    // Реальний баг: total раніше рахував rent(добова ставка) + utils(місячна
+    // сума) — ExportScreen (PDF/XLSX) друкував цю суміш як «Разом на місяць».
+    // $150/добу паркомісце + $30/міс експлуатаційні → $4500 + $30, НЕ $150 + $30.
+    const r = calcRentUtils(0, null, 150, 'per_day', 30)
+    expect(r.rent).toBe(150)   // сира добова ставка — так і мусить лишитись (показ поряд із «/добу»)
+    expect(r.utils).toBe(30)
+    expect(r.total).toBe(4530) // 150×30 + 30, НЕ 150+30=180
   })
 })
 
