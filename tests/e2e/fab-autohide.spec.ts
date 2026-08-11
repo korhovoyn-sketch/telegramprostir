@@ -21,8 +21,8 @@ test('FAB ховається на гортанні вниз і повертає�
   await expect(page.getByText('Мої бази')).toBeVisible({timeout:20000})
   await page.getByText('Міком Палац').first().click()
   await expect(page.getByText('Всі (10)')).toBeVisible()
-  await page.waitForTimeout(900) // fabPop settles
-  const fab = page.locator('.fab')
+  await page.waitForTimeout(900) // enter animation settles
+  const fab = page.locator('.fbtn')
   await expect(fab).not.toHaveClass(/fab-off/)
 
   await page.locator('.body').evaluate(el=>{el.scrollTop=600}); await page.waitForTimeout(400)

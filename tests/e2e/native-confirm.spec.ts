@@ -178,7 +178,7 @@ test('форма СТВОРЕННЯ не падає, коли Telegram має Se
   // Створення: другорядної дії тут НЕМА. Порожній підпис Telegram відкидає
   // (WebAppBottomButtonParamInvalid) синхронно, тож раніше екран падав у
   // ErrorBoundary — «Не можу створювати обʼєкти».
-  await page.locator('.fab').click()
+  await page.locator('.fbtn').click()
   await expect(page.getByText('Новий об\'єкт')).toBeVisible({ timeout: 15_000 })
   await expect(page.getByText('Щось пішло не так')).toHaveCount(0)
 

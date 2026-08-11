@@ -27,7 +27,7 @@ const PROP = {
 }
 
 /** Смуги, що плавають над вмістом і тому можуть накрити поле. */
-const OVERLAYS = ['.mbtn', '.modal-actions', '.tabbar', '.batchbar', '.fab']
+const OVERLAYS = ['.mbtn', '.modal-actions', '.tabbar', '.batchbar', '.fbtn']
 
 async function setup(page: Page) {
   await setupApp(page, { user: USER })
