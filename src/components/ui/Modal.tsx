@@ -71,6 +71,30 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
   const kbConfirmRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const kbDropRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const kbFixRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  // Висота вікна на момент відкриття шита — базова лінія для детекту стискання.
+  const baseInnerHRef = useRef(0)
+  useEffect(() => { baseInnerHRef.current = window.innerHeight }, [])
+
+  /**
+   * Чи webview УЖЕ стиснувся під клавіатуру.
+   *
+   * `layoutShrunkByKeyboard()` питає про це Telegram (`viewportHeight` vs
+   * `viewportStableHeight`), і саме на цьому ламалось: клієнт користувача
+   * стискав webview, але цих значень не оновлював, тож гард казав «не
+   * стиснувся», шит додавав СВОЇ 320px поверх уже врахованої клавіатури — і
+   * відлітав у верх екрана з дірою під собою (скріншот: шит 26%, діра 31%,
+   * клавіатура 43% — арифметика зійшлась точно).
+   *
+   * Тому другий, незалежний від Telegram сигнал: власне вікно просто стало
+   * нижчим, ніж було на момент відкриття шита. Якщо клавіатура вже була
+   * відкрита при монтуванні, база вже врахує її — і різниця буде нульовою або
+   * відʼємною, тобто хибного спрацювання це дати не може.
+   */
+  function layoutCompressed(): boolean {
+    if (layoutShrunkByKeyboard()) return true
+    const base = baseInnerHRef.current
+    return base > 0 && base - window.innerHeight >= KB_TRUSTED_PX
+  }
 
   function reportedKeyboardPx(): number {
     const css = parseFloat(
@@ -107,11 +131,11 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
     kbProbeRef.current = setTimeout(() => {
       // У режимі стиснення webview лейаут уже без клавіатури — власний ліфт
       // відняв би її вдруге і затиснув шит (див. layoutShrunkByKeyboard).
-      const stillNoKeyboard = !layoutShrunkByKeyboard() && reportedKeyboardPx() < KB_TRUSTED_PX
+      const stillNoKeyboard = !layoutCompressed() && reportedKeyboardPx() < KB_TRUSTED_PX
       if (!stillNoKeyboard) { clearStickyActions(el); return }
       // Підтверджуємо ще раз замість вмикати фолбек одразу (див. KB_CONFIRM_MS).
       kbConfirmRef.current = setTimeout(() => {
-        const lift = !layoutShrunkByKeyboard() && reportedKeyboardPx() < KB_TRUSTED_PX
+        const lift = !layoutCompressed() && reportedKeyboardPx() < KB_TRUSTED_PX
         if (lift) setKbFallback(true)
         // Ліфт змінює геометрію і їде transition-ом (.25s) — міряємо ПІСЛЯ нього,
         // інакше скоригуємо на застарілих координатах.
@@ -138,10 +162,17 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
   useEffect(() => {
     if (!kbFallback) return
     const onViewportResize = () => {
-      if (!layoutShrunkByKeyboard() && reportedKeyboardPx() >= KB_TRUSTED_PX) setKbFallback(false)
+      if (layoutCompressed() || reportedKeyboardPx() >= KB_TRUSTED_PX) setKbFallback(false)
     }
+    // window.resize — теж обовʼязково: коли Telegram СТИСКАЄ webview, змінюється
+    // саме воно, і клієнт, що не оновлює visualViewport, інакше лишив би
+    // хибний ліфт висіти до блура поля.
     window.visualViewport?.addEventListener('resize', onViewportResize)
-    return () => window.visualViewport?.removeEventListener('resize', onViewportResize)
+    window.addEventListener('resize', onViewportResize)
+    return () => {
+      window.visualViewport?.removeEventListener('resize', onViewportResize)
+      window.removeEventListener('resize', onViewportResize)
+    }
   }, [kbFallback])
 
   useEffect(() => () => {
