@@ -7,7 +7,6 @@ import { offlineGuard } from '@/lib/offline'
 import { confirmAction } from '@/lib/confirm'
 import { useProperties } from '@/hooks/useProperties'
 import { useFolders } from '@/hooks/useFolders'
-import { useMainButton } from '@/hooks/useMainButton'
 import Header from '@/components/ui/Header'
 import Toggle from '@/components/ui/Toggle'
 import FolderPickerModal from '@/components/ui/FolderPickerModal'
@@ -298,24 +297,6 @@ export default function PropertyFormScreen() {
     ? 'Зберегти зміни'
     : count > 1 ? `Додати ${count} ${objectsWord(count)}` : 'Додати об\'єкт'
 
-  // Native Telegram MainButton is the primary action; the DOM button below is
-  // the fallback for browsers outside Telegram.
-  const { available: nativeMain, secondaryAvailable: nativeDelete } = useMainButton({
-    text: saveLabel,
-    // Ховаємо під нашими шитами (їхні кнопки мусять бути єдиною первинною
-    // дією). Нативний попап підтвердження ховати не треба — Telegram сам
-    // перекриває MainButton своїм діалогом.
-    visible: !showFolderPicker,
-    enabled: canSave,
-    loading,
-    barColor: '#5480dc', // низ .bg-blue
-    onClick: handleSave,
-    // У режимі редагування пара «Зберегти зміни / Видалити» живе на нижній
-    // смузі — там, де її очікує платформа. Іконка в хедері лишається лише як
-    // фолбек для клієнтів без SecondaryButton.
-    secondary: isEdit ? { text: 'Видалити', destructive: true, onClick: handleDeleteProperty } : undefined,
-  })
-
   // Returns the numeric value, or undefined if string is empty/invalid.
   // Avoids the `parseFloat('0') || undefined` pitfall where 0 is silently dropped.
   function numOrUndef(s: string): number | undefined {
@@ -479,7 +460,7 @@ export default function PropertyFormScreen() {
         title={isEdit ? 'Редагування' : 'Новий об\'єкт'}
         backLabel={isEdit ? 'Назад' : 'База'}
         right={
-          isEdit && !nativeDelete ? (
+          isEdit ? (
             <button
               className="hdr-a"
               aria-label="Видалити об'єкт"
@@ -861,16 +842,19 @@ export default function PropertyFormScreen() {
           </div>
         )}
 
-        {!nativeMain && (
-          <button
-            className={`mbtn success mbtn-flow ${!canSave || loading ? 'disabled' : ''} ${loading ? 'is-loading' : ''}`}
-            onClick={handleSave}
-            disabled={!canSave || loading}
-          >
-            {!loading && saveLabel}
-          </button>
-        )}
       </div>
+
+      {/* Плаваюча CTA. Ховається під шитом вибору папки — його власна кнопка
+          мусить лишатись єдиною первинною дією на екрані. */}
+      {!showFolderPicker && (
+        <button
+          className={`mbtn success mbtn-flow ${!canSave || loading ? 'disabled' : ''} ${loading ? 'is-loading' : ''}`}
+          onClick={handleSave}
+          disabled={!canSave || loading}
+        >
+          {!loading && saveLabel}
+        </button>
+      )}
 
       {showFolderPicker && (
         <FolderPickerModal

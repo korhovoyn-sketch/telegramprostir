@@ -133,38 +133,32 @@ test('без showPopup лишається фолбек-модалка з тим 
   await expect.poll(() => deletes.length, { timeout: 10_000 }).toBe(1)
 })
 
-test('у режимі редагування нативна пара «Зберегти зміни / Видалити» на нижній смузі', async ({ page }) => {
+test('редагування: видалення живе в хедері — єдиний шлях, і він працює', async ({ page }) => {
   const { deletes } = await setup(page)
   await page.addInitScript(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const w = window as any
+    // Нативну смугу вмикаємо СВІДОМО: навіть коли Telegram її пропонує, ми нею
+    // більше не користуємось — тулбар прибрано з застосунку.
     w.__tgEnableMainButton?.(true)
     w.__tgEnablePopups?.('ok')
   })
   await openEditForm(page)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const main = await page.evaluate(() => (window as any).__tgMain)
-  expect(main.text).toBe('Зберегти зміни')
-  expect(main.isVisible).toBe(true)
+  const bar = await page.evaluate(() => ({ main: (window as any).__tgMain, sec: (window as any).__tgSecondary }))
+  expect(bar.main.isVisible, 'нативна смуга не вмикається').toBe(false)
+  expect(bar.sec.isVisible, 'нативної пари теж немає').toBe(false)
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sec = await page.evaluate(() => (window as any).__tgSecondary)
-  expect(sec.text).toBe('Видалити')
-  expect(sec.isVisible).toBe(true)
-  expect(sec.params.position).toBe('left')
-
-  // Дію не дублюємо: іконка в хедері зникає, коли нативна кнопка на місці.
-  await expect(page.getByRole('button', { name: 'Видалити об\'єкт' })).toHaveCount(0)
-  // DOM-фолбек первинної дії теж прихований.
-  await expect(page.locator('.mbtn')).toHaveCount(0)
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await page.evaluate(() => (window as any).__tgSecondaryClick())
+  // Первинна дія — наша власна пігулка…
+  await expect(page.locator('button.mbtn')).toHaveText('Зберегти зміни')
+  // …а незворотне видалення мусить лишатись досяжним, інакше воно просто
+  // зникло б разом із нативною парою.
+  await page.getByRole('button', { name: 'Видалити об\'єкт' }).click()
   await expect.poll(() => deletes.length, { timeout: 10_000 }).toBe(1)
 })
 
-test('форма СТВОРЕННЯ не падає, коли Telegram має SecondaryButton, а другорядної дії немає', async ({ page }) => {
+test('форма СТВОРЕННЯ жива на нативному клієнті і керується власною CTA', async ({ page }) => {
   await setup(page)
   await page.addInitScript(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -175,22 +169,13 @@ test('форма СТВОРЕННЯ не падає, коли Telegram має Se
   await page.getByText('БЦ Рубін').first().click()
   await expect(page.getByText('Всі (1)')).toBeVisible({ timeout: 15_000 })
 
-  // Створення: другорядної дії тут НЕМА. Порожній підпис Telegram відкидає
-  // (WebAppBottomButtonParamInvalid) синхронно, тож раніше екран падав у
-  // ErrorBoundary — «Не можу створювати обʼєкти».
   await page.locator('.fbtn').click()
   await expect(page.getByText('Новий об\'єкт')).toBeVisible({ timeout: 15_000 })
   await expect(page.getByText('Щось пішло не так')).toHaveCount(0)
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const state = await page.evaluate(() => ({ main: (window as any).__tgMain, sec: (window as any).__tgSecondary }))
-  expect(state.main.text).toBe('Додати об\'єкт')
-  expect(state.main.isVisible).toBe(true)
-  expect(state.sec.isVisible, 'другорядна кнопка лишається схованою').toBe(false)
-
-  // Форма жива: назва вводиться і головна кнопка активується.
+  const cta = page.locator('button.mbtn')
+  await expect(cta).toHaveText('Додати об\'єкт')
+  await expect(cta, 'без назви — неактивна').toBeDisabled()
   await page.getByLabel('Назва обʼєкта').fill('Офіс 202')
-  await page.waitForTimeout(200)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  expect(await page.evaluate(() => (window as any).__tgMain.isActive)).toBe(true)
+  await expect(cta, 'назва введена — активна').toBeEnabled()
 })

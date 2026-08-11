@@ -5,7 +5,6 @@ import { useAppStore } from '@/store/appStore'
 import { hapticSelection, hapticNotify } from '@/lib/telegram'
 import { offlineGuard } from '@/lib/offline'
 import { useDatabases } from '@/hooks/useDatabases'
-import { useMainButton } from '@/hooks/useMainButton'
 import Header from '@/components/ui/Header'
 import { IconCheck, IconMapPin, IconBuilding, IconLayoutGrid, IconAdjustments, IconEye, IconEdit, GlassDbIcon } from '@/components/Icons'
 import { DB_COLORS, scrollFocusedIntoView } from '@/lib/utils'
@@ -55,15 +54,6 @@ export default function CreateDatabaseScreen() {
   }, [isEdit, existing])
 
   const canCreate = name.trim().length > 0 && type !== null
-
-  const { available: nativeMain } = useMainButton({
-    text: isEdit ? 'Зберегти зміни' : 'Створити базу',
-    visible: true,
-    enabled: canCreate,
-    loading,
-    barColor: '#7e58d6', // низ .bg-purple
-    onClick: handleSave,
-  })
 
   async function handleSave() {
     if (!canCreate || !type) return
@@ -167,16 +157,15 @@ export default function CreateDatabaseScreen() {
             </div>
           </div>
         )}
-        {!nativeMain && (
-          <button
-            className={`mbtn success mbtn-flow ${!canCreate || loading ? 'disabled' : ''} ${loading ? 'is-loading' : ''}`}
-            onClick={handleSave}
-            disabled={!canCreate || loading}
-          >
-            {!loading && (isEdit ? 'Зберегти зміни' : 'Створити базу')}
-          </button>
-        )}
       </div>
+
+      <button
+        className={`mbtn success mbtn-flow ${!canCreate || loading ? 'disabled' : ''} ${loading ? 'is-loading' : ''}`}
+        onClick={handleSave}
+        disabled={!canCreate || loading}
+      >
+        {!loading && (isEdit ? 'Зберегти зміни' : 'Створити базу')}
+      </button>
     </div>
   )
 }

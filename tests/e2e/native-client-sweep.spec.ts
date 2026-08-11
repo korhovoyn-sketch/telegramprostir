@@ -120,50 +120,50 @@ test('нативний клієнт: усі екрани власника жив
   await page.goto('/')
   await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
   await alive(page, 'db-list')
-  expect((await bar(page)).main.isVisible, 'db-list не має нативної кнопки').toBe(false)
+  const cta = page.locator('button.mbtn')
+  // Нативну нижню смугу Telegram прибрано з усього застосунку (власник не
+  // хотів тулбара) — первинна дія тепер наша власна пігулка .mbtn. Смуга
+  // мусить лишатись невидимою СКРІЗЬ, інакше ми знову її десь вмикаємо.
+  expect((await bar(page)).main.isVisible, 'нативна смуга більше не вживається').toBe(false)
+  await expect(cta, 'db-list: первинна дія — FAB, не CTA форми').toHaveCount(0)
 
   // ── Створення бази
   await page.getByLabel('Створити базу').click()
   await expect(page.getByText('Нова база')).toBeVisible()
   await alive(page, 'create-db')
-  let b = await bar(page)
-  expect(b.main.text).toBe('Створити базу')
-  expect(b.main.isVisible).toBe(true)
-  expect(b.main.isActive, 'без назви кнопка неактивна').toBe(false)
-  expect(b.sec.isVisible, 'у створенні бази другорядної дії нема').toBe(false)
+  await expect(cta).toHaveText('Створити базу')
+  await expect(cta, 'без назви кнопка неактивна').toBeDisabled()
+  expect((await bar(page)).main.isVisible, 'нативна смуга не вмикається').toBe(false)
 
   // ── Об'єкти бази
   await toObjects(page)
   await alive(page, 'db-objects')
-  expect((await bar(page)).main.isVisible, 'кнопка форми не протекла на список').toBe(false)
+  await expect(cta, 'CTA форми не протекла на список').toHaveCount(0)
 
   // ── Створення об'єкта (той самий екран, що падав у проді)
   await page.locator('.fbtn').click()
   await expect(page.getByText('Новий об\'єкт')).toBeVisible({ timeout: 15_000 })
   await alive(page, 'property-form-create')
-  b = await bar(page)
-  expect(b.main.text).toBe('Додати об\'єкт')
-  expect(b.sec.isVisible).toBe(false)
+  await expect(cta).toHaveText('Додати об\'єкт')
+  await expect(cta).toBeDisabled()
   await page.getByLabel('Назва обʼєкта').fill('Офіс 202')
-  await page.waitForTimeout(250)
-  expect((await bar(page)).main.isActive, 'назва введена — кнопка активна').toBe(true)
+  await expect(cta, 'назва введена — кнопка активна').toBeEnabled()
   await alive(page, 'property-form-create+input')
 
-  // ── Редагування об'єкта: пара кнопок
+  // ── Редагування об'єкта: збереження + видалення в хедері
   await toObjects(page)
   await page.locator('.obj-act-btn', { hasText: 'Редагувати' }).first().click()
   await expect(page.getByText('Редагування')).toBeVisible()
   await alive(page, 'property-form-edit')
-  b = await bar(page)
-  expect(b.main.text).toBe('Зберегти зміни')
-  expect(b.sec.text).toBe('Видалити')
-  expect(b.sec.isVisible).toBe(true)
+  await expect(cta).toHaveText('Зберегти зміни')
+  // Пари на нативній смузі більше немає, тож видалення мусить бути досяжним —
+  // інакше незворотна дія просто зникла б з екрана.
+  await expect(page.getByRole('button', { name: "Видалити об'єкт" })).toBeVisible()
 
-  // Вихід із форми мусить прибрати ОБИДВІ кнопки.
+  // Вихід із форми мусить прибрати CTA.
   await toObjects(page)
-  b = await bar(page)
-  expect(b.main.isVisible, 'MainButton прибрано на unmount').toBe(false)
-  expect(b.sec.isVisible, 'SecondaryButton прибрано на unmount').toBe(false)
+  await expect(cta, 'CTA прибрано на unmount').toHaveCount(0)
+  expect((await bar(page)).main.isVisible, 'нативна смуга лишається вимкненою').toBe(false)
 
   // ── Детальна картка + нативне підтвердження звільнення
   await page.locator('.obj-card', { hasText: 'Офіс 101' }).locator('.obj-t').click()
@@ -208,17 +208,14 @@ test('нативний клієнт: усі екрани власника жив
   await expect(page.getByText(/Готово|порядок/i).first()).toBeVisible({ timeout: 15_000 })
   await alive(page, 'reorder-mode')
 
-  // ── Редагування бази: ще один екран із нативною кнопкою
+  // ── Редагування бази: ще один екран із плаваючою CTA
   await toObjects(page)
   await page.getByLabel('Меню бази').click()
   await page.getByText('Редагувати базу', { exact: true }).click()
-  // Підпис «Зберегти зміни» живе на НАТИВНІЙ кнопці (DOM-фолбек прихований),
-  // тож екран ловимо за хедером, а кнопку читаємо зі стану смуги.
   await expect(page.locator('.hdr-t', { hasText: 'Редагувати базу' })).toBeVisible({ timeout: 15_000 })
   await alive(page, 'edit-db')
-  b = await bar(page)
-  expect(b.main.text).toBe('Зберегти зміни')
-  expect(b.sec.isVisible, 'у редагуванні бази другорядної дії нема').toBe(false)
+  await expect(cta).toHaveText('Зберегти зміни')
+  expect((await bar(page)).main.isVisible, 'нативна смуга не вмикається').toBe(false)
 
   // ── Таби
   await page.goto('/')
