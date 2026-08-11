@@ -66,8 +66,18 @@ export function daysSince(dateStr: string): number {
   return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000)
 }
 
+// dateStr — дата БЕЗ часу (lease_end_date), тож парситься як UTC-північ, а
+// порівнюється з `Date.now()` — миттю в ЛОКАЛЬНОМУ календарі. Для Києва
+// (UTC+2/+3) у перші 2-3 години доби локальна північ уже минула, а UTC-північ
+// для цієї ж дати — ще ні, тож оренда, що закінчується «сьогодні», рахувалась
+// як «через 1 день» (off-by-one). Той самий фікс `PaymentCalendarScreen.tsx`
+// має локально (dateStr + 'T00:00:00') — тут той самий патерн для спільного
+// шляху (useLeaseAlerts, PropertyDetailScreen).
 export function daysUntil(dateStr: string): number {
-  return Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86400000)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const due = new Date(dateStr + 'T00:00:00')
+  return Math.round((due.getTime() - today.getTime()) / 86400000)
 }
 
 // Controlled decimal input: comma → dot, digits + a single dot only. Used
@@ -321,7 +331,16 @@ export function calcRentUtils(
   // розрахункова (total) area; a flat monthly charge otherwise — parking has a
   // single area and no total, so its expenses stay flat.
   const utils = utilitiesRate ? (areaTotal ? calcUtilities(area, utilitiesRate) : Math.round(utilitiesRate)) : 0
-  return { rent, utils, total: rent + utils }
+  // total МУСИТЬ бути місячним. `rent` для per_day — сира ДОБОВА ставка
+  // (calcRent навмисно лишає її сирою, щоб показати поряд із «/добу»), а
+  // `utils` завжди місячна сума — `rent + utils` для per_day змішував добове
+  // з місячним. Кожен ЕКРАН застосунку це вже обходив локальним `isDaily`-гардом
+  // (DatabaseObjectsScreen, PropertyDetailScreen, RealtorDatabaseScreen, /v),
+  // але ExportScreen (PDF і XLSX) такого гарда не мав і рахував «Разом/міс» /
+  // «Сума оренди ($/міс)» із цієї суміші — реальна цифра в завантажуваному
+  // звіті. monthlyRent() — та сама нормалізація, що дає дохід дашборда.
+  const monthlyRentAmt = rentRate ? monthlyRent(area, rentRate, rt) : 0
+  return { rent, utils, total: monthlyRentAmt + utils }
 }
 
 export function greeting(): string {
@@ -417,7 +436,11 @@ export function scrollFocusedIntoView(e: import('react').FocusEvent<HTMLElement>
     else if (rect.top < TOP_GAP) delta = rect.top - TOP_GAP
     if (delta === 0) return // already visible — do nothing
 
-    const scrollParent = el.closest('.body') as HTMLElement | null
+    // Скрол-контейнер екрана — `.body`; шита модалки — `.modal-body`. Без другого
+    // селектора цей прохід мовчки нічого не знаходив усередині будь-якої з 16
+    // модалок і падав на грубіший `el.scrollIntoView` нижче, який не знає про
+    // TOP_GAP/BOTTOM_GAP і не координується зі sticky-кнопками модалки.
+    const scrollParent = el.closest('.body, .modal-body') as HTMLElement | null
     if (scrollParent) scrollParent.scrollBy({ top: delta, behavior: 'smooth' })
     else el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   }, 500)

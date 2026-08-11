@@ -10,14 +10,19 @@ export default function RoleSelectScreen() {
   const [role, setRole] = useState<UserRole | null>(null)
   const [loading, setLoading] = useState(false)
   const { updateProfile } = useAuth()
-  const navigate = useAppStore((s) => s.navigate)
+  const navigateRoot = useAppStore((s) => s.navigateRoot)
 
   async function handleContinue() {
     if (!role) return
     setLoading(true)
     const ok = await updateProfile({ role }, true)
     setLoading(false)
-    if (ok) navigate('profile-setup')
+    // navigateRoot, не navigate: роль уже закомічена в БД, тож «назад» до
+    // role-select нікуди не веде — role-select сам у AUTH_SCREENS і
+    // фільтрується з history в back(). navigate() лишав би history
+    // непорожньою, і нативна кнопка Telegram «Назад» показувалась би й нічого
+    // не робила на profile-setup і на кінцевому екрані онбордингу.
+    if (ok) navigateRoot('profile-setup')
   }
 
   return (

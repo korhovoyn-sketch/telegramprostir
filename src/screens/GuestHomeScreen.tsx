@@ -74,7 +74,7 @@ export default function GuestHomeScreen() {
         </div>
 
         {loading ? (
-          <SkeletonLoader />
+          <SkeletonLoader rowHeight={69} />
         ) : loadError ? (
           <RetryState subtitle={loadError} onRetry={load} />
         ) : links.length === 0 ? (

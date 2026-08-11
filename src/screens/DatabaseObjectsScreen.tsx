@@ -478,7 +478,7 @@ export default function DatabaseObjectsScreen() {
             {dispVal > 0 && (
               <div className="obj-tot">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ width: 22, height: 22, borderRadius: 7, background: 'var(--ok-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <span style={{ width: 22, height: 22, borderRadius: 'var(--r-xs)', background: 'var(--ok-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <IconCurrencyDollar size={12} color="var(--ok-fg)" />
                   </span>
                   <div>
@@ -656,7 +656,7 @@ export default function DatabaseObjectsScreen() {
 
         {/* Property cards */}
         {loading ? (
-          <SkeletonLoader />
+          <SkeletonLoader rowHeight={compactView ? 69 : 200} />
         ) : error && properties.length === 0 ? (
           <RetryState subtitle={error} onRetry={() => loadProperties(screenParams.dbId)} />
         ) : filtered.length === 0 && properties.length === 0 ? (

@@ -562,10 +562,10 @@ export default function PropertyDetailScreen() {
                   {daysLeft > 0 ? `${daysLeft} дн.` : 'Завершено'}
                 </span>
               </div>
-              <div style={{ height: 4, borderRadius: 99, background: 'var(--glass-2)', overflow: 'hidden' }}>
+              <div style={{ height: 4, borderRadius: 'var(--r-pill)', background: 'var(--glass-2)', overflow: 'hidden' }}>
                 <div
                   className="anim-progress"
-                  style={{ '--pw': `${progress}%`, height: '100%', borderRadius: 99, background: barColor } as React.CSSProperties}
+                  style={{ '--pw': `${progress}%`, height: '100%', borderRadius: 'var(--r-pill)', background: barColor } as React.CSSProperties}
                 />
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 'var(--fs-cap2)', color: 'var(--t4)' }}>

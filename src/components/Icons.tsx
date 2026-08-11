@@ -397,7 +397,10 @@ export function IconCalendar(p: IconProps) {
 }
 
 export function IconBellRing(p: IconProps) {
-  return <Icon {...p}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><path d="M21 8A9 9 0 0 0 3 8"/></Icon>
+  // Дзвіночок уже сидить верхом на y=2, тож «хвилі» дзвону — це дві короткі дуги
+  // з боків, а не одна суцільна над ним: та йшла `M21 8A9 9 0 0 0 3 8`, її вершина
+  // лежала на y=-1, і SVG-viewport зрізав її по плоскому краю.
+  return <Icon {...p}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><path d="M20.5 8a8.5 8.5 0 0 0 -2 -5.5"/><path d="M3.5 8a8.5 8.5 0 0 1 2 -5.5"/></Icon>
 }
 
 export function IconCheckCircle(p: IconProps) {

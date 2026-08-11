@@ -104,6 +104,14 @@ export default function GuestDatabaseScreen() {
           if (result.length === 0) { setErrorMsg('База не знайдена або посилання застаріло'); return }
           setRows(result)
         }
+      } catch {
+        // Кинутий виняток (мережа впала посеред запиту) — НЕ те саме, що
+        // структурована {error}-відповідь вище. Без цього catch guestPreview/
+        // rows лишались порожні, errorMsg — null, і компонент провалювався в
+        // гілку «Realtor public DB preview» з порожнім dbInfo — гість бачив
+        // тиху «базу» без назви й без жодного натяку на помилку чи ретрай,
+        // на найпершому екрані, куди веде неавторизований deep link.
+        setErrorMsg('Не вдалося завантажити дані')
       } finally {
         setLoading(false)
       }

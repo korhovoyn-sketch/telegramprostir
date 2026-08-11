@@ -21,6 +21,16 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['html', { open: 'never' }], ['list']] : 'list',
+  expect: {
+    toHaveScreenshot: {
+      // 1% пікселів — запас на дрейф набору шрифтів, не на «майже схоже».
+      // Зсув на 3px чи зниклий градієнт дають набагато більшу різницю.
+      maxDiffPixelRatio: 0.01,
+      // Playwright сам чекає, поки CSS-анімації добіжать, і глушить нескінченні.
+      animations: 'disabled',
+      caret: 'hide',
+    },
+  },
   use: {
     baseURL: 'http://localhost:3000',
     screenshot: 'only-on-failure',

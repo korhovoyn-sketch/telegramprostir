@@ -160,9 +160,11 @@ async function generatePDF(
   const freeCount     = rows.filter(p => p.status === 'free').length
   const occupiedCount = rows.filter(p => p.status === 'occupied').length
   const saleCount     = rows.filter(p => p.status === 'for_sale').length
+  // total (нормалізований до місяця) мінус utils, НЕ сире .rent — інакше
+  // per_day-об'єкт додав би сюди добову ставку, а не місячний еквівалент.
   const totalRent     = rows.reduce((s, p) => {
-    const r = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate, p.area_basis).rent
-    return s + r
+    const { total, utils } = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate, p.area_basis)
+    return s + (total - utils)
   }, 0)
 
   const cardY = db.address ? 56 : 48
@@ -194,7 +196,7 @@ async function generatePDF(
   const tableY = cardY + 24
 
   const tableRows = rows.map(p => {
-    const { rent, utils } = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate, p.area_basis)
+    const { utils, total } = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate, p.area_basis)
     return [
       p.name,
       p.floor ?? '—',
@@ -203,7 +205,10 @@ async function generatePDF(
       p.area_total  ? `${p.area_total}`  : '—',
       p.rent_rate   ? `${p.rent_rate}${p.rent_type === 'fixed' ? '' : rentUnitLabel(p.rent_type)}` : '—',
       utils ? `$${utils}`  : '—',
-      rent + utils ? `$${rent + utils}` : '—',
+      // total — з calcRentUtils, УЖЕ нормалізований до місяця (per_day
+      // множиться на 30 всередині) — рахувати rent+utils тут САМОСТІЙНО
+      // означало б знову змішати добову ставку з місячними експлуатаційними.
+      total ? `$${total}` : '—',
     ]
   })
 
@@ -260,8 +265,7 @@ async function generatePDF(
     doc.addPage()
     fillBg()
 
-    const { rent, utils } = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate, p.area_basis)
-    const total = rent + utils
+    const { utils, total } = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate, p.area_basis)
     const st    = STATUS_STYLE[p.status] ?? STATUS_STYLE.free
 
     // Slim top bar
@@ -354,7 +358,11 @@ async function generatePDF(
       ? `${p.rent_rate} ${p.rent_type === 'per_m2' ? '$ / м² / міс' : p.rent_type === 'per_day' ? '$ / добу' : '$ / міс (фіксована)'}`
       : '—'
     const yL3 = drawField('Ставка оренди',    rentRateStr,            CL, y, CW)
-    const yR3 = drawField('Оренда на місяць', rent  ? `$${rent}`  : '—', CR, y, CW)
+    // «на місяць» у підписі — для per_day сире `rent` лишається ДОБОВОЮ
+    // ставкою (Ставка оренди рядком вище її й показує), тут потрібен
+    // нормалізований еквівалент: total мінус utils.
+    const monthlyRentOnly = total - utils
+    const yR3 = drawField('Оренда на місяць', monthlyRentOnly ? `$${monthlyRentOnly}` : '—', CR, y, CW)
     y = Math.max(yL3, yR3) + 3
     const utilsRateStr = p.utilities_rate ? `${p.utilities_rate} $ / м² / міс` : '—'
     const yL4 = drawField('Ставка експлуатаційних',    utilsRateStr,          CL, y, CW)
@@ -474,7 +482,7 @@ async function generateExcel(
 
   // Data rows
   rows.forEach((p, idx) => {
-    const { rent, utils } = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate, p.area_basis)
+    const { utils, total } = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate, p.area_basis)
     sheetData.push([
       idx + 1,
       p.name,
@@ -484,9 +492,15 @@ async function generateExcel(
       p.area_total  ?? '',
       p.rent_rate   ?? '',
       p.rent_type === 'per_m2' ? '$/м²/міс' : p.rent_type === 'per_day' ? '$/добу' : 'фіксована $/міс',
-      rent  || '',
+      // «Оренда на місяць» — заголовок каже "на місяць", тож потрібен
+      // нормалізований еквівалент (total - utils), НЕ сире rent (для per_day
+      // це добова ставка — вона вже показана в «Ставка оренди»/«Тип ставки»).
+      (total - utils) || '',
       utils || '',
-      rent + utils || '',
+      // total — нормалізований до місяця в calcRentUtils; rent+utils тут
+      // самостійно знову змішав би добову ставку per_day з місячними
+      // експлуатаційними в колонці, підписаній «Разом на місяць».
+      total || '',
       p.has_parking ? 'Так' : 'Ні',
       p.parking_spaces || '',
       p.description ?? '',
@@ -545,13 +559,18 @@ async function generateExcel(
     { key: 'occupied', label: 'Зайнято' },
     { key: 'for_sale', label: 'Продаж'  },
   ]
+  // Місячна ставка БЕЗ експлуатаційних: total (нормалізований до місяця в
+  // calcRentUtils) мінус utils, а не сире .rent — для per_day .rent лишається
+  // ДОБОВОЮ ставкою (навмисно, для показу поряд із «/добу»), і підсумовування
+  // її напряму в колонку «Сума оренди ($/міс)» рахувало б $150/добу як $150/міс.
+  const monthlyRentOnly = (p: Property) => {
+    const { total, utils } = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate, p.area_basis)
+    return total - utils
+  }
   statuses.forEach(({ key, label }) => {
     const group = properties.filter(p => p.status === key)
     const totalArea = group.reduce((s, p) => s + (p.area_useful ?? 0), 0)
-    const totalRent = group.reduce((s, p) => {
-      const r = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate, p.area_basis).rent
-      return s + r
-    }, 0)
+    const totalRent = group.reduce((s, p) => s + monthlyRentOnly(p), 0)
     summaryData.push([label, group.length, totalArea, totalRent])
   })
   summaryData.push([
@@ -559,7 +578,7 @@ async function generateExcel(
     properties.length,
     properties.reduce((s, p) => s + (p.area_useful ?? 0), 0),
     properties.reduce((s, p) => {
-      const r = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate, p.area_basis).rent
+      const r = monthlyRentOnly(p)
       return s + r
     }, 0),
   ])

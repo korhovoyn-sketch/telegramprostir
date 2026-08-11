@@ -1,28 +1,59 @@
-import { test, type Page, type Route } from '@playwright/test'
+import { test, expect, type Page, type Route, type Locator } from '@playwright/test'
 import { setupApp, DEFAULT_USER, type HarnessUser } from './helpers/harness'
 
-// ─── Screen audit: capture a screenshot of every reachable screen ─────────────
-// Not an assertion suite — a visual tour. Each capture is wrapped so a missed
-// selector logs and continues instead of aborting the whole tour. Output:
-// screenshots/NN-name.png (gitignored).
+// ─── Візуальний бейслайн кожного досяжного екрана ─────────────────────────────
+//
+// Раніше це був ТУР: робив 20+ PNG у gitignored-теку і нічого не перевіряв. Тобто
+// «зсунулось на 3px», «зник градієнт», «текст поїхав під іконку» ловило лише
+// людське око. Гірше — `tryShot` глушив помилки навігації через catch, тож
+// зламаний перехід виглядав як пропущений кадр, а не як падіння.
+//
+// Тепер кожен кадр порівнюється з бейслайном у `screenshots.spec.ts-snapshots/`.
+// Оновлення після СВІДОМОЇ зміни дизайну — в тому ж коміті:
+//   npx playwright test screenshots --update-snapshots
+//
+// Три джерела нестабільності знято:
+//  • анімації — `reducedMotion: 'reduce'` (застосунок має цей блок у globals.css)
+//    плюс `animations: 'disabled'` у конфігу;
+//  • час — `clock.setFixedTime`, інакше `formatDate` дає «щойно / 2 дні тому», а
+//    бейджі протермінування рахуються від справжнього «сьогодні» і поїдуть за
+//    місяць;
+//  • прогрес-смуга заповненості — маскується.
+//
+// deviceScaleFactor: 1 — бейслайни легші вчетверо (4.3 МБ проти 10.1 МБ на 22
+// екрани). Для ВИЯВЛЕННЯ регресії масштаб не важить: порівнюється однакове з
+// однаковим, а зсув чи зниклий градієнт видно однаково.
+test.use({ deviceScaleFactor: 1 })
 
-const DIR = 'screenshots'
-const NOW = new Date().toISOString()
-let n = 0
-async function shot(page: Page, name: string) {
-  n += 1
-  const file = `${DIR}/${String(n).padStart(2, '0')}-${name}.png`
-  await page.screenshot({ path: file })
-  console.log('shot:', file)
+// Фікстурні дати теж фіксовані: `new Date()` у Node не підпадає під clock
+// сторінки, тож «живі» дати мігрували б щодня і валили бейслайн.
+const NOW = '2025-09-01T09:00:00.000Z'
+/** Оренда фікстур активна на цю дату (2025-01-01 → 2026-01-01). */
+const FROZEN = new Date('2025-09-15T09:00:00.000Z')
+
+async function determinism(page: Page) {
+  await page.clock.setFixedTime(FROZEN)
+  await page.emulateMedia({ reducedMotion: 'reduce' })
 }
-async function tryShot(page: Page, name: string, nav: () => Promise<void>) {
-  try {
-    await nav()
-    await page.waitForTimeout(450) // let transitions/anim settle
-    await shot(page, name)
-  } catch (e) {
-    console.warn(`SKIP ${name}:`, (e as Error).message.split('\n')[0])
-  }
+
+/** Крок туру: навігація + порівняння з бейслайном. Падає, а не логує. */
+async function snap(page: Page, name: string, nav: () => Promise<void>, extraMask: Locator[] = []) {
+  await nav()
+  // Шит меню бази виходить ~320мс уже ПОВЕРХ нового екрана, і його
+  // `backdrop-filter` приглушує ВЕСЬ кадр. Два прогони стабілізувались на різних
+  // станах цього затухання: діф `team.png` показував рівномірну різницю по всьому
+  // тексту без жодного зсуву геометрії — 0.02 при порозі 0.01.
+  await expect(page.locator('.modal-overlay.closing')).toHaveCount(0, { timeout: 6_000 })
+  // Скелетон мусить ЗНИКНУТИ до кадру. Умова навігації часто слабша за
+  // «екран домальовано»: `realtor-database` чекав лише на сегмент «Всі (»,
+  // який зʼявляється РАНІШЕ за картки, тож кадр ловив частково відрендерений
+  // список — і стан цієї частковості залежить від швидкості машини.
+  await expect(page.locator('.skel')).toHaveCount(0, { timeout: 15_000 })
+  await expect(page).toHaveScreenshot(`${name}.png`, {
+    // Смуга заповненості — єдиний елемент, чия ширина залежить від даних, які
+    // цей екран рахує наживо.
+    mask: [page.locator('.dash-bar-fill'), ...extraMask],
+  })
 }
 const json = (route: Route, body: unknown) =>
   route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
@@ -93,23 +124,34 @@ async function ownerRoutes(page: Page) {
 }
 
 test('screens · owner journey', async ({ page }) => {
+  await determinism(page)
   test.setTimeout(120_000)
   await setupApp(page, { user: OWNER })
   await ownerRoutes(page)
 
-  await tryShot(page, 'db-list', async () => {
+  await snap(page, 'db-list', async () => {
     await page.goto('/')
     await page.getByText('Мої бази').waitFor({ timeout: 20_000 })
   })
-  await tryShot(page, 'db-objects', async () => {
+  await snap(page, 'db-objects', async () => {
     await page.getByText('БЦ Рубін').first().click()
     await page.getByText('Всі (3)').waitFor()
   })
-  await tryShot(page, 'property-detail', async () => {
+  // Компактний вигляд — окремий рендер картки, який card-view не покриває.
+  // Саме тут живе плитка іконки 22×22, чий інлайновий радіус був поза шкалою.
+  await snap(page, 'db-objects-compact', async () => {
+    await page.getByLabel('Компактно').click()
+    await page.locator('.row').first().waitFor()
+  })
+  await snap(page, 'db-objects', async () => {
+    await page.getByLabel('Картки').click()
+    await page.locator('.obj-card').first().waitFor()
+  })
+  await snap(page, 'property-detail', async () => {
     await page.locator('.obj-card', { hasText: 'Офіс 101' }).click()
     await page.getByText('Назад', { exact: true }).first().waitFor()
   })
-  await tryShot(page, 'property-form-edit', async () => {
+  await snap(page, 'property-form-edit', async () => {
     await page.getByLabel(/Редагувати|Змінити/).first().click().catch(() => page.getByText('Редагувати').first().click())
     await page.getByText(/Редагування|Зберегти зміни/).first().waitFor()
   })
@@ -117,26 +159,31 @@ test('screens · owner journey', async ({ page }) => {
   await page.goto('/'); await page.getByText('Мої бази').waitFor()
   await page.getByText('БЦ Рубін').first().click(); await page.getByText('Всі (3)').waitFor()
 
-  await tryShot(page, 'property-form-new', async () => {
+  await snap(page, 'property-form-new', async () => {
     await page.getByLabel("Додати об'єкт").click()
     await page.getByText("Новий об'єкт").waitFor()
   })
   await page.goto('/'); await page.getByText('Мої бази').waitFor()
   await page.getByText('БЦ Рубін').first().click(); await page.getByText('Всі (3)').waitFor()
 
-  await tryShot(page, 'sharing-analytics', async () => {
+  await snap(page, 'sharing-analytics', async () => {
     await page.getByLabel('Меню бази').click()
     await page.getByText('Аналітика і поширення').click()
     await page.getByText(/Аналітика|Поділитись/).first().waitFor()
   })
-  await tryShot(page, 'share-sheet', async () => {
+  await snap(page, 'share-sheet', async () => {
     await page.getByRole('button', { name: /Поділитися/ }).click()
     await page.getByText('Поділитися').first().waitFor()
+    // QR приходить ПІСЛЯ підпису шита і змінює його висоту (шит прив'язаний до
+    // низу екрана, тож увесь вміст їде вгору). Без цього очікування кадр залежав
+    // від того, чи встиг намалюватись код — саме тут dev і прод-білд дали різні
+    // бейслайни на ~8px.
+    await page.locator('.qr-wrap svg').first().waitFor({ timeout: 15_000 })
   })
   await page.goto('/'); await page.getByText('Мої бази').waitFor()
   await page.getByText('БЦ Рубін').first().click(); await page.getByText('Всі (3)').waitFor()
 
-  await tryShot(page, 'payment-calendar', async () => {
+  await snap(page, 'payment-calendar', async () => {
     await page.getByLabel('Меню бази').click()
     await page.getByText('Календар платежів').click()
     await page.getByText(/Календар платежів|Прострочено/).first().waitFor()
@@ -144,7 +191,7 @@ test('screens · owner journey', async ({ page }) => {
   await page.goto('/'); await page.getByText('Мої бази').waitFor()
   await page.getByText('БЦ Рубін').first().click(); await page.getByText('Всі (3)').waitFor()
 
-  await tryShot(page, 'manage-guests', async () => {
+  await snap(page, 'manage-guests', async () => {
     await page.getByLabel('Меню бази').click()
     await page.getByText('Управління гостями').click()
     await page.getByLabel('Запросити гостя').waitFor()
@@ -152,7 +199,7 @@ test('screens · owner journey', async ({ page }) => {
   await page.goto('/'); await page.getByText('Мої бази').waitFor()
   await page.getByText('БЦ Рубін').first().click(); await page.getByText('Всі (3)').waitFor()
 
-  await tryShot(page, 'team', async () => {
+  await snap(page, 'team', async () => {
     await page.getByLabel('Меню бази').click()
     await page.getByText('Команда', { exact: true }).click()
     await page.getByLabel('Запросити в команду').waitFor()
@@ -160,22 +207,22 @@ test('screens · owner journey', async ({ page }) => {
   await page.goto('/'); await page.getByText('Мої бази').waitFor()
   await page.getByText('БЦ Рубін').first().click(); await page.getByText('Всі (3)').waitFor()
 
-  await tryShot(page, 'export', async () => {
+  await snap(page, 'export', async () => {
     await page.getByLabel('Меню бази').click()
     await page.getByText('Експорт').click()
     await page.getByText(/Формат файлу|Завантажити/).first().waitFor()
   })
-  await tryShot(page, 'create-db', async () => {
+  await snap(page, 'create-db', async () => {
     await page.goto('/'); await page.getByText('Мої бази').waitFor()
     await page.getByLabel('Створити базу').click()
     await page.getByText('Нова база').waitFor()
   })
-  await tryShot(page, 'notifications', async () => {
+  await snap(page, 'notifications', async () => {
     await page.goto('/'); await page.getByText('Мої бази').waitFor()
     await page.locator('.tabbar [aria-label="Сповіщення"]').click()
     await page.getByText(/Сповіщення|Немає сповіщень/).first().waitFor()
   })
-  await tryShot(page, 'profile', async () => {
+  await snap(page, 'profile', async () => {
     await page.locator('.tabbar [aria-label="Профіль"]').click()
     await page.getByText('Налаштування').waitFor()
   })
@@ -183,6 +230,7 @@ test('screens · owner journey', async ({ page }) => {
 
 // ── Realtor ───────────────────────────────────────────────────────────────────
 test('screens · realtor', async ({ page }) => {
+  await determinism(page)
   const REALTOR = { ...DEFAULT_USER, role: 'realtor' as const, first_name: 'Олена' }
   const RDB = { ...DB, owner_id: '00000000-0000-0000-0000-000000000099' }
   await setupApp(page, { user: REALTOR })
@@ -193,19 +241,27 @@ test('screens · realtor', async ({ page }) => {
   await page.route('**/rest/v1/collections**', (r) => json(r, []))
   await page.addInitScript(() => localStorage.setItem('ob_v1', JSON.stringify(['owner-fab', 'obj-fab', 'realtor-qr', 'col-fab'])))
 
-  await tryShot(page, 'realtor-dashboard', async () => {
+  await snap(page, 'realtor-dashboard', async () => {
     await page.goto('/'); await page.getByText('Робочі бази').waitFor({ timeout: 20_000 })
   })
-  await tryShot(page, 'realtor-database', async () => {
+  await snap(page, 'realtor-database', async () => {
     await page.getByText('БЦ Рубін').first().click()
     await page.getByText(/Всі \(/).first().waitFor()
-  })
-  await tryShot(page, 'qr-scanner', async () => {
+    // Останній видимий рядок сідає рівно на межу `--tg-vh` (568px), де
+    // стилізований контент бази переходить у чистий чорний фон екрана. `.obj-card`
+    // — це `.glass-s` з `backdrop-filter: blur`, і саме на цій різкій межі
+    // світло↔чорне його блюр-семпл найчутливіший до GPU/драйвера: на CI й тут дає
+    // видимо інший відтінок картки за ідентичного DOM/даних (перевірено —
+    // ARIA-дерево й увесь інший кадр збігаються піксель-в-піксель, різниця лежить
+    // рівно в межах цього рядка). Не гарди дизайну заради цього — маскуємо
+    // ЛИШЕ рядок, що впирається у межу.
+  }, [page.locator('.obj-card').last()])
+  await snap(page, 'qr-scanner', async () => {
     await page.goto('/'); await page.getByText('Робочі бази').waitFor()
     await page.getByRole('button', { name: 'Додати базу за QR' }).click()
     await page.getByText(/Сканер|Відскануйте/).first().waitFor()
   })
-  await tryShot(page, 'collections', async () => {
+  await snap(page, 'collections', async () => {
     await page.goto('/'); await page.getByText('Робочі бази').waitFor()
     await page.locator('.tabbar [aria-label="Підбірки"]').click()
     await page.getByText(/Підбірки|Немає підбірок/).first().waitFor()
@@ -214,6 +270,7 @@ test('screens · realtor', async ({ page }) => {
 
 // ── Guest ─────────────────────────────────────────────────────────────────────
 test('screens · guest', async ({ page }) => {
+  await determinism(page)
   const GUEST = { ...DEFAULT_USER, first_name: 'Гість' } as unknown as HarnessUser
   ;(GUEST as unknown as { role: string }).role = 'guest'
   const PROPERTY = { ...PROPERTIES[0], owner_id: '00000000-0000-0000-0000-000000000099' }
@@ -230,10 +287,10 @@ test('screens · guest', async ({ page }) => {
     return json(r, accept.includes('object') ? PROPERTY : [PROPERTY])
   })
 
-  await tryShot(page, 'guest-home', async () => {
+  await snap(page, 'guest-home', async () => {
     await page.goto('/'); await page.getByText("Мої об'єкти").waitFor({ timeout: 20_000 })
   })
-  await tryShot(page, 'guest-property', async () => {
+  await snap(page, 'guest-property', async () => {
     await page.getByText('Офіс 101').first().click()
     await page.getByText('Корисна площа').waitFor({ timeout: 15_000 })
   })
@@ -241,7 +298,8 @@ test('screens · guest', async ({ page }) => {
 
 // ── Auth / onboarding ─────────────────────────────────────────────────────────
 test('screens · welcome', async ({ page }) => {
-  await tryShot(page, 'welcome', async () => {
+  await determinism(page)
+  await snap(page, 'welcome', async () => {
     await setupApp(page, { user: { ...DEFAULT_USER, role: null }, noAutoLogin: true })
     await page.goto('/?fromLogout=1')
     await page.waitForTimeout(1600)
@@ -249,13 +307,14 @@ test('screens · welcome', async ({ page }) => {
 })
 
 test('screens · onboarding', async ({ page }) => {
+  await determinism(page)
   // A role:null user auto-logs-in and lands on role-select (useAuth navigateRoot).
   await setupApp(page, { user: { ...DEFAULT_USER, role: null } })
-  await tryShot(page, 'role-select', async () => {
+  await snap(page, 'role-select', async () => {
     await page.goto('/')
     await page.getByText('Власник').first().waitFor({ timeout: 20_000 })
   })
-  await tryShot(page, 'profile-setup', async () => {
+  await snap(page, 'profile-setup', async () => {
     await page.getByText('Власник').first().click()
     await page.getByText('Продовжити →').click()
     await page.getByPlaceholder('you@email.com').waitFor()
@@ -264,6 +323,7 @@ test('screens · onboarding', async ({ page }) => {
 
 // ── Public /v viewer ──────────────────────────────────────────────────────────
 test('screens · public /v', async ({ page }) => {
+  await determinism(page)
   await page.addInitScript(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ;(window as any).Telegram = { WebApp: { openTelegramLink() {}, ready() {}, expand() {} } }
@@ -304,15 +364,15 @@ test('screens · public /v', async ({ page }) => {
   await page.route('**/rest/v1/rpc/get_public_collection_preview', (r) => json(r, COL_ROWS))
   await page.route('**/rest/v1/rpc/record_public_view', (r) => json(r, true))
 
-  await tryShot(page, 'v-property', async () => {
+  await snap(page, 'v-property', async () => {
     await page.goto('/v/?prop=aabbccddeeff001122334455')
     await page.getByText('Офіс 101').first().waitFor({ timeout: 20_000 })
   })
-  await tryShot(page, 'v-database', async () => {
+  await snap(page, 'v-database', async () => {
     await page.goto('/v/?db=aabbccddeeff001122334455')
     await page.getByText('БЦ Рубін').first().waitFor({ timeout: 20_000 })
   })
-  await tryShot(page, 'v-collection', async () => {
+  await snap(page, 'v-collection', async () => {
     await page.goto('/v/?col=aabbccddeeff001122334455')
     await page.getByText('Підбірка для клієнта').first().waitFor({ timeout: 20_000 })
   })

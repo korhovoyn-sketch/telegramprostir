@@ -163,6 +163,51 @@ test('editor: member db shows «Команда» badge and full edit surface', a
   await expect(page.getByText('Команда', { exact: true })).toHaveCount(0)
 })
 
+// ─── Редактор з роллю 'realtor' — окремий домашній екран ────────────────────────
+// OWNER-редактор і так має 'db-list' у таббарі (звичайний вхід уже покриває
+// цей шлях вище). Але 041 навмисно НЕ чіпає users.role — редактором цілком
+// може бути 'realtor', чий домашній таб веде на realtor-dashboard, а той читав
+// ЛИШЕ realtor_subscriptions і ніколи не питав db_members. Результат: після
+// одноразового deep-link team_<token> (який форсить db-list) редактор губив
+// шлях до своєї бази НАЗАВЖДИ — «Бази» в таббарі більше нікуди не веде.
+
+const REALTOR_EDITOR = { ...DEFAULT_USER, role: 'realtor' as const, first_name: 'Олена' }
+
+test('realtor-редактор: бачить member-базу на своєму домашньому екрані з повним доступом на запис', async ({ page }) => {
+  await setupApp(page, { user: REALTOR_EDITOR })
+  await skipCoachmarks(page)
+
+  const TEAM_DB = db(TEAM_DB_ID, FOREIGN_OWNER, 'БЦ Чужий')
+  await page.route('**/rest/v1/realtor_subscriptions**', (route) => json(route, []))
+  await page.route('**/rest/v1/db_members**', (route) =>
+    json(route, [{ db_id: TEAM_DB_ID, database: TEAM_DB }]))
+  await page.route('**/rest/v1/databases**', (route) => {
+    const accept = route.request().headers()['accept'] ?? ''
+    return json(route, accept.includes('object') ? TEAM_DB : [TEAM_DB])
+  })
+  await page.route('**/rest/v1/properties**', (route) => {
+    const req = route.request()
+    const accept = req.headers()['accept'] ?? ''
+    if (req.method() !== 'GET') return route.fallback()
+    return json(route, accept.includes('object') ? PROP : [PROP])
+  })
+
+  await page.goto('/')
+  // Домашній екран для role:'realtor' — RealtorDashboardScreen, не db-list.
+  await expect(page.getByText('Робочі бази')).toBeVisible({ timeout: 20_000 })
+
+  const row = page.locator('.row', { hasText: 'БЦ Чужий' })
+  await expect(row).toBeVisible()
+  await expect(row.getByText('Команда')).toBeVisible()
+
+  // Клік веде в ПОВНИЙ db-objects (CRUD), не в read-only realtor-database.
+  await row.click()
+  await expect(page.getByText('Всі (1)')).toBeVisible()
+  await expect(page.getByRole('button', { name: "Додати об'єкт" })).toBeVisible()
+  await page.getByRole('button', { name: 'Меню бази' }).click()
+  await expect(page.getByText('Календар платежів')).toBeVisible()
+})
+
 test('editor: property detail hides share entry, keeps edit + status CTA', async ({ page }) => {
   await editorFixtures(page)
 
