@@ -488,3 +488,44 @@ test('кнопки дій — напівпрозоре скло, неактив�
   expect(Math.max(...alphas), 'жоден стоп не суцільний').toBeLessThan(0.8)
   expect(on.bf, 'liquid glass = блюр підкладки').toContain('blur')
 })
+
+test('шит НЕ підстрибує вгору, коли webview стиснувся, а Telegram про це не звітує', async ({ page }) => {
+  // Реальний скріншот користувача (модалка «Папки»): шит відлетів у верх екрана,
+  // під ним діра, унизу клавіатура. Це ПОДВІЙНИЙ ліфт — лейаут уже стиснувся під
+  // клавіатуру, і шит підняв себе ще на KB_FALLBACK_PX поверх цього.
+  //
+  // Гард від подвійного ліфту існував, але питав про стискання САМЕ Telegram
+  // (viewportHeight vs viewportStableHeight). Клієнт користувача webview стискав,
+  // а цих значень не оновлював — тож гард казав «не стиснувся». Тут відтворюємо
+  // рівно це: висоту вікна ріжемо, а __tgViewportStable/__tgKeyboard НЕ чіпаємо.
+  await fixtures(page)
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+  await page.getByText('БЦ Рубін').first().click()
+  await expect(page.getByText('Всі (3)')).toBeVisible()
+
+  await page.getByLabel('Меню бази').click()
+  await page.getByText('Папки', { exact: true }).click()
+  await expect(page.getByText('Групуйте').first()).toBeVisible()
+
+  const size = page.viewportSize()!
+  const modal = page.locator('.modal').last()
+  await expect(modal).toBeVisible()
+
+  // Телеграм мовчить: жодного __tgKeyboard / __tgViewportStable — лише реальне
+  // стискання вікна, як робить сам клієнт.
+  await page.setViewportSize({ width: size.width, height: size.height - 300 })
+  await page.locator('.modal input').first().focus()
+  // Довше за KB_PROBE_MS + KB_CONFIRM_MS + transition, щоб фолбек устиг би
+  // увімкнутись, якби гард не спрацював.
+  await page.waitForTimeout(1200)
+
+  const gap = await page.evaluate(() => {
+    const ov = document.querySelectorAll('.modal-overlay')
+    const m = ov[ov.length - 1]?.querySelector('.modal') as HTMLElement
+    return Math.round(window.innerHeight - m.getBoundingClientRect().bottom)
+  })
+  // Шит мусить лишатись ПРИКЛЕЄНИМ до низу вже стиснутого вікна. Клавіатуру
+  // лейаут відняв сам; будь-який власний ліфт тут — це другий відлік.
+  expect(gap, `шит відірвався від низу на ${gap}px — знову подвійний ліфт`).toBeLessThan(24)
+})
