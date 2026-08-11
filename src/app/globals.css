@@ -744,12 +744,23 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
    (кругла кнопка) — двома різними стилями FAB в одному застосунку. */
 .fbtn{position:absolute;bottom:calc(14px + var(--safe-bottom));left:50%;translate:-50% 0;
   height:var(--btn-h);padding:0 32px;min-width:200px;border-radius:var(--r-pill);z-index:20;
-  transition:translate .26s var(--ease-out),opacity .22s ease}
+  transition:translate .34s var(--ease-out),opacity .34s var(--ease-out),scale .34s var(--ease-out)}
 .fbtn.raised{bottom:calc(80px + var(--safe-bottom))}
+/* Компактний варіант — дії «створити нове», що висять НАД списком, який
+   гортається. Повний розмір лишається первинній дії екрана-деталі («Здати в
+   оренду» / «Звільнити об'єкт»): там кнопка і є головна дія, а тут вона
+   закриває контент, який користувач читає.
+   46px, а не 44: гард тап-таргета міряє ФАКТИЧНУ зону через elementFromPoint,
+   і рівно-44 не лишало б запасу на субпіксельне округлення. */
+.fbtn.compact{height:46px;padding:0 20px;min-width:0;font-size:var(--fs-foot)}
 /* Ховається зсувом вниз на гортанні (варіант «б» — інакше пігулка на всю
    ширину закриває більше картки, ніж колишній кутовий .fab). Явний -50% у
-   translate тримає горизонтальне центрування під час зсуву. */
-.fbtn.fab-off{translate:-50% calc(100% + 96px);opacity:0;pointer-events:none}
+   translate тримає горизонтальне центрування під час зсуву.
+   Зсув НЕВЕЛИКИЙ (своя висота + 20px) і йде разом із фейдом та легким
+   зменшенням: попередні 96px кидали кнопку далеко за екран, і на тлі .26s це
+   читалось як ривок, а не як зникання. Тривалості всіх трьох властивостей
+   однакові — інакше рух закінчувався б помітно пізніше за прозорість. */
+.fbtn.fab-off{translate:-50% calc(100% + 20px);opacity:0;scale:.94;pointer-events:none}
 
 
 /* ── ЗОНА ДОТИКУ ДО 44px (Apple HIG) ──────────────────────────────────────────
