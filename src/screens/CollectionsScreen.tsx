@@ -16,6 +16,7 @@ import { formatPrice, calcRent, basisArea, computedRentUnit, objectsWord, format
 import ShareSheet from '@/components/ui/ShareSheet'
 import type { Property, Collection } from '@/types'
 import CoachMark from '@/components/ui/CoachMark'
+import FloatingButton from '@/components/ui/FloatingButton'
 import { useOnboarding } from '@/hooks/useOnboarding'
 import { useHideOnScrollDown } from '@/hooks/useHideOnScrollDown'
 
@@ -374,9 +375,13 @@ function CollectionDetail({
       </div>
 
       {/* Add button */}
-      <button className={`fab ${fabHidden ? 'fab-off' : ''}`} aria-label="Додати об'єкт" onClick={openAddModal}>
-        <IconPlus size={20} />
-      </button>
+      <FloatingButton
+        variant="create"
+        hidden={fabHidden}
+        icon={<IconPlus size={16} />}
+        label="Додати об'єкт"
+        onClick={openAddModal}
+      />
 
       {/* Add property modal */}
       {showAddModal && (
@@ -633,9 +638,15 @@ export default function CollectionsScreen() {
       </div>
 
       {/* FAB */}
-      <button ref={fabRef} className={`fab ${fabHidden ? 'fab-off' : ''}`} aria-label="Створити підбірку" onClick={createCollection}>
-        <IconPlus size={20} />
-      </button>
+      <FloatingButton
+        ref={fabRef}
+        variant="create"
+        raised
+        hidden={fabHidden}
+        icon={<IconPlus size={16} />}
+        label="Створити підбірку"
+        onClick={createCollection}
+      />
 
       {!fabSeen && !loading && (
         <CoachMark

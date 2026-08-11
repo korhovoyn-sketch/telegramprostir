@@ -11,6 +11,7 @@ import TabBar from '@/components/ui/TabBar'
 import SearchBar from '@/components/ui/SearchBar'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import CoachMark from '@/components/ui/CoachMark'
+import FloatingButton from '@/components/ui/FloatingButton'
 import { useOnboarding } from '@/hooks/useOnboarding'
 import { useHideOnScrollDown } from '@/hooks/useHideOnScrollDown'
 import { IconChevronRight, IconPlus, GlassDbIcon } from '@/components/Icons'
@@ -259,14 +260,15 @@ export default function DatabaseListScreen() {
         ) : null}
       </div>
 
-      <button
+      <FloatingButton
         ref={fabRef}
-        className={`fab ${fabHidden ? 'fab-off' : ''}`}
-        aria-label="Створити базу"
+        variant="create"
+        raised
+        hidden={fabHidden}
+        icon={<IconPlus size={16} />}
+        label="Створити базу"
         onClick={() => { hapticImpact('light'); navigate('create-db') }}
-      >
-        <IconPlus size={20} />
-      </button>
+      />
 
       {!fabSeen && !loading && (
         <CoachMark

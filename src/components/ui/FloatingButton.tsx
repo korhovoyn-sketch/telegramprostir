@@ -1,25 +1,47 @@
 'use client'
 
+import { forwardRef } from 'react'
+
 /**
- * Плаваюча дія над списком: «Здати в оренду», «Звільнити об'єкт», «Поділитись».
- * Стиль — спільний Liquid Glass (.btn-glass у globals.css); раніше тут лежали
- * три власні НЕПРОЗОРІ заливки (.94 альфи), і кнопки були єдиними суцільними
- * плямами в скляному інтерфейсі.
+ * Плаваюча дія над списком: «Здати в оренду», «Звільнити об'єкт», «Поділитись»,
+ * і (за проханням, щоб не було двох різних стилів FAB в застосунку) «Додати
+ * об'єкт», «Створити базу», «Створити підбірку». Стиль — спільний Liquid Glass
+ * (.btn-glass у globals.css); раніше тут лежали три власні НЕПРОЗОРІ заливки
+ * (.94 альфи), і кнопки були єдиними суцільними плямами в скляному інтерфейсі.
  */
-const TONE = { success: 'ok', danger: 'err', info: 'info' } as const
+const TONE = { success: 'ok', danger: 'err', info: 'info', create: 'pink' } as const
 
 interface FloatingButtonProps {
   variant: keyof typeof TONE
   icon: React.ReactNode
   label: string
   onClick: () => void
+  /** Екрани з таббаром (db-list/db-objects/collections) — вище, щоб не лягати
+      під нього; екрани-деталі (property-detail, collection-detail) — стандартна
+      позиція над самим низом. */
+  raised?: boolean
+  /** Ховає кнопку зсувом вниз під час гортання — той самий приховуваний FAB,
+      що раніше малював `.fab.fab-off`. */
+  hidden?: boolean
 }
 
-export default function FloatingButton({ variant, icon, label, onClick }: FloatingButtonProps) {
-  return (
-    <button className={`btn-glass fbtn ${TONE[variant]}`} onClick={onClick}>
-      {icon}
-      {label}
-    </button>
-  )
-}
+const FloatingButton = forwardRef<HTMLButtonElement, FloatingButtonProps>(
+  function FloatingButton({ variant, icon, label, onClick, raised, hidden }, ref) {
+    return (
+      <button
+        ref={ref}
+        // aria-label дублює видимий текст, а не замінює: старіші тести
+        // (`getByLabel`) виникли ще для іконкових .fab без підпису і лишились
+        // не мігрованими на getByRole/getByText — обидва шляхи мають працювати.
+        aria-label={label}
+        className={`btn-glass fbtn ${TONE[variant]}${raised ? ' raised' : ''}${hidden ? ' fab-off' : ''}`}
+        onClick={onClick}
+      >
+        {icon}
+        {label}
+      </button>
+    )
+  }
+)
+
+export default FloatingButton

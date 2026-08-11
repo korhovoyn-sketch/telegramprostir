@@ -140,7 +140,7 @@ async function noOcclusion(page: Page, label: string) {
     const last = items[items.length - 1]
     if (!last) return null
     const lr = last.getBoundingClientRect()
-    const fab = document.querySelector<HTMLElement>('.fab')
+    const fab = document.querySelector<HTMLElement>('.fbtn')
     const bar = document.querySelector<HTMLElement>('.tabbar')
     const overlaps = (a: DOMRect, b?: DOMRect | null) =>
       !!b && a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top

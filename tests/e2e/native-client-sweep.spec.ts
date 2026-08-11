@@ -138,7 +138,7 @@ test('нативний клієнт: усі екрани власника жив
   expect((await bar(page)).main.isVisible, 'кнопка форми не протекла на список').toBe(false)
 
   // ── Створення об'єкта (той самий екран, що падав у проді)
-  await page.locator('.fab').click()
+  await page.locator('.fbtn').click()
   await expect(page.getByText('Новий об\'єкт')).toBeVisible({ timeout: 15_000 })
   await alive(page, 'property-form-create')
   b = await bar(page)

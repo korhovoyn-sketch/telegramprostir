@@ -721,6 +721,15 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
   background:linear-gradient(180deg,rgba(42,171,238,.52),rgba(34,158,217,.34));
   border-color:rgba(42,171,238,.46);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.30),inset 0 -1px 0 rgba(0,0,0,.20)}
+/* Тон «створити нове» (додати об'єкт, база, підбірка) — той самий рожевий,
+   що раніше носив окремий суцільний .fab. ОДИН відтінок (--pink-deep) на
+   обидва stop-и, як і решта тонів — --pink (світліший) тут піднімав
+   композитну яскравість над низом .bg-*, де градієн екрана вже світлішає,
+   і білий підпис «Створити базу» падав на 4.35:1 (треба 4.5). */
+.btn-glass.pink{
+  background:linear-gradient(180deg,rgba(196,35,120,.58),rgba(196,35,120,.38));
+  border-color:rgba(224,90,155,.48);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.30),inset 0 -1px 0 rgba(0,0,0,.20)}
 
 /* Неактивна дія — нейтральне скло, а не привид: прозорий шар під opacity:.45
    майже зникав над темним шитом, і кнопку не було видно взагалі. */
@@ -728,10 +737,19 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
   box-shadow:inset 0 1px 0 rgba(255,255,255,.10);color:var(--t3);
   opacity:1;cursor:default;pointer-events:none}
 
-/* Плаваюча дія над списком (детальна картка обʼєкта). Скрим під нею — уже є
-   (.cta-scrim), тож скло лишається читабельним навіть над яскравою карткою. */
+/* Плаваюча дія над списком — єдина форма для «Здати в оренду»/«Звільнити
+   об'єкт»/«Поділитись» (без таббара, тому стандартний відступ від низу) і
+   «Додати об'єкт»/«Створити базу»/«Створити підбірку» (.raised — з таббаром,
+   щоб не лягати під нього). Раніше другі три були окремим суцільним .fab
+   (кругла кнопка) — двома різними стилями FAB в одному застосунку. */
 .fbtn{position:absolute;bottom:calc(14px + var(--safe-bottom));left:50%;translate:-50% 0;
-  height:var(--btn-h);padding:0 32px;min-width:200px;border-radius:var(--r-pill);z-index:20}
+  height:var(--btn-h);padding:0 32px;min-width:200px;border-radius:var(--r-pill);z-index:20;
+  transition:translate .26s var(--ease-out),opacity .22s ease}
+.fbtn.raised{bottom:calc(80px + var(--safe-bottom))}
+/* Ховається зсувом вниз на гортанні (варіант «б» — інакше пігулка на всю
+   ширину закриває більше картки, ніж колишній кутовий .fab). Явний -50% у
+   translate тримає горизонтальне центрування під час зсуву. */
+.fbtn.fab-off{translate:-50% calc(100% + 96px);opacity:0;pointer-events:none}
 
 
 /* ── ЗОНА ДОТИКУ ДО 44px (Apple HIG) ──────────────────────────────────────────
@@ -896,11 +914,6 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 @keyframes tabBellRing{0%{transform:scale(.7) rotate(0)}30%{transform:scale(1.08) rotate(-14deg)}55%{transform:scale(1.02) rotate(11deg)}75%{transform:scale(1) rotate(-6deg)}100%{transform:scale(1) rotate(0)}}
 @keyframes tabUserNod{0%{transform:scale(.7) translateY(3px)}55%{transform:scale(1.1) translateY(-1.5px)}100%{transform:scale(1) translateY(0)}}
 
-/* ── FAB ── */
-.fab{position:absolute;right:14px;bottom:calc(80px + var(--safe-bottom));width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--pink),var(--pink-deep));display:flex;align-items:center;justify-content:center;color:#fff;font-size:var(--fs-t3);box-shadow:0 8px 22px rgba(196,35,120,.42),inset 0 1px 0 rgba(255,255,255,.3);z-index:18;cursor:pointer;border:none;animation:fabPop .5s var(--ease-spr) .3s both;transition:transform .2s var(--ease-spr),box-shadow .2s,translate .26s var(--ease-out),opacity .22s ease}
-@media (hover: hover){.fab:hover{transform:scale(1.08);box-shadow:0 12px 28px rgba(196,35,120,.55),inset 0 1px 0 rgba(255,255,255,.35)}}
-.fab:active{transform:scale(.94)}
-
 /* ── PHOTOS ── */
 .photos-strip{padding:0 var(--g3) var(--g3);display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
 .photos-strip::-webkit-scrollbar{display:none}
@@ -1014,7 +1027,6 @@ svg.ico{overflow:visible}
 .modal.closing{animation:modalSlideDown .24s var(--ease-out) forwards}
 .modal-overlay.closing{animation:overlayFadeOut .22s ease forwards;pointer-events:none}
 @keyframes cascadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
-@keyframes fabPop{from{transform:scale(0);opacity:0}50%{transform:scale(1.15)}to{transform:scale(1);opacity:1}}
 @keyframes tabbarIn{from{transform:translateY(140%) scale(.92);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
 @keyframes btnPress{0%{transform:scale(1)}40%{transform:scale(.94)}70%{transform:scale(1.02)}100%{transform:scale(1)}}
 @keyframes bounce{0%,100%{transform:translateY(0) rotate(-2deg) scale(1)}50%{transform:translateY(-10px) rotate(2deg) scale(1.04)}}
@@ -1063,7 +1075,6 @@ svg.ico{overflow:visible}
 .obj-card:active{transform:scale(.985)}
 .tab:active{transform:scale(.92);opacity:0.75}
 .hdr-back:active{transform:scale(.92)}
-.fab:active{transform:scale(.92) !important;box-shadow:0 3px 10px rgba(196,35,120,.22) !important}
 .share-i:active{transform:scale(.93)}
 .collection-c:active{transform:scale(.979)}
 .photo-t:active{transform:scale(.93)}
@@ -1515,14 +1526,6 @@ svg.ico{overflow:visible}
   -webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 22px),transparent);
   mask-image:linear-gradient(90deg,#000 calc(100% - 22px),transparent)}
 .batch-scroll::-webkit-scrollbar{display:none}
-
-/* FAB ховається на гортанні вниз (варіант «б»): інакше він постійно накриває
-   статус-бейдж картки — і кнопка, і бейдж притиснуті до правого краю.
-   Використовуємо окрему властивість `translate`, а НЕ transform: у .fab висить
-   animation:fabPop із fill:both, чий transform:scale(1) переміг би transform,
-   але з translate вони композуються. Де translate не підтримано — кнопка просто
-   лишається видимою (деградація без поломки). */
-.fab.fab-off{translate:0 calc(100% + 96px);opacity:0;pointer-events:none}
 
 /* Сповіщення про кінець договору: ліва смужка кодує терміновість */
 .notif-i.lease-soon{box-shadow:inset 3px 0 0 var(--info)}

@@ -131,7 +131,10 @@ test.describe('owner sweep: uncovered screens', () => {
     await page.goto('/')
 
     await expect(page.getByText('Немає підбірок')).toBeVisible({ timeout: 20_000 })
-    await page.getByText('Створити підбірку').click()
+    // FAB і нативна MainButton (DOM-фолбек .mbtn) тепер несуть той самий
+    // підпис на ОДНОМУ екрані (на відміну від «Додати об'єкт»/«Створити
+    // базу», де FAB веде на ІНШИЙ екран і колізії немає) — звужуємо до FAB.
+    await page.locator('.fbtn').click()
     await expect(page.getByText('Підбірка 1')).toBeVisible()
   })
 })

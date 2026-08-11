@@ -20,6 +20,7 @@ import FolderPickerModal from '@/components/ui/FolderPickerModal'
 import Collapsible from '@/components/ui/Collapsible'
 import { IconCheck, IconPlus, IconDots, IconPhoto, IconChevronUp, IconChevronDown, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconCopy, IconUser, IconUsers, IconFile, IconLayers, IconLayoutGrid, IconChartBar, IconKey, IconFileExport, IconCircleCheck, IconAdjustments, IconTrash, IconChevronRight, IconFolder, IconInbox } from '@/components/Icons'
 import DatabaseStatsPanel from '@/components/ui/DatabaseStatsPanel'
+import FloatingButton from '@/components/ui/FloatingButton'
 import { formatPrice, calcRent, calcRentUtils, basisArea, floorSortKey, computedRentUnit, rentUnitLabel, objectsWord, DB_TYPE_LABELS, formatLeasePeriod, STATUS_COLORS, matchesQuery } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import type { Database, Property, PropertyStatus } from '@/types'
@@ -754,9 +755,15 @@ export default function DatabaseObjectsScreen() {
 
       {/* FAB — owner only, hidden while reordering or selecting */}
       {isOwner && !reorderMode && !selectMode && (
-        <button ref={fabRef} className={`fab ${fabHidden ? 'fab-off' : ''}`} aria-label="Додати об'єкт" onClick={() => navigate('property-form', { dbId: db.id })}>
-          <IconPlus size={20} />
-        </button>
+        <FloatingButton
+          ref={fabRef}
+          variant="create"
+          raised
+          hidden={fabHidden}
+          icon={<IconPlus size={16} />}
+          label="Додати об'єкт"
+          onClick={() => navigate('property-form', { dbId: db.id })}
+        />
       )}
 
       {isOwner && !fabSeen && !reorderMode && !selectMode && !loading && (
