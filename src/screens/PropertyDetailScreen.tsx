@@ -414,7 +414,11 @@ export default function PropertyDetailScreen() {
               </div>
             )}
             {(property.lease_start_date || property.lease_end_date) && (
-              <div className="obj-f" style={{ gridColumn: '1 / -1' }}>
+              // Останній рядок сітки — сидить на найсвітлішій ділянці екранного
+              // градієнта (він темнішає догори), backdrop-filter карти семплить
+              // саме її: підпис падав нижче WCAG AA (4.17:1). Темніший ґрунт —
+              // той самий прийом, що вже підняв .obj-tot-l/v/sub.
+              <div className="obj-f" style={{ gridColumn: '1 / -1', background: 'var(--glass-card)', borderRadius: 'var(--r-sm)', padding: '8px 10px', margin: '2px 0 -4px' }}>
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                   <IconKey size={14} color="var(--violet)" />Строк договору
                 </div>
@@ -649,12 +653,6 @@ export default function PropertyDetailScreen() {
 
         <div style={{ height: 100 }} />
       </div>
-
-      {/* Scrim so scrolled content fades under the floating CTA (не «наїжджає») */}
-      {((isOwner && (property.status === 'free' || property.status === 'occupied')) ||
-        (property.owner_id === user?.id && property.status === 'for_sale')) && (
-        <div className="cta-scrim" aria-hidden />
-      )}
 
       {isOwner && property.status === 'free' && (
         <FloatingButton

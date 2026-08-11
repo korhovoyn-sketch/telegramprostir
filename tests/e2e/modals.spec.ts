@@ -392,6 +392,26 @@ test('ліфт НЕ дублюється, коли платформа рапор
   expect(Math.round(pad.computed), 'працює лише реальна висота').toBe(300)
 })
 
+test('шит не СНЕПАЄ між висотами — max-height анімується так само, як padding-bottom', async ({ page }) => {
+  // Реальний пристрій шле висоту клавіатури кількома тіками, поки вона сама
+  // анімується (нормальна поведінка ОС, не баг сигналу). `.modal-overlay`'s
+  // padding-bottom вже їде transition-ом (.25s), а .modal's max-height
+  // перераховувався МИТТЄВО — шит візуально «стрибав»/«стискався» на кожен тік,
+  // хоч кожне окреме значення було коректним. Відео користувача: «стискається
+  // так, що з нею неможливо працювати».
+  await fixtures(page)
+  await openRentModal(page)
+  const hasTransition = await page.evaluate(() => {
+    const m = document.querySelector('.modal') as HTMLElement
+    const cs = getComputedStyle(m)
+    const idx = cs.transitionProperty.split(',').findIndex(p => p.trim() === 'max-height')
+    if (idx === -1) return null
+    return parseFloat(cs.transitionDuration.split(',')[idx] ?? cs.transitionDuration)
+  })
+  expect(hasTransition, 'max-height мусить мати ненульову transition-duration').not.toBeNull()
+  expect(hasTransition).toBeGreaterThan(0)
+})
+
 test('поле у фокусі не ховається під кнопками дій навіть у затиснутій модалці', async ({ page }) => {
   // Реальний скрін від користувача: клавіатура стиснула шит, тіло стало
   // прокручуваним — і sticky-кнопки «Скасувати/Зберегти» накрили поле «День
