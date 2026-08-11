@@ -80,6 +80,26 @@ test('видалення об\'єкта підтверджується нати�
   expect(deletes[0]).toContain(PROP_ID)
 })
 
+test('видалення об\'єкта: Back після видалення НЕ повертає на мертву форму редагування', async ({ page }) => {
+  const { deletes } = await setup(page)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await page.addInitScript(() => { (window as any).__tgEnablePopups?.('ok') })
+  await openEditForm(page)
+
+  await page.getByRole('button', { name: 'Видалити об\'єкт' }).click()
+  await expect.poll(() => deletes.length, { timeout: 10_000 }).toBe(1)
+
+  // Приземлились на список об'єктів бази (єдиний живий екран після видалення).
+  await expect(page.getByText('Всі (1)')).toBeVisible()
+
+  // deleteProperty мусить popати з history і форму, і деталі видаленого
+  // об'єкта (backThenReplace), а не лишати їх там (navigate) — інакше ОДИН
+  // тап «Назад» повертає на форму редагування об'єкта, якого вже нема.
+  await page.locator('.hdr-back').click()
+  await expect(page.getByText('Мої бази')).toBeVisible()
+  await expect(page.getByText('Редагування')).toHaveCount(0)
+})
+
 test('закриття нативного попапу свайпом = відмова, нічого не видаляється', async ({ page }) => {
   const { deletes } = await setup(page)
   // Telegram віддає null, коли попап закрили без вибору кнопки.

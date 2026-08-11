@@ -77,13 +77,18 @@ const CONTRAST_DEBT: ReadonlySet<string> = new Set([
   'bdg',
   // Оверлайн секції Профілю: 11px/600 uppercase, безкласовий <span> у `.over`.
   'over>span',
+  // Капшен «оренда + експлуатаційні» під сумою картки: темніший ґрунт
+  // (.obj-tot) прибрано за проханням (виглядав як зайва плашка). 4.38:1 —
+  // на волосок нижче AA (4.5), сама сума (.obj-tot-v) лишається над порогом.
+  'obj-tot-sub',
 ])
 
 /** Скільки блоків нижче AA дозволено на екран — щоб борг не ріс у своєму класі. */
 const FROZEN: Record<string, number> = {
   'db-list': 0,
-  // 3 × `.dash-sub` + 2 × `.dash-l` — підписи плиток дашборда.
-  'db-objects': 5,
+  // 3 × `.dash-sub` + 2 × `.dash-l` — підписи плиток дашборда; +1 ×
+  // `.obj-tot-sub` — капшен суми картки після зняття темного ґрунту.
+  'db-objects': 6,
   'property-detail': 0,
   // `.over>span` + 2 × `.fr-seg-b` + `.bdg-info`.
   profile: 4,

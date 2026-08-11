@@ -338,13 +338,17 @@ export function useProperties(dbId?: string) {
 
       setProperties((prev) => prev.filter((p) => p.id !== id))
       showToast({ type: 'success', title: 'Об\'єкт видалено' })
-      navigate('db-objects', { dbId })
+      // backThenReplace, не navigate: видалення відкривається ЛИШЕ з форми
+      // редагування, куди заходять з property-detail того ж об'єкта — просте
+      // navigate лишило б і деталі, і форму цього вже неіснуючого об'єкта в
+      // history, і Back після видалення повертав би на мертвий екран.
+      backThenReplace('db-objects', { dbId })
     } catch (e) {
       showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
     } finally {
       setLoading(false)
     }
-  }, [showToast, navigate])
+  }, [showToast, backThenReplace])
 
   const batchDeleteProperties = useCallback(async (ids: string[]) => {
     if (ids.length === 0) return

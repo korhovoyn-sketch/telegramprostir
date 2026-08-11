@@ -444,10 +444,10 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 .obj-met{display:flex;flex-wrap:wrap;gap:6px 16px;padding:2px var(--pad-card) 12px}
 /* Metadata chips — Caption 1 */
 .obj-mt{font-size:var(--fs-foot);color:var(--t2);display:flex;align-items:center;gap:6px;line-height:1;font-weight:500}
-/* Смуга підсумку — темніший ґрунт, а не лише падінг: градієнт екрана СВІТЛІШАЄ
-   донизу, тож саме тут білий підпис і цифра сходили до 3.8–4.4:1. Це той випадок,
-   де контраст лікується фоном, а не альфою тексту — брайтити біле нікуди. */
-.obj-tot{padding:10px var(--pad-card);display:flex;justify-content:space-between;align-items:center;background:var(--glass-card)}
+/* За проханням прибрано темніший ґрунт (смуга виглядала як зайва плашка на
+   картці) — контраст підпису й цифри тепер тримає лише текстовий колір
+   (.obj-tot-v — var(--t1), максимальна яскравість), не фон. */
+.obj-tot{padding:10px var(--pad-card);display:flex;justify-content:space-between;align-items:center}
 /* "На місяць" label — Caption 2 uppercase */
 .obj-tot-l{font-size:var(--fs-cap2);color:var(--t3);font-weight:var(--fw-semi);text-transform:uppercase;letter-spacing:.05em}
 /* Price value — Subhead Bold */
