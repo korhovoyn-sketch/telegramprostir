@@ -175,21 +175,14 @@ test('SWR: db list paints from the local snapshot even when the network is down'
   await expect(page.getByText('БЦ Рубін')).toBeVisible()
 })
 
-test('native MainButton drives the form when Telegram provides one', async ({ page }) => {
+test('наша CTA надсилає форму навіть коли Telegram пропонує нативну смугу', async ({ page }) => {
   await fixtures(page)
-  // Attach a MainButton to the harness Telegram stub (runs after its init script)
+  // Нативну смугу вмикаємо СВІДОМО: тулбар прибрано з застосунку за рішенням
+  // власника, тож наявність MainButton у клієнта НЕ мусить нічого змінювати —
+  // первинною дією лишається наша пігулка.
   await page.addInitScript(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const wa = (window as any).Telegram?.WebApp
-    if (!wa) return
-    wa.MainButton = {
-      text: '', isVisible: false, _cb: null, _params: null,
-      setText(t: string) { this.text = t },
-      setParams(p: Record<string, unknown>) { this._params = p },
-      show() { this.isVisible = true }, hide() { this.isVisible = false },
-      enable() {}, disable() {}, showProgress() {}, hideProgress() {},
-      onClick(f: () => void) { this._cb = f }, offClick() { this._cb = null },
-    }
+    (window as any).__tgEnableMainButton?.(true)
   })
   let posted: Record<string, unknown> | null = null
   await page.route('**/rest/v1/properties**', (route) => {
@@ -204,19 +197,12 @@ test('native MainButton drives the form when Telegram provides one', async ({ pa
   await page.getByLabel("Додати об'єкт").click()
   await expect(page.getByText("Новий об'єкт")).toBeVisible()
 
-  // Native button takes over → the DOM fallback is gone
-  await expect(page.getByRole('button', { name: "Додати об'єкт", exact: true })).toHaveCount(0)
-  await page.getByPlaceholder('Офіс 101').fill('Офіс 200')
-  await expect.poll(() => page.evaluate(() =>
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (window as any).Telegram.WebApp.MainButton.text
-  )).toBe("Додати об'єкт")
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  expect(await page.evaluate(() => (window as any).__tgMain.isVisible),
+    'нативна смуга не вмикається').toBe(false)
 
-  // Clicking the native button submits the form
-  await page.evaluate(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ;(window as any).Telegram.WebApp.MainButton._cb?.()
-  })
+  await page.getByPlaceholder('Офіс 101').fill('Офіс 200')
+  await page.locator('button.mbtn').click()
   await expect.poll(() => posted, { timeout: 10_000 }).not.toBeNull()
   expect(posted!.name).toBe('Офіс 200')
 })
@@ -322,7 +308,7 @@ test('area basis: form toggle drives the preview and lands in the create INSERT'
   await page.getByText('Корисної', { exact: true }).click()
   await expect(page.locator('.body')).toContainText('400')
 
-  await page.locator('button.mbtn-flow').click()
+  await page.locator('button.mbtn').click()
   await expect.poll(() => postBody, { timeout: 10_000 }).not.toBeNull()
   expect(postBody!.area_basis).toBe('useful')
 })

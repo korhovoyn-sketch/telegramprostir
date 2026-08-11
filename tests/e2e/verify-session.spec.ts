@@ -147,7 +147,7 @@ test('drive-through: home → objects → compact → action sheet → form → 
   await page.getByText('Всі (4)').click()
   await page.getByLabel("Додати об'єкт").click()
   await expect(page.getByText("Новий об'єкт")).toBeVisible()
-  const cta = page.locator('button.mbtn-flow')
+  const cta = page.locator('button.mbtn')
   await expect(cta).toHaveCount(1)
   await cta.scrollIntoViewIfNeeded()
   await page.screenshot({ path: testInfo.outputPath('05-form-inflow-cta.png') })
