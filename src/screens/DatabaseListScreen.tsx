@@ -263,9 +263,10 @@ export default function DatabaseListScreen() {
       <FloatingButton
         ref={fabRef}
         variant="create"
+        compact
         raised
         hidden={fabHidden}
-        icon={<IconPlus size={16} />}
+        icon={<IconPlus size={14} />}
         label="Створити базу"
         onClick={() => { hapticImpact('light'); navigate('create-db') }}
       />

@@ -719,7 +719,7 @@ export default function PropertyFormScreen() {
                 </>
               ) : (
                 <>
-                  <div className={`fr-seg-b ${rentType === 'per_m2' ? 'on' : ''}`} onClick={() => { hapticSelection(); setRentType('per_m2') }}>$ за м²</div>
+                  <div className={`fr-seg-b ${rentType === 'per_m2' ? 'on' : ''}`} onClick={() => { hapticSelection(); setRentType('per_m2') }}>{currencySymbol(user?.currency)} за м²</div>
                   <div className={`fr-seg-b ${rentType === 'fixed' ? 'on' : ''}`} onClick={() => { hapticSelection(); setRentType('fixed') }}>Фікс. сума</div>
                 </>
               )}

@@ -7,7 +7,13 @@ import { useEffect, useRef, useState } from 'react'
 // куті й постійно накриває статус-бейдж тієї картки, що трапилась на його висоті.
 //
 // Скролиться не window, а внутрішній контейнер `.body`, тож слухаємо саме його.
-const DOWN_THRESHOLD = 8   // менші рухи — це дрож пальця, не намір гортати
+
+// Пороги НЕсиметричні свідомо. Ховати треба ЛІНИВО: 8px кнопка «відстрілювала»
+// на першому ж русі пальця, ще до того, як користувач насправді почав гортати —
+// саме це читалось як ривок, а не як зникання. Показувати навпаки треба ОХОЧЕ:
+// щойно людина повела вгору, кнопка потрібна їй негайно.
+const DOWN_THRESHOLD = 40  // ховаємо лише після осмисленого гортання вниз
+const UP_THRESHOLD = 10    // повертаємо майже одразу
 const TOP_ZONE = 28        // біля верху кнопка завжди видима
 
 export function useHideOnScrollDown(): boolean {
@@ -25,16 +31,18 @@ export function useHideOnScrollDown(): boolean {
 
       if (y <= TOP_ZONE) {
         setHidden(false)
-      } else if (dy > DOWN_THRESHOLD) {
+        lastRef.current = y
+        return
+      }
+      // Рухи в межах порога НЕ оновлюють lastRef — так дельта накопичується від
+      // останнього якоря, інакше повільне гортання ніколи не набрало б порога.
+      if (dy > DOWN_THRESHOLD) {
         setHidden(true)
         lastRef.current = y
-      } else if (dy < -DOWN_THRESHOLD) {
+      } else if (dy < -UP_THRESHOLD) {
         setHidden(false)
         lastRef.current = y
       }
-      // Рухи в межах порога не оновлюють lastRef — інакше повільне гортання
-      // ніколи не набрало б порога і кнопка не реагувала б узагалі.
-      if (Math.abs(dy) > DOWN_THRESHOLD || y <= TOP_ZONE) lastRef.current = y
     }
 
     el.addEventListener('scroll', onScroll, { passive: true })

@@ -23,10 +23,15 @@ interface FloatingButtonProps {
   /** Ховає кнопку зсувом вниз під час гортання — той самий приховуваний FAB,
       що раніше малював `.fab.fab-off`. */
   hidden?: boolean
+  /** Менша пігулка для дій «створити нове»: вони висять над списком, який
+      користувач читає, тож не мають важити стільки, скільки первинна дія
+      екрана-деталі. Розмір НЕ виводиться з `variant` навмисно — колір несе
+      семантику дії, а не габарит. */
+  compact?: boolean
 }
 
 const FloatingButton = forwardRef<HTMLButtonElement, FloatingButtonProps>(
-  function FloatingButton({ variant, icon, label, onClick, raised, hidden }, ref) {
+  function FloatingButton({ variant, icon, label, onClick, raised, hidden, compact }, ref) {
     return (
       <button
         ref={ref}
@@ -34,7 +39,7 @@ const FloatingButton = forwardRef<HTMLButtonElement, FloatingButtonProps>(
         // (`getByLabel`) виникли ще для іконкових .fab без підпису і лишились
         // не мігрованими на getByRole/getByText — обидва шляхи мають працювати.
         aria-label={label}
-        className={`btn-glass fbtn ${TONE[variant]}${raised ? ' raised' : ''}${hidden ? ' fab-off' : ''}`}
+        className={`btn-glass fbtn ${TONE[variant]}${compact ? ' compact' : ''}${raised ? ' raised' : ''}${hidden ? ' fab-off' : ''}`}
         onClick={onClick}
       >
         {icon}

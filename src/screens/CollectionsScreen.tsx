@@ -377,8 +377,9 @@ function CollectionDetail({
       {/* Add button */}
       <FloatingButton
         variant="create"
+        compact
         hidden={fabHidden}
-        icon={<IconPlus size={16} />}
+        icon={<IconPlus size={14} />}
         label="Додати об'єкт"
         onClick={openAddModal}
       />
@@ -641,9 +642,10 @@ export default function CollectionsScreen() {
       <FloatingButton
         ref={fabRef}
         variant="create"
+        compact
         raised
         hidden={fabHidden}
-        icon={<IconPlus size={16} />}
+        icon={<IconPlus size={14} />}
         label="Створити підбірку"
         onClick={createCollection}
       />

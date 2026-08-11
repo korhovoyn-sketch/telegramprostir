@@ -87,7 +87,12 @@ async function openRentModal(page: Page) {
   // Клік по заголовку — центр короткої картки влучає в рядок дій
   await page.locator('.obj-card', { hasText: 'Офіс 102' }).locator('.obj-t').click()
   await page.getByRole('button', { name: 'Здати в оренду' }).click()
-  await expect(page.getByText('Здати в оренду', { exact: true }).first()).toBeVisible()
+  // Чекати на ТЕКСТ тут не можна: «Здати в оренду» — це ще й підпис самої
+  // плаваючої кнопки, яка лишається в DOM під шитом, тож `.first()` матчив її
+  // і повертав керування ДО монтування модалки (`document.querySelector('.modal')`
+  // → null → getComputedStyle кидав). Чекаємо на сам шит.
+  await expect(page.locator('.modal')).toBeVisible()
+  await expect(page.locator('.modal').getByText('Здати в оренду', { exact: true })).toBeVisible()
 }
 
 test('rent modal: disabled CTA, live monthly preview, currency-aware unit labels', async ({ page }) => {

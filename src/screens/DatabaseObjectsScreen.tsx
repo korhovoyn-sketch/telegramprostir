@@ -758,9 +758,10 @@ export default function DatabaseObjectsScreen() {
         <FloatingButton
           ref={fabRef}
           variant="create"
+          compact
           raised
           hidden={fabHidden}
-          icon={<IconPlus size={16} />}
+          icon={<IconPlus size={14} />}
           label="Додати об'єкт"
           onClick={() => navigate('property-form', { dbId: db.id })}
         />

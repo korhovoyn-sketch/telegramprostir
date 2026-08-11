@@ -37,3 +37,43 @@ test('FAB ховається на гортанні вниз і повертає�
   await page.locator('.body').evaluate(el=>{el.scrollTop=0}); await page.waitForTimeout(400)
   await expect(fab, 'біля верху завжди видима').not.toHaveClass(/fab-off/)
 })
+
+// Скарга користувача: кнопка «відстрілювала» на першому ж русі пальця. Причина —
+// поріг 8px: його перетинає будь-який дотик зі зсувом, ще до того, як людина
+// насправді почала гортати. Ховати треба ЛІНИВО, показувати — ОХОЧЕ.
+test('дрібний рух пальця НЕ ховає кнопку, осмислене гортання — ховає', async ({ page }) => {
+  await setup(page); await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({timeout:20000})
+  await page.getByText('Міком Палац').first().click()
+  await expect(page.getByText('Всі (10)')).toBeVisible()
+  await page.waitForTimeout(900)
+  const fab = page.locator('.fbtn')
+
+  // 30px — нижче порога ховання (40) і вище TOP_ZONE, щоб гілка «біля верху»
+  // не давала фальшиво зелений результат.
+  await page.locator('.body').evaluate(el=>{el.scrollTop=30}); await page.waitForTimeout(350)
+  await expect(fab, 'дрож/дотик не має ховати кнопку').not.toHaveClass(/fab-off/)
+
+  await page.locator('.body').evaluate(el=>{el.scrollTop=400}); await page.waitForTimeout(350)
+  await expect(fab, 'осмислене гортання вниз — ховає').toHaveClass(/fab-off/)
+
+  // Повернення охоче: невеликого руху вгору достатньо.
+  await page.locator('.body').evaluate(el=>{el.scrollTop=370}); await page.waitForTimeout(350)
+  await expect(fab, 'невеликий рух угору вже повертає').not.toHaveClass(/fab-off/)
+})
+
+test('кнопка «створити» компактна, але не менша за зону дотику 44px', async ({ page }) => {
+  await setup(page); await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({timeout:20000})
+  await page.getByText('Міком Палац').first().click()
+  await expect(page.getByText('Всі (10)')).toBeVisible()
+  await page.waitForTimeout(900)
+
+  const box = await page.locator('.fbtn').boundingBox()
+  expect(box, 'кнопка на екрані').toBeTruthy()
+  // Менша за первинну дію екрана-деталі (--btn-h: 52px) — саме це й просили…
+  expect(box!.height, 'компактна: нижча за повний --btn-h 52px').toBeLessThan(52)
+  // …але не за рахунок зони дотику: гард contrast.spec міряє ФАКТИЧНУ зону, і
+  // рівно-44 не лишало б запасу на субпіксель, тож тримаємо 44 як мінімум.
+  expect(box!.height, 'не нижча за Apple HIG 44px').toBeGreaterThanOrEqual(44)
+})
