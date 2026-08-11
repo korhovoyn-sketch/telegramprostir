@@ -161,6 +161,11 @@ test('editor: member db shows «Команда» badge and full edit surface', a
   await expect(page.getByText('Аналітика і поширення')).toHaveCount(0)
   await expect(page.getByText('Управління гостями')).toHaveCount(0)
   await expect(page.getByText('Команда', { exact: true })).toHaveCount(0)
+  // …і адміністрування САМОЇ бази — теж ні: 041 дає редактору лише CRUD
+  // об'єктів/фото/файлів/платежів, а не право стерти чи перейменувати чужу
+  // базу (RLS це заборонить, але клієнт не мав би навіть пропонувати).
+  await expect(page.getByText('Редагувати базу')).toHaveCount(0)
+  await expect(page.getByText('Видалити базу')).toHaveCount(0)
 })
 
 // ─── Редактор з роллю 'realtor' — окремий домашній екран ────────────────────────
@@ -253,6 +258,33 @@ test('deep link: claim_team_invite success lands on the team db', async ({ page 
   await expect(page.locator('.hdr-t', { hasText: 'БЦ Чужий' })).toBeVisible()
   await expect(page.getByText('Всі (1)')).toBeVisible()
   expect(claimedToken).toBe('feedfacecafe00112233')
+})
+
+test('deep link: claim успішний, але сам рядок бази недоступний — RetryState, не вічний спінер', async ({ page }) => {
+  await setupApp(page, { user: OWNER, startParam: 'team_feedfacecafe00112233' })
+  await skipCoachmarks(page)
+
+  await page.route('**/rest/v1/rpc/claim_team_invite', (route) =>
+    json(route, { db_id: TEAM_DB_ID }))
+  // Клейм успішний (RPC — SECURITY DEFINER), але прямий SELECT рядка бази
+  // (RLS звичайного клієнта) не повертає нічого: рядок видалили між клеймом
+  // і навігацією, або RLS раптово не бачить його. db-list і db-members теж
+  // порожні — стор ніколи не наповниться цією базою жодним іншим шляхом.
+  await page.route('**/rest/v1/databases**', (route) => {
+    const accept = route.request().headers()['accept'] ?? ''
+    return json(route, accept.includes('object') ? null : [])
+  })
+  await page.route('**/rest/v1/db_members**', (route) => json(route, []))
+  await page.route('**/rest/v1/properties**', (route) =>
+    route.request().method() === 'GET' ? json(route, []) : route.fallback())
+
+  await page.goto('/')
+  await expect(page.getByText('Ви в команді! 🎉')).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByText('Базу не знайдено')).toBeVisible({ timeout: 20_000 })
+  // Кнопка повтору жива, а не декоративна — повторний запит той самий null,
+  // тож екран лишається на RetryState, а не висить на голому спінері.
+  await page.getByRole('button', { name: /Повторити|Спробувати/ }).click()
+  await expect(page.getByText('Базу не знайдено')).toBeVisible({ timeout: 20_000 })
 })
 
 test('deep link: revoked invite shows the error toast and falls back home', async ({ page }) => {

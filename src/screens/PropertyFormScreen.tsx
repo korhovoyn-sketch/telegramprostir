@@ -332,7 +332,7 @@ export default function PropertyFormScreen() {
       confirmLabel: 'Видалити',
       destructive: true,
     })
-    if (!ok) return
+    if (!ok || offlineGuard()) return
     await deleteProperty(editId, screenParams.dbId!)
   }
 

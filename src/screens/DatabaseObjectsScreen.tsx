@@ -180,23 +180,33 @@ export default function DatabaseObjectsScreen() {
   // видимість для будь-якої ролі (owner/editor/guest/realtor), на відміну від
   // loadDatabases, що фільтрує по owner_id + membership.
   const dbMissing = !db
+  // Розрізняє «ще вантажиться» від «справді не існує/немає доступу» — без
+  // цього прапорця запит, що резолвиться `data: null` (видалена база,
+  // застарілий deep link, чужий share), лишав екран на вічному спінері:
+  // нема куди повернутись і нема сигналу, що ще чекати нічого.
+  const [dbFetchDone, setDbFetchDone] = useState(false)
+  const [dbRetryKey, setDbRetryKey] = useState(0)
   useEffect(() => {
     if (!dbMissing || !screenParams.dbId) return
     let stale = false
+    setDbFetchDone(false)
     supabase
       .from('databases')
       .select('id,owner_id,name,address,type,color,share_token,share_expires_at,created_at,updated_at')
       .eq('id', screenParams.dbId)
       .maybeSingle()
       .then(({ data }) => {
-        if (stale || !data) return
-        const cur = useAppStore.getState().databases
-        if (!cur.some((d) => d.id === (data as Database).id)) {
-          useAppStore.getState().setDatabases([...cur, data as Database])
+        if (stale) return
+        if (data) {
+          const cur = useAppStore.getState().databases
+          if (!cur.some((d) => d.id === (data as Database).id)) {
+            useAppStore.getState().setDatabases([...cur, data as Database])
+          }
         }
+        setDbFetchDone(true)
       })
     return () => { stale = true }
-  }, [dbMissing, screenParams.dbId])
+  }, [dbMissing, screenParams.dbId, dbRetryKey])
 
   const filtered = useMemo(() => {
     const base = properties.filter((p) => {
@@ -267,6 +277,18 @@ export default function DatabaseObjectsScreen() {
 
   // Під час пошуку розгортаємо всі секції, щоб знахідки не ховались у згорнутій папці.
   const forceExpand = search.trim() !== ''
+
+  if (!db && dbFetchDone) return (
+    <div className="scr bg-blue">
+      <Header title="База" backLabel="Назад" />
+      <RetryState
+        icon="🗄️"
+        title="Базу не знайдено"
+        subtitle="Можливо, її видалили, або в тебе більше немає до неї доступу."
+        onRetry={() => { setDbFetchDone(false); setDbRetryKey(k => k + 1) }}
+      />
+    </div>
+  )
 
   if (!db) return (
     <div className="scr bg-blue">
@@ -803,8 +825,16 @@ export default function DatabaseObjectsScreen() {
               ] : []),
               { Icon: IconCircleCheck, label: 'Виділити об\'єкти',      nav: false, danger: false, action: enterSelectMode },
               { Icon: IconAdjustments, label: 'Змінити порядок',       nav: false, danger: false, action: enterReorderMode },
-              { Icon: IconEdit,        label: 'Редагувати базу',       nav: true,  danger: false, action: () => { setShowMenu(false); navigate('edit-db', { dbId: db.id }) } },
-              { Icon: IconTrash,       label: 'Видалити базу',         nav: false, danger: true,  action: () => { setShowMenu(false); void handleDeleteDatabase() } },
+              // Редагування й видалення САМОЇ бази — теж owner-only (як шаринг/гості/команда
+              // вище): редактор команди має лише CRUD об'єктів/фото/файлів/платежів
+              // (041), а не право стерти чи перейменувати чужу базу. Без цього гейту
+              // RLS мовчки блокує сам DELETE рядка databases (0 рядків, без помилки),
+              // але storage-політика редактора ВСЕ ОДНО дозволяє видалити всі фото
+              // бази — тож клієнт репортував би фальшивий успіх, стерши лише фотографії.
+              ...(db.owner_id === user?.id ? [
+                { Icon: IconEdit,      label: 'Редагувати базу',       nav: true,  danger: false, action: () => { setShowMenu(false); navigate('edit-db', { dbId: db.id }) } },
+                { Icon: IconTrash,     label: 'Видалити базу',         nav: false, danger: true,  action: () => { setShowMenu(false); void handleDeleteDatabase() } },
+              ] : []),
             ].map(({ Icon, label, nav, danger, action }) => (
               <div key={label} className={`sheet-row${danger ? ' danger' : ''}`} onClick={action}>
                 <span className="sheet-ic"><Icon size={16} /></span>

@@ -14,7 +14,7 @@ const DB_COLUMNS = 'id,owner_id,name,address,type,color,share_token,share_expire
 export function useDatabases() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const { user, setDatabases, databases, showToast, navigate, backThenReplace } = useAppStore()
+  const { user, setDatabases, databases, showToast, backThenReplace } = useAppStore()
   const setMemberDbIds = useAppStore(st => st.setMemberDbIds)
 
   const loadDatabases = useCallback(async () => {
@@ -184,13 +184,16 @@ export function useDatabases() {
 
       setDatabases(databases.filter((d) => d.id !== id))
       showToast({ type: 'success', title: 'Базу видалено' })
-      navigate('db-list')
+      // backThenReplace, не navigate: поточний екран (db-objects тієї ж бази)
+      // інакше лишався б у history — Back після видалення повертав би на
+      // спінер бази, якої вже нема (той самий клас, що і в deleteProperty).
+      backThenReplace('db-list')
     } catch (e) {
       showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
     } finally {
       setLoading(false)
     }
-  }, [databases, setDatabases, showToast, navigate])
+  }, [databases, setDatabases, showToast, backThenReplace])
 
   return { loading, error, databases, loadDatabases, createDatabase, updateDatabase, deleteDatabase }
 }
