@@ -644,7 +644,13 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 /* ── MODAL ── */
 .modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:50;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-end;padding-bottom:min(var(--keyboard-h,0px),55vh);transition:padding-bottom .25s ease-out;animation:overlayFade .26s ease both}
 /* Sheet never exceeds 88vh — even without keyboard. With keyboard, it shrinks but body stays scrollable. */
-.modal{width:100%;background:rgba(14,11,32,.72);backdrop-filter:blur(48px) saturate(220%) brightness(1.10);-webkit-backdrop-filter:blur(48px) saturate(220%) brightness(1.10);border-top:.5px solid rgba(255,255,255,.18);border-radius:20px 20px 0 0;position:relative;animation:modalSlideUp .38s var(--ease-spr) both;max-height:min(88vh,max(46vh,calc(var(--tg-vh,100svh) - var(--keyboard-h,0px) - 20px)));display:flex;flex-direction:column;overflow:hidden;will-change:transform;box-shadow:inset 0 1.5px 0 rgba(255,255,255,.22),inset 0 .5px 0 rgba(255,255,255,.10)}
+/* max-height transition — .modal-overlay's padding-bottom already eases (.25s)
+   when --keyboard-h changes, but .modal's own max-height recomputed INSTANTLY:
+   a real device sending its keyboard height in several ticks as it animates up
+   (normal — not a bug in the signal) made the sheet visibly SNAP between sizes
+   every tick instead of resizing smoothly, reading as "shrinks so I can't work
+   with it". Same .25s so both edges of the sheet move together. */
+.modal{width:100%;background:rgba(14,11,32,.72);backdrop-filter:blur(48px) saturate(220%) brightness(1.10);-webkit-backdrop-filter:blur(48px) saturate(220%) brightness(1.10);border-top:.5px solid rgba(255,255,255,.18);border-radius:20px 20px 0 0;position:relative;animation:modalSlideUp .38s var(--ease-spr) both;max-height:min(88vh,max(46vh,calc(var(--tg-vh,100svh) - var(--keyboard-h,0px) - 20px)));transition:max-height .25s ease-out;display:flex;flex-direction:column;overflow:hidden;will-change:transform;box-shadow:inset 0 1.5px 0 rgba(255,255,255,.22),inset 0 .5px 0 rgba(255,255,255,.10)}
 .modal::before{content:'';position:absolute;top:6px;left:50%;transform:translateX(-50%);width:36px;height:4px;border-radius:2px;background:rgba(255,255,255,.2);z-index:1;pointer-events:none}
 .modal-head{padding:22px 16px 4px;flex-shrink:0;touch-action:none;-webkit-user-select:none;user-select:none;cursor:grab}
 .modal-head:active{cursor:grabbing}
@@ -697,11 +703,12 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
   -webkit-backdrop-filter:blur(28px) saturate(200%) brightness(1.06);
   transition:transform var(--dur-xs) var(--ease),filter var(--dur-xs) ease,box-shadow var(--dur-xs) var(--ease)}
 .btn-glass:active{transform:scale(.97);filter:brightness(1.1)}
-/* ЖОДНОЇ зовнішньої тіні. Кнопка й так відділена від фону: під нею скрим
-   (.cta-scrim), а по краю світла рамка. Спершу тут було кольорове світіння на
-   26px — ореол ширший за саму кнопку, на .bg-blue ще й рожева пляма; потім
-   щільна нейтральна — і та додавала шум там, де вже все читається. Об'єм
-   тримають ЛИШЕ внутрішні відблиски: вони й роблять скло склом. */
+/* ЖОДНОЇ зовнішньої тіні — за проханням прибрано й темний скрим під плаваючою
+   CTA (.cta-scrim), який раніше сидів під кнопкою. Спершу тут було кольорове
+   світіння на 26px — ореол ширший за саму кнопку, на .bg-blue ще й рожева
+   пляма; потім щільна нейтральна — і та додавала шум там, де вже все
+   читається. Об'єм тримають ЛИШЕ внутрішні відблиски: вони й роблять скло
+   склом. */
 .btn-glass.ok{
   background:linear-gradient(180deg,rgba(52,199,89,.52),rgba(52,199,89,.34));
   border-color:rgba(64,212,107,.48);
@@ -1049,9 +1056,6 @@ svg.ico{overflow:visible}
    min-height keeps the tap target comfortable (was 27px). */
 .sort-chip{display:inline-flex;align-items:center;min-height:32px;transition:transform .12s ease,background .18s,color .18s,border-color .18s}
 .sort-chip:active{transform:scale(.95)}
-/* Scrim behind a bottom floating CTA so scrolled content fades under it
-   (reads as a bar, not an overlap). Sits below the button (z 19 < 20). */
-.cta-scrim{position:absolute;left:0;right:0;bottom:0;height:calc(140px + var(--safe-bottom));background:linear-gradient(0deg,rgba(6,5,14,.92),rgba(6,5,14,.62) 45%,transparent);pointer-events:none;z-index:19}
 .type-card:active{transform:scale(.97)}
 .format-card:active{transform:scale(.97)}
 .hdr-a:active{transform:scale(.92);opacity:0.7}
@@ -1469,11 +1473,10 @@ svg.ico{overflow:visible}
    Рендериться порталом у #app-root — інакше анімована обгортка екрана з'їдає
    backdrop-filter. Тому `absolute`, а не `fixed`: у #app-root висота
    застосунку, і панель стає над таббаром, а не над краєм вікна. */
-/* Скрим під панеллю — та сама мова, що .cta-scrim під плаваючою CTA: список
-   розчиняється в темряві, і панель читається як окремий шар. Потрібен ще й
-   тому, що backdrop-filter усередині екрана Chromium не показує вміст
-   прокрутного контейнера — сама лише 50%-плитка над яскравою карткою давала
-   кашу з текстом, що просвічує. */
+/* Скрим під панеллю: список розчиняється в темряві, і панель читається як
+   окремий шар. Потрібен ще й тому, що backdrop-filter усередині екрана
+   Chromium не показує вміст прокрутного контейнера — сама лише 50%-плитка над
+   яскравою карткою давала кашу з текстом, що просвічує. */
 .batchbar-scrim{position:absolute;left:0;right:0;bottom:0;height:150px;z-index:19;
   pointer-events:none;
   background:linear-gradient(0deg,rgba(6,5,14,.94),rgba(6,5,14,.74) 42%,transparent)}
