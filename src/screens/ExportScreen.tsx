@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase'
 import Header from '@/components/ui/Header'
 import Toggle from '@/components/ui/Toggle'
 import { IconFileExport, IconFile, IconAdjustments } from '@/components/Icons'
-import { calcRentUtils, rentUnitLabel, objectsWord, DB_TYPE_LABELS, STATUS_LABELS, formatDate, humanizeDbError, safeFileName } from '@/lib/utils'
+import { calcRentUtils, currencySymbol, rentUnitLabel, objectsWord, DB_TYPE_LABELS, STATUS_LABELS, formatDate, humanizeDbError, safeFileName } from '@/lib/utils'
 import type { Property, Database } from '@/types'
 
 const FORMATS = [
@@ -57,6 +57,10 @@ async function generatePDF(
   ownerName: string,
   ownerPhone: string,
   ownerEmail: string,
+  // Символ валюти ВЛАСНИКА. Раніше тут скрізь стояв literal '$', тож власник,
+  // який веде ціни в ₴/€, завантажував звіт із чужою валютою — той самий клас,
+  // що вже ловили на публічній /v (правило проєкту: ніколи literal '$').
+  cur: string,
 ) {
   const { jsPDF, GState } = await import('jspdf')
   const { applyPlugin } = await import('jspdf-autotable')
@@ -172,7 +176,7 @@ async function generatePDF(
     ['Вільно',  String(freeCount),     STATUS_STYLE.free.fg],
     ['Зайнято', String(occupiedCount), STATUS_STYLE.occupied.fg],
     ['Продаж',  String(saleCount),     STATUS_STYLE.for_sale.fg],
-    ['Оренда',  `$${totalRent.toLocaleString('uk-UA')}`, ACC],
+    ['Оренда',  `${cur}${totalRent.toLocaleString('uk-UA')}`, ACC],
   ]
   const cardW = (W - M * 2 - 9) / 4
   cards.forEach(([label, val, color], i) => {
@@ -204,11 +208,11 @@ async function generatePDF(
       p.area_useful ? `${p.area_useful}` : '—',
       p.area_total  ? `${p.area_total}`  : '—',
       p.rent_rate   ? `${p.rent_rate}${p.rent_type === 'fixed' ? '' : rentUnitLabel(p.rent_type)}` : '—',
-      utils ? `$${utils}`  : '—',
+      utils ? `${cur}${utils}`  : '—',
       // total — з calcRentUtils, УЖЕ нормалізований до місяця (per_day
       // множиться на 30 всередині) — рахувати rent+utils тут САМОСТІЙНО
       // означало б знову змішати добову ставку з місячними експлуатаційними.
-      total ? `$${total}` : '—',
+      total ? `${cur}${total}` : '—',
     ]
   })
 
@@ -355,18 +359,18 @@ async function generatePDF(
     drawSection('ОРЕНДА', y)
     y += 5
     const rentRateStr = p.rent_rate
-      ? `${p.rent_rate} ${p.rent_type === 'per_m2' ? '$ / м² / міс' : p.rent_type === 'per_day' ? '$ / добу' : '$ / міс (фіксована)'}`
+      ? `${p.rent_rate} ${p.rent_type === 'per_m2' ? `${cur} / м² / міс` : p.rent_type === 'per_day' ? `${cur} / добу` : `${cur} / міс (фіксована)`}`
       : '—'
     const yL3 = drawField('Ставка оренди',    rentRateStr,            CL, y, CW)
     // «на місяць» у підписі — для per_day сире `rent` лишається ДОБОВОЮ
     // ставкою (Ставка оренди рядком вище її й показує), тут потрібен
     // нормалізований еквівалент: total мінус utils.
     const monthlyRentOnly = total - utils
-    const yR3 = drawField('Оренда на місяць', monthlyRentOnly ? `$${monthlyRentOnly}` : '—', CR, y, CW)
+    const yR3 = drawField('Оренда на місяць', monthlyRentOnly ? `${cur}${monthlyRentOnly}` : '—', CR, y, CW)
     y = Math.max(yL3, yR3) + 3
-    const utilsRateStr = p.utilities_rate ? `${p.utilities_rate} $ / м² / міс` : '—'
+    const utilsRateStr = p.utilities_rate ? `${p.utilities_rate} ${cur} / м² / міс` : '—'
     const yL4 = drawField('Ставка експлуатаційних',    utilsRateStr,          CL, y, CW)
-    const yR4 = drawField('Експлуатаційні на місяць',  utils ? `$${utils}` : '—', CR, y, CW)
+    const yR4 = drawField('Експлуатаційні на місяць',  utils ? `${cur}${utils}` : '—', CR, y, CW)
     y = Math.max(yL4, yR4) + 4
 
     // Total highlight box
@@ -387,7 +391,7 @@ async function generatePDF(
     doc.setFont('Roboto', 'bold')
     doc.setFontSize(16)
     doc.setTextColor(...ACC)
-    doc.text(total ? `$${total.toLocaleString('uk-UA')}` : '—', W - M - 4, y + 11, { align: 'right' })
+    doc.text(total ? `${cur}${total.toLocaleString('uk-UA')}` : '—', W - M - 4, y + 11, { align: 'right' })
     y += 22
 
     // ── ПАРКІНГ ───────────────────────────────────────────────────────
@@ -452,6 +456,7 @@ async function generateExcel(
   db: Database,
   properties: Property[],
   onlyFree: boolean,
+  cur: string,
 ) {
   const XLSX = await import('xlsx')
   const rows = onlyFree ? properties.filter(p => p.status === 'free') : properties
@@ -471,8 +476,8 @@ async function generateExcel(
     '№', 'Назва', 'Поверх', 'Статус',
     'Площа корисна (м²)', 'Площа розрахункова (м²)',
     'Ставка оренди', 'Тип ставки',
-    'Оренда на місяць ($)', 'Експлуатаційні на місяць ($)',
-    'Разом на місяць ($)',
+    `Оренда на місяць (${cur})`, `Експлуатаційні на місяць (${cur})`,
+    `Разом на місяць (${cur})`,
     'Паркінг', 'Місць паркінгу',
     'Опис', 'Додано',
   ]
@@ -491,7 +496,7 @@ async function generateExcel(
       p.area_useful ?? '',
       p.area_total  ?? '',
       p.rent_rate   ?? '',
-      p.rent_type === 'per_m2' ? '$/м²/міс' : p.rent_type === 'per_day' ? '$/добу' : 'фіксована $/міс',
+      p.rent_type === 'per_m2' ? `${cur}/м²/міс` : p.rent_type === 'per_day' ? `${cur}/добу` : `фіксована ${cur}/міс`,
       // «Оренда на місяць» — заголовок каже "на місяць", тож потрібен
       // нормалізований еквівалент (total - utils), НЕ сире rent (для per_day
       // це добова ставка — вона вже показана в «Ставка оренди»/«Тип ставки»).
@@ -552,7 +557,7 @@ async function generateExcel(
   const summaryData: (string | number)[][] = [
     ['Зведена таблиця', `${db.name}`],
     [],
-    ['Статус', 'Кількість', 'Розрахункова площа (м²)', 'Сума оренди ($/міс)'],
+    ['Статус', 'Кількість', 'Розрахункова площа (м²)', `Сума оренди (${cur}/міс)`],
   ]
   const statuses: Array<{ key: string; label: string }> = [
     { key: 'free',     label: 'Вільно'  },
@@ -642,10 +647,11 @@ export default function ExportScreen() {
           user ? `${user.first_name} ${user.last_name ?? ''}`.trim() : '',
           user?.phone ?? '',
           user?.email ?? '',
+          currencySymbol(user?.currency),
         )
         showToast({ type: 'success', title: 'PDF збережено ✓' })
       } else {
-        await generateExcel(dbRecord, properties, onlyFree)
+        await generateExcel(dbRecord, properties, onlyFree, currencySymbol(user?.currency))
         showToast({ type: 'success', title: 'Excel збережено ✓' })
       }
     } catch (e) {
