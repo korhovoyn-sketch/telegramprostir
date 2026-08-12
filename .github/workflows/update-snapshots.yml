@@ -1,0 +1,74 @@
+name: Update visual snapshots
+
+# Перезнімає бейслайни `tests/e2e/screenshots.spec.ts-snapshots/` НА РАННЕРІ й
+# комітить їх у гілку, на якій запущений.
+#
+# ЧОМУ ЦЕ МУСИТЬ РОБИТИ CI, А НЕ РОЗРОБНИК ЛОКАЛЬНО. Порівняння кадрів залежить
+# від збірки Chromium: пісочниця Claude Code ганяє ЗАМОРОЖЕНИЙ предвстановлений
+# браузер (141.0.7390.37 — `playwright install` там заборонений), CI ставить свій
+# (148.0.7778.96). Сім мажорів різниці дають іншу растеризацію тексту: кадр,
+# знятий у пісочниці, на раннері відрізняється на ratio 0.02 при порозі 0.01 БЕЗ
+# жодного зсуву геометрії, тобто виглядає як «дизайн поїхав», хоч CSS ніхто не
+# чіпав. Бейслайни іменуються по ПЛАТФОРМІ (`…-iphone-se-linux.png`), а не по
+# збірці браузера, тож розбіжність невидима, доки не побіжить CI — саме так main
+# простояв червоним три мерджі підряд.
+#
+# Тому середовище-власник бейслайна одне: це. Пісочниця спеку `screenshots`
+# пропускає (див. `tests/e2e/helpers/env.ts`), решта 210 тестів ганяються всюди.
+#
+# Запуск: Actions → Update visual snapshots → Run workflow (обери свою гілку).
+# Після завершення дочекайся, поки CI на новому коміті стане зеленим.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    name: re-shoot baselines on the runner
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+
+      # `CI` на Actions вже true, тож webServer підніме ПРОД-білд під `serve` —
+      # той самий режим, у якому кадри потім перевіряються. Dev-сервер рендерить
+      # не піксель-в-піксель те саме.
+      - name: Re-shoot baselines
+        run: npx playwright test screenshots --update-snapshots
+
+      - name: Commit updated baselines
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A tests/e2e/screenshots.spec.ts-snapshots
+          # Порожній коміт тут гірший за відсутність коміту: він виглядав би як
+          # «бейслайни оновлено», хоч жоден кадр не змінився.
+          if git diff --cached --quiet; then
+            echo "Бейслайни вже збігаються з рендером раннера — комітити нічого."
+            exit 0
+          fi
+          git commit \
+            -m "test(visual): перезняти бейслайни на раннері" \
+            -m "Кадри знято Chromium-ом раннера — єдиним, проти якого вони й перевіряються. Згенеровано воркфлоу update-snapshots."
+          git push origin HEAD:${{ github.ref_name }}
+          echo "::notice::Пуш зроблено GITHUB_TOKEN-ом, тож CI на цьому коміті САМ не запуститься (GitHub так захищається від рекурсії). Запусти його руками: Actions → CI → Run workflow на цій гілці."
+
+      - name: Upload report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-update
+          path: playwright-report/
+          if-no-files-found: ignore

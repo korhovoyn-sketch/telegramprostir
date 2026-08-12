@@ -4,6 +4,10 @@ on:
   push:
     branches: ['**']
   pull_request:
+  # Пуш, зроблений GITHUB_TOKEN-ом (напр. коміт бейслайнів із update-snapshots),
+  # НЕ запускає воркфлоу — GitHub так захищається від рекурсії. Без цього тригера
+  # такий коміт лишався б узагалі без перевірки.
+  workflow_dispatch:
 
 jobs:
   static-and-unit:

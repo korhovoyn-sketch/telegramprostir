@@ -1,5 +1,5 @@
 import { defineConfig, devices } from '@playwright/test'
-import { existsSync } from 'node:fs'
+import { IN_SANDBOX, SANDBOX_CHROMIUM } from './tests/e2e/helpers/env'
 
 // Hermetic E2E: a dev server with dummy Supabase env (real network calls are
 // intercepted per-test via page.route). No live Supabase/Telegram needed.
@@ -8,8 +8,8 @@ import { existsSync } from 'node:fs'
 // кешем Playwright — там цей шлях існує і МУСИТЬ використовуватись (playwright
 // install у пісочниці заборонений). На CI/локалі шляху немає — Playwright
 // резолвить браузер зі свого кешу (npx playwright install --with-deps chromium).
-const SANDBOX_CHROMIUM = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
-const launchOptions = existsSync(SANDBOX_CHROMIUM) ? { executablePath: SANDBOX_CHROMIUM } : {}
+// Наслідок цієї асиметрії для скріншотів — див. `IN_SANDBOX` у helpers/env.ts.
+const launchOptions = IN_SANDBOX ? { executablePath: SANDBOX_CHROMIUM } : {}
 export default defineConfig({
   testDir: './tests/e2e',
   // Замірні спеки (`_*.spec.ts`) не входять у звичайний прогін: вони не гарди, а

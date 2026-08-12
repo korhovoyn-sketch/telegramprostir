@@ -1,5 +1,6 @@
 import { test, expect, type Page, type Route, type Locator } from '@playwright/test'
 import { setupApp, DEFAULT_USER, type HarnessUser } from './helpers/harness'
+import { IN_SANDBOX } from './helpers/env'
 
 // ─── Візуальний бейслайн кожного досяжного екрана ─────────────────────────────
 //
@@ -9,8 +10,20 @@ import { setupApp, DEFAULT_USER, type HarnessUser } from './helpers/harness'
 // зламаний перехід виглядав як пропущений кадр, а не як падіння.
 //
 // Тепер кожен кадр порівнюється з бейслайном у `screenshots.spec.ts-snapshots/`.
-// Оновлення після СВІДОМОЇ зміни дизайну — в тому ж коміті:
-//   npx playwright test screenshots --update-snapshots
+//
+// БЕЙСЛАЙНОМ ВОЛОДІЄ CI, І ЦЕ НЕ ОРГАНІЗАЦІЙНА УМОВНІСТЬ. Пісочниця Claude Code
+// ганяє ЗАМОРОЖЕНИЙ предвстановлений Chromium (141), CI ставить свій (148) — сім
+// мажорів різниці в растеризації тексту. Кадр, знятий тут, на раннері дає ratio
+// 0.02 при порозі 0.01 БЕЗ жодного зсуву геометрії, тобто виглядає як «дизайн
+// поїхав», хоч CSS ніхто не чіпав. Саме так main простояв червоним три мерджі.
+// Бейслайни іменуються по ПЛАТФОРМІ (`…-iphone-se-linux.png`), а не по збірці
+// браузера, тож розбіжність невидима, доки не побіжить CI.
+//
+// Тому: `--update-snapshots` ЛОКАЛЬНО НЕ ЗАПУСКАТИ. Після свідомої зміни дизайну —
+// dispatch воркфлоу `.github/workflows/update-snapshots.yml` на своїй гілці; він
+// перезніме кадри на раннері й закомітить їх туди ж.
+//
+test.skip(IN_SANDBOX, 'Візуальний бейслайн знімає й перевіряє CI: тутешній Chromium 141 растеризує текст інакше за раннерівський 148 (див. helpers/env.ts)')
 //
 // Три джерела нестабільності знято:
 //  • анімації — `reducedMotion: 'reduce'` (застосунок має цей блок у globals.css)
