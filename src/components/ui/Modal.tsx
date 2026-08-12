@@ -278,10 +278,19 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
 
   // Move focus into the dialog for a11y — unless an inner input already grabbed
   // it (e.g. an autoFocus rename field), which we must not steal.
+  //
+  // Залежність від `mounted` ОБОВʼЯЗКОВА, і це не мікрооптимізація: до неї ефект
+  // мав `[]`, тобто біг на першому коміті — коли `mounted` ще false і компонент
+  // повернув `null` (портал існує лише в браузері, див. гейт нижче). `modalRef`
+  // у той момент порожній, ефект більше не повторювався, і фокус НЕ переходив у
+  // діалог ніколи: він лишався на кнопці-опенері, тож читалка озвучувала екран
+  // ПІД шитом. Спіймано `modal-a11y.spec.ts` — жоден із 202 тестів до нього Tab
+  // не натискав і `activeElement` не читав.
   useEffect(() => {
+    if (!mounted) return
     const el = modalRef.current
     if (el && !el.contains(document.activeElement)) el.focus()
-  }, [])
+  }, [mounted])
 
   // Focus trap: keep Tab / Shift+Tab cycling inside the topmost dialog so focus
   // never lands on the background behind the backdrop (aria-modal hides it from
