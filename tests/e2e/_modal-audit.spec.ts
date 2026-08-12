@@ -436,3 +436,38 @@ test('рієлтор: підбірка — додати обʼєкт і поши
   await shoot(page, '18-share-collection')
   await closeByBackdrop(page, '18-share-collection')
 })
+
+test('шаринг у стані «посилання ще не створено» — кнопка ретраю в межах QR-плитки', async ({ page }) => {
+  // Легасі-рядок БЕЗ токена + збій фонового генерування: єдиний шлях побачити
+  // `.qr-retry`. Жоден тест у цей стан не заходив, а підпис «Створити посилання»
+  // живе в плитці 124×124 на БІЛОМУ тлі — тобто рискує вилізти за неї.
+  test.setTimeout(120_000)
+  await setupApp(page, { user: OWNER })
+  await ownerRoutes(page)
+  const noToken = { ...DBS[0], share_token: null, share_expires_at: null }
+  await page.route('**/rest/v1/databases**', (r) => {
+    if ((r.request().headers()['accept'] ?? '').includes('object')) return json(r, noToken)
+    return json(r, [noToken, DBS[1]])
+  })
+  // Фонове першогенерування ПАДАЄ — інакше шит одразу отримав би токен.
+  await page.route('**/rest/v1/rpc/manage_share', (r) =>
+    r.fulfill({ status: 500, contentType: 'application/json', body: '{"message":"boom"}' }))
+
+  await toObjects(page)
+  await menu(page, 'Аналітика і поширення')
+  await expect(page.getByText(/Аналітика|Поділитись/).first()).toBeVisible({ timeout: 15_000 })
+  await page.getByRole('button', { name: /Поділитись|Поділитися/ }).first().click()
+  await shoot(page, '19-share-no-link')
+
+  const retry = page.locator('.qr-retry')
+  await expect(retry, 'кнопка ретраю не показалась — шит лишився з вічним спінером').toHaveCount(1)
+  const fit = await retry.evaluate((b) => {
+    const box = b.parentElement!.getBoundingClientRect()
+    const r = b.getBoundingClientRect()
+    return { overflowX: Math.round(r.width - box.width), overflowY: Math.round(r.height - box.height),
+             label: (b.textContent ?? '').trim() }
+  })
+  expect(fit.overflowX, `«${fit.label}» шириться за QR-плитку на ${fit.overflowX}px`).toBeLessThanOrEqual(0)
+  expect(fit.overflowY, `«${fit.label}» вилазить за QR-плитку по висоті на ${fit.overflowY}px`).toBeLessThanOrEqual(0)
+  await closeByBackdrop(page, '19-share-no-link')
+})
