@@ -332,6 +332,19 @@ test('шит не ПЕРЕЛІТАЄ своє місце, поки відкри�
       await fixtures(page)
       await toRentSheet(page)
 
+      // ОБОВ'ЯЗКОВА синхронізація ПЕРЕД стартом заміру. Харнес хардкодить
+      // мок viewportStableHeight=568 незалежно від dev.h, тож для будь-якого
+      // іншого екрана початковий (до клавіатури) стан УЖЕ неконсистентний:
+      // --tg-vh стоїть на 568, а справжнє вікно — dev.h. Без цього кроку
+      // будь-яка наступна корекція (яку робить сам застосунок, побачивши
+      // справжній dev.h) читалась би як «переліт», хоч насправді це полагодження
+      // ЧУЖОЇ помилки тесту, а не рух самого шита під клавіатуру.
+      await page.evaluate((h) => {
+        const w = window as unknown as { __tgViewportStable: (n: number) => void }
+        w.__tgViewportStable(h)
+      }, dev.h)
+      await page.waitForTimeout(400) // .25s max-height transition + запас
+
       // Починаємо семплювати ДО фокуса — щоб зловити весь рух.
       await page.evaluate(() => {
         const w = window as unknown as { __traj: number[] }
