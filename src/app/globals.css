@@ -1092,15 +1092,6 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 .gallery-thumb.active{border-color:#fff}
 .gallery-info{position:absolute;bottom:var(--g3);left:50%;transform:translateX(-50%);font-size:var(--fs-cap2);color:rgba(255,255,255,.8);background:rgba(0,0,0,.5);backdrop-filter:blur(10px);padding:4px 10px;border-radius:12px;white-space:nowrap}
 
-/* ── QR SCANNER ── */
-.qr-scan-frame{position:relative;width:220px;height:220px;margin:0 auto}
-.qr-scan-corner{position:absolute;width:24px;height:24px;border-color:rgba(122,179,255,.9);border-style:solid}
-.qr-scan-corner.tl{top:0;left:0;border-width:3px 0 0 3px;border-radius:4px 0 0 0}
-.qr-scan-corner.tr{top:0;right:0;border-width:3px 3px 0 0;border-radius:0 4px 0 0}
-.qr-scan-corner.bl{bottom:0;left:0;border-width:0 0 3px 3px;border-radius:0 0 0 4px}
-.qr-scan-corner.br{bottom:0;right:0;border-width:0 3px 3px 0;border-radius:0 0 4px 0}
-.qr-scan-line{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,rgba(122,179,255,.9),transparent);animation:scanLine 2s ease-in-out infinite}
-
 /* ── CONFETTI ── */
 .confetti-piece{position:absolute;width:8px;height:8px;border-radius:2px;pointer-events:none;z-index:25}
 
@@ -1129,7 +1120,13 @@ svg.ico{overflow:visible}
 @keyframes glowPulse{0%,100%{opacity:.55;transform:scale(1)}50%{opacity:.85;transform:scale(1.15)}}
 @keyframes btnSuccess{0%{box-shadow:0 0 0 0 rgba(74,222,128,.6)}50%{box-shadow:0 0 0 12px rgba(74,222,128,0)}100%{box-shadow:0 0 0 0 rgba(74,222,128,0)}}
 @keyframes btnPulse{0%,100%{opacity:1}50%{opacity:0.6}}
-@keyframes scanLine{0%,100%{top:8%}50%{top:88%}}
+/* translateY, а НЕ top: це єдина безкінечна анімація застосунку, і в top-версії
+   вона перераховувала лейаут КОЖЕН кадр усі 2s циклу, поки відкритий сканер.
+   translateY(%) тут не годиться — відсоток брався б від висоти самої смужки
+   (2px), тому хід задається від висоти рамки через `--scan-h`, яку виставляє
+   екран. Так залежність від розміру рамки лишається явною, а не зашитою. */
+@keyframes scanLine{0%,100%{transform:translateY(calc(var(--scan-h,240px) * .08))}
+  50%{transform:translateY(calc(var(--scan-h,240px) * .88))}}
 @keyframes qrPop{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}
 @keyframes galleryFadeIn{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:scale(1)}}
 @keyframes fpmSlideUp{from{opacity:0;transform:translateY(32px)}to{opacity:1;transform:translateY(0)}}
@@ -1145,7 +1142,9 @@ svg.ico{overflow:visible}
 @keyframes dotPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.55);opacity:.6}}
 @keyframes checkIn{from{transform:scale(0) rotate(-20deg);opacity:0}60%{transform:scale(1.18) rotate(4deg);opacity:1}to{transform:scale(1) rotate(0deg);opacity:1}}
 @keyframes slideRight{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:translateX(0)}}
-@keyframes progressFill{from{width:0}to{width:var(--pw,100%)}}
+/* scaleX, а не width: ширина рефлоуїла піддерево всі .6s. Смуга однотонна,
+   тож масштабування її не спотворює; ширину тепер задає сам елемент. */
+@keyframes progressFill{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 
 /* ── Screen entrance ── */
 /* fill:backwards, а НЕ both. При `both` елемент назавжди лишається з кінцевим
@@ -1200,7 +1199,7 @@ svg.ico{overflow:visible}
 .stat-pop-anim{animation:statPop .3s var(--ease-spr) both}
 
 /* ── Progress bar fill animation ── */
-.anim-progress{animation:progressFill .6s var(--ease-out) both}
+.anim-progress{width:var(--pw,100%);transform-origin:left center;animation:progressFill .6s var(--ease-out) both}
 .fg:focus-within{background:rgba(255,255,255,.07) !important}
 .search-inline:focus-within{border-color:rgba(255,255,255,.28) !important;background:var(--glass-3) !important}
 

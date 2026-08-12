@@ -161,9 +161,14 @@ export default function QRScannerScreen() {
               left: 4, right: 4,
               height: 2,
               background: 'linear-gradient(90deg, transparent, #a78bfa, transparent)',
+              // Хід смужки задається від висоти рамки (нижче — 240px), бо
+              // translateY(%) відмірював би відсоток від власних 2px. Сама
+              // анімація рухає transform, а не top: інакше вона перераховувала
+              // б лейаут кожен кадр, і то безкінечно, поки сканер відкритий.
+              ['--scan-h' as string]: '240px',
               animation: 'scanLine 2s ease-in-out infinite',
-              top: '50%',
-            }} />
+              top: 0,
+            } as React.CSSProperties} />
           )}
         </div>
 
