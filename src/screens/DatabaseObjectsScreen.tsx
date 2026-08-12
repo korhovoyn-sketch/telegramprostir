@@ -815,6 +815,7 @@ export default function DatabaseObjectsScreen() {
           title={db.name}
           subtitle="Дії з базою"
           onClose={() => setShowMenu(false)}
+          actions={[{ label: 'Скасувати', variant: 'secondary', onClick: () => setShowMenu(false) }]}
         >
           <div className="sheet-group">
             {[
@@ -844,14 +845,13 @@ export default function DatabaseObjectsScreen() {
                 { Icon: IconTrash,     label: 'Видалити базу',         nav: false, danger: true,  action: () => { setShowMenu(false); void handleDeleteDatabase() } },
               ] : []),
             ].map(({ Icon, label, nav, danger, action }) => (
-              <div key={label} className={`sheet-row${danger ? ' danger' : ''}`} onClick={action}>
+              <button key={label} type="button" className={`sheet-row${danger ? ' danger' : ''}`} onClick={action}>
                 <span className="sheet-ic"><Icon size={16} /></span>
                 <span className="sheet-lbl">{label}</span>
                 {nav && <IconChevronRight size={16} className="sheet-chev" />}
-              </div>
+              </button>
             ))}
           </div>
-          <button className="sheet-cancel" onClick={() => setShowMenu(false)}>Скасувати</button>
         </Modal>
       )}
 

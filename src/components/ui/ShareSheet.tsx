@@ -7,7 +7,7 @@ import { useAppStore } from '@/store/appStore'
 import { offlineGuard } from '@/lib/offline'
 import { confirmAction as confirmDestructive } from '@/lib/confirm'
 import { supabase } from '@/lib/supabase'
-import Modal from '@/components/ui/Modal'
+import Modal, { modalBtnClass } from '@/components/ui/Modal'
 import { buildPublicUrl, openTelegramShare , hapticNotify } from '@/lib/telegram'
 import { copyLink } from '@/lib/share'
 import { formatLeaseDate } from '@/lib/utils'
@@ -176,12 +176,16 @@ export default function ShareSheet({ kind, id, name, shareText, onClose }: Share
         </div>
       </div>
 
-      {/* Copy + Telegram share — для мертвого посилання не даємо його ширити */}
+      {/* Copy + Telegram share — для мертвого посилання не даємо його ширити.
+          Свідомо В ПОТОЦІ, а не в `actions`: пара належить своєму посиланню
+          вгорі, а sticky-дно тут займали б кнопки шаринга над небезпечними
+          рядками керування. Клас — з `modalBtnClass`, інакше «У Telegram»
+          лишається без заливки (див. коментар до хелпера в Modal). */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-        <button className="modal-btn secondary sm" disabled={loading || !url || isExpired} onClick={handleCopy}>
+        <button className={`${modalBtnClass('secondary')} sm`} disabled={loading || !url || isExpired} onClick={handleCopy}>
           Скопіювати
         </button>
-        <button className="modal-btn primary sm" disabled={loading || !url || isExpired} onClick={() => openTelegramShare(url, shareText)}>
+        <button className={`${modalBtnClass('primary')} sm`} disabled={loading || !url || isExpired} onClick={() => openTelegramShare(url, shareText)}>
           У Telegram
         </button>
       </div>
@@ -202,16 +206,21 @@ export default function ShareSheet({ kind, id, name, shareText, onClose }: Share
               { label: '30 днів', action: 'set_expiry' as const,   days: 30,         on: daysLeft !== null && daysLeft > 7 && daysLeft <= 30 },
               { label: 'Без обмежень', action: 'clear_expiry' as const, days: undefined, on: !expiresAt },
             ]).map(({ label, action, days, on }) => (
-              <div
+              <button
+                type="button"
                 key={label}
                 className={`fr-seg-b ${on ? 'on' : ''}`}
-                onClick={busy ? undefined : () => {
+                // Справжній `disabled`, а не зняття обробника: `onClick={undefined}`
+                // лишало cursor:pointer і :active, тож сегмент підсвічувався під
+                // пальцем і не робив НІЧОГО, поки летів запит.
+                disabled={busy}
+                onClick={() => {
                   // Мертвий лінк (revoke/протухання) пресет ОЖИВЛЯЄ з тим самим
                   // токеном — це має бути свідоме рішення, не випадковий тап
                   if (isExpired) askRevive(action, days)
                   else runManage(action, days)
                 }}
-              >{label}</div>
+              >{label}</button>
             ))}
           </div>
         </div>
@@ -219,15 +228,15 @@ export default function ShareSheet({ kind, id, name, shareText, onClose }: Share
 
       {/* Management */}
       <div className="sheet-group" style={{ marginBottom: 16 }}>
-        <div className="sheet-row" onClick={busy ? undefined : () => askManage('rotate')}>
+        <button type="button" className="sheet-row" disabled={busy} onClick={() => askManage('rotate')}>
           <span className="sheet-ic"><IconRefresh size={16} /></span>
           <span className="sheet-lbl">Оновити посилання</span>
           <IconChevronRight size={16} className="sheet-chev" />
-        </div>
-        <div className="sheet-row danger" onClick={busy ? undefined : () => askManage('revoke')}>
+        </button>
+        <button type="button" className="sheet-row danger" disabled={busy} onClick={() => askManage('revoke')}>
           <span className="sheet-ic"><IconBan size={16} /></span>
           <span className="sheet-lbl">Відкликати доступ</span>
-        </div>
+        </button>
       </div>
 
     </Modal>

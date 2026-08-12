@@ -1,13 +1,14 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { offlineGuard } from '@/lib/offline'
 import { confirmAction } from '@/lib/confirm'
 import { supabase } from '@/lib/supabase'
 import { humanizeDbError } from '@/lib/utils'
 import Header from '@/components/ui/Header'
-import Modal from '@/components/ui/Modal'
+import InviteSheet from '@/components/ui/InviteSheet'
+import CreatedLinkSheet from '@/components/ui/CreatedLinkSheet'
 import { SkeletonList } from '@/components/ui/SkeletonLoader'
 import { IconPlus, IconLink, IconBan, IconUsers } from '@/components/Icons'
 import { buildDeepLink, openTelegramShare, hapticNotify } from '@/lib/telegram'
@@ -34,11 +35,9 @@ export default function TeamScreen() {
   const [members, setMembers] = useState<DbMember[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreateModal, setShowCreateModal] = useState(false)
-  const [creating, setCreating] = useState(false)
   const [labelText, setLabelText] = useState('')
   const [newLink, setNewLink] = useState<string | null>(null)
   const [revoking, setRevoking] = useState<string | null>(null)
-  const labelInputRef = useRef<HTMLInputElement>(null)
 
   async function load() {
     if (!dbId) return
@@ -63,16 +62,9 @@ export default function TeamScreen() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dbId])
 
-  useEffect(() => {
-    if (!showCreateModal) return
-    const t = setTimeout(() => labelInputRef.current?.focus(), 400)
-    return () => clearTimeout(t)
-  }, [showCreateModal])
-
   async function handleCreate() {
     if (!user || !dbId) return
     if (offlineGuard()) return
-    setCreating(true)
     try {
       const { data, error } = await supabase
         .from('db_members')
@@ -87,8 +79,6 @@ export default function TeamScreen() {
       await load()
     } catch (e) {
       showToast({ type: 'error', title: 'Не вдалося створити', subtitle: humanizeDbError(e) })
-    } finally {
-      setCreating(false)
     }
   }
 
@@ -208,49 +198,28 @@ export default function TeamScreen() {
       </div>
 
       {showCreateModal && (
-        <Modal
+        <InviteSheet
           title="Запросити в команду"
           subtitle="Людина отримає право редагувати об'єкти цієї бази"
-          onClose={() => !creating && setShowCreateModal(false)}
-          actions={[
-            { label: creating ? 'Створення...' : 'Створити запрошення', variant: 'primary', disabled: creating, onClick: handleCreate },
-            { label: 'Скасувати', variant: 'secondary', disabled: creating, onClick: () => setShowCreateModal(false) },
-          ]}
-        >
-          <div style={{ paddingTop: 4 }}>
-            <div className="fg" style={{ marginBottom: 0 }}>
-              <div className="fr" style={{ borderBottom: 'none' }}>
-                <div className="fr-l">Підпис (необов&apos;язково)</div>
-                <input
-                  aria-label="Підпис інвайта"
-                  ref={labelInputRef}
-                  className="fr-i"
-                  type="text"
-                  placeholder="напр. Менеджер Оля"
-                  value={labelText}
-                  onChange={e => setLabelText(e.target.value)}
-                  maxLength={100}
-                />
-              </div>
-            </div>
-          </div>
-        </Modal>
+          confirmLabel="Створити"
+          fieldLabel="Підпис інвайта"
+          placeholder="напр. Менеджер Оля"
+          value={labelText}
+          onChange={setLabelText}
+          onConfirm={handleCreate}
+          onClose={() => setShowCreateModal(false)}
+        />
       )}
 
       {newLink && (
-        <Modal
+        <CreatedLinkSheet
           title="Запрошення створено!"
           subtitle="Надішліть майбутньому члену команди"
+          link={newLink}
+          onShare={() => { openTelegramShare(newLink, 'Запрошення до команди бази нерухомості'); setNewLink(null) }}
+          onCopy={() => { handleCopyLink(newLink); setNewLink(null) }}
           onClose={() => setNewLink(null)}
-          actions={[
-            { label: 'Поділитись в Telegram', variant: 'primary', onClick: () => { openTelegramShare(newLink, 'Запрошення до команди бази нерухомості'); setNewLink(null) } },
-            { label: 'Скопіювати', variant: 'secondary', onClick: () => { handleCopyLink(newLink); setNewLink(null) } },
-          ]}
-        >
-          <div style={{ wordBreak: 'break-all', fontSize: 'var(--fs-cap1)', color: 'var(--t3)', fontFamily: 'monospace', background: 'var(--glass-1)', borderRadius: 'var(--r-sm)', padding: '8px 10px', marginTop: 6 }}>
-            {newLink}
-          </div>
-        </Modal>
+        />
       )}
     </div>
   )

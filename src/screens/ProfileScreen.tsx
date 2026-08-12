@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { offlineGuard } from '@/lib/offline'
+import { confirmAction } from '@/lib/confirm'
 import { useAuth } from '@/hooks/useAuth'
 import TabBar from '@/components/ui/TabBar'
 import Toggle from '@/components/ui/Toggle'
@@ -18,7 +19,6 @@ export default function ProfileScreen() {
   const [pushEnabled, setPushEnabled] = useState(user?.notification_push ?? true)
   const [weeklyReport, setWeeklyReport] = useState(user?.notification_weekly ?? true)
   const [newViews, setNewViews] = useState(user?.notification_views ?? true)
-  const [showLogoutModal, setShowLogoutModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [savingLang, setSavingLang] = useState(false)
@@ -45,6 +45,17 @@ export default function ProfileScreen() {
     setNewViews(v)
     const ok = await updateProfile({ notification_views: v })
     if (!ok) setNewViews(!v)
+  }
+
+  async function handleLogout() {
+    const ok = await confirmAction({
+      title: 'Вийти з акаунту?',
+      message: 'Для повторного входу знадобиться Telegram.',
+      confirmLabel: 'Вийти',
+      destructive: true,
+    })
+    if (!ok) return
+    await logout()
   }
 
   // Обидва перемикачі — оптимістичні: сегмент переїзжає одразу, бо на мобільній
@@ -154,13 +165,17 @@ export default function ProfileScreen() {
             <span className="fr-l" style={{ marginLeft: 6 }}>Мова</span>
             <div className="fr-seg" style={{ maxWidth: 130, opacity: savingLang ? 0.5 : 1, pointerEvents: savingLang ? 'none' : 'auto' }}>
               {(['uk', 'en'] as const).map(lang => (
-                <div
+                <button
+                  type="button"
                   key={lang}
                   className={`fr-seg-b ${(user.language_code ?? 'uk') === lang ? 'on' : ''}`}
+                  // Обгортка гасить лише вказівник; клавіатурну активацію
+                  // pointer-events не блокує — тож сегмент-кнопці потрібен disabled.
+                  disabled={savingLang}
                   onClick={() => handleLangChange(lang)}
                 >
                   {lang === 'uk' ? 'Укр' : 'Eng'}
-                </div>
+                </button>
               ))}
             </div>
           </div>
@@ -169,13 +184,15 @@ export default function ProfileScreen() {
             <span className="fr-l" style={{ marginLeft: 6 }}>Валюта</span>
             <div className="fr-seg" style={{ maxWidth: 180, opacity: savingCur ? 0.5 : 1, pointerEvents: savingCur ? 'none' : 'auto' }}>
               {(['USD', 'UAH', 'EUR'] as const).map(cur => (
-                <div
+                <button
+                  type="button"
                   key={cur}
                   className={`fr-seg-b ${(user.currency ?? 'USD') === cur ? 'on' : ''}`}
+                  disabled={savingCur}
                   onClick={() => handleCurrencyChange(cur)}
                 >
                   {cur}
-                </div>
+                </button>
               ))}
             </div>
           </div>
@@ -210,18 +227,22 @@ export default function ProfileScreen() {
           </div>
         </div>
 
-        {/* Logout */}
-        <div className="logout" onClick={() => setShowLogoutModal(true)}>
+        {/* Logout — через confirmAction(), як решта незворотних дій: нативний
+            попап Telegram несе авторитет платформи, а рукописна копія модалки
+            була єдиним місцем, що з нього випадало. */}
+        <button type="button" className="logout" onClick={handleLogout}>
           <IconLogout size={16} />
           {' '}Вийти з акаунту
-        </div>
+        </button>
 
         {/* Право на стирання (Політика конфіденційності §5). Незворотно, тому
-            підтвердження вимагає вписати слово — випадковий тап не спрацює. */}
-        <div className="del-acc" onClick={() => { setDeleteConfirmText(''); setShowDeleteModal(true) }}>
+            підтвердження вимагає вписати слово — випадковий тап не спрацює, і
+            саме тому воно лишається власною модалкою: нативний попап має лише
+            кнопки, без поля вводу. */}
+        <button type="button" className="del-acc" onClick={() => { setDeleteConfirmText(''); setShowDeleteModal(true) }}>
           <IconTrash size={14} />
           {' '}Видалити акаунт
-        </div>
+        </button>
 
         {/* Юридичні документи мають лишатись досяжними і ПІСЛЯ входу — на
             welcome-екрані користувач їх уже не побачить. */}
@@ -237,18 +258,6 @@ export default function ProfileScreen() {
 
       <TabBar />
 
-      {showLogoutModal && (
-        <Modal
-          title="Вийти з акаунту?"
-          subtitle="Для повторного входу знадобиться Telegram"
-          onClose={() => setShowLogoutModal(false)}
-          actions={[
-            { label: 'Вийти', variant: 'danger', onClick: logout },
-            { label: 'Скасувати', variant: 'secondary', onClick: () => setShowLogoutModal(false) },
-          ]}
-        />
-      )}
-
       {showDeleteModal && (
         <Modal
           title="Видалити акаунт?"
@@ -256,7 +265,7 @@ export default function ProfileScreen() {
           onClose={() => setShowDeleteModal(false)}
           actions={[
             {
-              label: 'Видалити назавжди',
+              label: 'Видалити',
               variant: 'danger',
               disabled: deleteConfirmText.trim().toUpperCase() !== 'ВИДАЛИТИ',
               onClick: async () => {

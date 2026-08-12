@@ -17,6 +17,18 @@ const MODAL_BTN_GLASS: Record<string, string> = {
   danger: 'btn-glass err',
 }
 
+/**
+ * Клас кнопки шита. Експортується, бо `.modal-btn.primary` сам по собі задає лише
+ * КОЛІР тексту — заливку дає `btn-glass`, і донедавна її додавав виключно шлях
+ * `actions`. Тому пара кнопок ShareSheet, написана руками як `modal-btn primary`,
+ * виглядала слабшою за `secondary` поруч (у тієї заливка є). Кнопка поза
+ * `actions` — легітимна, коли вона мусить стояти в потоці біля свого вмісту, а
+ * не sticky на дні; рецепт для неї береться звідси, а не переписується.
+ */
+export function modalBtnClass(variant: 'primary' | 'danger' | 'secondary'): string {
+  return `modal-btn ${variant} ${MODAL_BTN_GLASS[variant] ?? ''}`.trim()
+}
+
 // Консервативна висота клавіатури для платформ, які її НЕ повідомляють (iOS у
 // Telegram часто не ресайзить webview: і viewportChanged, і visualViewport
 // показують 0). Шит прив'язаний до низу екрана, тож без цього поля вводу
@@ -65,6 +77,12 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
   // Re-entry guard: a destructive action is usually async and leaves the modal
   // up while it flies, so a fast double-tap fired it twice (double DELETE).
   const [busy, setBusy] = useState(false)
+  // Дзеркало `busy` у ref. Стан тут не годиться як джерело правди для гардів:
+  // ефект Escape має `[]`-залежності й захоплює `requestClose` із першого
+  // рендера, де `busy` ще false — тобто Escape обходив би гард закриття. Ref
+  // читається завжди свіжим і заодно робить re-entry гард синхронним (стан
+  // оновлюється асинхронно, тож два швидкі тапи могли проскочити обидва).
+  const busyRef = useRef(false)
   // Ліфт шита, коли платформа не повідомляє висоту клавіатури (див. константи).
   const [kbFallback, setKbFallback] = useState(false)
   const kbProbeRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -184,6 +202,22 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
 
   const requestClose = () => {
     if (firedRef.current) return
+    // Поки летить дія — не закриваємось. Гард мусить стояти САМЕ ТУТ, до старту
+    // анімації, а не в `onClose` викликача.
+    //
+    // Три екрани (TeamScreen, ManageGuestsScreen, PaymentCalendarScreen) робили
+    // `onClose={() => !creating && setShow(false)}` — і це було ГІРШЕ за
+    // відсутність гарда. Закриття двофазне: `requestClose` вішає клас `closing`,
+    // CSS зʼїжджає шит за екран і ставить оверлею `pointer-events:none`, і лише
+    // потім `finishClose` виставляє `firedRef=true` і кличе `onClose`. Якщо той
+    // відмовляється закривати, шит лишається змонтованим, але невидимим і
+    // мертвим, а `firedRef` назавжди блокує будь-яке наступне закриття —
+    // модалку неможливо ні закрити, ні відкрити знову до перемонтування екрана.
+    // Досягалось звичайним тапом по бекдропу, поки на LTE летів запит.
+    //
+    // `busy` завжди скидається у `finally` (див. обробник дії нижче), тож
+    // зависнути тут не можна.
+    if (busyRef.current) return
     setClosing(true)
   }
   const finishClose = () => {
@@ -195,17 +229,47 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
   // ── Swipe-down-to-dismiss (from the header/grabber only, so it never fights
   // the scrollable body). Follows the finger, dims the backdrop, and on release
   // either flings the sheet away or snaps it back. ──────────────────────────────
-  const drag = useRef({ startY: 0, dy: 0, active: false })
+  const DRAG_CLOSE_PX = 96
+  // Швидкий флік закриває раніше за поріг відстані: на короткому шиті 96px — це
+  // майже вся його висота, тож рішучий рух пальцем угору-вниз читався як «нічого
+  // не сталось». Пороги — з жестів iOS: 0.5px/мс приблизно відповідає рухові, що
+  // на 60fps проходить ~30px за кадр.
+  const FLING_VELOCITY = 0.5
+  const FLING_MIN_PX = 24
+  // Мінімальний інтервал між замірами швидкості. Ділити на dt=1мс не можна: один
+  // випадковий кадр, що прийшов упритул до попереднього, дає 25px/1мс = 50px/мс і
+  // ПОВІЛЬНИЙ жест закривається як флік. Кадр швидше за 8мс — це вже понад 120Гц,
+  // тобто шум замірів, а не рух пальця.
+  const V_MIN_DT_MS = 8
+  const drag = useRef({ startY: 0, dy: 0, active: false, lastY: 0, lastT: 0, v: 0 })
+  // Таймери прибирання інлайнових стилів: без них `transition`, виставлений на
+  // час snap-back, лишається на елементі, коли `transitionend` не приходить
+  // взагалі — а він НЕ приходить у найчастішому випадку, тап по хедеру без руху
+  // (transform уже '' → нічого не переходить). Далі цей мертвий transition
+  // перебивав анімацію закриття.
+  const dragCleanupRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  useEffect(() => () => clearTimeout(dragCleanupRef.current), [])
 
   function onDragStart(e: React.TouchEvent) {
-    if (firedRef.current) return
-    drag.current = { startY: e.touches[0].clientY, dy: 0, active: true }
+    // `closing` — обовʼязково: під час .24s виходу шит ще в DOM і його можна було
+    // схопити, отримавши шит, що їде за екран і слухається пальця одночасно.
+    if (firedRef.current || busyRef.current || closing) return
+    const y = e.touches[0].clientY
+    drag.current = { startY: y, dy: 0, active: true, lastY: y, lastT: Date.now(), v: 0 }
     const el = modalRef.current
     if (el) el.style.transition = 'none'
   }
   function onDragMove(e: React.TouchEvent) {
     if (!drag.current.active) return
-    const dy = e.touches[0].clientY - drag.current.startY
+    const y = e.touches[0].clientY
+    const dy = y - drag.current.startY
+    const now = Date.now()
+    const dt = now - drag.current.lastT
+    if (dt >= V_MIN_DT_MS) {
+      drag.current.v = (y - drag.current.lastY) / dt
+      drag.current.lastY = y
+      drag.current.lastT = now
+    }
     if (dy <= 0) { // dragged back up — reset
       drag.current.dy = 0
       const el = modalRef.current
@@ -220,11 +284,12 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
   }
   function onDragEnd() {
     if (!drag.current.active) return
-    const dy = drag.current.dy
+    const { dy, v } = drag.current
     drag.current.active = false
     const el = modalRef.current
     const ov = overlayRef.current
-    if (dy > 96) {
+    clearTimeout(dragCleanupRef.current)
+    if (dy > DRAG_CLOSE_PX || (v > FLING_VELOCITY && dy > FLING_MIN_PX)) {
       // Fling away — continue from the current offset to fully off-screen.
       if (el) {
         el.style.transition = 'transform .2s cubic-bezier(.4,0,1,1)'
@@ -241,6 +306,11 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
         el.addEventListener('transitionend', () => { el.style.transition = '' }, { once: true })
       }
       if (ov) { ov.style.transition = 'opacity .24s ease'; ov.style.opacity = '' }
+      // Безумовне прибирання — див. коментар до dragCleanupRef.
+      dragCleanupRef.current = setTimeout(() => {
+        if (el) el.style.transition = ''
+        if (ov) ov.style.transition = ''
+      }, 300)
     }
   }
 
@@ -278,10 +348,19 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
 
   // Move focus into the dialog for a11y — unless an inner input already grabbed
   // it (e.g. an autoFocus rename field), which we must not steal.
+  //
+  // Залежність від `mounted` ОБОВʼЯЗКОВА, і це не мікрооптимізація: до неї ефект
+  // мав `[]`, тобто біг на першому коміті — коли `mounted` ще false і компонент
+  // повернув `null` (портал існує лише в браузері, див. гейт нижче). `modalRef`
+  // у той момент порожній, ефект більше не повторювався, і фокус НЕ переходив у
+  // діалог ніколи: він лишався на кнопці-опенері, тож читалка озвучувала екран
+  // ПІД шитом. Спіймано `modal-a11y.spec.ts` — жоден із 202 тестів до нього Tab
+  // не натискав і `activeElement` не читав.
   useEffect(() => {
+    if (!mounted) return
     const el = modalRef.current
     if (el && !el.contains(document.activeElement)) el.focus()
-  }, [])
+  }, [mounted])
 
   // Focus trap: keep Tab / Shift+Tab cycling inside the topmost dialog so focus
   // never lands on the background behind the backdrop (aria-modal hides it from
@@ -366,11 +445,12 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
                 {actions.map((a) => (
                   <button
                     key={a.label}
-                    className={`modal-btn ${a.variant} ${MODAL_BTN_GLASS[a.variant] ?? ''}`}
+                    className={modalBtnClass(a.variant)}
                     onClick={async () => {
-                      if (busy) return
+                      if (busyRef.current) return
+                      busyRef.current = true
                       setBusy(true)
-                      try { await a.onClick() } finally { setBusy(false) }
+                      try { await a.onClick() } finally { busyRef.current = false; setBusy(false) }
                     }}
                     disabled={a.disabled || busy}
                   >

@@ -536,7 +536,7 @@ export default function PropertyFormScreen() {
                 { v: 'occupied', l: 'Зайнято' },
                 { v: 'for_sale', l: 'Продаж' },
               ] as const).map(({ v, l }) => (
-                <div key={v} className={`fr-seg-b ${status === v ? 'on' : ''}`} onClick={() => { hapticSelection(); setStatus(v) }}>{l}</div>
+                <button type="button" key={v} className={`fr-seg-b ${status === v ? 'on' : ''}`} onClick={() => { hapticSelection(); setStatus(v) }}>{l}</button>
               ))}
             </div>
           </div>
@@ -680,8 +680,8 @@ export default function PropertyFormScreen() {
             <div className="fr">
               <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconRuler size={14} color="var(--t3)" />Рахувати від</span>
               <div className="fr-seg" style={{ maxWidth: 220 }}>
-                <div className={`fr-seg-b ${areaBasis === 'useful' ? 'on' : ''}`} onClick={() => { hapticSelection(); setAreaBasis('useful') }}>Корисної</div>
-                <div className={`fr-seg-b ${areaBasis === 'total' ? 'on' : ''}`} onClick={() => { hapticSelection(); setAreaBasis('total') }}>Розрахункової</div>
+                <button type="button" className={`fr-seg-b ${areaBasis === 'useful' ? 'on' : ''}`} onClick={() => { hapticSelection(); setAreaBasis('useful') }}>Корисної</button>
+                <button type="button" className={`fr-seg-b ${areaBasis === 'total' ? 'on' : ''}`} onClick={() => { hapticSelection(); setAreaBasis('total') }}>Розрахункової</button>
               </div>
             </div>
           )}
@@ -695,13 +695,13 @@ export default function PropertyFormScreen() {
             <div className="fr-seg" style={{ maxWidth: 180 }}>
               {isParking ? (
                 <>
-                  <div className={`fr-seg-b ${rentType === 'fixed' ? 'on' : ''}`} onClick={() => { hapticSelection(); setRentType('fixed') }}>За місяць</div>
-                  <div className={`fr-seg-b ${rentType === 'per_day' ? 'on' : ''}`} onClick={() => { hapticSelection(); setRentType('per_day') }}>Подобово</div>
+                  <button type="button" className={`fr-seg-b ${rentType === 'fixed' ? 'on' : ''}`} onClick={() => { hapticSelection(); setRentType('fixed') }}>За місяць</button>
+                  <button type="button" className={`fr-seg-b ${rentType === 'per_day' ? 'on' : ''}`} onClick={() => { hapticSelection(); setRentType('per_day') }}>Подобово</button>
                 </>
               ) : (
                 <>
-                  <div className={`fr-seg-b ${rentType === 'per_m2' ? 'on' : ''}`} onClick={() => { hapticSelection(); setRentType('per_m2') }}>{currencySymbol(user?.currency)} за м²</div>
-                  <div className={`fr-seg-b ${rentType === 'fixed' ? 'on' : ''}`} onClick={() => { hapticSelection(); setRentType('fixed') }}>Фікс. сума</div>
+                  <button type="button" className={`fr-seg-b ${rentType === 'per_m2' ? 'on' : ''}`} onClick={() => { hapticSelection(); setRentType('per_m2') }}>{currencySymbol(user?.currency)} за м²</button>
+                  <button type="button" className={`fr-seg-b ${rentType === 'fixed' ? 'on' : ''}`} onClick={() => { hapticSelection(); setRentType('fixed') }}>Фікс. сума</button>
                 </>
               )}
             </div>
@@ -748,7 +748,7 @@ export default function PropertyFormScreen() {
                 <span className="fr-l">Тип</span>
                 <div className="fr-seg" style={{ maxWidth: 230 }}>
                   {PARKING_TYPES.map(({ v, l }) => (
-                    <div key={v} className={`fr-seg-b ${parkingType === v ? 'on' : ''}`} onClick={() => { hapticSelection(); setParkingType(parkingType === v ? '' : v) }}>{l}</div>
+                    <button type="button" key={v} className={`fr-seg-b ${parkingType === v ? 'on' : ''}`} onClick={() => { hapticSelection(); setParkingType(parkingType === v ? '' : v) }}>{l}</button>
                   ))}
                 </div>
               </div>

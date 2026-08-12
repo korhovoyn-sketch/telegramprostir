@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import Modal from '@/components/ui/Modal'
-import { IconFolder, IconEdit, IconTrash, IconChevronUp, IconChevronDown, IconCheck, IconX, IconPlus } from '@/components/Icons'
+import SheetCreateRow from '@/components/ui/SheetCreateRow'
+import { IconFolder, IconEdit, IconTrash, IconChevronUp, IconChevronDown, IconCheck, IconX } from '@/components/Icons'
 import { hapticSelection, hapticNotify } from '@/lib/telegram'
 import { objectsWord } from '@/lib/utils'
 import { confirmAction } from '@/lib/confirm'
@@ -22,8 +23,6 @@ interface Props {
 export default function FolderManageModal({ folders, counts, onCreate, onRename, onDelete, onReorder, onClose }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
-  const [newName, setNewName] = useState('')
-  const [creating, setCreating] = useState(false)
   // Видалення непорожньої папки лише ungroup-ає об'єкти — але це варто підтвердити.
 
   function startEdit(f: PropertyFolder) {
@@ -34,16 +33,6 @@ export default function FolderManageModal({ folders, counts, onCreate, onRename,
     if (editingId && editName.trim()) onRename(editingId, editName)
     setEditingId(null)
   }
-  async function handleCreate() {
-    const name = newName.trim()
-    if (!name || creating) return
-    setCreating(true)
-    const created = await onCreate(name)
-    setCreating(false)
-    if (created) { setNewName(''); hapticNotify('success') }
-  }
-
-
   async function askDelete(folder: PropertyFolder) {
     const n = counts.get(folder.id) ?? 0
     const ok = await confirmAction({
@@ -61,28 +50,33 @@ export default function FolderManageModal({ folders, counts, onCreate, onRename,
   }
 
   return (
-    <Modal title="Папки" subtitle="Групуйте об'єкти всередині бази" onClose={onClose}>
+    <Modal
+      title="Папки"
+      subtitle="Групуйте об'єкти всередині бази"
+      onClose={onClose}
+      // Шит без `actions` не отримує клавіатурної корекції взагалі:
+      // `clearStickyActions` у Modal виходить одразу, якщо `.modal-actions` немає.
+      // Саме ця модалка й була скаргою користувача, а вона — з полем вводу.
+      actions={[{ label: 'Готово', variant: 'secondary', onClick: onClose }]}
+    >
       <div className="fold-mng">
-        {/* Create row FIRST — on iOS Telegram the keyboard overlays the webview
-            without resizing it (--keyboard-h reads 0), so a bottom-anchored input
-            would be hidden. Kept near the header, it stays in the visible upper
-            band above the keyboard. */}
-        <div className="fold-mng-new">
-          <span className="fold-mng-ic"><IconPlus size={16} /></span>
-          <input
-            className="fold-mng-input"
-            value={newName}
-            aria-label="Назва нової папки"
-            placeholder="Нова папка…"
-            onChange={(e) => setNewName(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleCreate() }}
-            maxLength={40}
-          />
-          <button className="fold-mng-add" disabled={!newName.trim() || creating} onClick={handleCreate}>Додати</button>
-        </div>
+        {/* Рядок створення ПЕРШИЙ — див. коментар у SheetCreateRow: на iOS
+            клавіатура накриває webview не ресайзячи його. Тут він, на відміну від
+            пікерів, розкритий завжди і шит НЕ закриває. */}
+        <SheetCreateRow
+          fieldLabel="Назва нової папки"
+          placeholder="Нова папка…"
+          confirmLabel="Додати"
+          maxLength={40}
+          onCreate={async (name) => {
+            const created = await onCreate(name)
+            if (created) hapticNotify('success')
+            return !!created
+          }}
+        />
 
         {folders.length === 0 && (
-          <div style={{ padding: '20px 4px', textAlign: 'center', color: 'var(--t3)', fontSize: 'var(--fs-foot)' }}>
+          <div className="sheet-empty">
             Ще немає папок. Введіть назву вгорі й натисніть «Додати».
           </div>
         )}
@@ -97,7 +91,14 @@ export default function FolderManageModal({ folders, counts, onCreate, onRename,
                   value={editName}
                   autoFocus
                   onChange={(e) => setEditName(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') setEditingId(null) }}
+                  // stopPropagation обовʼязковий: Modal слухає Escape на window
+                  // і закриває верхній шит стеку, тож без цього Escape під час
+                  // перейменування зносив УСЮ модалку папок замість того, щоб
+                  // просто скасувати редагування рядка.
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') commitEdit()
+                    if (e.key === 'Escape') { e.stopPropagation(); setEditingId(null) }
+                  }}
                   maxLength={40}
                 />
               ) : (

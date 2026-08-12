@@ -51,7 +51,10 @@ test('видалення акаунта: кнопка заблокована, д
   await setup(page, calls)
   await openDeleteModal(page)
 
-  const confirmBtn = page.getByRole('button', { name: 'Видалити назавжди' })
+  // exact + скоуп у шит ОБОВʼЯЗКОВІ: підпис підтвердження скоротили до «Видалити»
+  // (довге «Видалити назавжди» вилазило за половинну кнопку), і тепер за
+  // підстрокою він збігається ще й з тригером «Видалити акаунт» на екрані.
+  const confirmBtn = page.locator('.modal').getByRole('button', { name: 'Видалити', exact: true })
   await expect(confirmBtn).toBeDisabled()
 
   // Частково/неправильно вписане слово теж не розблоковує
@@ -71,7 +74,7 @@ test('видалення акаунта: чистить сховище, клич
   await openDeleteModal(page)
 
   await page.getByLabel('Підтвердження видалення').fill('ВИДАЛИТИ')
-  await page.getByRole('button', { name: 'Видалити назавжди' }).click()
+  await page.locator('.modal').getByRole('button', { name: 'Видалити', exact: true }).click()
 
   await expect.poll(() => calls.rpc, { timeout: 10_000 }).toBe(1)
   // Файли прибрано ДО видалення рядків (інакше шляхи були б втрачені)
@@ -96,7 +99,7 @@ test('видалення акаунта: помилка сервера НЕ ви
   await openDeleteModal(page)
 
   await page.getByLabel('Підтвердження видалення').fill('ВИДАЛИТИ')
-  await page.getByRole('button', { name: 'Видалити назавжди' }).click()
+  await page.locator('.modal').getByRole('button', { name: 'Видалити', exact: true }).click()
 
   await expect(page.getByText('Не вдалося видалити акаунт')).toBeVisible({ timeout: 10_000 })
   // Лишаємось у профілі — не викидає на welcome при збої

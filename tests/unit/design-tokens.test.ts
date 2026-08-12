@@ -16,6 +16,11 @@ const RUNTIME_TOKENS = new Set([
   // Врізи від Telegram: env() у його iOS-webview не наповнюється, тож ці два
   // пише page.tsx із safeAreaInset/contentSafeAreaInset (обидва з фолбеком 0px).
   '--tg-safe-top', '--tg-safe-bottom',
+  // Хід смужки сканера. Задає сам екран інлайном, бо це висота ЙОГО рамки:
+  // анімація рухає `translateY`, а не `top` (інакше лейаут перераховувався б
+  // кожен кадр усі 2s циклу), а translateY(%) тут непридатний — відсоток брався
+  // б від власних 2px смужки.
+  '--scan-h',
 ])
 
 function walk(dir: string, out: string[] = []): string[] {
