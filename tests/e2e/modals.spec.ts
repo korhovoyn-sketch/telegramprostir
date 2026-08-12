@@ -103,9 +103,12 @@ test('rent modal: disabled CTA, live monthly preview, currency-aware unit labels
   const submit = page.getByRole('button', { name: 'Здати', exact: true })
   await expect(submit).toBeDisabled()
 
-  // Unit labels carry the owner's currency symbol (USD user → $)
-  await expect(page.getByText('Оренда, $/м²')).toBeVisible()
-  await expect(page.getByText('Експлуатаційні, $/м²')).toBeVisible()
+  // Одиниця несе валюту власника (USD → $), але живе тепер КОЛО ЗНАЧЕННЯ, а не в
+  // підписі: у половинному полі «Експлуатаційні, $/м²» не вміщалось і ellipsis
+  // зʼїдав саму одиницю — користувач не бачив, ставку за м² він вводить чи суму.
+  await expect(page.locator('.modal').getByText('Оренда', { exact: true })).toBeVisible()
+  await expect(page.locator('.modal').getByText('Експлуатаційні', { exact: true })).toBeVisible()
+  expect(await page.locator('.modal .fld-u').allInnerTexts()).toEqual(['$/м²', '$/м²'])
 
   // Live preview on the default basis (розрахункова/total area 52):
   // 52 м² × 20 + 52 м² × 5 = 1 300 — recomputes as you type

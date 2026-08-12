@@ -101,7 +101,13 @@ test('owner: creates a team invite and revokes it', async ({ page }) => {
   expect(members).toHaveLength(1)
   expect(members[0].db_id).toBe(OWN_DB_ID)
   expect(members[0].label).toBe('Менеджер Оля')
-  await page.getByRole('button', { name: 'Скопіювати' }).click()
+  // Бот-юзернейм у тест-оточенні не заданий, тож `buildDeepLink` віддає '#'.
+  // Раніше шит спокійно давав скопіювати цей мертвий лінк і надіслати його —
+  // власник дізнавався б про поломку від одержувача (той самий клас, що вже
+  // давав прод-інцидент із TELEGRAM_APP_NAME). Тепер обидві дії неактивні.
+  await expect(page.locator('.modal').getByRole('button', { name: 'Скопіювати' })).toBeDisabled()
+  await expect(page.locator('.modal').getByRole('button', { name: 'У Telegram' })).toBeDisabled()
+  await page.locator('.modal-overlay').last().click({ position: { x: 10, y: 10 } })
 
   // Список показує pending-рядок з кнопками
   await expect(page.getByText('Менеджер Оля')).toBeVisible()
