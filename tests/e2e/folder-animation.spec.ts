@@ -25,25 +25,29 @@ test('акордеон папки анімує висоту, а не стриб�
   await expect(page.getByText('Всі (8)')).toBeVisible()
   await page.waitForTimeout(700)
 
-  // sample the wrapper height across the collapse
-  const samples = await page.evaluate(async () => {
+  // sample the wrapper height across the collapse; читаємо блюр НА ПЕРШОМУ кадрі,
+  // в тому самому evaluate — окремий page.evaluate() ПІСЛЯ 14-кадрового циклу це
+  // гонка: під навантаженням повного прогону (паралельні воркери) rAF рідшає, і
+  // 300мс-анімація встигає завершитись (fold-anim знято) до другого виклику.
+  const { samples, blurOff } = await page.evaluate(async () => {
     const hd = document.querySelector('.fold-hd') as HTMLElement
     const wrap = document.querySelector('.fold-wrap') as HTMLElement
     const out:number[] = []
     hd.click()
+    let blur = 'no-anim-class'
     for (let i=0;i<14;i++){
       await new Promise(r=>requestAnimationFrame(()=>r(null)))
       out.push(Math.round(wrap.getBoundingClientRect().height))
+      if (i === 0) {
+        const c = document.querySelector('.fold-wrap.fold-anim .glass-s') as HTMLElement | null
+        blur = c ? getComputedStyle(c).backdropFilter : 'no-anim-class'
+      }
     }
-    return out
+    return { samples: out, blurOff: blur }
   })
   const distinct = new Set(samples).size
   // A real animation passes through several intermediate heights; a snap gives 1-2.
   expect(distinct, `очікуємо плавні проміжні висоти, отримали ${JSON.stringify(samples)}`).toBeGreaterThan(3)
   // і блюр вимкнено на час руху (інакше 24 скляні шари щокадру = дропнуті кадри)
-  const blurOff = await page.evaluate(() => {
-    const c = document.querySelector('.fold-wrap.fold-anim .glass-s') as HTMLElement | null
-    return c ? getComputedStyle(c).backdropFilter : 'no-anim-class'
-  })
   expect(blurOff, 'блюр вимкнено на час анімації').toBe('none')
 })
