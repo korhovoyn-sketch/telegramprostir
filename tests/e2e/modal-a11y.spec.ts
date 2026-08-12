@@ -255,7 +255,7 @@ test('тап по бекдропу під час запиту НЕ лишає ш
   await expect(page.locator('.modal')).toBeVisible()
 
   // Запускаємо створення і, не чекаючи відповіді, тапаємо бекдроп.
-  await page.getByRole('button', { name: /Створити посилання/ }).click()
+  await page.getByRole('button', { name: /Створити/ }).click()
   await page.locator('.modal-overlay').last().click({ position: { x: 10, y: 10 } })
 
   // Шит мусить лишитись НА МІСЦІ, а не зʼїхати за екран: саме зсув був видимим

@@ -729,7 +729,9 @@ export default function PaymentCalendarScreen() {
           onClose={() => setPayConfirmItem(null)}
           actions={[
             {
-              label: payConfirmItem.record?.status === 'paid' ? 'Зберегти зміни' : 'Підтвердити оплату',
+              // «Підтвердити оплату» не вміщалось у половинну кнопку (+10px);
+              // що саме підтверджуємо, каже заголовок шита.
+              label: payConfirmItem.record?.status === 'paid' ? 'Зберегти зміни' : 'Підтвердити',
               variant: 'primary',
               // Сума парситься ВСЕРЕДИНІ дії, тож сміттєве значення тихо
               // проходило як `undefined` — платіж підтверджувався на грошовому

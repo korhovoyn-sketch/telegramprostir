@@ -732,27 +732,38 @@ export default function PropertyDetailScreen() {
                   </div>
                 </div>
                 <div className="fld-row">
+                  {/* Одиниця — коло ЗНАЧЕННЯ, а не в підписі. У підписі половинного
+                      поля «Експлуатаційні, $/м²» не вміщалась (заміряно: треба
+                      150px, є 142), і ellipsis зʼїдав саму одиницю — користувач
+                      втрачав те, ЩО він вводить: ставку за м² чи фіксовану суму.
+                      Решта застосунку теж тримає одиницю коло числа (див. .fr-u). */}
                   <div className="fld">
-                    <div className="fld-l"><IconCurrencyDollar size={12} />Оренда, {rateUnit}</div>
-                    <input
-                      aria-label="Орендна ставка"
-                      type="text"
-                      inputMode="decimal"
-                      placeholder="0"
-                      value={rentRentRate}
-                      onChange={e => setRentRentRate(sanitizeDecimal(e.target.value))}
-                    />
+                    <div className="fld-l"><IconCurrencyDollar size={12} />Оренда</div>
+                    <div className="fld-v">
+                      <input
+                        aria-label="Орендна ставка"
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="0"
+                        value={rentRentRate}
+                        onChange={e => setRentRentRate(sanitizeDecimal(e.target.value))}
+                      />
+                      <span className="fld-u">{rateUnit}</span>
+                    </div>
                   </div>
                   <div className="fld">
-                    <div className="fld-l"><IconBolt size={12} />Експлуатаційні, {utilUnit}</div>
-                    <input
-                      aria-label="Ставка експлуатаційних"
-                      type="text"
-                      inputMode="decimal"
-                      placeholder="0"
-                      value={rentUtilitiesRate}
-                      onChange={e => setRentUtilitiesRate(sanitizeDecimal(e.target.value))}
-                    />
+                    <div className="fld-l"><IconBolt size={12} />Експлуатаційні</div>
+                    <div className="fld-v">
+                      <input
+                        aria-label="Ставка експлуатаційних"
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="0"
+                        value={rentUtilitiesRate}
+                        onChange={e => setRentUtilitiesRate(sanitizeDecimal(e.target.value))}
+                      />
+                      <span className="fld-u">{utilUnit}</span>
+                    </div>
                   </div>
                 </div>
                 <div className="fld-row">

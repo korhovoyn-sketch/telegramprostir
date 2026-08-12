@@ -265,7 +265,7 @@ export default function ProfileScreen() {
           onClose={() => setShowDeleteModal(false)}
           actions={[
             {
-              label: 'Видалити назавжди',
+              label: 'Видалити',
               variant: 'danger',
               disabled: deleteConfirmText.trim().toUpperCase() !== 'ВИДАЛИТИ',
               onClick: async () => {

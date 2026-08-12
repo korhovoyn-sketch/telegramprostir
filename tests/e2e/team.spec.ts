@@ -93,7 +93,7 @@ test('owner: creates a team invite and revokes it', async ({ page }) => {
   // Створення інвайта з підписом
   await page.getByRole('button', { name: 'Запросити в команду' }).click()
   await page.getByPlaceholder('напр. Менеджер Оля').fill('Менеджер Оля')
-  await page.getByRole('button', { name: 'Створити запрошення' }).click()
+  await page.getByRole('button', { name: 'Створити' }).click()
 
   // Модалка створення (сам deep link у тест-оточенні — '#': бот-юзернейм
   // не заданий у dev-сервері, buildDeepLink деградує). Головне — INSERT пішов.

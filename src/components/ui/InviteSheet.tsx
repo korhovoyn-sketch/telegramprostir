@@ -6,7 +6,7 @@ import Modal from '@/components/ui/Modal'
 interface Props {
   title: string
   subtitle: string
-  /** Підпис кнопки створення — «Створити запрошення» / «Створити посилання». */
+  /** Підпис кнопки створення. Тримай КОРОТКИМ: половинна кнопка при 375px вміщує ~167px, а «Створити посилання» вже шириться за неї. */
   confirmLabel: string
   /** Доступна назва поля: гість і член команди — різні сутності для читалки. */
   fieldLabel: string
@@ -48,21 +48,23 @@ export default function InviteSheet({
         { label: 'Скасувати', variant: 'secondary', onClick: onClose },
       ]}
     >
+      {/* `.fld` (підпис НАД полем), а не `.fr` (підпис і поле в один рядок), і це
+          не смак: у рядковому варіанті на підпис «Підпис (необовʼязково)» лишалось
+          менше половини ширини, і плейсхолдер обрізався посеред слова —
+          «напр. Оренд». Плюс поле без рамки читалось як звичайний текст, а не як
+          поле вводу. Той самий `.fld` уживають шити оренди, розкладу й платежу. */}
       <div style={{ paddingTop: 4 }}>
-        <div className="fg" style={{ marginBottom: 0 }}>
-          <div className="fr" style={{ borderBottom: 'none' }}>
-            <div className="fr-l">Підпис (необов&apos;язково)</div>
-            <input
-              aria-label={fieldLabel}
-              ref={inputRef}
-              className="fr-i"
-              type="text"
-              placeholder={placeholder}
-              value={value}
-              onChange={e => onChange(e.target.value)}
-              maxLength={100}
-            />
-          </div>
+        <div className="fld">
+          <div className="fld-l">Підпис (необов&apos;язково)</div>
+          <input
+            aria-label={fieldLabel}
+            ref={inputRef}
+            type="text"
+            placeholder={placeholder}
+            value={value}
+            onChange={e => onChange(e.target.value)}
+            maxLength={100}
+          />
         </div>
       </div>
     </Modal>

@@ -693,12 +693,17 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
    композитний шар нічого не пришвидшує, зате тримається назавжди — а два
    вкладені шити давали два таких шари з блюром 48px. Те саме рішення й з тієї ж
    причини задокументоване для `.nav-wrap` вище. */
-/* Вкладений оверлей НЕ затемнює вдруге. Підтвердження поверх ShareSheet давало
-   ≈0.84 замість 0.6 і подвійний блюр 4+4px, причому розмивався й сам шит під
-   ним. Селектор працює без жодного стану: обидва оверлеї — портали в <body>,
-   тобто сусіди, тож `~` матчить лише той, під яким уже є інший. Коли нижній
-   зникає, верхній сам повертає собі затемнення. */
-.modal-overlay ~ .modal-overlay{background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none}
+/* Вкладений оверлей затемнює СЛАБШЕ, але не перестає затемнювати. Два повні шари
+   по rgba(0,0,0,.6) давали ≈0.84 і подвійний блюр; АЛЕ повне їх знімання —
+   помилка, яку вже наступали: саме цей шар відділяє підтвердження від шита під
+   ним, і без нього текст «Відкликати доступ?» лягав ПРЯМО на живі, нерозмиті
+   «Без обмежень» і «Оновити посилання». Тобто розмиття нижнього шита — не побічний
+   ефект, а те, що робить верхній читабельним. Компроміс: .32 замість .6 → разом
+   ≈0.73 (замість 0.84), блюр лишається один слабкий.
+   Селектор працює без жодного стану: обидва оверлеї — портали в <body>, тобто
+   сусіди, тож `~` матчить лише той, під яким уже є інший, і сам себе скасовує,
+   коли нижній зникає. */
+.modal-overlay ~ .modal-overlay{background:rgba(0,0,0,.32)}
 .modal::before{content:'';position:absolute;top:6px;left:50%;transform:translateX(-50%);width:36px;height:4px;border-radius:2px;background:rgba(255,255,255,.2);z-index:1;pointer-events:none}
 .modal-head{padding:22px 16px 4px;flex-shrink:0;touch-action:none;-webkit-user-select:none;user-select:none;cursor:grab}
 .modal-head:active{cursor:grabbing}
@@ -720,6 +725,14 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 .fld{flex:1;min-width:0;background:var(--glass-1);border:var(--bd);border-radius:var(--r-sm);padding:8px 12px 9px;transition:border-color .18s,background .18s}
 .fld-l{font-size:var(--fs-cap2);color:var(--t3);font-weight:600;letter-spacing:.02em;margin-bottom:3px;display:flex;align-items:center;gap:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fld input{width:100%;background:transparent;border:none;outline:none;font-size:var(--fs-call);color:var(--t1);font-family:inherit;text-align:left;-moz-appearance:textfield;padding:0;min-height:24px}
+/* Значення + одиниця в один рядок. Одиниця живе тут, а не в `.fld-l`: у підписі
+   половинного поля довга назва разом з одиницею не вміщалась і ellipsis зʼїдав
+   саму одиницю (заміряно 150px потрібних проти 142 наявних). `min-width:0` на
+   інпуті обовʼязковий — інакше flex не дає йому стиснутись і одиницю виносить
+   за край поля. */
+.fld-v{display:flex;align-items:baseline;gap:6px}
+.fld-v input{min-width:0}
+.fld-u{font-size:var(--fs-cap1);color:var(--t3);flex-shrink:0}
 .fld input::-webkit-outer-spin-button,.fld input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .fld input::placeholder{color:var(--t4)}
 .fld:focus-within{border-color:rgba(122,179,255,.45);background:rgba(34,158,217,.07)}

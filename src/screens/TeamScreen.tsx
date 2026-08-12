@@ -201,7 +201,7 @@ export default function TeamScreen() {
         <InviteSheet
           title="Запросити в команду"
           subtitle="Людина отримає право редагувати об'єкти цієї бази"
-          confirmLabel="Створити запрошення"
+          confirmLabel="Створити"
           fieldLabel="Підпис інвайта"
           placeholder="напр. Менеджер Оля"
           value={labelText}

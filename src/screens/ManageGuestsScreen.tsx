@@ -203,7 +203,7 @@ export default function ManageGuestsScreen() {
         <InviteSheet
           title="Запросити гостя"
           subtitle="Згенеруємо запрошення-посилання"
-          confirmLabel="Створити посилання"
+          confirmLabel="Створити"
           fieldLabel="Підпис гостьового лінка"
           placeholder="напр. Орендар, кв. 5"
           value={labelText}

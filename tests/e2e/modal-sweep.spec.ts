@@ -194,6 +194,31 @@ async function checkModal(page: Page, where: string, expectTitle?: string): Prom
         .filter((f) => (f as HTMLInputElement).type !== 'hidden')
         .filter((f) => !named(f))
         .map((f) => `${f.tagName.toLowerCase()}[${(f as HTMLInputElement).type ?? ''}] .${f.className.slice(0, 20)}`),
+      // Обрізаний підпис. Для `ellipsis+nowrap+hidden` єдиний надійний критерій —
+      // scrollWidth > clientWidth на самому носії тексту; leaf-фільтри його гублять,
+      // бо підпис поля — це іконка + текстовий вузол. Так знайшлось
+      // «Експлуатаційні, $/м²», де ellipsis зʼїдав саму ОДИНИЦЮ, тобто користувач
+      // не бачив, що вводить: ставку за м² чи фіксовану суму.
+      truncated: [...el.querySelectorAll<HTMLElement>('*')]
+        .filter((n) => {
+          const st = getComputedStyle(n)
+          return st.overflowX !== 'visible' && st.textOverflow === 'ellipsis' && n.scrollWidth - n.clientWidth > 0
+        })
+        .map((n) => `«${(n.textContent ?? '').trim().slice(0, 34)}» обрізано на ${n.scrollWidth - n.clientWidth}px`),
+      // Кнопки дій НЕ мають ellipsis, тож перевірка вище їх не бачить: довгий
+      // підпис у них не обрізається, а вилазить за край кнопки. При 375px половинна
+      // кнопка — ~167px, і на цьому спалились шість підписів (гірший, «Поділитись
+      // в Telegram», на 31px).
+      tight: [...el.querySelectorAll<HTMLButtonElement>('.modal-actions .modal-btn')]
+        .map((b) => {
+          const cs = getComputedStyle(b)
+          const inner = b.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)
+          const rng = document.createRange()
+          rng.selectNodeContents(b)
+          return { label: (b.textContent ?? '').trim(), by: Math.round(rng.getBoundingClientRect().width - inner) }
+        })
+        .filter((r) => r.by > 0)
+        .map((r) => `«${r.label}» шириться за кнопку на ${r.by}px`),
     }
   })
 
@@ -203,6 +228,8 @@ async function checkModal(page: Page, where: string, expectTitle?: string): Prom
   expect(res.labelledby, `${where}: aria-labelledby не вказує на заголовок`).toBe(res.headId)
   expect(res.overflowX, `${where} «${res.title}»: горизонтальне переповнення`).toEqual([])
   expect(res.fields, `${where} «${res.title}»: поля без доступної назви`).toEqual([])
+  expect(res.truncated, `${where} «${res.title}»: обрізаний текст`).toEqual([])
+  expect(res.tight, `${where} «${res.title}»: підпис кнопки не вміщується`).toEqual([])
   for (const a of res.actions) {
     expect(a.h, `${where} «${res.title}» → «${a.label}»: висота ${a.h}px < 44 (Apple HIG)`)
       .toBeGreaterThanOrEqual(44)
@@ -304,7 +331,7 @@ test('шити об\'єкта і платежів: оренда, розклад,
   // заново — `sweep` закриває його бекдроп-тапом.
   await page.getByRole('button', { name: /Отримано/ }).first().click()
   await expect(page.locator('.modal')).toBeVisible()
-  const payBtn = page.locator('.modal-actions .modal-btn', { hasText: 'Підтвердити оплату' })
+  const payBtn = page.locator('.modal-actions .modal-btn', { hasText: 'Підтвердити' })
   const amount = page.getByLabel('Сума отриманого платежу')
   await expect(payBtn, 'порожнє поле легальне — береться очікувана сума').toBeEnabled()
   await amount.fill('0')
@@ -331,7 +358,7 @@ test('шити доступів: гості, команда, і створене
   // 10. Шит із готовим посиланням — окремий інстанс `<Modal>`, який видно лише
   // після успішного INSERT, тож дійти до нього можна тільки створивши інвайт.
   await page.getByLabel('Підпис гостьового лінка').fill('Орендар, кв. 5')
-  await page.locator('.modal-btn', { hasText: 'Створити посилання' }).click()
+  await page.locator('.modal-btn', { hasText: 'Створити' }).click()
   expect(await sweep(page, 'guest-created', 'Посилання створено!')).toBe('Посилання створено!')
 
   // 11+12. Команда: те саме — інвайт і шит зі створеним посиланням.
