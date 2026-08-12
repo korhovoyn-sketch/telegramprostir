@@ -34,7 +34,6 @@ export default function TeamScreen() {
   const [members, setMembers] = useState<DbMember[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreateModal, setShowCreateModal] = useState(false)
-  const [creating, setCreating] = useState(false)
   const [labelText, setLabelText] = useState('')
   const [newLink, setNewLink] = useState<string | null>(null)
   const [revoking, setRevoking] = useState<string | null>(null)
@@ -72,7 +71,6 @@ export default function TeamScreen() {
   async function handleCreate() {
     if (!user || !dbId) return
     if (offlineGuard()) return
-    setCreating(true)
     try {
       const { data, error } = await supabase
         .from('db_members')
@@ -87,8 +85,6 @@ export default function TeamScreen() {
       await load()
     } catch (e) {
       showToast({ type: 'error', title: 'Не вдалося створити', subtitle: humanizeDbError(e) })
-    } finally {
-      setCreating(false)
     }
   }
 
@@ -211,10 +207,13 @@ export default function TeamScreen() {
         <Modal
           title="Запросити в команду"
           subtitle="Людина отримає право редагувати об'єкти цієї бази"
-          onClose={() => !creating && setShowCreateModal(false)}
+          // Гард «не закривай, поки летить запит» живе в Modal (див. requestClose):
+          // тут він лишав шит невидимим і НАЗАВЖДИ незакривним. `disabled`/підміна
+          // підпису теж зайві — Modal сам await-ить дію і блокує всі кнопки.
+          onClose={() => setShowCreateModal(false)}
           actions={[
-            { label: creating ? 'Створення...' : 'Створити запрошення', variant: 'primary', disabled: creating, onClick: handleCreate },
-            { label: 'Скасувати', variant: 'secondary', disabled: creating, onClick: () => setShowCreateModal(false) },
+            { label: 'Створити запрошення', variant: 'primary', onClick: handleCreate },
+            { label: 'Скасувати', variant: 'secondary', onClick: () => setShowCreateModal(false) },
           ]}
         >
           <div style={{ paddingTop: 4 }}>

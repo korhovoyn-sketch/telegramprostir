@@ -297,6 +297,22 @@ test('шити об\'єкта і платежів: оренда, розклад,
   // 8. Підтвердження отримання — на об'єкті З розкладом.
   await page.getByRole('button', { name: /Отримано/ }).first().click()
   expect(await sweep(page, 'pay-confirm')).toBe('Підтвердити отримання')
+
+  // …і сума на грошовому шляху мусить валідуватись ДО підтвердження. Раніше вона
+  // парсилась усередині дії, тож нуль чи самотня крапка тихо йшли як `undefined`
+  // і платіж підтверджувався без жодного сигналу. Шит доводиться відкривати
+  // заново — `sweep` закриває його бекдроп-тапом.
+  await page.getByRole('button', { name: /Отримано/ }).first().click()
+  await expect(page.locator('.modal')).toBeVisible()
+  const payBtn = page.locator('.modal-actions .modal-btn', { hasText: 'Підтвердити оплату' })
+  const amount = page.getByLabel('Сума отриманого платежу')
+  await expect(payBtn, 'порожнє поле легальне — береться очікувана сума').toBeEnabled()
+  await amount.fill('0')
+  await expect(payBtn, 'нульова сума приймається як платіж').toBeDisabled()
+  await amount.fill('.')
+  await expect(payBtn, 'самотня крапка приймається як сума').toBeDisabled()
+  await amount.fill('1500')
+  await expect(payBtn, 'коректна сума не проходить').toBeEnabled()
 })
 
 test('шити доступів: гості, команда, і створене посилання', async ({ page }) => {

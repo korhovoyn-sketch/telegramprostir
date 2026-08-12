@@ -61,7 +61,15 @@ export default function FolderManageModal({ folders, counts, onCreate, onRename,
   }
 
   return (
-    <Modal title="Папки" subtitle="Групуйте об'єкти всередині бази" onClose={onClose}>
+    <Modal
+      title="Папки"
+      subtitle="Групуйте об'єкти всередині бази"
+      onClose={onClose}
+      // Шит без `actions` не отримує клавіатурної корекції взагалі:
+      // `clearStickyActions` у Modal виходить одразу, якщо `.modal-actions` немає.
+      // Саме ця модалка й була скаргою користувача, а вона — з полем вводу.
+      actions={[{ label: 'Готово', variant: 'secondary', onClick: onClose }]}
+    >
       <div className="fold-mng">
         {/* Create row FIRST — on iOS Telegram the keyboard overlays the webview
             without resizing it (--keyboard-h reads 0), so a bottom-anchored input
@@ -97,7 +105,14 @@ export default function FolderManageModal({ folders, counts, onCreate, onRename,
                   value={editName}
                   autoFocus
                   onChange={(e) => setEditName(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') setEditingId(null) }}
+                  // stopPropagation обовʼязковий: Modal слухає Escape на window
+                  // і закриває верхній шит стеку, тож без цього Escape під час
+                  // перейменування зносив УСЮ модалку папок замість того, щоб
+                  // просто скасувати редагування рядка.
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') commitEdit()
+                    if (e.key === 'Escape') { e.stopPropagation(); setEditingId(null) }
+                  }}
                   maxLength={40}
                 />
               ) : (

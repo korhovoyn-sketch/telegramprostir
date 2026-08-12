@@ -386,8 +386,12 @@ body{
 .fr-u{font-size:var(--fs-cap1);color:var(--t3);flex-shrink:0;min-width:32px;text-align:right}
 .fr-textarea{min-height:96px;padding:12px var(--pad-card);resize:vertical;font-family:inherit;background:transparent;border:none;outline:none;font-size:var(--fs-call);color:var(--t1);width:100%;line-height:var(--lh-norm)}
 .fr-seg{display:flex;background:var(--glass-2);border-radius:10px;padding:2px;gap:2px;width:100%;border:var(--bd)}
-.fr-seg-b{flex:1;padding:6px 4px;border-radius:8px;font-size:var(--fs-cap2);font-weight:600;text-align:center;color:var(--t3);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;transition:all .22s var(--ease);display:flex;align-items:center;justify-content:center;min-height:36px}
+/* Сегмент — <button>, не <div>: інакше перемикач недосяжний з клавіатури, а в
+   модалці його не бачить і фокус-пастка. Звідси скидання UA-стилів кнопки. */
+.fr-seg-b{flex:1;padding:6px 4px;border:none;background:transparent;font-family:inherit;border-radius:8px;font-size:var(--fs-cap2);font-weight:600;text-align:center;color:var(--t3);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;transition:all .22s var(--ease);display:flex;align-items:center;justify-content:center;min-height:36px}
 .fr-seg-b.on{background:var(--glass-3);color:var(--t1);box-shadow:0 1.5px 6px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.3)}
+/* Неактивний — приглушений колір, не opacity (правило проєкту). */
+.fr-seg-b:disabled{cursor:default;color:var(--t4)}
 /* ── Utility tags ── */
 .util-tags{display:flex;flex-wrap:wrap;gap:8px;padding:10px var(--pad-card) 6px}
 .util-tag{display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--r-pill);font-size:var(--fs-foot);font-weight:500;cursor:pointer;border:.5px solid var(--glass-2);background:var(--glass-1);color:var(--t3);transition:background var(--dur-sm) var(--ease),border-color var(--dur-sm) var(--ease),color var(--dur-sm) var(--ease);user-select:none;-webkit-tap-highlight-color:transparent}
@@ -649,7 +653,7 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 .pstat-n{font-size:var(--fs-t3);font-weight:var(--fw-bold);color:var(--t1);line-height:1;letter-spacing:-.03em}
 /* Profile stat label — Caption 2 */
 .pstat-l{font-size:var(--fs-cap2);color:var(--t3);margin-top:4px;font-weight:var(--fw-semi);text-transform:uppercase;letter-spacing:.05em}
-.logout{margin:6px var(--g3) 16px;padding:13px;border-radius:var(--r-md);text-align:center;font-size:var(--fs-sub);font-weight:var(--fw-semi);color:#ff8a85;cursor:pointer}
+.logout{margin:6px var(--g3) 16px;padding:13px;width:calc(100% - var(--g3) * 2);border:none;background:transparent;font-family:inherit;border-radius:var(--r-md);text-align:center;font-size:var(--fs-sub);font-weight:var(--fw-semi);color:#ff8a85;cursor:pointer}
 
 /* ── NOTIFICATIONS ── */
 .notif-tabs{display:flex;margin:0 var(--g3) var(--g3);background:var(--glass-2);border-radius:var(--r-sm);padding:2px;border:var(--bd);gap:2px;overflow-x:auto;scrollbar-width:none}
@@ -684,7 +688,17 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
    (normal — not a bug in the signal) made the sheet visibly SNAP between sizes
    every tick instead of resizing smoothly, reading as "shrinks so I can't work
    with it". Same .25s so both edges of the sheet move together. */
-.modal{width:100%;background:rgba(14,11,32,.72);backdrop-filter:blur(48px) saturate(220%) brightness(1.10);-webkit-backdrop-filter:blur(48px) saturate(220%) brightness(1.10);border-top:.5px solid rgba(255,255,255,.18);border-radius:20px 20px 0 0;position:relative;animation:modalSlideUp .38s var(--ease-spr) both;max-height:min(88vh,max(46vh,calc(var(--tg-vh,100svh) - var(--keyboard-h,0px) - 20px)));transition:max-height .25s ease-out;display:flex;flex-direction:column;overflow:hidden;will-change:transform;box-shadow:inset 0 1.5px 0 rgba(255,255,255,.22),inset 0 .5px 0 rgba(255,255,255,.10)}
+.modal{width:100%;background:rgba(14,11,32,.72);backdrop-filter:blur(48px) saturate(220%) brightness(1.10);-webkit-backdrop-filter:blur(48px) saturate(220%) brightness(1.10);border-top:.5px solid rgba(255,255,255,.18);border-radius:20px 20px 0 0;position:relative;animation:modalSlideUp .38s var(--ease-spr) both;max-height:min(88vh,max(46vh,calc(var(--tg-vh,100svh) - var(--keyboard-h,0px) - 20px)));transition:max-height .25s ease-out;display:flex;flex-direction:column;overflow:hidden;box-shadow:inset 0 1.5px 0 rgba(255,255,255,.22),inset 0 .5px 0 rgba(255,255,255,.10)}
+/* БЕЗ will-change: шит уже має власний backdrop-filter, тож постійний
+   композитний шар нічого не пришвидшує, зате тримається назавжди — а два
+   вкладені шити давали два таких шари з блюром 48px. Те саме рішення й з тієї ж
+   причини задокументоване для `.nav-wrap` вище. */
+/* Вкладений оверлей НЕ затемнює вдруге. Підтвердження поверх ShareSheet давало
+   ≈0.84 замість 0.6 і подвійний блюр 4+4px, причому розмивався й сам шит під
+   ним. Селектор працює без жодного стану: обидва оверлеї — портали в <body>,
+   тобто сусіди, тож `~` матчить лише той, під яким уже є інший. Коли нижній
+   зникає, верхній сам повертає собі затемнення. */
+.modal-overlay ~ .modal-overlay{background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none}
 .modal::before{content:'';position:absolute;top:6px;left:50%;transform:translateX(-50%);width:36px;height:4px;border-radius:2px;background:rgba(255,255,255,.2);z-index:1;pointer-events:none}
 .modal-head{padding:22px 16px 4px;flex-shrink:0;touch-action:none;-webkit-user-select:none;user-select:none;cursor:grab}
 .modal-head:active{cursor:grabbing}
@@ -825,16 +839,23 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 
 /* ── ACTION SHEET (Apple inset-grouped menu) ── */
 .sheet-group{background:var(--glass-1);border:var(--bd);border-radius:var(--r-md);overflow:hidden;margin-bottom:10px}
-.sheet-row{display:flex;align-items:center;gap:12px;min-height:52px;padding:0 14px;cursor:pointer;color:var(--t1);font-size:var(--fs-call);font-weight:500;border-bottom:.5px solid rgba(255,255,255,.07);transition:background .14s var(--ease);-webkit-tap-highlight-color:transparent}
+/* Клікабельний рядок шита — це <button>, а не <div>: фокус-пастка модалки шукає
+   саме фокусовані вузли, тож із <div> Tab у меню бази циклився між «Скасувати» і
+   нічим. Звідси ж скидання UA-стилів кнопки (власна рамка/фон/шрифт/вирівнювання). */
+.sheet-row{display:flex;align-items:center;gap:12px;min-height:52px;padding:0 14px;width:100%;text-align:left;font-family:inherit;background:transparent;cursor:pointer;color:var(--t1);font-size:var(--fs-call);font-weight:500;border:none;border-bottom:.5px solid rgba(255,255,255,.07);transition:background .14s var(--ease);-webkit-tap-highlight-color:transparent}
 .sheet-row:last-child{border-bottom:none}
-.sheet-row:active{background:var(--glass-2)}
+.sheet-row:active:not(:disabled){background:var(--glass-2)}
 .sheet-ic{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:var(--glass-2);color:var(--t2);flex-shrink:0}
 .sheet-lbl{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sheet-chev{color:var(--t4);flex-shrink:0}
 .sheet-row.danger{color:var(--err-fg)}
 .sheet-row.danger .sheet-ic{background:var(--err-bg);color:var(--err-fg)}
-.sheet-cancel{height:var(--btn-h);border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;font-size:var(--fs-call);font-weight:var(--fw-bold);color:var(--t1);background:var(--glass-2);border:var(--bd);cursor:pointer;width:100%;transition:transform .12s,background .14s}
-.sheet-cancel:active{transform:scale(.98);background:var(--glass-3)}
+/* Неактивний рядок — приглушений КОЛІР, не opacity (правило проєкту: над темним
+   шитом прозорість з'їдає елемент). Стоїть після .danger, бо мусить перебивати
+   і його заливку за однакової специфічності. UA сам блокує події на
+   disabled-кнопці, тож зникає й «підсвітився під пальцем і не зробив нічого». */
+.sheet-row:disabled{cursor:default;color:var(--t4)}
+.sheet-row:disabled .sheet-ic{background:var(--glass-1);color:var(--t4)}
 
 /* ── FOLDERS ── */
 /* Accordion section = header + collapsible body. Sections are the .list children;
@@ -1513,7 +1534,7 @@ svg.ico{overflow:visible}
 .lg-ul li{font-size:var(--fs-sub);color:var(--t2);line-height:1.55;list-style:disc}
 
 /* Незворотне видалення акаунта — тихіше за «Вийти», щоб не запрошувати до тапу */
-.del-acc{margin:0 var(--g3) 4px;padding:10px;border-radius:var(--r-md);text-align:center;font-size:var(--fs-foot);color:var(--t3);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;min-height:40px;transition:color .16s}
+.del-acc{margin:0 var(--g3) 4px;padding:10px;width:calc(100% - var(--g3) * 2);border:none;background:transparent;font-family:inherit;border-radius:var(--r-md);text-align:center;font-size:var(--fs-foot);color:var(--t3);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;min-height:40px;transition:color .16s}
 .del-acc:active{color:var(--err-fg)}
 
 

@@ -179,3 +179,27 @@ test('форма СТВОРЕННЯ жива на нативному клієн�
   await page.getByLabel('Назва обʼєкта').fill('Офіс 202')
   await expect(cta, 'назва введена — активна').toBeEnabled()
 })
+
+test('вихід з акаунту — теж нативний попап, а не рукописна копія модалки', async ({ page }) => {
+  // Вихід був ЄДИНОЮ незворотною дією поза `confirmAction()`: ProfileScreen тримав
+  // власний <Modal> із тим самим змістом. Тобто на нативному клієнті користувач
+  // бачив скляну модалку там, де всі інші 13 місць питають попапом Telegram.
+  await setup(page)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await page.addInitScript(() => { (window as any).__tgEnablePopups?.('cancel') })
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+  await page.locator('.tabbar [aria-label="Профіль"]').click()
+  await expect(page.getByText('Налаштування')).toBeVisible({ timeout: 15_000 })
+
+  await page.getByRole('button', { name: /Вийти з акаунту/ }).click()
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const popups = await page.evaluate(() => (window as any).__tgPopups)
+  expect(popups).toHaveLength(1)
+  expect(popups[0].title).toBe('Вийти з акаунту?')
+  expect(popups[0].buttons[0]).toMatchObject({ id: 'ok', type: 'destructive', text: 'Вийти' })
+  // Відповідь 'cancel' — з акаунта не викинуло.
+  await expect(page.locator('.modal')).toHaveCount(0)
+  await expect(page.getByText('Налаштування')).toBeVisible()
+})

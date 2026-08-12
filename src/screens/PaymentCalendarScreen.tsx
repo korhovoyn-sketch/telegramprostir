@@ -67,7 +67,6 @@ export default function PaymentCalendarScreen() {
   const [setupProp, setSetupProp]     = useState<Property | null>(null)
   const [setupDueDay, setSetupDueDay] = useState('5')
   const [setupNotify, setSetupNotify] = useState('3')
-  const [setupSaving, setSetupSaving] = useState(false)
 
   const [payConfirmItem, setPayConfirmItem]     = useState<PaymentItem | null>(null)
   const [payConfirmAmount, setPayConfirmAmount] = useState('')
@@ -341,7 +340,6 @@ export default function PaymentCalendarScreen() {
       showToast({ type: 'error', title: 'День платежу має бути від 1 до 28' })
       return
     }
-    setSetupSaving(true)
     try {
       const { data, error } = await supabase
         .from('rent_payments')
@@ -366,8 +364,6 @@ export default function PaymentCalendarScreen() {
       setSetupProp(null)
     } catch (e) {
       showToast({ type: 'error', title: 'Помилка збереження', subtitle: humanizeDbError(e) })
-    } finally {
-      setSetupSaving(false)
     }
   }, [setupProp, user, setupDueDay, setupNotify, showToast])
 
@@ -693,10 +689,11 @@ export default function PaymentCalendarScreen() {
         <Modal
           title={schedules.find(s => s.property_id === setupProp.id) ? 'Редагувати розклад' : 'Налаштувати розклад'}
           subtitle={setupProp.name}
-          onClose={() => !setupSaving && setSetupProp(null)}
+          // Див. TeamScreen: гард закриття — у Modal.requestClose, не тут.
+          onClose={() => setSetupProp(null)}
           actions={[
-            { label: setupSaving ? 'Збереження...' : 'Зберегти', variant: 'primary', disabled: setupSaving, onClick: handleSaveSchedule },
-            { label: 'Скасувати', variant: 'secondary', disabled: setupSaving, onClick: () => setSetupProp(null) },
+            { label: 'Зберегти', variant: 'primary', onClick: handleSaveSchedule },
+            { label: 'Скасувати', variant: 'secondary', onClick: () => setSetupProp(null) },
           ]}
         >
           <div style={{ paddingTop: 4 }}>
@@ -734,6 +731,14 @@ export default function PaymentCalendarScreen() {
             {
               label: payConfirmItem.record?.status === 'paid' ? 'Зберегти зміни' : 'Підтвердити оплату',
               variant: 'primary',
+              // Сума парситься ВСЕРЕДИНІ дії, тож сміттєве значення тихо
+              // проходило як `undefined` — платіж підтверджувався на грошовому
+              // шляху без жодного сигналу користувачу. Порожнє поле лишається
+              // легальним (береться очікувана сума), а введене мусить бути
+              // додатним числом. Взірець — PropertyDetailScreen, де `disabled`
+              // уже вживається саме для валідації.
+              disabled: payConfirmAmount.trim() !== '' &&
+                !(isFinite(parseFloat(payConfirmAmount)) && parseFloat(payConfirmAmount) > 0),
               onClick: () => {
                 const amt = parseFloat(payConfirmAmount)
                 handleMarkPaid(

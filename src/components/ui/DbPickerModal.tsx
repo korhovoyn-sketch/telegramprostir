@@ -35,6 +35,11 @@ export default function DbPickerModal({ databases, count, onPick, onCreate, onCl
       title="Перенести в базу"
       subtitle={`${count} ${objectsWord(count)} буде переміщено`}
       onClose={onClose}
+      // «Скасувати» саме через actions, а не власна .sheet-cancel у тілі: звідти
+      // приходить sticky-позиція, safe-area (кнопка більше не лягає під
+      // home-індикатор) і клавіатурна корекція — `clearStickyActions` у Modal
+      // виходить одразу, якщо `.modal-actions` у шиті немає взагалі.
+      actions={[{ label: 'Скасувати', variant: 'secondary', onClick: onClose }]}
     >
       {/* Поле створення — ЗВЕРХУ: на iOS клавіатура накриває низ шита. */}
       {adding ? (
@@ -67,16 +72,14 @@ export default function DbPickerModal({ databases, count, onPick, onCreate, onCl
       ) : (
         <div className="sheet-group">
           {databases.map((db) => (
-            <div key={db.id} className="sheet-row" onClick={() => onPick(db)}>
+            <button key={db.id} type="button" className="sheet-row" onClick={() => onPick(db)}>
               <span className="sheet-ic"><GlassDbIcon type={db.type} color={db.color} size={24} /></span>
               <span className="sheet-lbl">{db.name}</span>
               <span className="bdg bdg-info">{db._property_count ?? 0} об.</span>
-            </div>
+            </button>
           ))}
         </div>
       )}
-
-      <button className="sheet-cancel" onClick={onClose}>Скасувати</button>
     </Modal>
   )
 }

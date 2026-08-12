@@ -30,7 +30,6 @@ export default function ManageGuestsScreen() {
   const [links, setLinks] = useState<GuestLink[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreateModal, setShowCreateModal] = useState(false)
-  const [creating, setCreating] = useState(false)
   const [labelText, setLabelText] = useState('')
   const [newLink, setNewLink] = useState<string | null>(null)
   const [revoking, setRevoking] = useState<string | null>(null)
@@ -72,7 +71,6 @@ export default function ManageGuestsScreen() {
   async function handleCreate() {
     if (!user || !targetId) return
     if (offlineGuard()) return
-    setCreating(true)
     try {
       const { data, error } = await supabase
         .from('guest_links')
@@ -93,8 +91,6 @@ export default function ManageGuestsScreen() {
       await load()
     } catch (e) {
       showToast({ type: 'error', title: 'Не вдалося створити', subtitle: humanizeDbError(e) })
-    } finally {
-      setCreating(false)
     }
   }
 
@@ -213,10 +209,11 @@ export default function ManageGuestsScreen() {
         <Modal
           title="Запросити гостя"
           subtitle="Згенеруємо запрошення-посилання"
-          onClose={() => !creating && setShowCreateModal(false)}
+          // Див. TeamScreen: гард закриття — у Modal.requestClose, не тут.
+          onClose={() => setShowCreateModal(false)}
           actions={[
-            { label: creating ? 'Створення...' : 'Створити посилання', variant: 'primary', disabled: creating, onClick: handleCreate },
-            { label: 'Скасувати', variant: 'secondary', disabled: creating, onClick: () => setShowCreateModal(false) },
+            { label: 'Створити посилання', variant: 'primary', onClick: handleCreate },
+            { label: 'Скасувати', variant: 'secondary', onClick: () => setShowCreateModal(false) },
           ]}
         >
           <div style={{ paddingTop: 4 }}>
