@@ -857,6 +857,13 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 .sheet-row:disabled{cursor:default;color:var(--t4)}
 .sheet-row:disabled .sheet-ic{background:var(--glass-1);color:var(--t4)}
 
+/* Порожній стан у шиті — був інлайновим обʼєктом стилю в кожному пікері. */
+.sheet-empty{padding:20px 4px;text-align:center;color:var(--t3);font-size:var(--fs-foot)}
+
+/* Готове посилання в шиті — моноспейс-блок із переносом. Був інлайновим обʼєктом
+   стилю, продубльованим у двох екранах (див. CreatedLinkSheet). */
+.link-mono{word-break:break-all;font-size:var(--fs-cap1);color:var(--t3);font-family:monospace;background:var(--glass-1);border-radius:var(--r-sm);padding:8px 10px;margin-top:6px}
+
 /* ── FOLDERS ── */
 /* Accordion section = header + collapsible body. Sections are the .list children;
    the list gap + a small top margin give groups a touch more air than cards. */
