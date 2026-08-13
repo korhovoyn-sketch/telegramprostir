@@ -1,0 +1,77 @@
+name: Send rent reminders
+
+# Планувальник для edge-функції `send-reminders`.
+#
+# ЧОМУ ЦЕ ІСНУЄ: до цього воркфлоу функція лише ДЕПЛОЇЛАСЬ
+# (`deploy-edge-function.yml`), але не викликалась нізвідки — ні cron у Actions,
+# ні `pg_cron` у міграціях. А `send-reminders` — ЄДИНИЙ виробник рядків у
+# `notifications` (тригерів немає, клієнтський INSERT заборонений RLS після
+# міграції 035). Тобто таблиця сповіщень не отримувала жодного рядка, і вся
+# функціональність сповіщень у проді була мертвою.
+#
+# ЧАС: `get_due_reminders_today()` рахує від `current_date`, а Supabase працює в
+# UTC. 06:00 UTC — це 08:00–09:00 за Києвом, тобто ранок того самого дня.
+#
+# ПОВТОРНІ ЗАПУСКИ БЕЗПЕЧНІ: RPC дедуплікує за (user_id, type, property_id,
+# місяць), тож зайвий прогін не надішле другого нагадування.
+
+on:
+  schedule:
+    # Щодня о 06:00 UTC. GitHub може затримати запуск на кілька хвилин під
+    # навантаженням — для щоденного нагадування це неважливо.
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify secrets
+        env:
+          PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          # Голосний провал замість тихого no-op: саме на цьому обпікся
+          # migrate.yml — 15 запусків поспіль падали на відсутньому секреті,
+          # і цього ніхто не помітив, бо ніхто не дивився.
+          missing=""
+          [ -z "$PROJECT_REF" ] && missing="$missing SUPABASE_PROJECT_REF"
+          [ -z "$SERVICE_KEY" ] && missing="$missing SUPABASE_SERVICE_ROLE_KEY"
+          if [ -n "$missing" ]; then
+            echo "::error::Не задані секрети:$missing"
+            echo "Додай їх у Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+
+      - name: Invoke send-reminders
+        env:
+          PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          url="https://${PROJECT_REF}.supabase.co/functions/v1/send-reminders"
+
+          # Тіло відповіді й код розділяємо, щоб побачити І діагностику функції,
+          # І статус. Функція віддає JSON із лічильниками надісланого.
+          body=$(mktemp)
+          code=$(curl -sS -X POST "$url" \
+            -H "Authorization: Bearer ${SERVICE_KEY}" \
+            -H "Content-Type: application/json" \
+            -o "$body" -w '%{http_code}' \
+            --max-time 120 \
+            --retry 2 --retry-delay 5 --retry-connrefused)
+
+          echo "HTTP $code"
+          cat "$body"
+          echo
+
+          if [ "$code" != "200" ]; then
+            echo "::error::send-reminders повернула $code"
+            exit 1
+          fi
+
+          # 200 із зафіксованими помилками всередині — теж привід подивитись:
+          # функція навмисно не валиться цілком, коли частина відправок збоїла.
+          if grep -q '"errors":\[[^]]' "$body"; then
+            echo "::warning::Частина нагадувань не надіслалась — див. тіло відповіді вище"
+          fi

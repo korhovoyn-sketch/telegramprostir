@@ -257,11 +257,20 @@ export function useAuth() {
         if (code === 'CONFIG_ERROR') {
           throw new Error('Edge Function не налаштована на сервері. Натисніть «⚙ Діагностика підключення» на цьому екрані, щоб дізнатись, яку саме змінну додати в Supabase → Edge Functions → Secrets.')
         }
+        // НІКОЛИ не радити тут 013_master_setup.sql / 016_complete_setup.sql.
+        // Обидві містять цикл, що робить DROP POLICY для ВСІХ політик у схемі
+        // public, а потім відтворює лише свій власний набір — тобто повторний
+        // запуск стирає політики всіх міграцій 017-046: лок інсертів сповіщень
+        // (035), RLS файлів (033), права команди (041), гостьовий фікс (046).
+        // Порада в тексті помилки була кнопкою самознищення: користувач бачить
+        // її саме тоді, коли панікує, і виконує не думаючи.
         if (code === 'DB_SETUP') {
-          throw new Error('Таблиці бази даних не створені. Запустіть файл 013_master_setup.sql у Supabase → SQL Editor.')
+          throw new Error('Таблиці бази даних не створені. Потрібно накотити міграції — зверніться до адміністратора (див. RELEASE_CHECKLIST.md).')
         }
         if (code === 'TRIGGER_CONFLICT') {
-          throw new Error('Застарілий тригер handle_new_user блокує реєстрацію. Запустіть 013_master_setup.sql або 003_reconcile.sql у Supabase → SQL Editor.')
+          // 003_reconcile.sql безпечна й ідемпотентна — вона саме дропає
+          // застарілий handle_new_user і НЕ чіпає чужі політики.
+          throw new Error('Застарілий тригер handle_new_user блокує реєстрацію. Запустіть 003_reconcile.sql у Supabase → SQL Editor.')
         }
         if (code === 'AUTH_CONFLICT') {
           throw new Error('Помилка сесії авторизації. Спробуйте знову або зверніться до адміністратора.')

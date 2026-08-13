@@ -225,6 +225,21 @@ export default function Page() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId])
 
+  // Лічильник непрочитаних інакше читався РІВНО ОДИН РАЗ за сесію (ефект вище),
+  // а realtime-канал живе лише поки відкритий екран сповіщень. Тобто застосунок,
+  // який пролежав у фоні добу, показував учорашній бейдж. Webview Telegram
+  // ховається щоразу, коли користувач перемикає чат, тож повернення на видимість
+  // — найчастіша і найдешевша точка оновлення.
+  useEffect(() => {
+    if (!userId) return
+    function onVisible() {
+      if (document.visibilityState === 'visible') void loadNotifications()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId])
+
   // Network status monitoring
   useEffect(() => {
     const handleOffline = () => {

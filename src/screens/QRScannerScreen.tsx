@@ -20,7 +20,12 @@ const SubscribeSchema = z.array(z.object({
 // Handles deep-link: https://t.me/<bot>?startapp=db_<token>
 // public viewer:     https://<domain>/v/?db=<token>   ← what our QR codes encode
 // and raw formats:   db_<token>  or  just <token>
-function extractDbToken(raw: string): string | null {
+/**
+ * Експортовано заради юніт-тесту: приймає чотири різні форми того самого
+ * посилання (deep link, публічна /v, сирий `db_…`, голий hex), і саме тут
+ * найдешевше зловити регресію — сканер інакше перевіряється лише живою камерою.
+ */
+export function extractDbToken(raw: string): string | null {
   try {
     const url = new URL(raw)
     const startapp = url.searchParams.get('startapp') ?? url.searchParams.get('start') ?? ''
