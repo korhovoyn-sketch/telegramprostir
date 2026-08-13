@@ -842,19 +842,24 @@ export default function PropertyFormScreen() {
           </div>
         )}
 
-      </div>
+        {/* CTA — ВСЕРЕДИНІ тіла, що прокручується, а не окремим блоком під ним.
+            Знизу від `.body` вона лежала в СМУЗІ голого градієнта: щойно
+            клавіатура піднімалась, тіло стискалось і над кнопкою проявлявся шов —
+            видима «широка лінія» на межі панелі форми, а сама кнопка виглядала
+            наклеєною на чужу смугу. У потоці тіла вона просто йде за останнім
+            полем, на тому самому фоні. Ховається під шитом вибору папки — його
+            власна кнопка мусить лишатись єдиною первинною дією на екрані. */}
+        {!showFolderPicker && (
+          <button
+            className={`mbtn success mbtn-flow ${!canSave || loading ? 'disabled' : ''} ${loading ? 'is-loading' : ''}`}
+            onClick={handleSave}
+            disabled={!canSave || loading}
+          >
+            {!loading && saveLabel}
+          </button>
+        )}
 
-      {/* Плаваюча CTA. Ховається під шитом вибору папки — його власна кнопка
-          мусить лишатись єдиною первинною дією на екрані. */}
-      {!showFolderPicker && (
-        <button
-          className={`mbtn success mbtn-flow ${!canSave || loading ? 'disabled' : ''} ${loading ? 'is-loading' : ''}`}
-          onClick={handleSave}
-          disabled={!canSave || loading}
-        >
-          {!loading && saveLabel}
-        </button>
-      )}
+      </div>
 
       {showFolderPicker && (
         <FolderPickerModal

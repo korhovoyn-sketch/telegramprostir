@@ -157,15 +157,18 @@ export default function CreateDatabaseScreen() {
             </div>
           </div>
         )}
-      </div>
+        {/* CTA — у ПОТОЦІ тіла, а не окремим блоком під ним: інакше вона лежить
+            у смузі голого градієнта, і при відкритій клавіатурі над нею проявляється
+            шов на межі панелі форми. */}
+        <button
+          className={`mbtn success mbtn-flow ${!canCreate || loading ? 'disabled' : ''} ${loading ? 'is-loading' : ''}`}
+          onClick={handleSave}
+          disabled={!canCreate || loading}
+        >
+          {!loading && (isEdit ? 'Зберегти зміни' : 'Створити базу')}
+        </button>
 
-      <button
-        className={`mbtn success mbtn-flow ${!canCreate || loading ? 'disabled' : ''} ${loading ? 'is-loading' : ''}`}
-        onClick={handleSave}
-        disabled={!canCreate || loading}
-      >
-        {!loading && (isEdit ? 'Зберегти зміни' : 'Створити базу')}
-      </button>
+      </div>
     </div>
   )
 }

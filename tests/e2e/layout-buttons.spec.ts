@@ -11,6 +11,16 @@ const MIN_TAP_HEIGHT = 40
 async function assertButtonTappable(name: RegExp, page: import('@playwright/test').Page) {
   const btn = page.getByRole('button', { name })
   await expect(btn).toBeVisible()
+  // `.scr` вʼїжджає через screenEnter (translateY 22px→0, .34s) — увесь екран,
+  // включно з position:absolute нащадками (.mbtn), тимчасово зсунутий ВНИЗ.
+  // toBeVisible() не чекає на анімацію, тож під навантаженням (паралельні
+  // воркери, React commit запізнюється) замір boundingBox() ловив кнопку
+  // ПОСЕРЕД руху — «дно за межами вʼюпорта» на кілька px, хоч по осіданню все
+  // на місці. Чекаємо, поки анімація .scr справді завершиться.
+  await page.evaluate(async () => {
+    const el = document.querySelector('.scr')
+    await Promise.all((el?.getAnimations() ?? []).map((a) => a.finished.catch(() => {})))
+  })
   const box = await btn.boundingBox()
   expect(box, `boundingBox for ${name}`).not.toBeNull()
   const vp = page.viewportSize()!
