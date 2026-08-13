@@ -100,21 +100,39 @@ test('видалення сповіщення прибирає рядок і н�
   await expect(page.getByText('Сповіщення').first()).toBeVisible()
 })
 
-test('вкладки фільтрують: «Перегляди» лишає перегляди, «Система» — порожньо', async ({ page }) => {
+// Вкладки описують ЛИШЕ те, що застосунок реально створює. Єдиний виробник
+// рядків — edge-функція `send-reminders`, і лише з `type='rent_reminder'`.
+// Вкладки «Перегляди»/«Повідомлення»/«Система» прибрані: у проді вони були
+// назавжди порожні, а старий тест цього не бачив, бо сам підсовував `type:'view'`.
+test('вкладка «Платежі» лишає лише нагадування про оплату', async ({ page }) => {
   await setup(page, [
-    notif(1, { type: 'view', title: 'Перегляд об\'єкта 1' }),
+    notif(1, { type: 'rent_reminder', title: 'Платіж за Офіс 101' }),
     notif(2, { type: 'view', title: 'Перегляд об\'єкта 2' }),
   ])
   await openApp(page)
   await page.locator('.tabbar [aria-label="Сповіщення"]').click()
-  await expect(page.getByText('Перегляд об\'єкта 1')).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText('Платіж за Офіс 101')).toBeVisible({ timeout: 15_000 })
 
-  await page.locator('.notif-tab', { hasText: 'Перегляди' }).click()
-  await expect(page.getByText('Перегляд об\'єкта 1')).toBeVisible()
+  await page.locator('.notif-tab', { hasText: 'Платежі' }).click()
+  await expect(page.getByText('Платіж за Офіс 101')).toBeVisible()
+  await expect(page.getByText('Перегляд об\'єкта 2'), 'чужий тип у «Платежах» не місце').toHaveCount(0)
+})
 
-  await page.locator('.notif-tab', { hasText: 'Система' }).click()
-  await expect(page.getByText('Перегляд об\'єкта 1')).toHaveCount(0)
-  await expect(page.getByText('Немає сповіщень')).toBeVisible()
+test('вкладка «Договори» НЕ показує звичайні сповіщення', async ({ page }) => {
+  // Гард на реальний баг: гілки для `lease` у фільтрі не було взагалі, тож він
+  // падав у фінальний `return true` — і вкладка показувала ВСІ сповіщення
+  // поспіль, тобто не фільтрувала нічого.
+  await setup(page, [
+    notif(1, { type: 'rent_reminder', title: 'Платіж за Офіс 101' }),
+    notif(2, { type: 'view', title: 'Перегляд об\'єкта 2' }),
+  ])
+  await openApp(page)
+  await page.locator('.tabbar [aria-label="Сповіщення"]').click()
+  await expect(page.getByText('Платіж за Офіс 101')).toBeVisible({ timeout: 15_000 })
+
+  await page.locator('.notif-tab', { hasText: 'Договори' }).click()
+  await expect(page.getByText('Платіж за Офіс 101')).toHaveCount(0)
+  await expect(page.getByText('Перегляд об\'єкта 2')).toHaveCount(0)
 })
 
 test('порожній стан замість пустого екрана', async ({ page }) => {

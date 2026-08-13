@@ -84,15 +84,30 @@ export function useNotifications() {
           const newNotif = payload.new as Notification
           const store = useAppStore.getState()
           const current = store.notifications
+          // Дедуп за id: realtime-пуш може прийти, поки летить loadNotifications,
+          // і тоді той самий рядок опинявся у списку двічі — React лаявся на
+          // повторний key, а лічильник непрочитаних рахував його двічі.
+          if (current.some((n) => n.id === newNotif.id)) return
           store.setNotifications([newNotif, ...current])
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        // Без цього колбека `CHANNEL_ERROR`/`TIMED_OUT`/`CLOSED` глушились
+        // повністю: сокет падав, сповіщення переставали приходити, і жодного
+        // сліду про це не було. Webview Telegram постійно йде у фон, тож це не
+        // рідкісний випадок, а звичайний.
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('[notifications] realtime-канал відпав:', status)
+          // Рефетч замість мовчазної втрати: рядки, вставлені поки сокет був
+          // мертвий, realtime уже не догнати — їх дістане звичайний запит.
+          void loadNotifications()
+        }
+      })
 
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [user])
+  }, [user, loadNotifications])
 
   return { loading, notifications, loadNotifications, markRead, markAllAsRead, deleteNotification, subscribeToNotifications }
 }

@@ -11,7 +11,15 @@ import { IconX } from '@/components/Icons'
 import { formatDate, daysSince, pluralUk, formatLeaseDate } from '@/lib/utils'
 import type { Notification } from '@/types'
 
-type NotifTab = 'all' | 'lease' | 'views' | 'chats' | 'system'
+// Вкладки описують ЛИШЕ те, що застосунок реально вміє створювати.
+//
+// Раніше тут були ще 'views' | 'chats' | 'system' — і жоден із цих типів не мав
+// у проді виробника: рядки в `notifications` пише ВИКЛЮЧНО edge-функція
+// `send-reminders`, і лише з `type='rent_reminder'` (тригерів у БД немає,
+// клієнтський INSERT заборонений RLS після міграції 035). Тобто три вкладки
+// були назавжди порожні, а e2e цього не бачив, бо мок-фікстури підсовували
+// `type:'view'` вручну.
+type NotifTab = 'all' | 'lease' | 'payments'
 
 export default function NotificationsScreen() {
   const unreadCount = useAppStore((s) => s.unreadCount)
@@ -47,9 +55,12 @@ export default function NotificationsScreen() {
 
   const filtered = notifications.filter((n) => {
     if (tab === 'all') return true
-    if (tab === 'views') return n.type === 'view'
-    if (tab === 'chats') return n.type === 'chat'
-    if (tab === 'system') return n.type === 'system'
+    // «Договори» — це САМЕ блок лізингових алертів (він малюється окремо через
+    // `showLease`), а не рядки сповіщень. Раніше гілки для 'lease' не було
+    // взагалі, тож фільтр падав у фінальний `return true` і вкладка показувала
+    // ВСІ сповіщення поспіль — тобто не фільтрувала нічого.
+    if (tab === 'lease') return false
+    if (tab === 'payments') return n.type === 'rent_reminder'
     return true
   })
 
@@ -74,7 +85,11 @@ export default function NotificationsScreen() {
     }
   }
 
+  // `rent_reminder` — єдиний тип, який реально створюється (send-reminders).
+  // Решта лишається на випадок, якщо зʼявиться виробник: рядок із незнайомим
+  // типом і далі малюється з дефолтним 🔔, а не ламає екран.
   const NOTIF_ICON: Record<string, string> = {
+    rent_reminder: '💸',
     view: '👁️',
     chat: '💬',
     favorite: '❤️',
@@ -111,9 +126,7 @@ export default function NotificationsScreen() {
           {([
             { id: 'all', label: `Всі${unreadCount > 0 ? ` (${unreadCount})` : ''}` },
             { id: 'lease', label: `Договори${leaseAlerts.length > 0 ? ` (${leaseAlerts.length})` : ''}` },
-            { id: 'views', label: 'Перегляди' },
-            { id: 'chats', label: 'Повідомлення' },
-            { id: 'system', label: 'Система' },
+            { id: 'payments', label: 'Платежі' },
           ] as { id: NotifTab; label: string }[]).map((t) => (
             <div
               key={t.id}
