@@ -120,7 +120,10 @@ test('перейменування летить PATCH-ом із новою на�
   await openFolderManager(page)
 
   await page.getByLabel('Перейменувати').first().click()
-  const input = page.locator('.modal input').first()
+  // Скоуп на РЯДОК папки: клас `.fold-mng-input` носить і поле «Нова папка»
+  // (`SheetCreateRow`), тож голий локатор дає два збіги, а `.modal input` першим
+  // влучає у створення — правка тоді не комітиться взагалі.
+  const input = page.locator('.fold-mng-row .fold-mng-input')
   await input.fill('Орендарі 2026')
   await page.getByLabel('Зберегти').first().click()
   await page.waitForTimeout(900)
@@ -137,7 +140,7 @@ test('невдале перейменування ВІДКОЧУЄ оптимі�
   await openFolderManager(page)
 
   await page.getByLabel('Перейменувати').first().click()
-  await page.locator('.modal input').first().fill('Назва, якої не буде')
+  await page.locator('.fold-mng-row .fold-mng-input').fill('Назва, якої не буде')
   await page.getByLabel('Зберегти').first().click()
   await page.waitForTimeout(1200)
 
@@ -153,8 +156,9 @@ test('видалення непорожньої папки попереджає 
   await openFolderManager(page)
 
   await page.getByLabel('Видалити').first().click()
-  const confirm = page.locator('.modal').last()
-  // Текст мусить пояснити, що обʼєкти НЕ зникають разом із папкою.
+  // Скоуп саме на діалог підтвердження: рядки папок теж мають кнопки з
+  // aria-label «Видалити», тож пошук по всьому шиту дає strict-mode violation.
+  const confirm = page.locator('.modal', { hasText: 'Видалити папку' })
   await expect(confirm).toContainText(/залишаться в базі/)
   await confirm.getByRole('button', { name: /^Видалити$/ }).click()
   await page.waitForTimeout(900)
@@ -169,7 +173,8 @@ test('невдале видалення повертає папку у спис�
   await openFolderManager(page)
 
   await page.getByLabel('Видалити').first().click()
-  await page.locator('.modal').last().getByRole('button', { name: /^Видалити$/ }).click()
+  await page.locator('.modal', { hasText: 'Видалити папку' })
+    .getByRole('button', { name: /^Видалити$/ }).click()
   await page.waitForTimeout(1200)
 
   await expect(page.locator('.toast')).toBeVisible()
