@@ -32,6 +32,14 @@ export function humanizeDbError(e: unknown, fallback = 'Спробуйте ще 
     : String(e ?? '')
   if (raw) console.error('[db]', raw)
 
+  // Наш власний клас із dbWrite: мутація не зачепила жодного рядка. На дроті це
+  // НЕ помилка (PostgREST під RLS віддає порожній набір і NULL error), тож
+  // розпізнати її можна лише за іменем — жодна текстова гілка нижче її не ловить.
+  // Звіряємось по імені, а не `instanceof`, щоб не тягнути імпорт у цей модуль.
+  if (e instanceof Error && e.name === 'NoRowsAffectedError') {
+    return 'Немає доступу до цих даних.'
+  }
+
   const m = raw.toLowerCase()
   // Network / connectivity (PostgREST resolves fetch failures as status 0)
   if (m.includes('fetch') || m.includes('network') || m.includes('failed to fetch')) {

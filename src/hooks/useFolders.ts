@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { humanizeDbError } from '@/lib/utils'
+import { assertAffected } from '@/lib/dbWrite'
 import { useAppStore } from '@/store/appStore'
 import type { PropertyFolder } from '@/types'
 
@@ -93,11 +94,13 @@ export function useFolders(dbId?: string) {
     }
     setFolders(list => list.map(f => f.id === id ? { ...f, name: trimmed } : f))
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('property_folders')
         .update({ name: trimmed, updated_at: new Date().toISOString() })
         .eq('id', id)
+        .select('id')
       if (error) throw error
+      assertAffected(data, 1, 'перейменування папки')
     } catch (e) {
       setFolders(prev)
       showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
@@ -110,8 +113,13 @@ export function useFolders(dbId?: string) {
     const prev = foldersRef.current
     setFolders(list => list.filter(f => f.id !== id))
     try {
-      const { error } = await supabase.from('property_folders').delete().eq('id', id)
+      const { data, error } = await supabase
+        .from('property_folders')
+        .delete()
+        .eq('id', id)
+        .select('id')
       if (error) throw error
+      assertAffected(data, 1, 'видалення папки')
       showToast({ type: 'success', title: 'Папку видалено' })
       return true
     } catch (e) {

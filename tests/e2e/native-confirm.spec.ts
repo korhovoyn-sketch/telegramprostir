@@ -36,7 +36,9 @@ async function setup(page: Page): Promise<{ deletes: string[] }> {
   await page.route('**/rest/v1/properties**', (r) => {
     if (r.request().method() === 'DELETE') {
       deletes.push(r.request().url())
-      return jsonRoute(r, [])
+      // Успішний DELETE повертає видалений рядок — клієнт тепер доводить, що
+      // видалення справді сталось (порожньо = заблоковано RLS, lib/dbWrite.ts).
+      return jsonRoute(r, [{ id: PROP.id }])
     }
     return jsonRoute(r, (r.request().headers()['accept'] ?? '').includes('object') ? PROP : [PROP])
   })

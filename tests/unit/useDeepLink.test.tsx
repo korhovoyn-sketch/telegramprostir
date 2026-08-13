@@ -209,3 +209,60 @@ describe('useDeepLink — guest_ invite links', () => {
     await waitFor(() => expect(useAppStore.getState().toast?.subtitle).toBe('Це запрошення вже використано'))
   })
 })
+
+// team_ — пʼятий і останній префікс. CLAUDE.md вимагає покриття на кожен
+// («новий вид лінка = новий тест У ТОЙ ЖЕ ПР»), але саме цей блок був відсутній:
+// у диспетчері team_ жив, а в unit-матриці — ні.
+describe('useDeepLink — team_ editor invite links', () => {
+  it('успішний клейм веде в базу команди', async () => {
+    rpcMock.mockResolvedValueOnce({ data: { db_id: 'db-team-1' }, error: null })
+    installTelegramMock({ user: { id: OWNER.tg_id, first_name: 'Test' }, startParam: 'team_TEAMTOKEN1' })
+    useAppStore.setState({ user: OWNER })
+
+    renderHook(() => useDeepLink())
+
+    await waitFor(() => expect(useAppStore.getState().screen).toBe('db-objects'))
+    expect(useAppStore.getState().screenParams.dbId).toBe('db-team-1')
+    expect(rpcMock).toHaveBeenCalledWith('claim_team_invite', { p_token: 'TEAMTOKEN1' })
+  })
+
+  it('revoked — своє повідомлення, а не загальне', async () => {
+    rpcMock.mockResolvedValueOnce({ data: { error: 'revoked' }, error: null })
+    installTelegramMock({ user: { id: OWNER.tg_id, first_name: 'Test' }, startParam: 'team_TEAMTOKEN2' })
+    useAppStore.setState({ user: OWNER })
+
+    renderHook(() => useDeepLink())
+
+    await waitFor(() => expect(useAppStore.getState().toast?.subtitle).toBe('Запрошення відкликано власником'))
+  })
+
+  it('already_claimed — інвайт одноразовий', async () => {
+    rpcMock.mockResolvedValueOnce({ data: { error: 'already_claimed' }, error: null })
+    installTelegramMock({ user: { id: OWNER.tg_id, first_name: 'Test' }, startParam: 'team_TEAMTOKEN3' })
+    useAppStore.setState({ user: OWNER })
+
+    renderHook(() => useDeepLink())
+
+    await waitFor(() => expect(useAppStore.getState().toast?.subtitle).toBe('Це запрошення вже використано'))
+  })
+
+  it('cannot_claim_own_link — власник не стає редактором сам у себе', async () => {
+    rpcMock.mockResolvedValueOnce({ data: { error: 'cannot_claim_own_link' }, error: null })
+    installTelegramMock({ user: { id: OWNER.tg_id, first_name: 'Test' }, startParam: 'team_TEAMTOKEN4' })
+    useAppStore.setState({ user: OWNER })
+
+    renderHook(() => useDeepLink())
+
+    await waitFor(() => expect(useAppStore.getState().toast?.subtitle).toBe('Це ваша власна база'))
+  })
+
+  it('RPC-помилка транспорту теж не лишає користувача в нікуди', async () => {
+    rpcMock.mockResolvedValueOnce({ data: null, error: { message: 'network' } })
+    installTelegramMock({ user: { id: OWNER.tg_id, first_name: 'Test' }, startParam: 'team_TEAMTOKEN5' })
+    useAppStore.setState({ user: OWNER })
+
+    renderHook(() => useDeepLink())
+
+    await waitFor(() => expect(useAppStore.getState().toast?.type).toBe('error'))
+  })
+})

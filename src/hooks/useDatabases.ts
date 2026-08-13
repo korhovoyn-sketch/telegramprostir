@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAppStore } from '@/store/appStore'
 import { monthlyRent, basisArea, humanizeDbError } from '@/lib/utils'
+import { assertAffected } from '@/lib/dbWrite'
 import { readSnapshot, writeSnapshot } from '@/lib/snapshot'
 import type { Database } from '@/types'
 
@@ -62,11 +63,22 @@ export function useDatabases() {
 
       let memberRows: typeof data = []
       if (memberIds.length > 0) {
-        const { data: mData } = await supabase
+        const { data: mData, error: mErr } = await supabase
           .from('databases')
           .select(`${DB_COLUMNS}, properties(status, rent_rate, area_useful, area_total, area_basis, rent_type)`)
           .in('id', memberIds)
           .order('created_at', { ascending: false })
+        // Тихо ковтати цю помилку не можна: членство Є, але самі рядки баз не
+        // прийшли — користувач побачив би, що бази команди просто зникли, без
+        // жодного пояснення. Власні бази при цьому валити не варто, тож
+        // повідомляємо тостом і малюємо те, що вдалось дістати.
+        if (mErr) {
+          showToast({
+            type: 'error',
+            title: 'Бази команди не завантажились',
+            subtitle: humanizeDbError(mErr),
+          })
+        }
         memberRows = mData ?? []
       }
 
@@ -137,6 +149,8 @@ export function useDatabases() {
   const updateDatabase = useCallback(async (id: string, payload: Partial<Database>) => {
     setLoading(true)
     try {
+      // `.single()` уже сам падає, коли рядків нуль (PGRST116), тож окремий
+      // assertAffected тут зайвий — мовчазного провалу на цьому шляху немає.
       const { data, error } = await supabase
         .from('databases')
         .update({ ...payload, updated_at: new Date().toISOString() })
@@ -158,29 +172,50 @@ export function useDatabases() {
   const deleteDatabase = useCallback(async (id: string) => {
     setLoading(true)
     try {
-      // Clean up all storage files for this database before deleting records
+      // ПОРЯДОК ТУТ — ЧАСТИНА КОНТРАКТУ, не стильова дрібниця.
+      //
+      // Спершу лише ЧИТАЄМО шляхи файлів (рядки ще на місці — після каскаду їх
+      // вже не дістати), потім видаляємо рядок бази і ДОВОДИМО, що він зник, і
+      // лише тоді знищуємо файли.
+      //
+      // Раніше було навпаки, і це коштувало даних: заблокований RLS DELETE
+      // повертає 0 рядків БЕЗ помилки, тож застосунок рапортував «Базу
+      // видалено», база лишалась жива — а всі її фото були вже стерті.
+      // Осиротілий файл при цьому не є витоком (політики читання привʼязані до
+      // рядків, яких уже немає), тож новий порядок строго безпечніший.
       const { data: props } = await supabase
         .from('properties')
         .select('id')
         .eq('db_id', id)
 
+      let paths: { photos: string[]; docs: string[] } = { photos: [], docs: [] }
       if (props && props.length > 0) {
         const propIds = props.map((p) => p.id)
         const [{ data: photos }, { data: docs }] = await Promise.all([
           supabase.from('property_photos').select('storage_path').in('property_id', propIds),
           supabase.from('property_files').select('storage_path').in('property_id', propIds),
         ])
-
-        if (photos && photos.length > 0) {
-          await supabase.storage.from('photos').remove(photos.map((p) => p.storage_path))
-        }
-        if (docs && docs.length > 0) {
-          await supabase.storage.from('property-files').remove(docs.map((d) => d.storage_path))
+        paths = {
+          photos: (photos ?? []).map((p) => p.storage_path),
+          docs: (docs ?? []).map((d) => d.storage_path),
         }
       }
 
-      const { error } = await supabase.from('databases').delete().eq('id', id)
+      const { data: deleted, error } = await supabase
+        .from('databases')
+        .delete()
+        .eq('id', id)
+        .select('id')
       if (error) throw error
+      assertAffected(deleted, 1, 'видалення бази')
+
+      // Рядок доведено видалений — тепер прибирання файлів безпечне.
+      if (paths.photos.length > 0) {
+        await supabase.storage.from('photos').remove(paths.photos)
+      }
+      if (paths.docs.length > 0) {
+        await supabase.storage.from('property-files').remove(paths.docs)
+      }
 
       setDatabases(databases.filter((d) => d.id !== id))
       showToast({ type: 'success', title: 'Базу видалено' })

@@ -36,8 +36,6 @@ export default function DatabaseObjectsScreen() {
   const { properties, loading, error, loadProperties, reorderProperty, batchDeleteProperties, batchUpdateStatus, moveToFolder, moveToDatabase } = useProperties(screenParams.dbId)
   const { folders, unavailable: foldersUnavailable, loadFolders, createFolder, renameFolder, deleteFolder, reorderFolder } = useFolders(screenParams.dbId)
   const memberDbIds = useAppStore(st => st.memberDbIds)
-  // Редактор команди отримує ту саму edit-поверхню, що власник…
-  const isOwner = user?.role === 'owner' || memberDbIds.includes(screenParams.dbId ?? '')
 
   const [search, setSearch] = useState('')
   const [tab, setTab] = useState<'all' | PropertyStatus>('all')
@@ -104,6 +102,12 @@ export default function DatabaseObjectsScreen() {
     setShowMenu(false)
     setSearch('')
     setTab('all')
+    // Сортування теж мусить впасти в 'default'. Список малюється з `filtered`
+    // (враховує sortBy), а `reorderProperty` міняє місцями сусідів у
+    // НЕсортованому масиві — при активному сортуванні стрілки переставляли не
+    // ту пару, ніж бачив користувач. Пошук і таб скидались саме з цієї причини,
+    // а сортування просто забули.
+    setSortBy('default')
     setSelectMode(false)
     setSelectedIds(new Set())
     setReorderMode(true)
@@ -166,6 +170,15 @@ export default function DatabaseObjectsScreen() {
   const { isDone: fabSeen, markDone: markFabSeen } = useOnboarding('obj-fab')
 
   const db = databases.find((d) => d.id === screenParams.dbId)
+
+  // Права дає ВЛАСНІСТЬ рядка або членство в команді — НЕ роль акаунта.
+  // `user.role === 'owner'` істинне для будь-якого власника незалежно від того,
+  // ЧИЯ база відкрита: акаунт із роллю owner, що прийшов у чужу базу гостьовим
+  // лінком, отримував FAB «Додати обʼєкт», «Редагувати» й «Дублювати». Кнопки
+  // виглядали живими, а запис блокував лише RLS — тобто користувач бив у стіну
+  // вже після тапу. Поки `db` не завантажилась, поверхні немає — і це
+  // правильний бік помилки.
+  const isOwner = (!!db && db.owner_id === user?.id) || memberDbIds.includes(screenParams.dbId ?? '')
 
   useEffect(() => {
     if (screenParams.dbId) loadProperties(screenParams.dbId)

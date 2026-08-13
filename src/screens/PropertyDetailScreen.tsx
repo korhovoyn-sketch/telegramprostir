@@ -108,7 +108,11 @@ export default function PropertyDetailScreen() {
 
   const property = properties.find(p => p.id === screenParams.propertyId)
   const memberDbIds = useAppStore(st => st.memberDbIds)
-  const isOwner = user?.role === 'owner' || memberDbIds.includes((screenParams.dbId as string) ?? '')
+  // Власність рядка, а не роль акаунта — див. той самий шлюз у
+  // DatabaseObjectsScreen. `property` ще може вантажитись: поки його немає,
+  // поверхні редагування теж немає.
+  const isOwner = (!!property && property.owner_id === user?.id)
+    || memberDbIds.includes((screenParams.dbId as string) ?? '')
   const isGuest = user?.role === 'guest'
 
   // Fetch only this property on every mount — avoids loading the entire DB for detail view.
@@ -518,8 +522,12 @@ export default function PropertyDetailScreen() {
           </div>
         )}
 
-        {/* Manage guests — owner only */}
-        {isOwner && (
+        {/* Гості — САМЕ власник рядка, не редактор команди. `isOwner` тут не
+            годиться: він дає права й членам команди, а роздача доступу до
+            обʼєкта — це рівень власника (так само гейтяться шаринг, гості й
+            команда на рівні бази). Раніше редактор бачив цю картку, хоч
+            DB-рівневий пункт «Управління гостями» від нього ховали. */}
+        {property.owner_id === user?.id && (
           <div
             className="glass-s"
             style={{ margin: '0 12px 12px', borderRadius: 'var(--r-md)', padding: '11px 14px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}
