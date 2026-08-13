@@ -85,6 +85,11 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
   const busyRef = useRef(false)
   // Ліфт шита, коли платформа не повідомляє висоту клавіатури (див. константи).
   const [kbFallback, setKbFallback] = useState(false)
+  // Знімає transition на один кадр, коли ХИБНИЙ ліфт відкликається (див. CSS
+  // `.kb-snap`). Стан, а не classList: обидва setState потрапляють в один рендер,
+  // тож кадр, у якому падінг падає до нуля, вже має transition:none — імперативне
+  // додавання класу перегони з рендером React не гарантує.
+  const [kbSnap, setKbSnap] = useState(false)
   const kbProbeRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const kbConfirmRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const kbDropRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -180,7 +185,12 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
   useEffect(() => {
     if (!kbFallback) return
     const onViewportResize = () => {
-      if (layoutCompressed() || reportedKeyboardPx() >= KB_TRUSTED_PX) setKbFallback(false)
+      if (layoutCompressed() || reportedKeyboardPx() >= KB_TRUSTED_PX) {
+        // Ліфт був ХИБНИЙ — знімаємо його без анімації, інакше вийде видимий
+        // стрибок угору й сповзання назад (див. `.kb-snap` у globals.css).
+        setKbSnap(true)
+        setKbFallback(false)
+      }
     }
     // window.resize — теж обовʼязково: коли Telegram СТИСКАЄ webview, змінюється
     // саме воно, і клієнт, що не оновлює visualViewport, інакше лишив би
@@ -192,6 +202,18 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
       window.removeEventListener('resize', onViewportResize)
     }
   }, [kbFallback])
+
+  // Знятий transition живе рівно один закомічений кадр: два rAF — щоб браузер
+  // устиг НАМАЛЮВАТИ нульовий падінг без анімації, і лише тоді повертаємо
+  // transition для наступних, уже легітимних змін висоти клавіатури.
+  useEffect(() => {
+    if (!kbSnap) return
+    let inner = 0
+    const outer = requestAnimationFrame(() => {
+      inner = requestAnimationFrame(() => setKbSnap(false))
+    })
+    return () => { cancelAnimationFrame(outer); cancelAnimationFrame(inner) }
+  }, [kbSnap])
 
   useEffect(() => () => {
     clearTimeout(kbProbeRef.current)
@@ -405,7 +427,7 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
   return createPortal(
     <div
       ref={overlayRef}
-      className={`modal-overlay${closing ? ' closing' : ''}`}
+      className={`modal-overlay${closing ? ' closing' : ''}${kbSnap ? ' kb-snap' : ''}`}
       style={kbFallback ? ({ '--keyboard-h': `${KB_FALLBACK_PX}px` } as React.CSSProperties) : undefined}
       onClick={(e) => { if (e.target === e.currentTarget) requestClose() }}
     >

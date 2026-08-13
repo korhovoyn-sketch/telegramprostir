@@ -689,6 +689,18 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 
 /* ── MODAL ── */
 .modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:50;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-end;padding-bottom:min(var(--keyboard-h,0px),55vh);transition:padding-bottom .25s ease-out;animation:overlayFade .26s ease both}
+/* Зняття ХИБНОГО ліфта не анімується — інакше шит «пригає».
+   Фолбек `KB_FALLBACK_PX` вмикається, коли платформа мовчить довше за пробу; якщо
+   вона потім таки стискає webview, ліфт знімається — але той самий .25s, що його
+   ВВІВ, тепер програє його ЗНЯТТЯ. Заміряно на 430×932 (resize-silent): падінг
+   розганявся 0→156px, і рівно на цьому місці приходило стискання — шит злітав з
+   top=487 на top=11 і 250мс сповзав назад на своє 167. Тобто ліфт, якого не мало
+   бути взагалі, ставав видимим рухом угору-вниз. Знімати його треба МИТТЄВО:
+   лейаут уже врахував клавіатуру, правильна кінцева позиція — та сама, з якої шит
+   стартував, тож будь-яка анімація тут показує неіснуючий рух.
+   Зняття ліфта по блуру (клавіатура реально закривається) transition ЗБЕРІГАЄ. */
+.modal-overlay.kb-snap{transition:none}
+.modal-overlay.kb-snap .modal{transition:none}
 /* Sheet never exceeds 88vh — even without keyboard. With keyboard, it shrinks but body stays scrollable. */
 /* max-height transition — .modal-overlay's padding-bottom already eases (.25s)
    when --keyboard-h changes, but .modal's own max-height recomputed INSTANTLY:
