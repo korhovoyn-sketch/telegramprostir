@@ -304,3 +304,59 @@ test('deep link: revoked invite shows the error toast and falls back home', asyn
   await expect(page.getByText('Запрошення відкликано власником')).toBeVisible({ timeout: 20_000 })
   await expect(page.getByText('Мої бази')).toBeVisible()
 })
+
+// Решта гілок `claim_team_invite`. CLAUDE.md вимагає e2e на всі пʼять
+// deep-link-префіксів, і team_ довго був покритий лише частково: успіх,
+// revoked і недоступний рядок бази були, а помилки нижче — ні.
+const CLAIM_ERRORS: Array<{ code: string; copy: string; why: string }> = [
+  { code: 'not_found', copy: 'Запрошення не знайдено',
+    why: 'токен видалили або він ніколи не існував' },
+  { code: 'already_claimed', copy: 'Це запрошення вже використано',
+    why: 'інвайт одноразовий — другий користувач по тому ж лінку має отримати відмову' },
+  { code: 'cannot_claim_own_link', copy: 'Це ваша власна база',
+    why: 'власник не може стати редактором сам у себе' },
+]
+
+for (const { code, copy, why } of CLAIM_ERRORS) {
+  test(`deep link: claim_team_invite → ${code} (${why})`, async ({ page }) => {
+    await setupApp(page, { user: OWNER, startParam: 'team_deadbeefcafe00112233' })
+    await skipCoachmarks(page)
+    await page.route('**/rest/v1/rpc/claim_team_invite', (route) => json(route, { error: code }))
+
+    await page.goto('/')
+    await expect(page.getByText(copy)).toBeVisible({ timeout: 20_000 })
+    // Помилка клейму не лишає користувача в нікуди — падаємо на домашній екран.
+    await expect(page.getByText('Мої бази')).toBeVisible()
+  })
+}
+
+test('deep link: повторний claim тим самим користувачем ідемпотентний', async ({ page }) => {
+  // `claim_team_invite` для ВЖЕ активного члена віддає {db_id} без помилки —
+  // повторне відкриття свого ж лінка мусить просто відкрити базу, а не лаятись.
+  await setupApp(page, { user: OWNER, startParam: 'team_feedfacecafe00112233' })
+  await skipCoachmarks(page)
+
+  let calls = 0
+  await page.route('**/rest/v1/rpc/claim_team_invite', (route) => {
+    calls++
+    return json(route, { db_id: TEAM_DB_ID })
+  })
+  const TEAM_DB = db(TEAM_DB_ID, FOREIGN_OWNER, 'БЦ Чужий')
+  await page.route('**/rest/v1/databases**', (route) => {
+    const url = route.request().url()
+    if (url.includes('owner_id=eq.')) return json(route, [])
+    if (url.includes('id=in.')) return json(route, [TEAM_DB])
+    const accept = route.request().headers()['accept'] ?? ''
+    return json(route, accept.includes('object') ? TEAM_DB : [TEAM_DB])
+  })
+  await page.route('**/rest/v1/db_members**', (route) => json(route, [{ db_id: TEAM_DB_ID }]))
+  await page.route('**/rest/v1/properties**', (route) =>
+    route.request().method() === 'GET' ? json(route, [PROP]) : route.fallback())
+
+  await page.goto('/')
+  await expect(page.getByText('Всі (1)')).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByText('Помилка доступу')).toHaveCount(0)
+  // Диспетчер має відпрацювати РІВНО раз за сесію (гард `handled`), інакше
+  // повторний клейм полетів би на кожен ре-рендер.
+  expect(calls, 'клейм відпрацьовує один раз за сесію').toBe(1)
+})

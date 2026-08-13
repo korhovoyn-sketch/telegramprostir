@@ -3,8 +3,8 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { humanizeDbError, objectsWord } from '@/lib/utils'
+import { assertAffected } from '@/lib/dbWrite'
 import { readSnapshot, writeSnapshot } from '@/lib/snapshot'
-import { uploadPropertyPhoto } from '@/lib/photoUpload'
 import { useAppStore } from '@/store/appStore'
 import type { Property, PropertyStatus } from '@/types'
 
@@ -308,23 +308,23 @@ export function useProperties(dbId?: string) {
     }
   }, [showToast])
 
-  const cycleStatus = useCallback(async (id: string, current: PropertyStatus) => {
-    const next: Record<PropertyStatus, PropertyStatus> = {
-      free: 'occupied',
-      occupied: 'for_sale',
-      for_sale: 'free',
-    }
-    await updateProperty(id, { status: next[current] })
-  }, [updateProperty])
-
   const deleteProperty = useCallback(async (id: string, dbId: string) => {
     setLoading(true)
     try {
-      // Clean up storage files before deleting the record (cascade handles DB rows)
+      // Спершу ЧИТАЄМО шляхи (після каскаду їх не дістати), потім видаляємо
+      // рядок і доводимо це, і лише тоді чистимо storage — див. lib/dbWrite.ts.
       const [{ data: photos }, { data: docs }] = await Promise.all([
         supabase.from('property_photos').select('storage_path').eq('property_id', id),
         supabase.from('property_files').select('storage_path').eq('property_id', id),
       ])
+
+      const { data: deleted, error } = await supabase
+        .from('properties')
+        .delete()
+        .eq('id', id)
+        .select('id')
+      if (error) throw error
+      assertAffected(deleted, 1, 'видалення обʼєкта')
 
       if (photos && photos.length > 0) {
         await supabase.storage.from('photos').remove(photos.map((p) => p.storage_path))
@@ -332,9 +332,6 @@ export function useProperties(dbId?: string) {
       if (docs && docs.length > 0) {
         await supabase.storage.from('property-files').remove(docs.map((d) => d.storage_path))
       }
-
-      const { error } = await supabase.from('properties').delete().eq('id', id)
-      if (error) throw error
 
       setProperties((prev) => prev.filter((p) => p.id !== id))
       showToast({ type: 'success', title: 'Об\'єкт видалено' })
@@ -354,19 +351,28 @@ export function useProperties(dbId?: string) {
     if (ids.length === 0) return
     setLoading(true)
     try {
-      // Collect all photo + document paths before deleting rows
+      // Читаємо шляхи → видаляємо рядки й доводимо це → лише тоді чистимо
+      // storage. Зворотний порядок знищував фото навіть тоді, коли RLS не дав
+      // видалити жодного рядка (див. lib/dbWrite.ts).
       const [{ data: photos }, { data: docs }] = await Promise.all([
         supabase.from('property_photos').select('storage_path').in('property_id', ids),
         supabase.from('property_files').select('storage_path').in('property_id', ids),
       ])
+
+      const { data: deleted, error } = await supabase
+        .from('properties')
+        .delete()
+        .in('id', ids)
+        .select('id')
+      if (error) throw error
+      assertAffected(deleted, ids.length, 'видалення обʼєктів')
+
       if (photos && photos.length > 0) {
         await supabase.storage.from('photos').remove(photos.map(p => p.storage_path))
       }
       if (docs && docs.length > 0) {
         await supabase.storage.from('property-files').remove(docs.map(d => d.storage_path))
       }
-      const { error } = await supabase.from('properties').delete().in('id', ids)
-      if (error) throw error
       setProperties(prev => prev.filter(p => !ids.includes(p.id)))
       showToast({ type: 'success', title: `Видалено ${ids.length} ${objectsWord(ids.length)}` })
     } catch (e) {
@@ -379,12 +385,20 @@ export function useProperties(dbId?: string) {
   const batchUpdateStatus = useCallback(async (ids: string[], status: PropertyStatus) => {
     if (ids.length === 0) return
     try {
-      const { error } = await supabase
+      // «Вільно» мусить прибрати й ОРЕНДАРЯ з датами — рівно як одиночний шлях
+      // (`handleFreeProperty`). Інакше обʼєкт лишався «вільним» із живим
+      // орендарем і договором, і ця суміш їхала в експорт та в публічну /v.
+      const cleared = status === 'free'
+        ? { tenant_name: null, lease_start_date: null, lease_end_date: null }
+        : {}
+      const { data: updated, error } = await supabase
         .from('properties')
-        .update({ status, updated_at: new Date().toISOString() })
+        .update({ status, ...cleared, updated_at: new Date().toISOString() })
         .in('id', ids)
+        .select('id')
       if (error) throw error
-      setProperties(prev => prev.map(p => ids.includes(p.id) ? { ...p, status } : p))
+      assertAffected(updated, ids.length, 'зміну статусу')
+      setProperties(prev => prev.map(p => ids.includes(p.id) ? { ...p, status, ...cleared } : p))
       const label: Record<PropertyStatus, string> = { free: 'Вільно', occupied: 'Зайнято', for_sale: 'Продаж' }
       showToast({ type: 'success', title: `${ids.length} ${objectsWord(ids.length)} — ${label[status]}` })
     } catch (e) {
@@ -398,11 +412,13 @@ export function useProperties(dbId?: string) {
     const prevList = propertiesRef.current
     setProperties(prev => prev.map(p => ids.includes(p.id) ? { ...p, folder_id: folderId } : p))
     try {
-      const { error } = await supabase
+      const { data: moved, error } = await supabase
         .from('properties')
         .update({ folder_id: folderId, updated_at: new Date().toISOString() })
         .in('id', ids)
+        .select('id')
       if (error) throw error
+      assertAffected(moved, ids.length, 'переміщення в папку')
       showToast({
         type: 'success',
         title: folderId
@@ -433,11 +449,13 @@ export function useProperties(dbId?: string) {
     const prevList = propertiesRef.current
     setProperties((prev) => prev.filter((p) => !ids.includes(p.id)))
     try {
-      const { error } = await supabase
+      const { data: moved, error } = await supabase
         .from('properties')
         .update({ db_id: targetDbId, owner_id: targetOwnerId, folder_id: null, updated_at: new Date().toISOString() })
         .in('id', ids)
+        .select('id')
       if (error) throw error
+      assertAffected(moved, ids.length, 'перенесення в іншу базу')
 
       // Порядок — окремим, НЕобовʼязковим кроком: сам перенос уже стався одним
       // запитом (усе або нічого), а невдале перенумерування зіпсує лише порядок.
@@ -523,13 +541,6 @@ export function useProperties(dbId?: string) {
     }
   }, [showToast])
 
-  // Thin wrapper over the shared pipeline (src/lib/photoUpload.ts) — single add,
-  // no sort_order. PhotoUploadScreen's batch flow calls the same primitive.
-  const uploadPhoto = useCallback(
-    (propertyId: string, rawFile: File) => uploadPropertyPhoto(propertyId, rawFile),
-    [],
-  )
-
   return {
     loading,
     error,
@@ -539,7 +550,6 @@ export function useProperties(dbId?: string) {
     createProperty,
     createProperties,
     updateProperty,
-    cycleStatus,
     reorderProperty,
     batchDeleteProperties,
     batchUpdateStatus,
@@ -547,6 +557,5 @@ export function useProperties(dbId?: string) {
     moveToDatabase,
     deleteProperty,
     deletePhoto,
-    uploadPhoto,
   }
 }

@@ -66,8 +66,12 @@ async function setup(page: Page, captured: Captured, dbs = DBS) {
       captured.patches.push({ url: decodeURIComponent(rq.url()), body })
       // Перенос застосовуємо до стану, щоб база-джерело справді спорожніла
       const ids = decodeURIComponent(rq.url()).match(/id=in\.\(([^)]+)\)/)?.[1]?.split(',') ?? []
-      state.props = state.props.map((p) => (ids.includes(p.id) ? { ...p, ...body } : p))
-      return jsonRoute(r, [])
+      const single = decodeURIComponent(rq.url()).match(/id=eq\.([0-9a-f-]+)/)?.[1]
+      const touched = ids.length > 0 ? ids : (single ? [single] : [])
+      state.props = state.props.map((p) => (touched.includes(p.id) ? { ...p, ...body } : p))
+      // Успішний PATCH повертає зачеплені рядки: клієнт тепер ДОВОДИТЬ, що запис
+      // стався (порожня відповідь = заблоковано RLS, див. lib/dbWrite.ts).
+      return jsonRoute(r, touched.map((id) => ({ id })))
     }
     if (rq.method() !== 'GET') return r.fallback()
     const url = decodeURIComponent(rq.url())
