@@ -6,6 +6,13 @@
 html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 
 :root{
+  /* Застосунок темний (рішення власника, `themeParams` свідомо не читаються) —
+     але ПЛАТФОРМІ ми цього не казали, і вона малювала СВІТЛУ клавіатуру поверх
+     темного скла: яскрава плита з різким темним швом по краю замість
+     напівпрозорого шару, крізь який видно фон (як у нативних застосунків Apple).
+     `color-scheme` — єдиний спосіб це повідомити; заодно нативні поповери
+     (date, select) стають темними, а не білими. */
+  color-scheme:dark;
   --r-xs:8px;--r-sm:12px;--r-10:10px;--r-md:16px;--r-lg:20px;--r-xl:24px;--r-pill:999px;
   --g1:4px;--g2:8px;--g3:12px;--g4:16px;--g5:20px;--g6:24px;
   --pad-card:14px;--row-h:52px;--btn-h:52px;--input-h:48px;
@@ -357,27 +364,41 @@ body{
      піднята альфа заливки: щоб узяти поріг альфою, знадобилось би ~0.9, тобто
      скло перестало б бути склом. Заміряно: з .72 і brightness(1.06) експорт
      давав 3.54:1, з тим самим .72 і brightness(.5) — вище порогу. */
-  backdrop-filter:blur(28px) saturate(180%) brightness(.5);
-  -webkit-backdrop-filter:blur(28px) saturate(180%) brightness(.5);
-  background:linear-gradient(180deg,rgba(22,113,158,.74),rgba(22,113,158,.79));
+  backdrop-filter:blur(28px) saturate(180%) brightness(.42);
+  -webkit-backdrop-filter:blur(28px) saturate(180%) brightness(.42);
+  background:linear-gradient(180deg,rgba(22,113,158,.44),rgba(22,113,158,.47));
   border-color:rgba(42,171,238,.46);
   box-shadow:var(--shadow-glass-btn);
-  transition:bottom var(--dur-sm) ease-out,transform var(--dur-xs) var(--ease),filter var(--dur-xs) ease}
+  transition:bottom var(--dur-sm) ease-out,transform var(--dur-sm) var(--ease-out),filter var(--dur-xs) ease}
 /* In-flow CTA: sits at the end of a form body instead of floating over it.
    Used by data-entry forms so the button never covers the focused field and
    never bounces with the keyboard. */
-.mbtn.mbtn-flow{position:static;left:auto;right:auto;bottom:auto;width:fit-content;max-width:calc(100% - 24px);margin:18px auto calc(8px + var(--safe-bottom));transition:transform var(--dur-xs) var(--ease),box-shadow var(--dur-xs) var(--ease),opacity var(--dur-xs),filter var(--dur-xs) ease;will-change:auto}
+.mbtn.mbtn-flow{position:static;left:auto;right:auto;bottom:auto;width:fit-content;max-width:calc(100% - 24px);margin:18px auto calc(8px + var(--safe-bottom));transition:transform var(--dur-sm) var(--ease-out),box-shadow var(--dur-xs) var(--ease),opacity var(--dur-xs),filter var(--dur-xs) ease;will-change:auto}
 .body.has-flow-cta{padding-bottom:calc(16px + var(--safe-bottom) + var(--keyboard-h,0px))}
 /* Форми з ПЛАВАЮЧОЮ CTA: 14 (відступ від низу) + 46 (кнопка) + 16 (повітря).
    Без цього остання група полів лягала б під кнопку — саме це стереже
    field-obstruction.spec.ts. */
 .body.has-cta{padding-bottom:calc(76px + var(--safe-bottom) + var(--keyboard-h,0px))}
 @media (hover: hover){.mbtn:hover{filter:brightness(1.08)}}
-.mbtn:active{transform:scale(.97);filter:brightness(1.1)}
-.mbtn.danger{background:linear-gradient(180deg,rgba(255,59,48,.52),rgba(255,59,48,.34));
+/* ── Натиск: ОДИН рецепт на всю родину первинних дій ───────────────────────
+   Було спільне значення, але різні шляхи (`.mbtn` і `.btn-glass`описували його
+   кожен у себе), тож розійтись вони могли будь-якої миті — той самий клас
+   дрейфу, що вже ловили на тінях сегментів.
+   Асиметричні тривалості — це і є «жива» кнопка: втискається ШВИДКО (палець уже
+   на склі, відгук має бути миттєвий), відпускається М'ЯКШЕ. Раніше обидва боки
+   були .12s, і відпускання читалось як клац.
+   `brightness(1.1)` на натиску прибрано СВІДОМО: фільтр діє й на результат
+   backdrop-filter, тобто ОСВІТЛЮЄ ґрунт під білим підписом — рівно той важіль,
+   який цілий раунд крутили у зворотний бік заради читабельності. Відгук дає
+   масштаб, він нічого не коштує композитору і нічого не псує. */
+.mbtn:active,.btn-glass:active,.fbtn:active{transform:scale(.96);transition-duration:var(--dur-xs)}
+/* Відпускання — довше за натиск (див. вище). `.fbtn` ховається властивостями
+   `translate`/`scale`, тож `transform` у неї вільний і не конфліктує. */
+.fbtn{transition:translate .34s var(--ease-out),opacity .34s var(--ease-out),scale .34s var(--ease-out),transform var(--dur-sm) var(--ease-out)}
+.mbtn.danger{background:linear-gradient(180deg,rgba(255,59,48,.31),rgba(255,59,48,.20));
   border-color:rgba(255,107,97,.46);
   box-shadow:var(--shadow-glass-btn-danger)}
-.mbtn.success{background:linear-gradient(180deg,rgba(52,199,89,.52),rgba(52,199,89,.34));
+.mbtn.success{background:linear-gradient(180deg,rgba(52,199,89,.31),rgba(52,199,89,.20));
   border-color:rgba(64,212,107,.48);
   box-shadow:var(--shadow-glass-btn)}
 /* Per-variant hover/active glow — without these, green and red buttons inherit
@@ -504,9 +525,24 @@ body{
    працює і для флекс-елемента, який інакше відмовляється стискатись нижче
    max-content. */
 .row-s,.row-t,.obj-t,.obj-mt,.fr-l,.notif-t,.notif-s,.dash-l{overflow-wrap:anywhere}
-/* Remove default outline for touch/pointer — keep for keyboard (:focus-visible) */
+/* ── Кільце фокуса на ПОЛІ — лише там, де є фізична клавіатура ──────────────
+   Тут був баг мого ж авторства, і спростував його скріншот власника. Коментар
+   нижче стверджував, що «`:focus-visible`, а не `:focus`: тач кільця не
+   отримує». Для КНОПОК це правда, для текстових полів — ні: за специфікацією
+   елемент, що очікує введення тексту, матчить `:focus-visible` ЗАВЖДИ, хоч би
+   як його сфокусували, і WebKit це реалізує. Тобто кожен тап по полю в
+   Telegram малював синю рамку — саме те, що власник назвав негарним.
+   Гейт по вказівнику: тонка миша = є клавіатура = кільце потрібне; палець —
+   ні, там фокус видно по каретці й самій клавіатурі (так само роблять нативні
+   форми iOS). Той самий медіа-гейт, що вже стоїть на `:hover`.
+   Ціна, названа свідомо: на планшеті з апаратною клавіатурою (pointer:coarse)
+   кільця на полі не буде. Кнопки й рядки шитів це НЕ зачіпає — вони матчать
+   `:focus-visible` тільки від клавіатури, тож їхні правила лишаються
+   безумовними, і гард `modal-a11y` міряє саме їх. */
 input:focus,textarea:focus{outline:none}
-input:focus-visible,textarea:focus-visible{outline:2px solid var(--tg-blue-light);outline-offset:2px}
+@media (hover: hover) and (pointer: fine) {
+  input:focus-visible,textarea:focus-visible{outline:2px solid var(--tg-blue-light);outline-offset:2px}
+}
 /* ── Видимий фокус для НЕ-полів ────────────────────────────────────────────
    Кільце фокуса було лише на `input`/`textarea`, тобто на всьому іншому його не
    було НІДЕ. Це половина фікса, зробленого в модалках: `modal-a11y` домігся, щоб
@@ -894,10 +930,10 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
   color:var(--t1);font-size:var(--fs-sub);font-weight:var(--fw-semi);cursor:pointer;
   white-space:nowrap;border:.5px solid transparent;
   /* Той самий важіль, що й у `.mbtn`: затемнений backdrop замість освітленого. */
-  backdrop-filter:blur(28px) saturate(180%) brightness(.5);
-  -webkit-backdrop-filter:blur(28px) saturate(180%) brightness(.5);
-  transition:transform var(--dur-xs) var(--ease),filter var(--dur-xs) ease,box-shadow var(--dur-xs) var(--ease)}
-.btn-glass:active{transform:scale(.97);filter:brightness(1.1)}
+  backdrop-filter:blur(28px) saturate(180%) brightness(.42);
+  -webkit-backdrop-filter:blur(28px) saturate(180%) brightness(.42);
+  transition:transform var(--dur-sm) var(--ease-out),filter var(--dur-xs) ease,box-shadow var(--dur-xs) var(--ease)}
+
 /* ЖОДНОЇ зовнішньої тіні — за проханням прибрано й темний скрим під плаваючою
    CTA (.cta-scrim), який раніше сидів під кнопкою. Спершу тут було кольорове
    світіння на 26px — ореол ширший за саму кнопку, на .bg-blue ще й рожева
@@ -905,18 +941,18 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
    читається. Об'єм тримають ЛИШЕ внутрішні відблиски: вони й роблять скло
    склом. */
 .btn-glass.ok{
-  background:linear-gradient(180deg,rgba(52,199,89,.52),rgba(52,199,89,.34));
+  background:linear-gradient(180deg,rgba(52,199,89,.31),rgba(52,199,89,.20));
   border-color:rgba(64,212,107,.48);
   box-shadow:var(--shadow-glass-btn)}
 .btn-glass.err{
-  background:linear-gradient(180deg,rgba(255,59,48,.52),rgba(255,59,48,.34));
+  background:linear-gradient(180deg,rgba(255,59,48,.31),rgba(255,59,48,.20));
   border-color:rgba(255,107,97,.46);
   box-shadow:var(--shadow-glass-btn-danger)}
 /* Той самий глибокий синій, що й `.mbtn` — родина мусить лишатись однією.
    Правити лише плаваючу CTA означало б, що кнопка екрана темна, а первинна
    кнопка шита світла, хоч рецепт у них спільний (див. `--blue-deep`). */
 .btn-glass.info{
-  background:linear-gradient(180deg,rgba(22,113,158,.74),rgba(22,113,158,.79));
+  background:linear-gradient(180deg,rgba(22,113,158,.44),rgba(22,113,158,.47));
   border-color:rgba(42,171,238,.46);
   box-shadow:var(--shadow-glass-btn)}
 /* Тон «створити нове» (додати об'єкт, база, підбірка) — той самий рожевий,
@@ -925,7 +961,7 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
    композитну яскравість над низом .bg-*, де градієн екрана вже світлішає,
    і білий підпис «Створити базу» падав на 4.35:1 (треба 4.5). */
 .btn-glass.pink{
-  background:linear-gradient(180deg,rgba(196,35,120,.58),rgba(196,35,120,.38));
+  background:linear-gradient(180deg,rgba(196,35,120,.35),rgba(196,35,120,.23));
   border-color:rgba(224,90,155,.48);
   box-shadow:var(--shadow-glass-btn)}
 
@@ -940,17 +976,22 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
    «Додати об'єкт»/«Створити базу»/«Створити підбірку» (.raised — з таббаром,
    щоб не лягати під нього). Раніше другі три були окремим суцільним .fab
    (кругла кнопка) — двома різними стилями FAB в одному застосунку. */
+/* ОДИН розмір на всю родину первинних дій — рішення власника («всі повинні бути
+   в єдиних розмірах»). Було два: 52px/min-width:200 у плаваючої дії екрана
+   деталі («Звільнити обʼєкт») проти 46px у решти (`.mbtn`, `.fbtn.compact`).
+   Різниця мала своє пояснення — «там кнопка і є головна дія» — але поруч, на
+   сусідніх екранах, вона читалась як недбалість. 46px, бо саме на цю висоту
+   спирається гард тап-таргета (44 + запас на субпіксельне округлення). */
 .fbtn{position:absolute;bottom:calc(14px + var(--safe-bottom));left:50%;translate:-50% 0;
-  height:var(--btn-h);padding:0 32px;min-width:200px;border-radius:var(--r-pill);z-index:var(--z-float);
+  height:46px;padding:0 24px;min-width:0;font-size:var(--fs-foot);
+  border-radius:var(--r-pill);z-index:var(--z-float);
   transition:translate .34s var(--ease-out),opacity .34s var(--ease-out),scale .34s var(--ease-out)}
 .fbtn.raised{bottom:calc(80px + var(--safe-bottom))}
-/* Компактний варіант — дії «створити нове», що висять НАД списком, який
-   гортається. Повний розмір лишається первинній дії екрана-деталі («Здати в
-   оренду» / «Звільнити об'єкт»): там кнопка і є головна дія, а тут вона
-   закриває контент, який користувач читає.
-   46px, а не 44: гард тап-таргета міряє ФАКТИЧНУ зону через elementFromPoint,
-   і рівно-44 не лишало б запасу на субпіксельне округлення. */
-.fbtn.compact{height:46px;padding:0 20px;min-width:0;font-size:var(--fs-foot)}
+/* `.compact` лишається як РОЗМІТКОВИЙ маркер (його ставлять дії «створити
+   нове», що висять над прокрутним списком), але геометрію більше не міняє —
+   вона тепер спільна для всієї родини, див. `.fbtn` вище. Клас не прибрано,
+   бо на нього спираються існуючі селектори і тести. */
+.fbtn.compact{height:46px;padding:0 24px;min-width:0;font-size:var(--fs-foot)}
 /* Ховається зсувом вниз на гортанні (варіант «б» — інакше пігулка на всю
    ширину закриває більше картки, ніж колишній кутовий .fab). Явний -50% у
    translate тримає горизонтальне центрування під час зсуву.
@@ -1795,9 +1836,13 @@ svg.ico{overflow:visible}
    окремо ставить `outline:none` разом із анімацією `inputRing` (це тач-афорданс,
    і він лишається).
    Тому: та сама специфічність, але ПІЗНІШЕ в файлі. Новий контрол зі своїм
-   `outline:none` треба додавати сюди, а не «десь поряд із собою». */
-.fr-i:focus-visible,.fr-textarea:focus-visible,.fld input:focus-visible,
-.search-inline input:focus-visible,.fold-mng-input:focus-visible{
-  outline:2px solid var(--tg-blue-light);outline-offset:2px}
-/* Поля в рядку форми клiпаються власним боксом рядка, тож кільце — усередину. */
-.fr-i:focus-visible{outline-offset:-2px}
+   `outline:none` треба додавати сюди, а не «десь поряд із собою».
+   Медіа-гейт — див. блок «Кільце фокуса на ПОЛІ» вище: на тачі текстове поле
+   матчить `:focus-visible` завжди, тож без гейта кожен тап малював рамку. */
+@media (hover: hover) and (pointer: fine) {
+  .fr-i:focus-visible,.fr-textarea:focus-visible,.fld input:focus-visible,
+  .search-inline input:focus-visible,.fold-mng-input:focus-visible{
+    outline:2px solid var(--tg-blue-light);outline-offset:2px}
+  /* Поля в рядку форми клiпаються власним боксом рядка, тож кільце — усередину. */
+  .fr-i:focus-visible{outline-offset:-2px}
+}
