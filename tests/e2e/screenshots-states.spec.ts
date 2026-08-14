@@ -143,6 +143,12 @@ test('states · тост помилки', async ({ page }) => {
   await page.evaluate(() => window.dispatchEvent(new Event('offline')))
   await page.locator('.mbtn').click()
   await expect(page.locator('.toast')).toBeVisible({ timeout: 15_000 })
+  // БЮДЖЕТ: тост гасне САМ через 3.5с реального часу. `clock.setFixedTime`
+  // фіксує лише `Date.now()` і таймери НЕ спиняє, тож між появою тоста і
+  // знімком не можна вставляти ані очікувань, ані додаткових перевірок —
+  // інакше кадр зніметься вже без нього і НІКОЛИ не зійдеться з бейслайном.
+  // Тримається це на `reducedMotion:'reduce'`: без анімації перший же знімок
+  // збігається, і цикл повторів `toHaveScreenshot` не встигає з'їсти вікно.
   await shot(page, 'toast-offline')
 })
 
