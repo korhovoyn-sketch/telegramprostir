@@ -110,6 +110,16 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
    * лежить у записі з пристрою, а не в локальному прогоні.
    */
   const [moving, setMoving] = useState(true)
+  /**
+   * Шит ЗАРАЗ їде під клавіатуру — окремо від `moving`, бо це інший рух.
+   *
+   * `moving` гасне на `animationend` виїзду, а клавіатура міняє геометрію
+   * ПІЗНІШЕ і власними переходами (`padding-bottom` оверлея і `max-height`
+   * шита, обидва .25s), тобто повз нього. Клас на DOM той самий (`moving`),
+   * щоб наявні очікування `.modal-overlay.moving → 0` лишились чинними.
+   */
+  const [kbMoving, setKbMoving] = useState(false)
+  const kbMoveRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const kbProbeRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const kbConfirmRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const kbDropRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -235,11 +245,55 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
     return () => { cancelAnimationFrame(outer); cancelAnimationFrame(inner) }
   }, [kbSnap])
 
+  /**
+   * Блюр знято, поки шит їде під клавіатуру.
+   *
+   * Той самий прийом, що вже стоїть на виїзді шита і в акордеоні папок: на
+   * WebKit кожен кадр із новою геометрією означає переблюрювання всієї
+   * поверхні (`.modal` 48px + `.modal-overlay` 4px) поверх екрана, де вже
+   * десятки скляних карток. Тут кадрів рівно стільки ж, скільки в анімації
+   * відкриття, — просто їх ніхто не знімав, бо `moving` до них не доживає.
+   *
+   * Поріг у 20px обовʼязковий: реальний пристрій шле висоту кількома тіками
+   * (див. тест «шит не СНЕПАЄ між висотами»), і без нього дрібний хвіст
+   * тримав би блюр знятим довше за сам рух.
+   */
+  useEffect(() => {
+    let last = reportedKeyboardPx()
+    const onResize = () => {
+      const now = reportedKeyboardPx()
+      if (Math.abs(now - last) < 20) return
+      last = now
+      setKbMoving(true)
+      clearTimeout(kbMoveRef.current)
+      // .25s переходу + запас на кадр, у якому браузер його комітить.
+      kbMoveRef.current = setTimeout(() => setKbMoving(false), 300)
+    }
+    window.visualViewport?.addEventListener('resize', onResize)
+    window.addEventListener('resize', onResize)
+    return () => {
+      window.visualViewport?.removeEventListener('resize', onResize)
+      window.removeEventListener('resize', onResize)
+    }
+  }, [])
+
+  // Локальний ліфт теж їде transition-ом, але приходить не з resize, а з нашого
+  // ж стану — інакше рівно той рух, заради якого фолбек існує, лишився б із
+  // блюром. Перший прогін (монтування) пропускаємо: там уже працює `moving`.
+  const kbFallbackSeen = useRef(false)
+  useEffect(() => {
+    if (!kbFallbackSeen.current) { kbFallbackSeen.current = true; return }
+    setKbMoving(true)
+    clearTimeout(kbMoveRef.current)
+    kbMoveRef.current = setTimeout(() => setKbMoving(false), 300)
+  }, [kbFallback])
+
   useEffect(() => () => {
     clearTimeout(kbProbeRef.current)
     clearTimeout(kbConfirmRef.current)
     clearTimeout(kbDropRef.current)
     clearTimeout(kbFixRef.current)
+    clearTimeout(kbMoveRef.current)
   }, [])
 
   const requestClose = () => {
@@ -447,13 +501,13 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
   return createPortal(
     <div
       ref={overlayRef}
-      className={`modal-overlay${closing ? ' closing' : ''}${kbSnap ? ' kb-snap' : ''}${moving ? ' moving' : ''}`}
+      className={`modal-overlay${closing ? ' closing' : ''}${kbSnap ? ' kb-snap' : ''}${moving || kbMoving ? ' moving' : ''}`}
       style={kbFallback ? ({ '--keyboard-h': `${KB_FALLBACK_PX}px` } as React.CSSProperties) : undefined}
       onClick={(e) => { if (e.target === e.currentTarget) requestClose() }}
     >
       <div
         ref={modalRef}
-        className={`modal${closing ? ' closing' : ''}${moving ? ' moving' : ''}`}
+        className={`modal${closing ? ' closing' : ''}${moving || kbMoving ? ' moving' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}

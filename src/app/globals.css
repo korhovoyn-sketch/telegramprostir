@@ -1025,11 +1025,11 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 .fold-sec:not(:first-child){margin-top:6px}
 .fold-hd{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:var(--r-md);background:var(--glass-1);border:var(--bd);cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .14s var(--ease),transform .12s ease}
 .fold-hd:active{background:var(--glass-2);transform:scale(.99)}
-/* Collapsible body — grid-rows 0fr↔1fr animates height without measuring JS;
-   inner clips (overflow+min-height:0) so the reveal is a smooth slide, and its
-   padding-top gives the header→first-card gap only while open. */
-/* Body content inside the height-animated Collapsible (natural height, measured). */
-.fold-wrap{overflow:hidden;will-change:height}
+/* Тіло акордеона (`Collapsible.tsx` міряє висоту і жене її Web Animations API).
+   Без `will-change`: `height` не композитна властивість, тож підказка нічого не
+   пришвидшує, зате тримається ПОСТІЙНО на кожній обгортці папки — те саме
+   правило, через яке його немає на `.nav-wrap` і `.modal`. */
+.fold-wrap{overflow:hidden}
 .fold-wrap-inner{display:flex;flex-direction:column;gap:10px;padding-top:10px}
 /* Під час розгортання/згортання глушимо backdrop-filter на картках усередині:
    переблюрювати 24 скляні шари щокадру — головна причина рваної анімації.

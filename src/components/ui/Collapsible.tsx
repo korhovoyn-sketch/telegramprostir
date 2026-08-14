@@ -82,11 +82,15 @@ export default function Collapsible({ open, className, children }: {
     outer.style.visibility = 'visible'
     outer.classList.add('fold-anim')
 
+    // Рухається ЛИШЕ висота. Фейд звідси прибрано: `opacity < 1` на обгортці
+    // змушує браузер щокадру рендерити все піддерево папки (до 24 карток) в
+    // офскрін-буфер і композитувати з альфою — заради переходу, який і так
+    // схований `overflow:hidden`. Вміст лишається непрозорим НА ВЕСЬ рух — і
+    // коли росте, і коли стискається; нуль для згорнутої секції виставляє
+    // хвіст `anim.finished` нижче, тобто у спокої, а не покадрово.
+    outer.style.opacity = '1'
     const anim = outer.animate(
-      [
-        { height: `${from}px`, opacity: open ? 0 : 1 },
-        { height: `${to}px`, opacity: open ? 1 : 0 },
-      ],
+      [{ height: `${from}px` }, { height: `${to}px` }],
       { duration: DURATION, easing: EASE, fill: 'forwards' },
     )
     animRef.current = anim

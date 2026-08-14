@@ -420,6 +420,46 @@ test('шит не СНЕПАЄ між висотами — max-height аніму
   expect(hasTransition).toBeGreaterThan(0)
 })
 
+test('блюр знято, поки шит їде під клавіатуру', async ({ page }) => {
+  // Розширення прийому, що вже стоїть на виїзді шита і в акордеоні папок: на
+  // WebKit кожен кадр із новою геометрією = переблюрювання всієї поверхні
+  // (`.modal` 48px + `.modal-overlay` 4px) поверх екрана зі скляними картками.
+  // Клавіатура рухає шит ПІЗНІШЕ за анімацію відкриття і власними переходами,
+  // тобто повз `moving`, який гасне на `animationend`, — саме ці кадри й
+  // лишались із блюром.
+  await fixtures(page)
+  await openRentModal(page)
+  // Спокій: блюр НА МІСЦІ (інакше гард нижче нічого не доводить — «none» був би
+  // і без фіксу).
+  await expect(page.locator('.modal-overlay.moving')).toHaveCount(0, { timeout: 8_000 })
+  const atRest = await page.evaluate(() =>
+    getComputedStyle(document.querySelector('.modal') as HTMLElement).backdropFilter)
+  expect(atRest, 'у спокої шит — скло').not.toBe('none')
+
+  // Клавіатура зʼявляється так, як її бачить прод: змінюється visualViewport
+  // (див. коментар до «ліфт вимикається…» — простий resize без зміни height
+  // нічого не симулює).
+  await page.evaluate(() => {
+    const vv = window.visualViewport!
+    Object.defineProperty(vv, 'height', { configurable: true, get: () => window.innerHeight - 300 })
+    vv.dispatchEvent(new Event('resize'))
+  })
+  // Клас вішає РЕНДЕР React, а не сам обробник події, тож читати computed style
+  // у тому ж `evaluate`, що й dispatch, — це замір ДО коміту. Чекаємо на факт.
+  await page.waitForFunction(
+    () => getComputedStyle(document.querySelector('.modal') as HTMLElement).backdropFilter === 'none',
+    undefined,
+    { timeout: 2000 },
+  )
+
+  // І повертається, коли рух скінчився: знятий назавжди блюр — це вже не
+  // оптимізація, а зміна вигляду.
+  await expect(page.locator('.modal-overlay.moving')).toHaveCount(0, { timeout: 8_000 })
+  const after = await page.evaluate(() =>
+    getComputedStyle(document.querySelector('.modal') as HTMLElement).backdropFilter)
+  expect(after, 'після руху скло повернулось').toBe(atRest)
+})
+
 test('поле у фокусі не ховається під кнопками дій навіть у затиснутій модалці', async ({ page }) => {
   // Реальний скрін від користувача: клавіатура стиснула шит, тіло стало
   // прокручуваним — і sticky-кнопки «Скасувати/Зберегти» накрили поле «День

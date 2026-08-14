@@ -89,7 +89,10 @@ export default function FolderManageModal({ folders, counts, onCreate, onRename,
                 <input
                   className="fold-mng-input"
                   value={editName}
-                  autoFocus
+                  // Без autoFocus — див. SheetCreateRow: фокус на щойно
+                  // змонтованому полі тягне клавіатуру одночасно зі зміною
+                  // висоти шита, і саме це власник описав як «перекриває або
+                  // піджимає». Клавіатуру підіймає тап користувача по полю.
                   onChange={(e) => setEditName(e.target.value)}
                   // stopPropagation обовʼязковий: Modal слухає Escape на window
                   // і закриває верхній шит стеку, тож без цього Escape під час
