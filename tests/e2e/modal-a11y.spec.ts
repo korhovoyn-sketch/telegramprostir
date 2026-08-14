@@ -539,6 +539,11 @@ test('вкладене підтвердження не затемнює екра
   // «Відкликати доступ» просить підтвердження — фолбек-шит поверх ShareSheet.
   await page.locator('.modal .sheet-row', { hasText: 'Відкликати доступ' }).click()
   await expect(page.locator('.modal')).toHaveCount(2)
+  // Чекаємо КІНЦЯ виїзду, і це не косметика: поки шит їде, блюр із нього
+  // свідомо знятий (клас `moving` — див. `modal-sweep`, гард про кадри,
+  // загублені на старті анімації). Замір одразу після появи читав би саме той
+  // проміжний стан, а контракт нижче — про стан СПОКОЮ.
+  await expect(page.locator('.modal-overlay.moving')).toHaveCount(0, { timeout: 8_000 })
 
   const overlays = await page.locator('.modal-overlay').evaluateAll((els) => els.map((e) => {
     const s = getComputedStyle(e)
