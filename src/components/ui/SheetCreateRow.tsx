@@ -16,7 +16,6 @@ interface Props {
   onCreate: (name: string) => Promise<boolean>
   /** Розкривається тапом по «+ …» замість того, щоб стояти розкритим завжди. */
   collapsedLabel?: string
-  autoFocus?: boolean
 }
 
 /**
@@ -27,9 +26,17 @@ interface Props {
  *
  * Стоїть ЗВЕРХУ шита у всіх трьох, і це навмисно: на iOS клавіатура Telegram
  * накриває webview не ресайзячи його, тож поле знизу було б під клавіатурою.
+ *
+ * Поле НЕ фокусується саме — навіть коли зʼявилось від тапу по «+ …». Тап
+ * розкриття міняє висоту самого шита (кнопка замінюється рядком із полем), і
+ * фокус у той самий момент запускає ще три геометрії: пробу `kbFallback`
+ * (350+200мс), `padding-bottom .25s` оверлея і `max-height .25s` шита — усе це
+ * поверх 48px-блюру. Саме це власник описав як «відразу клавіатура перекриває
+ * або піджимає». Ціна рішення — один зайвий тап по полю, і вона прийнята
+ * свідомо. Гард: `design-tokens.test.ts` → «клавіатура в модалках».
  */
 export default function SheetCreateRow({
-  fieldLabel, placeholder, confirmLabel, maxLength, onCreate, collapsedLabel, autoFocus,
+  fieldLabel, placeholder, confirmLabel, maxLength, onCreate, collapsedLabel,
 }: Props) {
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
@@ -62,7 +69,6 @@ export default function SheetCreateRow({
         value={name}
         aria-label={fieldLabel}
         placeholder={placeholder}
-        autoFocus={autoFocus ?? !!collapsedLabel}
         onChange={(e) => setName(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter') void submit() }}
         maxLength={maxLength}
