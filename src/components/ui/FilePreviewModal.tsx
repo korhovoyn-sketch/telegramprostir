@@ -90,7 +90,7 @@ export default function FilePreviewModal({ url, mime, name, onClose }: FilePrevi
       style={{
         position: 'absolute',
         top: 0, right: 0, bottom: 0, left: 0,
-        zIndex: 200,
+        zIndex: 'var(--z-viewer)',
         background: '#000',
         display: 'flex',
         flexDirection: 'column',

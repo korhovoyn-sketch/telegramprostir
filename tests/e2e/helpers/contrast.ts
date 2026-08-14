@@ -147,7 +147,25 @@ export const smallTargets = (page: Page, min: number) => page.evaluate<SmallTarg
     // ЗА межами viewport — це «ще не проскролено», а не малий таргет:
     // elementFromPoint там завжди null і фальшиво давав висоту 1.
     if (r.left < 0 || r.right > window.innerWidth) return
-    if (getComputedStyle(e).visibility === 'hidden') return
+    const cs = getComputedStyle(e)
+    if (cs.visibility === 'hidden') return
+    // Неактивний контрол не приймає тапів ЗА ЗАДУМОМ (`.btn-glass:disabled` має
+    // `pointer-events:none`), тож `elementFromPoint` віддає елемент під ним, і
+    // зонд рахував ефективну висоту 1px. Це не «крихітна кнопка», а вимкнена —
+    // на 4 екранах, з яких зонд ходив раніше, disabled-кнопок просто не було.
+    if (cs.pointerEvents === 'none') return
+    // Те саме, але по горизонталі: чіп, ЧАСТКОВО виїхавший за край свого
+    // h-скролера, лишається в DOM із повним боксом, хоч видно лише його край.
+    // Центр такого чіпа фізично належить сусідньому контролу — і зонд читав це
+    // як «крадіжка тапу», хоч користувач просто ще не доскролив стрічку.
+    // Перевірка проти `window.innerWidth` вище цього не бачить: клiпає не вікно,
+    // а контейнер.
+    for (let p = e.parentElement; p; p = p.parentElement) {
+      const ps = getComputedStyle(p)
+      if (ps.overflowX !== 'auto' && ps.overflowX !== 'scroll') continue
+      const pr = p.getBoundingClientRect()
+      if (r.left < pr.left - 1 || r.right > pr.right + 1) return
+    }
     const cx = Math.round(r.left + r.width / 2)
     const cy = Math.round(r.top + r.height / 2)
     // Влучанням вважається САМ контрол або його нащадок. `h.contains(e)` тут був

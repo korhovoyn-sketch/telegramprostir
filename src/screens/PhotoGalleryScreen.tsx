@@ -92,7 +92,7 @@ export default function PhotoGalleryScreen() {
       position: 'fixed', inset: 0,
       background: '#000',
       display: 'flex', flexDirection: 'column',
-      zIndex: 100,
+      zIndex: 'var(--z-viewer)',
     }}>
       {/* Top bar */}
       <div style={{
@@ -100,7 +100,7 @@ export default function PhotoGalleryScreen() {
         padding: '12px 16px',
         paddingTop: 'calc(12px + var(--safe-top))',
         background: 'linear-gradient(to bottom, rgba(0,0,0,.8), transparent)',
-        position: 'absolute', top: 0, left: 0, right: 0, zIndex: 2,
+        position: 'absolute', top: 0, left: 0, right: 0, zIndex: 'var(--z-content)',
       }}>
         <button
           aria-label="Закрити"
@@ -156,7 +156,7 @@ export default function PhotoGalleryScreen() {
       >
         {/* Counter badge */}
         <div style={{
-          position: 'absolute', top: 16, right: 16, zIndex: 10,
+          position: 'absolute', top: 16, right: 16, zIndex: 'var(--z-above)',
           background: 'rgba(0,0,0,.55)', backdropFilter: 'blur(8px)',
           padding: '4px 10px', borderRadius: 'var(--r-pill)',
           fontSize: 'var(--fs-foot)', fontWeight: 'var(--fw-semi)', color: 'var(--t1)',

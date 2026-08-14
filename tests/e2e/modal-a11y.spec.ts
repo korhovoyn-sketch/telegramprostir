@@ -316,6 +316,80 @@ test('рядки шита досяжні з клавіатури і активу
   }
 })
 
+test('фокус із клавіатури ВИДНО — і на рядках шита, і на хромі екрана', async ({ page }) => {
+  // Друга половина фікса вище. Рядки стали `<button>` і Tab до них доходить —
+  // але кільце фокуса в CSS існувало лише для `input`/`textarea`, тож дійшовши,
+  // фокус був НЕВИДИМИЙ: навігація з клавіатури працювала всліпу, а тест вище
+  // цього не бачив, бо читає `activeElement`, а не піксель.
+  //
+  // Міряємо `outlineWidth` на РЕАЛЬНО сфокусованому вузлі. `:focus-visible`
+  // спрацьовує саме від клавіатури, тож ставити фокус через `.focus()` не можна
+  // — Chromium тоді кільця не малює, і гард став би хибно червоним.
+  await fixtures(page)
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+
+  const ringOfFocused = () => page.evaluate(() => {
+    const a = document.activeElement as HTMLElement | null
+    if (!a || a === document.body) return null
+    const cs = getComputedStyle(a)
+    return {
+      tag: a.tagName.toLowerCase(),
+      cls: (a.className || '').toString().slice(0, 40),
+      width: parseFloat(cs.outlineWidth) || 0,
+      style: cs.outlineStyle,
+    }
+  })
+
+  // 1) Хром екрана: перший фокусований контрол на db-list.
+  let chrome: Awaited<ReturnType<typeof ringOfFocused>> = null
+  for (let i = 0; i < 6 && !chrome; i++) {
+    await page.keyboard.press('Tab')
+    chrome = await ringOfFocused()
+  }
+  expect(chrome, 'Tab не знайшов жодного контрола на екрані').not.toBeNull()
+  expect(chrome!.style, `${chrome!.tag}.${chrome!.cls}: кільце фокуса вимкнене`).not.toBe('none')
+  // Саме ≥2px, а не «більше нуля»: без нашого правила Chromium сам малює
+  // волосинку `outline:auto 1px`, і поріг «>0» проходив би на ній. Над темним
+  // склом застосунку той UA-піксель практично не видно, тож він не рахується
+  // за видимий фокус — і гард на ньому був би вакуумним (перевірено заміром:
+  // 1px/auto без правила проти 2px/solid із ним).
+  expect(chrome!.width, `${chrome!.tag}.${chrome!.cls}: кільце тонше за 2px — фокус практично невидимий`)
+    .toBeGreaterThanOrEqual(2)
+
+  // 2) Рядок шита — той самий контрол, який `modal-a11y` зробив досяжним.
+  await page.getByText('БЦ Рубін').first().click()
+  await expect(page.getByText('Всі (9)')).toBeVisible({ timeout: 15_000 })
+  await page.getByLabel('Меню бази').click()
+  await expect(page.locator('.modal')).toBeVisible()
+  await page.waitForTimeout(420)
+
+  let row: Awaited<ReturnType<typeof ringOfFocused>> = null
+  for (let i = 0; i < 12; i++) {
+    await page.keyboard.press('Tab')
+    const cur = await ringOfFocused()
+    if (cur?.cls.includes('sheet-row')) { row = cur; break }
+  }
+  expect(row, 'Tab не дійшов до рядка шита — тест став би порожнім').not.toBeNull()
+  expect(row!.width, 'рядок шита у фокусі лишився на UA-волосинці замість нашого кільця').toBeGreaterThanOrEqual(2)
+  // Контроли, що клiпають самі себе (`overflow:hidden` під ellipsis), мусять
+  // мати ВНУТРІШНЄ кільце — зовнішнє там просто обрізалось би, як колись `::after`.
+  const clipped = await page.evaluate(() => {
+    const out: { cls: string; offset: string; clips: boolean }[] = []
+    for (const sel of ['.seg-b', '.fr-seg-b', '.notif-tab', '.view-seg-b']) {
+      const el = document.querySelector(sel)
+      if (!el) continue
+      const cs = getComputedStyle(el)
+      out.push({ cls: sel, offset: cs.outlineOffset, clips: cs.overflow !== 'visible' })
+    }
+    return out
+  })
+  for (const c of clipped.filter((x) => x.clips)) {
+    expect(parseFloat(c.offset), `${c.cls} клiпає себе, тож кільце мусить бути всередині`)
+      .toBeLessThanOrEqual(0)
+  }
+})
+
 test('керування шарингом під час запиту — справді disabled, а не мертвий тап', async ({ page }) => {
   // `onClick={busy ? undefined : …}` знімало обробник, але лишало cursor:pointer
   // і :active — рядок підсвічувався під пальцем і не робив НІЧОГО. Тепер це

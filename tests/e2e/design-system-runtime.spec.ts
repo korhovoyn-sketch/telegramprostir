@@ -1,5 +1,6 @@
-import { test, expect, type Page, type Route } from '@playwright/test'
+import { test, expect, type Browser, type Page, type Route } from '@playwright/test'
 import { setupApp, DEFAULT_USER, seedSession } from './helpers/harness'
+import { ALL_GROUPS } from './helpers/screens'
 import { readFileSync } from 'node:fs'
 
 /**
@@ -88,30 +89,45 @@ async function setup(page: Page) {
   }
 }
 
-/** Екрани, на яких збираємо computed styles. */
-async function walk(page: Page, visit: (label: string) => Promise<void>) {
-  await page.goto('/')
-  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
-  await visit('db-list')
-
-  await page.getByText('БЦ Рубін').first().click()
-  await expect(page.getByText('Всі (2)')).toBeVisible({ timeout: 15_000 })
-  await visit('db-objects')
-
-  await page.locator('.obj-card').first().locator('.obj-t').click()
-  await expect(page.getByRole('button', { name: /Звільнити/ })).toBeVisible({ timeout: 15_000 })
-  await visit('property-detail')
-
-  await page.goto('/')
-  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
-  await page.locator('.tabbar [aria-label="Профіль"]').click()
-  await expect(page.getByText('Налаштування')).toBeVisible({ timeout: 15_000 })
-  await visit('profile')
+/**
+ * Обхід УСІХ досяжних екранів у всіх ролях.
+ *
+ * Раніше тут був власний маршрут із чотирьох екранів — тих самих, якими ходив
+ * `contrast.spec.ts`. Тобто дрейф радіуса чи розміру шрифту на будь-якому з
+ * решти 24 екранів не бачив ніхто: скріншот ловить ЗМІНУ проти бейслайна, а
+ * значення, яке було поза шкалою від початку, для нього норма.
+ *
+ * Ролі потребують РІЗНИХ фікстур (різні мок-відповіді й `addInitScript`), а
+ * зняти вже зареєстровані роути в межах однієї сторінки не можна — тому кожна
+ * роль отримує власний контекст. Збірка при цьому лишається СПІЛЬНОЮ: рецепт
+ * скла, що розійшовся між екраном власника і екраном рієлтора, — це рівно той
+ * дрейф, заради якого гард і писався, і розділивши тести по ролях, ми б його
+ * втратили.
+ */
+async function walkAll(browser: Browser, visit: (page: Page, label: string) => Promise<void>) {
+  const visited: string[] = []
+  for (const group of ALL_GROUPS) {
+    const ctx = await browser.newContext({ viewport: { width: 375, height: 667 } })
+    const page = await ctx.newPage()
+    page.setDefaultTimeout(20_000)
+    try {
+      await group.fixtures(page)
+      for (const s of group.screens) {
+        await s.go(page)
+        await visit(page, s.label)
+        visited.push(s.label)
+      }
+    } finally {
+      await ctx.close()
+    }
+  }
+  // Антивакуумність: «дрейфу не знайдено» мусить означати «обійшли все».
+  expect(visited.length, 'обхід не дійшов до всіх екранів')
+    .toBe(ALL_GROUPS.reduce((n, g) => n + g.screens.length, 0))
 }
 
-test('РЕЦЕПТ скла однієї родини ідентичний на всіх екранах', async ({ page }) => {
-  test.setTimeout(120_000)
-  await setup(page)
+test('РЕЦЕПТ скла однієї родини ідентичний на всіх екранах', async ({ browser }) => {
+  test.setTimeout(300_000)
   // Стверджуємо саме `backdrop-filter` — рецепт скла. Він і є тим, що тихо
   // дрейфує: два «майже однакові» блюри виглядають як розʼїхана система, а в
   // джерелі кожен файл окремо валідний.
@@ -121,7 +137,7 @@ test('РЕЦЕПТ скла однієї родини ідентичний на 
   // 12px рядок налаштувань) і перевіряється окремим тестом проти шкали токенів.
   const seen = new Map<string, Map<string, string[]>>()
 
-  await walk(page, async (label) => {
+  await walkAll(browser, async (page, label) => {
     const found = await page.evaluate(() => {
       const out: { cls: string; sig: string }[] = []
       for (const cls of ['glass-s', 'glass', 'glass-d']) {
@@ -150,13 +166,12 @@ test('РЕЦЕПТ скла однієї родини ідентичний на 
   expect(seen.size, 'жодної скляної поверхні не знайдено — селектори застаріли').toBeGreaterThan(0)
 })
 
-test('радіуси й розміри шрифту — лише зі шкали токенів', async ({ page }) => {
-  test.setTimeout(120_000)
-  await setup(page)
+test('радіуси й розміри шрифту — лише зі шкали токенів', async ({ browser }) => {
+  test.setTimeout(300_000)
   const badRadius = new Set<string>()
   const badFont = new Set<string>()
 
-  await walk(page, async (label) => {
+  await walkAll(browser, async (page, label) => {
     const res = await page.evaluate(() => {
       const radii: { v: string; cls: string }[] = []
       const fonts: { v: number; cls: string; text: string }[] = []
@@ -171,7 +186,14 @@ test('радіуси й розміри шрифту — лише зі шкали
         // Тільки елементи з ВЛАСНИМ текстом: успадкований розмір перевіряти
         // безглуздо, він уже перевірений на батькові.
         const own = [...el.childNodes].some((n) => n.nodeType === 3 && (n.textContent ?? '').trim().length > 1)
-        if (own && fs) fonts.push({ v: fs, cls, text: (el.textContent ?? '').trim().slice(0, 18) })
+        const txt = (el.textContent ?? '').trim()
+        // Емодзі-гліф — ІЛЮСТРАЦІЯ, а не текст: «📷» у сканері (48px) і «👁️»/«📋»
+        // у порожніх станах масштабуються як малюнок, і типографічна шкала їх не
+        // описує в принципі. Перевіряти їх нею означало б завести в `--fs-*`
+        // розміри, якими не набирають жодного слова. Розширений обхід знайшов
+        // рівно три такі місця — раніше вони просто не траплялись на маршруті.
+        const pictogram = txt.length > 0 && !/[\p{L}\p{N}]/u.test(txt)
+        if (own && fs && !pictogram) fonts.push({ v: fs, cls, text: txt.slice(0, 18) })
       })
       return { radii, fonts }
     })
@@ -181,7 +203,17 @@ test('радіуси й розміри шрифту — лише зі шкали
       // шкали. `.dash-bar` — 2px на смузі висотою 3px (волосинка); `.view-seg-b` —
       // 9px усередині обгортки з радіусом 11 і падінгом 2 (11−2). Ставити тут
       // токен означало б зламати геометрію, а не вирівняти систему.
-      const derived = (px === 2 && r.cls.startsWith('dash-bar')) || (px === 9 && r.cls.startsWith('view-seg-b'))
+      //
+      // Превʼю форматів експорту — та сама причина, знайдена вже розширеним
+      // обходом: це МІНІАТЮРА документа (смужки тексту 3px заввишки, блок
+      // таблиці, кольорова шапка 10px), а не елемент інтерфейсу. Радіус там
+      // масштабований разом із макетом сторінки; 12px зі шкали на 3px-смужці
+      // перетворив би її на пігулку.
+      const exportPreview = /^(tmpl-bar|tmpl-block)/.test(r.cls)
+        || (px === 3 && label === 'export')
+      const derived = (px === 2 && r.cls.startsWith('dash-bar'))
+        || (px === 9 && r.cls.startsWith('view-seg-b'))
+        || exportPreview
       if (!RADII.has(px) && !derived) badRadius.add(`${label}: ${r.v} на .${r.cls}`)
     }
     for (const f of res.fonts) {
