@@ -288,24 +288,24 @@ body{
    quarter. Built as a vertical linear ramp (black → deep tone → bright
    tone) with 1-2 large soft radial accents for the second hue. ── */
 /* 1. Purple-blue: violet body, blue tint upper-right */
-.bg-purple{background:radial-gradient(95% 75% at 85% 28%,rgba(55,80,255,.42) 0%,transparent 62%),radial-gradient(95% 60% at 22% 96%,rgba(200,135,255,.4) 0%,transparent 66%),linear-gradient(180deg,#050310 0%,#0c0726 24%,#2c1a68 48%,#5e40b8 72%,#7e58d6 100%)}
+.bg-purple{--bg-end:#7e58d6;background:radial-gradient(95% 75% at 85% 28%,rgba(55,80,255,.42) 0%,transparent 62%),radial-gradient(95% 60% at 22% 96%,rgba(200,135,255,.4) 0%,transparent 66%),linear-gradient(180deg,#050310 0%,#0c0726 24%,#2c1a68 48%,#5e40b8 72%,#7e58d6 100%)}
 /* 2. Magenta-pink: pink body, violet lower edge */
-.bg-pink{background:radial-gradient(90% 60% at 68% 52%,rgba(255,120,210,.4) 0%,transparent 62%),linear-gradient(180deg,#0a0312 0%,#1c0a32 24%,#6e2696 50%,#c050b8 76%,#a846cc 100%)}
-.bg-green{background:radial-gradient(90% 65% at 78% 40%,rgba(90,60,220,.3) 0%,transparent 60%),linear-gradient(180deg,#030a07 0%,#08160e 26%,#1c5e40 54%,#369a68 78%,#46b67d 100%)}
+.bg-pink{--bg-end:#a846cc;background:radial-gradient(90% 60% at 68% 52%,rgba(255,120,210,.4) 0%,transparent 62%),linear-gradient(180deg,#0a0312 0%,#1c0a32 24%,#6e2696 50%,#c050b8 76%,#a846cc 100%)}
+.bg-green{--bg-end:#46b67d;background:radial-gradient(90% 65% at 78% 40%,rgba(90,60,220,.3) 0%,transparent 60%),linear-gradient(180deg,#030a07 0%,#08160e 26%,#1c5e40 54%,#369a68 78%,#46b67d 100%)}
 /* Blue-violet: property screens */
-.bg-blue{background:radial-gradient(90% 70% at 80% 30%,rgba(120,60,255,.36) 0%,transparent 62%),linear-gradient(180deg,#04060f 0%,#081032 26%,#1c3890 52%,#3a64c8 76%,#5480dc 100%)}
+.bg-blue{--bg-end:#5480dc;background:radial-gradient(90% 70% at 80% 30%,rgba(120,60,255,.36) 0%,transparent 62%),linear-gradient(180deg,#04060f 0%,#081032 26%,#1c3890 52%,#3a64c8 76%,#5480dc 100%)}
 /* 5. Cyan-blue: bright cyan low-left, blue-violet upper field */
-.bg-cyan{background:radial-gradient(85% 55% at 14% 94%,rgba(40,240,230,.5) 0%,transparent 60%),radial-gradient(90% 65% at 85% 50%,rgba(110,100,235,.34) 0%,transparent 62%),linear-gradient(180deg,#03050e 0%,#0a1232 28%,#22368a 54%,#2c6cb4 78%,#36a4cc 100%)}
-.bg-orange{background:radial-gradient(85% 60% at 75% 55%,rgba(255,95,160,.32) 0%,transparent 62%),linear-gradient(180deg,#0c0504 0%,#1e0c06 26%,#7e3a1a 54%,#d4703a 80%,#e08048 100%)}
+.bg-cyan{--bg-end:#36a4cc;background:radial-gradient(85% 55% at 14% 94%,rgba(40,240,230,.5) 0%,transparent 60%),radial-gradient(90% 65% at 85% 50%,rgba(110,100,235,.34) 0%,transparent 62%),linear-gradient(180deg,#03050e 0%,#0a1232 28%,#22368a 54%,#2c6cb4 78%,#36a4cc 100%)}
+.bg-orange{--bg-end:#e08048;background:radial-gradient(85% 60% at 75% 55%,rgba(255,95,160,.32) 0%,transparent 62%),linear-gradient(180deg,#0c0504 0%,#1e0c06 26%,#7e3a1a 54%,#d4703a 80%,#e08048 100%)}
 /* 4. Rose-pink: muted rose-red body, warm tint upper-right */
-.bg-violet{background:radial-gradient(85% 60% at 78% 38%,rgba(160,70,55,.3) 0%,transparent 60%),linear-gradient(180deg,#0b0406 0%,#1e080e 26%,#74223c 54%,#c44464 80%,#d2526f 100%)}
+.bg-violet{--bg-end:#d2526f;background:radial-gradient(85% 60% at 78% 38%,rgba(160,70,55,.3) 0%,transparent 60%),linear-gradient(180deg,#0b0406 0%,#1e080e 26%,#74223c 54%,#c44464 80%,#d2526f 100%)}
 /* 6. Teal-green: emerald, brightest at lower-right */
-.bg-teal{background:radial-gradient(90% 60% at 80% 88%,rgba(80,240,150,.42) 0%,transparent 64%),linear-gradient(180deg,#030a07 0%,#071510 26%,#1a5a3c 54%,#329864 80%,#44b87a 100%)}
-.bg-welcome{background:radial-gradient(95% 70% at 80% 35%,rgba(60,85,255,.32) 0%,transparent 62%),linear-gradient(180deg,#050310 0%,#0a0620 26%,#241555 52%,#4a3296 78%,#6346bc 100%)}
-.bg-success{background:radial-gradient(90% 60% at 75% 50%,rgba(70,190,240,.28) 0%,transparent 62%),linear-gradient(180deg,#030a08 0%,#06140f 26%,#176048 54%,#2c9e6e 80%,#3cba82 100%)}
+.bg-teal{--bg-end:#44b87a;background:radial-gradient(90% 60% at 80% 88%,rgba(80,240,150,.42) 0%,transparent 64%),linear-gradient(180deg,#030a07 0%,#071510 26%,#1a5a3c 54%,#329864 80%,#44b87a 100%)}
+.bg-welcome{--bg-end:#6346bc;background:radial-gradient(95% 70% at 80% 35%,rgba(60,85,255,.32) 0%,transparent 62%),linear-gradient(180deg,#050310 0%,#0a0620 26%,#241555 52%,#4a3296 78%,#6346bc 100%)}
+.bg-success{--bg-end:#3cba82;background:radial-gradient(90% 60% at 75% 50%,rgba(70,190,240,.28) 0%,transparent 62%),linear-gradient(180deg,#030a08 0%,#06140f 26%,#176048 54%,#2c9e6e 80%,#3cba82 100%)}
 /* 3. Coral-red: red field, orange hint left, crimson right */
-.bg-error{background:radial-gradient(80% 55% at 18% 58%,rgba(255,150,70,.32) 0%,transparent 60%),radial-gradient(80% 60% at 88% 65%,rgba(255,45,105,.36) 0%,transparent 62%),linear-gradient(180deg,#0c0305 0%,#200608 26%,#84202a 54%,#d8524e 80%,#e05a56 100%)}
-.bg-empty{background:linear-gradient(180deg,#05050f 0%,#08081a 30%,#16163a 62%,#26265a 100%)}
+.bg-error{--bg-end:#e05a56;background:radial-gradient(80% 55% at 18% 58%,rgba(255,150,70,.32) 0%,transparent 60%),radial-gradient(80% 60% at 88% 65%,rgba(255,45,105,.36) 0%,transparent 62%),linear-gradient(180deg,#0c0305 0%,#200608 26%,#84202a 54%,#d8524e 80%,#e05a56 100%)}
+.bg-empty{--bg-end:#26265a;background:linear-gradient(180deg,#05050f 0%,#08081a 30%,#16163a 62%,#26265a 100%)}
 
 /* ── GLASS ── */
 .glass{background:var(--glass-2);backdrop-filter:blur(32px) saturate(180%) brightness(1.06);-webkit-backdrop-filter:blur(32px) saturate(180%) brightness(1.06);border:var(--bd)}
