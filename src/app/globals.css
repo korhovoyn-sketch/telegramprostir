@@ -1338,7 +1338,13 @@ svg.ico{overflow:visible}
 .cmark-bdy{font-size:12.5px;color:var(--t2);line-height:1.5;margin-bottom:12px}
 .cmark-acts{display:flex;align-items:center;gap:8px}
 .cmark-skip{background:none;border:none;color:var(--t4);font-size:var(--fs-cap1);cursor:pointer;padding:4px 0;flex-shrink:0;pointer-events:auto}
-.cmark-ok{background:rgba(148,214,255,.14);border:.5px solid rgba(148,214,255,.28);border-radius:10px;color:#aae2ff;font-size:var(--fs-foot);font-weight:600;cursor:pointer;padding:7px 14px;box-shadow:var(--shadow-glass-off);flex:1;pointer-events:auto}
+/* `white-space:nowrap` тут не косметика: з `flex:1` ширина кнопки — це вільне
+   місце, що лишилось після «Пропустити все», а min-content для переносимого
+   тексту дорівнює найдовшому СЛОВУ. Тому підпис ламався на «Зрозуміло» + «👍»
+   окремим рядком, і кнопка ставала вдвічі вищою за сусідню. Знайдено першим же
+   кадром коачмарка в `screenshots-states` — до нього цей екран не бачив жоден
+   тест, бо решта прогону гасить онбординг ключем `ob_v1`. */
+.cmark-ok{background:rgba(148,214,255,.14);border:.5px solid rgba(148,214,255,.28);border-radius:10px;color:#aae2ff;font-size:var(--fs-foot);font-weight:600;cursor:pointer;padding:7px 14px;box-shadow:var(--shadow-glass-off);flex:1;pointer-events:auto;white-space:nowrap}
 .cmark-ok:active{transform:scale(.95);opacity:.85}
 /* CSS triangle arrows connecting bubble to spotlight */
 .cmark-arr{position:absolute;width:0;height:0;pointer-events:none}
