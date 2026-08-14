@@ -90,6 +90,26 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
   // тож кадр, у якому падінг падає до нуля, вже має transition:none — імперативне
   // додавання класу перегони з рендером React не гарантує.
   const [kbSnap, setKbSnap] = useState(false)
+  /**
+   * Шит ЗАРАЗ їде (відкривається або закривається) → блюр на час руху знято.
+   *
+   * Стартує `true` і гасне на `animationend` відкриття. Причина — замір із
+   * реального iPhone, а не теорія: покадровий розбір запису показав, що перші
+   * ~60% шляху шит долав за ОДИН кадр (1.99 млн змінених пікселів із 2.96 млн
+   * екрана), а далі був кадр майже без руху — тобто кадри на старті просто
+   * губились. Відкриття шита створює ДВА нові backdrop-шари (`.modal` blur 48px
+   * і `.modal-overlay` blur 4px) поверх екрана, де вже 24+ карток `.glass-s`
+   * зі своїм blur(28px), і композитор не встигає.
+   *
+   * Прийом не новий: акордеон папок робить рівно це (`.fold-anim`), і в
+   * `Collapsible.tsx` прямо написано, що переблюрювання карток щокадру «is what
+   * made it stutter». Тут той самий випадок, лише поверхня більша.
+   *
+   * У Chromium ефекту не видно — `_blur-cost` заміряв p50 16.7мс і з блюром, і
+   * без. Це не спростування: WebKit композитить скло інакше, і саме тому доказ
+   * лежить у записі з пристрою, а не в локальному прогоні.
+   */
+  const [moving, setMoving] = useState(true)
   const kbProbeRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const kbConfirmRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const kbDropRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -427,19 +447,25 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
   return createPortal(
     <div
       ref={overlayRef}
-      className={`modal-overlay${closing ? ' closing' : ''}${kbSnap ? ' kb-snap' : ''}`}
+      className={`modal-overlay${closing ? ' closing' : ''}${kbSnap ? ' kb-snap' : ''}${moving ? ' moving' : ''}`}
       style={kbFallback ? ({ '--keyboard-h': `${KB_FALLBACK_PX}px` } as React.CSSProperties) : undefined}
       onClick={(e) => { if (e.target === e.currentTarget) requestClose() }}
     >
       <div
         ref={modalRef}
-        className={`modal${closing ? ' closing' : ''}`}
+        className={`modal${closing ? ' closing' : ''}${moving ? ' moving' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={subtitle ? descId : undefined}
         tabIndex={-1}
-        onAnimationEnd={(e) => { if (closing && e.target === modalRef.current) finishClose() }}
+        onAnimationEnd={(e) => {
+          if (e.target !== modalRef.current) return
+          // Рух завершився — блюр можна вмикати назад. Закриття блюр НЕ вертає:
+          // шит уже за екраном, а зайвий перемальований шар на останньому кадрі
+          // видно як спалах.
+          if (closing) finishClose(); else setMoving(false)
+        }}
       >
         {/* Fixed header — never scrolls; also the swipe-to-dismiss grab area */}
         <div

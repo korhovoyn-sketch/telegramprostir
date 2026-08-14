@@ -454,3 +454,47 @@ test('Escape закриває ЛИШЕ верхню модалку стеку', 
   await page.keyboard.press('Escape')
   await expect(page.locator('.modal')).toHaveCount(0, { timeout: 8_000 })
 })
+
+test('шит НЕ блюрить фон, поки їде — і повертає блюр, коли став', async ({ page }) => {
+  // Причина цього гарда заміряна на РЕАЛЬНОМУ пристрої, а не виведена з теорії.
+  // Покадровий розбір запису з iPhone (43.6 к/с) показав, що перші ~60% шляху
+  // шит долав за ОДИН кадр — 1 994 102 змінених пікселі з 2 962 440 екрана, —
+  // а наступний кадр був майже без руху (61 594). Тобто кадри на старті
+  // губились: відкриття створює ДВА нові backdrop-шари (`.modal` blur 48px і
+  // `.modal-overlay` blur 4px) поверх екрана, де вже 24+ карток `.glass-s` зі
+  // своїм blur(28px).
+  //
+  // Прийом не новий — акордеон папок робить рівно це (`.fold-anim`), і в
+  // `Collapsible.tsx` прямо написано, що переблюрювання карток щокадру «is what
+  // made it stutter».
+  //
+  // ЧОГО ЦЕЙ ГАРД НЕ ДОВОДИТЬ: що на iOS стало плавно. Chromium тут блюр
+  // майже не коштує (`_blur-cost`: p50 16.7мс і з ним, і без), тож локальний
+  // прогін не побачить ані дефекту, ані фікса. Він стереже саме МЕХАНІЗМ —
+  // клас `moving` є під час руху і зникає після нього.
+  test.setTimeout(120_000)
+  await setupApp(page, { user: OWNER })
+  await ownerRoutes(page)
+  await toObjects(page)
+
+  await page.getByLabel('Меню бази').click()
+
+  // Поки анімація йде — блюру нема на ОБОХ шарах.
+  const during = await page.locator('.modal').first().evaluate((el) => {
+    const overlay = el.closest('.modal-overlay') as HTMLElement
+    return {
+      modalMoving: el.classList.contains('moving'),
+      modal: getComputedStyle(el).backdropFilter,
+      overlay: getComputedStyle(overlay).backdropFilter,
+    }
+  })
+  expect(during.modalMoving, 'клас руху не виставився на старті — блюр глушити нічим').toBe(true)
+  expect(during.modal, 'шит блюрить фон під час руху').toBe('none')
+  expect(during.overlay, 'затемнення блюрить фон під час руху').toBe('none')
+
+  // …а коли став — повертається, інакше зникло б саме скло.
+  await expect(page.locator('.modal.moving')).toHaveCount(0, { timeout: 8_000 })
+  const after = await page.locator('.modal').first()
+    .evaluate((el) => getComputedStyle(el).backdropFilter)
+  expect(after, 'блюр не повернувся — шит перестав бути склом').toContain('blur')
+})

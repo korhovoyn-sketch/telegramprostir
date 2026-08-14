@@ -122,13 +122,11 @@ export default function PropertyDetailScreen() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [screenParams.propertyId])
 
-  // Focus tenant input after modal slide-up animation (380ms) — autoFocus doesn't trigger iOS keyboard
-  // when the element is mounted dynamically inside an animated container.
-  useEffect(() => {
-    if (!showRentModal) return
-    const t = setTimeout(() => tenantInputRef.current?.focus(), 400)
-    return () => clearTimeout(t)
-  }, [showRentModal])
+  // АВТОФОКУСА НЕМА — рішення власника (див. той самий коментар у InviteSheet).
+  // Затримка 400мс тут була правильна, але не усувала причини: фокус сам
+  // підіймає клавіатуру, а та тягне за собою пробу `kbFallback` і два
+  // паралельні transition геометрії шита. Клавіатура тепер зʼявляється лише
+  // від явного тапу користувача в поле.
 
   // Scroll to files section when opened via the card's "Файли" quick action.
   // Delay lets the screen finish its enter animation and the section render.

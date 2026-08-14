@@ -101,8 +101,19 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
   --tg-blue:#229ED9;--tg-blue-light:#2AABEE;--accent:var(--tg-blue-light);
   --r-icon:11px;
   --r-phone:42px;
-  --ease:cubic-bezier(.34,1.4,.64,1);
-  --ease-spr:cubic-bezier(.34,1.56,.64,1);
+  /* ── Криві БЕЗ перельоту (рішення власника, серпень 2026) ──
+     Обидві раніше були пружинними: `--ease` виходила на 1.4, `--ease-spr` на
+     1.56, тобто елемент пролітав повз своє місце і вертався. На покадровому
+     розборі запису з iPhone це видно прямо: шит меню опинявся на 75px вище
+     кінцевої позиції (кадр 79), потім хитався назад 87 → 95 → 93 → 90 і лише
+     тоді ставав. На довгому шляху (шит через увесь екран) переліт читається не
+     як живість, а як ривок.
+     Назви лишені навмисно: перейменування зачепило б 74 місця вжитку без
+     жодної користі. `--ease-spr` більше НЕ пружина — це просто трохи різкіша
+     крива для коротких відгуків. Повертати сюди значення > 1 не треба; гард
+     `design-tokens.test.ts` («крива без перельоту») на це й падає. */
+  --ease:cubic-bezier(.32,.72,.26,1);
+  --ease-spr:cubic-bezier(.22,.68,.28,1);
   --ease-out:cubic-bezier(.16,1,.3,1);
   /* М'який старт — для ЗНИКАННЯ. --ease-out експоненційний: він проходить
      майже весь шлях за перші ~15% часу, що для появи добре, а для зникання
@@ -810,7 +821,7 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
    (normal — not a bug in the signal) made the sheet visibly SNAP between sizes
    every tick instead of resizing smoothly, reading as "shrinks so I can't work
    with it". Same .25s so both edges of the sheet move together. */
-.modal{width:100%;background:rgba(14,11,32,.72);backdrop-filter:blur(48px) saturate(220%) brightness(1.10);-webkit-backdrop-filter:blur(48px) saturate(220%) brightness(1.10);border-top:.5px solid rgba(255,255,255,.18);border-radius:20px 20px 0 0;position:relative;animation:modalSlideUp .38s var(--ease-spr) both;max-height:min(88vh,max(46vh,calc(var(--tg-vh,100svh) - var(--keyboard-h,0px) - 20px)));transition:max-height .25s ease-out;display:flex;flex-direction:column;overflow:hidden;box-shadow:inset 0 1.5px 0 rgba(255,255,255,.22),inset 0 .5px 0 rgba(255,255,255,.10)}
+.modal{width:100%;background:rgba(14,11,32,.72);backdrop-filter:blur(48px) saturate(220%) brightness(1.10);-webkit-backdrop-filter:blur(48px) saturate(220%) brightness(1.10);border-top:.5px solid rgba(255,255,255,.18);border-radius:20px 20px 0 0;position:relative;animation:modalSlideUp .3s var(--ease-out) both;max-height:min(88vh,max(46vh,calc(var(--tg-vh,100svh) - var(--keyboard-h,0px) - 20px)));transition:max-height .25s ease-out;display:flex;flex-direction:column;overflow:hidden;box-shadow:inset 0 1.5px 0 rgba(255,255,255,.22),inset 0 .5px 0 rgba(255,255,255,.10)}
 /* БЕЗ will-change: шит уже має власний backdrop-filter, тож постійний
    композитний шар нічого не пришвидшує, зате тримається назавжди — а два
    вкладені шити давали два таких шари з блюром 48px. Те саме рішення й з тієї ж
@@ -1234,6 +1245,18 @@ svg.ico{overflow:visible}
 @keyframes pls{0%,100%{transform:scale(1);opacity:.9}50%{transform:scale(1.5);opacity:.3}}
 @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 @keyframes toastSlideIn{from{opacity:0;transform:translateY(-80px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}
+/* ── Блюр НЕ працює, поки шит їде ──
+   Замір із реального iPhone (покадровий розбір запису): перші ~60% шляху шит
+   долав за ОДИН кадр — 1.99 млн змінених пікселів із 2.96 млн екрана, — а
+   наступний кадр був майже без руху. Тобто кадри на старті губились. Відкриття
+   створює ДВА нові backdrop-шари (`.modal` 48px + `.modal-overlay` 4px) поверх
+   екрана, де вже 24+ карток `.glass-s` зі своїм blur(28px).
+   Прийом той самий, що в акордеоні папок (`.fold-anim`) — там у коментарі
+   `Collapsible.tsx` прямо сказано, що переблюрювання щокадру «is what made it
+   stutter». На швидкості різниці не видно, вартість падає різко.
+   Chromium цього не показує (`_blur-cost`: p50 16.7мс з блюром і без) — доказ
+   лежить у записі з пристрою, а не в локальному прогоні. */
+.modal.moving,.modal-overlay.moving{backdrop-filter:none;-webkit-backdrop-filter:none}
 @keyframes modalSlideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
 @keyframes overlayFade{from{opacity:0}to{opacity:1}}
 @keyframes modalSlideDown{from{transform:translateY(0)}to{transform:translateY(100%)}}
