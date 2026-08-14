@@ -248,3 +248,42 @@ test('неактивна кнопка — нейтральне скло, а не
       .toBeGreaterThanOrEqual(0.9)
   }
 })
+
+test('первинна дія — ОДИН розмір на всіх екранах', async ({ browser }) => {
+  test.setTimeout(300_000)
+  // Рішення власника: «всі повинні бути в єдиних розмірах». До нього родина
+  // жила у двох габаритах — 52px/min-width:200 у плаваючої дії екрана деталі
+  // («Звільнити обʼєкт») проти 46px у решти («Створити базу», «Додати обʼєкт»,
+  // «Зберегти зміни»). Кожен розмір мав своє пояснення, але поруч, на сусідніх
+  // екранах, різниця читалась як недбалість.
+  //
+  // Міряємо РЕНДЕР, а не CSS: висота приходить із height, padding і line-height
+  // разом, тож джерельний гард («у `.fbtn` написано 46px») пропустив би екран,
+  // де клас перевизначено інлайном — а саме так екрани й ламали геометрію
+  // раніше (див. `.mbtn` і position:absolute в ui-audit).
+  const sizes = new Map<string, string[]>()
+
+  await walkAll(browser, async (page, label) => {
+    const found = await page.evaluate(() => {
+      const out: { sig: string; text: string }[] = []
+      document.querySelectorAll('.mbtn,.fbtn').forEach((el) => {
+        const r = el.getBoundingClientRect()
+        if (r.height === 0) return // прихована (fab-off) — не в рахунок
+        const cs = getComputedStyle(el)
+        out.push({
+          sig: `${Math.round(r.height)}px/${cs.fontSize}/${cs.borderRadius}`,
+          text: (el.textContent || '').trim().slice(0, 24),
+        })
+      })
+      return out
+    })
+    for (const { sig, text } of found) {
+      sizes.set(sig, [...(sizes.get(sig) ?? []), `${label}«${text}»`])
+    }
+  })
+
+  expect(sizes.size, 'первинних дій не знайдено — селектори застаріли').toBeGreaterThan(0)
+  const variants = [...sizes.entries()].map(([sig, where]) => `${sig} ← ${[...new Set(where)].join(', ')}`)
+  expect(variants, `первинна дія мусить мати ОДИН розмір, а варіантів ${variants.length}`)
+    .toHaveLength(1)
+})

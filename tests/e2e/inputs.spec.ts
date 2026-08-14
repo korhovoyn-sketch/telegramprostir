@@ -215,3 +215,37 @@ test('поля вводу: жодного type=number, правильний inpu
   expect([...new Set(noLayer)], 'каретковому полю потрібен translateZ(0) — інакше каретка зміщена під backdrop-filter').toEqual([])
   expect([...new Set(small)], 'поле дрібніше 16px — iOS зумить екран на фокусі').toEqual([])
 })
+
+test('тап по полю НЕ малює кільце фокуса, і платформа знає, що застосунок темний', async ({ page }) => {
+  // Скріншот власника: тап по «Назва» давав синю рамку навколо поля. Причина —
+  // мій же коментар у CSS стверджував, що «тач кільця не отримує». Для КНОПОК
+  // це правда, для текстових полів ні: за специфікацією елемент, що очікує
+  // введення тексту, матчить `:focus-visible` ЗАВЖДИ, хоч би як його
+  // сфокусували. Тому кільце тепер за медіа-гейтом `pointer: fine`, а цей
+  // проєкт (`isMobile+hasTouch`) дає саме `coarse` — тобто міряємо прод-випадок.
+  await setupFixtures(page)
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+
+  // Антивакуумність: гейт мусить бути ВИМКНЕНИЙ саме тут, інакше тест «проходить»
+  // на будь-якому CSS.
+  const coarse = await page.evaluate(() => window.matchMedia('(pointer: coarse)').matches)
+  expect(coarse, 'проєкт більше не тач — гард міряє не той випадок').toBe(true)
+
+  // Клавіатура платформи бере вигляд звідси; без цього iOS малює СВІТЛУ плиту
+  // поверх темного скла.
+  const scheme = await page.evaluate(() => getComputedStyle(document.documentElement).colorScheme)
+  expect(scheme, 'платформі не сказано, що застосунок темний — клавіатура і нативні поповери будуть світлі').toBe('dark')
+
+  await page.getByRole('button', { name: /Створити базу|Нова база/ }).first().click()
+  const name = page.locator('input.fr-i').first()
+  await expect(name).toBeVisible({ timeout: 10_000 })
+  await name.click()
+  await expect(name).toBeFocused()
+
+  const ring = await name.evaluate((el) => {
+    const cs = getComputedStyle(el)
+    return { w: parseFloat(cs.outlineWidth) || 0, style: cs.outlineStyle }
+  })
+  expect(ring.style === 'none' || ring.w === 0, `тап намалював кільце ${ring.w}px/${ring.style}`).toBe(true)
+})
