@@ -61,6 +61,26 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
      #a78bfa у девʼяти файлах. --purple (#7B30EB) — інший, темніший акцент. */
   --violet:#a78bfa;--violet-bg:rgba(167,139,250,.15);
   --pink:#FF7AB8;--pink-deep:#C42378;--pink-bg:rgba(255,122,184,.14);
+  /* Глибокий синій для ЗАЛИВКИ первинної CTA — не для іконок і не для тексту.
+     Той самий випадок, що вже лікували `--pink-deep`, тільки гірший: білий
+     підпис на пігулці давав 2.35:1 («Завантажити PDF») при потрібних 4.5.
+     І альфою це НЕ лікується в принципі — рахунок за WCAG-формулою:
+       #2AABEE  L=0.357 → 3.02:1 із білим при ПОВНІЙ заливці
+       #229ED9  L=0.298 → 3.02:1
+       #16719E  L=0.145 → 5.40:1
+     Тобто чинна фірмова синя навіть суцільна, без жодної прозорості, порогу не
+     бере — щільніша заливка тим самим відтінком лише зробила б кнопку
+     непрозорою, лишивши текст нечитабельним. Критерій для будь-якої заміни:
+     L ≤ 0.183 (звідти й береться 4.5:1 для білого). --tg-blue лишається собою
+     для іконок, посилань і хрому. */
+  --blue-deep:#16719E;
+  /* Ґрунт НЕАКТИВНОЇ первинної кнопки. `--glass-2` тут не годився: це біла
+     плівка (.08), тобто вона ОСВІТЛЮЄ і без того світлий низ градієнта, і
+     підпис `--t3` падав до 2.77:1 («Продовжити →» в онбордингу). Правило
+     «неактивність показує КОЛІР, а не opacity» лишається — просто колір тепер
+     темніший, а не світліший. Той самий прийом, що вже застосований до
+     `.obj-tot` через `--glass-card`, лише щільніший. */
+  --glass-off:rgba(6,5,14,.62);
   /* Тип файлу — не статус: PDF-червоний свідомо НЕ --err (той означає помилку),
      а doc бере сімʼю info. Обидва списки файлів раніше дублювали ці літерали. */
   --file-pdf:#ff6b6b;--file-pdf-bg:rgba(255,107,107,.15);--file-pdf-bd:rgba(255,107,107,.30);
@@ -320,9 +340,15 @@ body{
   border-radius:var(--r-pill);display:flex;align-items:center;justify-content:center;
   white-space:nowrap;color:var(--t1);font-size:var(--fs-foot);font-weight:var(--fw-semi);
   letter-spacing:.005em;cursor:pointer;z-index:var(--z-float);gap:8px;border:.5px solid transparent;
-  backdrop-filter:blur(28px) saturate(200%) brightness(1.06);
-  -webkit-backdrop-filter:blur(28px) saturate(200%) brightness(1.06);
-  background:linear-gradient(180deg,rgba(42,171,238,.52),rgba(34,158,217,.34));
+  /* brightness НИЖЧЕ одиниці — це і є головний важіль контрасту тут, і раніше
+     він стояв ПРОТИ нього (1.06 освітлював ґрунт під кнопкою, тобто активно
+     псував читабельність білого підпису). Затемнення саме в backdrop, а не
+     піднята альфа заливки: щоб узяти поріг альфою, знадобилось би ~0.9, тобто
+     скло перестало б бути склом. Заміряно: з .72 і brightness(1.06) експорт
+     давав 3.54:1, з тим самим .72 і brightness(.5) — вище порогу. */
+  backdrop-filter:blur(28px) saturate(180%) brightness(.5);
+  -webkit-backdrop-filter:blur(28px) saturate(180%) brightness(.5);
+  background:linear-gradient(180deg,rgba(22,113,158,.74),rgba(22,113,158,.79));
   border-color:rgba(42,171,238,.46);
   box-shadow:var(--shadow-glass-btn);
   transition:bottom var(--dur-sm) ease-out,transform var(--dur-xs) var(--ease),filter var(--dur-xs) ease}
@@ -348,7 +374,7 @@ body{
 
 /* Неактивна — нейтральне скло, НЕ opacity (правило проєкту: прозорий привид
    над темним фоном зникав зовсім). */
-.mbtn.disabled{background:var(--glass-2);border-color:var(--glass-bd);color:var(--t3);
+.mbtn.disabled{background:var(--glass-off);border-color:var(--glass-bd);color:var(--t3);
   box-shadow:var(--shadow-glass-off);opacity:1;cursor:not-allowed;pointer-events:none}
 .mbtn.is-loading{pointer-events:none;color:transparent;position:relative;animation:btnPulse 1.2s ease-in-out infinite}
 .mbtn.is-loading::after{content:'';position:absolute;width:20px;height:20px;border:2.5px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;top:50%;left:50%;transform:translate(-50%,-50%)}
@@ -856,8 +882,9 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
   position:relative;display:flex;align-items:center;justify-content:center;gap:8px;
   color:var(--t1);font-size:var(--fs-sub);font-weight:var(--fw-semi);cursor:pointer;
   white-space:nowrap;border:.5px solid transparent;
-  backdrop-filter:blur(28px) saturate(200%) brightness(1.06);
-  -webkit-backdrop-filter:blur(28px) saturate(200%) brightness(1.06);
+  /* Той самий важіль, що й у `.mbtn`: затемнений backdrop замість освітленого. */
+  backdrop-filter:blur(28px) saturate(180%) brightness(.5);
+  -webkit-backdrop-filter:blur(28px) saturate(180%) brightness(.5);
   transition:transform var(--dur-xs) var(--ease),filter var(--dur-xs) ease,box-shadow var(--dur-xs) var(--ease)}
 .btn-glass:active{transform:scale(.97);filter:brightness(1.1)}
 /* ЖОДНОЇ зовнішньої тіні — за проханням прибрано й темний скрим під плаваючою
@@ -874,8 +901,11 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
   background:linear-gradient(180deg,rgba(255,59,48,.52),rgba(255,59,48,.34));
   border-color:rgba(255,107,97,.46);
   box-shadow:var(--shadow-glass-btn-danger)}
+/* Той самий глибокий синій, що й `.mbtn` — родина мусить лишатись однією.
+   Правити лише плаваючу CTA означало б, що кнопка екрана темна, а первинна
+   кнопка шита світла, хоч рецепт у них спільний (див. `--blue-deep`). */
 .btn-glass.info{
-  background:linear-gradient(180deg,rgba(42,171,238,.52),rgba(34,158,217,.34));
+  background:linear-gradient(180deg,rgba(22,113,158,.74),rgba(22,113,158,.79));
   border-color:rgba(42,171,238,.46);
   box-shadow:var(--shadow-glass-btn)}
 /* Тон «створити нове» (додати об'єкт, база, підбірка) — той самий рожевий,
@@ -890,7 +920,7 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 
 /* Неактивна дія — нейтральне скло, а не привид: прозорий шар під opacity:.45
    майже зникав над темним шитом, і кнопку не було видно взагалі. */
-.btn-glass:disabled{background:var(--glass-2);border-color:var(--glass-bd);
+.btn-glass:disabled{background:var(--glass-off);border-color:var(--glass-bd);
   box-shadow:var(--shadow-glass-off);color:var(--t3);
   opacity:1;cursor:default;pointer-events:none}
 
