@@ -113,9 +113,12 @@ test('states · панель повтору після збою мережі', a
 
 test('states · коачмарк першого запуску', async ({ page }) => {
   await determinism(page)
-  // БЕЗ `skipCoach` — саме тут він і показується. Решта 280 тестів його гасить,
-  // тож перший екран нового користувача не бачив жоден кадр.
   await ownerBase(page, (r) => jsonRoute(r, [DB]))
+  // Коачмарк гасить САМ ХАРНЕС (`setupApp` сідає `ob_v1`), тож «просто не
+  // викликати skipCoach» недостатньо — ключ треба зняти. Init-скрипти біжать у
+  // порядку реєстрації, тому цей мусить іти ПІСЛЯ `setupApp`. Перший екран
+  // нового користувача інакше не бачив жоден кадр із 27.
+  await page.addInitScript(() => localStorage.removeItem('ob_v1'))
   await page.goto('/')
   await expect(page.locator('.cmark-bubble')).toBeVisible({ timeout: 20_000 })
   await shot(page, 'coachmark-first-run')
@@ -127,10 +130,18 @@ test('states · тост помилки', async ({ page }) => {
   await skipCoach(page)
   await page.goto('/')
   await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
-  // Офлайн-гард — найкоротший детермінований шлях до тоста помилки: він же
-  // показує і глобальний банер, тобто в кадрі одразу два стани хрому.
-  await page.evaluate(() => window.dispatchEvent(new Event('offline')))
+  // Офлайн-гард дає тост помилки І глобальний банер — два стани хрому в одному
+  // кадрі. Але викликає його САМЕ мутація: тап по «Створити базу» лише
+  // навігує, тож гард там не спрацьовує. Тому доходимо до форми і тиснемо
+  // збереження.
   await page.getByLabel('Створити базу').click()
+  await expect(page.getByText('Нова база')).toBeVisible({ timeout: 15_000 })
+  // Кнопка активна лише коли Є І назва, І тип (`canCreate`), тож обидва кроки
+  // обовʼязкові — інакше тап іде по `disabled` і тест висить до таймауту.
+  await page.getByLabel('Назва бази').fill('БЦ Рубін')
+  await page.locator('.type-card').first().click()
+  await page.evaluate(() => window.dispatchEvent(new Event('offline')))
+  await page.locator('.mbtn').click()
   await expect(page.locator('.toast')).toBeVisible({ timeout: 15_000 })
   await shot(page, 'toast-offline')
 })
