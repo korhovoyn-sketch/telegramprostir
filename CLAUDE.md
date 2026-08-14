@@ -140,6 +140,25 @@ The container running Claude Code on the web has **no outbound network** (Supaba
 - `realtor` — subscribes to owner databases via share token; sees `realtor-dashboard` after login.
 - New users get `role: 'owner'` by default but are sent to `role-select` if `user.role` is falsy.
 
+**Запис редактора: `owner_id` мусить бути ВЛАСНИКА бази, і це не всюди надійно.**
+`WITH CHECK` у 041 форсить це на сервері, але клієнт мусить проставити значення
+сам. Два різні патерни в коді, і надійність у них різна: платежі
+(`PaymentCalendarScreen`) і файли (`usePropertyFiles`) беруть `owner_id` з РЯДКА
+обʼєкта — це стійко; `useProperties.createProperty/createProperties/moveToDatabase`
+і `useFolders.createFolder` беруть його зі СТОРУ з фолбеком `?? user.id`, який
+для редактора хибний за побудовою. Ланцюг тримає self-heal у
+`DatabaseObjectsScreen` (екран сам довантажує свій рядок бази в стор) — гіпотезу
+«холодний вхід ламає owner_id» перевірено і НЕ підтверджено, але гард на
+інваріант поставлено (`team-writes.spec.ts`), і він упаде, якщо self-heal колись
+приберуть як зайвий запит. Наслідок хибного `owner_id` на живому бекенді — саме
+те, на що скаржаться: «створив обʼєкт, а він не зберігся».
+
+**`property_views` для редактора — окремий випадок «мовчазної порожнечі».** RLS
+на цій таблиці не віддає помилки за відсутності політики: вбудований підзапит
+просто приходить порожній, тож `_view_count` стає 0. Редактор і власник дивляться
+на ту саму базу й бачать різні цифри без жодного натяку чому. Лікує міграція 047
+(`views_editor_select`).
+
 **Team editors (не роль, а membership — 041).** `db_members` дає користувачу
 право редагувати чужу базу (CRUD об'єктів, фото, файли, платежі), не змінюючи
 `users.role`. Потік: власник створює інвайт у TeamScreen → deep link
