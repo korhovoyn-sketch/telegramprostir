@@ -125,6 +125,56 @@ describe('шкали дизайн-системи', () => {
     expect(bad, 'значення зі шкали мусить бути var(--fs-*)').toEqual([])
   })
 
+  it('шар береться зі шкали --z-*, а не пишеться числом', () => {
+    // Шарування — єдина властивість, значення якої нічого не означає саме по
+    // собі: важливий лише порядок відносно інших. Поки числа стояли по місцях
+    // (19 різних у CSS + 7 інлайном), прочитати цей порядок було неможливо
+    // навіть уважно: `.batchbar` на 100 проти `.modal-overlay` на 50 виглядає
+    // як «панель поверх шита», а насправді вона в іншому контексті накладання
+    // (`#app-root` — `position:fixed`, тобто контекст створює). Числа без
+    // спільної шкали не читаються ні в бік дефекту, ні в бік «усе гаразд».
+    const nc = stripComments(css)
+    const body = nc.slice(nc.indexOf('\n}', nc.indexOf(':root{')))
+    const rawCss = [...body.matchAll(/z-index:\s*(-?\d+)/g)].map((m) => `globals.css: ${m[0]}`)
+    const rawTsx: string[] = []
+    for (const file of files) {
+      if (!file.endsWith('.tsx')) continue
+      const txt = stripComments(readFileSync(file, 'utf8'))
+      for (const m of txt.matchAll(/zIndex:\s*(-?\d+)/g)) rawTsx.push(`${file}: ${m[0]}`)
+    }
+    expect([...rawCss, ...rawTsx], 'сирий z-index не порівняти з рештою — візьми var(--z-*)').toEqual([])
+  })
+
+  it('шкала --z-* строго зростає в порядку оголошення', () => {
+    // Порядок у файлі — це і є документація шару. Якщо він розійдеться зі
+    // значеннями, читач повірить файлу, а браузер — числу.
+    const root = stripComments(css).match(/:root\{([\s\S]*?)\n\}/)![1]
+    const scale = [...root.matchAll(/(--z-[a-z-]+)\s*:\s*(-?\d+)\s*;/g)]
+      .map((m) => ({ name: m[1], v: Number(m[2]) }))
+    expect(scale.length, 'шкала шарів зникла — селектор застарів').toBeGreaterThan(8)
+    const outOfOrder = scale
+      .filter((t, i) => i > 0 && t.v <= scale[i - 1].v)
+      .map((t, i) => `${scale[scale.indexOf(t) - 1].name} → ${t.name}`)
+    expect(outOfOrder, 'значення мусить зростати разом із позицією в блоці').toEqual([])
+  })
+
+  it('рецепт тіні, вжитий утретє, — це токен', () => {
+    // НЕ «кожна box-shadow має бути токеном»: більшість тут — власна графіка
+    // правила (фокус-кільце, світіння, inset-смуга), і токенізувати їх означало
+    // б вигадати систему. Родина починається з третього входження — і саме там
+    // дрейф невидимий: четвертий сегмент мав .28 замість .3 на inset-волосинці.
+    const nc = stripComments(css)
+    const body = nc.slice(nc.indexOf('\n}', nc.indexOf(':root{')))
+    const seen = new Map<string, number>()
+    for (const m of body.matchAll(/box-shadow:\s*([^;}]+)/g)) {
+      const v = m[1].replace(/\s+/g, '')
+      if (v.includes('var(--shadow') || v === 'none') continue
+      seen.set(v, (seen.get(v) ?? 0) + 1)
+    }
+    const repeated = [...seen].filter(([, n]) => n >= 3).map(([v, n]) => `${n}× ${v}`)
+    expect(repeated, 'однаковий рецепт у трьох місцях — заведи --shadow-*').toEqual([])
+  })
+
   it('криві анімацій живуть у токенах, а не літералами в правилах', () => {
     const nc = stripComments(css)
     const body = nc.slice(nc.indexOf('\n}', nc.indexOf(':root{')))

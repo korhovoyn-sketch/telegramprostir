@@ -614,7 +614,7 @@ export default function PropertyDetailScreen() {
                     width: 20, height: 20, borderRadius: '50%',
                     background: 'rgba(0,0,0,.65)', border: 'none',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: 'var(--t1)', cursor: 'pointer', zIndex: 2,
+                    color: 'var(--t1)', cursor: 'pointer', zIndex: 'var(--z-content)',
                   }}
                 >
                   <IconX size={12} />

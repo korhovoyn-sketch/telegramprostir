@@ -70,7 +70,12 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A tests/e2e/screenshots.spec.ts-snapshots
+          # Дві теки: `screenshots` (щасливі, заповнені екрани) і
+          # `screenshots-states` (скелетон, порожньо, повтор, тост, підтвердження,
+          # коачмарк, легальні). Прогін вище — `test screenshots` — підхоплює
+          # обидві спеки за підрядком, тож комітити треба теж обидві.
+          git add -A tests/e2e/screenshots.spec.ts-snapshots \
+                     tests/e2e/screenshots-states.spec.ts-snapshots
           # Порожній коміт тут гірший за відсутність коміту: він виглядав би як
           # «бейслайни оновлено», хоч жоден кадр не змінився.
           if git diff --cached --quiet; then

@@ -341,7 +341,13 @@ export default function DatabaseObjectsScreen() {
             <div className="row-t" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               {/* На змішаній вкладці «Всі» рядки без статусної крапки нерозрізненні */}
               {tab === 'all' && <span className="fdot" style={{ background: STATUS_COLORS[p.status].color, flexShrink: 0 }} />}
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</span>
+              {/* minWidth:0 обовʼязковий: інлайновий `display:flex` вище перебиває
+                  `text-overflow` з `.row-t`, а флекс-елемент за замовчуванням має
+                  `min-width:auto` — тобто відмовляється стискатись нижче
+                  max-content. Назва без пробілів (посилання, кадастровий номер)
+                  через це вилазила за екран на 37px, і ellipsis не спрацьовував
+                  НІКОЛИ. */}
+              <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</span>
             </div>
             <div className="row-s">
               {p.tenant_name?.trim() && <><IconBuilding size={14} color="var(--t3)" /><span>{p.name}</span></>}

@@ -137,7 +137,7 @@ const s = {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
     padding: '14px 16px 10px',
     borderBottom: '.5px solid rgba(255,255,255,.08)',
-    position: 'sticky', top: 0, zIndex: 10,
+    position: 'sticky', top: 0, zIndex: 'var(--z-header)',
     background: 'rgba(10,10,20,.88)',
     backdropFilter: 'blur(20px)',
     WebkitBackdropFilter: 'blur(20px)',

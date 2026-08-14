@@ -16,6 +16,13 @@ const NOW = new Date().toISOString()
 
 const LONG_NAME = 'Офіс представництва компанії «Український Промисловий Альянс Інвест Груп» блок Б'
 const LONG_TENANT = 'ТОВ «Науково-виробниче об\'єднання Агропромислові Технології України»'
+// Довгий рядок БЕЗ пробілів — окремий клас, якого фікстури вище не відтворюють:
+// вони довгі, але переносяться по словах, тож жодного разу не перевіряли, що
+// станеться з тим, чого перенести НІЧИМ. А саме таке користувач вставляє
+// найчастіше — посилання, e-mail, кадастровий номер, назву з буфера без пробілів.
+// Проти цього в CSS існував рівно один захист (`.link-mono`), тобто носії імен
+// (назва бази, обʼєкта, орендаря, папки) не мали жодного.
+const UNBREAKABLE = 'https://maps.example.com/place/1234567890abcdefghijklmnop'
 
 const DB = {
   id: DB_ID, owner_id: USER.id,
@@ -48,6 +55,7 @@ const PROPERTIES = [
   prop(2, { folder_id: F1 }),
   prop(3, { status: 'free', tenant_name: null, lease_start_date: null, lease_end_date: null, rent_rate: 18 }),
   prop(4, { status: 'for_sale', tenant_name: null, lease_start_date: null, lease_end_date: null, sale_price: 12500000 }),
+  prop(5, { name: UNBREAKABLE, tenant_name: UNBREAKABLE, address: UNBREAKABLE, description: UNBREAKABLE }),
 ]
 
 const FOLDERS = [
@@ -158,7 +166,7 @@ async function openObjects(page: Page) {
   await page.goto('/')
   await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
   await page.getByText(/Рубін Плаза/).first().click()
-  await expect(page.getByText('Всі (4)')).toBeVisible()
+  await expect(page.getByText('Всі (5)')).toBeVisible()
   await page.waitForTimeout(600)
 }
 

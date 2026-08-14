@@ -76,7 +76,7 @@ export default function Confetti() {
   return (
     <canvas
       ref={canvasRef}
-      style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 25 }}
+      style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 'var(--z-confetti)' }}
     />
   )
 }
