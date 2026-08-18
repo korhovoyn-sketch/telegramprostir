@@ -5,10 +5,11 @@ import { useAppStore } from '@/store/appStore'
 import { hapticSelection, hapticImpact, hapticNotify } from '@/lib/telegram'
 import { useNotifications } from '@/hooks/useNotifications'
 import { useLeaseAlerts, type LeaseAlert } from '@/hooks/useLeaseAlerts'
+import { useUpcomingPayments, type PaymentAlert } from '@/hooks/useUpcomingPayments'
 import TabBar from '@/components/ui/TabBar'
 import { SkeletonList } from '@/components/ui/SkeletonLoader'
 import { IconX } from '@/components/Icons'
-import { formatDate, daysSince, pluralUk, formatLeaseDate } from '@/lib/utils'
+import { formatDate, daysSince, pluralUk, formatLeaseDate, formatPrice } from '@/lib/utils'
 import type { Notification } from '@/types'
 
 // Вкладки описують ЛИШЕ те, що застосунок реально вміє створювати.
@@ -26,6 +27,8 @@ export default function NotificationsScreen() {
   const navigate = useAppStore((s) => s.navigate)
   const { notifications, loading, loadNotifications, markRead, markAllAsRead, deleteNotification, subscribeToNotifications } = useNotifications()
   const { alerts: leaseAlerts, loadLeaseAlerts } = useLeaseAlerts()
+  const { alerts: payAlerts, loadUpcomingPayments } = useUpcomingPayments()
+  const user = useAppStore((s) => s.user)
   const [tab, setTab] = useState<NotifTab>('all')
 
   useEffect(() => {
@@ -40,9 +43,13 @@ export default function NotificationsScreen() {
   }, [loadNotifications, subscribeToNotifications, markAllAsRead])
 
   useEffect(() => { loadLeaseAlerts() }, [loadLeaseAlerts])
+  useEffect(() => { loadUpcomingPayments() }, [loadUpcomingPayments])
 
   // Показуємо у «Всі» і в окремій вкладці «Договори».
   const showLease = tab === 'all' || tab === 'lease'
+  // Те саме для платежів: найближчі — це СТАН розкладу, а не рядок у
+  // `notifications`, тож блок закріплений, як і лізинговий.
+  const showPay = tab === 'all' || tab === 'payments'
 
   function leaseText(a: LeaseAlert): string {
     if (a.days < 0) {
@@ -51,6 +58,15 @@ export default function NotificationsScreen() {
     }
     if (a.days === 0) return 'Договір закінчується сьогодні'
     return `Залишилось ${a.days} ${pluralUk(a.days, 'день', 'дні', 'днів')}`
+  }
+
+  function payText(a: PaymentAlert): string {
+    if (a.days < 0) {
+      const d = Math.abs(a.days)
+      return `Прострочено на ${d} ${pluralUk(d, 'день', 'дні', 'днів')}`
+    }
+    if (a.days === 0) return 'Оплата сьогодні'
+    return `Через ${a.days} ${pluralUk(a.days, 'день', 'дні', 'днів')}`
   }
 
   const filtered = notifications.filter((n) => {
@@ -126,7 +142,7 @@ export default function NotificationsScreen() {
           {([
             { id: 'all', label: `Всі${unreadCount > 0 ? ` (${unreadCount})` : ''}` },
             { id: 'lease', label: `Договори${leaseAlerts.length > 0 ? ` (${leaseAlerts.length})` : ''}` },
-            { id: 'payments', label: 'Платежі' },
+            { id: 'payments', label: `Платежі${payAlerts.length > 0 ? ` (${payAlerts.length})` : ''}` },
           ] as { id: NotifTab; label: string }[]).map((t) => (
             <div
               key={t.id}
@@ -138,18 +154,50 @@ export default function NotificationsScreen() {
           ))}
         </div>
 
+        {/* НАЙБЛИЖЧІ ПЛАТЕЖІ. Такий самий закріплений блок, як лізинговий, і з
+            тієї ж причини: це СТАН розкладу, а не подія. Рядок у `notifications`
+            зʼявився б лише в день нагадування (і лише якщо відпрацював крон),
+            тож вкладка «Платежі» була порожня решту місяця — саме на це
+            скаржився власник. Перед договорами, бо гроші — первинна робота. */}
+        {showPay && payAlerts.length > 0 && (
+          <>
+            <div className="over">Найближчі платежі</div>
+            <div className="notif-l glass-s" style={{ margin: '0 12px 12px' }}>
+              {payAlerts.map((a) => (
+                <button
+                  key={a.propertyId}
+                  type="button"
+                  className={`notif-i unread lvl-${a.level}`}
+                  onClick={() => { hapticImpact('light'); navigate('payment-calendar', { propertyId: a.propertyId, dbId: a.dbId }) }}
+                >
+                  <div className="notif-ic glass-s">{a.level === 'overdue' ? '⛔' : a.level === 'critical' ? '⏰' : '💸'}</div>
+                  <div className="notif-mn">
+                    <div className="notif-n">{a.name}</div>
+                    <div className="notif-s">
+                      {a.tenantName ? `${a.tenantName} · ` : ''}{payText(a)}
+                    </div>
+                  </div>
+                  {a.amount > 0 && (
+                    <span className="notif-t">{formatPrice(a.amount, user?.currency)}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
         {/* Кінець договору — стан, а не подія, тож окремим закріпленим блоком
             НАД датованими групами, і без кнопки видалення: поки термін
             наближається, сповіщення мусить лишатись на екрані. */}
         {showLease && leaseAlerts.length > 0 && (
           <>
-            <div className="notif-grp">Терміни договорів</div>
+            <div className="over">Терміни договорів</div>
             <div className="notif-l glass-s" style={{ margin: '0 12px 12px' }}>
               {leaseAlerts.map((a) => (
-                <div
+                <button
                   key={a.propertyId}
-                  className={`notif-i unread lease-${a.level}`}
-                  style={{ cursor: 'pointer' }}
+                  type="button"
+                  className={`notif-i unread lvl-${a.level}`}
                   onClick={() => { hapticImpact('light'); navigate('property-detail', { propertyId: a.propertyId, dbId: a.dbId }) }}
                 >
                   <div className="notif-ic glass-s">{a.level === 'overdue' ? '⛔' : a.level === 'critical' ? '⏰' : '📅'}</div>
@@ -160,7 +208,7 @@ export default function NotificationsScreen() {
                     </div>
                   </div>
                   <span className="notif-t">{formatLeaseDate(a.leaseEnd)}</span>
-                </div>
+                </button>
               ))}
             </div>
           </>
@@ -168,7 +216,9 @@ export default function NotificationsScreen() {
 
         {loading ? (
           <SkeletonList count={5} />
-        ) : filtered.length === 0 && !(showLease && leaseAlerts.length > 0) ? (
+        ) : filtered.length === 0
+            && !(showLease && leaseAlerts.length > 0)
+            && !(showPay && payAlerts.length > 0) ? (
           <div className="empty-state" style={{ paddingTop: 32 }}>
             <div className="empty-ic">🔔</div>
             <div className="empty-h">Немає сповіщень</div>
@@ -177,7 +227,7 @@ export default function NotificationsScreen() {
         ) : (
           Object.entries(groupedByDate).map(([group, items]) => (
             <div key={group}>
-              <div className="notif-grp">{group}</div>
+              <div className="over">{group}</div>
               <div className="notif-l glass-s" style={{ margin: '0 12px 12px' }}>
                 {items.map((n) => (
                   <div

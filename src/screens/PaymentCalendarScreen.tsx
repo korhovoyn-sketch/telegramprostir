@@ -510,32 +510,6 @@ export default function PaymentCalendarScreen() {
               </button>
             </div>
 
-            {/* Properties without schedule */}
-            {propsWithoutSchedule.length > 0 && (
-              <>
-                <div className="over">
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconFile size={14} color="#fb923c" />Немає розкладу</span>
-                  <span className="over-a">{propsWithoutSchedule.length} {objectsWord(propsWithoutSchedule.length)}</span>
-                </div>
-                <div className="list" style={{ marginBottom: 12 }}>
-                  {propsWithoutSchedule.map(prop => (
-                    <div key={prop.id} className="glass-s" style={{ borderRadius: 'var(--r-md)', padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 'var(--fs-note)', fontWeight: 'var(--fw-semi)', color: 'var(--t1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{prop.name}</div>
-                        {prop.tenant_name && <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 2 }}>{prop.tenant_name}</div>}
-                      </div>
-                      <button
-                        onClick={() => { setSetupProp(prop); setSetupDueDay('5'); setSetupNotify('3') }}
-                        style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 'var(--r-pill)', background: 'var(--info-bg)', border: '.5px solid rgba(122,179,255,.32)', color: 'var(--info)', fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', cursor: 'pointer', whiteSpace: 'nowrap' }}
-                      >
-                        <IconPlus size={12} /> Налаштувати
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-
             {/* Month sections */}
             {monthSections.map(section => (
               (section.items.length > 0 || section.totalCount > 0) && (
@@ -590,6 +564,36 @@ export default function PaymentCalendarScreen() {
                 </div>
               )
             ))}
+
+            {/* Обʼєкти БЕЗ розкладу — ПІСЛЯ календаря, і це не косметика.
+                Екран називається «Календар платежів», тож першим має йти те, що
+                в ньому вже є: найближчі платежі. Блок «немає розкладу» — це
+                список СПРАВ, а не платежів; угорі він відсував календар за фолд
+                і на пристрої читався як «платежів немає взагалі». */}
+            {propsWithoutSchedule.length > 0 && (
+              <>
+                <div className="over">
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconFile size={14} color="#fb923c" />Немає розкладу</span>
+                  <span className="over-a">{propsWithoutSchedule.length} {objectsWord(propsWithoutSchedule.length)}</span>
+                </div>
+                <div className="list" style={{ marginBottom: 12 }}>
+                  {propsWithoutSchedule.map(prop => (
+                    <div key={prop.id} className="glass-s" style={{ borderRadius: 'var(--r-md)', padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 'var(--fs-note)', fontWeight: 'var(--fw-semi)', color: 'var(--t1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{prop.name}</div>
+                        {prop.tenant_name && <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 2 }}>{prop.tenant_name}</div>}
+                      </div>
+                      <button
+                        onClick={() => { setSetupProp(prop); setSetupDueDay('5'); setSetupNotify('3') }}
+                        style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 'var(--r-pill)', background: 'var(--info-bg)', border: '.5px solid rgba(122,179,255,.32)', color: 'var(--info)', fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                      >
+                        <IconPlus size={12} /> Налаштувати
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
 
             {monthSections.every(s => s.items.length === 0 && s.totalCount === 0) && propsWithoutSchedule.length === 0 && (
               <div className="empty-state" style={{ paddingTop: 24 }}>
