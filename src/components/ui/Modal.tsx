@@ -71,6 +71,18 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
   // then onClose actually unmounts us (open slid up but close used to just pop).
   const [closing, setClosing] = useState(false)
   const firedRef = useRef(false)
+  /**
+   * Вузол оверлея, знятий ПОКИ ВІН ЖИВИЙ.
+   *
+   * `overlayRef` для цього не годиться: React відчіплює власні refs у фазі
+   * коміту, а пасивний cleanup виконується пізніше — на момент розмонтування
+   * там уже `null`, і клон не створювався б ніколи (перша версія гарда впала
+   * саме на цьому). Власний ref React не чіпає.
+   */
+  const exitNodeRef = useRef<HTMLElement | null>(null)
+  useEffect(() => { if (overlayRef.current) exitNodeRef.current = overlayRef.current })
+  // Штатний виїзд (бекдроп/Escape/свайп) уже програно — див. клон нижче.
+  const playedExitRef = useRef(false)
   // Portal target only exists in the browser (static export prerenders on Node).
   const [mounted, setMounted] = useState(false)
   useEffect(() => { setMounted(true) }, [])
@@ -288,6 +300,43 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
     kbMoveRef.current = setTimeout(() => setKbMoving(false), 300)
   }, [kbFallback])
 
+  /**
+   * АНІМАЦІЯ ЗАКРИТТЯ НА БУДЬ-ЯКОМУ ШЛЯХУ — включно з тим, де шит розмонтовує
+   * сам викликач.
+   *
+   * Заміряно на записі з iPhone: після «Зберегти» **63.5% екрана змінюється за
+   * ОДИН кадр** — шит не зʼїжджає, а зникає. Причина структурна: викликачі
+   * гейтять шит на нульованих даних (`{setupProp && <Modal…>}`), тож
+   * `setSetupProp(null)` знімає компонент миттєво, і двофазне `requestClose`
+   * (клас `closing` → чекати → `onClose`) не встигає відпрацювати НІКОЛИ на
+   * успішному шляху.
+   *
+   * Перевести 13 інстансів на проп `open` не можна: портал, лишений живим на
+   * час виїзду, розіменував би той самий `null`, на якому його й гейтять.
+   *
+   * Тому на розмонтуванні беремо КЛОН оверлея — статичний DOM, який даних
+   * викликача не торкається в принципі, — вішаємо йому `closing` і даємо
+   * дограти вже наявні `overlayFadeOut`/`modalSlideDown`.
+   */
+  useEffect(() => () => {
+    if (playedExitRef.current) return
+    const src = exitNodeRef.current
+    if (!src) return
+    const clone = src.cloneNode(true) as HTMLElement
+    clone.classList.add('closing')
+    clone.querySelector('.modal')?.classList.add('closing')
+    clone.style.pointerEvents = 'none'
+    // Клон інертний: він лише догорає. Читалка не мусить його бачити взагалі.
+    clone.setAttribute('aria-hidden', 'true')
+    clone.removeAttribute('role')
+    document.body.appendChild(clone)
+    const kill = () => { clearTimeout(t); clone.remove() }
+    // Страхувальний таймер: `animationend` не прийде, якщо вкладка сховалась
+    // посеред виїзду — тоді клон лишився б у DOM назавжди.
+    const t = setTimeout(kill, 600)
+    clone.addEventListener('animationend', kill)
+  }, [])
+
   useEffect(() => () => {
     clearTimeout(kbProbeRef.current)
     clearTimeout(kbConfirmRef.current)
@@ -319,6 +368,8 @@ export default function Modal({ title, subtitle, onClose, children, actions }: M
   const finishClose = () => {
     if (firedRef.current) return
     firedRef.current = true
+    // Виїзд уже показано — клон на розмонтуванні його не повторює.
+    playedExitRef.current = true
     onClose()
   }
 

@@ -572,3 +572,159 @@ test('шит НЕ підстрибує вгору, коли webview стисну
   // лейаут відняв сам; будь-який власний ліфт тут — це другий відлік.
   expect(gap, `шит відірвався від низу на ${gap}px — знову подвійний ліфт`).toBeLessThan(24)
 })
+
+// ─── ПІДЙОМ НА ФОКУС: старт одночасно з клавіатурою ───────────────────────────
+//
+// Заміряно на записі з iPhone: клавіатура рушала на 3543 мс, шит — на 3691 мс.
+// Лаг 148 мс — це не тривалість переходу, а ДЖЕРЕЛО: `visualViewport.resize` на
+// WebKit приходить один раз, наприкінці анімації клавіатури. Слідкувати за нею
+// покадрово неможливо (WebKit не перебудовує лейаут щокадру; потік дає лише
+// `geometrychange` VirtualKeyboard API, і той є тільки в Chromium). Тому ми
+// СТАРТУЄМО одночасно з нею, узявши висоту з кешу попереднього відкриття.
+
+/**
+ * Кеш висоти клавіатури для цього вʼюпорта, як його пише застосунок.
+ *
+ * Сідається ПІСЛЯ `goto`, а не в `addInitScript`, і це не стиль: `innerWidth/
+ * innerHeight`, прочитані в init-скрипті, віддають вікно браузера ДО емуляції
+ * (та сама пастка, що вже описана для `devices.spec.ts`) — ключ виходив чужий,
+ * і кеш не знаходився. Застосунок читає його лише на `focusin`, тож сідати
+ * після завантаження цілком вчасно.
+ */
+async function seedKbCache(page: Page, px: number) {
+  await page.evaluate((h) => {
+    localStorage.setItem('kb_h_v1', JSON.stringify({ [`${window.innerWidth}x${window.innerHeight}`]: h }))
+  }, px)
+}
+
+const kbVar = (page: Page) => page.evaluate(() =>
+  parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--keyboard-h')) || 0)
+
+async function openScheduleModal(page: Page, kbCachePx = 0) {
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+  if (kbCachePx > 0) await seedKbCache(page, kbCachePx)
+  await page.getByText('БЦ Рубін').first().click()
+  await expect(page.getByText('Всі (3)')).toBeVisible()
+  await page.locator('.obj-card', { hasText: 'Офіс 101' })
+    .getByRole('button', { name: 'Платежі' }).click()
+  await expect(page.getByText(/Платежі — Офіс 101|Календар платежів/)).toBeVisible({ timeout: 15_000 })
+  await page.getByRole('button', { name: /Налаштувати/ }).first().click()
+  await expect(page.locator('.modal')).toBeVisible()
+}
+
+test('шит підіймається ВІДРАЗУ на фокус, не чекаючи на resize', async ({ page }) => {
+  await fixtures(page)
+  await openScheduleModal(page, 280)
+
+  expect(await kbVar(page), 'до фокуса підйому бути не може').toBe(0)
+
+  await page.locator('.modal input[inputmode="numeric"]').first().focus()
+  // Один кадр — саме те вікно, якого бракувало: значення мусить зʼявитись без
+  // жодного `resize`, бо його ніхто не надсилав.
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => r(null))))
+  expect(await kbVar(page), 'підйом не стартував на фокус — лаг лишився').toBe(280)
+})
+
+test('без кешу поведінка лишається сьогоднішньою — жодних здогадів', async ({ page }) => {
+  // Антивакуумність до попереднього: підйом мусить залежати САМЕ від кешу, а не
+  // спрацьовувати завжди. Перший фокус на новому пристрої не має чим ризикувати.
+  await fixtures(page)
+  await openScheduleModal(page)
+  await page.locator('.modal input[inputmode="numeric"]').first().focus()
+  await page.waitForTimeout(120)
+  expect(await kbVar(page), 'підйом на порожньому кеші — це здогад, а не замір').toBe(0)
+})
+
+test('справжня висота ПЕРЕТИРАЄ передбачену, а не додається до неї', async ({ page }) => {
+  await fixtures(page)
+  await openScheduleModal(page, 280)
+  await page.locator('.modal input[inputmode="numeric"]').first().focus()
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => r(null))))
+  expect(await kbVar(page)).toBe(280)
+
+  // Підміна РЕАЛІСТИЧНА: прямий запис у --keyboard-h стер би `applyKeyboardFromVV`,
+  // який рахує висоту з незміненого вʼюпорта (пастка вже в CLAUDE.md).
+  await page.evaluate(() => {
+    const vv = window.visualViewport!
+    Object.defineProperty(vv, 'height', { get: () => window.innerHeight - 310, configurable: true })
+    vv.dispatchEvent(new Event('resize'))
+  })
+  await page.waitForTimeout(80)
+  expect(await kbVar(page), '280 + 310 = подвійний ліфт; має бути рівно 310').toBe(310)
+})
+
+test('непідтверджений підйом знімає сам себе', async ({ page }) => {
+  // Апаратна клавіатура на планшеті: фокус є, OSK немає, resize не прийде.
+  // Без само-скасування шит завис би піднятим на порожнє місце.
+  await fixtures(page)
+  await openScheduleModal(page, 280)
+  await page.locator('.modal input[inputmode="numeric"]').first().focus()
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => r(null))))
+  expect(await kbVar(page)).toBe(280)
+
+  await page.waitForTimeout(900)
+  expect(await kbVar(page), 'підйом без підтвердження мусить зникнути').toBe(0)
+})
+
+test('на клієнті, що СТИСКАЄ лейаут, підйому на фокус немає', async ({ page }) => {
+  // Найдорожчий інваріант цього раунду: подвійний ліфт уже коштував окремого
+  // раунду. Кеш наповнюється лише з `innerHeight − vv.height > 0`, тобто лише
+  // там, де клавіатура НАКРИВАЄ. Тут же прямо перевіряємо гілку стискання.
+  await fixtures(page)
+  await openScheduleModal(page)
+
+  const size = page.viewportSize()!
+  await page.setViewportSize({ width: size.width, height: size.height - 300 })
+  // Кеш сідається ПІСЛЯ ресайзу, і це не дрібниця: ключ залежить від геометрії,
+  // тож посіяний до ресайзу він просто не знаходився б — і гард проходив би
+  // ВАКУУМНО, тобто зеленим навіть із прибраною умовою стискання. Наступано.
+  await seedKbCache(page, 280)
+  await page.evaluate(() => {
+    const w = window as unknown as { __tgViewportStable?: (h: number) => void; __tgKeyboard?: (h: number) => void }
+    w.__tgViewportStable?.(667)
+    w.__tgKeyboard?.(300)
+  })
+  await page.waitForTimeout(120)
+
+  await page.locator('.modal input[inputmode="numeric"]').first().focus()
+  await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => r(null))))
+  expect(await kbVar(page), 'лейаут уже без клавіатури — наш ліфт відняв би її вдруге').toBe(0)
+})
+
+// ─── АНІМАЦІЯ ЗАКРИТТЯ НА ВСІХ ШЛЯХАХ ────────────────────────────────────────
+//
+// Заміряно на записі: після «Зберегти» 63.5% екрана змінюється за ОДИН кадр —
+// шит не зʼїжджає, а зникає. Викликачі гейтять його на нульованих даних
+// (`{setupProp && <Modal…>}`), тож `setSetupProp(null)` знімає компонент
+// миттєво і двофазне `requestClose` не встигає НІКОЛИ на успішному шляху.
+
+const exitingSheets = (page: Page) => page.locator('body > .modal-overlay.closing')
+
+test('успішне збереження ЗАКРИВАЄ шит анімацією, а не миттєвим зникненням', async ({ page }) => {
+  await fixtures(page)
+  await openScheduleModal(page)
+
+  await page.locator('.modal input[inputmode="numeric"]').first().fill('10')
+  await page.getByRole('button', { name: /Зберегти|Створити/ }).click()
+
+  // Живий шит зник (викликач розмонтував), але виїзд мусить бути ВИДИМИМ.
+  await expect(exitingSheets(page)).toHaveCount(1, { timeout: 5_000 })
+  const box = await exitingSheets(page).locator('.modal').boundingBox()
+  expect(box, 'виїзний шит не має геометрії — анімувати нічого').not.toBeNull()
+
+  // …і прибратись сам, не лишившись у DOM назавжди.
+  await expect(exitingSheets(page)).toHaveCount(0, { timeout: 3_000 })
+})
+
+test('штатне закриття НЕ подвоює виїзд', async ({ page }) => {
+  // Бекдроп/Escape/свайп уже програють виїзд самі. Якби клон додавався й тут,
+  // користувач бачив би два шити, що зʼїжджають один крізь одного.
+  await fixtures(page)
+  await openScheduleModal(page)
+
+  await page.locator('.modal-overlay').click({ position: { x: 10, y: 10 } })
+  await page.waitForTimeout(400)
+  expect(await exitingSheets(page).count(), 'клон додався поверх штатного виїзду').toBe(0)
+  await expect(page.locator('.modal')).toHaveCount(0)
+})
