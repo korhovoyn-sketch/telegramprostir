@@ -2,18 +2,23 @@ import { test, expect, type Page, type Route } from '@playwright/test'
 import { setupApp, DEFAULT_USER } from './helpers/harness'
 
 /**
- * Спільний контракт УСІХ 16 інстансів `<Modal>` (12 файлів).
+ * Спільний контракт інстансів `<Modal>`, що ще лишаються (фаза 2 переробки
+ * модалок — atomic-riding-clock.md — перевела розклад платежів і
+ * підтвердження платежу на повноекранні маршрути; ConfirmHost/ShareSheet/
+ * CreatedLinkSheet/«Додати обʼєкт»/«Меню бази» вже на `ActionSheet`, фаза 1).
+ * Число інстансів навмисно НЕ фіксоване тут коментарем — рахувати
+ * `grep -rn "<Modal\b" src` перед наступною фазою, а не довіряти застарілому
+ * числу в цьому файлі.
  *
- * `modals.spec.ts` покриває три з них глибоко — оренда, розклад платежів,
- * папки: свайп-закриття, клавіатура, валідація дат. Решта тринадцяти не
- * перевірялись жодним тестом навіть на те, що вони взагалі відкриваються.
- * А спільного в них рівно стільки, скільки й спільного коду: заголовок, тіло,
- * що прокручується, sticky-екшени, бекдроп-тап, Escape лише для верхньої.
+ * `modals.spec.ts` покриває частину з них глибоко — оренда, папки:
+ * свайп-закриття, клавіатура, валідація дат. Решта не перевірялись жодним
+ * тестом навіть на те, що вони взагалі відкриваються. А спільного в них рівно
+ * стільки, скільки й спільного коду: заголовок, тіло, що прокручується,
+ * sticky-екшени, бекдроп-тап, Escape лише для верхньої.
  *
  * Тому тут не глибина, а ПОВНОТА: кожна модалка відкривається, проходить один
  * і той самий чекліст і закривається бекдроп-тапом. Регресія в `Modal.tsx`
- * впаде на всіх шістнадцяти одразу, а не проявиться на одній, до якої ніхто
- * не дійшов.
+ * впаде на всіх одразу, а не проявиться на одній, до якої ніхто не дійшов.
  */
 
 const NOW = '2025-09-01T09:00:00.000Z'
@@ -302,44 +307,20 @@ test('шити бази: меню, папки, вибір папки, перен
   await sweep(page, 'share-sheet')
 })
 
-test('шити об\'єкта і платежів: оренда, розклад, підтвердження платежу', async ({ page }) => {
+test('шит обʼєкта: здати в оренду', async ({ page }) => {
   test.setTimeout(180_000)
   await setupApp(page, { user: OWNER })
   await ownerRoutes(page)
 
-  // 6. «Здати в оренду» (PropertyDetailScreen) — на вільному об'єкті.
+  // «Здати в оренду» (PropertyDetailScreen) — на вільному об'єкті. Розклад
+  // платежів і підтвердження платежу — тепер повноекранні маршрути
+  // (payment-schedule/payment-confirm, фаза 2), не шити: їхня функціональна
+  // перевірка (включно з валідацією суми) — у deep-lifecycle.spec.ts.
   await toObjects(page)
   await page.locator('.obj-card', { hasText: 'Офіс 102' }).locator('.obj-t').click()
   await expect(page.getByRole('button', { name: /Здати в оренду/ })).toBeVisible({ timeout: 15_000 })
   await page.getByRole('button', { name: /Здати в оренду/ }).click()
   expect(await sweep(page, 'rent')).toBe('Здати в оренду')
-
-  // 7. Налаштування розкладу — на об'єкті БЕЗ розкладу.
-  await toObjects(page)
-  await menu(page, 'Календар платежів')
-  await expect(page.getByText(/Календар платежів|Платежі/).first()).toBeVisible({ timeout: 15_000 })
-  await page.getByRole('button', { name: /Налаштувати/ }).first().click()
-  expect(await sweep(page, 'schedule')).toBe('Налаштувати розклад')
-
-  // 8. Підтвердження отримання — на об'єкті З розкладом.
-  await page.getByRole('button', { name: /Отримано/ }).first().click()
-  expect(await sweep(page, 'pay-confirm')).toBe('Підтвердити отримання')
-
-  // …і сума на грошовому шляху мусить валідуватись ДО підтвердження. Раніше вона
-  // парсилась усередині дії, тож нуль чи самотня крапка тихо йшли як `undefined`
-  // і платіж підтверджувався без жодного сигналу. Шит доводиться відкривати
-  // заново — `sweep` закриває його бекдроп-тапом.
-  await page.getByRole('button', { name: /Отримано/ }).first().click()
-  await expect(page.locator('.modal')).toBeVisible()
-  const payBtn = page.locator('.modal-actions .modal-btn', { hasText: 'Підтвердити' })
-  const amount = page.getByLabel('Сума отриманого платежу')
-  await expect(payBtn, 'порожнє поле легальне — береться очікувана сума').toBeEnabled()
-  await amount.fill('0')
-  await expect(payBtn, 'нульова сума приймається як платіж').toBeDisabled()
-  await amount.fill('.')
-  await expect(payBtn, 'самотня крапка приймається як сума').toBeDisabled()
-  await amount.fill('1500')
-  await expect(payBtn, 'коректна сума не проходить').toBeEnabled()
 })
 
 test('шити доступів: гості, команда, і створене посилання', async ({ page }) => {

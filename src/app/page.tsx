@@ -46,6 +46,8 @@ const ManageGuestsScreen = dynamic(() => import('@/screens/ManageGuestsScreen'),
 const TeamScreen = dynamic(() => import('@/screens/TeamScreen'), { loading: () => screenFallback })
 const SharedCollectionScreen = dynamic(() => import('@/screens/SharedCollectionScreen'), { loading: () => screenFallback })
 const PaymentCalendarScreen = dynamic(() => import('@/screens/PaymentCalendarScreen'), { loading: () => screenFallback })
+const PaymentScheduleScreen = dynamic(() => import('@/screens/PaymentScheduleScreen'), { loading: () => screenFallback })
+const PaymentConfirmScreen = dynamic(() => import('@/screens/PaymentConfirmScreen'), { loading: () => screenFallback })
 
 export default function Page() {
   const screen = useAppStore((s) => s.screen)
@@ -445,6 +447,8 @@ export default function Page() {
       case 'team': return <TeamScreen />
       case 'shared-collection': return <SharedCollectionScreen />
       case 'payment-calendar': return <PaymentCalendarScreen />
+      case 'payment-schedule': return <PaymentScheduleScreen />
+      case 'payment-confirm': return <PaymentConfirmScreen />
       default: return <SplashScreen />
     }
   }

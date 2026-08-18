@@ -3,29 +3,15 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useAppStore } from '@/store/appStore'
 import RetryState from '@/components/ui/RetryState'
-import { hapticImpact, hapticNotify } from '@/lib/telegram'
-import { offlineGuard } from '@/lib/offline'
 import { confirmAction } from '@/lib/confirm'
+import { offlineGuard } from '@/lib/offline'
 import { supabase } from '@/lib/supabase'
 import Header from '@/components/ui/Header'
-import Modal from '@/components/ui/Modal'
 import { SkeletonList } from '@/components/ui/SkeletonLoader'
-import { IconCalendar, IconBellRing, IconCheckCircle, IconClock, IconPlus, IconTrash, IconFile } from '@/components/Icons'
-import { formatPrice, monthlyRent, humanizeDbError, objectsWord, sanitizeDecimal, sanitizeInt } from '@/lib/utils'
+import { IconCalendar, IconClock, IconPlus, IconTrash, IconFile, IconCheckCircle } from '@/components/Icons'
+import { formatPrice, humanizeDbError, objectsWord } from '@/lib/utils'
+import { RENT_PAYMENT_COLUMNS, RENT_PAYMENT_RECORD_COLUMNS, expectedRent, fmtDueDate } from '@/lib/rentPayments'
 import type { Property, RentPayment, RentPaymentRecord } from '@/types'
-
-// Expected monthly rent for a property. rent_rate alone is WRONG for per_m2
-// (it's the $/m² rate) and for per_day (daily) — monthlyRent normalises every
-// unit to a month so the confirm-payment default matches the other screens.
-function expectedRent(p: Property): number {
-  if (!p.rent_rate) return 0
-  return monthlyRent(p.area_useful ?? 0, p.rent_rate, p.rent_type)
-}
-
-function fmtDueDate(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00')
-  return d.toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' })
-}
 
 function dueDateStr(year: number, month: number, dueDay: number): string {
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(dueDay).padStart(2, '0')}`
@@ -50,7 +36,7 @@ interface PaymentItem {
 type MonthCount = 1 | 2 | 3 | 6
 
 export default function PaymentCalendarScreen() {
-  const { screenParams, user, showToast } = useAppStore()
+  const { screenParams, user, showToast, navigate } = useAppStore()
   const [properties, setProperties]   = useState<Property[]>([])
   const [schedules, setSchedules]     = useState<RentPayment[]>([])
   const [records, setRecords]         = useState<RentPaymentRecord[]>([])
@@ -64,38 +50,10 @@ export default function PaymentCalendarScreen() {
   const [archiveLoading, setArchiveLoading] = useState(false)
   const [archiveLoaded, setArchiveLoaded]   = useState(false)
 
-  const [setupProp, setSetupProp]     = useState<Property | null>(null)
-  const [setupDueDay, setSetupDueDay] = useState('5')
-  const [setupNotify, setSetupNotify] = useState('3')
-
-  const [payConfirmItem, setPayConfirmItem]     = useState<PaymentItem | null>(null)
-  const [payConfirmAmount, setPayConfirmAmount] = useState('')
-  const [payConfirmNotes, setPayConfirmNotes]   = useState('')
   const [showOnlyUnpaid, setShowOnlyUnpaid]     = useState(false)
 
   const propertyId = screenParams.propertyId as string | undefined
   const dbId       = screenParams.dbId       as string | undefined
-
-  // Pre-fill schedule inputs with the existing schedule's values when editing.
-  useEffect(() => {
-    if (!setupProp) return
-    const s = schedules.find(s => s.property_id === setupProp.id)
-    setSetupDueDay(s ? String(s.due_day) : '5')
-    setSetupNotify(s ? String(s.notify_days_before) : '3')
-  }, [setupProp, schedules])
-
-  // Pre-fill payment modal: existing amount+notes when editing a paid record, expected rent for new.
-  useEffect(() => {
-    if (!payConfirmItem) return
-    if (payConfirmItem.record?.status === 'paid') {
-      setPayConfirmAmount(String(payConfirmItem.record.amount ?? ''))
-      setPayConfirmNotes(payConfirmItem.record.notes ?? '')
-    } else {
-      const expected = expectedRent(payConfirmItem.property)
-      setPayConfirmAmount(expected > 0 ? String(expected) : '')
-      setPayConfirmNotes('')
-    }
-  }, [payConfirmItem])
 
   // ── Initial load ────────────────────────────────────────────────────────────
   const loadCurrent = useCallback(async () => {
@@ -123,7 +81,7 @@ export default function PaymentCalendarScreen() {
       const ids = props.map(p => p.id)
 
       const { data: schedData, error: schedErr } = await supabase
-        .from('rent_payments').select('id,property_id,owner_id,due_day,notify_days_before,is_active,created_at,updated_at').in('property_id', ids).eq('is_active', true)
+        .from('rent_payments').select(RENT_PAYMENT_COLUMNS).in('property_id', ids).eq('is_active', true)
       if (schedErr) throw schedErr
       setSchedules((schedData ?? []) as RentPayment[])
 
@@ -150,7 +108,7 @@ export default function PaymentCalendarScreen() {
     const start = new Date(); start.setDate(1)
     const end   = new Date(); end.setMonth(end.getMonth() + ahead); end.setDate(1)
     const { data } = await supabase
-      .from('rent_payment_records').select('id,property_id,owner_id,due_date,paid_at,amount,status,notes,created_at,updated_at')
+      .from('rent_payment_records').select(RENT_PAYMENT_RECORD_COLUMNS)
       .in('property_id', ids)
       .gte('due_date', start.toISOString().slice(0, 10))
       .lte('due_date', end.toISOString().slice(0, 10))
@@ -172,7 +130,7 @@ export default function PaymentCalendarScreen() {
     const ids = properties.map(p => p.id)
     setArchiveLoading(true)
     supabase
-      .from('rent_payment_records').select('id,property_id,owner_id,due_date,paid_at,amount,status,notes,created_at,updated_at')
+      .from('rent_payment_records').select(RENT_PAYMENT_RECORD_COLUMNS)
       .in('property_id', ids)
       .eq('status', 'paid')
       .order('due_date', { ascending: false })
@@ -263,110 +221,6 @@ export default function PaymentCalendarScreen() {
   )
 
   // ── Handlers ─────────────────────────────────────────────────────────────────
-  const openConfirm = useCallback((item: PaymentItem) => {
-    setPayConfirmItem(item)
-    // useEffect handles pre-fill based on whether item is already paid or not
-  }, [])
-
-  const handleMarkPaid = useCallback(async (item: PaymentItem, amount?: number, notes?: string) => {
-    if (!user) return
-    if (offlineGuard()) return
-    hapticImpact('light')
-
-    // Optimistic: the modal closes and the row turns green immediately; the
-    // upsert syncs in the background and everything rolls back on failure.
-    const now = new Date().toISOString()
-    const optimisticRec: RentPaymentRecord = {
-      id: item.record?.id ?? `tmp_${item.property.id}_${item.dueDate}`,
-      property_id: item.property.id,
-      owner_id:    item.property.owner_id,
-      due_date:    item.dueDate,
-      paid_at:     now,
-      amount:      amount ?? (expectedRent(item.property) || null),
-      status:      'paid',
-      notes:       notes ?? null,
-      created_at:  item.record?.created_at ?? now,
-      updated_at:  now,
-    }
-    const upsertLocal = (prev: RentPaymentRecord[], rec: RentPaymentRecord) => {
-      const idx = prev.findIndex(r => r.property_id === item.property.id && r.due_date === item.dueDate)
-      return idx >= 0 ? prev.map((r, i) => i === idx ? rec : r) : [rec, ...prev]
-    }
-    let snapshotMain: RentPaymentRecord[] = []
-    let snapshotArch: RentPaymentRecord[] = []
-    setRecords(prev => { snapshotMain = prev; return upsertLocal(prev, optimisticRec) })
-    if (archiveLoaded) {
-      setArchiveRecords(prev => { snapshotArch = prev; return upsertLocal(prev, optimisticRec) })
-    }
-    setPayConfirmItem(null)
-    hapticNotify('success')
-    showToast({ type: 'success', title: 'Платіж підтверджено ✓' })
-
-    try {
-      const { data, error } = await supabase
-        .from('rent_payment_records')
-        .upsert(
-          {
-            property_id: item.property.id,
-            owner_id:    item.property.owner_id,
-            due_date:    item.dueDate,
-            paid_at:     now,
-            amount:      optimisticRec.amount,
-            notes:       notes ?? null,
-            status:      'paid' as const,
-            updated_at:  now,
-          },
-          { onConflict: 'property_id,due_date' }
-        )
-        .select('id,property_id,owner_id,due_date,paid_at,amount,status,notes,created_at,updated_at').single()
-      if (error) throw error
-      // Swap the temp row for the server one (real id/created_at)
-      const rec = data as RentPaymentRecord
-      setRecords(prev => upsertLocal(prev, rec))
-      if (archiveLoaded) setArchiveRecords(prev => upsertLocal(prev, rec))
-    } catch (e) {
-      setRecords(snapshotMain)
-      if (archiveLoaded) setArchiveRecords(snapshotArch)
-      showToast({ type: 'error', title: 'Платіж не зберігся — повернуто', subtitle: humanizeDbError(e) })
-    }
-  }, [user, archiveLoaded, showToast])
-
-  const handleSaveSchedule = useCallback(async () => {
-    if (!setupProp || !user) return
-    if (offlineGuard()) return
-    const day    = parseInt(setupDueDay, 10)
-    const notify = parseInt(setupNotify, 10)
-    if (!isFinite(day) || day < 1 || day > 28) {
-      showToast({ type: 'error', title: 'День платежу має бути від 1 до 28' })
-      return
-    }
-    try {
-      const { data, error } = await supabase
-        .from('rent_payments')
-        .upsert(
-          {
-            property_id:        setupProp.id,
-            owner_id:           setupProp.owner_id,
-            due_day:            day,
-            notify_days_before: isFinite(notify) ? Math.min(14, Math.max(0, notify)) : 3,
-            is_active:          true,
-            updated_at:         new Date().toISOString(),
-          },
-          { onConflict: 'property_id' }
-        )
-        .select('id,property_id,owner_id,due_day,notify_days_before,is_active,created_at,updated_at').single()
-      if (error) throw error
-      setSchedules(prev => {
-        const idx = prev.findIndex(s => s.property_id === setupProp.id)
-        return idx >= 0 ? prev.map((s, i) => i === idx ? (data as RentPayment) : s) : [...prev, data as RentPayment]
-      })
-      showToast({ type: 'success', title: 'Розклад збережено' })
-      setSetupProp(null)
-    } catch (e) {
-      showToast({ type: 'error', title: 'Помилка збереження', subtitle: humanizeDbError(e) })
-    }
-  }, [setupProp, user, setupDueDay, setupNotify, showToast])
-
   const handleDeleteSchedule = useCallback(async (prop: Property) => {
     const ok = await confirmAction({
       title: 'Видалити розклад?',
@@ -542,15 +396,10 @@ export default function PaymentCalendarScreen() {
                         item={item}
                         statusColor={getStatusColor(item)}
                         label={getStatusLabel(item)}
-                        onMarkPaid={() => openConfirm(item)}
-                        onEdit={() => {
-                          setSetupProp(item.property)
-                          const sc = schedules.find(s => s.property_id === item.property.id)
-                          setSetupDueDay(String(sc?.due_day ?? 5))
-                          setSetupNotify(String(sc?.notify_days_before ?? 3))
-                        }}
+                        onMarkPaid={() => navigate('payment-confirm', { propertyId: item.property.id, dbId: item.property.db_id, dueDate: item.dueDate })}
+                        onEdit={() => navigate('payment-schedule', { propertyId: item.property.id, dbId: item.property.db_id })}
                         onDeleteSchedule={() => handleDeleteSchedule(item.property)}
-                        onEditPaid={() => setPayConfirmItem(item)}
+                        onEditPaid={() => navigate('payment-confirm', { propertyId: item.property.id, dbId: item.property.db_id, dueDate: item.dueDate })}
                         onUnpay={() => item.record && handleUnpay(item.record, item.property.name)}
                         userCurrency={user?.currency}
                       />
@@ -584,7 +433,7 @@ export default function PaymentCalendarScreen() {
                         {prop.tenant_name && <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 2 }}>{prop.tenant_name}</div>}
                       </div>
                       <button
-                        onClick={() => { setSetupProp(prop); setSetupDueDay('5'); setSetupNotify('3') }}
+                        onClick={() => navigate('payment-schedule', { propertyId: prop.id, dbId: prop.db_id })}
                         style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 'var(--r-pill)', background: 'var(--info-bg)', border: '.5px solid rgba(122,179,255,.32)', color: 'var(--info)', fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', cursor: 'pointer', whiteSpace: 'nowrap' }}
                       >
                         <IconPlus size={12} /> Налаштувати
@@ -687,100 +536,6 @@ export default function PaymentCalendarScreen() {
         <div style={{ height: 80 }} />
       </div>
 
-      {/* ── Setup / edit schedule modal ── */}
-      {setupProp && (
-        <Modal
-          title={schedules.find(s => s.property_id === setupProp.id) ? 'Редагувати розклад' : 'Налаштувати розклад'}
-          subtitle={setupProp.name}
-          // Див. TeamScreen: гард закриття — у Modal.requestClose, не тут.
-          onClose={() => setSetupProp(null)}
-          actions={[
-            { label: 'Зберегти', variant: 'primary', onClick: handleSaveSchedule },
-            { label: 'Скасувати', variant: 'secondary', onClick: () => setSetupProp(null) },
-          ]}
-        >
-          <div style={{ paddingTop: 4 }}>
-            <div className="fld-row">
-              <div className="fld">
-                <div className="fld-l"><IconCalendar size={12} />День місяця (1–28)</div>
-                <input
-                  aria-label="День місяця"
-                  type="text" inputMode="numeric" maxLength={2}
-                  value={setupDueDay} onChange={e => setSetupDueDay(sanitizeInt(e.target.value))}
-                />
-              </div>
-              <div className="fld">
-                <div className="fld-l"><IconBellRing size={12} />Нагадати за, днів</div>
-                <input
-                  aria-label="Нагадати за, днів"
-                  type="text" inputMode="numeric" maxLength={2}
-                  value={setupNotify} onChange={e => { const v = sanitizeInt(e.target.value); setSetupNotify(v && parseInt(v, 10) > 14 ? '14' : v) }}
-                />
-              </div>
-            </div>
-            <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', padding: '0 4px' }}>
-              Ви отримаєте повідомлення через Telegram за {setupNotify || '3'} дн. до {setupDueDay || '5'}-го числа кожного місяця.
-            </div>
-          </div>
-        </Modal>
-      )}
-
-      {payConfirmItem && (
-        <Modal
-          title={payConfirmItem.record?.status === 'paid' ? 'Редагувати платіж' : 'Підтвердити отримання'}
-          subtitle={`${payConfirmItem.property.name} · ${fmtDueDate(payConfirmItem.dueDate)}`}
-          onClose={() => setPayConfirmItem(null)}
-          actions={[
-            {
-              // «Підтвердити оплату» не вміщалось у половинну кнопку (+10px);
-              // що саме підтверджуємо, каже заголовок шита.
-              label: payConfirmItem.record?.status === 'paid' ? 'Зберегти зміни' : 'Підтвердити',
-              variant: 'primary',
-              // Сума парситься ВСЕРЕДИНІ дії, тож сміттєве значення тихо
-              // проходило як `undefined` — платіж підтверджувався на грошовому
-              // шляху без жодного сигналу користувачу. Порожнє поле лишається
-              // легальним (береться очікувана сума), а введене мусить бути
-              // додатним числом. Взірець — PropertyDetailScreen, де `disabled`
-              // уже вживається саме для валідації.
-              disabled: payConfirmAmount.trim() !== '' &&
-                !(isFinite(parseFloat(payConfirmAmount)) && parseFloat(payConfirmAmount) > 0),
-              onClick: () => {
-                const amt = parseFloat(payConfirmAmount)
-                handleMarkPaid(
-                  payConfirmItem,
-                  isFinite(amt) && amt > 0 ? amt : undefined,
-                  payConfirmNotes.trim() || undefined
-                )
-              },
-            },
-            { label: 'Скасувати', variant: 'secondary', onClick: () => setPayConfirmItem(null) },
-          ]}
-        >
-          <div style={{ paddingTop: 4 }}>
-            <div className="fld">
-              <div className="fld-l">Сума отриманого платежу</div>
-              <input
-                aria-label="Сума отриманого платежу"
-                type="text" inputMode="decimal"
-                placeholder="Введіть суму..."
-                value={payConfirmAmount}
-                onChange={e => setPayConfirmAmount(sanitizeDecimal(e.target.value))}
-              />
-            </div>
-            <div className="fld" style={{ marginTop: 10 }}>
-              <div className="fld-l">Нотатка (необов&apos;язково)</div>
-              <input
-                aria-label="Нотатка до платежу"
-                type="text"
-                placeholder="Готівка, переказ, часткова оплата..."
-                value={payConfirmNotes}
-                onChange={e => setPayConfirmNotes(e.target.value)}
-                maxLength={200}
-              />
-            </div>
-          </div>
-        </Modal>
-      )}
     </div>
   )
 }

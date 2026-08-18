@@ -271,7 +271,10 @@ test('база: меню, папки, пікер папок, пікер баз',
   await closeByEscape(page, '04-db-picker')
 })
 
-test('обʼєкт і платежі: оренда, розклад, підтвердження, пікер папки у формі', async ({ page }) => {
+test('обʼєкт: оренда, пікер папки у формі', async ({ page }) => {
+  // Розклад платежів і підтвердження платежу — тепер повноекранні маршрути
+  // (фаза 2 переробки модалок), не шити: цей інструмент знімає лише
+  // ActionSheet/Modal-інстанси, для екранів огляд не потрібен окремо.
   test.setTimeout(180_000)
   await setupApp(page, { user: OWNER })
   await ownerRoutes(page)
@@ -282,19 +285,6 @@ test('обʼєкт і платежі: оренда, розклад, підтве
   await page.getByRole('button', { name: /Здати в оренду/ }).click()
   expect(await shoot(page, '05-rent')).toBe('Здати в оренду')
   await closeByCancel(page, '05-rent')
-
-  // 6. Розклад платежів.
-  await toObjects(page)
-  await menu(page, 'Календар платежів')
-  await expect(page.getByText(/Календар платежів|Платежі/).first()).toBeVisible({ timeout: 15_000 })
-  await page.getByRole('button', { name: /Налаштувати/ }).first().click()
-  expect(await shoot(page, '06-schedule')).toBe('Налаштувати розклад')
-  await closeByBackdrop(page, '06-schedule')
-
-  // 7. Підтвердження отримання.
-  await page.getByRole('button', { name: /Отримано/ }).first().click()
-  expect(await shoot(page, '07-pay-confirm')).toBe('Підтвердити отримання')
-  await closeByCancel(page, '07-pay-confirm')
 
   // 8. Пікер папки у ФОРМІ обʼєкта (інший інстанс, ніж bulk).
   await toObjects(page)

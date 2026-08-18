@@ -66,16 +66,19 @@ test('payment lifecycle: schedule → due item → mark paid → stats → unpay
   const records: Record<string, unknown>[] = []
   await page.route('**/rest/v1/rent_payments**', (route) => {
     const req = route.request()
+    const accept = req.headers()['accept'] ?? ''
     if (req.method() === 'POST') {
       const body = JSON.parse(req.postData() ?? '{}')
       const row = { id: '60000000-0000-0000-0000-000000000001', created_at: NOW, ...body }
       schedules.splice(0, schedules.length, row)
       return json(route, row, 201)
     }
-    return json(route, schedules)
+    // .maybeSingle() (PaymentScheduleScreen) asks for a single object via Accept.
+    return json(route, accept.includes('object') ? (schedules[0] ?? null) : schedules)
   })
   await page.route('**/rest/v1/rent_payment_records**', (route) => {
     const req = route.request()
+    const accept = req.headers()['accept'] ?? ''
     if (req.method() === 'POST') {
       const body = JSON.parse(req.postData() ?? '{}')
       const row = { id: '70000000-0000-0000-0000-000000000001', created_at: NOW, paid_at: NOW, notes: null, ...body }
@@ -86,7 +89,8 @@ test('payment lifecycle: schedule → due item → mark paid → stats → unpay
       records.length = 0
       return json(route, [])
     }
-    return json(route, records)
+    // .maybeSingle() (PaymentConfirmScreen) asks for a single object via Accept.
+    return json(route, accept.includes('object') ? (records[0] ?? null) : records)
   })
 
   await openCalendar(page)
@@ -94,11 +98,12 @@ test('payment lifecycle: schedule → due item → mark paid → stats → unpay
   // 1. Об'єкт без розкладу → «Налаштувати»
   await expect(page.getByText('Немає розкладу')).toBeVisible()
   await page.getByRole('button', { name: /Налаштувати/ }).first().click()
-  const dayInput = page.locator('.modal input[inputmode="numeric"]').first()
-  await dayInput.fill('1')
-  await page.getByRole('button', { name: /Зберегти|Створити/ }).click()
+  await expect(page.getByText('Налаштувати розклад')).toBeVisible()
+  await page.getByLabel('День місяця').fill('1')
+  await page.getByRole('button', { name: 'Зберегти' }).click()
   await expect(page.getByText('Розклад збережено')).toBeVisible()
   expect(schedules[0]).toMatchObject({ property_id: PROP.id, owner_id: USER.id, due_day: 1, is_active: true })
+  await expect(page.getByText(/Календар платежів|Платежі — /)).toBeVisible({ timeout: 15_000 })
 
   // 2. З розкладом з'являється платіжний item поточного місяця з CTA «Отримано»
   await expect(page.getByText('Немає розкладу')).toHaveCount(0)
@@ -117,6 +122,22 @@ test('payment lifecycle: schedule → due item → mark paid → stats → unpay
   await expect(page.getByText('Платіж підтверджено ✓')).toBeVisible()
   await expect.poll(() => records.length).toBe(1)
   expect(records[0]).toMatchObject({ property_id: PROP.id, owner_id: USER.id, status: 'paid', amount: 1800 })
+  await expect(page.getByText(/Календар платежів|Платежі — /)).toBeVisible({ timeout: 15_000 })
+
+  // 3b. Валідація суми — перенесено з modal-sweep.spec.ts: порожнє поле лишається
+  // легальним (береться очікувана сума), а введене мусить бути додатним числом.
+  await page.getByText('✓ Сплачено').click()
+  await expect(page.getByText('Редагувати платіж')).toBeVisible()
+  const amountInput = page.getByLabel('Сума отриманого платежу')
+  const saveBtn = page.getByRole('button', { name: 'Зберегти зміни' })
+  await amountInput.fill('0')
+  await expect(saveBtn).toBeDisabled()
+  await amountInput.fill('.')
+  await expect(saveBtn).toBeDisabled()
+  await amountInput.fill('1500')
+  await expect(saveBtn).toBeEnabled()
+  await page.getByRole('button', { name: 'Назад' }).click()
+  await expect(page.getByText(/Календар платежів|Платежі — /)).toBeVisible({ timeout: 15_000 })
 
   // 4. Рядок стає «Сплачено», стата «Отримано» показує суму
   await expect(page.getByText('✓ Сплачено')).toBeVisible()
@@ -135,20 +156,22 @@ test('payment lifecycle: schedule → due item → mark paid → stats → unpay
 test('403 on schedule save surfaces an error toast and keeps the app alive', async ({ page }) => {
   await fixtures(page)
   await page.route('**/rest/v1/rent_payments**', (route) => {
+    const accept = route.request().headers()['accept'] ?? ''
     if (route.request().method() === 'POST') {
       return json(route, { code: '42501', message: 'permission denied for table rent_payments' }, 403)
     }
-    return json(route, [])
+    return json(route, accept.includes('object') ? null : [])
   })
 
   await openCalendar(page)
   await page.getByRole('button', { name: /Налаштувати/ }).first().click()
-  await page.locator('.modal input[inputmode="numeric"]').first().fill('5')
-  await page.getByRole('button', { name: /Зберегти|Створити/ }).click()
+  await expect(page.getByText('Налаштувати розклад')).toBeVisible()
+  await page.getByLabel('День місяця').fill('5')
+  await page.getByRole('button', { name: 'Зберегти' }).click()
 
   await expect(page.getByText('Помилка збереження')).toBeVisible()
-  // Застосунок живий: модалку можна закрити, екран далі працює
-  await page.getByRole('button', { name: 'Скасувати' }).click()
+  // Застосунок живий: екран не впав, назад повертає на календар без втрат
+  await page.getByRole('button', { name: 'Назад' }).click()
   await expect(page.getByText('Немає розкладу')).toBeVisible()
 })
 
@@ -156,7 +179,10 @@ test('403 on schedule save surfaces an error toast and keeps the app alive', asy
 
 test('offline: mutations are blocked with the offline toast, restore announces itself', async ({ page }) => {
   await fixtures(page)
-  await page.route('**/rest/v1/rent_payments**', (route) => json(route, []))
+  await page.route('**/rest/v1/rent_payments**', (route) => {
+    const accept = route.request().headers()['accept'] ?? ''
+    return json(route, accept.includes('object') ? null : [])
+  })
   await openCalendar(page)
 
   // Емуляція розриву: window offline event → setOnline(false)
@@ -164,8 +190,9 @@ test('offline: mutations are blocked with the offline toast, restore announces i
   // Глобальний банер деградації показується одразу
   await expect(page.getByText('Немає інтернету — дані можуть бути застарілими')).toBeVisible()
   await page.getByRole('button', { name: /Налаштувати/ }).first().click()
-  await page.locator('.modal input[inputmode="numeric"]').first().fill('5')
-  await page.getByRole('button', { name: /Зберегти|Створити/ }).click()
+  await expect(page.getByText('Налаштувати розклад')).toBeVisible()
+  await page.getByLabel('День місяця').fill('5')
+  await page.getByRole('button', { name: 'Зберегти' }).click()
   // Гард мутації: тост (окремо від банера)
   await expect(page.getByText('Збереження недоступне офлайн')).toBeVisible()
 

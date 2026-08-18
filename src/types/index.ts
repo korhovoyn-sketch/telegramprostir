@@ -243,6 +243,8 @@ export type ScreenName =
   | 'success'
   | 'error'
   | 'payment-calendar'
+  | 'payment-schedule'
+  | 'payment-confirm'
 
 export interface RentPayment {
   id: string
@@ -271,6 +273,7 @@ export interface RentPaymentRecord {
 export interface ScreenParams {
   dbId?: string
   propertyId?: string
+  dueDate?: string
   collectionId?: string
   photoIndex?: number
   initialIndex?: number

@@ -2,8 +2,9 @@ import { test, expect, type Page, type Route } from '@playwright/test'
 import { setupApp, DEFAULT_USER } from './helpers/harness'
 
 // ─── Modal behaviour + data-entry: rent modal (live preview, validation),
-// schedule modal (range validation), close affordances (backdrop, Escape),
-// and the 16px anti-zoom guarantee for inputs INSIDE modals.
+// payment schedule SCREEN (range validation — full-screen route since phase 2
+// of the modal rework), close affordances (backdrop, Escape), and the 16px
+// anti-zoom guarantee for inputs INSIDE modals.
 
 const USER = { ...DEFAULT_USER, role: 'owner' as const, first_name: 'Микола' }
 const DB_ID = '10000000-0000-0000-0000-000000000001'
@@ -63,13 +64,18 @@ async function fixtures(page: Page) {
     return route.fallback()
   })
   await page.route('**/rest/v1/rent_payments**', (route) => {
+    const accept = route.request().headers()['accept'] ?? ''
     if (route.request().method() === 'POST') {
       const body = JSON.parse(route.request().postData() ?? '{}')
       return json(route, { id: '55550000-0000-0000-0000-000000000001', created_at: NOW, ...body })
     }
-    return json(route, [])
+    // .maybeSingle() (PaymentScheduleScreen) asks for a single object via Accept.
+    return json(route, accept.includes('object') ? null : [])
   })
-  await page.route('**/rest/v1/rent_payment_records**', (route) => json(route, []))
+  await page.route('**/rest/v1/rent_payment_records**', (route) => {
+    const accept = route.request().headers()['accept'] ?? ''
+    return json(route, accept.includes('object') ? null : [])
+  })
   await page.route('**/rest/v1/property_folders**', (route) => json(route, [{
     id: '40000000-0000-0000-0000-0000000000a1', db_id: DB_ID, owner_id: USER.id,
     name: 'Перший поверх', sort_order: 100, created_at: NOW, updated_at: NOW,
@@ -263,7 +269,10 @@ test('nested modal fills the viewport, not the parent sheet', async ({ page }) =
   expect(geo.modalBottom).toBe(geo.vh) // шит притиснутий до низу екрана
 })
 
-test('schedule modal: day outside 1–28 shows the range error; valid day saves', async ({ page }) => {
+test('payment schedule screen: day outside 1–28 shows the range error; valid day saves', async ({ page }) => {
+  // Фаза 2 переробки модалок: розклад платежів — повноекранний маршрут, не
+  // шит. День і далі валідується тостом при сабміті, НЕ переведено на
+  // disabled — свідомо не змінена поведінка в цій фазі.
   await fixtures(page)
   await page.goto('/')
   await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
@@ -275,65 +284,17 @@ test('schedule modal: day outside 1–28 shows the range error; valid day saves'
   await expect(page.getByText(/Платежі — Офіс 101|Календар платежів/)).toBeVisible({ timeout: 15_000 })
 
   await page.getByRole('button', { name: /Налаштувати/ }).first().click()
-  await expect(page.locator('.modal')).toBeVisible()
+  await expect(page.getByText('Налаштувати розклад')).toBeVisible()
 
-  const dayInput = page.locator('.modal input[inputmode="numeric"]').first()
+  const dayInput = page.getByLabel('День місяця')
   await dayInput.fill('45')
-  await page.getByRole('button', { name: /Зберегти|Створити/ }).click()
+  await page.getByRole('button', { name: 'Зберегти' }).click()
   await expect(page.getByText('День платежу має бути від 1 до 28')).toBeVisible()
-  await expect(page.locator('.modal')).toBeVisible() // не закрилась
+  await expect(page.getByText('Налаштувати розклад')).toBeVisible() // екран не закрився
 
   await dayInput.fill('10')
-  await page.getByRole('button', { name: /Зберегти|Створити/ }).click()
-  await expect(page.locator('.modal')).toHaveCount(0, { timeout: 10_000 })
-})
-
-test('поле в модалці не залишається під клавіатурою, коли платформа її не рапортує', async ({ page }) => {
-  // Реальний кейс: iOS у Telegram не ресайзить webview — і viewportChanged, і
-  // visualViewport дають 0. Шит прив'язаний до низу, тож поля «День місяця» в
-  // календарі платежів опинялись ПІД клавіатурою. Fallback-ліфт має підняти шит.
-  await fixtures(page)
-  await page.goto('/')
-  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
-  await page.getByText('БЦ Рубін').first().click()
-  await expect(page.getByText('Всі (3)')).toBeVisible()
-  await page.locator('.obj-card', { hasText: 'Офіс 101' })
-    .getByRole('button', { name: 'Платежі' }).click()
-  await expect(page.getByText(/Платежі — Офіс 101|Календар платежів/)).toBeVisible({ timeout: 15_000 })
-  await page.getByRole('button', { name: /Налаштувати/ }).first().click()
-  await expect(page.locator('.modal')).toBeVisible()
-
-  const dayInput = page.locator('.modal input[inputmode="numeric"]').first()
-  const rest = (await dayInput.boundingBox())!
-  const restBottom = rest.y + rest.height
-  const vh = page.viewportSize()!.height
-  expect(restBottom, 'у спокої поле стоїть низько — саме тут його з\'їдала клавіатура')
-    .toBeGreaterThan(vh - 320)
-
-  await dayInput.focus()
-  // Ліфт застосовується після проби (350мс) + підтвердження (200мс) + перехід
-  // padding-bottom (250мс).
-  await page.waitForFunction(() => {
-    const ov = document.querySelector('.modal-overlay') as HTMLElement | null
-    return !!ov && parseFloat(getComputedStyle(ov).paddingBottom) > 200
-  }, undefined, { timeout: 5000 })
-  await page.waitForTimeout(320)
-
-  const lifted = (await dayInput.boundingBox())!
-  const liftedBottom = lifted.y + lifted.height
-  expect(liftedBottom, 'поле піднялось над зоною клавіатури').toBeLessThan(vh - 300)
-  // Шит лишається цілим і читабельним
-  const modal = (await page.locator('.modal').boundingBox())!
-  expect(modal.height).toBeGreaterThan(100)
-  expect(modal.y).toBeGreaterThanOrEqual(0)
-  await expect(page.locator('.modal-h')).toBeVisible()
-
-  // Знято фокус — шит опускається назад
-  await dayInput.blur()
-  await page.waitForFunction(() => {
-    const ov = document.querySelector('.modal-overlay') as HTMLElement | null
-    return !!ov && parseFloat(getComputedStyle(ov).paddingBottom) < 20
-  }, undefined, { timeout: 5000 })
+  await page.getByRole('button', { name: 'Зберегти' }).click()
+  await expect(page.getByText(/Платежі — Офіс 101|Календар платежів/)).toBeVisible({ timeout: 10_000 })
 })
 
 test('ліфт вимикається, якщо справжня висота клавіатури приходить ПІЗНІШЕ за пробу', async ({ page }) => {
@@ -460,40 +421,11 @@ test('блюр знято, поки шит їде під клавіатуру', 
   expect(after, 'після руху скло повернулось').toBe(atRest)
 })
 
-test('поле у фокусі не ховається під кнопками дій навіть у затиснутій модалці', async ({ page }) => {
-  // Реальний скрін від користувача: клавіатура стиснула шит, тіло стало
-  // прокручуваним — і sticky-кнопки «Скасувати/Зберегти» накрили поле «День
-  // місяця», у яке він саме друкував.
-  await fixtures(page)
-  await page.goto('/')
-  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
-  await page.getByText('БЦ Рубін').first().click()
-  await expect(page.getByText('Всі (3)')).toBeVisible()
-  await page.locator('.obj-card', { hasText: 'Офіс 101' })
-    .getByRole('button', { name: 'Платежі' }).click()
-  await expect(page.getByText(/Платежі — Офіс 101|Календар платежів/)).toBeVisible({ timeout: 15_000 })
-  await page.getByRole('button', { name: /Налаштувати/ }).first().click()
-  await expect(page.locator('.modal')).toBeVisible()
-
-  // Затискаємо шит так само, як це робить клавіатура на пристрої
-  await page.evaluate(() => document.documentElement.style.setProperty('--keyboard-h', '430px'))
-  await page.waitForTimeout(400)
-
-  const dayInput = page.locator('.modal input[inputmode="numeric"]').first()
-  await dayInput.focus()
-  await page.waitForTimeout(900)
-
-  const geo = await page.evaluate(() => {
-    const el = document.querySelector('.modal input[inputmode="numeric"]') as HTMLElement
-    const act = document.querySelector('.modal-actions') as HTMLElement
-    const f = el.getBoundingClientRect()
-    const a = act.getBoundingClientRect()
-    return { fieldBottom: Math.round(f.bottom), fieldTop: Math.round(f.top), actionsTop: Math.round(a.top) }
-  })
-  expect(geo.fieldBottom, 'нижній край поля вище за кнопки').toBeLessThanOrEqual(geo.actionsTop)
-  expect(geo.fieldTop, 'поле не виїхало за верх екрана').toBeGreaterThan(0)
-  await expect(dayInput).toBeVisible()
-})
+// «поле у фокусі не ховається під кнопками дій навіть у затиснутій модалці» —
+// видалено у фазі 2 переробки модалок: розклад платежів більше не шит, а
+// повноекранний маршрут, і Modal-специфічна геометрія (`.modal-actions`)
+// тут уже не застосовна. Еквівалентне покриття (поле не ховається під
+// `.mbtn-flow`) — генерично в field-obstruction.spec.ts/keyboard-viewport.spec.ts.
 
 test('кнопки дій — напівпрозоре скло, неактивна лишається видимою', async ({ page }) => {
   // Дії були єдиними суцільними заливками в інтерфейсі, збудованому на склі.
@@ -600,7 +532,11 @@ async function seedKbCache(page: Page, px: number) {
 const kbVar = (page: Page) => page.evaluate(() =>
   parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--keyboard-h')) || 0)
 
-async function openScheduleModal(page: Page, kbCachePx = 0) {
+// Фаза 2 переробки модалок: розклад платежів — повноекранний маршрут
+// (`payment-schedule`), не шит. `--keyboard-h` — глобальна змінна, яку
+// пише `page.tsx` на будь-якому фокусі в будь-якому полі застосунку, тож
+// цей набір лишається чинним 1:1 — репойнт на екран, не переписування.
+async function openScheduleScreen(page: Page, kbCachePx = 0) {
   await page.goto('/')
   await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
   if (kbCachePx > 0) await seedKbCache(page, kbCachePx)
@@ -610,16 +546,16 @@ async function openScheduleModal(page: Page, kbCachePx = 0) {
     .getByRole('button', { name: 'Платежі' }).click()
   await expect(page.getByText(/Платежі — Офіс 101|Календар платежів/)).toBeVisible({ timeout: 15_000 })
   await page.getByRole('button', { name: /Налаштувати/ }).first().click()
-  await expect(page.locator('.modal')).toBeVisible()
+  await expect(page.getByText('Налаштувати розклад')).toBeVisible()
 }
 
 test('шит підіймається ВІДРАЗУ на фокус, не чекаючи на resize', async ({ page }) => {
   await fixtures(page)
-  await openScheduleModal(page, 280)
+  await openScheduleScreen(page, 280)
 
   expect(await kbVar(page), 'до фокуса підйому бути не може').toBe(0)
 
-  await page.locator('.modal input[inputmode="numeric"]').first().focus()
+  await page.getByLabel('День місяця').focus()
   // Один кадр — саме те вікно, якого бракувало: значення мусить зʼявитись без
   // жодного `resize`, бо його ніхто не надсилав.
   await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => r(null))))
@@ -630,16 +566,16 @@ test('без кешу поведінка лишається сьогоднішн
   // Антивакуумність до попереднього: підйом мусить залежати САМЕ від кешу, а не
   // спрацьовувати завжди. Перший фокус на новому пристрої не має чим ризикувати.
   await fixtures(page)
-  await openScheduleModal(page)
-  await page.locator('.modal input[inputmode="numeric"]').first().focus()
+  await openScheduleScreen(page)
+  await page.getByLabel('День місяця').focus()
   await page.waitForTimeout(120)
   expect(await kbVar(page), 'підйом на порожньому кеші — це здогад, а не замір').toBe(0)
 })
 
 test('справжня висота ПЕРЕТИРАЄ передбачену, а не додається до неї', async ({ page }) => {
   await fixtures(page)
-  await openScheduleModal(page, 280)
-  await page.locator('.modal input[inputmode="numeric"]').first().focus()
+  await openScheduleScreen(page, 280)
+  await page.getByLabel('День місяця').focus()
   await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => r(null))))
   expect(await kbVar(page)).toBe(280)
 
@@ -658,8 +594,8 @@ test('непідтверджений підйом знімає сам себе',
   // Апаратна клавіатура на планшеті: фокус є, OSK немає, resize не прийде.
   // Без само-скасування шит завис би піднятим на порожнє місце.
   await fixtures(page)
-  await openScheduleModal(page, 280)
-  await page.locator('.modal input[inputmode="numeric"]').first().focus()
+  await openScheduleScreen(page, 280)
+  await page.getByLabel('День місяця').focus()
   await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => r(null))))
   expect(await kbVar(page)).toBe(280)
 
@@ -672,7 +608,7 @@ test('на клієнті, що СТИСКАЄ лейаут, підйому на
   // раунду. Кеш наповнюється лише з `innerHeight − vv.height > 0`, тобто лише
   // там, де клавіатура НАКРИВАЄ. Тут же прямо перевіряємо гілку стискання.
   await fixtures(page)
-  await openScheduleModal(page)
+  await openScheduleScreen(page)
 
   const size = page.viewportSize()!
   await page.setViewportSize({ width: size.width, height: size.height - 300 })
@@ -687,7 +623,7 @@ test('на клієнті, що СТИСКАЄ лейаут, підйому на
   })
   await page.waitForTimeout(120)
 
-  await page.locator('.modal input[inputmode="numeric"]').first().focus()
+  await page.getByLabel('День місяця').focus()
   await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => r(null))))
   expect(await kbVar(page), 'лейаут уже без клавіатури — наш ліфт відняв би її вдруге').toBe(0)
 })

@@ -39,8 +39,14 @@ async function setup(page: Page) {
     const wantsObject = (r.request().headers()['accept'] ?? '').includes('object')
     return jsonRoute(r, wantsObject ? USER : [USER])
   })
-  for (const t of ['property_folders', 'property_files', 'rent_payments', 'rent_payment_records', 'property_views', 'db_members', 'notifications']) {
+  for (const t of ['property_folders', 'property_files', 'property_views', 'db_members', 'notifications']) {
     await page.route(`**/rest/v1/${t}**`, (r) => jsonRoute(r, []))
+  }
+  // PaymentScheduleScreen/PaymentConfirmScreen читають ці через .maybeSingle() —
+  // Accept вирішує, чи повертати одиничний обʼєкт, чи масив.
+  for (const t of ['rent_payments', 'rent_payment_records']) {
+    await page.route(`**/rest/v1/${t}**`, (r) =>
+      jsonRoute(r, (r.request().headers()['accept'] ?? '').includes('object') ? null : []))
   }
   await page.addInitScript(() =>
     localStorage.setItem('ob_v1', JSON.stringify(['owner-fab', 'obj-fab', 'realtor-qr', 'col-fab'])))
@@ -152,7 +158,10 @@ test('профіль: контактні поля не під таббаром',
   expect(await findObstructed(page)).toEqual([])
 })
 
-test('модалки з полями: розклад платежів і оренда', async ({ page }) => {
+test('форма розкладу платежів: поле не ховається під кнопкою збереження', async ({ page }) => {
+  // Фаза 2 переробки модалок: розклад платежів — повноекранний маршрут, не
+  // шит, тож скоуп для findObstructed прибрано (немає контейнера .modal, у
+  // який скоупитись — сторінка сама і є цим контейнером).
   await setup(page)
   await page.goto('/')
   await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
@@ -161,10 +170,10 @@ test('модалки з полями: розклад платежів і оре�
     .getByRole('button', { name: 'Платежі' }).click()
   await expect(page.getByText(/Платежі — Офіс 101|Календар платежів/)).toBeVisible({ timeout: 15_000 })
   await page.getByRole('button', { name: /Налаштувати/ }).first().click()
-  await expect(page.locator('.modal')).toBeVisible()
+  await expect(page.getByText('Налаштувати розклад')).toBeVisible()
 
   await keyboardShrink(page, 300)
-  expect(await findObstructed(page, '.modal'), 'розклад платежів').toEqual([])
+  expect(await findObstructed(page), 'розклад платежів').toEqual([])
 })
 
 test('модалка папок: поле нової папки лишається видимим', async ({ page }) => {
