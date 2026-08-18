@@ -187,6 +187,46 @@ export default function Page() {
     return () => tg.BackButton.offClick(back)
   }, [back])
 
+  /**
+   * Нижня смуга і фон Telegram беруть колір НИЗУ градієнта поточного екрана.
+   *
+   * Було `#06050e` на все — і це видно на записі з пристрою: коли клавіатура
+   * стискає webview, навколо її панелі (в iOS 26 вона з заокругленими кутами)
+   * лишається ЧОРНА рамка. Заміряно по кадру: `#070610` ліворуч і праворуч від
+   * клавіатури — тобто рівно наш колір хрому, а не «баг Telegram».
+   *
+   * Верх (`setHeaderColor`) НЕ чіпаємо: там градієнт справді майже чорний, і
+   * саме тому константа колись і зʼявилась. Помилкою було поширити її на НИЗ,
+   * де кожен градієнт світлий (`.bg-blue` закінчується на #5480dc).
+   *
+   * Значення читається з DOM (`--bg-end` живе поряд із самим градієнтом у
+   * globals.css), щоб не заводити другу копію палітри в JS. Екрани ліниві, тож
+   * на момент першого коміту в дереві ще може стояти fallback — звідси кілька
+   * спроб на rAF, а не одна.
+   */
+  useEffect(() => {
+    const tg = window.Telegram?.WebApp
+    if (!tg) return
+    let tries = 0
+    let raf = 0
+    const apply = () => {
+      const el = document.querySelector('#app-root .scr[class*="bg-"]') as HTMLElement | null
+      const end = el ? getComputedStyle(el).getPropertyValue('--bg-end').trim() : ''
+      if (!end) {
+        if (++tries < 12) raf = requestAnimationFrame(apply)
+        return
+      }
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const tgAny = tg as any
+        tgAny.setBackgroundColor?.(end)
+        tgAny.setBottomBarColor?.(end)
+      } catch { /* старий клієнт — лишається типовий колір */ }
+    }
+    raf = requestAnimationFrame(apply)
+    return () => cancelAnimationFrame(raf)
+  }, [screen, navKey])
+
   // BackButton: show/hide independently of handler registration
   useEffect(() => {
     const tg = window.Telegram?.WebApp

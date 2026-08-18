@@ -249,3 +249,33 @@ test('тап по полю НЕ малює кільце фокуса, і пла�
   })
   expect(ring.style === 'none' || ring.w === 0, `тап намалював кільце ${ring.w}px/${ring.style}`).toBe(true)
 })
+
+test('нижня смуга Telegram бере колір НИЗУ градієнта, а не чорний', async ({ page }) => {
+  // Знайдено на записі з пристрою: коли клавіатура стискає webview, навколо її
+  // панелі (в iOS 26 вона з заокругленими кутами) лишається ЧОРНА рамка.
+  // Заміряно по кадру — `#070610` ліворуч і праворуч від клавіатури, тобто
+  // рівно наш власний колір хрому, а не «баг Telegram»: ми ставили `#06050e`
+  // і на ВЕРХ, і на НИЗ, хоч кожен градієнт закінчується світлим
+  // (`.bg-blue` → #5480dc). Верх лишається темним — там градієнт справді
+  // майже чорний.
+  await setupFixtures(page)
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+
+  const bars = await page.evaluate(() => {
+    const w = window as unknown as Record<string, string | undefined>
+    const el = document.querySelector('#app-root .scr[class*="bg-"]') as HTMLElement | null
+    return {
+      bottom: (w.__tgBottomBarColor ?? '').toLowerCase(),
+      bg: (w.__tgBgColor ?? '').toLowerCase(),
+      header: (w.__tgHeaderColor ?? '').toLowerCase(),
+      end: el ? getComputedStyle(el).getPropertyValue('--bg-end').trim().toLowerCase() : '',
+    }
+  })
+
+  expect(bars.end, 'екран не має токена --bg-end — гард став би порожнім').toMatch(/^#[0-9a-f]{6}$/)
+  expect(bars.bottom, 'нижня смуга лишилась чорною під світлим низом градієнта').toBe(bars.end)
+  expect(bars.bg, 'фон webview лишився чорним — саме він і проглядає навколо клавіатури').toBe(bars.end)
+  // Верх — навпаки, мусить лишатись темним разом із початком градієнта.
+  expect(bars.header, 'верхня смуга не має брати колір низу').not.toBe(bars.end)
+})

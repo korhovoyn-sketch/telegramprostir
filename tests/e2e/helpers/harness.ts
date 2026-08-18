@@ -71,7 +71,13 @@ export async function installTelegram(page: Page, opts: HarnessOptions = {}) {
           contentSafeAreaInset: { top: 0, bottom: 0, left: 0, right: 0 },
           ready() {}, expand() {}, close() {},
           enableClosingConfirmation() {}, disableClosingConfirmation() {},
-          setHeaderColor() {}, setBackgroundColor() {}, disableVerticalSwipes() {},
+          // Кольори нативного хрому ЗАПАМʼЯТОВУЮТЬСЯ: чорна смуга під світлим
+          // низом градієнта — це рамка навколо клавіатури на реальному iOS
+          // (заміряно по запису), тож гард мусить читати останнє значення.
+          setHeaderColor(c: string) { (window as unknown as Record<string, unknown>).__tgHeaderColor = c },
+          setBackgroundColor(c: string) { (window as unknown as Record<string, unknown>).__tgBgColor = c },
+          setBottomBarColor(c: string) { (window as unknown as Record<string, unknown>).__tgBottomBarColor = c },
+          disableVerticalSwipes() {},
           openTelegramLink() {},
           onEvent(name: string, cb: (...a: unknown[]) => void) {
             listeners.set(name, [...(listeners.get(name) ?? []), cb])
@@ -173,7 +179,8 @@ export async function installTelegram(page: Page, opts: HarnessOptions = {}) {
           }
         }
         w.Telegram.WebApp.MainButton = make('Main')
-        w.Telegram.WebApp.setBottomBarColor = () => {}
+        // `setBottomBarColor` більше не підмінюємо: базовий стаб його ЗАПИСУЄ,
+        // а no-op тут стирав би значення, яке перевіряє гард нижньої смуги.
         if (withSecondary) w.Telegram.WebApp.SecondaryButton = make('Secondary')
       }
     },

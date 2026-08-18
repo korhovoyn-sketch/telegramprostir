@@ -19,6 +19,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       // ErrorBoundary немає — виняток тут забрав би весь застосунок, не екран.
       try {
         tg.setHeaderColor?.(dark)
+        // Лише СТАРТОВЕ значення (сплеш ще не змонтований). Далі низ веде
+        // `page.tsx`: він бере колір кінця градієнта поточного екрана, бо
+        // чорна смуга під світлим низом градієнта — це та сама рамка навколо
+        // клавіатури, на яку скаржився власник.
         tg.setBackgroundColor?.(dark)
         tg.setBottomBarColor?.(dark)
       } catch { /* старий клієнт / відкинутий параметр — хром лишається типовим */ }

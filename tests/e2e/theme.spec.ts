@@ -78,7 +78,7 @@ async function newDevicePage(browser: Browser) {
 }
 
 for (const scheme of ['light', 'dark'] as const) {
-  test(`theme · Telegram ${scheme} — UI stays dark, text white, chrome forced dark`, async ({ browser }) => {
+  test(`theme · Telegram ${scheme} — UI stays dark, text white, верх темний / низ за градієнтом`, async ({ browser }) => {
     const { ctx, page } = await newDevicePage(browser)
     try {
       await setupApp(page, { user: OWNER })
@@ -103,11 +103,21 @@ for (const scheme of ['light', 'dark'] as const) {
 
       // 4. Native chrome forced dark: every colour the app pushed to Telegram is
       //    near-black, never the light theme's #ffffff bg.
+      // 4. Нативний хром — але вже НЕ «увесь чорний»: це правило розділилось.
+      //    ВЕРХ лишається темним (там градієнт екрана справді майже чорний), а
+      //    НИЗ мусить дорівнювати кінцю градієнта. Заміряно на записі з
+      //    пристрою: чорна смуга під світлим низом — це рамка, що проглядає
+      //    навколо панелі клавіатури в iOS 26.
       const chrome = await page.evaluate(() => (window as { __tgColors?: [string, string][] }).__tgColors ?? [])
       expect(chrome.length, 'app set native chrome colours').toBeGreaterThan(0)
-      for (const [method, color] of chrome) {
-        expect(luminance(color), `${method}(${color}) must be dark`).toBeLessThan(30)
-      }
+      const end = await page.locator('#app-root .scr[class*="bg-"]').first()
+        .evaluate((el) => getComputedStyle(el).getPropertyValue('--bg-end').trim().toLowerCase())
+      expect(end, 'екран без --bg-end — перевірка низу стала б порожньою').toMatch(/^#[0-9a-f]{6}$/)
+      const last = new Map(chrome.map(([m, c]) => [m, c.toLowerCase()]))
+      expect(luminance(last.get('setHeaderColor') ?? '#000'), 'верхня смуга мусить лишатись темною')
+        .toBeLessThan(30)
+      expect(last.get('setBottomBarColor'), 'нижня смуга мусить брати кінець градієнта').toBe(end)
+      expect(last.get('setBackgroundColor'), 'фон webview мусить брати кінець градієнта').toBe(end)
 
       await page.screenshot({ path: `screenshots/theme-${scheme}-db-list.png` })
     } finally {
@@ -147,9 +157,12 @@ test('theme · missing colorScheme + themeParams (old client / cold start) stays
     const bgImage = await page.locator('.scr').first().evaluate((el) => getComputedStyle(el).backgroundImage)
     expect(bgImage).toContain('gradient')
     const chrome = await page.evaluate(() => (window as { __tgColors?: [string, string][] }).__tgColors ?? [])
-    for (const [method, color] of chrome) {
-      expect(luminance(color), `${method}(${color}) dark`).toBeLessThan(30)
-    }
+    const last2 = new Map(chrome.map(([m, c]) => [m, c.toLowerCase()]))
+    expect(luminance(last2.get('setHeaderColor') ?? '#000'), 'верх темний і без themeParams')
+      .toBeLessThan(30)
+    const end2 = await page.locator('#app-root .scr[class*="bg-"]').first()
+      .evaluate((el) => getComputedStyle(el).getPropertyValue('--bg-end').trim().toLowerCase())
+    expect(last2.get('setBottomBarColor'), 'низ бере кінець градієнта і без themeParams').toBe(end2)
   } finally {
     await ctx.close()
   }
