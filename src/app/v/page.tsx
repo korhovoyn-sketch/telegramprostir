@@ -332,7 +332,7 @@ function PhotoGallery({ paths }: { paths: string[] }) {
             <div style={{
               position: 'absolute', bottom: 10, right: 12,
               background: 'rgba(0,0,0,.55)', backdropFilter: 'blur(8px)',
-              borderRadius: 10, padding: '3px 9px',
+              borderRadius: 'var(--r-xs)', padding: '3px 9px',
               fontSize: 'var(--fs-cap1)', fontWeight: 600, color: '#fff',
             }}>
               {active + 1}/{paths.length}

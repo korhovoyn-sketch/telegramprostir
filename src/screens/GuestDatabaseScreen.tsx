@@ -315,7 +315,7 @@ export default function GuestDatabaseScreen() {
         <div className="glass" style={{ margin: '12px 12px 8px', padding: '14px 16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{
-              width: 36, height: 36, borderRadius: 10,
+              width: 36, height: 36, borderRadius: 'var(--r-xs)',
               // db_color is a named token — a raw `${color}99` interpolation is
               // invalid CSS and drops the whole background
               background: (dbInfo?.db_color && DB_COLORS[dbInfo.db_color]) || DB_COLORS.purple,

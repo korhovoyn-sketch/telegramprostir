@@ -497,7 +497,7 @@ export default function PropertyFormScreen() {
                   onClick={() => { hapticSelection(); setCount(c => Math.max(1, c - 1)) }}
                   disabled={count <= 1}
                   style={{
-                    width: 32, height: 32, borderRadius: 'var(--r-10)',
+                    width: 32, height: 32, borderRadius: 'var(--r-xs)',
                     background: 'var(--glass-2)', border: '.5px solid var(--glass-bd)',
                     color: count <= 1 ? 'var(--t4)' : 'var(--t1)',
                     fontSize: 'var(--fs-lead)', lineHeight: 1, cursor: 'pointer',
@@ -510,7 +510,7 @@ export default function PropertyFormScreen() {
                   onClick={() => { hapticSelection(); setCount(c => Math.min(BULK_MAX, c + 1)) }}
                   disabled={count >= BULK_MAX}
                   style={{
-                    width: 32, height: 32, borderRadius: 'var(--r-10)',
+                    width: 32, height: 32, borderRadius: 'var(--r-xs)',
                     background: 'var(--glass-2)', border: '.5px solid var(--glass-bd)',
                     color: count >= BULK_MAX ? 'var(--t4)' : 'var(--t1)',
                     fontSize: 'var(--fs-lead)', lineHeight: 1, cursor: 'pointer',
@@ -580,7 +580,7 @@ export default function PropertyFormScreen() {
                   width: 62, padding: '7px 8px', textAlign: 'right',
                   fontSize: 'var(--fs-call)', color: 'var(--t1)',
                   background: 'var(--glass-2)', border: '.5px solid var(--glass-bd)',
-                  borderRadius: 'var(--r-10)',
+                  borderRadius: 'var(--r-xs)',
                 }
                 return (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 12px' }}>
