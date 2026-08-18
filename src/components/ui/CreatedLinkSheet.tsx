@@ -1,11 +1,17 @@
 'use client'
 
-import Modal from '@/components/ui/Modal'
+import ActionSheet from '@/components/ui/ActionSheet'
+import { useLatch } from '@/lib/useLatch'
 
 interface Props {
+  /** Керує видимістю; викликач нулює `link` в той самий рендер, що закриває
+   *  шит (кнопка «У Telegram»/«Скопіювати» самі викликають `onClose`-логіку),
+   *  тож саме значення `link` латчиться нижче — інакше вихідна анімація
+   *  домальовувала б порожній моноспейс-блок. */
+  open: boolean
   title: string
   subtitle: string
-  link: string
+  link: string | null
   onShare: () => void
   onCopy: () => void
   onClose: () => void
@@ -16,7 +22,8 @@ interface Props {
  * Обидва екрани мали ідентичну копію, включно з тим самим інлайновим обʼєктом
  * стилю моноспейс-блоку.
  */
-export default function CreatedLinkSheet({ title, subtitle, link, onShare, onCopy, onClose }: Props) {
+export default function CreatedLinkSheet({ open, title, subtitle, link, onShare, onCopy, onClose }: Props) {
+  const latchedLink = useLatch(link) ?? ''
   // `buildDeepLink()` віддає рівно '#', коли не задано NEXT_PUBLIC_TELEGRAM_BOT_USERNAME
   // (статичний експорт запікає змінні у білд, тож дізнатись про це можна лише тут).
   // Без цього гарда шит спокійно пропонував «Скопіювати» та «У Telegram» для
@@ -24,10 +31,11 @@ export default function CreatedLinkSheet({ title, subtitle, link, onShare, onCop
   // про це від одержувача. Цей клас уже давав прод-інцидент — неправильний
   // TELEGRAM_APP_NAME, коли всі шери 404-или. ShareSheet для відсутнього токена
   // теж не вдає, що посилання є.
-  const usable = /^https?:\/\//.test(link)
+  const usable = /^https?:\/\//.test(latchedLink)
 
   return (
-    <Modal
+    <ActionSheet
+      open={open}
       title={title}
       subtitle={subtitle}
       onClose={onClose}
@@ -40,13 +48,13 @@ export default function CreatedLinkSheet({ title, subtitle, link, onShare, onCop
       ]}
     >
       {usable ? (
-        <div className="link-mono">{link}</div>
+        <div className="link-mono">{latchedLink}</div>
       ) : (
         <div className="link-mono">
           Посилання не сформувалось: у застосунку не налаштований юзернейм бота.
           Запрошення вже створене — надішліть його після налаштування.
         </div>
       )}
-    </Modal>
+    </ActionSheet>
   )
 }

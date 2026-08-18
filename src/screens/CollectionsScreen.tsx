@@ -10,7 +10,7 @@ import { confirmAction } from '@/lib/confirm'
 import { supabase } from '@/lib/supabase'
 import TabBar from '@/components/ui/TabBar'
 import { StatusBadge } from '@/components/ui/Badge'
-import Modal from '@/components/ui/Modal'
+import ActionSheet from '@/components/ui/ActionSheet'
 import { IconPlus, IconShare, IconX, IconChevronLeft, IconTrash, IconBuilding } from '@/components/Icons'
 import { formatPrice, calcRent, basisArea, computedRentUnit, objectsWord, formatDate, photoUrl, humanizeDbError } from '@/lib/utils'
 import ShareSheet from '@/components/ui/ShareSheet'
@@ -385,15 +385,15 @@ function CollectionDetail({
       />
 
       {/* Add property modal */}
-      {showAddModal && (
-        <Modal
-          title="Додати об'єкт"
-          subtitle="Оберіть об'єкт із підписаних баз"
-          onClose={() => setShowAddModal(false)}
-          actions={[
-            { label: 'Закрити', variant: 'secondary', onClick: () => setShowAddModal(false) },
-          ]}
-        >
+      <ActionSheet
+        open={showAddModal}
+        title="Додати об'єкт"
+        subtitle="Оберіть об'єкт із підписаних баз"
+        onClose={() => setShowAddModal(false)}
+        actions={[
+          { label: 'Закрити', variant: 'secondary', onClick: () => setShowAddModal(false) },
+        ]}
+      >
           <div style={{ marginTop: 4 }}>
             {loadingAvail ? (
               <div className="loader-wrap" style={{ padding: '24px 0' }}>
@@ -446,18 +446,16 @@ function CollectionDetail({
               </div>
             )}
           </div>
-        </Modal>
-      )}
+      </ActionSheet>
 
-      {showShare && (
-        <ShareSheet
-          kind="col"
-          id={collection.id}
-          name={collection.name}
-          shareText={collection.name}
-          onClose={() => setShowShare(false)}
-        />
-      )}
+      <ShareSheet
+        open={showShare}
+        kind="col"
+        id={collection.id}
+        name={collection.name}
+        shareText={collection.name}
+        onClose={() => setShowShare(false)}
+      />
     </div>
   )
 }
@@ -660,15 +658,14 @@ export default function CollectionsScreen() {
         />
       )}
 
-      {shareTarget && (
-        <ShareSheet
-          kind="col"
-          id={shareTarget.id}
-          name={shareTarget.name}
-          shareText={shareTarget.name}
-          onClose={() => setShareTarget(null)}
-        />
-      )}
+      <ShareSheet
+        open={!!shareTarget}
+        kind="col"
+        id={shareTarget?.id ?? null}
+        name={shareTarget?.name ?? null}
+        shareText={shareTarget?.name ?? null}
+        onClose={() => setShareTarget(null)}
+      />
 
       <TabBar />
     </div>

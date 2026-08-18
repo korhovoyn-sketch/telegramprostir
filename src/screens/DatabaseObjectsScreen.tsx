@@ -14,7 +14,7 @@ import TabBar from '@/components/ui/TabBar'
 import SearchBar from '@/components/ui/SearchBar'
 import { StatusBadge } from '@/components/ui/Badge'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
-import Modal from '@/components/ui/Modal'
+import ActionSheet from '@/components/ui/ActionSheet'
 import FolderManageModal from '@/components/ui/FolderManageModal'
 import FolderPickerModal from '@/components/ui/FolderPickerModal'
 import Collapsible from '@/components/ui/Collapsible'
@@ -36,6 +36,14 @@ export default function DatabaseObjectsScreen() {
   const { properties, loading, error, loadProperties, reorderProperty, batchDeleteProperties, batchUpdateStatus, moveToFolder, moveToDatabase } = useProperties(screenParams.dbId)
   const { folders, unavailable: foldersUnavailable, loadFolders, createFolder, renameFolder, deleteFolder, reorderFolder } = useFolders(screenParams.dbId)
   const memberDbIds = useAppStore(st => st.memberDbIds)
+  // «Меню бази» веде до трьох речей, що зʼявляються НА ТОМУ Ж екрані, поки
+  // ActionSheet ще дограє власну анімацію закриття (~250-320мс): режим
+  // виділення, режим порядку, «Папки» і підтвердження видалення (через
+  // confirmAction → ConfirmHost). Без цього гейту два `role="dialog"` коротко
+  // співіснують — реальна плутанина фокуса/Escape, не лише крихкість тестів.
+  // Навігаційні пункти меню («Аналітика», «Календар» тощо) цього не потребують:
+  // вони перемикають ЕКРАН, і ActionSheet демонтується разом з усім деревом.
+  const confirmOpen = useAppStore(st => !!st.confirmRequest)
 
   const [search, setSearch] = useState('')
   const [tab, setTab] = useState<'all' | PropertyStatus>('all')
@@ -828,9 +836,13 @@ export default function DatabaseObjectsScreen() {
 
       <TabBar />
 
-      {/* DB menu modal — nav items in children (scrollable), destructive in actions */}
-      {showMenu && (
-        <Modal
+      {/* DB menu modal — nav items in children (scrollable), destructive in actions.
+          Демонтована ВІДРАЗУ (без анімації), щойно пункт меню відкриває щось
+          на цьому ж екрані — див. коментар при `confirmOpen` вище. Полiтою
+          анімацію лишає для бекдропу/Escape/свайпу й «Скасувати» в actions. */}
+      {!selectMode && !reorderMode && !showFolderManage && !confirmOpen && (
+        <ActionSheet
+          open={showMenu}
           title={db.name}
           subtitle="Дії з базою"
           onClose={() => setShowMenu(false)}
@@ -871,7 +883,7 @@ export default function DatabaseObjectsScreen() {
               </button>
             ))}
           </div>
-        </Modal>
+        </ActionSheet>
       )}
 
       {/* Folder management */}

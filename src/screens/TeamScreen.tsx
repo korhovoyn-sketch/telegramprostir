@@ -211,16 +211,15 @@ export default function TeamScreen() {
         />
       )}
 
-      {newLink && (
-        <CreatedLinkSheet
-          title="Запрошення створено!"
-          subtitle="Надішліть майбутньому члену команди"
-          link={newLink}
-          onShare={() => { openTelegramShare(newLink, 'Запрошення до команди бази нерухомості'); setNewLink(null) }}
-          onCopy={() => { handleCopyLink(newLink); setNewLink(null) }}
-          onClose={() => setNewLink(null)}
-        />
-      )}
+      <CreatedLinkSheet
+        open={!!newLink}
+        title="Запрошення створено!"
+        subtitle="Надішліть майбутньому члену команди"
+        link={newLink}
+        onShare={() => { if (newLink) openTelegramShare(newLink, 'Запрошення до команди бази нерухомості'); setNewLink(null) }}
+        onCopy={() => { if (newLink) handleCopyLink(newLink); setNewLink(null) }}
+        onClose={() => setNewLink(null)}
+      />
     </div>
   )
 }

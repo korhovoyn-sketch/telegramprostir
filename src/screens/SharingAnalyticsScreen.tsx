@@ -254,15 +254,14 @@ export default function SharingAnalyticsScreen() {
         Поділитися
       </button>
 
-      {showShare && (
-        <ShareSheet
-          kind={isPropertyShare ? 'prop' : 'db'}
-          id={shareTargetId}
-          name={isPropertyShare ? 'Об\'єкт' : 'База'}
-          shareText={isPropertyShare ? 'Перегляньте цей об\'єкт нерухомості' : 'Перегляньте базу нерухомості'}
-          onClose={() => setShowShare(false)}
-        />
-      )}
+      <ShareSheet
+        open={showShare}
+        kind={isPropertyShare ? 'prop' : 'db'}
+        id={shareTargetId}
+        name={isPropertyShare ? 'Об\'єкт' : 'База'}
+        shareText={isPropertyShare ? 'Перегляньте цей об\'єкт нерухомості' : 'Перегляньте базу нерухомості'}
+        onClose={() => setShowShare(false)}
+      />
     </div>
   )
 }

@@ -1,7 +1,8 @@
 'use client'
 
 import { useAppStore } from '@/store/appStore'
-import Modal from '@/components/ui/Modal'
+import ActionSheet from '@/components/ui/ActionSheet'
+import { useLatch } from '@/lib/useLatch'
 
 /**
  * Фолбек для `confirmAction()` там, де нативного попапа Telegram немає:
@@ -14,21 +15,24 @@ import Modal from '@/components/ui/Modal'
 export default function ConfirmHost() {
   const req = useAppStore((s) => s.confirmRequest)
   const answer = useAppStore((s) => s.answerConfirm)
-  if (!req) return null
+  // `answerConfirm` нулює `confirmRequest` в той самий рендер, що й відповідь —
+  // без латча заголовок/текст зникли б РАНІШЕ за вихідну анімацію ActionSheet.
+  const latched = useLatch(req)
 
   return (
-    <Modal
-      title={req.title}
-      subtitle={req.message}
+    <ActionSheet
+      open={!!req}
+      title={latched?.title ?? ''}
+      subtitle={latched?.message}
       onClose={() => answer(false)}
-      actions={[
+      actions={latched ? [
         {
-          label: req.confirmLabel,
-          variant: req.destructive === false ? 'primary' : 'danger',
+          label: latched.confirmLabel,
+          variant: latched.destructive === false ? 'primary' : 'danger',
           onClick: () => answer(true),
         },
         { label: 'Скасувати', variant: 'secondary', onClick: () => answer(false) },
-      ]}
+      ] : []}
     />
   )
 }

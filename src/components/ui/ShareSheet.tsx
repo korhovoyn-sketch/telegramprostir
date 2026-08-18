@@ -7,10 +7,11 @@ import { useAppStore } from '@/store/appStore'
 import { offlineGuard } from '@/lib/offline'
 import { confirmAction as confirmDestructive } from '@/lib/confirm'
 import { supabase } from '@/lib/supabase'
-import Modal, { modalBtnClass } from '@/components/ui/Modal'
+import ActionSheet, { modalBtnClass } from '@/components/ui/ActionSheet'
 import { buildPublicUrl, openTelegramShare , hapticNotify } from '@/lib/telegram'
 import { copyLink } from '@/lib/share'
 import { formatLeaseDate } from '@/lib/utils'
+import { useLatch } from '@/lib/useLatch'
 import { IconRefresh, IconBan, IconChevronRight, IconClock } from '@/components/Icons'
 
 const ManageShareSchema = z.array(z.object({
@@ -22,10 +23,14 @@ const ManageShareSchema = z.array(z.object({
 const KIND_TABLE = { db: 'databases', prop: 'properties', col: 'collections' } as const
 
 interface ShareSheetProps {
+  /** Керує видимістю; `id`/`name` можуть стати `null` в той самий рендер, що
+   *  закриває шит (викликач нулює ціль разом зі станом показу) — латчаться
+   *  нижче, інакше вихідна анімація домальовувала б порожній QR. */
+  open: boolean
   kind: 'db' | 'prop' | 'col'
-  id: string
-  name: string
-  shareText: string
+  id: string | null
+  name: string | null
+  shareText: string | null
   onClose: () => void
 }
 
@@ -34,8 +39,11 @@ interface ShareSheetProps {
  * QR + link + copy + Telegram share, expiry presets (7/30 days/∞),
  * token rotation and revocation via the manage_share RPC.
  */
-export default function ShareSheet({ kind, id, name, shareText, onClose }: ShareSheetProps) {
+export default function ShareSheet({ open, kind, id, name, shareText, onClose }: ShareSheetProps) {
   const { showToast } = useAppStore()
+  const latchedId = useLatch(id) ?? ''
+  const latchedName = useLatch(name) ?? ''
+  const latchedShareText = useLatch(shareText) ?? ''
   const [token, setToken] = useState<string | null>(null)
   const [expiresAt, setExpiresAt] = useState<string | null>(null)
   const [resolvedName, setResolvedName] = useState<string | null>(null)
@@ -43,14 +51,21 @@ export default function ShareSheet({ kind, id, name, shareText, onClose }: Share
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
+    // Не тягнути дані, поки шит закритий/закривається — латчена ціль лишається
+    // з попереднього відкриття саме для того, щоб анімація мала що показати,
+    // а не для того, щоб перезапускати запит.
+    if (!open || !latchedId) return
     let cancelled = false
     async function load() {
       setLoading(true)
+      setToken(null)
+      setExpiresAt(null)
+      setResolvedName(null)
       try {
         const { data } = await supabase
           .from(KIND_TABLE[kind])
           .select('name,share_token,share_expires_at')
-          .eq('id', id)
+          .eq('id', latchedId)
           .single()
         if (cancelled) return
         if (data?.name) setResolvedName(data.name)
@@ -70,7 +85,7 @@ export default function ShareSheet({ kind, id, name, shareText, onClose }: Share
     load()
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kind, id])
+  }, [open, kind, latchedId])
 
   async function runManage(action: 'rotate' | 'set_expiry' | 'clear_expiry' | 'revoke', days?: number, opts?: { silent?: boolean }) {
     // silent-режим (фонове першогенерування при відкритті шита) не має права
@@ -84,7 +99,7 @@ export default function ShareSheet({ kind, id, name, shareText, onClose }: Share
     setBusy(true)
     try {
       const { data, error } = await supabase.rpc('manage_share', {
-        p_kind: kind, p_id: id, p_action: action, p_days: days ?? null,
+        p_kind: kind, p_id: latchedId, p_action: action, p_days: days ?? null,
       })
       if (error) throw new Error(error.message)
       const row = ManageShareSchema.parse(data)[0]
@@ -141,7 +156,7 @@ export default function ShareSheet({ kind, id, name, shareText, onClose }: Share
   }
 
   return (
-    <Modal title={resolvedName ?? name} subtitle="Поділитися" onClose={onClose}>
+    <ActionSheet open={open} title={resolvedName ?? latchedName} subtitle="Поділитися" onClose={onClose}>
       {/* QR + link */}
       <div className="qr-hero glass-s" style={{ margin: '0 0 12px' }}>
         <div className="qr-wrap">
@@ -180,12 +195,12 @@ export default function ShareSheet({ kind, id, name, shareText, onClose }: Share
           Свідомо В ПОТОЦІ, а не в `actions`: пара належить своєму посиланню
           вгорі, а sticky-дно тут займали б кнопки шаринга над небезпечними
           рядками керування. Клас — з `modalBtnClass`, інакше «У Telegram»
-          лишається без заливки (див. коментар до хелпера в Modal). */}
+          лишається без заливки (див. коментар до хелпера в ActionSheet). */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
         <button className={`${modalBtnClass('secondary')} sm`} disabled={loading || !url || isExpired} onClick={handleCopy}>
           Скопіювати
         </button>
-        <button className={`${modalBtnClass('primary')} sm`} disabled={loading || !url || isExpired} onClick={() => openTelegramShare(url, shareText)}>
+        <button className={`${modalBtnClass('primary')} sm`} disabled={loading || !url || isExpired} onClick={() => openTelegramShare(url, latchedShareText)}>
           У Telegram
         </button>
       </div>
@@ -239,6 +254,6 @@ export default function ShareSheet({ kind, id, name, shareText, onClose }: Share
         </button>
       </div>
 
-    </Modal>
+    </ActionSheet>
   )
 }

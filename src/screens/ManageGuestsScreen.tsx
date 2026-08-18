@@ -213,16 +213,15 @@ export default function ManageGuestsScreen() {
         />
       )}
 
-      {newLink && (
-        <CreatedLinkSheet
-          title="Посилання створено!"
-          subtitle="Надішліть гостю для отримання доступу"
-          link={newLink}
-          onShare={() => { handleShareLink(newLink); setNewLink(null) }}
-          onCopy={() => { handleCopyLink(newLink); setNewLink(null) }}
-          onClose={() => setNewLink(null)}
-        />
-      )}
+      <CreatedLinkSheet
+        open={!!newLink}
+        title="Посилання створено!"
+        subtitle="Надішліть гостю для отримання доступу"
+        link={newLink}
+        onShare={() => { if (newLink) handleShareLink(newLink); setNewLink(null) }}
+        onCopy={() => { if (newLink) handleCopyLink(newLink); setNewLink(null) }}
+        onClose={() => setNewLink(null)}
+      />
     </div>
   )
 }
