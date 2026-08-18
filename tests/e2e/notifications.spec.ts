@@ -346,8 +346,13 @@ test('ГЛОБАЛЬНИЙ лічильник, випущений РАНІШЕ, 
   expect(gets, 'глобальний лічильник не встиг випустити запит — гард був би вакуумним').toBeGreaterThan(0)
 
   await page.locator('.tabbar [aria-label="Сповіщення"]').click()
-  await expect(page.getByText('Перегляд об\'єкта 1')).toBeVisible({ timeout: 15_000 })
-  await expect.poll(() => wire.patches.length, { timeout: 10_000 }).toBeGreaterThan(0)
+  // Запас тут ЩЕДРИЙ навмисно: тест і так свідомо чекає ~9с (2.5с на випуск
+  // глобального запиту + 4.5с на приземлення найповільнішого), тож у повному
+  // паралельному прогоні його поля стискаються першими. Один флейк на цьому
+  // рядку вже був. Логіка гарда від величини таймауту не залежить — від нього
+  // залежить лише те, чи встиг браузер під навантаженням.
+  await expect(page.getByText('Перегляд об\'єкта 1')).toBeVisible({ timeout: 30_000 })
+  await expect.poll(() => wire.patches.length, { timeout: 15_000 }).toBeGreaterThan(0)
 
   // Дочікуємось приземлення ПЕРШОГО, найповільнішого запиту.
   await page.waitForTimeout(4500)

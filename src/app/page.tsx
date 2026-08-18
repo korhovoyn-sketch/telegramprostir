@@ -106,6 +106,13 @@ export default function Page() {
     //   Telegram's stable/current heights move together, reading as 0)
     let tgKbH = 0
     let vvKbH = 0
+    // Стан передбачливого підйому (див. блок «ПІДЙОМ НА ФОКУС» нижче). Оголошено
+    // ТУТ, поряд з рештою стану клавіатури: `applyKeyboardFromVV` читає ці
+    // змінні, тож нижче за нього вони лишались би в TDZ для раннього виклику.
+    const KB_CACHE_KEY = 'kb_h_v1'
+    let predicted = 0
+    let confirmTimer = 0
+    let blurTimer = 0
     function applyKeyboardHeight() {
       document.documentElement.style.setProperty('--keyboard-h', `${Math.max(tgKbH, vvKbH)}px`)
     }
@@ -156,12 +163,117 @@ export default function Page() {
       const vv = window.visualViewport
       if (!vv) return
       vvKbH = Math.max(0, Math.round(window.innerHeight - vv.height))
+      // Правда з платформи ПЕРЕТИРАЄ передбачене значення (а не додається до
+      // нього) і поповнює кеш для наступних відкриттів. Поріг 100px відсікає
+      // дрібні ресайзи, які WebKit шле з інших причин — рядок підказок,
+      // автодоповнення: закешувати їх означало б підіймати шит на 40px.
+      if (vvKbH > 100) { predicted = 0; clearTimeout(confirmTimer); writeKbCache(vvKbH) }
       applyKeyboardHeight()
       // Висоту оболонки перечитуємо ТУТ ТАКОЖ: resize вʼюпорта приходить уже
       // після того, як лейаут осів, тобто це єдиний сигнал, який виправляє
       // значення, зняте зарано на viewportChanged.
       applyViewportHeight()
     }
+    /**
+     * ПІДЙОМ НА ФОКУС, ЗВІРКА НА `resize`.
+     *
+     * Заміряно на записі з iPhone: клавіатура рушає на 3543 мс, а шит — лише на
+     * 3691 мс, тобто **лаг 148 мс**, і ще ~220 мс їде. Увесь цей час поле, по
+     * якому щойно тапнули, перекрите клавіатурою.
+     *
+     * Причина не в тривалості переходу, а в ДЖЕРЕЛІ: `visualViewport.resize` на
+     * WebKit приходить ОДИН раз — наприкінці анімації клавіатури. Слідкувати за
+     * нею покадрово неможливо в принципі: WebKit свідомо не перебудовує лейаут
+     * щокадру, а потік подій під час руху дає лише `geometrychange` з
+     * VirtualKeyboard API, і той є тільки в Chromium. Telegram власного API для
+     * клавіатури не має взагалі (відкриті Telegram-iOS #1296/#1410/#1637).
+     *
+     * Тому не «стежити», а СТАРТУВАТИ ОДНОЧАСНО: клавіатура iOS їде ~0.25s, наш
+     * `transition` теж 0.25s — якщо запустити їх в один момент, рухи збігаються
+     * без жодного стеження. Висоту беремо з КЕШУ попереднього відкриття, а
+     * `resize` потім лише звіряє.
+     *
+     * ЧОМУ ЦЕ НЕ ДАЄ ПОДВІЙНОГО ЛІФТА (той дефект уже коштував окремого раунду):
+     * кеш наповнюється ЛИШЕ зі `applyKeyboardFromVV`, тобто лише коли
+     * `innerHeight − vv.height > 0`. Таке можливе тільки там, де клавіатура
+     * НАКРИВАЄ лейаут. Клієнт, що стискає webview (типовий Android), у кеш не
+     * потрапляє ніколи — і передбачливий підйом там просто не вмикається.
+     */
+    // Ключ на геометрію: у ландшафті й на іншому екрані клавіатура інша.
+    const kbCacheKey = () => `${window.innerWidth}x${window.innerHeight}`
+    function readKbCache(): number {
+      try {
+        const raw = localStorage.getItem(KB_CACHE_KEY)
+        if (!raw) return 0
+        return (JSON.parse(raw) as Record<string, number>)[kbCacheKey()] ?? 0
+      } catch { return 0 }
+    }
+    function writeKbCache(px: number) {
+      try {
+        const raw = localStorage.getItem(KB_CACHE_KEY)
+        const map = raw ? (JSON.parse(raw) as Record<string, number>) : {}
+        map[kbCacheKey()] = px
+        localStorage.setItem(KB_CACHE_KEY, JSON.stringify(map))
+      } catch { /* приватний режим — просто без кешу */ }
+    }
+
+    /**
+     * Поле, яке підіймає САМЕ КЛАВІАТУРУ.
+     *
+     * `date`/`time` свідомо ВИКЛЮЧЕНІ: вони відкривають барабан, а не
+     * клавіатуру, і його висота інша — підйом на кешовану висоту клавіатури
+     * був би просто хибним.
+     */
+    function opensKeyboard(el: Element | null): boolean {
+      if (!(el instanceof HTMLElement)) return false
+      if (el.isContentEditable) return true
+      if (el.tagName === 'TEXTAREA') return true
+      if (el.tagName !== 'INPUT') return false
+      const t = (el as HTMLInputElement).type
+      return !['button', 'submit', 'reset', 'checkbox', 'radio', 'file', 'range',
+        'color', 'image', 'date', 'time', 'datetime-local', 'month', 'week'].includes(t)
+    }
+
+    function onFocusIn(e: Event) {
+      clearTimeout(blurTimer)
+      if (!opensKeyboard(e.target as Element | null)) return
+      const cached = readKbCache()
+      // Кеш порожній (перший фокус на цьому пристрої) або клієнт стискає лейаут
+      // — поведінка лишається сьогоднішньою.
+      if (cached <= 0 || layoutShrunkByKeyboard()) return
+      if (vvKbH > 0) return                      // клавіатура вже відкрита
+      predicted = cached
+      vvKbH = cached
+      applyKeyboardHeight()
+      // Не підтвердили — знімаємо. Так буває з апаратною клавіатурою на
+      // планшеті: фокус є, OSK немає, і без цього шит завис би піднятим.
+      clearTimeout(confirmTimer)
+      confirmTimer = window.setTimeout(() => {
+        if (predicted <= 0) return
+        predicted = 0
+        vvKbH = 0
+        applyKeyboardHeight()
+      }, 600)
+    }
+
+    function onFocusOut() {
+      clearTimeout(confirmTimer)
+      // Через тік: перехід фокуса між двома полями того самого шита дає
+      // focusout+focusin поспіль, і клавіатура при цьому НЕ ховається —
+      // миттєве обнулення блимнуло б шитом униз і назад.
+      clearTimeout(blurTimer)
+      blurTimer = window.setTimeout(() => {
+        predicted = 0
+        vvKbH = 0
+        applyKeyboardHeight()
+        // Клавіатура могла лишитись (клієнт не сховав її, фокус пішов у
+        // нефокусований контрол) — перечитуємо ЖИВИЙ вʼюпорт і вертаємо правду.
+        setTimeout(applyKeyboardFromVV, 300)
+      }, 0)
+    }
+
+    document.addEventListener('focusin', onFocusIn)
+    document.addEventListener('focusout', onFocusOut)
     window.visualViewport?.addEventListener('resize', applyKeyboardFromVV)
     // Telegram не надсилає viewportChanged на кожну зміну лейаута (поворот,
     // згортання клавіатури «своїм» шляхом), а `#app-root` живе на --tg-vh —
@@ -174,6 +286,10 @@ export default function Page() {
       tgAny.offEvent?.('safeAreaChanged', applySafeArea)
       tgAny.offEvent?.('contentSafeAreaChanged', applySafeArea)
       tgAny.offEvent?.('fullscreenChanged', applySafeArea)
+      document.removeEventListener('focusin', onFocusIn)
+      document.removeEventListener('focusout', onFocusOut)
+      clearTimeout(confirmTimer)
+      clearTimeout(blurTimer)
       window.visualViewport?.removeEventListener('resize', applyKeyboardFromVV)
       window.removeEventListener('resize', applyViewportHeight)
     }
