@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test'
 import { setupApp, DEFAULT_USER, seedSession } from './helpers/harness'
-import { measureContrast, belowAA, smallTargets } from './helpers/contrast'
+import { measureContrast, belowAA, smallTargets, TAP_DEBT } from './helpers/contrast'
 import { ALL_GROUPS, ownerFixtures, OWNER_SCREENS } from './helpers/screens'
 
 /**
@@ -154,34 +154,6 @@ for (const group of ALL_GROUPS) {
       .toEqual(group.screens.map((s) => s.label))
   })
 }
-
-/**
- * Заморожений борг зони дотику.
- *
- * `.view-seg-b` — квадратні кнопки-іконки «Картки / Компактно» 38px впритул
- * одна до одної в спільній обгородці: розширення вкрало б тап у сусідню, тож це
- * рішення про геометрію пари, а не про сам контрол.
- *
- * `.obj-act-btn` — рядок дій картки. Природний бокс (~35px) СВІДОМО не
- * розширюють через `::after`: над кнопками тіло картки, яке відкриває обʼєкт, і
- * розширена зона вкрала б у нього тапи.
- *
- * Решта зʼявилась разом із розширенням обходу на 21 екран — і це інвентар, а не
- * рішення «так і треба»: степер кількості в формі (32×32), чіпи сортування
- * (32px), кнопки календаря платежів (29–36px), «Поділитись»/«Відкликати» в
- * гостях і команді (31px), «Написати власнику» (36px). Усі проходять поріг
- * `ui-audit` (32px, WCAG 2.5.8 AA — 24px) і не дотягують до Apple HIG 44.
- * Піднімати їх — окрема робота з переверсткою рядків, а не правка порогу.
- */
-const TAP_DEBT: ReadonlySet<string> = new Set([
-  'view-seg-b', 'obj-act-btn', 'sort-chip', 'owner-act', 'button',
-  // Сегмент фільтра («Всі / Вільно / Зайнято / Продаж»), 34px — рішення
-  // власника про компактніше меню. Розширити зону через `::after` тут
-  // НЕМОЖЛИВО: власний `overflow:hidden` під ellipsis клiпає псевдоелемент
-  // (див. розділ про тап-таргети в CLAUDE.md). Прецедент — UISegmentedControl
-  // Apple має 32pt, а смуга займає всю ширину екрана.
-  'seg-b',
-])
 
 test('фактична зона дотику — 44px (Apple HIG)', async ({ page }) => {
   test.setTimeout(300_000)

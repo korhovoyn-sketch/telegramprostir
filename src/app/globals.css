@@ -83,6 +83,10 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
   /* --info-bg була з іншого відтінку (tg-blue 34,158,217), ніж решта сімʼї
      (#7AB3FF): бейдж і його рамка світились різними синіми. */
   --info:#7AB3FF;--info-bg:rgba(122,179,255,.18);--info-fg:#a8d4ff;--info-bd:rgba(122,179,255,.28);
+  /* Непрочитане сповіщення: підкладка рядка + крапка-маркер. Крапка мала
+     власний #5DCAA5, якого не було БІЛЬШЕ НІДЕ в застосунку — тобто
+     четвертий зелений поряд з --ok (#34C759). Тепер вона бере --ok. */
+  --unread-bg:rgba(34,158,217,.06);--unread-dot:var(--ok);
   /* Рожевий бренд-акцент існував лише всередині градієнта FAB — тепер токен,
      і роль «рієлтор» на екрані вибору більше не тримає свою копію. */
   /* Світлий фіолет розділювачів/іконок секцій: 19 входжень одного й того ж
@@ -945,18 +949,35 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 .logout{margin:6px var(--g3) 16px;padding:13px;width:calc(100% - var(--g3) * 2);border:none;background:transparent;font-family:inherit;border-radius:var(--r-md);text-align:center;font-size:var(--fs-sub);font-weight:var(--fw-semi);color:#ff8a85;cursor:pointer}
 
 /* ── NOTIFICATIONS ── */
-.notif-tabs{display:flex;margin:0 var(--g3) var(--g3);background:var(--glass-2);border-radius:var(--r-sm);padding:2px;border:var(--bd);gap:2px;overflow-x:auto;scrollbar-width:none}
-.notif-tabs::-webkit-scrollbar{display:none}
+/* Той самий каркас, що `.seg`: радіус і відступ беруться з ЄДИНОГО рівняння
+   концентричності (`--rc-in` = `--rc-out` − `--rc-pad`), а не з чисел. Було
+   12/8 при падінгу 2 — тобто МАЙЖЕ концентрика з розходженням 2px, рівно
+   той дрейф, який уже ловили на перемикачі календаря (12/10 при падінгу 3).
+   Шкалу гард пропускав, бо 8px у ній Є — невидимим це робило саме те, що
+   число законне саме по собі. Висота НЕ зводиться до 34px `.seg-b`: тут
+   три таби на всю ширину, тиску на місце немає, а 44px — реальна зона
+   дотику, віддавати її заради «однієї родини» немає за що. */
+.notif-tabs{display:flex;margin:0 var(--g3) var(--g3);background:var(--glass-2);border-radius:var(--rc-out);padding:var(--rc-pad);border:var(--bd);gap:2px}
 /* Tab label — Caption 1 Semibold */
-.notif-tab{padding:13px 12px;border-radius:var(--r-xs);font-size:var(--fs-cap1);font-weight:var(--fw-semi);color:var(--t3);white-space:nowrap;flex-shrink:0;cursor:pointer;transition:all .22s var(--ease)}
+/* `flex:1`, а не `flex-shrink:0` з горизонтальним скролом: табів три і вони
+   вміщаються, тож скролер лишав ~90px порожнього скла праворуч, а самі таби
+   мали різну ширину (44px «Всі» проти 114px «Договори») — смуга читалась як
+   недороблена. Скролер був потрібен, коли вкладок було шість; разом із ним
+   зникає й `overflow-x`, який за спекою робив `overflow-y` не-visible і
+   клiпав би будь-який `::after` (див. пастку `::after` в CLAUDE.md).
+   Висота 44px лишається реальною — не через псевдоелемент. */
+.notif-tab{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;padding:13px 8px;border-radius:var(--rc-in);font-size:var(--fs-cap1);font-weight:var(--fw-semi);color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;transition:background .22s var(--ease),color .22s var(--ease),box-shadow .22s var(--ease),transform var(--dur-xs) var(--ease-out)}
 .notif-tab.on{background:var(--glass-3);color:var(--t1);box-shadow:var(--shadow-seg-on)}
 /* Date group header — Caption 2 Semibold */
-.notif-grp{padding:8px var(--g3) 4px;font-size:var(--fs-cap2);color:var(--t3);font-weight:var(--fw-semi);letter-spacing:.05em;text-transform:uppercase}
 .notif-l{margin:0 var(--g3) var(--g3);border-radius:var(--r-md);overflow:hidden}
 .notif-i{display:flex;align-items:flex-start;gap:11px;padding:12px var(--pad-card);border-bottom:.5px solid rgba(255,255,255,.08);position:relative;cursor:pointer;transition:background .18s}
 .notif-i:last-child{border:none}
-.notif-i.unread{background:rgba(34,158,217,.06)}
-.notif-i.unread::before{content:'';position:absolute;left:6px;top:50%;transform:translateY(-50%);width:5px;height:5px;border-radius:50%;background:#5DCAA5;box-shadow:0 0 6px rgba(93,202,165,.6)}
+/* Рядок закріпленого блоку — СПРАВЖНЯ <button>: клікабельний <div> недосяжний з
+   клавіатури і не оголошується читалкою. Скидаємо UA-стилі кнопки, щоб рядок
+   лишався візуально тим самим (той самий прийом, що для `.sheet-row`). */
+button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:left;-webkit-appearance:none;appearance:none}
+.notif-i.unread{background:var(--unread-bg)}
+.notif-i.unread::before{content:'';position:absolute;left:6px;top:50%;transform:translateY(-50%);width:5px;height:5px;border-radius:50%;background:var(--unread-dot);box-shadow:0 0 6px var(--ok-bd)}
 .notif-ic{width:36px;height:36px;border-radius:var(--r-icon);display:flex;align-items:center;justify-content:center;font-size:var(--fs-sub);flex-shrink:0;border:var(--bd)}
 .notif-mn{flex:1;min-width:0}
 /* Notification title — Footnote Semibold (slightly bigger than before for readability) */
@@ -1954,9 +1975,13 @@ svg.ico{overflow:visible}
 .batch-scroll::-webkit-scrollbar{display:none}
 
 /* Сповіщення про кінець договору: ліва смужка кодує терміновість */
-.notif-i.lease-soon{box-shadow:inset 3px 0 0 var(--info)}
-.notif-i.lease-critical{box-shadow:inset 3px 0 0 var(--warn)}
-.notif-i.lease-overdue{box-shadow:inset 3px 0 0 var(--err)}
+/* Смуга терміновості — СПІЛЬНА для закріплених блоків сповіщень (договори,
+   платежі). Назва була `lease-*`, тобто прив'язана до одного з двох джерел; коли
+   поруч став другий блок із тими самими трьома рівнями, копіювати рецепт було б
+   рівно тим дрейфом, через який заведено `--shadow-seg-on`. */
+.notif-i.lvl-soon{box-shadow:inset 3px 0 0 var(--info)}
+.notif-i.lvl-critical{box-shadow:inset 3px 0 0 var(--warn)}
+.notif-i.lvl-overdue{box-shadow:inset 3px 0 0 var(--err)}
 
 /* ── КЛАВІАТУРНИЙ ФОКУС: блок мусить іти ОСТАННІМ ───────────────────────────
    Порядок тут не стилістичний, а єдине, що робить правила живими — і на цьому

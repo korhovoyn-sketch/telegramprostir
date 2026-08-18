@@ -199,6 +199,12 @@ export default function QRScannerScreen() {
               onKeyDown={(e) => { if (e.key === 'Enter') handleManualSubmit() }}
               style={{
                 flex: 1,
+                // Флекс-елемент за замовчуванням має `min-width:auto`, тобто
+                // відмовляється стискатись нижче свого intrinsic-розміру — а в
+                // інпута він рахується від атрибута `size` (~20 символів), не
+                // від плейсхолдера. На 360px (Galaxy S8 і вся бюджетна
+                // Android-родина) рядок через це вилазив за екран на 3px.
+                minWidth: 0,
                 height: 44,
                 borderRadius: 12,
                 border: '1px solid rgba(255,255,255,.15)',

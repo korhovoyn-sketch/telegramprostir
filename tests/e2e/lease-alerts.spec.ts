@@ -77,16 +77,16 @@ test('показує всі три рівні терміновості з пра
   await expect(page.getByText('Терміни договорів')).toBeVisible({ timeout: 10_000 })
 
   // прострочено / критично / скоро
-  const overdue = page.locator('.notif-i.lease-overdue', { hasText: 'Офіс 101' })
+  const overdue = page.locator('.notif-i.lvl-overdue', { hasText: 'Офіс 101' })
   await expect(overdue).toBeVisible()
   await expect(overdue).toContainText('Договір закінчився 3 дні тому')
   await expect(overdue).toContainText('ТОВ «Ромашка»')
 
-  const critical = page.locator('.notif-i.lease-critical', { hasText: 'Офіс 102' })
+  const critical = page.locator('.notif-i.lvl-critical', { hasText: 'Офіс 102' })
   await expect(critical).toBeVisible()
   await expect(critical).toContainText('Залишилось 5 днів')
 
-  const soon = page.locator('.notif-i.lease-soon', { hasText: 'Офіс 103' })
+  const soon = page.locator('.notif-i.lvl-soon', { hasText: 'Офіс 103' })
   await expect(soon).toBeVisible()
   await expect(soon).toContainText('Залишилось 26 днів')
 
@@ -102,7 +102,7 @@ test('тап веде на обʼєкт; вкладка «Договори» ф�
   // Вкладка з лічильником
   await expect(page.locator('.notif-tab', { hasText: 'Договори (3)' })).toBeVisible()
   await page.locator('.notif-tab', { hasText: 'Договори' }).click()
-  await expect(page.locator('.notif-i.lease-overdue')).toBeVisible()
+  await expect(page.locator('.notif-i.lvl-overdue')).toBeVisible()
 
   await page.locator('.notif-i', { hasText: 'Офіс 102' }).click()
   await expect(page.getByText('Назад', { exact: true }).first()).toBeVisible({ timeout: 10_000 })
