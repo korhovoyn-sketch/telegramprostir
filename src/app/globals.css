@@ -709,78 +709,106 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 /* Building3DHero animation — kept in the global sheet, never as an inline SVG <style>:
    @tailwind base sets svg{display:block}, which defeats the SVG UA `style{display:none}`
    and would render the CSS text as a giant glyph over the hero. */
-/* ── ІЛЮСТРАЦІЯ «НЕМАЄ ФОТО»: сцена з глибиною ────────────────────────────
-   Перспектива живе на СЦЕНІ, а нахил — на внутрішній обгортці: якщо крутити
-   той самий елемент, що несе `perspective`, точка сходу їде разом із ним і
-   обʼєм зникає. Шари рознесені по `translateZ` — саме різниця їхнього зсуву
-   при нахилі й читається як глибина (паралакс), 3D-рушій для цього не
-   потрібен. `--nx`/`--ny` (−1..1) пише JS, уся формула лишається тут. */
-.b3d-stage{--nx:0;--ny:0;--b3d-tx:13deg;--b3d-ty:17deg;perspective:520px;perspective-origin:50% 45%;
+/* ── ПЕРСОНАЖ ПОРОЖНЬОГО ГЕРОЯ: скляна сфера з LED-екраном ────────────────
+   Референс власника (GIF) розібрано покадрово. Головне спостереження, від
+   якого залежить уся реалізація: сітка «пікселів» СТОЇТЬ, а перелив кольору
+   йде під нею. Тому кольорові плями — окремі шари з `translate3d`, а сітка —
+   статичний `background-image` поверх них. Анімувати сам градієнт
+   (`background-position`) означало б перемальовувати екран щокадру.
+
+   Перспектива на СЦЕНІ, нахил на внутрішній обгортці: якщо крутити той самий
+   елемент, що несе перспективу, точка сходу їде з ним і обʼєм зникає.
+   `backdrop-filter` немає ніде — блюр на поверхні, що рухається, це та сама
+   патологія WebKit, через яку його вимикають у шитах і акордеоні. */
+.orb-stage{--nx:0;--ny:0;--orb-tx:12deg;--orb-ty:16deg;
+  --orb-a:#2ee6d0;--orb-b:#7b5cff;--orb-halo:rgba(52,199,89,.30);--orb-eye:#eafffb;
+  perspective:560px;perspective-origin:50% 45%;
   display:flex;align-items:center;justify-content:center;width:100%;height:100%;
   cursor:grab;-webkit-tap-highlight-color:transparent}
-.b3d-stage:active{cursor:grabbing}
-/* Шар вмикається лише на час дотику — постійний `will-change` тримав би
-   композитний буфер сцени завжди (те саме правило, що для `.nav-wrap`). */
-.b3d-live .b3d-tilt{will-change:transform}
-.b3d-tilt{position:relative;transform-style:preserve-3d;
-  transform:rotateX(calc(var(--ny) * -1 * var(--b3d-tx,13deg))) rotateY(calc(var(--nx) * var(--b3d-ty,17deg)));
+.orb-stage:active{cursor:grabbing}
+/* Шар лише на час дотику — постійний `will-change` тримав би композитний
+   буфер сцени завжди (те саме правило, що для `.nav-wrap` і `.modal`). */
+.orb-live .orb-tilt{will-change:transform}
+.orb-tilt{position:relative;transform-style:preserve-3d;
+  transform:rotateX(calc(var(--ny) * -1 * var(--orb-tx))) rotateY(calc(var(--nx) * var(--orb-ty)));
   transition:transform .5s var(--ease-out)}
-/* Поки палець веде — стежимо БЕЗ переходу, інакше сцена тягнеться за ним із
-   запізненням і жест читається як «залипає». Плавність потрібна лише на
-   ПОВЕРНЕННЯ, коли палець прибрали. */
-.b3d-live .b3d-tilt{transition:none}
+/* Поки палець веде — без переходу, інакше сцена тягнеться із запізненням і
+   жест читається як «залипає». Плавність потрібна лише на ПОВЕРНЕННЯ. */
+.orb-live .orb-tilt{transition:none}
 
-.b3d-body{position:relative;transform:translateZ(0);animation:b3dFloat 3.8s ease-in-out infinite}
-/* Ореол позаду — рухається ПРОТИ будинку (відʼємний Z), тож на нахилі
-   зʼїжджає в інший бік. Це і дає відчуття, що будинок стоїть попереду. */
-.b3d-halo{position:absolute;left:50%;top:50%;width:180px;height:180px;margin:-90px 0 0 -90px;
+/* Ореол позаду — відʼємний Z, тож на нахилі йде проти сфери. */
+.orb-halo{position:absolute;left:50%;top:50%;width:210px;height:210px;margin:-105px 0 0 -105px;
   border-radius:var(--r-pill);pointer-events:none;transform:translateZ(-60px);
-  background:radial-gradient(circle,rgba(96,150,255,.34) 0%,rgba(96,150,255,.10) 45%,transparent 70%)}
-/* Відблиск: вузька світла смуга, що ковзає по гранях услід за пальцем.
-   Рухається `translate3d`, тобто композитором, а не перемальовуванням фону. */
-/* Полиск НЕ окремим шаром: він живе всередині SVG, на самих гранях.
-   Окремий прямокутник поверх сцени неминуче вилазить за силует — спершу як
-   сіра смуга через увесь герой (120×150, альфа .30), потім, уже меншим і на
-   `mix-blend-mode:screen`, усе одно як світлий слід ліворуч-знизу від будівлі.
-   A/B проти проду показав обидві версії; жоден гард такого не бачить.
-   Всередині SVG форма полиску ОБМЕЖЕНА самою гранню — за побудовою. */
+  background:radial-gradient(circle,var(--orb-halo) 0%,transparent 68%)}
 
-/* Зірочки — найближчий шар, тож ідуть найдалі при нахилі. */
-.b3d-sparks{position:absolute;left:50%;top:50%;pointer-events:none;
-  transform:translateZ(46px) translate3d(calc(var(--nx) * -14px),calc(var(--ny) * -10px),0);
+/* Тіло сфери: три накладені градієнти — власне тіло, обід згори-зліва
+   (джерело світла) і відбите світло знизу. Саме обід робить її СКЛЯНОЮ:
+   без нього це просто темне коло. */
+.orb-body{position:relative;width:150px;height:150px;border-radius:var(--r-pill);
+  display:flex;align-items:center;justify-content:center;
+  animation:orbFloat 4.6s ease-in-out infinite;
+  background:
+    radial-gradient(60% 52% at 32% 20%,rgba(255,255,255,.16) 0%,transparent 62%),
+    radial-gradient(78% 70% at 50% 118%,rgba(150,190,255,.20) 0%,transparent 58%),
+    radial-gradient(circle at 50% 46%,#1a2036 0%,#0c0f1c 62%,#06070d 100%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 18px 44px rgba(0,0,0,.55)}
+/* Обід — окремим кільцем, щоб не змішувати його з тілом і не втратити на
+   темному фоні. */
+.orb-body::after{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background:radial-gradient(circle at 50% 50%,transparent 62%,rgba(160,200,255,.16) 88%,transparent 100%)}
+
+/* Екран: усе, що переливається, живе тут і клiпається його межами. */
+.orb-screen{position:relative;width:96px;height:62px;border-radius:var(--r-md);overflow:hidden;
+  transform:translateZ(10px);
+  box-shadow:0 0 22px rgba(90,140,255,.28),inset 0 0 12px rgba(0,0,0,.5)}
+.orb-blob{position:absolute;width:120px;height:120px;border-radius:var(--r-pill);pointer-events:none}
+.orb-blob.a{left:-24px;top:-32px;background:radial-gradient(circle,var(--orb-a) 0%,transparent 66%);
+  animation:orbDriftA 7.5s ease-in-out infinite}
+.orb-blob.b{right:-30px;bottom:-34px;background:radial-gradient(circle,var(--orb-b) 0%,transparent 66%);
+  animation:orbDriftB 9.5s ease-in-out infinite}
+/* СІТКА НЕ АНІМУЄТЬСЯ. Це не оптимізація «на потім»: рух градієнта під
+   нерухомою сіткою і є тим, що читається як пікселі, а анімація самої сітки
+   дала б муар і перемальовування щокадру. */
+.orb-grid{position:absolute;inset:0;pointer-events:none;
+  background-image:radial-gradient(circle,rgba(4,6,14,.62) .9px,transparent 1.1px);
+  background-size:3px 3px}
+
+.orb-eyes{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:18px;
+  transform:translateZ(14px) translate3d(calc(var(--nx) * 3px),calc(var(--ny) * 2px),0);
+  transition:transform .45s var(--ease-out)}
+.orb-live .orb-eyes{transition:none}
+.orb-eye{width:7px;height:22px;border-radius:var(--r-pill);background:var(--orb-eye);
+  box-shadow:0 0 10px rgba(255,255,255,.75);
+  transition:transform var(--dur-sm) var(--ease-out),height var(--dur-sm) var(--ease-out)}
+.orb-eye.blink{transform:scaleY(.08)}
+.orb-eye.squint{transform:scaleY(.42)}
+
+/* Пил, що злітає вгору. Ті самі --sx/--sy/--sd, що й у попередньої сцени:
+   позиція кожної порошинки задається інлайном, бо в кожної свій шлях. */
+.orb-dust{position:absolute;left:50%;top:50%;pointer-events:none;
+  transform:translateZ(40px) translate3d(calc(var(--nx) * -12px),calc(var(--ny) * -8px),0);
   transition:transform .5s var(--ease-out)}
-.b3d-live .b3d-sparks{transition:none}
-.b3d-sparks i{position:absolute;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;
-  left:var(--sx,0px);top:var(--sy,0px);
-  background:linear-gradient(180deg,#dbeafe,#7AB3FF);opacity:.9;
-  clip-path:polygon(50% 0,60% 40%,100% 50%,60% 60%,50% 100%,40% 60%,0 50%,40% 40%);
-  animation:b3dTwinkle 2.6s ease-in-out infinite;animation-delay:var(--sd,0ms)}
-@keyframes b3dTwinkle{0%,100%{opacity:.25;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}
-/* Спалах від тапу: розліт назовні й повернення. Тільки transform/opacity. */
-.b3d-burst i{animation:b3dBurst .66s var(--ease-out) both;animation-delay:var(--sd,0ms)}
-@keyframes b3dBurst{
-  0%{opacity:.9;transform:scale(.6) translate3d(0,0,0)}
-  38%{opacity:1;transform:scale(1.5) translate3d(calc(var(--sx,0px) * .42),calc(var(--sy,0px) * .42),0)}
-  100%{opacity:.65;transform:scale(1) translate3d(0,0,0)}}
+.orb-live .orb-dust{transition:none}
+.orb-dust i{position:absolute;width:5px;height:5px;margin:-2.5px 0 0 -2.5px;border-radius:var(--r-pill);
+  background:var(--orb-a);opacity:0;
+  animation:orbRise 3.4s ease-out infinite;animation-delay:var(--sd,0ms)}
+.orb-dust i:nth-child(2n){background:var(--orb-b)}
+@keyframes orbRise{
+  0%{opacity:0;transform:translate3d(0,0,0) scale(.5)}
+  18%{opacity:.9}
+  100%{opacity:0;transform:translate3d(var(--sx,0px),var(--sy,-100px),0) scale(1)}}
+/* Спалах від дотику — той самий шлях, але швидше й далі. */
+.orb-burst i{animation:orbRise 1s var(--ease-out) both;animation-delay:var(--sd,0ms)}
+
+@keyframes orbFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@keyframes orbDriftA{0%,100%{transform:translate3d(0,0,0)}50%{transform:translate3d(26px,18px,0)}}
+@keyframes orbDriftB{0%,100%{transform:translate3d(0,0,0)}50%{transform:translate3d(-22px,-16px,0)}}
 
 @media (prefers-reduced-motion: reduce){
-  .b3d-tilt{transform:none}
-  .b3d-body,.b3d-sparks i{animation:none}
+  .orb-tilt{transform:none}
+  .orb-body,.orb-blob,.orb-dust i{animation:none}
 }
 
-@keyframes b3dFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
-@keyframes b3dWinA{0%,82%,100%{opacity:.78}88%{opacity:.15}}
-@keyframes b3dWinB{0%,68%,100%{opacity:.48}74%{opacity:.92}}
-@keyframes b3dWinC{0%,56%,100%{opacity:.65}62%{opacity:.18}}
-@keyframes b3dSpark{0%,100%{opacity:0}50%{opacity:1}}
-.b3d-g{animation:b3dFloat 3.8s ease-in-out infinite;transform-origin:80px 112px}
-.b3d-wa{animation:b3dWinA 5.2s .3s ease-in-out infinite}
-.b3d-wb{animation:b3dWinB 5.2s 1.1s ease-in-out infinite}
-.b3d-wc{animation:b3dWinC 5.2s 2.0s ease-in-out infinite}
-.b3d-wd{animation:b3dWinA 5.2s 2.8s ease-in-out infinite}
-.b3d-s1{animation:b3dSpark 2.6s 0s ease-in-out infinite}
-.b3d-s2{animation:b3dSpark 2.6s .9s ease-in-out infinite}
-.b3d-s3{animation:b3dSpark 2.6s 1.7s ease-in-out infinite}
 .obj-hero-bdg{position:absolute;top:10px;left:10px;display:flex;align-items:center;gap:5px;padding:4px 10px 4px 8px;border-radius:var(--r-pill);background:rgba(52,199,89,.85);backdrop-filter:blur(10px);font-size:var(--fs-cap2);font-weight:600;color:#fff;z-index:var(--z-content)}
 .obj-hero-r{position:absolute;top:10px;right:10px;display:flex;gap:6px;z-index:var(--z-content)}
 .obj-hero-a{width:44px;height:44px;border-radius:50%;background:rgba(0,0,0,.4);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;color:var(--t1);font-size:var(--fs-note);border:.5px solid rgba(255,255,255,.2);cursor:pointer}

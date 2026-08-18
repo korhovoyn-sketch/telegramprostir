@@ -14,7 +14,7 @@ import { StatusBadge } from '@/components/ui/Badge'
 import { IconEdit, IconShare, IconMapPin, IconPhoto, IconX, IconCamera, IconRuler, IconBuildingSkyscraper, IconCircleCheck, IconCurrencyDollar, IconCarGarage, IconUser, IconKey, IconBolt, IconCalendar, IconFile, IconChevronRight } from '@/components/Icons'
 import FilesList from '@/components/ui/FilesList'
 import FloatingButton from '@/components/ui/FloatingButton'
-import Building3D from '@/components/ui/Building3D'
+import SpaceOrb, { type OrbStatus } from '@/components/ui/SpaceOrb'
 import { currencySymbol, sanitizeDecimal, formatPrice, calcRent, calcUtilities, calcRentUtils, basisArea, rentUnitLabel, computedRentUnit, parkingTypeLabel, STATUS_LABELS, STATUS_COLORS, formatLeasePeriod, photoUrl, daysUntil } from '@/lib/utils'
 import { UTILITY_META } from '@/lib/utilityMeta'
 import { supabase } from '@/lib/supabase'
@@ -219,7 +219,7 @@ export default function PropertyDetailScreen() {
               style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
             />
           ) : (
-            <Building3D />
+            <SpaceOrb status={property.status as OrbStatus} />
           )}
 
           {/* Колір беремо з ЄДИНОГО джерела STATUS_COLORS: раніше пігулка була
