@@ -300,3 +300,58 @@ test('порожній розклад не малює блок і не лама�
   await expect(page.getByText('Найближчі платежі')).toHaveCount(0)
   await expect(page.getByText('Немає сповіщень')).toBeVisible()
 })
+
+test('ГЛОБАЛЬНИЙ лічильник, випущений РАНІШЕ, не воскрешає бейдж', async ({ page }) => {
+  // Детермінований відтворювач гонки, яку знайшов CI. Запитів на `notifications`
+  // ДВА і від різних власників:
+  //   1) глобальний лічильник бейджа в page.tsx — на requestIdleCallback;
+  //   2) сам екран сповіщень — `load().then(markAllAsRead)`.
+  // Обидва пишуть у стор УВЕСЬ список, тож виграє той, хто відповів ОСТАННІМ, а
+  // не той, чиї дані свіжіші.
+  //
+  // ПОРЯДОК ТУТ ТРЕБА ГАРАНТУВАТИ, і перша версія цього гарда була вакуумною
+  // саме тому, що не гарантувала: вона робила найповільнішим ПЕРШИЙ запит,
+  // припускаючи, що перший — глобальний. Якщо idle-колбек не встигав спрацювати
+  // до кліку, першим виявлявся запит екрана, він же відповідав останнім — і
+  // тест проходив навіть на зламаному коді.
+  //
+  // Тепер: чекаємо 2.5с (timeout у requestIdleCallback — 2000мс, тобто глобальний
+  // запит ГАРАНТОВАНО вже випущений), а сам його тримаємо 6с. Клік по вкладці
+  // випускає другий запит, той відповідає за 100мс → markAllAsRead. Стара
+  // відповідь приземляється ще через кілька секунд і намагається повернути
+  // `is_read:false`.
+  const wire: Wire = { patches: [], deletes: [] }
+  let gets = 0
+  await setupApp(page, { user: USER })
+  await skipCoachmarks(page)
+  const json = (r: Route, body: unknown) =>
+    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+  await page.route('**/rest/v1/databases**', (r) => json(r, [DB]))
+  await page.route('**/rest/v1/properties**', (r) => json(r, []))
+  await page.route('**/rest/v1/notifications**', async (r) => {
+    const m = r.request().method()
+    if (m === 'PATCH') { wire.patches.push(r.request().url()); return json(r, []) }
+    if (m === 'DELETE') { wire.deletes.push(r.request().url()); return json(r, []) }
+    const n = ++gets
+    await new Promise((res) => setTimeout(res, n === 1 ? 6000 : 100))
+    return json(r, [notif(1), notif(2)])
+  })
+  for (const t of ['property_folders', 'property_files', 'rent_payments', 'rent_payment_records', 'property_views', 'db_members']) {
+    await page.route(`**/rest/v1/${t}**`, (r) => json(r, []))
+  }
+
+  await openApp(page)
+  // Глобальний запит уже випущений і висить — інакше порядок не гарантований.
+  await page.waitForTimeout(2500)
+  expect(gets, 'глобальний лічильник не встиг випустити запит — гард був би вакуумним').toBeGreaterThan(0)
+
+  await page.locator('.tabbar [aria-label="Сповіщення"]').click()
+  await expect(page.getByText('Перегляд об\'єкта 1')).toBeVisible({ timeout: 15_000 })
+  await expect.poll(() => wire.patches.length, { timeout: 10_000 }).toBeGreaterThan(0)
+
+  // Дочікуємось приземлення ПЕРШОГО, найповільнішого запиту.
+  await page.waitForTimeout(4500)
+  await expect(badge(page), 'відповідь на запит, випущений РАНІШЕ, повернула бейдж').toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Прочитано' }),
+    'разом із бейджем повернулась і кнопка «Прочитано»').toHaveCount(0)
+})

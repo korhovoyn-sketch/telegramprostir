@@ -6,12 +6,30 @@ import { humanizeDbError } from '@/lib/utils'
 import { useAppStore } from '@/store/appStore'
 import type { Notification } from '@/types'
 
+/**
+ * Квиток завантаження — МОДУЛЬНИЙ, і це принципово.
+ *
+ * `loadNotifications` викликають ДВОЄ: глобальний лічильник бейджа в
+ * `page.tsx` (на `requestIdleCallback`, тобто в непередбачуваний момент) і сам
+ * екран сповіщень. Обидва пишуть у стор увесь список, тож виграє той, хто
+ * відповів ОСТАННІМ — а не той, чиї дані свіжіші. Живий наслідок: користувач
+ * відкриває екран, той позначає все прочитаним, і через мить бейдж повертається,
+ * бо доїхала відповідь на запит, ВИПУЩЕНИЙ РАНІШЕ, де `is_read` ще false.
+ *
+ * Всередині екрана цей клас уже лікували порядком `load().then(markAllAsRead)` —
+ * але порядок захищає лише від власного запиту, не від чужого. Тому квиток
+ * живе на рівні модуля (переживає перемонтування) і його ЗБІЛЬШУЄ кожна
+ * локальна мутація: запит, випущений до неї, права комітити вже не має.
+ */
+let loadTicket = 0
+
 export function useNotifications() {
   const [loading, setLoading] = useState(false)
   const { user, setNotifications, notifications, markAllRead, showToast } = useAppStore()
 
   const loadNotifications = useCallback(async () => {
     if (!user) return
+    const ticket = ++loadTicket
     setLoading(true)
     try {
       const { data, error } = await supabase
@@ -22,6 +40,9 @@ export function useNotifications() {
         .limit(50)
 
       if (error) throw error
+      // Застарілий у дорозі — мовчки викидаємо. Тост тут був би шкідливий: з
+      // погляду користувача нічого не сталось.
+      if (ticket !== loadTicket) return
       setNotifications((data || []) as Notification[])
     } catch (e) {
       showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
@@ -34,6 +55,7 @@ export function useNotifications() {
     try {
       const { error } = await supabase.from('notifications').update({ is_read: true }).eq('id', id)
       if (error) throw error
+      loadTicket++
       const fresh = useAppStore.getState().notifications
       setNotifications(fresh.map((n) => (n.id === id ? { ...n, is_read: true } : n)))
     } catch (e) {
@@ -50,6 +72,7 @@ export function useNotifications() {
         .eq('user_id', user.id)
         .eq('is_read', false)
       if (error) throw error
+      loadTicket++
       markAllRead()
     } catch (e) {
       showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
@@ -58,6 +81,9 @@ export function useNotifications() {
 
   const deleteNotification = useCallback(async (id: string) => {
     const snapshot = useAppStore.getState().notifications
+    // Оптимістичне видалення теж анулює запити в дорозі — інакше відповідь,
+    // випущена до тапу, поверне видалений рядок на екран.
+    loadTicket++
     setNotifications(snapshot.filter((n) => n.id !== id))
     try {
       const { error } = await supabase.from('notifications').delete().eq('id', id)
