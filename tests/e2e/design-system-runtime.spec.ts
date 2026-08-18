@@ -173,7 +173,7 @@ test('радіуси й розміри шрифту — лише зі шкали
 
   await walkAll(browser, async (page, label) => {
     const res = await page.evaluate(() => {
-      const radii: { v: string; cls: string }[] = []
+      const radii: { v: string; cls: string; parentR: number | null; pad: number | null }[] = []
       const fonts: { v: number; cls: string; text: string }[] = []
       document.querySelectorAll('*').forEach((el) => {
         const cs = getComputedStyle(el)
@@ -181,7 +181,25 @@ test('радіуси й розміри шрифту — лише зі шкали
         // Радіус: беремо лише однорідні (усі кути рівні) — інакше рядок
         // «14px 14px 0 0» не порівняти зі шкалою, а такі форми свідомі.
         const r = cs.borderRadius
-        if (r && r !== '0px' && !r.includes(' ') && !r.includes('%')) radii.push({ v: r, cls })
+        if (r && r !== '0px' && !r.includes(' ') && !r.includes('%')) {
+          // Концентричність (Apple, iOS 26): радіус ДИТИНИ законний, якщо він
+          // дорівнює радіусу батька мінус відступ між ними — дуги тоді мають
+          // спільний центр. Рахуємо очікуване значення тут, бо в тесті батька
+          // вже не дістати.
+          const par = el.parentElement
+          let parentR: number | null = null
+          let pad: number | null = null
+          if (par) {
+            const pcs = getComputedStyle(par)
+            if (!pcs.borderRadius.includes(' ')) {
+              const pr = parseFloat(pcs.borderRadius)
+              const pp = parseFloat(pcs.paddingTop)
+              if (Number.isFinite(pr)) parentR = pr
+              if (Number.isFinite(pp)) pad = pp
+            }
+          }
+          radii.push({ v: r, cls, parentR, pad })
+        }
         const fs = parseFloat(cs.fontSize)
         // Тільки елементи з ВЛАСНИМ текстом: успадкований розмір перевіряти
         // безглуздо, він уже перевірений на батькові.
@@ -211,9 +229,14 @@ test('радіуси й розміри шрифту — лише зі шкали
       // перетворив би її на пігулку.
       const exportPreview = /^(tmpl-bar|tmpl-block)/.test(r.cls)
         || (px === 3 && label === 'export')
-      const derived = (px === 2 && r.cls.startsWith('dash-bar'))
-        || (px === 9 && r.cls.startsWith('view-seg-b'))
-        || exportPreview
+      // Похідні значення більше НЕ перелічуються поіменно: сегменти, чипи й
+      // тайли беруть `--rc-in` (= радіус батька − його відступ), і гард
+      // перевіряє саме це РІВНЯННЯ. Батьківський радіус мусить сам бути зі
+      // шкали — інакше «концентричністю» можна було б виправдати будь-що.
+      const concentric = r.parentR !== null && r.pad !== null
+        && RADII.has(r.parentR)
+        && Math.abs(px - (r.parentR - r.pad)) < 0.51
+      const derived = concentric || exportPreview
       if (!RADII.has(px) && !derived) badRadius.add(`${label}: ${r.v} на .${r.cls}`)
     }
     for (const f of res.fonts) {

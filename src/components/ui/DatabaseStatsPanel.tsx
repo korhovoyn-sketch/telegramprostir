@@ -62,7 +62,7 @@ function GradientIcon({ from, to, glow, children }: {
     <div style={{
       width: 32,
       height: 32,
-      borderRadius: 'var(--r-10)',
+      borderRadius: 'var(--r-xs)',
       background: `linear-gradient(135deg, ${from}, ${to})`,
       boxShadow: `0 4px 12px ${glow}, inset 0 1px 0 rgba(255,255,255,.28)`,
       display: 'flex',

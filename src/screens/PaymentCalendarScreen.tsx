@@ -447,19 +447,18 @@ export default function PaymentCalendarScreen() {
           </div>
         </div>
 
-        {/* Tab switcher */}
-        <div style={{ margin: '0 12px 8px', display: 'flex', background: 'var(--glass-1)', borderRadius: 12, padding: 3, border: 'var(--bd)' }}>
+        {/* П'ятий інстанс сегментного перемикача, написаний тут інлайном: свій
+            радіус (12/10 при падінгу 3 — не концентрика, а майже-концентрика),
+            свій розмір шрифту, свій `transition:all`. Тепер це та сама родина
+            `.seg`/`.seg-b`, що й фільтр обʼєктів — включно з концентричним
+            радіусом і компактною висотою. */}
+        <div className="seg">
           {(['current', 'archive'] as const).map(tab => (
             <button
               key={tab}
+              type="button"
+              className={`seg-b${activeTab === tab ? ' on' : ''}`}
               onClick={() => setActiveTab(tab)}
-              style={{
-                flex: 1, padding: '8px 0', borderRadius: 10,
-                background: activeTab === tab ? 'var(--glass-2)' : 'transparent',
-                color: activeTab === tab ? 'var(--t1)' : 'var(--t3)',
-                fontSize: 'var(--fs-foot)', fontWeight: 'var(--fw-semi)', cursor: 'pointer', border: 'none',
-                transition: 'all .15s',
-              }}
             >
               {tab === 'current' ? '📅 Поточні' : '🗂 Архів'}
             </button>

@@ -175,6 +175,12 @@ for (const group of ALL_GROUPS) {
  */
 const TAP_DEBT: ReadonlySet<string> = new Set([
   'view-seg-b', 'obj-act-btn', 'sort-chip', 'owner-act', 'button',
+  // Сегмент фільтра («Всі / Вільно / Зайнято / Продаж»), 34px — рішення
+  // власника про компактніше меню. Розширити зону через `::after` тут
+  // НЕМОЖЛИВО: власний `overflow:hidden` під ellipsis клiпає псевдоелемент
+  // (див. розділ про тап-таргети в CLAUDE.md). Прецедент — UISegmentedControl
+  // Apple має 32pt, а смуга займає всю ширину екрана.
+  'seg-b',
 ])
 
 test('фактична зона дотику — 44px (Apple HIG)', async ({ page }) => {

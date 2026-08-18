@@ -162,7 +162,7 @@ export default function DatabaseListScreen() {
             </div>
             {propSearching ? (
               <div style={{ padding: '8px 16px' }}>
-                <div className="skel" style={{ height: 44, borderRadius: 10 }} />
+                <div className="skel" style={{ height: 44, borderRadius: 'var(--r-xs)' }} />
               </div>
             ) : propResults.length === 0 ? (
               <div style={{ padding: '8px 16px', fontSize: 'var(--fs-foot)', color: 'var(--t3)' }}>Нічого не знайдено</div>

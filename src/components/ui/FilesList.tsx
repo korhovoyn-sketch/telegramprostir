@@ -23,7 +23,7 @@ function FileBadge({ mime }: { mime: string }) {
   const isPdf = mime === 'application/pdf'
   return (
     <div style={{
-      width: 38, height: 38, borderRadius: 10,
+      width: 38, height: 38, borderRadius: 'var(--r-xs)',
       display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center',
       background: isPdf ? 'var(--file-pdf-bg)' : 'var(--info-bg)',
@@ -112,7 +112,7 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
               background: 'var(--info-bg)',
               border: '.5px solid rgba(122,179,255,.3)',
               // minHeight — комфортна ціль тапу (було 22px, нижче за WCAG-мінімум)
-              borderRadius: 10, padding: '0 12px', minHeight: 32,
+              borderRadius: 'var(--r-xs)', padding: '0 12px', minHeight: 32,
               color: 'var(--info)', fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', cursor: 'pointer',
             }}
           >

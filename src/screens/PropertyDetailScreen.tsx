@@ -11,87 +11,14 @@ import { useProperties } from '@/hooks/useProperties'
 import Header from '@/components/ui/Header'
 import Modal from '@/components/ui/Modal'
 import { StatusBadge } from '@/components/ui/Badge'
-import { IconEdit, IconShare, IconMapPin, IconPhoto, IconX, IconCamera, IconRuler, IconBuildingSkyscraper, IconCircleCheck, IconCurrencyDollar, IconCarGarage, IconUser, IconKey, IconBolt, IconCalendar, IconFile } from '@/components/Icons'
+import { IconEdit, IconShare, IconMapPin, IconPhoto, IconX, IconCamera, IconRuler, IconBuildingSkyscraper, IconCircleCheck, IconCurrencyDollar, IconCarGarage, IconUser, IconKey, IconBolt, IconCalendar, IconFile, IconChevronRight } from '@/components/Icons'
 import FilesList from '@/components/ui/FilesList'
 import FloatingButton from '@/components/ui/FloatingButton'
+import Building3D from '@/components/ui/Building3D'
 import { currencySymbol, sanitizeDecimal, formatPrice, calcRent, calcUtilities, calcRentUtils, basisArea, rentUnitLabel, computedRentUnit, parkingTypeLabel, STATUS_LABELS, STATUS_COLORS, formatLeasePeriod, photoUrl, daysUntil } from '@/lib/utils'
 import { UTILITY_META } from '@/lib/utilityMeta'
 import { supabase } from '@/lib/supabase'
 
-function Building3DHero() {
-  return (
-    <svg viewBox="0 0 160 150" width="136" height="126" style={{ overflow: 'visible' }}>
-      <defs>
-        <linearGradient id="b3dFr" x1="0" y1="0" x2=".08" y2="1">
-          <stop offset="0%" stopColor="#4E87E8"/><stop offset="100%" stopColor="#1C3F8E"/>
-        </linearGradient>
-        <linearGradient id="b3dSd" x1="0" y1="0" x2="1" y2=".15">
-          <stop offset="0%" stopColor="#1C3F8E"/><stop offset="100%" stopColor="#0B2362"/>
-        </linearGradient>
-        <linearGradient id="b3dTp" x1="0" y1="1" x2="1" y2="0">
-          <stop offset="0%" stopColor="#3A70D4"/><stop offset="100%" stopColor="#61A0F0"/>
-        </linearGradient>
-      </defs>
-
-      <g className="b3d-g">
-        {/* Top face */}
-        <polygon points="46,50 110,50 132,36 68,36" fill="url(#b3dTp)"/>
-
-        {/* Front face */}
-        <rect x="46" y="50" width="64" height="70" fill="url(#b3dFr)"/>
-
-        {/* Right side face */}
-        <polygon points="110,50 132,36 132,106 110,120" fill="url(#b3dSd)"/>
-
-        {/* Rooftop antenna */}
-        <rect x="83" y="28" width="3.5" height="10" fill="rgba(160,200,255,.65)" rx="1"/>
-        <circle cx="84.75" cy="27" r="2.5" fill="rgba(180,220,255,.85)"/>
-
-        {/* Left edge highlight */}
-        <line x1="46" y1="50" x2="46" y2="120" stroke="rgba(255,255,255,.2)" strokeWidth="1.5"/>
-        <line x1="46" y1="50" x2="110" y2="50" stroke="rgba(255,255,255,.24)" strokeWidth="1"/>
-
-        {/* Front windows — row 1 */}
-        <rect className="b3d-wa" x="53" y="59" width="13" height="13" rx="2" fill="rgba(165,215,255,.82)"/>
-        <rect className="b3d-wb" x="72" y="59" width="13" height="13" rx="2" fill="rgba(165,215,255,.52)"/>
-        <rect className="b3d-wc" x="91" y="59" width="13" height="13" rx="2" fill="rgba(165,215,255,.76)"/>
-
-        {/* Front windows — row 2 */}
-        <rect className="b3d-wd" x="53" y="77" width="13" height="13" rx="2" fill="rgba(165,215,255,.44)"/>
-        <rect className="b3d-wa" x="72" y="77" width="13" height="13" rx="2" fill="rgba(165,215,255,.86)"/>
-        <rect className="b3d-wb" x="91" y="77" width="13" height="13" rx="2" fill="rgba(165,215,255,.38)"/>
-
-        {/* Front windows — row 3 */}
-        <rect className="b3d-wc" x="53" y="95" width="13" height="13" rx="2" fill="rgba(165,215,255,.7)"/>
-        <rect x="72"  y="95" width="13" height="13" rx="2" fill="rgba(165,215,255,.22)"/>
-        <rect className="b3d-wd" x="91" y="95" width="13" height="13" rx="2" fill="rgba(165,215,255,.62)"/>
-
-        {/* Side face windows */}
-        <rect className="b3d-wb" x="115" y="55" width="9" height="12" rx="1.5" fill="rgba(120,175,240,.48)"/>
-        <rect className="b3d-wc" x="115" y="73" width="9" height="12" rx="1.5" fill="rgba(120,175,240,.62)"/>
-        <rect x="115" y="91" width="9" height="12" rx="1.5" fill="rgba(120,175,240,.28)"/>
-
-        {/* Ground floor + door */}
-        <rect x="46" y="108" width="64" height="12" fill="rgba(12,28,72,.7)"/>
-        <rect x="70" y="108" width="18" height="12" fill="rgba(18,36,90,.9)" rx="1"/>
-
-        {/* Ground floor edge */}
-        <line x1="46" y1="120" x2="110" y2="120" stroke="rgba(255,255,255,.07)" strokeWidth="1"/>
-      </g>
-
-      {/* Sparkle stars */}
-      <g className="b3d-s1">
-        <path d="M22,46 L23.4,49.6 L27,50.5 L23.4,51.4 L22,55 L20.6,51.4 L17,50.5 L20.6,49.6Z" fill="var(--violet)"/>
-      </g>
-      <g className="b3d-s2">
-        <path d="M140,60 L141.2,63 L144,63.7 L141.2,64.4 L140,67.4 L138.8,64.4 L136,63.7 L138.8,63Z" fill="#7AB3FF"/>
-      </g>
-      <g className="b3d-s3">
-        <path d="M16,88 L17,90.6 L19.6,91.2 L17,91.8 L16,94.4 L15,91.8 L12.4,91.2 L15,90.6Z" fill="#c4b5fd"/>
-      </g>
-    </svg>
-  )
-}
 
 export default function PropertyDetailScreen() {
   const { screenParams, navigate, user, showToast, databases } = useAppStore()
@@ -292,7 +219,7 @@ export default function PropertyDetailScreen() {
               style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
             />
           ) : (
-            <Building3DHero />
+            <Building3D />
           )}
 
           {/* Колір беремо з ЄДИНОГО джерела STATUS_COLORS: раніше пігулка була
@@ -444,7 +371,7 @@ export default function PropertyDetailScreen() {
           >
             <IconMapPin size={14} color="var(--info)" />
             <span style={{ fontSize: 'var(--fs-foot)', color: 'var(--t2)', flex: 1 }}>{property.address}</span>
-            <svg width="7" height="12" viewBox="0 0 7 12" fill="none"><path d="M1 1l5 5-5 5" stroke="rgba(255,255,255,.3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            <IconChevronRight size={12} color="var(--t4)" />
           </div>
         )}
 
@@ -536,7 +463,7 @@ export default function PropertyDetailScreen() {
               <div style={{ fontSize: 'var(--fs-note)', fontWeight: 'var(--fw-semi)', color: 'var(--t1)' }}>Гості</div>
               <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 1 }}>Запрошення та керування доступом</div>
             </div>
-            <svg width="7" height="12" viewBox="0 0 7 12" fill="none"><path d="M1 1l5 5-5 5" stroke="rgba(255,255,255,.3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            <IconChevronRight size={12} color="var(--t4)" />
           </div>
         )}
 
@@ -552,7 +479,7 @@ export default function PropertyDetailScreen() {
               <div style={{ fontSize: 'var(--fs-note)', fontWeight: 'var(--fw-semi)', color: 'var(--t1)' }}>Календар платежів</div>
               <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 1 }}>Відстежувати та відмічати оплати</div>
             </div>
-            <svg width="7" height="12" viewBox="0 0 7 12" fill="none"><path d="M1 1l5 5-5 5" stroke="rgba(255,255,255,.3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            <IconChevronRight size={12} color="var(--t4)" />
           </div>
         )}
 
