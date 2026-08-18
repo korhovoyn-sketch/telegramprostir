@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test'
+import { test, expect, type Browser, type Page } from '@playwright/test'
 import { setupApp, DEFAULT_USER, jsonRoute } from './helpers/harness'
 
 // Персонаж порожнього героя (обʼєкт без фото). Тут перевіряється не «як
@@ -81,13 +81,23 @@ test('тап по персонажу дає реакцію: примруживс
   await page.mouse.up()
 })
 
-test('палітра відрізняється за статусом — це РІЗНІ персонажі, не копія', async ({ page }) => {
-  await open(page, FREE)
-  const free = await page.locator('.orb-stage').evaluate((el) =>
-    (el as HTMLElement).style.getPropertyValue('--orb-a'))
-  await open(page, BUSY)
-  const busy = await page.locator('.orb-stage').evaluate((el) =>
-    (el as HTMLElement).style.getPropertyValue('--orb-a'))
+test('палітра відрізняється за статусом — це РІЗНІ персонажі, не копія', async ({ browser }) => {
+  // Кожен статус — у ВЛАСНОМУ контексті: `page.route` реєструється на сторінку
+  // і повторний `setupApp` мовчки лишає перші фікстури, тож другий статус
+  // ніколи б не доїхав до екрана (пастка, вже наступана).
+  const read = async (b: Browser, p: typeof FREE) => {
+    const ctx = await b.newContext({ viewport: { width: 375, height: 667 } })
+    const page = await ctx.newPage()
+    try {
+      await open(page, p)
+      return await page.locator('.orb-stage').evaluate((el) =>
+        (el as HTMLElement).style.getPropertyValue('--orb-a'))
+    } finally {
+      await ctx.close()
+    }
+  }
+  const free = await read(browser, FREE)
+  const busy = await read(browser, BUSY)
   expect(free, 'вільний простір лишився без кольору').toMatch(/#[0-9a-f]{6}/i)
   expect(busy, 'зайнятий простір узяв ТОЙ САМИЙ колір, що й вільний').not.toBe(free)
 })
