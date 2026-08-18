@@ -706,6 +706,12 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 /* ── OBJ HERO ── */
 .obj-hero{height:min(184px,27vh);position:relative;background:linear-gradient(145deg,#152d52,#2563a8);display:flex;align-items:center;justify-content:center}
 .obj-hero::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,transparent 40%,rgba(0,0,0,.55))}
+/* Порожній герой (персонаж замість фото) НЕ має ні власного фону, ні скриму:
+   градієнт екрана має йти крізь нього суцільно, аж у контент нижче. Скрим
+   існує рівно для того, щоб бейдж і назва читались ПОВЕРХ ФОТО — без фото він
+   лишає темну смугу і рве перехід. Це те, що власник побачив на пристрої. */
+.obj-hero.empty{background:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+.obj-hero.empty::after{display:none}
 /* Building3DHero animation — kept in the global sheet, never as an inline SVG <style>:
    @tailwind base sets svg{display:block}, which defeats the SVG UA `style{display:none}`
    and would render the CSS text as a giant glyph over the hero. */
@@ -747,20 +753,30 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 .orb-body{position:relative;width:150px;height:150px;border-radius:var(--r-pill);
   display:flex;align-items:center;justify-content:center;
   animation:orbFloat 4.6s ease-in-out infinite;
+  /* Прозорість — головна вимога: це БУЛЬБАШКА, крізь яку видно градієнт
+     екрана. Тому всі стопи тіла в rgba, а не суцільні кольори; об'єм тримають
+     відблиск згори-зліва, відбите світло знизу і обід. */
   background:
-    radial-gradient(60% 52% at 32% 20%,rgba(255,255,255,.16) 0%,transparent 62%),
-    radial-gradient(78% 70% at 50% 118%,rgba(150,190,255,.20) 0%,transparent 58%),
-    radial-gradient(circle at 50% 46%,#1a2036 0%,#0c0f1c 62%,#06070d 100%);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 18px 44px rgba(0,0,0,.55)}
+    radial-gradient(58% 50% at 32% 20%,rgba(255,255,255,.22) 0%,transparent 60%),
+    radial-gradient(80% 72% at 50% 116%,rgba(160,200,255,.26) 0%,transparent 58%),
+    radial-gradient(circle at 50% 46%,rgba(12,18,38,.30) 0%,rgba(8,12,26,.44) 64%,rgba(5,7,16,.58) 100%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.20),0 18px 44px rgba(0,0,0,.42)}
 /* Обід — окремим кільцем, щоб не змішувати його з тілом і не втратити на
    темному фоні. */
 .orb-body::after{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;
-  background:radial-gradient(circle at 50% 50%,transparent 62%,rgba(160,200,255,.16) 88%,transparent 100%)}
+  background:
+    radial-gradient(circle at 50% 50%,transparent 60%,rgba(170,205,255,.26) 86%,rgba(170,205,255,.05) 100%),
+    radial-gradient(46% 34% at 34% 16%,rgba(255,255,255,.20) 0%,transparent 70%)}
 
 /* Екран: усе, що переливається, живе тут і клiпається його межами. */
-.orb-screen{position:relative;width:96px;height:62px;border-radius:var(--r-md);overflow:hidden;
+/* Екран РОЗЧИНЯЄТЬСЯ у сфері, а не має рамки: у референсі його краї —
+   світіння, що згасає, тож жорсткий заокруглений прямокутник читався як
+   наклейка. Дає це маска-градієнт; `overflow:hidden` лишається, бо плями
+   всередині мусять клiпатись. */
+.orb-screen{position:relative;width:104px;height:68px;border-radius:var(--r-lg);overflow:hidden;
   transform:translateZ(10px);
-  box-shadow:0 0 22px rgba(90,140,255,.28),inset 0 0 12px rgba(0,0,0,.5)}
+  -webkit-mask-image:radial-gradient(78% 82% at 50% 50%,#000 52%,rgba(0,0,0,.55) 76%,transparent 100%);
+  mask-image:radial-gradient(78% 82% at 50% 50%,#000 52%,rgba(0,0,0,.55) 76%,transparent 100%)}
 .orb-blob{position:absolute;width:120px;height:120px;border-radius:var(--r-pill);pointer-events:none}
 .orb-blob.a{left:-24px;top:-32px;background:radial-gradient(circle,var(--orb-a) 0%,transparent 66%);
   animation:orbDriftA 7.5s ease-in-out infinite}
@@ -770,15 +786,15 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
    нерухомою сіткою і є тим, що читається як пікселі, а анімація самої сітки
    дала б муар і перемальовування щокадру. */
 .orb-grid{position:absolute;inset:0;pointer-events:none;
-  background-image:radial-gradient(circle,rgba(4,6,14,.62) .9px,transparent 1.1px);
-  background-size:3px 3px}
+  background-image:radial-gradient(circle,rgba(4,6,14,.55) .55px,transparent .8px);
+  background-size:2.2px 2.2px}
 
 .orb-eyes{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:18px;
   transform:translateZ(14px) translate3d(calc(var(--nx) * 3px),calc(var(--ny) * 2px),0);
   transition:transform .45s var(--ease-out)}
 .orb-live .orb-eyes{transition:none}
-.orb-eye{width:7px;height:22px;border-radius:var(--r-pill);background:var(--orb-eye);
-  box-shadow:0 0 10px rgba(255,255,255,.75);
+.orb-eye{width:9px;height:26px;border-radius:var(--r-pill);background:var(--orb-eye);
+  box-shadow:0 0 14px rgba(255,255,255,.9),0 0 30px rgba(255,255,255,.45);
   transition:transform var(--dur-sm) var(--ease-out),height var(--dur-sm) var(--ease-out)}
 .orb-eye.blink{transform:scaleY(.08)}
 .orb-eye.squint{transform:scaleY(.42)}

@@ -211,7 +211,11 @@ export default function PropertyDetailScreen() {
 
       <div className="body" style={{ animation: 'cascadeIn .2s ease both' }}>
         {/* Hero */}
-        <div className="obj-hero" onClick={() => photos.length > 0 && openGallery(0)} style={{ cursor: photos.length > 0 ? 'pointer' : 'default', background: photos.length > 0 ? undefined : 'var(--glass-1)', backdropFilter: photos.length > 0 ? undefined : 'blur(28px) saturate(170%)', WebkitBackdropFilter: photos.length > 0 ? undefined : 'blur(28px) saturate(170%)' }}>
+        <div
+          className={`obj-hero${photos.length > 0 ? '' : ' empty'}`}
+          onClick={() => photos.length > 0 && openGallery(0)}
+          style={{ cursor: photos.length > 0 ? 'pointer' : 'default' }}
+        >
           {photos.length > 0 ? (
             <img
               src={photoUrl(photos[0].storage_path)}
