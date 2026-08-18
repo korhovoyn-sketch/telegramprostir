@@ -19,7 +19,6 @@ const VECTOR_ALLOWED = [
   'src/app/v/page.tsx',
   'src/screens/SharingAnalyticsScreen.tsx',  // графік переглядів
   'src/screens/PhotoUploadScreen.tsx',       // кільце прогресу
-  'src/components/ui/Building3D.tsx',        // 3D-герой картки «немає фото»
 ]
 
 function walk(dir: string, out: string[] = []): string[] {
