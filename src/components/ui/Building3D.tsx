@@ -112,6 +112,18 @@ export default function Building3D() {
             <linearGradient id="b3dTp" x1="0" y1="1" x2="1" y2="0">
               <stop offset="0%" stopColor="#3A70D4"/><stop offset="100%" stopColor="#61A0F0"/>
             </linearGradient>
+            {/* Полиск скла — тільки на гранях, тож обмежений їхньою формою */}
+            <linearGradient id="b3dGl" x1="0" y1="0" x2=".7" y2="1">
+              <stop offset="0%" stopColor="#fff" stopOpacity=".34"/>
+              <stop offset="55%" stopColor="#fff" stopOpacity=".06"/>
+              <stop offset="100%" stopColor="#fff" stopOpacity="0"/>
+            </linearGradient>
+            <linearGradient id="b3dGlF" x1=".15" y1="0" x2=".85" y2="1">
+              <stop offset="0%" stopColor="#fff" stopOpacity="0"/>
+              <stop offset="42%" stopColor="#fff" stopOpacity=".16"/>
+              <stop offset="58%" stopColor="#fff" stopOpacity=".16"/>
+              <stop offset="100%" stopColor="#fff" stopOpacity="0"/>
+            </linearGradient>
           </defs>
 
           <g className="b3d-g">
@@ -141,15 +153,15 @@ export default function Building3D() {
             <rect className="b3d-wc" x="115" y="73" width="9" height="12" rx="1.5" fill="rgba(120,175,240,.62)"/>
             <rect x="115" y="91" width="9" height="12" rx="1.5" fill="rgba(120,175,240,.28)"/>
 
+            {/* Полиск лягає ПІСЛЯ вікон, але ДО цоколя: скло поверх фасаду */}
+            <polygon points="46,50 110,50 132,36 68,36" fill="url(#b3dGl)"/>
+            <rect x="46" y="50" width="64" height="70" fill="url(#b3dGlF)"/>
             <rect x="46" y="108" width="64" height="12" fill="rgba(12,28,72,.7)"/>
             <rect x="70" y="108" width="18" height="12" fill="rgba(18,36,90,.9)" rx="1"/>
             <line x1="46" y1="120" x2="110" y2="120" stroke="rgba(255,255,255,.07)" strokeWidth="1"/>
           </g>
         </svg>
 
-        {/* Скляний відблиск — окремий шар НАД будинком: він ковзає по гранях
-            услід за пальцем, і саме це читається як «скло», а не як заливка. */}
-        <span className="b3d-gloss" />
 
         {/* Зірочки — найближчий до глядача шар, тож на нахилі вони йдуть
             найдалі. `key` перезапускає спалах на кожен новий тап. */}

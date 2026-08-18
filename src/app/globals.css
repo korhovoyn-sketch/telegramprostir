@@ -738,18 +738,12 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
   background:radial-gradient(circle,rgba(96,150,255,.34) 0%,rgba(96,150,255,.10) 45%,transparent 70%)}
 /* Відблиск: вузька світла смуга, що ковзає по гранях услід за пальцем.
    Рухається `translate3d`, тобто композитором, а не перемальовуванням фону. */
-/* Відблиск мусить лежати НА гранях, а не поперек сцени. Перша версія була
-   120×150 з альфою .30 і читалась як сіра смуга через увесь герой — A/B проти
-   проду це показав одразу. Тепер розмір по самій будівлі (~96×104 при
-   рендері 136×126) і `mix-blend-mode:screen`: на темному фоні screen майже
-   нічого не додає, а на світлих гранях дає полиск. Тобто маска не потрібна —
-   її роль виконує сам режим накладання. */
-.b3d-gloss{position:absolute;left:50%;top:50%;width:96px;height:104px;margin:-56px 0 0 -44px;
-  pointer-events:none;mix-blend-mode:screen;
-  transform:translateZ(24px) translate3d(calc(var(--nx) * 18px),calc(var(--ny) * 12px),0);
-  background:linear-gradient(118deg,transparent 38%,rgba(255,255,255,.20) 50%,transparent 62%);
-  transition:transform .5s var(--ease-out)}
-.b3d-live .b3d-gloss{transition:none}
+/* Полиск НЕ окремим шаром: він живе всередині SVG, на самих гранях.
+   Окремий прямокутник поверх сцени неминуче вилазить за силует — спершу як
+   сіра смуга через увесь герой (120×150, альфа .30), потім, уже меншим і на
+   `mix-blend-mode:screen`, усе одно як світлий слід ліворуч-знизу від будівлі.
+   A/B проти проду показав обидві версії; жоден гард такого не бачить.
+   Всередині SVG форма полиску ОБМЕЖЕНА самою гранню — за побудовою. */
 
 /* Зірочки — найближчий шар, тож ідуть найдалі при нахилі. */
 .b3d-sparks{position:absolute;left:50%;top:50%;pointer-events:none;
