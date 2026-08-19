@@ -21,18 +21,32 @@ const TEMPLATES = [
   { id: 'dark',    label: 'Нічний',  accent: '#5AC8FA', accentDark: '#1A6A8A' },
 ]
 
-// ── save / share PDF blob on mobile ──────────────────────────────────────────
+// ── save / share generated file on mobile ────────────────────────────────────
 
-async function sharePDF(blob: Blob, fileName: string) {
-  // iOS/Android: use native Web Share API so user can save to Files or send anywhere
-  const file = new File([blob], fileName, { type: 'application/pdf' })
+const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+
+/**
+ * ЄДИНИЙ шлях віддачі згенерованого файлу — і він мусить бути єдиним.
+ *
+ * Webview Telegram ІГНОРУЄ атрибут `download`: замість збереження він просто
+ * переходить на blob-URL. Для .xlsx це означає, що користувач бачив вміст
+ * ZIP-контейнера (`xl/worksheets/sheet1.xml`, `xl/styles.xml`…) сирим текстом
+ * прямо в застосунку — скріншот власника. PDF цього не мав лише тому, що йшов
+ * через Web Share API; Excel зберігався `XLSX.writeFile()`, який усередині
+ * клацає той самий мертвий `<a download>`.
+ *
+ * Тому обидва формати тепер ідуть сюди: спершу нативний шит «Поділитись»
+ * (там є «Зберегти у Файли»), і лише як фолбек для десктопа — прямий лінк.
+ */
+async function shareFile(blob: Blob, fileName: string, mimeType: string) {
+  const file = new File([blob], fileName, { type: mimeType })
   if (
     typeof navigator !== 'undefined' &&
     typeof navigator.share === 'function' &&
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (navigator as any).canShare?.({ files: [file] })
   ) {
-    await navigator.share({ files: [file], title: fileName.replace('.pdf', '') })
+    await navigator.share({ files: [file], title: fileName.replace(/\.[^.]+$/, '') })
     return
   }
   // Fallback: direct download (desktop / unsupported)
@@ -105,10 +119,19 @@ async function generatePDF(
     }
     return btoa(chunks.join(''))
   }
-  const [regBuf, boldBuf] = await Promise.all([
-    fetch('/fonts/Roboto-Regular.ttf').then(r => r.arrayBuffer()),
-    fetch('/fonts/Roboto-Bold.ttf').then(r => r.arrayBuffer()),
+  // `fetch` НЕ кидає на 404 — він віддає `ok:false` і тіло сторінки помилки.
+  // Саме через це відсутність шрифтів була невидимою: замість файлу в VFS
+  // лягала HTML-сторінка 404, jsPDF падав уже десь усередині, і користувач не
+  // отримував ані PDF, ані зрозумілої причини. Шрифти обовʼязкові — весь
+  // інтерфейс українською, а вбудовані шрифти jsPDF кирилиці не мають.
+  const [regRes, boldRes] = await Promise.all([
+    fetch('/fonts/Roboto-Regular.ttf'),
+    fetch('/fonts/Roboto-Bold.ttf'),
   ])
+  if (!regRes.ok || !boldRes.ok) {
+    throw new Error('Не вдалося завантажити шрифт для PDF')
+  }
+  const [regBuf, boldBuf] = await Promise.all([regRes.arrayBuffer(), boldRes.arrayBuffer()])
   doc.addFileToVFS('Roboto-Regular.ttf', toBase64(regBuf))
   doc.addFont('Roboto-Regular.ttf', 'Roboto', 'normal')
   doc.addFileToVFS('Roboto-Bold.ttf', toBase64(boldBuf))
@@ -448,7 +471,7 @@ async function generatePDF(
   // ── Save: use Web Share API on mobile, fallback to download ───────────────
   const fileName = safeFileName(db.name, 'pdf')
   const blob = new Blob([doc.output('arraybuffer')], { type: 'application/pdf' })
-  await sharePDF(blob, fileName)
+  await shareFile(blob, fileName, 'application/pdf')
 }
 // ── Excel generation ──────────────────────────────────────────────────────────
 
@@ -595,7 +618,11 @@ async function generateExcel(
   XLSX.utils.book_append_sheet(wb, ws, 'Об\'єкти')
   XLSX.utils.book_append_sheet(wb, wsSummary, 'Зведена')
 
-  XLSX.writeFile(wb, safeFileName(db.name, 'xlsx'))
+  // НЕ `XLSX.writeFile()`: він усередині клацає `<a download>`, а webview
+  // Telegram цей атрибут ігнорує — замість збереження відкривався blob-URL, і
+  // користувач бачив ZIP-нутрощі .xlsx сирим текстом. Той самий шлях, що в PDF.
+  const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' }) as ArrayBuffer
+  await shareFile(new Blob([out], { type: XLSX_MIME }), safeFileName(db.name, 'xlsx'), XLSX_MIME)
 }
 
 // ── Screen component ──────────────────────────────────────────────────────────
@@ -620,9 +647,21 @@ export default function ExportScreen() {
         .from('properties')
         // share_token deliberately NOT selected: exported files travel outside
         // the app and must never carry live share credentials.
-        .select('id,db_id,owner_id,name,floor,status,area_useful,area_total,rent_type,rent_rate,utilities_rate,has_parking,parking_spaces,description,address,utilities,sale_price,tenant_name,lease_start_date,lease_end_date,sort_order,created_at,updated_at,photos:property_photos(id,property_id,storage_path,sort_order,created_at)')
+        //
+        // `area_basis` тут ОБОВʼЯЗКОВИЙ, і його відсутність була грошовим
+        // дефектом: `basisArea()` при `undefined` мовчки падає на РОЗРАХУНКОВУ
+        // площу, тож обʼєкт, якому власник задав базою корисну, рахувався в
+        // документі по іншій площі, ніж у застосунку. На 100/120 м² і $18/м²
+        // це $1 800 на екрані проти $2 160 у PDF — 20% розбіжності у файлі,
+        // який власник надсилає клієнту, без жодного натяку.
+        .select('id,db_id,owner_id,name,floor,status,area_useful,area_total,area_basis,rent_type,rent_rate,utilities_rate,has_parking,parking_spaces,description,address,utilities,sale_price,tenant_name,lease_start_date,lease_end_date,sort_order,created_at,updated_at,photos:property_photos(id,property_id,storage_path,sort_order,created_at)')
         .eq('db_id', dbId)
-        .order('name')
+        // Порядок мусить збігатися з застосунком (`useProperties` — sort_order),
+        // інакше ручний «Змінити порядок» на документ не впливає ВЗАГАЛІ, а
+        // лексикографічне сортування ще й ставить «Офіс 10» перед «Офіс 2».
+        // Той самий клас міграція 040 вже виправила для публічної /v.
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true })
 
       if (error) throw error
       const properties = (propertiesRaw ?? []) as Property[]
