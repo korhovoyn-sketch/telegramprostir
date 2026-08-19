@@ -7,12 +7,9 @@ import { confirmAction } from '@/lib/confirm'
 import { supabase } from '@/lib/supabase'
 import { humanizeDbError } from '@/lib/utils'
 import Header from '@/components/ui/Header'
-import InviteSheet from '@/components/ui/InviteSheet'
-import CreatedLinkSheet from '@/components/ui/CreatedLinkSheet'
 import { SkeletonList } from '@/components/ui/SkeletonLoader'
 import { IconPlus, IconLink, IconBan, IconUser } from '@/components/Icons'
 import { buildDeepLink, openTelegramShare , hapticNotify } from '@/lib/telegram'
-import { copyLink } from '@/lib/share'
 import type { GuestLink } from '@/types'
 
 const STATUS_LABEL: Record<string, string> = {
@@ -27,12 +24,9 @@ const STATUS_COLOR: Record<string, string> = {
 }
 
 export default function ManageGuestsScreen() {
-  const { user, screenParams, showToast } = useAppStore()
+  const { screenParams, showToast, navigate } = useAppStore()
   const [links, setLinks] = useState<GuestLink[]>([])
   const [loading, setLoading] = useState(true)
-  const [showCreateModal, setShowCreateModal] = useState(false)
-  const [labelText, setLabelText] = useState('')
-  const [newLink, setNewLink] = useState<string | null>(null)
   const [revoking, setRevoking] = useState<string | null>(null)
 
   const isProperty = !!screenParams.propertyId
@@ -61,32 +55,6 @@ export default function ManageGuestsScreen() {
     load()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [targetId])
-
-  async function handleCreate() {
-    if (!user || !targetId) return
-    if (offlineGuard()) return
-    try {
-      const { data, error } = await supabase
-        .from('guest_links')
-        .insert({
-          owner_id: user.id,
-          property_id: isProperty ? targetId : null,
-          db_id: isProperty ? null : targetId,
-          label: labelText.trim() || null,
-        })
-        .select('invite_token')
-        .single()
-      if (error) throw error
-      const token = (data as { invite_token: string }).invite_token
-      const deepLink = buildDeepLink(`guest_${token}`)
-      setLabelText('')
-      setShowCreateModal(false)
-      setNewLink(deepLink)
-      await load()
-    } catch (e) {
-      showToast({ type: 'error', title: 'Не вдалося створити', subtitle: humanizeDbError(e) })
-    }
-  }
 
   async function handleRevoke(link: GuestLink) {
     const ok = await confirmAction({
@@ -118,12 +86,6 @@ export default function ManageGuestsScreen() {
     openTelegramShare(link, text)
   }
 
-  async function handleCopyLink(link: string) {
-    const ok = await copyLink(link)
-    if (ok) showToast({ type: 'success', title: 'Посилання скопійовано' })
-    else showToast({ type: 'error', title: 'Не вдалося скопіювати' })
-  }
-
   return (
     <div className="scr bg-blue">
       <Header
@@ -133,7 +95,11 @@ export default function ManageGuestsScreen() {
           <button
             className="hdr-a"
             aria-label="Запросити гостя"
-            onClick={() => { setLabelText(''); setShowCreateModal(true) }}
+            onClick={() => navigate('create-invite', {
+              kind: 'guest',
+              dbId: screenParams.dbId as string | undefined,
+              propertyId: screenParams.propertyId as string | undefined,
+            })}
             style={{ background: 'none', border: 'var(--bd)' }}
           >
             <IconPlus size={16} />
@@ -198,31 +164,6 @@ export default function ManageGuestsScreen() {
 
         <div style={{ height: 24 }} />
       </div>
-
-      {showCreateModal && (
-        <InviteSheet
-          title="Запросити гостя"
-          subtitle="Згенеруємо запрошення-посилання"
-          confirmLabel="Створити"
-          fieldLabel="Підпис гостьового лінка"
-          placeholder="напр. Орендар, кв. 5"
-          value={labelText}
-          onChange={setLabelText}
-          onConfirm={handleCreate}
-          onClose={() => setShowCreateModal(false)}
-        />
-      )}
-
-      {newLink && (
-        <CreatedLinkSheet
-          title="Посилання створено!"
-          subtitle="Надішліть гостю для отримання доступу"
-          link={newLink}
-          onShare={() => { handleShareLink(newLink); setNewLink(null) }}
-          onCopy={() => { handleCopyLink(newLink); setNewLink(null) }}
-          onClose={() => setNewLink(null)}
-        />
-      )}
     </div>
   )
 }

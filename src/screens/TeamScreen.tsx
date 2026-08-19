@@ -7,12 +7,9 @@ import { confirmAction } from '@/lib/confirm'
 import { supabase } from '@/lib/supabase'
 import { humanizeDbError } from '@/lib/utils'
 import Header from '@/components/ui/Header'
-import InviteSheet from '@/components/ui/InviteSheet'
-import CreatedLinkSheet from '@/components/ui/CreatedLinkSheet'
 import { SkeletonList } from '@/components/ui/SkeletonLoader'
 import { IconPlus, IconLink, IconBan, IconUsers } from '@/components/Icons'
 import { buildDeepLink, openTelegramShare, hapticNotify } from '@/lib/telegram'
-import { copyLink } from '@/lib/share'
 import type { DbMember } from '@/types'
 
 const STATUS_LABEL: Record<string, string> = {
@@ -30,13 +27,10 @@ const STATUS_COLOR: Record<string, string> = {
 // Дзеркалить ManageGuestsScreen: інвайт-рядок → deep link team_<token> →
 // claim_team_invite (useDeepLink) → редактор з повним CRUD по об'єктах бази.
 export default function TeamScreen() {
-  const { user, screenParams, showToast } = useAppStore()
+  const { screenParams, showToast, navigate } = useAppStore()
   const dbId = screenParams.dbId as string | undefined
   const [members, setMembers] = useState<DbMember[]>([])
   const [loading, setLoading] = useState(true)
-  const [showCreateModal, setShowCreateModal] = useState(false)
-  const [labelText, setLabelText] = useState('')
-  const [newLink, setNewLink] = useState<string | null>(null)
   const [revoking, setRevoking] = useState<string | null>(null)
 
   async function load() {
@@ -61,26 +55,6 @@ export default function TeamScreen() {
     load()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dbId])
-
-  async function handleCreate() {
-    if (!user || !dbId) return
-    if (offlineGuard()) return
-    try {
-      const { data, error } = await supabase
-        .from('db_members')
-        .insert({ db_id: dbId, label: labelText.trim() || null })
-        .select('invite_token')
-        .single()
-      if (error) throw error
-      const token = (data as { invite_token: string }).invite_token
-      setLabelText('')
-      setShowCreateModal(false)
-      setNewLink(buildDeepLink(`team_${token}`))
-      await load()
-    } catch (e) {
-      showToast({ type: 'error', title: 'Не вдалося створити', subtitle: humanizeDbError(e) })
-    }
-  }
 
   async function handleRevoke(member: DbMember) {
     const ok = await confirmAction({
@@ -107,12 +81,6 @@ export default function TeamScreen() {
     }
   }
 
-  async function handleCopyLink(link: string) {
-    const ok = await copyLink(link)
-    if (ok) showToast({ type: 'success', title: 'Посилання скопійовано' })
-    else showToast({ type: 'error', title: 'Не вдалося скопіювати' })
-  }
-
   return (
     <div className="scr bg-teal">
       <Header
@@ -122,7 +90,7 @@ export default function TeamScreen() {
           <button
             className="hdr-a"
             aria-label="Запросити в команду"
-            onClick={() => { setLabelText(''); setShowCreateModal(true) }}
+            onClick={() => navigate('create-invite', { kind: 'team', dbId })}
             style={{ background: 'none', border: 'var(--bd)' }}
           >
             <IconPlus size={16} />
@@ -196,31 +164,6 @@ export default function TeamScreen() {
 
         <div style={{ height: 24 }} />
       </div>
-
-      {showCreateModal && (
-        <InviteSheet
-          title="Запросити в команду"
-          subtitle="Людина отримає право редагувати об'єкти цієї бази"
-          confirmLabel="Створити"
-          fieldLabel="Підпис інвайта"
-          placeholder="напр. Менеджер Оля"
-          value={labelText}
-          onChange={setLabelText}
-          onConfirm={handleCreate}
-          onClose={() => setShowCreateModal(false)}
-        />
-      )}
-
-      {newLink && (
-        <CreatedLinkSheet
-          title="Запрошення створено!"
-          subtitle="Надішліть майбутньому члену команди"
-          link={newLink}
-          onShare={() => { openTelegramShare(newLink, 'Запрошення до команди бази нерухомості'); setNewLink(null) }}
-          onCopy={() => { handleCopyLink(newLink); setNewLink(null) }}
-          onClose={() => setNewLink(null)}
-        />
-      )}
     </div>
   )
 }

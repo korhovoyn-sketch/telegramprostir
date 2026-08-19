@@ -34,14 +34,20 @@ async function setup(page: Page) {
     jsonRoute(r, (r.request().headers()['accept'] ?? '').includes('object') ? DB : [DB]))
   await page.route('**/rest/v1/properties**', (r) =>
     jsonRoute(r, (r.request().headers()['accept'] ?? '').includes('object') ? PROP : [PROP]))
-  for (const t of ['property_folders', 'property_files', 'rent_payments', 'rent_payment_records', 'property_views', 'db_members', 'notifications']) {
+  for (const t of ['property_folders', 'property_files', 'property_views', 'db_members', 'notifications']) {
     await page.route(`**/rest/v1/${t}**`, (r) => jsonRoute(r, []))
+  }
+  // PaymentScheduleScreen читає це через .maybeSingle() — Accept вирішує форму.
+  for (const t of ['rent_payments', 'rent_payment_records']) {
+    await page.route(`**/rest/v1/${t}**`, (r) =>
+      jsonRoute(r, (r.request().headers()['accept'] ?? '').includes('object') ? null : []))
   }
   await page.addInitScript(() =>
     localStorage.setItem('ob_v1', JSON.stringify(['owner-fab', 'obj-fab', 'realtor-qr', 'col-fab'])))
 }
 
-async function openScheduleModal(page: Page) {
+// Фаза 2 переробки модалок: розклад платежів — повноекранний маршрут, не шит.
+async function openScheduleScreen(page: Page) {
   await page.goto('/')
   await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
   await page.getByText('БЦ Рубін').first().click()
@@ -49,7 +55,7 @@ async function openScheduleModal(page: Page) {
     .getByRole('button', { name: 'Платежі' }).click()
   await expect(page.getByText(/Платежі — Офіс 101|Календар платежів/)).toBeVisible({ timeout: 15_000 })
   await page.getByRole('button', { name: /Налаштувати/ }).first().click()
-  await expect(page.locator('.modal')).toBeVisible()
+  await expect(page.getByText('Налаштувати розклад')).toBeVisible()
 }
 
 const kbVar = (page: Page) => page.evaluate(() =>
@@ -118,9 +124,9 @@ test('після закриття клавіатури оболонка пове
   expect(Math.round(rootH), 'оболонка накриває весь екран — порожньої смуги немає').toBe(full)
 })
 
-test('модалка у стиснутому webview не затискається і не ховає поле під кнопки', async ({ page }) => {
+test('форма розкладу у стиснутому webview не затискається і не ховає поле під кнопку', async ({ page }) => {
   await setup(page)
-  await openScheduleModal(page)
+  await openScheduleScreen(page)
 
   const full = page.viewportSize()!.height
   await page.evaluate((v) => (window as unknown as { __tgViewportStable: (n: number) => void }).__tgViewportStable(v), full)
@@ -128,22 +134,21 @@ test('модалка у стиснутому webview не затискаєтьс
   await page.evaluate(() => (window as unknown as { __tgKeyboard: (n: number) => void }).__tgKeyboard(300))
   await page.waitForTimeout(300)
 
-  const dayInput = page.locator('.modal input[inputmode="numeric"]').first()
+  const dayInput = page.getByLabel('День місяця')
   await dayInput.focus()
   await page.waitForTimeout(900)
 
   const geo = await page.evaluate(() => {
-    const f = (document.querySelector('.modal input[inputmode="numeric"]') as HTMLElement).getBoundingClientRect()
-    const a = (document.querySelector('.modal-actions') as HTMLElement).getBoundingClientRect()
-    const m = (document.querySelector('.modal') as HTMLElement).getBoundingClientRect()
+    const f = (document.querySelector('.fr-i') as HTMLElement).getBoundingClientRect()
+    const a = (document.querySelector('.mbtn-flow') as HTMLElement).getBoundingClientRect()
     return {
       fieldTop: Math.round(f.top), fieldBottom: Math.round(f.bottom),
-      actionsTop: Math.round(a.top), modalH: Math.round(m.height), modalTop: Math.round(m.top),
+      actionsTop: Math.round(a.top),
     }
   })
-  expect(geo.fieldBottom, 'поле не заходить під кнопки дій').toBeLessThanOrEqual(geo.actionsTop)
+  expect(geo.fieldBottom, 'поле не заходить під кнопку збереження').toBeLessThanOrEqual(geo.actionsTop)
   expect(geo.fieldTop, 'поле не виїхало за верх').toBeGreaterThan(0)
-  expect(geo.modalTop, 'шапка шита на екрані').toBeGreaterThanOrEqual(0)
   await expect(dayInput).toBeVisible()
+  await expect(page.getByText('Налаштувати розклад')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Зберегти' })).toBeVisible()
 })

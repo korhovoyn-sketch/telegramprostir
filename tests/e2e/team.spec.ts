@@ -95,19 +95,21 @@ test('owner: creates a team invite and revokes it', async ({ page }) => {
   await page.getByPlaceholder('напр. Менеджер Оля').fill('Менеджер Оля')
   await page.getByRole('button', { name: 'Створити' }).click()
 
-  // Модалка створення (сам deep link у тест-оточенні — '#': бот-юзернейм
-  // не заданий у dev-сервері, buildDeepLink деградує). Головне — INSERT пішов.
+  // Крок 'created' того самого повноекранного маршруту (фаза 3 переробки
+  // модалок, atomic-riding-clock.md) — сам deep link у тест-оточенні '#':
+  // бот-юзернейм не заданий у dev-сервері, buildDeepLink деградує. Головне —
+  // INSERT пішов.
   await expect(page.getByText('Запрошення створено!')).toBeVisible()
   expect(members).toHaveLength(1)
   expect(members[0].db_id).toBe(OWN_DB_ID)
   expect(members[0].label).toBe('Менеджер Оля')
   // Бот-юзернейм у тест-оточенні не заданий, тож `buildDeepLink` віддає '#'.
-  // Раніше шит спокійно давав скопіювати цей мертвий лінк і надіслати його —
+  // Раніше екран спокійно давав скопіювати цей мертвий лінк і надіслати його —
   // власник дізнавався б про поломку від одержувача (той самий клас, що вже
   // давав прод-інцидент із TELEGRAM_APP_NAME). Тепер обидві дії неактивні.
-  await expect(page.locator('.modal').getByRole('button', { name: 'Скопіювати' })).toBeDisabled()
-  await expect(page.locator('.modal').getByRole('button', { name: 'У Telegram' })).toBeDisabled()
-  await page.locator('.modal-overlay').last().click({ position: { x: 10, y: 10 } })
+  await expect(page.getByRole('button', { name: 'Скопіювати' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'У Telegram' })).toBeDisabled()
+  await page.getByRole('button', { name: 'Назад' }).click()
 
   // Список показує pending-рядок з кнопками
   await expect(page.getByText('Менеджер Оля')).toBeVisible()
@@ -119,6 +121,61 @@ test('owner: creates a team invite and revokes it', async ({ page }) => {
   await page.locator('.modal-actions, [class*=modal]').getByRole('button', { name: 'Відкликати' }).last().click()
   await expect(page.getByText('Відкликано')).toBeVisible()
   expect(members[0].status).toBe('revoked')
+})
+
+/**
+ * Подвійний тап по «Створити» НЕ породжує другий інвайт.
+ *
+ * Це заміна гарда, який жив у `modal-a11y.spec.ts` («тап по бекдропу під час
+ * запиту не лишає шит мертвим»): той перевіряв `busy`-механіку `Modal`, якої в
+ * повноекранного маршруту немає — немає ні бекдропу, ні `requestClose`. Але
+ * САМА небезпека лишилась і навіть виросла: кнопка на екрані більша й ближча
+ * до пальця, ніж була в шиті, а на LTE запит летить секунди. Тут гард на те,
+ * що справді захищає — `disabled` під `saving`.
+ *
+ * Запит СВІДОМО повільний (600мс): з миттєвою відповіддю екран перемкнеться на
+ * крок «created» ще до другого тапу, і тест був би зелений навіть без гарда.
+ */
+test('owner: подвійний тап по «Створити» не створює другий інвайт', async ({ page }) => {
+  await setupApp(page, { user: OWNER })
+  await skipCoachmarks(page)
+
+  const OWN_DB = db(OWN_DB_ID, OWNER.id, 'БЦ Рубін')
+  await page.route('**/rest/v1/databases**', (route) => {
+    const accept = route.request().headers()['accept'] ?? ''
+    return json(route, accept.includes('object') ? OWN_DB : [OWN_DB])
+  })
+  await page.route('**/rest/v1/properties**', (route) =>
+    route.request().method() === 'GET' ? json(route, []) : route.fallback())
+
+  let posts = 0
+  await page.route('**/rest/v1/db_members**', async (route) => {
+    if (route.request().method() === 'POST') {
+      posts++
+      await new Promise((res) => setTimeout(res, 600))
+      return json(route, { invite_token: 'feedfacecafe00112233' }, 201)
+    }
+    return json(route, [])
+  })
+
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+  await page.getByText('БЦ Рубін').first().click()
+  await page.getByRole('button', { name: 'Меню бази' }).click()
+  await page.getByText('Команда', { exact: true }).click()
+  await expect(page.getByText('Команда бази')).toBeVisible()
+  await page.getByRole('button', { name: 'Запросити в команду' }).click()
+  await expect(page.getByText('Запросити в команду')).toBeVisible()
+
+  const create = page.getByRole('button', { name: 'Створити' })
+  await create.click()
+  // Поки запит у дорозі, кнопка мусить бути неактивною — і саме це, а не
+  // швидкість тесту, робить другий тап безпечним.
+  await expect(create, 'кнопка активна під час запиту — подвійний тап пройде').toBeDisabled()
+  await create.click({ force: true, timeout: 5_000 }).catch(() => {})
+
+  await expect(page.getByText('Запрошення створено!')).toBeVisible({ timeout: 15_000 })
+  expect(posts, 'другий тап породив другий інвайт').toBe(1)
 })
 
 // ─── Редактор: бейдж і edit-поверхня без owner-only дій ─────────────────────────

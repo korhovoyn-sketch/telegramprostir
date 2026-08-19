@@ -240,7 +240,7 @@ describe('шкали дизайн-системи', () => {
 describe('клавіатура в модалках', () => {
   it('жоден шит не фокусує поле сам — ні при відкритті, ні на тапі', () => {
     const SHEETS = files.filter((f) =>
-      /src\/components\/ui\/(Modal|InviteSheet|CreatedLinkSheet|ShareSheet|Folder\w+|DbPickerModal|FilePreviewModal|SheetCreateRow)\.tsx$/.test(f))
+      /src\/components\/ui\/(Modal|ShareSheet|Folder\w+|DbPickerModal|FilePreviewModal|SheetCreateRow)\.tsx$/.test(f))
     expect(SHEETS.length, 'список шитів порожній — регекс застарів').toBeGreaterThan(4)
     const bad: string[] = []
     for (const file of SHEETS) {

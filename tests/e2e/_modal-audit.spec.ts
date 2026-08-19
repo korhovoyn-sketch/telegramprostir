@@ -271,7 +271,10 @@ test('база: меню, папки, пікер папок, пікер баз',
   await closeByEscape(page, '04-db-picker')
 })
 
-test('обʼєкт і платежі: оренда, розклад, підтвердження, пікер папки у формі', async ({ page }) => {
+test('обʼєкт: оренда, пікер папки у формі', async ({ page }) => {
+  // Розклад платежів і підтвердження платежу — тепер повноекранні маршрути
+  // (фаза 2 переробки модалок), не шити: цей інструмент знімає лише
+  // ActionSheet/Modal-інстанси, для екранів огляд не потрібен окремо.
   test.setTimeout(180_000)
   await setupApp(page, { user: OWNER })
   await ownerRoutes(page)
@@ -282,19 +285,6 @@ test('обʼєкт і платежі: оренда, розклад, підтве
   await page.getByRole('button', { name: /Здати в оренду/ }).click()
   expect(await shoot(page, '05-rent')).toBe('Здати в оренду')
   await closeByCancel(page, '05-rent')
-
-  // 6. Розклад платежів.
-  await toObjects(page)
-  await menu(page, 'Календар платежів')
-  await expect(page.getByText(/Календар платежів|Платежі/).first()).toBeVisible({ timeout: 15_000 })
-  await page.getByRole('button', { name: /Налаштувати/ }).first().click()
-  expect(await shoot(page, '06-schedule')).toBe('Налаштувати розклад')
-  await closeByBackdrop(page, '06-schedule')
-
-  // 7. Підтвердження отримання.
-  await page.getByRole('button', { name: /Отримано/ }).first().click()
-  expect(await shoot(page, '07-pay-confirm')).toBe('Підтвердити отримання')
-  await closeByCancel(page, '07-pay-confirm')
 
   // 8. Пікер папки у ФОРМІ обʼєкта (інший інстанс, ніж bulk).
   await toObjects(page)
@@ -315,33 +305,10 @@ test('доступи: гості, команда, створене посила�
   await setupApp(page, { user: OWNER })
   await ownerRoutes(page)
 
-  // 9. Запросити гостя + 10. посилання створено.
-  await toObjects(page)
-  await menu(page, 'Управління гостями')
-  await expect(page.getByText(/Гост/).first()).toBeVisible({ timeout: 15_000 })
-  await page.getByLabel('Запросити гостя').click()
-  expect(await shoot(page, '09-invite-guest')).toBe('Запросити гостя')
-  await closeByCancel(page, '09-invite-guest')
-
-  await page.getByLabel('Запросити гостя').click()
-  await settled(page)
-  await page.locator('.modal-actions .modal-btn').filter({ hasText: 'Створити' }).click()
-  expect(await shoot(page, '10-created-link-guest')).toBe('Посилання створено!')
-  await closeByBackdrop(page, '10-created-link-guest')
-
-  // 11. Запросити в команду + 12. запрошення створено.
-  await toObjects(page)
-  await menu(page, 'Команда')
-  await expect(page.getByText(/Команд/).first()).toBeVisible({ timeout: 15_000 })
-  await page.getByLabel('Запросити в команду').click()
-  expect(await shoot(page, '11-invite-team')).toBe('Запросити в команду')
-  await closeByEscape(page, '11-invite-team')
-
-  await page.getByLabel('Запросити в команду').click()
-  await settled(page)
-  await page.locator('.modal-actions .modal-btn').filter({ hasText: 'Створити' }).click()
-  expect(await shoot(page, '12-created-link-team')).toBe('Запрошення створено!')
-  await closeByBackdrop(page, '12-created-link-team')
+  // 9-12. Запросити гостя/команду + створене посилання — фаза 3 переробки
+  // модалок (atomic-riding-clock.md) перевела InviteSheet/CreatedLinkSheet на
+  // повноекранний CreateInviteScreen; обидва кроки оглядаються звичайним
+  // скріном екрана, не цим модалка-специфічним інструментом.
 
   // 13. ShareSheet бази.
   await toObjects(page)

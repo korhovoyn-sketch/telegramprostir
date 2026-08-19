@@ -110,6 +110,8 @@ describe('ManageGuestsScreen — revoke confirmation', () => {
 
     await waitFor(() => expect(updateEq).toHaveBeenCalledWith('id', link.id))
     await waitFor(() => expect(screen.getByText('Відкликано')).toBeInTheDocument())
-    expect(screen.queryByText('Відкликати доступ?')).not.toBeInTheDocument()
+    // ActionSheet анімує закриття (до ~320мс страховки, animationend у jsdom не
+    // приходить) — вузол лишається в DOM короткий час ПІСЛЯ підтвердження.
+    await waitFor(() => expect(screen.queryByText('Відкликати доступ?')).not.toBeInTheDocument())
   })
 })

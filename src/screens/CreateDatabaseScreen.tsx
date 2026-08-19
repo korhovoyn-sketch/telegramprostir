@@ -164,8 +164,9 @@ export default function CreateDatabaseScreen() {
           className={`mbtn success mbtn-flow ${!canCreate || loading ? 'disabled' : ''} ${loading ? 'is-loading' : ''}`}
           onClick={handleSave}
           disabled={!canCreate || loading}
+          aria-busy={loading}
         >
-          {!loading && (isEdit ? 'Зберегти зміни' : 'Створити базу')}
+          {isEdit ? 'Зберегти зміни' : 'Створити базу'}
         </button>
 
       </div>

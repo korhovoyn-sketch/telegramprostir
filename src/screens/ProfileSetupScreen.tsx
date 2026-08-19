@@ -118,8 +118,9 @@ export default function ProfileSetupScreen() {
           className={`mbtn success mbtn-flow ${loading ? 'is-loading' : ''}`}
           onClick={handleContinue}
           disabled={loading}
+          aria-busy={loading}
         >
-          {!loading && 'Почати роботу →'}
+          Почати роботу →
         </button>
         <button
           onClick={() => navigateRoot(dest)}

@@ -206,8 +206,11 @@ test('owner: calendar, guests, notifications, profile screens open cleanly', asy
   await expect(page.getByText(/Посилання створено/)).toBeVisible()
 
   // Notifications via tab bar (header bell removed — tab is the only entry)
-  await page.locator('.modal-overlay').click({ position: { x: 10, y: 10 } }).catch(() => {})
-  await page.getByText('Назад', { exact: true }).first().click().catch(() => {})
+  // CreateInviteScreen — повноекранний маршрут (фаза 3 переробки модалок),
+  // виходимо кнопкою Header «Назад» (перший клік: created → manage-guests,
+  // другий: manage-guests → db-objects, де вже є таббар).
+  await page.getByText('Назад', { exact: true }).first().click()
+  await page.getByText('Назад', { exact: true }).first().click()
   await page.locator('.tabbar [aria-label="Сповіщення"]').click()
   await expect(page.getByText('Немає сповіщень')).toBeVisible()
 
