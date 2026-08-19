@@ -854,8 +854,9 @@ export default function PropertyFormScreen() {
             className={`mbtn success mbtn-flow ${!canSave || loading ? 'disabled' : ''} ${loading ? 'is-loading' : ''}`}
             onClick={handleSave}
             disabled={!canSave || loading}
+            aria-busy={loading}
           >
-            {!loading && saveLabel}
+            {saveLabel}
           </button>
         )}
 

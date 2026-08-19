@@ -100,7 +100,11 @@ const FROZEN: Record<string, number> = {
   'create-db': 3,
   'sharing-analytics': 2,
   'payment-calendar': 3,
+  'payment-schedule': 0,
+  'payment-confirm': 0,
   'manage-guests': 0,
+  'create-invite': 0,
+  'create-invite-created': 0,
   team: 0,
   export: 1,
   notifications: 0,
@@ -115,9 +119,24 @@ const FROZEN: Record<string, number> = {
   'profile-setup': 1,
 }
 
+/**
+ * Скільки текстових блоків МІНІМАЛЬНО має знайти зонд. Це перевірка на
+ * застарілий селектор («нічого не знайшлось — отже вибірка зламалась»), а не
+ * вимога до наповненості екрана, тож свідомо мінімальний екран отримує власне
+ * число з причиною, а не послаблює поріг для всіх 25 кроків.
+ */
+const MIN_ROWS_DEFAULT = 6
+const MIN_ROWS: Record<string, number> = {
+  // Хедер + підзаголовок + підпис поля + кнопка = 5. Плейсхолдер текстовим
+  // вузлом не є, тож більше тут і не буде: екран — одне поле й одна дія.
+  'create-invite': 5,
+}
+
 async function auditScreen(page: Page, label: string) {
   const rows = await measureContrast(page)
-  expect(rows.length, `${label}: текстових блоків не знайдено — вибірка застаріла`).toBeGreaterThan(5)
+  const min = MIN_ROWS[label] ?? MIN_ROWS_DEFAULT
+  expect(rows.length, `${label}: текстових блоків не знайдено — вибірка застаріла`)
+    .toBeGreaterThanOrEqual(min)
   const bad = belowAA(rows)
 
   const unexpected = bad

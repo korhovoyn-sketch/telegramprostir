@@ -178,8 +178,9 @@ export default function PaymentConfirmScreen() {
           className={`mbtn success mbtn-flow ${amountInvalid || saving ? 'disabled' : ''} ${saving ? 'is-loading' : ''}`}
           onClick={handleConfirm}
           disabled={amountInvalid || saving}
+          aria-busy={saving}
         >
-          {!saving && (isPaid ? 'Зберегти зміни' : 'Підтвердити')}
+          {isPaid ? 'Зберегти зміни' : 'Підтвердити'}
         </button>
       </div>
     </div>

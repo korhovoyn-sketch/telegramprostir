@@ -156,8 +156,9 @@ export default function PaymentScheduleScreen() {
           className={`mbtn success mbtn-flow ${saving ? 'disabled is-loading' : ''}`}
           onClick={handleSave}
           disabled={saving}
+          aria-busy={saving}
         >
-          {!saving && 'Зберегти'}
+          Зберегти
         </button>
       </div>
     </div>

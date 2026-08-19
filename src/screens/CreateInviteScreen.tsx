@@ -140,12 +140,18 @@ export default function CreateInviteScreen() {
             </div>
           </div>
 
+          {/* Підпис лишається в DOM і під час запиту: `.mbtn.is-loading` уже
+              ховає його через `color:transparent`, тож знімати текстовий вузол
+              нічого не давало візуально, зате забирало в кнопки ДОСТУПНУ
+              НАЗВУ — читалка озвучувала безіменну кнопку, а пігулка ще й
+              стискалась до ширини спінера. */}
           <button
             className={`mbtn success mbtn-flow ${saving ? 'disabled is-loading' : ''}`}
             onClick={handleCreate}
             disabled={saving}
+            aria-busy={saving}
           >
-            {!saving && 'Створити'}
+            Створити
           </button>
         </div>
       ) : (

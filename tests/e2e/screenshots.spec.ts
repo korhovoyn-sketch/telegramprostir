@@ -129,8 +129,12 @@ async function ownerRoutes(page: Page) {
       { id: '40000000-0000-0000-0000-000000000002', db_id: DB_ID, user_id: null, role: 'editor', invite_token: 'ee00112233445566778899', label: 'Бухгалтер', member_name: null, status: 'pending', claimed_at: null, created_at: NOW },
     ])
   })
-  await page.route('**/rest/v1/rent_payments**', (r) => json(r, []))
-  await page.route('**/rest/v1/rent_payment_records**', (r) => json(r, []))
+  // `.maybeSingle()` у повноекранних платіжних формах: Accept вирішує форму
+  // відповіді, масив замість обʼєкта лишає екран у RetryState.
+  await page.route('**/rest/v1/rent_payments**', (r) =>
+    json(r, (r.request().headers()['accept'] ?? '').includes('object') ? null : []))
+  await page.route('**/rest/v1/rent_payment_records**', (r) =>
+    json(r, (r.request().headers()['accept'] ?? '').includes('object') ? null : []))
   await page.route('**/rest/v1/property_views**', (r) => json(r, []))
   await page.route('**/rest/v1/rpc/manage_share', (r) => json(r, [{ share_token: DB.share_token, share_expires_at: null, error: null }]))
   await page.addInitScript(() => localStorage.setItem('ob_v1', JSON.stringify(['owner-fab', 'obj-fab', 'realtor-qr', 'col-fab'])))
@@ -204,10 +208,31 @@ test('screens · owner journey', async ({ page }) => {
   await page.goto('/'); await page.getByText('Мої бази').waitFor()
   await page.getByText('БЦ Рубін').first().click(); await page.getByText('Всі (3)').waitFor()
 
+  // Повноекранні маршрути з фаз 2-3 переробки модалок. Кадру не мав жоден із
+  // них, тобто вигляд трьох нових екранів не був зафіксований ніде.
+  await snap(page, 'payment-schedule', async () => {
+    await page.getByLabel('Меню бази').click()
+    await page.getByText('Календар платежів').click()
+    await page.getByText(/Календар платежів|Прострочено/).first().waitFor()
+    await page.getByRole('button', { name: /Налаштувати/ }).first().click()
+    await page.getByText('Налаштувати розклад').waitFor()
+  })
+  await page.goto('/'); await page.getByText('Мої бази').waitFor()
+  await page.getByText('БЦ Рубін').first().click(); await page.getByText('Всі (3)').waitFor()
+
   await snap(page, 'manage-guests', async () => {
     await page.getByLabel('Меню бази').click()
     await page.getByText('Управління гостями').click()
     await page.getByLabel('Запросити гостя').waitFor()
+  })
+  await page.goto('/'); await page.getByText('Мої бази').waitFor()
+  await page.getByText('БЦ Рубін').first().click(); await page.getByText('Всі (3)').waitFor()
+
+  await snap(page, 'create-invite', async () => {
+    await page.getByLabel('Меню бази').click()
+    await page.getByText('Управління гостями').click()
+    await page.getByLabel('Запросити гостя').click()
+    await page.getByRole('button', { name: 'Створити' }).waitFor()
   })
   await page.goto('/'); await page.getByText('Мої бази').waitFor()
   await page.getByText('БЦ Рубін').first().click(); await page.getByText('Всі (3)').waitFor()
@@ -238,6 +263,28 @@ test('screens · owner journey', async ({ page }) => {
   await snap(page, 'profile', async () => {
     await page.locator('.tabbar [aria-label="Профіль"]').click()
     await page.getByText('Налаштування').waitFor()
+  })
+
+  // Підтвердження платежу — СВІДОМО останнім кадром власника. Екран досяжний
+  // лише коли розклад уже є, а підміна `rent_payments` живого розкладу зачепила
+  // б і «Сповіщення» (useUpcomingPayments рахує найближчий платіж саме звідти),
+  // тобто перемалювала б чужий бейслайн. Останнім кроком підміняти безпечно.
+  await page.route('**/rest/v1/rent_payments**', (r) => {
+    const row = {
+      id: '60000000-0000-0000-0000-000000000001', property_id: PROPERTIES[0].id,
+      owner_id: OWNER.id, due_day: 5, notify_days_before: 3, is_active: true,
+      created_at: NOW, updated_at: NOW,
+    }
+    return json(r, (r.request().headers()['accept'] ?? '').includes('object') ? row : [row])
+  })
+  await snap(page, 'payment-confirm', async () => {
+    await page.goto('/'); await page.getByText('Мої бази').waitFor()
+    await page.getByText('БЦ Рубін').first().click(); await page.getByText('Всі (3)').waitFor()
+    await page.getByLabel('Меню бази').click()
+    await page.getByText('Календар платежів').click()
+    await page.getByText(/Календар платежів|Прострочено/).first().waitFor()
+    await page.getByRole('button', { name: /Отримано/ }).first().click()
+    await page.getByText('Підтвердити отримання').waitFor()
   })
 })
 

@@ -203,8 +203,68 @@ export const OWNER_SCREENS: ScreenStep[] = [
     go: (page) => viaDbMenu(page, 'Календар платежів', /Календар платежів|Платежі —/),
   },
   {
+    // Повноекранний маршрут із фази 2 переробки модалок. Без розкладу в
+    // фікстурах календар малює блок «Немає розкладу» з кнопкою «Налаштувати».
+    label: 'payment-schedule',
+    go: async (page) => {
+      await viaDbMenu(page, 'Календар платежів', /Календар платежів|Платежі —/)
+      await page.getByRole('button', { name: /Налаштувати/ }).first().click()
+      await expect(page.getByText('Налаштувати розклад')).toBeVisible({ timeout: 15_000 })
+    },
+  },
+  {
+    // Той самий маршрут, але екран підтвердження платежу — а він досяжний
+    // ЛИШЕ коли розклад уже є, інакше в календарі немає жодного платіжного
+    // рядка. Тому крок підміняє `rent_payments` ЛОКАЛЬНО: спільні фікстури
+    // лишаються порожніми, щоб `payment-calendar` вище міряв свій звичайний
+    // стан (Playwright бере обробник, зареєстрований ОСТАННІМ).
+    label: 'payment-confirm',
+    go: async (page) => {
+      await page.route('**/rest/v1/rent_payments**', (r) => {
+        const row = {
+          id: '60000000-0000-0000-0000-000000000001',
+          property_id: PROPERTIES[0].id, owner_id: OWNER.id,
+          due_day: 5, notify_days_before: 3, is_active: true,
+          created_at: NOW, updated_at: NOW,
+        }
+        return json(r, (r.request().headers()['accept'] ?? '').includes('object') ? row : [row])
+      })
+      await viaDbMenu(page, 'Календар платежів', /Календар платежів|Платежі —/)
+      await page.getByRole('button', { name: /Отримано/ }).first().click()
+      await expect(page.getByText('Підтвердити отримання')).toBeVisible({ timeout: 15_000 })
+    },
+  },
+  {
     label: 'manage-guests',
     go: (page) => viaDbMenu(page, 'Управління гостями', /Гості|Запросити/),
+  },
+  {
+    // Фаза 3: InviteSheet став повноекранним маршрутом. Два кроки одного
+    // екрана — форма і показ готового лінка — це РІЗНІ стани рендера, тож
+    // міряються обидва.
+    label: 'create-invite',
+    go: async (page) => {
+      await viaDbMenu(page, 'Управління гостями', /Гості|Запросити/)
+      await page.getByLabel('Запросити гостя').click()
+      await expect(page.getByText('Запросити гостя')).toBeVisible({ timeout: 15_000 })
+    },
+  },
+  {
+    label: 'create-invite-created',
+    go: async (page) => {
+      // POST мусить віддати ОБʼЄКТ: код читає `.select('invite_token').single()`.
+      await page.route('**/rest/v1/guest_links**', (r) => {
+        if (r.request().method() === 'POST') {
+          return json(r, { invite_token: 'ee00112233445566778899bb' })
+        }
+        return json(r, [])
+      })
+      await viaDbMenu(page, 'Управління гостями', /Гості|Запросити/)
+      await page.getByLabel('Запросити гостя').click()
+      await expect(page.getByText('Запросити гостя')).toBeVisible({ timeout: 15_000 })
+      await page.getByRole('button', { name: 'Створити' }).click()
+      await expect(page.getByText('Посилання створено!')).toBeVisible({ timeout: 15_000 })
+    },
   },
   { label: 'team', go: (page) => viaDbMenu(page, 'Команда', /Команда|Запросити/) },
   { label: 'export', go: (page) => viaDbMenu(page, 'Експорт', /Формат файлу|Завантажити/) },

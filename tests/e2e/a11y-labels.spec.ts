@@ -34,8 +34,14 @@ async function setup(page: Page) {
     jsonRoute(r, (r.request().headers()['accept'] ?? '').includes('object') ? PROP : [PROP]))
   await page.route('**/rest/v1/users**', (r) =>
     jsonRoute(r, (r.request().headers()['accept'] ?? '').includes('object') ? USER : [USER]))
-  for (const t of ['property_folders', 'property_files', 'rent_payments', 'rent_payment_records', 'property_views', 'db_members', 'notifications']) {
+  for (const t of ['property_folders', 'property_files', 'property_views', 'db_members', 'notifications', 'guest_links']) {
     await page.route(`**/rest/v1/${t}**`, (r) => jsonRoute(r, []))
+  }
+  // Повноекранні платіжні форми читають ці таблиці через `.maybeSingle()` —
+  // масив там, де чекають обʼєкт, лишає екран у RetryState замість форми.
+  for (const t of ['rent_payments', 'rent_payment_records']) {
+    await page.route(`**/rest/v1/${t}**`, (r) =>
+      jsonRoute(r, (r.request().headers()['accept'] ?? '').includes('object') ? null : []))
   }
   await page.addInitScript(() =>
     localStorage.setItem('ob_v1', JSON.stringify(['owner-fab', 'obj-fab', 'realtor-qr', 'col-fab'])))
@@ -107,7 +113,7 @@ test('усі поля, кнопки та зображення мають дос�
   await auditScreen(page, 'property-form')
 })
 
-test('поля модалок теж названі (оренда, розклад платежів, папки)', async ({ page }) => {
+test('поля модалок теж названі (оренда, папки)', async ({ page }) => {
   await setup(page)
   await page.goto('/')
   await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
@@ -125,4 +131,79 @@ test('поля модалок теж названі (оренда, розкла�
   await expect(page.getByLabel('Договір до')).toBeVisible()
   // Ставка озвучується назвою, а не значенням плейсхолдера
   await expect(page.getByLabel(/Орендна ставка/)).toBeVisible()
+
+  // Модалка папок — назва тесту обіцяла її й до цього, але крок був утрачений
+  // під час фази 2 переробки модалок (звідки в назві лишився й «розклад
+  // платежів», що вже не модалка). Порожній підпис = поле без імені.
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+  await page.getByText('БЦ Рубін').first().click()
+  await expect(page.getByText('Всі (1)')).toBeVisible({ timeout: 15_000 })
+  await page.getByLabel('Меню бази').click()
+  await page.waitForTimeout(420)
+  await page.getByText('Папки', { exact: true }).click()
+  await expect(page.locator('.modal')).toBeVisible()
+  await auditScreen(page, 'folders-modal')
+})
+
+/**
+ * Повноекранні маршрути, що замінили шити у фазах 2-3 переробки модалок. Їхні
+ * поля не перевіряв ніхто: обхід вище знає чотири екрани, а модальний тест
+ * після переносу дійшов лише до оренди.
+ */
+test('поля повноекранних форм названі (розклад, платіж, запрошення)', async ({ page }) => {
+  await setup(page)
+
+  // Розклад платежів
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+  await page.getByText('БЦ Рубін').first().click()
+  await expect(page.getByText('Всі (1)')).toBeVisible({ timeout: 15_000 })
+  await page.getByLabel('Меню бази').click()
+  await page.waitForTimeout(420)
+  await page.getByText('Календар платежів', { exact: true }).click()
+  await expect(page.getByText(/Календар платежів|Платежі —/).first()).toBeVisible({ timeout: 15_000 })
+  await page.getByRole('button', { name: /Налаштувати/ }).first().click()
+  await expect(page.getByText('Налаштувати розклад')).toBeVisible({ timeout: 15_000 })
+  await auditScreen(page, 'payment-schedule')
+  await expect(page.getByLabel('День місяця')).toBeVisible()
+  await expect(page.getByLabel('Нагадати за, днів')).toBeVisible()
+
+  // Підтвердження платежу — досяжне лише коли розклад уже є.
+  await page.route('**/rest/v1/rent_payments**', (r) => {
+    const row = {
+      id: '60000000-0000-0000-0000-000000000001', property_id: PROP.id,
+      owner_id: USER.id, due_day: 5, notify_days_before: 3, is_active: true,
+      created_at: NOW, updated_at: NOW,
+    }
+    return jsonRoute(r, (r.request().headers()['accept'] ?? '').includes('object') ? row : [row])
+  })
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+  await page.getByText('БЦ Рубін').first().click()
+  await expect(page.getByText('Всі (1)')).toBeVisible({ timeout: 15_000 })
+  await page.getByLabel('Меню бази').click()
+  await page.waitForTimeout(420)
+  await page.getByText('Календар платежів', { exact: true }).click()
+  await expect(page.getByText(/Календар платежів|Платежі —/).first()).toBeVisible({ timeout: 15_000 })
+  await page.getByRole('button', { name: /Отримано/ }).first().click()
+  await expect(page.getByText('Підтвердити отримання')).toBeVisible({ timeout: 15_000 })
+  await auditScreen(page, 'payment-confirm')
+  await expect(page.getByLabel('Сума отриманого платежу')).toBeVisible()
+  await expect(page.getByLabel('Нотатка до платежу')).toBeVisible()
+
+  // Запрошення гостя — підпис поля мусить називати СУТНІСТЬ (гість чи член
+  // команди), бо для читалки це різні речі.
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+  await page.getByText('БЦ Рубін').first().click()
+  await expect(page.getByText('Всі (1)')).toBeVisible({ timeout: 15_000 })
+  await page.getByLabel('Меню бази').click()
+  await page.waitForTimeout(420)
+  await page.getByText('Управління гостями', { exact: true }).click()
+  await expect(page.getByText(/Гості|Запросити/).first()).toBeVisible({ timeout: 15_000 })
+  await page.getByLabel('Запросити гостя').click()
+  await expect(page.getByText('Запросити гостя')).toBeVisible({ timeout: 15_000 })
+  await auditScreen(page, 'create-invite')
+  await expect(page.getByLabel('Підпис гостьового лінка')).toBeVisible()
 })

@@ -84,8 +84,15 @@ async function ownerRoutes(page: Page) {
     }])
   })
   await page.route('**/rest/v1/rpc/manage_share', (r) => json(r, [{ share_token: DB.share_token, share_expires_at: null, error: null }]))
-  for (const t of ['rent_payments', 'rent_payment_records', 'property_views', 'property_files', 'property_photos', 'notifications']) {
+  for (const t of ['property_views', 'property_files', 'property_photos', 'notifications']) {
     await page.route(`**/rest/v1/${t}**`, (r) => json(r, []))
+  }
+  // PaymentScheduleScreen/PaymentConfirmScreen читають ці таблиці через
+  // `.maybeSingle()` — Accept вирішує форму відповіді. Масив там, де чекають
+  // обʼєкт, дає помилку PostgREST, і екран малює RetryState замість форми.
+  for (const t of ['rent_payments', 'rent_payment_records']) {
+    await page.route(`**/rest/v1/${t}**`, (r) =>
+      json(r, (r.request().headers()['accept'] ?? '').includes('object') ? null : []))
   }
   await page.addInitScript(() =>
     localStorage.setItem('ob_v1', JSON.stringify(['owner-fab', 'obj-fab', 'realtor-qr', 'col-fab'])))
@@ -186,6 +193,34 @@ test('нативний клієнт: усі екрани власника жив
     await alive(page, `menu:${item}`)
     expect((await bar(page)).main.isVisible, `menu:${item} — чужа кнопка на екрані`).toBe(false)
   }
+
+  // ── Повноекранні маршрути, що замінили шити (фази 2-3 переробки модалок).
+  // Кожен несе власну первинну дію, тож правило «новий екран із CTA = новий
+  // крок тут» стосується їх напряму: саме такий екран колись і падав, не
+  // помічений жодним із 150 тестів.
+  await toObjects(page)
+  await page.getByLabel('Меню бази').click()
+  await page.getByText('Календар платежів', { exact: true }).click()
+  await expect(page.getByText(/Календар платежів|Платежі —/).first()).toBeVisible({ timeout: 15_000 })
+  await page.getByRole('button', { name: /Налаштувати/ }).first().click()
+  await expect(page.getByText('Налаштувати розклад')).toBeVisible({ timeout: 15_000 })
+  await alive(page, 'payment-schedule')
+  await expect(cta).toHaveText('Зберегти')
+  expect((await bar(page)).main.isVisible, 'payment-schedule — нативна смуга вимкнена').toBe(false)
+
+  await toObjects(page)
+  await page.getByLabel('Меню бази').click()
+  await page.getByText('Управління гостями', { exact: true }).click()
+  await expect(page.getByText(/Гості|Запросити/).first()).toBeVisible({ timeout: 15_000 })
+  await page.getByLabel('Запросити гостя').click()
+  await expect(page.getByText('Запросити гостя')).toBeVisible({ timeout: 15_000 })
+  await alive(page, 'create-invite')
+  await expect(cta).toHaveText('Створити')
+  expect((await bar(page)).main.isVisible, 'create-invite — нативна смуга вимкнена').toBe(false)
+
+  // Вихід мусить прибрати CTA — вона не «протікає» на наступний екран.
+  await toObjects(page)
+  await expect(cta, 'CTA прибрано після виходу з create-invite').toHaveCount(0)
 
   // ── Папки, режим вибору, шит поширення
   await toObjects(page)

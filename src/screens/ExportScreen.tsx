@@ -764,9 +764,13 @@ export default function ExportScreen() {
         className={`mbtn ${loading ? 'is-loading' : ''}`}
         onClick={handleExport}
         disabled={loading}
+        aria-busy={loading}
       >
+        {/* Іконка йде під час запиту (вона декоративна і `currentColor` робить
+            її невидимою під `is-loading`), а ПІДПИС лишається: інакше кнопка
+            втрачає доступну назву саме тоді, коли щось відбувається. */}
         {!loading && <IconFileExport size={18} />}
-        {!loading && (format === 'pdf' ? 'Завантажити PDF' : 'Завантажити Excel')}
+        {format === 'pdf' ? 'Завантажити PDF' : 'Завантажити Excel'}
       </button>
     </div>
   )

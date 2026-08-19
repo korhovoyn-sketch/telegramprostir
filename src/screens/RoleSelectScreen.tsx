@@ -158,8 +158,9 @@ export default function RoleSelectScreen() {
         className={`mbtn ${!role || loading ? 'disabled' : ''} ${loading ? 'is-loading' : ''}`}
         onClick={handleContinue}
         disabled={!role || loading}
+        aria-busy={loading}
       >
-        {!loading && 'Продовжити →'}
+        Продовжити →
       </button>
     </div>
   )
