@@ -125,6 +125,66 @@ test('експорт сортує за sort_order, як застосунок, а
     .not.toContain('order=name')
 })
 
+/**
+ * ЯК файл віддається користувачу — і чому це не косметика.
+ *
+ * Webview Telegram ІГНОРУЄ атрибут `download`: замість збереження він переходить
+ * на blob-URL. `XLSX.writeFile()` усередині клацає саме такий `<a download>`,
+ * тож замість файлу власник бачив вміст ZIP-контейнера .xlsx сирим текстом
+ * прямо в застосунку (`xl/worksheets/sheet1.xml`, `xl/styles.xml`…) — скріншот
+ * з пристрою. PDF цього не мав лише тому, що вже йшов через Web Share API.
+ *
+ * Гард стоїть на ОБОХ форматах: підміняємо `navigator.share`/`canShare` і
+ * перевіряємо, що файл пішов саме туди — з правильним іменем і MIME.
+ */
+async function stubShare(page: Page) {
+  await page.addInitScript(() => {
+    const w = window as unknown as { __shared: { name: string; type: string }[] }
+    w.__shared = []
+    Object.defineProperty(navigator, 'canShare', { value: () => true, configurable: true })
+    Object.defineProperty(navigator, 'share', {
+      configurable: true,
+      value: async (data: { files?: File[] }) => {
+        for (const f of data.files ?? []) w.__shared.push({ name: f.name, type: f.type })
+      },
+    })
+  })
+}
+const sharedFiles = (page: Page) =>
+  page.evaluate(() => (window as unknown as { __shared: { name: string; type: string }[] }).__shared)
+
+test('Excel віддається через share, а не мертвим <a download>', async ({ page }) => {
+  const wire: Wire = { selects: [] }
+  await stubShare(page)
+  await setup(page, wire)
+  await openExport(page)
+
+  await page.getByText('Excel таблиця').click()
+  await page.getByRole('button', { name: /Завантажити Excel/ }).click()
+  await expect(page.getByText(/Excel збережено/)).toBeVisible({ timeout: 20_000 })
+
+  const files = await sharedFiles(page)
+  expect(files.length, 'файл не пішов у share — у webview Telegram це означає сирий ZIP на екрані').toBe(1)
+  expect(files[0].name).toMatch(/\.xlsx$/)
+  expect(files[0].type, 'MIME мусить бути xlsx, інакше система не знає, чим відкривати')
+    .toBe('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+})
+
+test('PDF віддається тим самим шляхом', async ({ page }) => {
+  const wire: Wire = { selects: [] }
+  await stubShare(page)
+  await setup(page, wire)
+  await openExport(page)
+
+  await page.getByRole('button', { name: /Завантажити PDF/ }).click()
+  await expect(page.getByText(/PDF збережено/)).toBeVisible({ timeout: 20_000 })
+
+  const files = await sharedFiles(page)
+  expect(files.length).toBe(1)
+  expect(files[0].name).toMatch(/\.pdf$/)
+  expect(files[0].type).toBe('application/pdf')
+})
+
 test('перемикання на Excel міняє підпис кнопки і теж виконується', async ({ page }) => {
   const wire: Wire = { selects: [] }
   await setup(page, wire)
