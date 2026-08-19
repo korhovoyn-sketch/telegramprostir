@@ -6,7 +6,7 @@ import { useAppStore } from '@/store/appStore'
 import { offlineGuard } from '@/lib/offline'
 import { supabase, USER_COLUMNS } from '@/lib/supabase'
 import Header from '@/components/ui/Header'
-import { TG_BOT , hapticNotify } from '@/lib/telegram'
+import { hapticNotify } from '@/lib/telegram'
 import { scrollFocusedIntoView } from '@/lib/utils'
 import type { User } from '@/types'
 
@@ -195,7 +195,12 @@ export default function QRScannerScreen() {
               type="text"
               value={manualToken}
               onChange={(e) => setManualToken(e.target.value)}
-              placeholder={`https://t.me/${TG_BOT}?startapp=...`}
+              // Не `https://t.me/${TG_BOT}?startapp=…`: заміряно 191px потрібно
+              // проти 180px доступних, тобто хвіст обрізався. Довжина того
+              // плейсхолдера ще й залежала від ЮЗЕРНЕЙМА БОТА — змінної
+              // оточення, — тож жоден гард не покрив би всі її значення.
+              // Форму вводу і так називає підказка над рядком.
+              placeholder="Посилання або токен"
               onKeyDown={(e) => { if (e.key === 'Enter') handleManualSubmit() }}
               style={{
                 flex: 1,

@@ -187,7 +187,7 @@ test('поля повноекранних форм названі (розкла�
   await page.getByText('Календар платежів', { exact: true }).click()
   await expect(page.getByText(/Календар платежів|Платежі —/).first()).toBeVisible({ timeout: 15_000 })
   await page.getByRole('button', { name: /Отримано/ }).first().click()
-  await expect(page.getByText('Підтвердити отримання')).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText('Підтвердити платіж')).toBeVisible({ timeout: 15_000 })
   await auditScreen(page, 'payment-confirm')
   await expect(page.getByLabel('Сума отриманого платежу')).toBeVisible()
   await expect(page.getByLabel('Нотатка до платежу')).toBeVisible()

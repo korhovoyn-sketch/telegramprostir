@@ -284,7 +284,7 @@ test('screens · owner journey', async ({ page }) => {
     await page.getByText('Календар платежів').click()
     await page.getByText(/Календар платежів|Прострочено/).first().waitFor()
     await page.getByRole('button', { name: /Отримано/ }).first().click()
-    await page.getByText('Підтвердити отримання').waitFor()
+    await page.getByText('Підтвердити платіж').waitFor()
   })
 })
 

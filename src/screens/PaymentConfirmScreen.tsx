@@ -141,30 +141,38 @@ export default function PaymentConfirmScreen() {
 
   return (
     <div className="scr bg-teal">
+      {/* «Підтвердити отримання» не влазило поруч із кнопкою «Назад» — заміряно
+          204px проти 202px, тобто заголовок обрізався в «…отриман…». Обʼєкт дії
+          і так каже підзаголовок, тож у заголовку лишається коротке. */}
       <Header
-        title={isPaid ? 'Редагувати платіж' : 'Підтвердити отримання'}
+        title={isPaid ? 'Редагувати платіж' : 'Підтвердити платіж'}
         subtitle={dueDate ? `${property.name} · ${fmtDueDate(dueDate)}` : property.name}
         backLabel="Назад"
       />
 
       <div className="body has-flow-cta" onFocusCapture={scrollFocusedIntoView}>
-        <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
-          <div className="fr">
-            <span className="fr-l">Сума отриманого платежу</span>
+        {/* `.fld` (підпис НАД полем), а не `.fr` (підпис і поле в один рядок), і
+            це не смак: у рядковому варіанті довгий підпис зʼїдає ширину, і
+            плейсхолдер обрізається — заміряно 287px потрібно проти 116px
+            доступно на нотатці, тобто користувач бачив «Готівка, пере» і не
+            знав, що від нього хочуть. Той самий клас уже задокументований для
+            InviteSheet; шит, який цей екран замінив, теж стояв на `.fld`, і
+            перехід на `.fr` у фазі 2 був регресією. */}
+        <div style={{ margin: '0 12px 16px' }}>
+          <div className="fld">
+            <div className="fld-l">Сума отриманого платежу</div>
             <input
               aria-label="Сума отриманого платежу"
-              className="fr-i"
               type="text" inputMode="decimal"
               placeholder="Введіть суму..."
               value={amount}
               onChange={e => setAmount(sanitizeDecimal(e.target.value))}
             />
           </div>
-          <div className="fr">
-            <span className="fr-l">Нотатка (необов&apos;язково)</span>
+          <div className="fld" style={{ marginTop: 10 }}>
+            <div className="fld-l">Нотатка (необов&apos;язково)</div>
             <input
               aria-label="Нотатка до платежу"
-              className="fr-i"
               type="text"
               placeholder="Готівка, переказ, часткова оплата..."
               value={notes}

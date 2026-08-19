@@ -231,7 +231,7 @@ export const OWNER_SCREENS: ScreenStep[] = [
       })
       await viaDbMenu(page, 'Календар платежів', /Календар платежів|Платежі —/)
       await page.getByRole('button', { name: /Отримано/ }).first().click()
-      await expect(page.getByText('Підтвердити отримання')).toBeVisible({ timeout: 15_000 })
+      await expect(page.getByText('Підтвердити платіж')).toBeVisible({ timeout: 15_000 })
     },
   },
   {

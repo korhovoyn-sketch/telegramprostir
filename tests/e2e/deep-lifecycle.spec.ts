@@ -117,7 +117,7 @@ test('payment lifecycle: schedule → due item → mark paid → stats → unpay
 
   // 3. Підтвердження платежу: сума з оренди (100м² × 18 = 1800) префілиться
   await receiveBtn.click()
-  await expect(page.getByText('Підтвердити отримання')).toBeVisible()
+  await expect(page.getByText('Підтвердити платіж')).toBeVisible()
   await page.getByRole('button', { name: 'Підтвердити' }).click()
   await expect(page.getByText('Платіж підтверджено ✓')).toBeVisible()
   await expect.poll(() => records.length).toBe(1)
