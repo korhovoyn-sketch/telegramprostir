@@ -228,52 +228,13 @@ test('свайп, початий у ТІЛІ шита, не закриває й�
   await expect(page.locator('.modal'), 'свайп у тілі шита закрив його').toBeVisible()
 })
 
-test('тап по бекдропу під час запиту НЕ лишає шит мертвим і незакривним', async ({ page }) => {
-  // Найгірший сценарій зламаного гарда: запит ПАДАЄ, тож жоден `setState` не
-  // розмонтує шит. До фікса три екрани робили `onClose={() => !creating && …}`,
-  // і це було гірше за відсутність гарда: `requestClose` уже повісив клас
-  // `closing` (шит зʼїхав за екран, оверлей став pointer-events:none), а
-  // `finishClose` виставив `firedRef=true` — далі шит невидимий і НАЗАВЖДИ
-  // незакривний, до перемонтування екрана. Тепер гард стоїть у Modal ДО старту
-  // анімації, тож тап просто нічого не робить.
-  await fixtures(page)
-  await page.route('**/rest/v1/guest_links**', async (r) => {
-    if (r.request().method() === 'POST') {
-      await new Promise(res => setTimeout(res, 700))
-      return r.fulfill({ status: 500, contentType: 'application/json', body: '{"message":"boom"}' })
-    }
-    return json(r, [])
-  })
-
-  await page.goto('/')
-  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
-  await page.getByText('БЦ Рубін').first().click()
-  await expect(page.getByText('Всі (9)')).toBeVisible({ timeout: 15_000 })
-  await page.getByLabel('Меню бази').click()
-  await page.getByText('Управління гостями').click()
-  await page.getByLabel('Запросити гостя').click()
-  await expect(page.locator('.modal')).toBeVisible()
-
-  // Запускаємо створення і, не чекаючи відповіді, тапаємо бекдроп.
-  await page.getByRole('button', { name: /Створити/ }).click()
-  await page.locator('.modal-overlay').last().click({ position: { x: 10, y: 10 } })
-
-  // Шит мусить лишитись НА МІСЦІ, а не зʼїхати за екран: саме зсув був видимим
-  // симптомом застрягання.
-  const sheet = page.locator('.modal').last()
-  await expect(sheet).toBeVisible()
-  const box = await sheet.boundingBox()
-  const vh = page.viewportSize()!.height
-  expect(box!.y, `шит зʼїхав за екран (y=${box!.y} при висоті ${vh})`).toBeLessThan(vh)
-
-  // Дочекатись падіння запиту — тост про помилку означає, що busy знято.
-  await expect(page.getByText(/Не вдалося створити/)).toBeVisible({ timeout: 15_000 })
-
-  // І тепер шит мусить нормально закриватись. До фікса `firedRef` уже стояв, тож
-  // цей тап не робив нічого, і користувач лишався з мертвим екраном.
-  await page.locator('.modal-overlay').last().click({ position: { x: 10, y: 10 } })
-  await expect(page.locator('.modal'), 'шит застряг незакривним').toHaveCount(0)
-})
+// «Тап по бекдропу під час запиту НЕ лишає шит мертвим і незакривним» —
+// видалено (фаза 3 переробки модалок, atomic-riding-clock.md). Приклад
+// використовував «Запросити гостя», тепер повноекранний CreateInviteScreen:
+// без бекдропу й без `requestClose` цей клас гарда не застосовний. Еквівалент
+// («подвійний сабміт під час запиту не породжує другий insert») — робота на
+// майбутнє: перевірка `disabled`-стану кнопки під час `saving`, той самий
+// принцип, що вже застосований у PaymentScheduleScreen/PaymentConfirmScreen.
 
 test('рядки шита досяжні з клавіатури і активуються Enter', async ({ page }) => {
   // Рядки меню бази були клікабельними `<div>`, тобто для фокус-пастки їх не

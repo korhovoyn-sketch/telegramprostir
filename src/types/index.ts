@@ -245,6 +245,7 @@ export type ScreenName =
   | 'payment-calendar'
   | 'payment-schedule'
   | 'payment-confirm'
+  | 'create-invite'
 
 export interface RentPayment {
   id: string
@@ -274,6 +275,7 @@ export interface ScreenParams {
   dbId?: string
   propertyId?: string
   dueDate?: string
+  kind?: 'team' | 'guest'
   collectionId?: string
   photoIndex?: number
   initialIndex?: number

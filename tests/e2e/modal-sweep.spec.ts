@@ -2,10 +2,11 @@ import { test, expect, type Page, type Route } from '@playwright/test'
 import { setupApp, DEFAULT_USER } from './helpers/harness'
 
 /**
- * Спільний контракт інстансів `<Modal>`, що ще лишаються (фаза 2 переробки
- * модалок — atomic-riding-clock.md — перевела розклад платежів і
- * підтвердження платежу на повноекранні маршрути; ConfirmHost/ShareSheet/
- * CreatedLinkSheet/«Додати обʼєкт»/«Меню бази» вже на `ActionSheet`, фаза 1).
+ * Спільний контракт інстансів `<Modal>`, що ще лишаються (переробка модалок —
+ * atomic-riding-clock.md: фаза 1 перевела ConfirmHost/ShareSheet/
+ * CreatedLinkSheet/«Додати обʼєкт»/«Меню бази» на `ActionSheet`; фаза 2 —
+ * розклад платежів і підтвердження платежу на повноекранні маршрути; фаза 3 —
+ * InviteSheet на повноекранний `CreateInviteScreen`).
  * Число інстансів навмисно НЕ фіксоване тут коментарем — рахувати
  * `grep -rn "<Modal\b" src` перед наступною фазою, а не довіряти застарілому
  * числу в цьому файлі.
@@ -323,35 +324,11 @@ test('шит обʼєкта: здати в оренду', async ({ page }) => {
   expect(await sweep(page, 'rent')).toBe('Здати в оренду')
 })
 
-test('шити доступів: гості, команда, і створене посилання', async ({ page }) => {
-  test.setTimeout(180_000)
-  await setupApp(page, { user: OWNER })
-  await ownerRoutes(page)
-
-  await toObjects(page)
-  await menu(page, 'Управління гостями')
-  await expect(page.getByText(/Гості|Запросити/).first()).toBeVisible({ timeout: 15_000 })
-
-  // 9. «Запросити гостя»
-  await page.getByRole('button', { name: /Запросити/ }).first().click()
-  expect(await checkModal(page, 'guest-invite')).toBe('Запросити гостя')
-
-  // 10. Шит із готовим посиланням — окремий інстанс `<Modal>`, який видно лише
-  // після успішного INSERT, тож дійти до нього можна тільки створивши інвайт.
-  await page.getByLabel('Підпис гостьового лінка').fill('Орендар, кв. 5')
-  await page.locator('.modal-btn', { hasText: 'Створити' }).click()
-  expect(await sweep(page, 'guest-created', 'Посилання створено!')).toBe('Посилання створено!')
-
-  // 11+12. Команда: те саме — інвайт і шит зі створеним посиланням.
-  await toObjects(page)
-  await menu(page, 'Команда')
-  await expect(page.getByText(/Команда|Запросити/).first()).toBeVisible({ timeout: 15_000 })
-  await page.getByRole('button', { name: /Запросити/ }).first().click()
-  expect(await checkModal(page, 'team-invite')).toBe('Запросити в команду')
-  await page.locator('.modal input').first().fill('Менеджер Оля')
-  await page.locator('.modal-btn', { hasText: /Створити/ }).click()
-  expect(await sweep(page, 'team-created', 'Запрошення створено!')).toBe('Запрошення створено!')
-})
+// «Шити доступів: гості, команда, і створене посилання» — видалено (фаза 3
+// переробки модалок, atomic-riding-clock.md): InviteSheet/CreatedLinkSheet
+// замінені повноекранним CreateInviteScreen, тест повністю складався з цих
+// двох шитів і після видалення не лишав жодного `<Modal>`-кроку. Функціональне
+// покриття тепер у team.spec.ts (`owner: creates a team invite and revokes it`).
 
 test('шити профілю: вихід і видалення акаунта', async ({ page }) => {
   test.setTimeout(120_000)

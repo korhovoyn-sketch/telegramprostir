@@ -1209,8 +1209,8 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
 /* Порожній стан у шиті — був інлайновим обʼєктом стилю в кожному пікері. */
 .sheet-empty{padding:20px 4px;text-align:center;color:var(--t3);font-size:var(--fs-foot)}
 
-/* Готове посилання в шиті — моноспейс-блок із переносом. Був інлайновим обʼєктом
-   стилю, продубльованим у двох екранах (див. CreatedLinkSheet). */
+/* Готове посилання в шиті/екрані — моноспейс-блок із переносом. Був інлайновим
+   обʼєктом стилю, продубльованим у двох екранах. */
 .link-mono{word-break:break-all;font-size:var(--fs-cap1);color:var(--t3);font-family:monospace;background:var(--glass-1);border-radius:var(--r-sm);padding:8px 10px;margin-top:6px}
 
 /* ── FOLDERS ── */

@@ -2616,3 +2616,66 @@ schedule/pay-confirm — тест лишився тільки про оренд�
 `CI=1 npx playwright test` (293 passed, 1 flaky — відомий, задокументований
 вище флейк лічильника бейджа під навантаженням, не повʼязаний із цими
 змінами — 14 skipped, 0 справжніх падінь).
+
+## Changelog — модалки, фаза 3: запрошення (команда і гості) (серпень 2026)
+
+Останній `<Modal>`-сайт з ОДНИМ полем: `InviteSheet.tsx` (спільний для
+`TeamScreen`/`ManageGuestsScreen`) + `CreatedLinkSheet.tsx` замінені одним
+повноекранним `src/screens/CreateInviteScreen.tsx` (`create-invite`,
+`screenParams: { kind: 'team' | 'guest'; dbId?; propertyId? }` — `kind`
+типізоване поле в `ScreenParams`, той самий прецедент, що `dueDate` у фазі 2).
+Обидва викликачі тепер лише `navigate('create-invite', {...})` замість
+`setShowCreateModal(true)`.
+
+**Ключове архітектурне рішення — структурне, не смакове.** `back()` з нового
+екрана ПОВНІСТЮ перемонтовує `TeamScreen`/`ManageGuestsScreen` (`page.tsx`'s
+`key={navKey}`), тож щойно створений лінк неможливо «передати» назад через
+навігацію — `screenParams` носять дані лише ВПЕРЕД. Рішення: `CreateInviteScreen`
+тримає локальний `step: 'form' | 'created'`, крок `created` малює те саме, що
+раніше малював дочірній `CreatedLinkSheet` (моноспейс-блок лінка або пояснення
+для мертвого `#`-лінка через ту саму перевірку `usable = /^https?:\/\//`),
+просто в тілі того самого екрана. Header «Назад» використовується з ОБОХ
+кроків — з `created` він і є «Готово». `CreatedLinkSheet.tsx` видалений цілком
+(осиротів після переносу обох викликачів); `useLatch.ts` лишився — його й
+далі використовують `ShareSheet`/`ConfirmHost`.
+
+**Створення — буквальний перенос, без спільного хука** (той самий принцип,
+що у фазі 2): один `insert` в `db_members` або `guest_links` залежно від
+`kind`, `offlineGuard()` перед вставкою, тост з `humanizeDbError` на помилку
+(крок лишається `form`, поле не скидається). Кнопки кроку `created`
+(«Скопіювати»/«У Telegram») узяли `modalBtnClass()` з `ActionSheet.tsx` — той
+самий хелпер, що вже дає заливку кнопкам поза `.modal-actions` у `ShareSheet`
+(«В потоці» пара `secondary`+`primary sm`), а не вигаданий заново клас.
+
+**Тестова матриця:** `team.spec.ts` (основне функціональне покриття —
+`.modal`-селектори → навігація й `getByLabel`, тости й тіло `POST` лишились
+буквально), `modal-sweep.spec.ts` (тест «шити доступів: гості, команда, і
+створене посилання» повністю складався з InviteSheet/CreatedLinkSheet і після
+їх видалення не лишав жодного кроку — видалено цілком, не звужено),
+`_modal-audit.spec.ts`/`_keyboard-matrix.spec.ts` (інструменти поза CI —
+прибрано записи 09–12 і запис «запросити гостя»), `modal-a11y.spec.ts`
+(«тап по бекдропу під час запиту...» видалено — цей клас гарда специфічний
+для `requestClose`/бекдропу, яких у повноекранного маршруту немає; еквівалент
+«подвійний сабміт не породжує другий insert» — робота на майбутнє, той самий
+`disabled`-під-`saving` принцип, що вже в `PaymentScheduleScreen`),
+`owner-workflow.spec.ts` (заміна тапу по `.modal-overlay` на клік Header
+«Назад» — і тут-таки друга пастка, впіймана самим прогоном, не здогадом:
+`TeamBar` рендериться лише на певних топ-рівневих екранах
+(`DatabaseObjectsScreen`, `CollectionsScreen`, `NotificationsScreen` тощо), не
+на `ManageGuestsScreen`, тож повернення з `create-invite` вимагає ДВА кліки
+«Назад» — один із кроку `created` на `manage-guests`, другий із
+`manage-guests` на `db-objects`, де таббар уже є; перша версія з одним кліком
+падала таймаутом на очікуванні `.tabbar [aria-label="Сповіщення"]`),
+`screenshots.spec.ts` (перевірено — не зачіпає, чекає лише на кнопку в
+хедері, не на відкриття), `tests/unit/design-tokens.test.ts` (регекс `SHEETS`
+почистено від мертвих альтернатив `InviteSheet|CreatedLinkSheet`; 7 файлів
+лишились у списку, `toBeGreaterThan(4)` і далі проходить).
+
+**Про гонку reopen-during-close й busy-guard бекдропу** — те саме, що в фазі
+2: повноекранний маршрут не має персистентного DOM-вузла в перехідному стані,
+клас багів фази 1 тут структурно неможливий.
+
+**Верифікація:** type-check → lint → test (213 unit) → build → повний
+`CI=1 npx playwright test` (291 passed, 1 flaky — той самий відомий флейк
+лічильника бейджа `notifications.spec.ts`, не повʼязаний із цими змінами —
+14 skipped, 0 справжніх падінь).

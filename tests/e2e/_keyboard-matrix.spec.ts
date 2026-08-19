@@ -257,21 +257,12 @@ test('інші шити з полями × клавіатура на двох н
   const sizes = [DEVICES[2], DEVICES[3]] // 375×667 і 390×844
   // «Розклад платежів»/«Підтвердження платежу» прибрано (фаза 2 переробки
   // модалок): це тепер повноекранні маршрути (payment-schedule/payment-confirm),
-  // без `.modal` узагалі — цикл нижче явно чекає на `.modal`, тож інструмент,
-  // чиє призначення саме клавіатура В МОДАЛКАХ, тут не узагальнюється під
-  // геометрію екрана. Еквівалентне покриття — генерично в
-  // field-obstruction.spec.ts/keyboard-viewport.spec.ts.
+  // без `.modal` узагалі. «Запросити гостя» прибрано так само (фаза 3):
+  // InviteSheet замінений повноекранним CreateInviteScreen. Цикл нижче явно
+  // чекає на `.modal`, тож інструмент, чиє призначення саме клавіатура В
+  // МОДАЛКАХ, тут не узагальнюється під геометрію екрана. Еквівалентне
+  // покриття — генерично в field-obstruction.spec.ts/keyboard-viewport.spec.ts.
   const sheets: Array<{ name: string; open: (p: Page) => Promise<void> }> = [
-    { name: 'запросити гостя', open: async (p) => {
-      await p.goto('/')
-      await expect(p.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
-      await p.getByText('БЦ Рубін').first().click()
-      await expect(p.getByText(/Всі \(/)).toBeVisible({ timeout: 15_000 })
-      await p.getByLabel('Меню бази').click()
-      await p.getByText('Управління гостями', { exact: true }).click()
-      await expect(p.getByText(/Гост/).first()).toBeVisible({ timeout: 15_000 })
-      await p.getByLabel('Запросити гостя').click()
-    } },
     { name: 'папки', open: async (p) => {
       await p.goto('/')
       await expect(p.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })

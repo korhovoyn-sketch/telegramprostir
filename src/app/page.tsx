@@ -48,6 +48,7 @@ const SharedCollectionScreen = dynamic(() => import('@/screens/SharedCollectionS
 const PaymentCalendarScreen = dynamic(() => import('@/screens/PaymentCalendarScreen'), { loading: () => screenFallback })
 const PaymentScheduleScreen = dynamic(() => import('@/screens/PaymentScheduleScreen'), { loading: () => screenFallback })
 const PaymentConfirmScreen = dynamic(() => import('@/screens/PaymentConfirmScreen'), { loading: () => screenFallback })
+const CreateInviteScreen = dynamic(() => import('@/screens/CreateInviteScreen'), { loading: () => screenFallback })
 
 export default function Page() {
   const screen = useAppStore((s) => s.screen)
@@ -449,6 +450,7 @@ export default function Page() {
       case 'payment-calendar': return <PaymentCalendarScreen />
       case 'payment-schedule': return <PaymentScheduleScreen />
       case 'payment-confirm': return <PaymentConfirmScreen />
+      case 'create-invite': return <CreateInviteScreen />
       default: return <SplashScreen />
     }
   }
