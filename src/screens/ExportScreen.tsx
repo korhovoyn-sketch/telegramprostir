@@ -620,9 +620,21 @@ export default function ExportScreen() {
         .from('properties')
         // share_token deliberately NOT selected: exported files travel outside
         // the app and must never carry live share credentials.
-        .select('id,db_id,owner_id,name,floor,status,area_useful,area_total,rent_type,rent_rate,utilities_rate,has_parking,parking_spaces,description,address,utilities,sale_price,tenant_name,lease_start_date,lease_end_date,sort_order,created_at,updated_at,photos:property_photos(id,property_id,storage_path,sort_order,created_at)')
+        //
+        // `area_basis` тут ОБОВʼЯЗКОВИЙ, і його відсутність була грошовим
+        // дефектом: `basisArea()` при `undefined` мовчки падає на РОЗРАХУНКОВУ
+        // площу, тож обʼєкт, якому власник задав базою корисну, рахувався в
+        // документі по іншій площі, ніж у застосунку. На 100/120 м² і $18/м²
+        // це $1 800 на екрані проти $2 160 у PDF — 20% розбіжності у файлі,
+        // який власник надсилає клієнту, без жодного натяку.
+        .select('id,db_id,owner_id,name,floor,status,area_useful,area_total,area_basis,rent_type,rent_rate,utilities_rate,has_parking,parking_spaces,description,address,utilities,sale_price,tenant_name,lease_start_date,lease_end_date,sort_order,created_at,updated_at,photos:property_photos(id,property_id,storage_path,sort_order,created_at)')
         .eq('db_id', dbId)
-        .order('name')
+        // Порядок мусить збігатися з застосунком (`useProperties` — sort_order),
+        // інакше ручний «Змінити порядок» на документ не впливає ВЗАГАЛІ, а
+        // лексикографічне сортування ще й ставить «Офіс 10» перед «Офіс 2».
+        // Той самий клас міграція 040 вже виправила для публічної /v.
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true })
 
       if (error) throw error
       const properties = (propertiesRaw ?? []) as Property[]

@@ -80,6 +80,51 @@ test('експорт PDF тягне дані і НЕ включає share_token 
   expect(exportSelect, 'токен доступу не має їхати у файл').not.toContain('share_token')
 })
 
+/**
+ * ГРОШІ У ФАЙЛІ мусять збігатися з грошима на екрані.
+ *
+ * `basisArea()` при `area_basis === undefined` мовчки бере РОЗРАХУНКОВУ площу.
+ * Вибірка експорту цю колонку не тягнула взагалі, тож обʼєкт, якому власник
+ * задав базою корисну площу, рахувався в PDF/XLSX по іншій площі, ніж у
+ * застосунку: на 100/120 м² і $18/м² це $1 800 на екрані проти $2 160 у файлі.
+ * Мовчки, без помилки, у документі, який власник надсилає клієнту.
+ */
+test('експорт тягне area_basis — інакше суми у файлі розходяться з екраном', async ({ page }) => {
+  const wire: Wire = { selects: [] }
+  await setup(page, wire)
+  await openExport(page)
+
+  const before = wire.selects.length
+  await page.getByRole('button', { name: /Завантажити PDF/ }).click()
+  await expect.poll(() => wire.selects.length, { timeout: 15_000 }).toBeGreaterThan(before)
+
+  expect(wire.selects[wire.selects.length - 1], 'без area_basis сума рахується по чужій площі')
+    .toContain('area_basis')
+})
+
+/**
+ * ПОРЯДОК у файлі — той самий, що в застосунку.
+ *
+ * Було `.order('name')`, тобто лексикографічно: «Офіс 10» ставало перед
+ * «Офіс 2», а ручний «Змінити порядок» не впливав на документ ВЗАГАЛІ.
+ * Той самий клас міграція 040 вже виправила для публічної /v.
+ */
+test('експорт сортує за sort_order, як застосунок, а не за назвою', async ({ page }) => {
+  const wire: Wire = { selects: [] }
+  await setup(page, wire)
+  await openExport(page)
+
+  const before = wire.selects.length
+  await page.getByRole('button', { name: /Завантажити PDF/ }).click()
+  await expect.poll(() => wire.selects.length, { timeout: 15_000 }).toBeGreaterThan(before)
+
+  const exportSelect = wire.selects[wire.selects.length - 1]
+  expect(exportSelect, 'порядок документа мусить іти за ручним порядком власника')
+    .toContain('order=sort_order')
+  expect(exportSelect, 'лексикографічний порядок ставив «Офіс 10» перед «Офіс 2»')
+    .not.toContain('order=name')
+})
+
 test('перемикання на Excel міняє підпис кнопки і теж виконується', async ({ page }) => {
   const wire: Wire = { selects: [] }
   await setup(page, wire)

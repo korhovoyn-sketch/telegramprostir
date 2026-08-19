@@ -43,6 +43,8 @@ interface Opts {
   props?: ReturnType<typeof prop>[]
   /** DELETE обʼєктів віддає 0 рядків — так виглядає блокування RLS. */
   deleteBlocked?: boolean
+  /** PATCH віддає 0 рядків — те саме блокування, але на оновленні. */
+  patchBlocked?: boolean
 }
 
 async function setup(page: Page, wire: Wire, opts: Opts = {}) {
@@ -66,7 +68,7 @@ async function setup(page: Page, wire: Wire, opts: Opts = {}) {
       const ids = url.match(/id=in\.\(([^)]+)\)/)?.[1]?.split(',') ?? []
       const single = url.match(/id=eq\.([0-9a-f-]+)/)?.[1]
       const touched = ids.length > 0 ? ids : (single ? [single] : [])
-      return jsonRoute(r, touched.map((id) => ({ id })))
+      return jsonRoute(r, opts.patchBlocked ? [] : touched.map((id) => ({ id })))
     }
     if (rq.method() === 'DELETE') {
       wire.deletes.push(url)
@@ -128,6 +130,35 @@ test('зміна порядку скидає сортування — інакш
   // тобто до 101 → 102 → 103. Якщо сортування лишилось, перший рядок — 102.
   const firstRow = await page.locator('.obj-card, .row').first().innerText()
   expect(firstRow, 'у режимі порядку список іде за sort_order, а не за поверхом').toContain('Офіс 101')
+})
+
+/**
+ * Заблокований RLS реордер мусить СКАЗАТИ про себе, а не вдавати успіх.
+ *
+ * `reorderProperty` була ЄДИНОЮ мутацією `useProperties` без `.select('id')` +
+ * `assertAffected` — усі сусідні (статус, папка, перенос, видалення) його вже
+ * мали. Під RLS заблокований UPDATE повертає порожній набір і NULL у `error`,
+ * тобто редактор, чий доступ відкликали посеред роботи, бачив переставлений
+ * список, який мовчки повертався на місце при наступному завантаженні.
+ */
+test('зміна порядку: заблокований RLS UPDATE не вдає успіх', async ({ page }) => {
+  const wire = freshWire()
+  await setup(page, wire, { patchBlocked: true })
+  await openDb(page)
+
+  await openMenu(page)
+  await page.getByText('Змінити порядок', { exact: true }).click()
+  await page.waitForTimeout(400)
+
+  // Другий рядок угору — пара, яку точно можна поміняти місцями.
+  await page.getByLabel('Вгору').nth(1).click()
+
+  await expect(page.getByText(/Не вдалося зберегти порядок/), 'мовчазний провал видається за успіх')
+    .toBeVisible({ timeout: 10_000 })
+  // Оптимістичну перестановку мусить бути відкочено — інакше користувач лишиться
+  // з порядком, якого на сервері немає.
+  const firstRow = await page.locator('.obj-card, .row').first().innerText()
+  expect(firstRow, 'оптимістичний своп не відкотився').toContain('Офіс 101')
 })
 
 test('пакетне «Вільно» знімає орендаря і дати договору', async ({ page }) => {

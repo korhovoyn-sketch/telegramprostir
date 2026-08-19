@@ -513,13 +513,23 @@ export function useProperties(dbId?: string) {
         .sort((x, y) => (x.sort_order ?? 0) - (y.sort_order ?? 0) || x.created_at.localeCompare(y.created_at))
       setProperties(next)
 
-      await Promise.all([
-        supabase.from('properties').update({ sort_order: b.sort_order }).eq('id', a.id),
-        supabase.from('properties').update({ sort_order: a.sort_order }).eq('id', b.id),
+      // `.select('id')` + assertAffected, як і в кожної сусідньої мутації цього
+      // хука: під RLS заблокований UPDATE повертає порожній набір і NULL у
+      // `error`, тобто «переставив» і «не мав права» на дроті нерозрізненні.
+      // Без цього редактор, чий доступ відкликали посеред роботи, бачив би
+      // переставлений список, який мовчки повертається на місце при наступному
+      // завантаженні. Це була ЄДИНА мутація тут без такого доведення.
+      const [swapA, swapB] = await Promise.all([
+        supabase.from('properties').update({ sort_order: b.sort_order }).eq('id', a.id).select('id'),
+        supabase.from('properties').update({ sort_order: a.sort_order }).eq('id', b.id).select('id'),
       ])
-    } catch {
+      if (swapA.error) throw swapA.error
+      if (swapB.error) throw swapB.error
+      assertAffected(swapA.data, 1, 'зміну порядку')
+      assertAffected(swapB.data, 1, 'зміну порядку')
+    } catch (e) {
       setProperties(properties) // rollback
-      showToast({ type: 'error', title: 'Не вдалося зберегти порядок' })
+      showToast({ type: 'error', title: 'Не вдалося зберегти порядок', subtitle: humanizeDbError(e) })
     }
   }, [properties, showToast])
 
