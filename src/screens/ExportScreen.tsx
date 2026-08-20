@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase'
 import Header from '@/components/ui/Header'
 import Toggle from '@/components/ui/Toggle'
 import { IconFileExport, IconFile, IconAdjustments } from '@/components/Icons'
-import { calcRentUtils, currencySymbol, rentUnitLabel, objectsWord, DB_TYPE_LABELS, STATUS_LABELS, formatLeaseDate, humanizeDbError, safeFileName, photoUrl } from '@/lib/utils'
+import { withSortedPhotos, calcRentUtils, currencySymbol, rentUnitLabel, objectsWord, DB_TYPE_LABELS, STATUS_LABELS, formatLeaseDate, humanizeDbError, safeFileName, photoUrl } from '@/lib/utils'
 import { UTILITY_META } from '@/lib/utilityMeta'
 import type { Property, Database } from '@/types'
 
@@ -779,7 +779,9 @@ async function generatePDF(
   // послідовно 30 обʼєктів × 4 фото = 120 запитів у чергу, тобто десятки
   // секунд очікування з нерухомою кнопкою.
   const shotsByProperty = await Promise.all(
-    rows.map((p) => loadPhotos((p.photos ?? []).map((ph) => ph.storage_path)))
+    // Порядок фото в документі мусить збігатись із застосунком і з /v:
+    // вбудоване відношення приходить несортованим, тож перше фото — довільне.
+    rows.map((p) => loadPhotos((withSortedPhotos(p).photos ?? []).map((ph) => ph.storage_path)))
   )
   rows.forEach((p, idx) => drawDetailPage(p, idx, shotsByProperty[idx]))
 

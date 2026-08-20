@@ -16,7 +16,7 @@ import TabBar from '@/components/ui/TabBar'
 import { StatusBadge } from '@/components/ui/Badge'
 import ActionSheet from '@/components/ui/ActionSheet'
 import { IconPlus, IconShare, IconX, IconChevronLeft, IconTrash, IconBuilding } from '@/components/Icons'
-import { formatPrice, calcRent, basisArea, computedRentUnit, objectsWord, formatDate, photoUrl, humanizeDbError } from '@/lib/utils'
+import { formatPrice, calcRent, basisArea, computedRentUnit, objectsWord, formatDate, photoUrl, humanizeDbError, withSortedPhotos } from '@/lib/utils'
 import ShareSheet from '@/components/ui/ShareSheet'
 import type { Property, Collection } from '@/types'
 import CoachMark from '@/components/ui/CoachMark'
@@ -134,7 +134,9 @@ function CollectionDetail({
     try {
       const { data, error } = await supabase
         .from('collection_properties')
-        .select('property_id, property:properties(*, photos:property_photos(*))')
+        // Явні колонки: `properties(*, …)` віддавав рієлторові `share_token`
+        // ЧУЖИХ обʼєктів — публічний /v-лінк, що переживе видалення підбірки.
+        .select('property_id, property:properties(' + PROPERTY_WITH_PHOTOS + ')')
         .eq('collection_id', collection.id)
       if (error) throw error
       setCollectionProps((data ?? []) as unknown as CollectionProperty[])
@@ -329,7 +331,7 @@ function CollectionDetail({
             {collectionProps.map((cp) => {
               const p = cp.property
               if (!p) return null
-              const firstPhoto = p.photos?.[0]
+              const firstPhoto = withSortedPhotos(p).photos?.[0]
               const thumbUrl = firstPhoto ? photoUrl(firstPhoto.storage_path) : null
 
               return (
@@ -410,7 +412,7 @@ function CollectionDetail({
             ) : (
               <div className="list" style={{ gap: 6 }}>
                 {availableProps.map((p) => {
-                  const firstPhoto = p.photos?.[0]
+                  const firstPhoto = withSortedPhotos(p).photos?.[0]
                   const thumbUrl = firstPhoto ? photoUrl(firstPhoto.storage_path) : null
 
                   return (
@@ -485,6 +487,9 @@ export default function CollectionsScreen() {
       // Single query for counts + one batch query for thumbnails — no N+1
       const { data: colsData, error } = await supabase
         .from('collections')
+        // idor-ok: ВЛАСНІ підбірки рієлтора (.eq('realtor_id', user.id)) —
+        // `share_token` тут його власний і потрібен, щоб ділитись. Витік — це
+        // чужий токен, а не свій.
         .select('*, collection_properties(count)')
         .eq('realtor_id', user.id)
         .order('created_at', { ascending: false })
@@ -497,18 +502,19 @@ export default function CollectionsScreen() {
       const colIds = cols.map(c => c.id)
       const { data: cpRows } = await supabase
         .from('collection_properties')
-        .select('collection_id, property:properties(id, photos:property_photos(storage_path))')
+        .select('collection_id, property:properties(id, photos:property_photos(storage_path,sort_order))')
         .in('collection_id', colIds)
 
       // Build map: collectionId → first 3 photo URLs
       const thumbMap: Record<string, string[]> = {}
       for (const row of (cpRows ?? []) as unknown as Array<{
         collection_id: string
-        property: { id: string; photos: { storage_path: string }[] } | null
+        property: { id: string; photos: { storage_path: string; sort_order: number | null }[] } | null
       }>) {
         const urls = (thumbMap[row.collection_id] ??= [])
-        if (urls.length < 3 && row.property?.photos?.[0]?.storage_path) {
-          urls.push(photoUrl(row.property.photos[0].storage_path))
+        const cover = withSortedPhotos(row.property ?? { photos: [] }).photos?.[0]
+        if (urls.length < 3 && cover?.storage_path) {
+          urls.push(photoUrl(cover.storage_path))
         }
       }
 

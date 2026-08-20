@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
-import { humanizeDbError, objectsWord } from '@/lib/utils'
+import { humanizeDbError, objectsWord, withSortedPhotos } from '@/lib/utils'
 import { assertAffected } from '@/lib/dbWrite'
 import { readSnapshot, writeSnapshot } from '@/lib/snapshot'
 import { useAppStore } from '@/store/appStore'
@@ -128,7 +128,7 @@ export function useProperties(dbId?: string) {
       if (err) throw err
       const mapped = (rows ?? []).map((p) => {
         const { views, ...rest } = p as Record<string, unknown>
-        return { ...rest, _view_count: (views as unknown[])?.length ?? 0 }
+        return withSortedPhotos({ ...rest, _view_count: (views as unknown[])?.length ?? 0 } as { photos?: { sort_order?: number | null }[] | null })
       })
       fullListDbIdRef.current = targetDbId
       setProperties(mapped as unknown as Property[])
@@ -164,7 +164,7 @@ export function useProperties(dbId?: string) {
       }
       if (err) throw err
       const { views, ...rest } = row as Record<string, unknown>
-      const mapped = { ...rest, _view_count: (views as unknown[])?.length ?? 0 } as unknown as Property
+      const mapped = withSortedPhotos({ ...rest, _view_count: (views as unknown[])?.length ?? 0 } as unknown as Property)
       // Один рядок — не повний список бази: кеш списку з нього писати НЕ можна.
       fullListDbIdRef.current = null
       setProperties([mapped])
@@ -302,7 +302,7 @@ export function useProperties(dbId?: string) {
         .single()
 
       if (error) throw error
-      const updated = one<Property>(data)
+      const updated = withSortedPhotos(one<Property>(data))
       setProperties((prev) => prev.map((p) => (p.id === id ? updated : p)))
       if (!opts?.silent) showToast({ type: 'success', title: 'Збережено' })
       return true
