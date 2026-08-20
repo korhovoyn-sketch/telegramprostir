@@ -46,7 +46,7 @@ function makeGuestLink(overrides: Partial<GuestLink> = {}): GuestLink {
 }
 
 function installSupabaseMock(links: GuestLink[]) {
-  updateEq.mockReset().mockResolvedValue({ error: null })
+  updateEq.mockReset().mockResolvedValue({ data: [{ id: 'link-1' }], error: null })
   fromMock.mockReset().mockImplementation((table: string) => {
     if (table !== 'guest_links') throw new Error(`unexpected table ${table}`)
     return {
@@ -55,7 +55,11 @@ function installSupabaseMock(links: GuestLink[]) {
           order: () => Promise.resolve({ data: links, error: null }),
         }),
       }),
-      update: () => ({ eq: updateEq }),
+      // Ланцюг тепер завершується `.select('id')` — мутація зобовʼязана
+      // ДОВЕСТИ, що зачепила рядок (правило 8 Security rules). Мок мусить
+      // моделювати саме це: успіх — це рядок, а не порожній набір із NULL у
+      // `error`, бо порожній набір на реальному бекенді означає ВІДМОВУ RLS.
+      update: () => ({ eq: (...a: unknown[]) => ({ select: () => updateEq(...a) }) }),
     }
   })
 }

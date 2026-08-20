@@ -5,11 +5,14 @@ import { useAppStore } from '@/store/appStore'
 import { offlineGuard } from '@/lib/offline'
 import { confirmAction } from '@/lib/confirm'
 import { supabase } from '@/lib/supabase'
+import { assertAffected } from '@/lib/dbWrite'
 import { humanizeDbError } from '@/lib/utils'
 import Header from '@/components/ui/Header'
 import { SkeletonList } from '@/components/ui/SkeletonLoader'
-import { IconPlus, IconLink, IconBan, IconUsers } from '@/components/Icons'
+import RetryState from '@/components/ui/RetryState'
+import { IconPlus, IconLink, IconBan, IconUsers, IconCopy } from '@/components/Icons'
 import { buildDeepLink, openTelegramShare, hapticNotify } from '@/lib/telegram'
+import { copyLink } from '@/lib/share'
 import type { DbMember } from '@/types'
 
 const STATUS_LABEL: Record<string, string> = {
@@ -32,6 +35,11 @@ export default function TeamScreen() {
   const [members, setMembers] = useState<DbMember[]>([])
   const [loading, setLoading] = useState(true)
   const [revoking, setRevoking] = useState<string | null>(null)
+  // Помилка завантаження МУСИТЬ мати власний стан. Без нього збій мережі
+  // малював «Немає запрошень» — тобто відповідь «доступів немає» на питання
+  // «чи є доступи», і власник не мав жодного натяку, що список просто не
+  // доїхав. Тост зникає за секунди, порожній стан лишається на екрані.
+  const [loadErr, setLoadErr] = useState<string | null>(null)
 
   async function load() {
     if (!dbId) return
@@ -44,8 +52,9 @@ export default function TeamScreen() {
         .order('created_at', { ascending: false })
       if (error) throw error
       setMembers((data ?? []) as DbMember[])
+      setLoadErr(null)
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка завантаження', subtitle: humanizeDbError(e) })
+      setLoadErr(humanizeDbError(e))
     } finally {
       setLoading(false)
     }
@@ -67,11 +76,17 @@ export default function TeamScreen() {
     const id = member.id
     setRevoking(id)
     try {
-      const { error } = await supabase
+      // `.select('id')` + `assertAffected` — не формальність: під RLS
+      // заблокований UPDATE повертає ПОРОЖНІЙ набір і NULL у `error`, тож без
+      // доказу екран малював бейдж «Відкликано», а доступ лишався ЖИВИМ.
+      // Це найгірший можливий інстанс класу: мовчазна брехня про БЕЗПЕКУ.
+      const { data, error } = await supabase
         .from('db_members')
         .update({ status: 'revoked' })
         .eq('id', id)
+        .select('id')
       if (error) throw error
+      assertAffected(data, 1, 'відкликання доступу')
       setMembers(prev => prev.map(m => m.id === id ? { ...m, status: 'revoked' as const } : m))
       hapticNotify('success')
     } catch (e) {
@@ -79,6 +94,13 @@ export default function TeamScreen() {
     } finally {
       setRevoking(null)
     }
+  }
+
+  async function handleCopy(link: string) {
+    const ok = await copyLink(link)
+    showToast(ok
+      ? { type: 'success', title: 'Посилання скопійовано' }
+      : { type: 'error', title: 'Не вдалося скопіювати' })
   }
 
   return (
@@ -107,6 +129,8 @@ export default function TeamScreen() {
 
         {loading ? (
           <SkeletonList count={3} />
+        ) : loadErr ? (
+          <RetryState onRetry={load} subtitle={loadErr} />
         ) : members.length === 0 ? (
           <div className="empty-state" style={{ paddingTop: 48 }}>
             <div className="empty-ic">👥</div>
@@ -138,20 +162,30 @@ export default function TeamScreen() {
                     </div>
                     {m.status !== 'revoked' && (
                       <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                        {m.status === 'pending' && (
-                          <button
-                            style={{ flex: 1, padding: '6px 0', borderRadius: 'var(--r-sm)', background: 'var(--info-bg)', border: 'none', fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', color: 'var(--info)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
-                            onClick={() => openTelegramShare(buildDeepLink(`team_${m.invite_token}`), 'Запрошення до команди бази нерухомості')}
-                          >
-                            <IconLink size={12} />Поділитись
-                          </button>
-                        )}
-                        <button
-                          style={{ flex: 1, padding: '6px 0', borderRadius: 'var(--r-sm)', background: 'var(--err-bg)', border: 'none', fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', color: 'var(--err-fg)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, opacity: revoking === m.id ? .6 : 1 }}
-                          disabled={revoking === m.id}
-                          onClick={() => handleRevoke(m)}
-                        >
-                          <IconBan size={12} />Відкликати
+                        {m.status === 'pending' && (() => {
+                          const link = buildDeepLink(`team_${m.invite_token}`)
+                          // Мертвий лінк («#» — коли не задано юзернейм бота)
+                          // не можна давати ані копіювати, ані надсилати: той
+                          // самий клас, що вже давав прод-інцидент із
+                          // TELEGRAM_APP_NAME, і `CreateInviteScreen` його вже
+                          // ловить — цей екран лишався єдиною діркою.
+                          const usable = /^https?:\/\//.test(link)
+                          return (
+                            <>
+                              <button className="acc-act share" disabled={!usable}
+                                onClick={() => handleCopy(link)}>
+                                <IconCopy size={14} />Копіювати
+                              </button>
+                              <button className="acc-act share" disabled={!usable}
+                                onClick={() => openTelegramShare(link, 'Запрошення до команди бази нерухомості')}>
+                                <IconLink size={14} />Надіслати
+                              </button>
+                            </>
+                          )
+                        })()}
+                        <button className="acc-act revoke" disabled={revoking === m.id}
+                          onClick={() => handleRevoke(m)}>
+                          <IconBan size={14} />Відкликати
                         </button>
                       </div>
                     )}

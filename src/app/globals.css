@@ -687,6 +687,20 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 .obj-act{display:flex;gap:6px;padding:10px var(--pad-card) 12px;justify-content:space-between;flex-wrap:nowrap}
 .obj-act-btn{display:flex;align-items:center;justify-content:center;gap:4px;padding:7px 8px;border-radius:var(--r-pill);background:var(--glass-2);border:var(--bd);color:var(--t2);font-size:var(--fs-cap1);font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:1;min-width:0;transition:background .15s,color .15s}
 .obj-act-btn:active{background:var(--glass-3);color:var(--t1);transform:scale(.96)}
+
+/* Дії в рядку доступу (гості, команда). Окремий клас, а не `.obj-act-btn`:
+   там 35px — СВІДОМИЙ виняток, бо над кнопками лежить тіло картки, яке
+   відкриває обʼєкт, і розширення вгору вкрало б його тапи. Тут картка НЕ
+   клікабельна, тож конфлікту немає і повні 44px беруться безкоштовно.
+   Неактивність показує КОЛІР: `opacity` над темним склом зʼїдає елемент. */
+.acc-act{display:flex;align-items:center;justify-content:center;gap:5px;flex:1;
+  min-height:44px;padding:0 10px;border:none;border-radius:var(--r-sm);
+  font-size:var(--fs-cap1);font-weight:var(--fw-semi);cursor:pointer;
+  white-space:nowrap;min-width:0;transition:background .15s,color .15s}
+.acc-act:active{transform:scale(.96)}
+.acc-act.share{background:var(--info-bg);color:var(--info)}
+.acc-act.revoke{background:var(--err-bg);color:var(--err-fg)}
+.acc-act:disabled{background:var(--glass-2);color:var(--t4);cursor:default;transform:none}
 .cost-row{display:flex;justify-content:space-between;align-items:baseline;padding:3px 0;font-size:var(--fs-foot);color:var(--t2)}
 .cost-row+.cost-row{border-top:.5px solid rgba(255,255,255,.07);padding-top:8px;margin-top:6px}
 .cost-ttl{font-size:var(--fs-t2);font-weight:700;color:var(--t1);letter-spacing:-.02em}

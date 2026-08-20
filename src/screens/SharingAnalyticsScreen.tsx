@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { supabase } from '@/lib/supabase'
 import Header from '@/components/ui/Header'
+import RetryState from '@/components/ui/RetryState'
 import ShareSheet from '@/components/ui/ShareSheet'
 import { IconShare, IconEye, IconChartLine } from '@/components/Icons'
 import { formatDate, daysSince, humanizeDbError } from '@/lib/utils'
@@ -22,9 +23,14 @@ function last7DayLabels(): string[] {
 }
 
 export default function SharingAnalyticsScreen() {
-  const { screenParams, showToast } = useAppStore()
+  const { screenParams } = useAppStore()
   const [views, setViews] = useState<PropertyView[]>([])
   const [loading, setLoading] = useState(true)
+  const [reloadKey, setReloadKey] = useState(0)
+  // Третій інстанс класу «збій видається за порожнечу» (після гостей і
+  // команди): без власного стану помилка завантаження малювала «Немає
+  // переглядів» — тобто ВПЕВНЕНУ відповідь про дані, яких екран не бачив.
+  const [loadErr, setLoadErr] = useState<string | null>(null)
   const [chartData, setChartData] = useState<number[]>(Array(7).fill(0))
   const [showShare, setShowShare] = useState(false)
 
@@ -99,15 +105,16 @@ export default function SharingAnalyticsScreen() {
           if (diff >= 0 && diff < 7) dayData[6 - diff]++
         })
         setChartData(dayData)
+        setLoadErr(null)
       } catch (e) {
-        if (!cancelled) showToast({ type: 'error', title: 'Помилка аналітики', subtitle: humanizeDbError(e) })
+        if (!cancelled) setLoadErr(humanizeDbError(e))
       } finally {
         if (!cancelled) setLoading(false)
       }
     }
     load()
     return () => { cancelled = true }
-  }, [screenParams.propertyId, screenParams.dbId, showToast])
+  }, [screenParams.propertyId, screenParams.dbId, reloadKey])
 
   const maxVal = Math.max(...chartData, 1)
 
@@ -208,6 +215,8 @@ export default function SharingAnalyticsScreen() {
           <div className="loader-wrap" style={{ paddingTop: 24 }}>
             <div className="loader" />
           </div>
+        ) : loadErr ? (
+          <RetryState onRetry={() => setReloadKey((k) => k + 1)} subtitle={loadErr} />
         ) : views.length === 0 ? (
           <div className="empty-state" style={{ paddingTop: 24 }}>
             <div className="empty-ic">👁️</div>

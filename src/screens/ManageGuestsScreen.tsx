@@ -5,11 +5,14 @@ import { useAppStore } from '@/store/appStore'
 import { offlineGuard } from '@/lib/offline'
 import { confirmAction } from '@/lib/confirm'
 import { supabase } from '@/lib/supabase'
+import { assertAffected } from '@/lib/dbWrite'
 import { humanizeDbError } from '@/lib/utils'
 import Header from '@/components/ui/Header'
 import { SkeletonList } from '@/components/ui/SkeletonLoader'
-import { IconPlus, IconLink, IconBan, IconUser } from '@/components/Icons'
+import RetryState from '@/components/ui/RetryState'
+import { IconPlus, IconLink, IconBan, IconUser, IconCopy } from '@/components/Icons'
 import { buildDeepLink, openTelegramShare , hapticNotify } from '@/lib/telegram'
+import { copyLink } from '@/lib/share'
 import type { GuestLink } from '@/types'
 
 const STATUS_LABEL: Record<string, string> = {
@@ -28,6 +31,11 @@ export default function ManageGuestsScreen() {
   const [links, setLinks] = useState<GuestLink[]>([])
   const [loading, setLoading] = useState(true)
   const [revoking, setRevoking] = useState<string | null>(null)
+  // Помилка завантаження МУСИТЬ мати власний стан. Без нього збій мережі
+  // малював «Немає запрошень» — тобто відповідь «доступів немає» на питання
+  // «чи є доступи», і власник не мав жодного натяку, що список просто не
+  // доїхав. Тост зникає за секунди, порожній стан лишається на екрані.
+  const [loadErr, setLoadErr] = useState<string | null>(null)
 
   const isProperty = !!screenParams.propertyId
   const targetId = screenParams.propertyId ?? screenParams.dbId
@@ -44,8 +52,9 @@ export default function ManageGuestsScreen() {
         .order('created_at', { ascending: false })
       if (error) throw error
       setLinks((data ?? []) as GuestLink[])
+      setLoadErr(null)
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка завантаження', subtitle: humanizeDbError(e) })
+      setLoadErr(humanizeDbError(e))
     } finally {
       setLoading(false)
     }
@@ -67,11 +76,17 @@ export default function ManageGuestsScreen() {
     const id = link.id
     setRevoking(id)
     try {
-      const { error } = await supabase
+      // `.select('id')` + `assertAffected` — не формальність: під RLS
+      // заблокований UPDATE повертає ПОРОЖНІЙ набір і NULL у `error`, тож без
+      // доказу екран малював бейдж «Відкликано», а доступ лишався ЖИВИМ.
+      // Це найгірший можливий інстанс класу: мовчазна брехня про БЕЗПЕКУ.
+      const { data, error } = await supabase
         .from('guest_links')
         .update({ status: 'revoked' })
         .eq('id', id)
+        .select('id')
       if (error) throw error
+      assertAffected(data, 1, 'відкликання доступу')
       setLinks(prev => prev.map(l => l.id === id ? { ...l, status: 'revoked' as const } : l))
       hapticNotify('success')
     } catch (e) {
@@ -79,6 +94,13 @@ export default function ManageGuestsScreen() {
     } finally {
       setRevoking(null)
     }
+  }
+
+  async function handleCopy(link: string) {
+    const ok = await copyLink(link)
+    showToast(ok
+      ? { type: 'success', title: 'Посилання скопійовано' }
+      : { type: 'error', title: 'Не вдалося скопіювати' })
   }
 
   function handleShareLink(link: string) {
@@ -110,6 +132,8 @@ export default function ManageGuestsScreen() {
       <div className="body" style={{ animation: 'cascadeIn .2s ease both' }}>
         {loading ? (
           <SkeletonList count={3} />
+        ) : loadErr ? (
+          <RetryState onRetry={load} subtitle={loadErr} />
         ) : links.length === 0 ? (
           <div className="empty-state" style={{ paddingTop: 48 }}>
             <div className="empty-ic">👤</div>
@@ -138,23 +162,30 @@ export default function ManageGuestsScreen() {
                         ? `Прийнято ${new Date(link.claimed_at).toLocaleDateString('uk-UA')}`
                         : `Створено ${new Date(link.created_at).toLocaleDateString('uk-UA')}`}
                     </div>
-                    {link.status !== 'revoked' && (
-                      <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                        <button
-                          style={{ flex: 1, padding: '6px 0', borderRadius: 'var(--r-sm)', background: 'var(--info-bg)', border: 'none', fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', color: 'var(--info)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}
-                          onClick={() => handleShareLink(buildDeepLink(`guest_${link.invite_token}`))}
-                        >
-                          <IconLink size={12} />Поділитись
-                        </button>
-                        <button
-                          style={{ flex: 1, padding: '6px 0', borderRadius: 'var(--r-sm)', background: 'var(--err-bg)', border: 'none', fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', color: 'var(--err-fg)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, opacity: revoking === link.id ? .6 : 1 }}
-                          disabled={revoking === link.id}
-                          onClick={() => handleRevoke(link)}
-                        >
-                          <IconBan size={12} />Відкликати
-                        </button>
-                      </div>
-                    )}
+                    {link.status !== 'revoked' && (() => {
+                      const url = buildDeepLink(`guest_${link.invite_token}`)
+                      // Мертвий лінк («#» — коли не задано юзернейм бота) не
+                      // можна ані копіювати, ані надсилати: власник дізнався б
+                      // про поломку від одержувача. Той самий гард уже стоїть у
+                      // `CreateInviteScreen`; цей екран лишався діркою.
+                      const usable = /^https?:\/\//.test(url)
+                      return (
+                        <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                          <button className="acc-act share" disabled={!usable}
+                            onClick={() => handleCopy(url)}>
+                            <IconCopy size={14} />Копіювати
+                          </button>
+                          <button className="acc-act share" disabled={!usable}
+                            onClick={() => handleShareLink(url)}>
+                            <IconLink size={14} />Надіслати
+                          </button>
+                          <button className="acc-act revoke" disabled={revoking === link.id}
+                            onClick={() => handleRevoke(link)}>
+                            <IconBan size={14} />Відкликати
+                          </button>
+                        </div>
+                      )
+                    })()}
                   </div>
                 </div>
               </div>
