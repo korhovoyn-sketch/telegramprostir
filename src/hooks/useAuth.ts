@@ -361,32 +361,25 @@ export function useAuth() {
   }, [setUser, navigateRoot])
 
   // Незворотне видалення акаунта (право на стирання — обіцяне в Політиці).
-  // Порядок важливий: файли зі storage прибираємо ДО видалення рядків, бо після
-  // каскаду ми вже не знатимемо шляхів. Далі RPC зносить профіль (каскадом усе
-  // володіння) і auth-акаунт, і лише потім локальний вихід.
+  //
+  // ПОРЯДКУ ТУТ БІЛЬШЕ НЕМАЄ, І ЦЕ НАВМИСНО. Обидва клієнтські порядки зламані:
+  //   файли → RPC   RPC падає → користувач лишається в акаунті БЕЗ фото, усі
+  //                 рядки показують 404. Незворотно.
+  //   RPC → файли   Після RPC політика storage не матчить нічого (properties
+  //                 знесені каскадом, `auth.users` теж — тобто
+  //                 `get_app_user_id_from_auth_uid()` віддає NULL), тож DELETE
+  //                 «успішно» стирає НУЛЬ обʼєктів, а фото лишаються в
+  //                 ПУБЛІЧНОМУ бакеті за тими URL, що роздавались на /v.
+  // Тому стирання файлів переїхало ВСЕРЕДИНУ `delete_my_account()` (міграція
+  // 051): одна транзакція, порядок гарантований сервером, клієнту лишається
+  // один виклик. Не «оптимізуй» це назад у клієнтські кроки.
   const deleteAccount = useCallback(async (): Promise<boolean> => {
     setLoading(true)
     try {
       const me = useAppStore.getState().user
       if (!me) throw new Error('Not authenticated')
 
-      // 1. ПРОЧИТАТИ шляхи — саме прочитати, не видаляти. Після каскаду їх уже
-      //    не дістати, тож збір мусить бути тут; але СТИРАННЯ йде після кроку 2.
-      const { data: props } = await supabase
-        .from('properties').select('id').eq('owner_id', me.id)
-      const propIds = (props ?? []).map((p: { id: string }) => p.id)
-      let photoPaths: string[] = []
-      let docPaths: string[] = []
-      if (propIds.length > 0) {
-        const [{ data: photos }, { data: docs }] = await Promise.all([
-          supabase.from('property_photos').select('storage_path').in('property_id', propIds),
-          supabase.from('property_files').select('storage_path').in('property_id', propIds),
-        ])
-        photoPaths = (photos ?? []).map((p: { storage_path: string }) => p.storage_path)
-        docPaths = (docs ?? []).map((d: { storage_path: string }) => d.storage_path)
-      }
-
-      // 2. Знести профіль + auth-акаунт одним серверним викликом.
+      // Файли, профіль і auth-акаунт зносить САМА функція, атомарно.
       const { data, error } = await supabase.rpc('delete_my_account')
       if (error) throw error
       const row = Array.isArray(data) ? data[0] : data
@@ -396,21 +389,7 @@ export function useAuth() {
         throw new Error(parsed.success ? (parsed.data.error ?? 'delete_failed') : 'delete_failed')
       }
 
-      // 3. І ЛИШЕ ТЕПЕР — файли. Порядок тут не стилістичний: RPC може не
-      //    існувати (міграція 044 ще не застосована) або впасти, і тоді
-      //    користувач ЛИШАЄТЬСЯ в акаунті. Стерши сховище першим, ми залишали б
-      //    його з живими рядками, що вказують на 404 — тобто зламаною галереєю
-      //    без жодного шляху відновлення. Осиротілий файл, навпаки, витоком не
-      //    є: рядків, що на нього посилаються, після каскаду вже немає.
-      //    Правило 9 Security rules, застосоване до найдорожчої дії застосунку.
-      if (photoPaths.length > 0) {
-        await supabase.storage.from('photos').remove(photoPaths).catch(() => {})
-      }
-      if (docPaths.length > 0) {
-        await supabase.storage.from('property-files').remove(docPaths).catch(() => {})
-      }
-
-      // 4. Локальний вихід + очистка кешів профілю/сесії.
+      // Локальний вихід + очистка кешів профілю/сесії.
       _intentionalLogout = true
       _restorePromise = null
       clearPersistedSession()

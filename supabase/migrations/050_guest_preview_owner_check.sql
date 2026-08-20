@@ -125,7 +125,7 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   WHERE c.share_token = p_token
     AND c.is_draft = false
     AND (c.share_expires_at IS NULL OR c.share_expires_at > now())
-  ORDER BY cp.created_at;
+  ORDER BY cp.added_at;
 $$;
 REVOKE ALL ON FUNCTION get_public_collection_preview(TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION get_public_collection_preview(TEXT) TO anon, authenticated, service_role;

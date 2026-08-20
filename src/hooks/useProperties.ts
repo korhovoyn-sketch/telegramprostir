@@ -10,10 +10,16 @@ import type { Property, PropertyStatus } from '@/types'
 
 // Scalar column list + the photos relation, shared across every select so the
 // four query sites can't drift apart (and none falls back to select('*')).
+//
+// КОЛОНКА, ЯКОЇ ТУТ НЕМА, — ЦЕ КОЛОНКА, ЯКУ РЕДАГУВАННЯ СТИРАЄ. `parking_type`
+// і `ev_charger` бракувало: форма префілиться з рядка ЦЬОГО select-а, тож вони
+// приходили `undefined` → поля скидались у порожнє → PATCH писав `null`, і
+// тост казав «Збережено». Створення при цьому працювало, тобто дефект бив саме
+// по редагуванню вже заповненого паркінга.
 const PROPERTY_COLUMNS = `
   id, db_id, owner_id, name, floor, status,
   area_useful, area_total, area_basis, folder_id, rent_type, rent_rate, utilities_rate,
-  has_parking, parking_spaces, description,
+  has_parking, parking_spaces, parking_type, ev_charger, description,
   address, utilities,
   sale_price, tenant_name, lease_start_date, lease_end_date,
   sort_order, created_at, updated_at

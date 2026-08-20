@@ -43,18 +43,26 @@ export default function RealtorDashboardScreen() {
       const [{ data, error }, memberRes] = await Promise.all([
         supabase
           .from('realtor_subscriptions')
-          .select('*, database:databases(*)')
+          // Дашборд показує лише назву й адресу бази — токен шарингу йому тут
+          // не потрібен. Рієлтор дістає його свідомо в `RealtorDatabaseScreen`,
+          // коли справді ділиться; віддавати його ще й списком підписок означає
+          // роздавати доступ ширше, ніж вимагає екран.
+          .select('id,realtor_id,db_id,created_at,database:databases(id,name,type,color,address)')
           .eq('realtor_id', user.id)
           .order('created_at', { ascending: false }),
         supabase
           .from('db_members')
-          .select('db_id, database:databases(*)')
+          // Явні колонки: `*` віддавав РЕДАКТОРОВІ `databases.share_token`
+          // власника. Шаринг бази — owner-only (див. Team editors у CLAUDE.md),
+          // тож редактор із цим токеном роздавав би публічні /v-лінки на чужу
+          // базу, і відкликання його membership цього б не скасувало.
+          .select('db_id, database:databases(id,owner_id,name,type,color,address)')
           .eq('user_id', user.id)
           .eq('status', 'active')
           .eq('role', 'editor'),
       ])
       if (error) throw error
-      setSubscriptions((data ?? []) as RealtorSubscription[])
+      setSubscriptions((data ?? []) as unknown as RealtorSubscription[])
 
       // На бекенді без міграції 041 запит по db_members падає — команда тоді
       // просто вимкнена (той самий толерантний патерн, що в useDatabases.ts).
@@ -69,7 +77,7 @@ export default function RealtorDashboardScreen() {
       setMemberDbIds(memberDbs.map((d) => d.id))
 
       // Load real property count across all subscribed AND member databases
-      const subDbIds = (data ?? []).map((s) => (s as RealtorSubscription & { database?: { id: string } }).database?.id).filter((id): id is string => Boolean(id))
+      const subDbIds = (data ?? []).map((s) => (s as unknown as RealtorSubscription & { database?: { id: string } }).database?.id).filter((id): id is string => Boolean(id))
       const dbIds = [...subDbIds, ...memberDbs.map((d) => d.id)]
       if (dbIds.length > 0) {
         const { count } = await supabase

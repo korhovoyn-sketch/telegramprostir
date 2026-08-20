@@ -103,17 +103,29 @@ export default function PhotoUploadScreen() {
       }
 
       idx++
-    void (async () => {
-      const { count } = await supabase
-        .from('property_photos')
-        .select('id', { count: 'exact', head: true })
-        .eq('property_id', propertyId)
-      existingCount = count ?? 0
       uploadNext()
-    })()
     }
 
-    uploadNext()
+    // Підрахунок наявних фото — РІВНО ОДИН раз і ПЕРЕД чергою.
+    // Попередня версія цього блоку опинилась усередині `uploadNext`, після
+    // `idx++`, і давала рівно те, що мала прибрати: перше фото партії йшло з
+    // `existingCount = 0`, тобто в нічию з чинною обкладинкою. Плюс запит на
+    // КОЖНЕ фото і — найгірше — рекурсія лишалась досяжною тільки з того IIFE
+    // без try, тож мережевий збій посеред партії вішав екран назавжди
+    // (`done` не наставав, спінер крутився без помилки).
+    void (async () => {
+      try {
+        const { count } = await supabase
+          .from('property_photos')
+          .select('id', { count: 'exact', head: true })
+          .eq('property_id', propertyId)
+        existingCount = count ?? 0
+      } catch {
+        // Фолбек 0 — стара (гірша, але робоча) нумерація. Черга мусить
+        // стартувати в будь-якому разі.
+      }
+      uploadNext()
+    })()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

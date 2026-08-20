@@ -24,12 +24,16 @@ export default function GuestHomeScreen() {
     try {
       const { data, error } = await supabase
         .from('guest_links')
-        .select('*, property:properties(*), database:databases(*)')
+        // Явні колонки, а не `*`. ГІСТЬ — найменш довірений принципал у моделі,
+        // а `*` віддавав йому `properties.share_token` і `databases.share_token`,
+        // тобто вічні публічні /v-лінки на всю базу власника, які пережили б
+        // відкликання самого гостьового доступу.
+        .select('id,owner_id,property_id,db_id,invite_token,label,status,claimed_at,created_at,property:properties(id,db_id,name,status),database:databases(id,name,type,color)')
         .eq('guest_user_id', user.id)
         .eq('status', 'active')
         .order('claimed_at', { ascending: false })
       if (error) throw error
-      setLinks((data ?? []) as GuestLink[])
+      setLinks((data ?? []) as unknown as GuestLink[])
     } catch (e) {
       setLoadError(humanizeDbError(e))
     } finally {
