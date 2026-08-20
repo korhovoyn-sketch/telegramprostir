@@ -701,6 +701,7 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 .acc-act.share{background:var(--info-bg);color:var(--info)}
 .acc-act.revoke{background:var(--err-bg);color:var(--err-fg)}
 .acc-act:disabled{background:var(--glass-2);color:var(--t4);cursor:default;transform:none}
+.acc-act.icon{flex:0 0 44px;width:44px;padding:0}
 .acc-card{margin:0 12px 10px;border-radius:var(--r-md);padding:12px 14px}
 .acc-av{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}
 .acc-name{font-size:var(--fs-note);font-weight:var(--fw-semi);color:var(--t1);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

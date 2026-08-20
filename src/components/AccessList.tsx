@@ -245,14 +245,20 @@ export default function AccessList({ kind }: { kind: AccessKind }) {
             </div>
             {r.status !== 'revoked' && (
               <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                {/* Дії з лінком — ІКОНКОВІ, і це вимушено, а не стилістично:
+                    три текстові підписи в рядку при 375px вилазять за свої
+                    кнопки на 22–31px (заміряно `Range` по вмісту). Підпис
+                    лишається в найважливішої дії — незворотного відкликання. */}
                 {c.canShare(r.status) && (
                   <>
-                    <button className="acc-act share" disabled={!usable} onClick={() => handleCopy(url)}>
-                      <IconCopy size={14} />Копіювати
+                    <button className="acc-act share icon" disabled={!usable}
+                      aria-label="Скопіювати посилання" onClick={() => handleCopy(url)}>
+                      <IconCopy size={16} />
                     </button>
-                    <button className="acc-act share" disabled={!usable}
+                    <button className="acc-act share icon" disabled={!usable}
+                      aria-label="Надіслати посилання"
                       onClick={() => openTelegramShare(url, c.shareText(isProperty))}>
-                      <IconLink size={14} />Надіслати
+                      <IconLink size={16} />
                     </button>
                   </>
                 )}

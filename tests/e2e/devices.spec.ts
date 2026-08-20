@@ -131,7 +131,11 @@ interface Spill { cls: string; label: string; text: number; box: number }
  */
 const labelSpill = (page: Page) => page.evaluate((): Spill[] => {
   const out: Spill[] = []
-  document.querySelectorAll('.mbtn, .fbtn, .modal-btn').forEach((el) => {
+  // `.acc-act` доданий після реального пропуску: три текстові підписи в рядку
+  // доступів вилазили за свої кнопки на 22–31px при 375px, і жоден гард цього
+  // не бачив — перевірка стояла лише на трьох селекторах вище. Знайшлось оком
+  // на перезнятому бейслайні, тобто найдорожчим способом.
+  document.querySelectorAll('.mbtn, .fbtn, .modal-btn, .acc-act').forEach((el) => {
     const e = el as HTMLElement
     const r = e.getBoundingClientRect()
     if (r.width < 4 || r.height < 4) return
