@@ -113,7 +113,11 @@ describe('ManageGuestsScreen — revoke confirmation', () => {
     await user.click(within(modal).getByRole('button', { name: 'Відкликати' }))
 
     await waitFor(() => expect(updateEq).toHaveBeenCalledWith('id', link.id))
-    await waitFor(() => expect(screen.getByText('Відкликано')).toBeInTheDocument())
+    // Відкликаний рядок їде у ЗГОРНУТУ секцію (інакше мертві доступи
+    // накопичуються і виштовхують живі за фолд), тож підтвердженням дії
+    // тепер є тост, а не бейдж на місці рядка.
+    await waitFor(() => expect(useAppStore.getState().toast?.title).toBe('Доступ відкликано'))
+    expect(screen.getByText(/Відкликані \(1/)).toBeInTheDocument()
     // ActionSheet анімує закриття (до ~320мс страховки, animationend у jsdom не
     // приходить) — вузол лишається в DOM короткий час ПІСЛЯ підтвердження.
     await waitFor(() => expect(screen.queryByText('Відкликати доступ?')).not.toBeInTheDocument())

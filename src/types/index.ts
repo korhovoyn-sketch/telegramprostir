@@ -146,6 +146,9 @@ export interface GuestLink {
   invite_token: string
   label: string | null
   guest_user_id: string | null
+  /** Імʼя того, хто ПРИЙНЯВ лінк (міграція 048) — дзеркало `member_name` у
+   *  `db_members`. Опційне: фронт деплоїться незалежно від міграції. */
+  guest_name?: string | null
   status: 'pending' | 'active' | 'revoked'
   claimed_at: string | null
   created_at: string

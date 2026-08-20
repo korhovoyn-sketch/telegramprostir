@@ -31,6 +31,8 @@ function guest(n: number, over: Record<string, unknown> = {}) {
 
 interface Opts {
   guests?: ReturnType<typeof guest>[]
+  /** SELECT з `guest_name` падає з 42703 — так виглядає бекенд БЕЗ міграції 048. */
+  noNameColumn?: boolean
   /** PATCH віддає 0 рядків — так виглядає відмова RLS на дроті. */
   patchBlocked?: boolean
   /** GET падає — мережа/політика лягли. */
@@ -61,6 +63,11 @@ async function openGuests(page: Page, wire: Wire, opts: Opts = {}) {
       return r.fulfill({ status: 500, contentType: 'application/json',
         body: JSON.stringify({ message: 'server exploded' }) })
     }
+    const url = decodeURIComponent(r.request().url())
+    if (opts.noNameColumn && url.includes('guest_name')) {
+      return r.fulfill({ status: 400, contentType: 'application/json',
+        body: JSON.stringify({ code: '42703', message: 'column guest_links.guest_name does not exist' }) })
+    }
     return jsonRoute(r, opts.guests ?? [guest(1)])
   })
 
@@ -79,7 +86,7 @@ async function confirmRevoke(page: Page) {
     .getByRole('button', { name: 'Відкликати' }).last().click()
 }
 
-test('відкликання гостя доходить до сервера і оновлює бейдж', async ({ page }) => {
+test('відкликання гостя доходить до сервера і підтверджується', async ({ page }) => {
   const wire: Wire = { patches: 0 }
   await openGuests(page, wire)
   await expect(page.getByText('Орендар 1')).toBeVisible()
@@ -87,7 +94,12 @@ test('відкликання гостя доходить до сервера і 
   await confirmRevoke(page)
 
   await expect.poll(() => wire.patches, { timeout: 10_000 }).toBe(1)
-  await expect(page.getByText('Відкликано')).toBeVisible()
+  // Рядок їде у ЗГОРНУТУ секцію, тобто зникає з очей — тому підтвердженням
+  // мусить бути тост. Без нього дія завершується мовчазним зникненням рядка,
+  // що читається як збій, а не як успіх.
+  await expect(page.locator('.toast')).toContainText('Доступ відкликано')
+  await expect(page.getByRole('button', { name: /Відкликані \(1/ })).toBeVisible()
+  await expect(page.getByText('Активних доступів немає')).toBeVisible()
 })
 
 /**
@@ -140,4 +152,81 @@ test('без юзернейма бота обидві дії з лінком н�
   await expect(page.getByRole('button', { name: 'Надіслати' })).toBeDisabled()
   // Відкликання від юзернейма бота не залежить і мусить лишатись доступним.
   await expect(page.getByRole('button', { name: 'Відкликати' })).toBeEnabled()
+})
+
+
+/**
+ * ІМʼЯ ТОГО, ХТО ПРИЙНЯВ — а не лише підпис, який власник вигадав сам.
+ *
+ * `db_members` має `member_name` ще з 041, а `guest_links` до 048 не мав
+ * нічого: список гостей відповідав на питання «як я назвав ці запрошення»,
+ * але не на «хто цим користується». Для доступу до нерухомості важливе саме
+ * друге. Підпис лишається ПОРЯД: він каже, за що доступ.
+ */
+test('прийнятий лінк показує імʼя гостя, а підпис лишається поряд', async ({ page }) => {
+  const wire: Wire = { patches: 0 }
+  await openGuests(page, wire, {
+    guests: [guest(1, {
+      status: 'active', claimed_at: NOW,
+      guest_user_id: '90000000-0000-0000-0000-000000000009',
+      guest_name: 'Олена Ковальчук',
+    })],
+  })
+
+  await expect(page.getByText('Олена Ковальчук')).toBeVisible()
+  await expect(page.getByText(/Орендар 1 ·/), 'підпис власника мусить лишитись').toBeVisible()
+})
+
+/**
+ * ФРОНТ ДЕПЛОЇТЬСЯ НЕЗАЛЕЖНО ВІД МІГРАЦІЇ.
+ *
+ * `select` невідомої колонки — це 400 від PostgREST, тобто ВЕСЬ екран у стані
+ * помилки, а не просто відсутні імена. Той самий патерн ретраю, що
+ * `useProperties` тримає для `folder_id`.
+ */
+test('без міграції 048 екран працює — просто без імен', async ({ page }) => {
+  const wire: Wire = { patches: 0 }
+  await openGuests(page, wire, { noNameColumn: true })
+
+  await expect(page.getByText('Орендар 1')).toBeVisible()
+  await expect(page.getByText('Не вдалося завантажити'), 'відсутня колонка поклала екран')
+    .toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Відкликати' })).toBeEnabled()
+})
+
+/**
+ * ВІДКЛИКАНІ НЕ ВИШТОВХУЮТЬ ЖИВІ ДОСТУПИ.
+ *
+ * Видалення рядків немає, тож за рік активного користування база накопичує
+ * десятки мертвих доступів — і саме тоді, коли їх найбільше, живі опиняються
+ * за фолдом. Згорнута секція лишає їх доступними, не роблячи списком за
+ * замовчуванням.
+ */
+test('відкликані згорнуті, живі — зверху', async ({ page }) => {
+  const wire: Wire = { patches: 0 }
+  await openGuests(page, wire, {
+    guests: [
+      guest(1, { status: 'revoked', label: 'Старий орендар' }),
+      guest(2, { status: 'active', claimed_at: NOW, label: 'Чинний орендар' }),
+    ],
+  })
+
+  await expect(page.getByText('Чинний орендар')).toBeVisible()
+  await expect(page.getByText('Старий орендар'), 'відкликаний показаний одразу').toHaveCount(0)
+
+  await page.getByRole('button', { name: /Відкликані \(1/ }).click()
+  await expect(page.getByText('Старий орендар')).toBeVisible()
+})
+
+/**
+ * Коли ВСІ доступи відкликані, екран не має виглядати як «нічого не
+ * завантажилось»: активна секція порожня, але список НЕ порожній.
+ */
+test('усі відкликані: сказано прямо, а не порожній екран', async ({ page }) => {
+  const wire: Wire = { patches: 0 }
+  await openGuests(page, wire, { guests: [guest(1, { status: 'revoked' })] })
+
+  await expect(page.getByText('Активних доступів немає')).toBeVisible()
+  await expect(page.getByText('Немає запрошень'), 'це не порожній список').toHaveCount(0)
+  await expect(page.getByRole('button', { name: /Відкликані \(1/ })).toBeVisible()
 })
