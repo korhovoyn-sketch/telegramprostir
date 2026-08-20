@@ -53,6 +53,7 @@ export function useNotifications() {
 
   const markRead = useCallback(async (id: string) => {
     try {
+      // rls-ok: сповіщення — похідні дані; наступний loadNotifications перечитає правду з сервера, а зайва секунда «прочитано» нікому не шкодить
       const { error } = await supabase.from('notifications').update({ is_read: true }).eq('id', id)
       if (error) throw error
       loadTicket++
@@ -67,6 +68,8 @@ export function useNotifications() {
     if (!user) return
     try {
       const { error } = await supabase
+        // rls-ok: пакетне «прочитати все» — похідний стан; заблокована відмова
+        // видно вже на наступному завантаженні, дані при цьому не втрачаються
         .from('notifications')
         .update({ is_read: true })
         .eq('user_id', user.id)
@@ -86,6 +89,7 @@ export function useNotifications() {
     loadTicket++
     setNotifications(snapshot.filter((n) => n.id !== id))
     try {
+      // rls-ok: сповіщення — похідні дані; рядок відновлюється наступним прогоном send-reminders, втрати даних немає
       const { error } = await supabase.from('notifications').delete().eq('id', id)
       if (error) throw error
     } catch (e) {

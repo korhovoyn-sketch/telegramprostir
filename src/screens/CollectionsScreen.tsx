@@ -8,6 +8,7 @@ import { hapticNotify } from '@/lib/telegram'
 import { offlineGuard } from '@/lib/offline'
 import { confirmAction } from '@/lib/confirm'
 import { supabase } from '@/lib/supabase'
+import { assertAffected } from '@/lib/dbWrite'
 // Явні колонки, а не `*`: `properties.share_token` — це ПУБЛІЧНИЙ /v-лінк, і
 // віддавати його підписаному рієлторові означає дати доступ, що переживе
 // відписку (ротація токенів при відписці не робиться).
@@ -215,6 +216,8 @@ function CollectionDetail({
     if (offlineGuard()) return
     try {
       const { error } = await supabase
+        // rls-ok: звʼязок «обʼєкт у підбірці» — власні рядки рієлтора без
+        // файлів; помилка проявиться на перезавантаженні, обʼєкт цілий
         .from('collection_properties')
         .delete()
         .eq('collection_id', collection.id)
@@ -239,6 +242,8 @@ function CollectionDetail({
     if (collection.is_draft) {
       try {
         const { error } = await supabase
+          // rls-ok: зняття чернетки — прапорець на власному рядку рієлтора;
+          // невдача видно одразу при наступному відкритті списку підбірок
           .from('collections')
           .update({ is_draft: false, updated_at: new Date().toISOString() })
           .eq('id', collection.id)
@@ -261,11 +266,16 @@ function CollectionDetail({
     })
     if (!ok || offlineGuard()) return
     try {
-      const { error } = await supabase
+      // Деструктивна дія: файлового дозволу тут раніше вистачало, щоб вона
+      // лишалась без доказу запису — тобто заблокована RLS відмова малювала
+      // «Підбірку видалено», а підбірка жила далі.
+      const { data, error } = await supabase
         .from('collections')
         .delete()
         .eq('id', collection.id)
+        .select('id')
       if (error) throw error
+      assertAffected(data, 1, 'видалення підбірки')
       hapticNotify('success')
       showToast({ type: 'success', title: 'Підбірку видалено' })
       onDelete(collection.id)

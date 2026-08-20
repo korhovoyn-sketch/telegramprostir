@@ -200,3 +200,63 @@ test('редагування ОБʼЄКТА: очищене поле доліт�
     expect(p[col], `${col}: очищене поле мусить бути null`).toBeNull()
   }
 })
+
+/**
+ * КРУГОВИЙ РЕЙС ПАРКІНГА — тест, що озброює проєкцію `select=`.
+ *
+ * Дефект, заради якого написано: `PROPERTY_COLUMNS` не містив `parking_type` і
+ * `ev_charger`. Форма префілиться з рядка ЦЬОГО select-а, тож вони приходили
+ * `undefined` → поля скидались → PATCH писав `null`, а тост казав «Збережено».
+ * Створення при цьому працювало, тобто бив дефект саме по редагуванню вже
+ * заповненого паркінга.
+ *
+ * Сам по собі гард `select-columns.test.ts` тримає це джерельно. Тут — друга
+ * половина: рантайм. Вона стала МОЖЛИВОЮ лише після того, як харнес почав
+ * проєктувати відповідь через `select=`; доти мок віддавав фікстуру цілком, і
+ * пропущена колонка була невидима в принципі.
+ *
+ * Тобто цей тест падає РІВНО тоді, коли колонка зникає зі списку читання —
+ * і не падає, коли зникає лише з фікстури.
+ */
+test('редагування ПАРКІНГА: тип місця і зарядка переживають круговий рейс', async ({ page }) => {
+  const state = makeState()
+  state.prop = {
+    ...state.prop,
+    name: 'Місце A-15',
+    has_parking: true,
+    parking_spaces: 1,
+    parking_type: 'underground',
+    ev_charger: true,
+  } as unknown as typeof state.prop
+  // База типу `parking` — саме вона вмикає паркінг-специфічні поля у формі.
+  state.db = { ...state.db, type: 'parking' }
+
+  const captured: { propPatch?: Record<string, unknown> } = {}
+  await setup(page, state, captured)
+
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+  await page.getByText('БЦ Рубін').first().click()
+  await expect(page.getByText('Всі (1)')).toBeVisible({ timeout: 15_000 })
+
+  await page.locator('.obj-act-btn', { hasText: 'Редагувати' }).first().click()
+  await expect(page.getByText('Редагування')).toBeVisible({ timeout: 15_000 })
+
+  // Міняємо ЛИШЕ назву. Усе інше має доїхати назад незмінним.
+  // Форма адаптується під базу типу `parking`: підпис поля стає «Номер місця».
+  await page.getByLabel('Номер місця').fill('Місце A-16')
+
+  const patchReq = page.waitForRequest(r => r.url().includes('/rest/v1/properties') && r.method() === 'PATCH')
+  await page.getByRole('button', { name: 'Зберегти зміни' }).click()
+  await patchReq
+
+  await expect.poll(() => captured.propPatch, { timeout: 15_000 }).toBeTruthy()
+  const patch = captured.propPatch!
+  expect(patch.name).toBe('Місце A-16')
+  expect(patch.parking_type,
+    'тип місця стерто: колонки немає в READ-select, тож форма не побачила значення')
+    .toBe('underground')
+  expect(patch.ev_charger,
+    'зарядку стерто: та сама причина — редагування пише те, чого не прочитало')
+    .toBe(true)
+})

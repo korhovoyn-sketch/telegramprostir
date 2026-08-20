@@ -19,21 +19,24 @@ import { resolve } from 'node:path'
 const SRC = resolve(process.cwd(), 'src')
 
 /**
- * Свідомі винятки. Кожен — з причиною; порожня причина не приймається.
- * Це дані, чия втрата оборотна, і жоден з них не стирає файли зі сховища.
+ * ВИНЯТКИ ПОЗНАЧАЮТЬСЯ МАРКЕРОМ У КОДІ, А НЕ СПИСКОМ ФАЙЛІВ.
+ *
+ * Тут раніше стояла таблиця `ALLOW` по ІМЕНАХ ФАЙЛІВ — і це суперечило тому,
+ * що написано двадцятьма рядками нижче про семантичні винятки: бланкетний
+ * файловий дозвіл амністує КОЖНУ майбутню мутацію в тому файлі, включно з
+ * деструктивною. Тобто найнебезпечніші операції були б непокриті саме там, де
+ * вже колись зробили виняток.
+ *
+ * Тепер причина живе поруч із самою мутацією:
+ *
+ *   // rls-ok: сповіщення — похідні дані, наступний load перечитає правду
+ *   await supabase.from('notifications').update({ is_read: true }).eq('id', id)
+ *
+ * Маркер шукається у пʼятьох рядках над ланцюгом. Це переживає зсуви рядків
+ * (номери вже зʼїжджали від сусідньої правки за один раунд) і, головне, не
+ * поширюється на сусідів.
  */
-const ALLOW: Record<string, string> = {
-  'hooks/useNotifications.ts':
-    'сповіщення — похідні дані: наступний loadNotifications перечитає правду з сервера, ' +
-    'а показати «прочитано» на секунду довше нешкідливо',
-  'hooks/useFolders.ts':
-    'reorder папок — перестановка sort_order; невдача видно одразу при наступному завантаженні, ' +
-    'даних не втрачає',
-  'screens/CollectionsScreen.tsx':
-    'підбірки рієлтора — власні рядки без storage; помилка видно на перезавантаженні',
-  'screens/PaymentCalendarScreen.tsx':
-    'видалення розкладу і скасування платежу — рядки без файлів, екран перечитує стан на back()',
-}
+const OK_MARK = /rls-ok:\s*\S/
 
 function walk(dir: string, acc: string[] = []): string[] {
   for (const e of readdirSync(dir, { withFileTypes: true })) {
@@ -93,8 +96,10 @@ describe('дисципліна мутацій: кожен запис довод�
         // був би небезпечний: у `useProperties.ts` живуть найдеструктивніші
         // операції застосунку, і бланкетний allowlist маскував би їх.
         if (/\.update\(\s*\{\s*sort_order:[^}]*\}\s*\)/.test(chain)) continue
-        if (ALLOW[rel]) continue
         const line = src.slice(0, src.indexOf(chain)).split('\n').length
+        // Маркер із причиною безпосередньо над мутацією знімає її з обліку.
+        const above = src.split('\n').slice(Math.max(0, line - 6), line).join('\n')
+        if (OK_MARK.test(above)) continue
         offenders.push(`${rel}:${line} — ${chain.split('\n').slice(0, 3).join(' ').trim().slice(0, 90)}`)
       }
     }
@@ -103,11 +108,67 @@ describe('дисципліна мутацій: кожен запис довод�
       .toEqual([])
   })
 
-  it('кожен виняток має НЕПОРОЖНЮ причину і справді існує', () => {
-    for (const [rel, reason] of Object.entries(ALLOW)) {
-      expect(reason.trim().length, `${rel}: виняток без причини`).toBeGreaterThan(30)
-      const exists = files.some((f) => f.endsWith(rel))
-      expect(exists, `${rel}: файл зник — виняток застарів і маскує нові порушення`).toBe(true)
+  it('кожен маркер `rls-ok:` несе змістовну причину', () => {
+    const thin: string[] = []
+    for (const file of walk(SRC)) {
+      const src = readFileSync(file, 'utf8')
+      src.split('\n').forEach((line, i) => {
+        const m = line.match(/rls-ok:(.*)$/)
+        if (!m) return
+        // Маркер без пояснення — це той самий бланкетний дозвіл, лише
+        // розсипаний по рядках. Тридцять символів — не бюрократія, а поріг,
+        // нижче якого причина не пишеться, а імітується.
+        if (m[1].trim().length < 30) {
+          thin.push(`${file.replace(SRC + '/', '')}:${i + 1} — «${m[1].trim()}»`)
+        }
+      })
     }
+    expect(thin, 'маркер без змістовної причини').toEqual([])
+  })
+})
+
+/**
+ * `.select('id')` — це ПІВЗАХИСТУ. Рядки повертаються, але якщо їх ніхто не
+ * рахує, порожній набір і далі читається як успіх.
+ *
+ * Знайдено власною фальсифікацією: прибрав `assertAffected` зі скасування
+ * платежу — гард лишився зеленим, бо `.select('id')` у ланцюгу нікуди не
+ * подівся. Тобто перевірка стверджувала більше, ніж робила.
+ */
+describe('доведення, а не лише повернення рядків', () => {
+  it('кожна мутація з .select() у ЦИХ файлах рахує зачеплені рядки', () => {
+    // Файли, де мутації деструктивні або грошові. Список свідомо вузький:
+    // сенс не в тотальності, а в тому, щоб найдорожчі шляхи не могли тихо
+    // втратити доказ — саме там його колись і не було.
+    const CRITICAL = [
+      'hooks/useProperties.ts', 'hooks/useDatabases.ts', 'hooks/usePropertyFiles.ts',
+      'hooks/useFolders.ts', 'hooks/useAuth.ts',
+      'components/AccessList.tsx', 'screens/PaymentCalendarScreen.tsx',
+      'screens/CollectionsScreen.tsx',
+    ]
+    const bad: string[] = []
+    for (const rel of CRITICAL) {
+      const src = readFileSync(resolve(SRC, rel), 'utf8')
+      for (const chain of chains(src)) {
+        if (!/\.(delete|update)\s*\(/.test(chain)) continue
+        if (!/\.select\s*\(/.test(chain)) continue          // покрито тестом вище
+        // `.single()` — задокументований еквівалент доказу: на нулі рядків він
+        // сам кидає PGRST116, тобто відмова НЕ виглядає успіхом. Вимагати
+        // поверх нього `assertAffected` означало б просити подвійну перевірку
+        // там, де перша вже надійна.
+        if (/\.single\s*\(\s*\)/.test(chain)) continue
+        const line = src.slice(0, src.indexOf(chain)).split('\n').length
+        const above = src.split('\n').slice(Math.max(0, line - 6), line).join('\n')
+        if (OK_MARK.test(above)) continue
+        // Доказ шукаємо в межах 12 рядків ПІСЛЯ ланцюга — саме там він стоїть
+        // у всіх наявних місцях (`if (error) throw` між ними — норма).
+        const after = src.split('\n').slice(line - 1, line + 12).join('\n')
+        if (!/assertAffected\s*\(/.test(after)) {
+          bad.push(`${rel}:${line} — ${chain.split('\n')[0].trim().slice(0, 70)}`)
+        }
+      }
+    }
+    expect(bad, '.select() є, а assertAffected немає: порожній набір знову читається як успіх')
+      .toEqual([])
   })
 })
