@@ -46,8 +46,14 @@ describe('telegram-auth', () => {
     expect(fn, 'checkRateLimit не знайдено — тест застарів').toContain('rate_limits')
     expect(fn, '`error` не деструктуризується: збій запиту стане пропуском')
       .toMatch(/const\s*\{\s*data\s*,\s*error\s*\}\s*=\s*await/)
-    expect(fn, 'немає гілки, що відмовляє на помилці запиту')
-      .toMatch(/if\s*\(\s*error\s*\)\s*return\s+false/)
+    // Саме РІШЕННЯ переїхало в `_shared/rateLimit.ts` і тепер перевіряється
+    // ВИКОНАННЯМ (`edge-rate-limit.test.ts`), а не регексом по джерелу. Тут
+    // лишається єдине, чого той тест бачити не може: що функція справді
+    // передає прапорець збою, а не викидає його.
+    expect(fn, 'рішення не делеговане тестованому модулю')
+      .toMatch(/rateDecision\(\s*data\s*,\s*!!error/)
+    expect(fn, 'відмова лімітера не веде до `return false`')
+      .toMatch(/if\s*\(\s*!decision\.allow\s*\)\s*return\s+false/)
   })
 
   it('tg_id іде в запит числом, а не рядком', () => {
