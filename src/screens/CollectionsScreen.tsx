@@ -8,6 +8,10 @@ import { hapticNotify } from '@/lib/telegram'
 import { offlineGuard } from '@/lib/offline'
 import { confirmAction } from '@/lib/confirm'
 import { supabase } from '@/lib/supabase'
+// Явні колонки, а не `*`: `properties.share_token` — це ПУБЛІЧНИЙ /v-лінк, і
+// віддавати його підписаному рієлторові означає дати доступ, що переживе
+// відписку (ротація токенів при відписці не робиться).
+import { PROPERTY_WITH_PHOTOS } from '@/hooks/useProperties'
 import TabBar from '@/components/ui/TabBar'
 import { StatusBadge } from '@/components/ui/Badge'
 import ActionSheet from '@/components/ui/ActionSheet'
@@ -164,7 +168,7 @@ function CollectionDetail({
 
       const { data: props, error: propsErr } = await supabase
         .from('properties')
-        .select('*, photos:property_photos(*)')
+        .select(PROPERTY_WITH_PHOTOS)
         .in('db_id', dbIds)
         .order('created_at', { ascending: false })
       if (propsErr) throw propsErr

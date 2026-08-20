@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useAppStore } from '@/store/appStore'
+import { supabase } from '@/lib/supabase'
 import { offlineGuard } from '@/lib/offline'
 import { uploadPropertyPhoto } from '@/lib/photoUpload'
 import Header from '@/components/ui/Header'
@@ -73,6 +74,10 @@ export default function PhotoUploadScreen() {
       showToast({ type: 'error', title: `Максимум ${MAX_PHOTOS} фото`, subtitle: `Завантажено лише перші ${MAX_PHOTOS}` })
     }
     let idx = 0
+    // Скільки фото в обʼєкта ВЖЕ є — щоб продовжити нумерацію, а не почати
+    // спочатку. Читаємо один раз перед чергою; помилка тут не критична —
+    // фолбек 0 повертає стару (гіршу, але робочу) поведінку.
+    let existingCount = 0
 
     async function uploadNext() {
       if (idx >= files.length) return
@@ -83,7 +88,11 @@ export default function PhotoUploadScreen() {
       // Shared pipeline (lib/photoUpload) handles compress → path → upload →
       // insert → orphan cleanup; the queue index becomes the row's sort_order.
       try {
-        const path = await uploadPropertyPhoto(propertyId, files[currentIdx], currentIdx)
+        // `sort_order` продовжує НАЯВНІ фото, а не стартує з нуля: інакше друга
+        // партія давала другий знімок із `sort_order = 0`, тобто нічию з чинною
+        // обкладинкою. І галерея, і `get_public_property_preview` сортують саме
+        // по ньому, тож обкладинка на /v могла мовчки помінятись.
+        const path = await uploadPropertyPhoto(propertyId, files[currentIdx], existingCount + currentIdx)
         setQueue((q) => q.map((x, i) => i === currentIdx
           ? { ...x, status: 'done', progress: 100, path } : x))
       } catch (e) {
@@ -94,7 +103,14 @@ export default function PhotoUploadScreen() {
       }
 
       idx++
+    void (async () => {
+      const { count } = await supabase
+        .from('property_photos')
+        .select('id', { count: 'exact', head: true })
+        .eq('property_id', propertyId)
+      existingCount = count ?? 0
       uploadNext()
+    })()
     }
 
     uploadNext()

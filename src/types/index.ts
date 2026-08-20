@@ -51,20 +51,24 @@ export interface Property {
   db_id: string
   owner_id: string
   name: string
-  floor?: string
+  // Опційні колонки — nullable В БАЗІ, тож `| null` тут не педантизм: без нього
+  // тип забороняв ОЧИСТИТИ поле (`null` у PATCH), а `undefined` замість нього
+  // просто випадає з JSON і колонка лишається старою — форма рапортувала
+  // «Збережено», не змінивши нічого.
+  floor?: string | null
   status: PropertyStatus
-  area_useful?: number
-  area_total?: number
-  area_basis?: AreaBasis
+  area_useful?: number | null
+  area_total?: number | null
+  area_basis?: AreaBasis | null
   folder_id?: string | null
   rent_type: RentType
-  rent_rate?: number
-  utilities_rate?: number
+  rent_rate?: number | null
+  utilities_rate?: number | null
   has_parking: boolean
   parking_spaces: number
   parking_type?: ParkingType | null
   ev_charger?: boolean
-  description?: string
+  description?: string | null
   address?: string | null
   utilities?: string[] | null
   sale_price?: number | null

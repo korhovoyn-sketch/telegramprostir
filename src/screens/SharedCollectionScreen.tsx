@@ -15,8 +15,8 @@ interface SharedProperty {
   status: PropertyStatus
   area_useful: number | null
   area_total: number | null
-  // Not returned by get_shared_collection — undefined defaults basisArea to
-  // 'total' (розрахункова), matching the app-wide default for this read-only view.
+  /** Приходить із `get_public_collection_preview` (050). До міграції — undefined,
+   *  і `basisArea` фолбечиться на розрахункову: саме той дефолт, що й був. */
   area_basis?: string | null
   rent_rate: number | null
   rent_type: RentType
@@ -41,6 +41,7 @@ interface PreviewRow {
   property_floor: string | null
   property_area_useful: number | null
   property_area_total: number | null
+  property_area_basis: string | null
   property_rent_type: string | null
   property_rent_rate: number | null
   first_photo: string | null
@@ -85,6 +86,7 @@ export default function SharedCollectionScreen() {
               status: (r.property_status ?? 'free') as PropertyStatus,
               area_useful: r.property_area_useful,
               area_total: r.property_area_total,
+              area_basis: r.property_area_basis,
               rent_rate: r.property_rent_rate,
               rent_type: (r.property_rent_type ?? 'per_m2') as RentType,
               floor: r.property_floor,

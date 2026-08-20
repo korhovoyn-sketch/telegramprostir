@@ -2,6 +2,8 @@
 
 import { useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
+import { assertAffected } from '@/lib/dbWrite'
+import { humanizeDbError } from '@/lib/utils'
 import type { PropertyFile } from '@/types'
 
 const MAX_FILES = 10
@@ -192,8 +194,21 @@ export function usePropertyFiles(propertyId: string | undefined) {
     storagePath: string,
     onError: (msg: string) => void
   ) => {
-    const { error } = await supabase.from('property_files').delete().eq('id', fileId)
-    if (error) { onError(error.message); return }
+    // Спершу РЯДОК і доказ, що його справді видалено, і лише потім файл.
+    // Під RLS заблокований DELETE віддає порожній набір і NULL у `error`, тож
+    // без `assertAffected` ми стирали б договір зі сховища, лишаючи рядок
+    // живим: власник бачить файл у списку, тапає — і отримує мертве посилання.
+    try {
+      const { data, error } = await supabase
+        .from('property_files').delete().eq('id', fileId).select('id')
+      if (error) throw error
+      assertAffected(data, 1, 'видалення файлу')
+    } catch (e) {
+      // `humanizeDbError`, а не сира `error.message`: та несе назви колонок,
+      // констрейнтів і текст політик просто в тост (правило 1 Security rules).
+      onError(humanizeDbError(e))
+      return
+    }
     await supabase.storage.from(BUCKET).remove([storagePath]).catch(() => {})
     setFiles(prev => prev.filter(f => f.id !== fileId))
   }, [])

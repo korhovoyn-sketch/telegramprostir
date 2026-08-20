@@ -4,6 +4,10 @@ import { useEffect, useState, useMemo } from 'react'
 import { useAppStore } from '@/store/appStore'
 import RetryState from '@/components/ui/RetryState'
 import { supabase } from '@/lib/supabase'
+// Явні колонки, а не `*`: `properties.share_token` — це ПУБЛІЧНИЙ /v-лінк, і
+// віддавати його підписаному рієлторові означає дати доступ, що переживе
+// відписку (ротація токенів при відписці не робиться).
+import { PROPERTY_WITH_PHOTOS } from '@/hooks/useProperties'
 import Header from '@/components/ui/Header'
 import SearchBar from '@/components/ui/SearchBar'
 import { StatusBadge } from '@/components/ui/Badge'
@@ -30,7 +34,7 @@ export default function RealtorDatabaseScreen() {
     try {
       const [dbRes, propsRes] = await Promise.all([
         supabase.from('databases').select('id,owner_id,name,address,type,color,share_token,share_expires_at,created_at,updated_at').eq('id', screenParams.dbId).single(),
-        supabase.from('properties').select('*, photos:property_photos(*)').eq('db_id', screenParams.dbId).order('created_at', { ascending: false }),
+        supabase.from('properties').select(PROPERTY_WITH_PHOTOS).eq('db_id', screenParams.dbId).order('created_at', { ascending: false }),
       ])
       if (dbRes.error) throw dbRes.error
       if (propsRes.error) throw propsRes.error

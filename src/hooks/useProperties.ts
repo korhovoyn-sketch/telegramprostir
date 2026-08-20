@@ -18,7 +18,7 @@ const PROPERTY_COLUMNS = `
   sale_price, tenant_name, lease_start_date, lease_end_date,
   sort_order, created_at, updated_at
 `
-const PROPERTY_WITH_PHOTOS = `${PROPERTY_COLUMNS}, photos:property_photos(id, storage_path, sort_order)`
+export const PROPERTY_WITH_PHOTOS = `${PROPERTY_COLUMNS}, photos:property_photos(id, storage_path, sort_order)`
 
 // loadProperties/loadSingleProperty additionally pull the view relation so the
 // card can show a view count; create/update don't need it (a fresh row has none).
@@ -535,10 +535,19 @@ export function useProperties(dbId?: string) {
 
   const deletePhoto = useCallback(async (photoId: string, storagePath: string) => {
     try {
-      // Remove from storage first, then the DB record
-      await supabase.storage.from('photos').remove([storagePath])
-      const { error } = await supabase.from('property_photos').delete().eq('id', photoId)
+      // Рядок ПЕРШИМ і з доказом, файл — після. Сусіди в цьому ж файлі
+      // (`deleteProperty`, `batchDeleteProperties`) давно на цьому порядку;
+      // `deletePhoto` лишалась єдиним винятком. Зворотний порядок знищував
+      // знімок навіть тоді, коли політика не пускала видалити рядок, — і
+      // власник діставав вічно биту картинку без жодної помилки.
+      const { data, error } = await supabase
+        .from('property_photos').delete().eq('id', photoId).select('id')
       if (error) throw error
+      assertAffected(data, 1, 'видалення фото')
+      // Результат storage НЕ ігнорується: мовчазна відмова політики інакше
+      // лишає файл жити після видаленого рядка.
+      const { error: rmErr } = await supabase.storage.from('photos').remove([storagePath])
+      if (rmErr) throw rmErr
 
       // Update local state — remove photo from the relevant property
       setProperties((prev) => prev.map((p) => ({

@@ -44,11 +44,17 @@ async function checkRateLimit(
 ): Promise<boolean> {
   try {
     const now = new Date().toISOString()
-    const { data } = await adminClient
+    // `error` МУСИТЬ читатись: supabase-js РЕЗОЛВИТЬ збій запиту як
+    // `{data: null, error}` і не кидає, тож catch нижче для нього не спрацює.
+    // Без цієї гілки будь-яка невдача (немає таблиці, зміна RLS, 5xx,
+    // вичерпаний пул) давала `!data` → upsert → `return true`, тобто ПРОПУСК —
+    // рівно навпаки до того, що стверджує коментар у шапці файлу.
+    const { data, error } = await adminClient
       .from('rate_limits')
       .select('count, reset_at')
       .eq('ip', key)
       .maybeSingle()
+    if (error) return false
 
     if (!data || data.reset_at < now) {
       await adminClient.from('rate_limits').upsert({

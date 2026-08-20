@@ -47,6 +47,8 @@ interface AppState {
   /** Відповідь користувача; резолвить проміс, який чекає `confirmAction()`. */
   answerConfirm: (ok: boolean) => void
   setDatabases: (dbs: Database[]) => void
+  /** Стерти всі дані попереднього акаунта зі стору (вихід, видалення акаунта). */
+  resetUserData: () => void
   memberDbIds: string[]
   setMemberDbIds: (ids: string[]) => void
   setNotifications: (notifs: Notification[]) => void
@@ -150,6 +152,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   setOnline: (online) => set({ isOnline: online }),
 
   setDatabases: (databases) => set({ databases }),
+  // Скидання даних акаунта на виході. `setUser(null)` лишав у памʼяті бази,
+  // членства, сповіщення й лічильник ПОПЕРЕДНЬОГО користувача: бейдж показував
+  // його непрочитані, а `loadDatabases` пропускав скелетон (`databases.length
+  // > 0`) і на мить малював наступному акаунту чужі бази. Снапшот-кеш ключований
+  // по користувачу і тому був чистий — а стор у памʼяті ні.
+  resetUserData: () => set({
+    databases: [], memberDbIds: [], notifications: [], unreadCount: 0, lastDbId: null,
+  }),
 
   setNotifications: (notifications) => {
     const unreadCount = notifications.filter((n) => !n.is_read).length

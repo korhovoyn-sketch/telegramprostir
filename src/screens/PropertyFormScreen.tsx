@@ -358,23 +358,31 @@ export default function PropertyFormScreen() {
       return
     }
     hapticNotify('success')
+    // ПОРОЖНЄ ПОЛЕ В РЕЖИМІ РЕДАГУВАННЯ — ЦЕ `null`, А НЕ `undefined`.
+    // `JSON.stringify` викидає ключі зі значенням `undefined`, тобто такий ключ
+    // просто НЕ ПОТРАПЛЯЄ в тіло PATCH, і колонка лишається старою. Форма при
+    // цьому рапортує «Збережено», а після повторного відкриття значення
+    // повертається — очистити поверх раз заповнене поле було неможливо взагалі.
+    // У create-режимі `undefined` навпаки правильний: він віддає колонку її
+    // DEFAULT-у.
+    const blank = <T,>(v: T | undefined): T | null | undefined => (isEdit ? (v ?? null) : v)
     const payload = {
       db_id: screenParams.dbId!,
       name: name.trim(),
-      floor: floor.trim() || undefined,
-      address: address.trim() || undefined,
+      floor: blank(floor.trim() || undefined),
+      address: blank(address.trim() || undefined),
       status,
       // Пропускаємо, коли папки недоступні на бекенді (043 не застосовано) —
       // useProperties однаково зріже folder_id, але не варто слати зайве.
       folder_id: foldersUnavailable ? undefined : folderId,
-      area_useful: numOrUndef(areaUseful),
+      area_useful: blank(numOrUndef(areaUseful)),
       // A parking spot has a single area; the office useful/total split doesn't apply.
-      area_total: isParking ? undefined : numOrUndef(areaTotal),
+      area_total: isParking ? blank(undefined) : blank(numOrUndef(areaTotal)),
       // A parking spot has one area, so its basis is always that area (useful).
       area_basis: isParking ? 'useful' : areaBasis,
       rent_type: rentType,
-      rent_rate: numOrUndef(rentRate),
-      utilities_rate: numOrUndef(utilitiesRate),
+      rent_rate: blank(numOrUndef(rentRate)),
+      utilities_rate: blank(numOrUndef(utilitiesRate)),
       // A parking spot never "has parking" of its own and carries no utility tags.
       has_parking: isParking ? false : hasParking,
       // Clearing the field leaves parkingSpaces '' → parseInt is NaN; floor to 1.
@@ -382,11 +390,11 @@ export default function PropertyFormScreen() {
       parking_type: isParking ? (parkingType || null) : null,
       ev_charger: isParking ? evCharger : false,
       utilities: !isParking && utilities.length > 0 ? utilities : null,
-      description: description.trim() || undefined,
-      sale_price: status === 'for_sale' ? numOrUndef(salePrice) : null,
-      tenant_name: status === 'occupied' ? (tenantName.trim() || undefined) : null,
-      lease_start_date: status === 'occupied' ? (leaseStartDate || undefined) : null,
-      lease_end_date: status === 'occupied' ? (leaseEndDate || undefined) : null,
+      description: blank(description.trim() || undefined),
+      sale_price: status === 'for_sale' ? blank(numOrUndef(salePrice)) : null,
+      tenant_name: status === 'occupied' ? blank(tenantName.trim() || undefined) : null,
+      lease_start_date: status === 'occupied' ? blank(leaseStartDate || undefined) : null,
+      lease_end_date: status === 'occupied' ? blank(leaseEndDate || undefined) : null,
     }
 
     if (isEdit && editId) {

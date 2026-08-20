@@ -348,6 +348,7 @@ export function useAuth() {
     _restorePromise = null
     clearPersistedSession()
     setUser(null)
+    useAppStore.getState().resetUserData()
     navigateRoot('welcome', { fromLogout: true })
     // scope:'local' clears the stored session WITHOUT a network POST to
     // /auth/v1/logout. A global signOut's network call can hang in the Telegram
@@ -369,25 +370,20 @@ export function useAuth() {
       const me = useAppStore.getState().user
       if (!me) throw new Error('Not authenticated')
 
-      // 1. Зібрати шляхи файлів усіх власних обʼєктів і прибрати з бакетів.
+      // 1. ПРОЧИТАТИ шляхи — саме прочитати, не видаляти. Після каскаду їх уже
+      //    не дістати, тож збір мусить бути тут; але СТИРАННЯ йде після кроку 2.
       const { data: props } = await supabase
         .from('properties').select('id').eq('owner_id', me.id)
       const propIds = (props ?? []).map((p: { id: string }) => p.id)
+      let photoPaths: string[] = []
+      let docPaths: string[] = []
       if (propIds.length > 0) {
         const [{ data: photos }, { data: docs }] = await Promise.all([
           supabase.from('property_photos').select('storage_path').in('property_id', propIds),
           supabase.from('property_files').select('storage_path').in('property_id', propIds),
         ])
-        // Аплоуди — best-effort: осиротілий файл не є витоком (рядків, що на
-        // нього посилаються, вже не буде), тож збій тут не блокує видалення.
-        if (photos?.length) {
-          await supabase.storage.from('photos')
-            .remove(photos.map((p: { storage_path: string }) => p.storage_path)).catch(() => {})
-        }
-        if (docs?.length) {
-          await supabase.storage.from('property-files')
-            .remove(docs.map((d: { storage_path: string }) => d.storage_path)).catch(() => {})
-        }
+        photoPaths = (photos ?? []).map((p: { storage_path: string }) => p.storage_path)
+        docPaths = (docs ?? []).map((d: { storage_path: string }) => d.storage_path)
       }
 
       // 2. Знести профіль + auth-акаунт одним серверним викликом.
@@ -400,11 +396,26 @@ export function useAuth() {
         throw new Error(parsed.success ? (parsed.data.error ?? 'delete_failed') : 'delete_failed')
       }
 
-      // 3. Локальний вихід + очистка кешів профілю/сесії.
+      // 3. І ЛИШЕ ТЕПЕР — файли. Порядок тут не стилістичний: RPC може не
+      //    існувати (міграція 044 ще не застосована) або впасти, і тоді
+      //    користувач ЛИШАЄТЬСЯ в акаунті. Стерши сховище першим, ми залишали б
+      //    його з живими рядками, що вказують на 404 — тобто зламаною галереєю
+      //    без жодного шляху відновлення. Осиротілий файл, навпаки, витоком не
+      //    є: рядків, що на нього посилаються, після каскаду вже немає.
+      //    Правило 9 Security rules, застосоване до найдорожчої дії застосунку.
+      if (photoPaths.length > 0) {
+        await supabase.storage.from('photos').remove(photoPaths).catch(() => {})
+      }
+      if (docPaths.length > 0) {
+        await supabase.storage.from('property-files').remove(docPaths).catch(() => {})
+      }
+
+      // 4. Локальний вихід + очистка кешів профілю/сесії.
       _intentionalLogout = true
       _restorePromise = null
       clearPersistedSession()
       setUser(null)
+      useAppStore.getState().resetUserData()
       showToast({ type: 'success', title: 'Акаунт видалено' })
       navigateRoot('welcome', { fromLogout: true })
       _signOutPromise = supabase.auth.signOut({ scope: 'local' })
