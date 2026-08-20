@@ -154,3 +154,49 @@ test('редагування ОБʼЄКТА зі статусом «зайнят
   // area_basis мусить бути в payload — без нього бекенд не знає бази розрахунку
   expect(captured.propPatch!).toHaveProperty('area_basis')
 })
+
+/**
+ * ОЧИЩЕННЯ ПОЛЯ — окремий випадок, і саме він був зламаний.
+ *
+ * Форма слала порожні опційні поля як `undefined`, а `JSON.stringify` такі
+ * ключі ВИКИДАЄ — тобто PATCH їх просто не містив, і колонка лишалась старою.
+ * PostgREST повертав 200 з незміненим рядком, стор писав його в кеш, тост казав
+ * «Збережено», а після повторного відкриття значення поверталось. Очистити раз
+ * заповнене поле було неможливо ВЗАГАЛІ.
+ *
+ * Три наявні тести вище цього не бачили, бо всі вони ЗАДАЮТЬ значення.
+ */
+test('редагування ОБʼЄКТА: очищене поле долітає як null, а не зникає з PATCH', async ({ page }) => {
+  const state = makeState()
+  const captured: { propPatch?: Record<string, unknown> } = {}
+  await setup(page, state, captured)
+
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+  await page.getByText('БЦ Рубін').first().click()
+  await expect(page.getByText('Всі (1)')).toBeVisible()
+
+  await page.locator('.obj-act-btn', { hasText: 'Редагувати' }).first().click()
+  await expect(page.getByText('Редагування')).toBeVisible()
+
+  // Чистимо різнотипні опційні поля: текстове, числове й ставку.
+  await page.locator('.fr', { hasText: 'Поверх' }).locator('input').fill('')
+  await page.getByPlaceholder('47').fill('')      // корисна площа
+  await page.getByPlaceholder('2.5').fill('')     // ставка експлуатаційних
+
+  const patchReq = page.waitForRequest(r => r.url().includes('/rest/v1/properties') && r.method() === 'PATCH')
+  await page.getByRole('button', { name: 'Зберегти зміни' }).click()
+  await patchReq
+
+  await expect.poll(() => captured.propPatch, { timeout: 10_000 }).toBeTruthy()
+  const p = captured.propPatch!
+
+  // Ключ МУСИТЬ бути присутній зі значенням null. `toBeNull()` тут замало:
+  // відсутній ключ теж дає `undefined == null` при нестрогому порівнянні, а
+  // саме відсутність і була дефектом.
+  for (const col of ['floor', 'area_useful', 'utilities_rate']) {
+    expect(Object.prototype.hasOwnProperty.call(p, col),
+      `${col}: ключ ВІДСУТНІЙ у PATCH — колонка лишиться старою, а форма скаже «Збережено»`).toBe(true)
+    expect(p[col], `${col}: очищене поле мусить бути null`).toBeNull()
+  }
+})
