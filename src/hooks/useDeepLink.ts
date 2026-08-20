@@ -160,7 +160,9 @@ export function useDeepLink() {
           } else {
             // Another user's collection — show read-only view
             useAppStore.getState().navigateRoot(homeScreen)
-            navigate('shared-collection', { collectionId })
+            // Токен їде РАЗОМ з id: перегляд авторизується ним, а не самим
+            // UUID — інакше ротація посилання нікого не відрізає (IDOR, 049).
+            navigate('shared-collection', { collectionId, colToken: token })
           }
           return
         }

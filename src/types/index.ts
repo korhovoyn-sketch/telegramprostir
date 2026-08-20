@@ -280,6 +280,9 @@ export interface ScreenParams {
   dueDate?: string
   kind?: 'team' | 'guest'
   collectionId?: string
+  /** Share-токен підбірки. Носити його ДАЛІ обовʼязково: read-only перегляд
+   *  авторизується саме токеном, а не UUID підбірки (див. IDOR у 049). */
+  colToken?: string
   photoIndex?: number
   initialIndex?: number
   editMode?: boolean

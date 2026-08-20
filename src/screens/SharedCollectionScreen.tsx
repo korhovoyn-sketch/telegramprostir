@@ -25,31 +25,72 @@ interface SharedProperty {
 }
 
 interface SharedCollectionData {
-  id: string
   name: string
+  /** Валюта ВЛАСНИКА обʼєктів, а не глядача — див. коментар у `load`. */
+  currency: string
   properties: SharedProperty[]
 }
 
+/** Рядок, який віддає `get_public_collection_preview` — по одному на обʼєкт. */
+interface PreviewRow {
+  collection_name: string
+  owner_currency: string | null
+  property_id: string | null
+  property_name: string | null
+  property_status: string | null
+  property_floor: string | null
+  property_area_useful: number | null
+  property_area_total: number | null
+  property_rent_type: string | null
+  property_rent_rate: number | null
+  first_photo: string | null
+}
+
 export default function SharedCollectionScreen() {
-  const { screenParams, user } = useAppStore()
+  const { screenParams } = useAppStore()
   const collectionId = screenParams.collectionId as string | undefined
+  const colToken = screenParams.colToken as string | undefined
 
   const [data, setData] = useState<SharedCollectionData | null>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
 
-  const currency = user?.currency ?? 'USD'
-
   useEffect(() => {
-    if (!collectionId) { setNotFound(true); setLoading(false); return }
+    // Авторизує ТОКЕН, а не `collectionId`. Попередній шлях
+    // (`get_shared_collection(p_collection_id)`) був IDOR: SECURITY DEFINER,
+    // виданий anon, приймав пряме посилання на обʼєкт і не перевіряв токен
+    // узагалі — тобто ротація посилання нікого не відрізала, хоч підтвердження
+    // дослівно обіцяє протилежне. Без токена екран нічого не показує.
+    if (!colToken) { setNotFound(true); setLoading(false); return }
     let cancelled = false
 
     async function load() {
       try {
-        const { data: result } = await supabase.rpc('get_shared_collection', { p_collection_id: collectionId })
+        const { data: rows, error } = await supabase
+          .rpc('get_public_collection_preview', { p_token: colToken })
         if (cancelled) return
-        if (!result) setNotFound(true)
-        else setData(result as SharedCollectionData)
+        const list = (rows ?? []) as PreviewRow[]
+        if (error || list.length === 0) { setNotFound(true); return }
+        setData({
+          name: list[0].collection_name,
+          // Валюта ВЛАСНИКА, не глядача: раніше екран брав `user.currency`, тож
+          // ціни, ведені в ₴, показувались глядачу-доларовику як «$18/м²» —
+          // той самий клас, який для публічної /v закрила міграція 040.
+          currency: list[0].owner_currency ?? 'USD',
+          properties: list
+            .filter((r): r is PreviewRow & { property_id: string } => !!r.property_id)
+            .map((r) => ({
+              id: r.property_id,
+              name: r.property_name ?? '',
+              status: (r.property_status ?? 'free') as PropertyStatus,
+              area_useful: r.property_area_useful,
+              area_total: r.property_area_total,
+              rent_rate: r.property_rent_rate,
+              rent_type: (r.property_rent_type ?? 'per_m2') as RentType,
+              floor: r.property_floor,
+              first_photo: r.first_photo,
+            })),
+        })
       } catch {
         if (!cancelled) setNotFound(true)
       } finally {
@@ -59,7 +100,7 @@ export default function SharedCollectionScreen() {
 
     load()
     return () => { cancelled = true }
-  }, [collectionId])
+  }, [colToken, collectionId])
 
   if (loading) {
     return (
@@ -126,7 +167,7 @@ export default function SharedCollectionScreen() {
                       {p.floor && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconBuilding size={12} color="var(--t3)" />{p.floor} пов.</span>}
                       {rent > 0 && (
                         <span style={{ color: 'var(--t2)', fontWeight: 'var(--fw-semi)' }}>
-                          {formatPrice(rent, currency)}{computedRentUnit(p.rent_type)}
+                          {formatPrice(rent, data.currency)}{computedRentUnit(p.rent_type)}
                         </span>
                       )}
                     </div>
