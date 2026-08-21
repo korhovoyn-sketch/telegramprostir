@@ -130,6 +130,18 @@ BEGIN
   END;
   RESET ROLE;
 
+  -- АНТИВАКУУМ: політика не мусить відмовляти ВСІМ. Аліса створює лінк на
+  -- ВЛАСНУ базу — без цієї половини «Клим не зміг» однаково пояснюється і
+  -- правильною перевіркою цілі, і повністю зламаною політикою.
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','900001@telegram.propspace.app',true);
+  PERFORM set_config('request.jwt.claims','{"email":"900001@telegram.propspace.app"}',true);
+  INSERT INTO guest_links (owner_id, db_id, label)
+  VALUES ('a0000000-0000-0000-0000-00000000000a','d0000000-0000-0000-0000-00000000000a','Свій лінк');
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n <> 1 THEN RAISE EXCEPTION '046: власник НЕ МОЖЕ створити лінк на ВЛАСНУ базу'; END IF;
+  RESET ROLE;
+
   -- ── 5. Гість бачить РІВНО ціль свого лінка, а не всю базу ──────────────
   INSERT INTO guest_links (id,owner_id,property_id,invite_token,label,status)
   VALUES ('c0000000-0000-0000-0000-00000000000a','a0000000-0000-0000-0000-00000000000a',
@@ -201,6 +213,14 @@ BEGIN
   -- `permission denied`, відкочує і `set_config(..., true)`, тож наступний
   -- блок біг би з роллю anon, але з ЧУЖОЮ особою в JWT — комбінація, якої в
   -- проді не буває, і гард репортував би неіснуючий витік. Наступано тут же.
+  -- АНТИВАКУУМ: рядки мусять реально ІСНУВАТИ. Інакше «anon нічого не бачить»
+  -- означало б «дивитись не було на що» — і гард лишався б зеленим на порожній
+  -- базі, тобто не перевіряв би нічого.
+  SELECT count(*) INTO n FROM databases;
+  IF n < 2 THEN RAISE EXCEPTION 'anon-гард вакуумний: у базі % рядків databases', n; END IF;
+  SELECT count(*) INTO n FROM properties;
+  IF n < 2 THEN RAISE EXCEPTION 'anon-гард вакуумний: у базі % рядків properties', n; END IF;
+
   BEGIN
     SET LOCAL ROLE anon;
     PERFORM set_config('request.jwt.claims', '', true);
@@ -246,6 +266,31 @@ BEGIN
     AND property_id = 'f0000000-0000-0000-0000-00000000000b';
   IF n <> 0 THEN
     RAISE EXCEPTION '053: крон надішле Алісі дані обʼєкта Богдана (% рядків)', n;
+  END IF;
+
+  -- АНТИВАКУУМ: ЗАКОННЕ нагадування (розклад і обʼєкт однієї особи) мусить
+  -- повертатись. Інакше «підкидня немає» однаково пояснюється і предикатом
+  -- `rp.owner_id = p.owner_id`, і функцією, зламаною настільки, що вона не
+  -- віддає нічого взагалі — а саме таким і був її стан до 052.
+  -- Береться ВЛАСНИЙ обʼєкт Аліси з її ж розкладом (створений у 3b): і рядок,
+  -- і обʼєкт однієї особи, тобто нагадування законне. На обʼєкті Богдана це
+  -- зробити НЕ МОЖНА — `rent_payments.property_id` UNIQUE, і слот уже зайняв
+  -- підкидень. Це, до речі, самостійний наслідок дефекту 053: підкинувши
+  -- розклад першим, атакувальник ще й ПОЗБАВЛЯЄ жертву власного.
+  UPDATE properties SET status='occupied' WHERE id='f0000000-0000-0000-0000-00000000000a';
+  UPDATE rent_payments rp
+     SET due_day = q.d, notify_days_before = 3, is_active = true
+    FROM (SELECT EXTRACT(DAY FROM current_date + INTERVAL '3 day')::INT AS d) q
+   WHERE rp.property_id = 'f0000000-0000-0000-0000-00000000000a' AND q.d BETWEEN 1 AND 28;
+
+  IF EXISTS (SELECT 1 FROM rent_payments rp
+             WHERE rp.property_id='f0000000-0000-0000-0000-00000000000a'
+               AND rp.due_day = EXTRACT(DAY FROM current_date + INTERVAL '3 day')::INT) THEN
+    SELECT count(*) INTO n FROM get_due_reminders_today()
+    WHERE property_id = 'f0000000-0000-0000-0000-00000000000a';
+    IF n <> 1 THEN
+      RAISE EXCEPTION '053: ЗАКОННЕ нагадування власника не повертається (% рядків) — гард був би вакуумним', n;
+    END IF;
   END IF;
 
   RAISE NOTICE '  ✓ RLS: підкинутий розклад не потрапляє в розсилку (053, глибинний захист)';
