@@ -85,6 +85,17 @@ WITH checks(ord, item, migration, ok) AS (VALUES
                     AND p.proname IN ('get_due_reminders_today','get_due_guest_reminders','mark_overdue_payments')
                     AND has_function_privilege('anon', p.oid, 'EXECUTE'))),
 
+  (25, 'props_owner_all перевіряє, що БАЗА твоя (не лише owner_id)', '053_owner_policies_target_ownership.sql',
+      EXISTS (SELECT 1 FROM pg_policies WHERE tablename='properties'
+              AND policyname='props_owner_all' AND with_check LIKE '%get_owner_db_ids%')),
+  (26, 'платежі перевіряють, що ОБʼЄКТ твій', '053_owner_policies_target_ownership.sql',
+      (SELECT count(*)=2 FROM pg_policies
+       WHERE tablename IN ('rent_payments','rent_payment_records')
+         AND with_check LIKE '%get_owner_property_ids%')),
+  (27, 'нагадування не розсилають чужих даних (rp.owner_id = p.owner_id)', '053_owner_policies_target_ownership.sql',
+      EXISTS (SELECT 1 FROM pg_proc WHERE proname='get_due_reminders_today'
+              AND prosrc LIKE '%rp.owner_id = p.owner_id%')),
+
   -- Наскрізні інваріанти
   (15, 'RLS увімкнено на всіх 15 таблицях', 'будь-яка пропущена',
       (SELECT count(*)>=15 FROM pg_tables t JOIN pg_class c ON c.relname=t.tablename

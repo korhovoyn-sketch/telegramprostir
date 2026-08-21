@@ -60,3 +60,13 @@ INSERT INTO storage.buckets (id, name, public) VALUES
 -- Публікація для realtime (міграції додають до неї таблиці).
 DO $$ BEGIN
   CREATE PUBLICATION supabase_realtime; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- Права на ТАБЛИЦІ дає сама платформа Supabase, а не міграції: у проді
+-- `anon`/`authenticated` мають повний доступ до схеми `public`, і єдине, що
+-- їх обмежує, — RLS. Без цього рядка RLS-перевірки нижче падали б на
+-- `permission denied for table`, тобто проходили б із ХИБНОЇ причини:
+-- «доступу немає» через привілеї, а не через політику.
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+  GRANT USAGE, SELECT ON SEQUENCES TO anon, authenticated, service_role;

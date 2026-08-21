@@ -24,6 +24,7 @@ PSQL="psql -h $SOCK -p $PORT -U postgres -v ON_ERROR_STOP=1 -q"
 cleanup() { pg_ctl -D "$DATA" stop -m immediate >/dev/null 2>&1 || true; }
 trap cleanup EXIT
 
+pkill -f "postgres.*$DATA" >/dev/null 2>&1 || true
 rm -rf "$DATA" "$SOCK"; mkdir -p "$DATA" "$SOCK"
 # initdb відмовляється працювати від root — під CI і локально запускаємо від
 # невілейованого користувача, якщо ми root.
@@ -38,7 +39,17 @@ else
   initdb -D "$DATA" -U postgres --auth=trust >/dev/null
   pg_ctl -D "$DATA" -o "-p $PORT -k $SOCK -c listen_addresses=" -l "$SOCK/pg.log" start >/dev/null
 fi
-sleep 3
+
+# Чекати на ГОТОВНІСТЬ, а не на секунди: під навантаженням (паралельний
+# playwright, повільний раннер) фіксований sleep дає «connection failed» на
+# рівному місці, і прогін падає не через міграції, а через власний старт.
+for _ in $(seq 1 60); do
+  pg_isready -h "$SOCK" -p $PORT -U postgres >/dev/null 2>&1 && break
+  sleep 1
+done
+if ! pg_isready -h "$SOCK" -p $PORT -U postgres >/dev/null 2>&1; then
+  echo "✗ Postgres не піднявся"; tail -20 "$SOCK/pg.log" 2>/dev/null; exit 2
+fi
 
 psql -h "$SOCK" -p $PORT -U postgres -q -c "CREATE DATABASE shadow" >/dev/null
 $PSQL -d shadow -f scripts/pg-shim.sql >/dev/null
@@ -62,6 +73,17 @@ echo "✓ усі міграції виконались"
 
 $PSQL -d shadow -f scripts/verify-behaviour.sql
 echo "✓ поведінкові перевірки пройдено"
+
+# RLS ганяємо на ОКРЕМІЙ базі: попередній файл навмисно видаляє акаунти й
+# лишає по собі напівпорожній стан, а тут кожен count() має бути точним.
+psql -h "$SOCK" -p $PORT -U postgres -q -c "CREATE DATABASE shadow_rls" >/dev/null
+$PSQL -d shadow_rls -f scripts/pg-shim.sql >/dev/null 2>&1
+for f in $(ls supabase/migrations/*.sql | sort); do
+  b=$(basename "$f"); case "$b" in 0041_*|009_*) continue;; esac
+  $PSQL -d shadow_rls -f "$f" >/dev/null 2>&1 || true
+done
+$PSQL -d shadow_rls -f scripts/verify-rls.sql
+echo "✓ RLS-перевірки пройдено"
 
 # ── verify_release.sql теж мусить бути живим ────────────────────────────────
 # Це ЄДИНЕ джерело правди для власника про стан живої БД (мережі до Supabase
