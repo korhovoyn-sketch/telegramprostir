@@ -70,3 +70,11 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public
   GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO anon, authenticated, service_role;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
   GRANT USAGE, SELECT ON SEQUENCES TO anon, authenticated, service_role;
+
+-- Схема storage теж належить платформі: у проді `anon`/`authenticated` мають
+-- USAGE і права на `storage.objects`, а обмежує їх RLS. Без цього перевірка
+-- storage-політик «проходила» б із ХИБНОЇ причини — `permission denied for
+-- schema storage` замість роботи політики. Наступано.
+GRANT USAGE ON SCHEMA storage TO anon, authenticated, service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON storage.objects TO anon, authenticated, service_role;
+GRANT SELECT ON storage.buckets TO anon, authenticated, service_role;

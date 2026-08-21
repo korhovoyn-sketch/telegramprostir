@@ -230,3 +230,40 @@ BEGIN
 
   RAISE NOTICE '  ✓ RLS: підкинутий розклад не потрапляє в розсилку (053, глибинний захист)';
 END $$;
+
+DO $$
+DECLARE n INT;
+BEGIN
+  -- ── 9. Storage: ОДНЕ джерело особи (054) ────────────────────────────────
+  -- Цей блок починався з ВАКУУМНОГО тесту: «Аліса не зітре фото Богдана»
+  -- проходив, бо Аліса не могла зітерти й ВЛАСНЕ фото — політика відмовляла
+  -- всім. Тому тут ОБОВʼЯЗКОВА пара: спершу «своє зникає», потім «чуже
+  -- лишається». Без першої половини друга нічого не доводить.
+  --
+  -- Ключова умова заміру: виставляємо ЛИШЕ `sub`-клейм. Саме так виглядає
+  -- storage-контекст, заради ненадійності якого 030 і завела
+  -- `*_from_auth_uid`-варіанти. До 054 підзапит усередині політики йшов по
+  -- `properties` під RLS, тобто мовчки вимагав ще й email-клейм.
+  INSERT INTO storage.objects (bucket_id,name,owner) VALUES
+    ('photos','f0000000-0000-0000-0000-00000000000a/mine.jpg',NULL),
+    ('photos','f0000000-0000-0000-0000-00000000000b/hers.jpg',NULL);
+
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims', '', true);
+  PERFORM set_config('request.jwt.claim.sub', 'e0000000-0000-0000-0000-00000000000a', true);
+
+  DELETE FROM storage.objects WHERE name = 'f0000000-0000-0000-0000-00000000000a/mine.jpg';
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n <> 1 THEN
+    RAISE EXCEPTION '054: власник НЕ МОЖЕ видалити власне фото (% рядків) — політика вимагає email-клейм, якого в storage-контексті може не бути', n;
+  END IF;
+
+  DELETE FROM storage.objects WHERE name = 'f0000000-0000-0000-0000-00000000000b/hers.jpg';
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n <> 0 THEN
+    RAISE EXCEPTION 'storage: Аліса видалила фото Богдана';
+  END IF;
+  RESET ROLE;
+
+  RAISE NOTICE '  ✓ storage: своє видаляється лише по sub-клейму, чуже — ні (054)';
+END $$;
