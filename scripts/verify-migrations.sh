@@ -62,3 +62,18 @@ echo "✓ усі міграції виконались"
 
 $PSQL -d shadow -f scripts/verify-behaviour.sql
 echo "✓ поведінкові перевірки пройдено"
+
+# ── verify_release.sql теж мусить бути живим ────────────────────────────────
+# Це ЄДИНЕ джерело правди для власника про стан живої БД (мережі до Supabase
+# звідси немає). Але його рядки — це підрядкові збіги по `prosrc`, і вони
+# тихо протухають: перевірка №1 шукала термін дії в `get_shared_collection`,
+# яку 049 ВИДАЛИЛА як IDOR, тобто вічно світила «MISSING → виконай 026» і
+# посилала оператора не туди. На свіжозібраній БД MISSING не має бути жодного.
+miss=$($PSQL -d shadow -At -f supabase/verify_release.sql | grep -c '❌' || true)
+if [ "$miss" != "0" ]; then
+  echo "✗ verify_release.sql звітує $miss MISSING на БД, зібраній з УСІХ міграцій —"
+  echo "  тобто протухла сама перевірка, а не база:"
+  $PSQL -d shadow -At -f supabase/verify_release.sql | grep '❌'
+  exit 1
+fi
+echo "✓ verify_release.sql: 0 MISSING"

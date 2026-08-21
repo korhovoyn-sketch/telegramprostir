@@ -6,9 +6,13 @@
 
 WITH checks(ord, item, migration, ok) AS (VALUES
   -- 026: security audit fixes
-  (1,  'get_shared_collection перевіряє share_expires_at', '026_security_audit_fixes.sql',
-      EXISTS (SELECT 1 FROM pg_proc WHERE proname='get_shared_collection'
-              AND prosrc LIKE '%share_expires_at%')),
+  -- 049 ВИДАЛИЛА get_shared_collection як IDOR (SECURITY DEFINER по UUID,
+  -- виданий anon, без звірки токена — ротація лінка її не стосувалась).
+  -- Тому перевіряємо ВІДСУТНІСТЬ, а не наявність терміну дії: доти цей рядок
+  -- вічно світив «MISSING → виконай 026» і посилав оператора не туди.
+  (1,  'get_shared_collection ВІДСУТНЯ (IDOR, прибрано 049)', '049_drop_idor_get_shared_collection.sql',
+      NOT EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+                  WHERE n.nspname='public' AND p.proname='get_shared_collection')),
   (2,  'індекс idx_audit_log_user_created', '026_security_audit_fixes.sql',
       EXISTS (SELECT 1 FROM pg_indexes WHERE indexname='idx_audit_log_user_created')),
 
@@ -71,6 +75,15 @@ WITH checks(ord, item, migration, ok) AS (VALUES
   (22, 'get_editor_db_ids_from_auth_uid має tg_id>0 (045 hardening)', '045_fix_auth_uid_identity_regression.sql',
       EXISTS (SELECT 1 FROM pg_proc WHERE proname='get_editor_db_ids_from_auth_uid'
               AND prosrc LIKE '%tg_id > 0%')),
+
+  (23, 'нагадування ВЗАГАЛІ викликаються (тип результату полагоджено)', '052_reminders_fix_and_lockdown.sql',
+      EXISTS (SELECT 1 FROM pg_proc WHERE proname='get_due_reminders_today'
+              AND prosrc LIKE '%p.name::TEXT%')),
+  (24, 'anon НЕ має службових функцій (дефолтний PUBLIC знято)', '052_reminders_fix_and_lockdown.sql',
+      NOT EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+                  WHERE n.nspname='public'
+                    AND p.proname IN ('get_due_reminders_today','get_due_guest_reminders','mark_overdue_payments')
+                    AND has_function_privilege('anon', p.oid, 'EXECUTE'))),
 
   -- Наскрізні інваріанти
   (15, 'RLS увімкнено на всіх 15 таблицях', 'будь-яка пропущена',

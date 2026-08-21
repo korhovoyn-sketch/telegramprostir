@@ -119,3 +119,74 @@ BEGIN
 
   RAISE NOTICE '  ✓ 048: імʼя записано, повторний клейм ідемпотентний';
 END $$;
+
+DO $$
+DECLARE n INT; leaked TEXT;
+BEGIN
+  -- ── 052: нагадування ВЗАГАЛІ повертають рядки ───────────────────────────
+  -- Обидві функції були оголошені з `property_name TEXT`, а `properties.name`
+  -- звужено до VARCHAR(200) міграцією 014 — тобто КОЖЕН виклик падав, і
+  -- таблиця `notifications`, яку наповнює лише ця пара, не могла отримати
+  -- жодного рядка. Джерельний гард такого не бачить у принципі: обидва типи
+  -- в тексті виглядають правильно, розходяться вони лише у виконанні.
+  INSERT INTO auth.users (id,email) VALUES ('aaaaaaaa-0000-0000-0000-000000000052','777052@telegram.propspace.app');
+  INSERT INTO users (id,tg_id,first_name,role) VALUES ('bbbbbbbb-0000-0000-0000-000000000052',777052,'Нагадувач','owner');
+  INSERT INTO databases (id,owner_id,name,type) VALUES
+    ('cccccccc-0000-0000-0000-000000000052','bbbbbbbb-0000-0000-0000-000000000052','База нагадувань','business_center');
+  INSERT INTO properties (id,db_id,owner_id,name,status,tenant_name) VALUES
+    ('dddddddd-0000-0000-0000-000000000052','cccccccc-0000-0000-0000-000000000052',
+     'bbbbbbbb-0000-0000-0000-000000000052','Офіс 52','occupied','ТОВ Орендар');
+  -- due_day у межах CHECK (1..28), notify_days_before у межах (0..14):
+  -- беремо день, що настане через 3 дні, і лише якщо він ≤ 28.
+  INSERT INTO rent_payments (property_id,owner_id,due_day,notify_days_before,is_active)
+  SELECT 'dddddddd-0000-0000-0000-000000000052','bbbbbbbb-0000-0000-0000-000000000052',
+         d, 3, true
+  FROM (SELECT EXTRACT(DAY FROM current_date + INTERVAL '3 day')::INT AS d) s
+  WHERE s.d BETWEEN 1 AND 28;
+
+  IF EXISTS (SELECT 1 FROM rent_payments WHERE property_id='dddddddd-0000-0000-0000-000000000052') THEN
+    SELECT count(*) INTO n FROM get_due_reminders_today()
+      WHERE property_id='dddddddd-0000-0000-0000-000000000052';
+    IF n <> 1 THEN
+      RAISE EXCEPTION '052: get_due_reminders_today() не віддала рядок (%) — сповіщень про платежі не буде', n;
+    END IF;
+  END IF;
+  -- Гостьова функція мусить бути ВИКЛИКАБЕЛЬНОЮ навіть коли гостей нема:
+  -- саме тип результату, а не наявність даних, і був зламаний.
+  PERFORM count(*) FROM get_due_guest_reminders();
+
+  -- ── 052: жодна НОВА функція не стає доступною anon випадково ───────────
+  -- `GRANT ... TO service_role` НЕ знімає дефолтний грант PUBLIC, який
+  -- Postgres вішає на кожну функцію при створенні — його треба знімати
+  -- явним REVOKE. Тому перевіряємо не список «тих трьох, що ловили», а
+  -- ВСІ SECURITY DEFINER функції проти allowlist-а свідомо публічних.
+  -- Нова функція без REVOKE впаде тут, навіть якщо про неї ніхто не згадав.
+  SELECT string_agg(p.proname, ', ' ORDER BY p.proname) INTO leaked
+  FROM pg_proc p
+  JOIN pg_namespace ns ON ns.oid = p.pronamespace AND ns.nspname = 'public'
+  WHERE p.prosecdef
+    AND p.prorettype <> 'trigger'::regtype
+    AND has_function_privilege('anon', p.oid, 'EXECUTE')
+    AND p.proname NOT IN (
+      -- Публічна /v: ключ доступу — нездогадний share-токен, і кожна з них
+      -- сама перевіряє його та термін дії. Це і є проєктний периметр.
+      'get_public_db_preview','get_public_property_preview',
+      'get_public_collection_preview','get_guest_property_preview',
+      'record_public_view',
+      -- Хелпери, які викликають САМІ RLS-політики. Політики мають роль
+      -- {public}, тобто виконуються і від anon — без EXECUTE будь-який
+      -- anon-запит до цих таблиць падав би «permission denied for function»
+      -- замість того, щоб повернути порожньо. Вони віддають лише id-графи
+      -- (жодних імен, сум чи контактів), а щоб отримати чужий — треба вже
+      -- знати `users.id` жертви, якого жодна публічна поверхня не віддає.
+      'current_app_user_id','get_app_user_id_from_auth_uid',
+      'get_owner_db_ids','get_owner_property_ids',
+      'get_editor_db_ids','get_editor_db_ids_from_auth_uid','get_editor_property_ids',
+      'get_realtor_db_ids','get_realtor_property_ids','get_realtor_collection_ids'
+    );
+  IF leaked IS NOT NULL THEN
+    RAISE EXCEPTION '052: anon має EXECUTE на SECURITY DEFINER функціях поза allowlist-ом: %', leaked;
+  END IF;
+
+  RAISE NOTICE '  ✓ 052: нагадування повертають рядки; anon не має службових функцій';
+END $$;
