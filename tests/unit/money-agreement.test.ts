@@ -28,26 +28,55 @@ function prop(over: Partial<Property> = {}): Property {
   } as Property
 }
 
-/** Оренда без експлуатаційних — те саме, що календар показує як суму до сплати. */
-const rentOnly = (p: Property) => {
-  const { total, utils } = calcRentUtils(
+/**
+ * ЩО САМЕ ДРУКУЄ КОЖНА ПОВЕРХНЯ — не друга форма того самого виразу.
+ *
+ * Попередня версія цього файлу порівнювала `expectedRent(p)` з
+ * `calcRentUtils(...).total - utils`. Але `total` за побудовою дорівнює
+ * `monthlyRent(basisArea(...)) + utils`, тож обидві сторони скорочувались до
+ * `monthlyRent(basisArea(...))` — рівність трималась би за БУДЬ-ЯКОЇ
+ * реалізації, включно зі зламаною. Тобто тест був тавтологією з видом гарда.
+ *
+ * Тепер очікування ЗАКРІПЛЕНІ числом. Число — єдине, що не скорочується.
+ */
+
+/** Те, що показує картка обʼєкта (`DatabaseObjectsScreen.renderCard`). */
+function cardShows(p: Property): number {
+  const { rent, total } = calcRentUtils(
     p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate, p.area_basis)
-  return total - utils
+  // Добова ставка не додається до місячних експлуатаційних — картка показує
+  // сиру ставку з підписом «/добу».
+  return p.rent_type === 'per_day' ? rent : total
 }
 
 describe('узгодженість грошей між поверхнями', () => {
+  // Фікстура: корисна 50, розрахункова 100, ставка 18/м².
   it.each([
-    ['база total (дефолт)', { area_basis: 'total' as const }],
-    ['база useful',         { area_basis: 'useful' as const }],
-    ['база не задана',      { area_basis: undefined }],
-    ['лише корисна площа',  { area_total: null, area_basis: 'total' as const }],
-    ['лише розрахункова',   { area_useful: null, area_basis: 'useful' as const }],
-    ['фіксована ставка',    { rent_type: 'fixed' as const, rent_rate: 25000 }],
-    ['подобова',            { rent_type: 'per_day' as const, rent_rate: 900 }],
-  ])('%s: календар збігається з карткою', (_label, over) => {
+    // підпис,                 переозначення,                                    календар, картка
+    ['база total (дефолт)',    { area_basis: 'total' as const },                     1800, 1800],
+    ['база useful',            { area_basis: 'useful' as const },                     900,  900],
+    ['база не задана → total', { area_basis: undefined },                            1800, 1800],
+    ['лише корисна площа',     { area_total: null, area_basis: 'total' as const },     900,  900],
+    ['фіксована ставка',       { rent_type: 'fixed' as const, rent_rate: 25000 },    25000, 25000],
+    // Подобова — ЄДИНИЙ випадок, де поверхні свідомо різняться, і це не
+    // дефект: картка показує СИРУ ставку з підписом «/добу» (те, що власник
+    // бере за добу), календар — місячний еквівалент до сплати (900 × 30).
+    // Закріплено обидва числа саме тому, що рівності тут бути НЕ повинно.
+    ['подобова',               { rent_type: 'per_day' as const, rent_rate: 900 },    27000,  900],
+  ])('%s', (_label, over, wantCalendar, wantCard) => {
     const p = prop(over as Partial<Property>)
-    expect(expectedRent(p), 'сума в календарі розійшлась із карткою обʼєкта')
-      .toBe(rentOnly(p))
+    // Календар (він же префіл підтвердження платежу і блок «Найближчі платежі»).
+    expect(expectedRent(p), 'сума до сплати в календарі').toBe(wantCalendar)
+    // Картка списку — те, що власник бачить першим.
+    expect(cardShows(p), 'сума на картці обʼєкта').toBe(wantCard)
+  })
+
+  it('експлуатаційні входять у ТОТАЛ картки, але не в суму до сплати', () => {
+    // Це не тавтологія, а справжня різниця поверхонь: календар питає «скільки
+    // орендар винен ЗА ОРЕНДУ», картка показує повну місячну вартість.
+    const p = prop({ area_basis: 'total', utilities_rate: 2.5 })
+    expect(expectedRent(p), 'календар — лише оренда').toBe(1800)
+    expect(cardShows(p), 'картка — оренда + експлуатаційні').toBe(1800 + 250)
   })
 
   it('база розрахунку РЕАЛЬНО впливає — інакше тест вище вакуумний', () => {

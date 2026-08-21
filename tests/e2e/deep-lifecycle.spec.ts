@@ -91,8 +91,13 @@ test('payment lifecycle: schedule → due item → mark paid → stats → unpay
       return json(route, row, 201)
     }
     if (req.method() === 'DELETE') {
-      records.length = 0
-      return json(route, [])
+      // ВІДДАЄМО ЗАЧЕПЛЕНИЙ РЯДОК, а не порожній масив. Порожній набір із
+      // NULL у `error` — це рівно те, як PostgREST під RLS повідомляє про
+      // ВІДМОВУ, тож мок, який так відповідає, моделює заблокований запис і
+      // видає його за успіх. Та сама пастка вже ловилась на відкликанні
+      // доступу й на пакетних діях.
+      const removed = records.splice(0, records.length)
+      return json(route, removed.map((r) => ({ id: (r as { id: string }).id })))
     }
     // .maybeSingle() (PaymentConfirmScreen) asks for a single object via Accept.
     return json(route, accept.includes('object') ? (records[0] ?? null) : records)
