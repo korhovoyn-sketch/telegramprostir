@@ -90,8 +90,28 @@ BEGIN
   GET DIAGNOSTICS n = ROW_COUNT;
   IF n <> 0 THEN RAISE EXCEPTION 'RLS: Аліса видалила базу Богдана'; END IF;
 
+  -- ── 3b. АНТИВАКУУМ: те, що МОЖНА, мусить працювати ────────────────────
+  -- Без цієї половини блок доводив би лише «відмовили», а «відмовили ВСІМ»
+  -- і «відмовили правильно» нерозрізненні — рівно та пастка, на якій
+  -- спалився storage-гард (054). Помилка в 053 (напр. одруківка в назві
+  -- хелпера) зламала б створення обʼєктів для всіх, і денайні перевірки
+  -- лишились би зеленими.
+  INSERT INTO properties (db_id,owner_id,name,status)
+  VALUES ('d0000000-0000-0000-0000-00000000000a','a0000000-0000-0000-0000-00000000000a','Свій новий','free');
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n <> 1 THEN RAISE EXCEPTION '053: власник НЕ МОЖЕ створити обʼєкт у ВЛАСНІЙ базі'; END IF;
+
+  INSERT INTO rent_payments (property_id,owner_id,due_day,notify_days_before,is_active)
+  VALUES ('f0000000-0000-0000-0000-00000000000a','a0000000-0000-0000-0000-00000000000a',5,3,true);
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n <> 1 THEN RAISE EXCEPTION '053: власник НЕ МОЖЕ створити розклад на ВЛАСНОМУ обʼєкті'; END IF;
+
+  UPDATE properties SET name = 'Перейменовано' WHERE id = 'f0000000-0000-0000-0000-00000000000a';
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n <> 1 THEN RAISE EXCEPTION '053: власник НЕ МОЖЕ перейменувати ВЛАСНИЙ обʼєкт'; END IF;
+
   RESET ROLE;
-  RAISE NOTICE '  ✓ RLS: власник не читає, не пише, не змінює і не видаляє чуже';
+  RAISE NOTICE '  ✓ RLS: власник не чіпає чуже — і при цьому вільно працює зі своїм';
 END $$;
 
 DO $$
