@@ -395,3 +395,126 @@ BEGIN
 
   RAISE NOTICE '  ✓ відкликання: протермінований шер і revoked-лінк не пускають, живий — пускає';
 END $$;
+
+DO $$
+DECLARE r RECORD; v JSONB; n INT; tok TEXT;
+BEGIN
+  -- ── 12. КОЖЕН клієнтський RPC — на УСПІШНІЙ гілці ────────────────────────
+  -- Узагальнення знахідки 055: `subscribe_to_shared_db` падала рівно на
+  -- успішній гілці (`ON CONFLICT` з неоднозначним `db_id`), а всі негативні
+  -- перевірки її проходили, бо виходили з функції раніше. Отже кожен RPC,
+  -- виданий anon/authenticated, мусить бути ВИКЛИКАНИЙ там, де він має
+  -- ПРАЦЮВАТИ, а не лише там, де має відмовити.
+  INSERT INTO auth.users (id,email) VALUES ('e3000000-0000-0000-0000-000000000001','930001@telegram.propspace.app');
+  INSERT INTO users (id,tg_id,first_name,role) VALUES ('a3000000-0000-0000-0000-000000000001',930001,'Свіп','realtor');
+  INSERT INTO databases (id,owner_id,name,type,share_token) VALUES
+    ('d3000000-0000-0000-0000-000000000001','a2000000-0000-0000-0000-000000000001','Свіп-база','business_center','tok_sweep_db');
+  INSERT INTO properties (id,db_id,owner_id,name,status,share_token) VALUES
+    ('f3000000-0000-0000-0000-000000000001','d3000000-0000-0000-0000-000000000001','a2000000-0000-0000-0000-000000000001','Свіп-обʼєкт','free','tok_sweep_prop');
+  INSERT INTO collections (id,realtor_id,name,share_token) VALUES
+    ('11113000-0000-0000-0000-000000000001','a3000000-0000-0000-0000-000000000001','Свіп-підбірка','tok_sweep_col');
+  INSERT INTO collection_properties (collection_id,property_id) VALUES
+    ('11113000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000001');
+  -- Підписка ОБОВʼЯЗКОВА для фікстури: публічна підбірка показує лише ті
+  -- обʼєкти, до баз яких рієлтор має доступ. Без цього рядка превʼю законно
+  -- віддає нуль — і перша версія свіпу репортувала «дефект», якого немає.
+  INSERT INTO realtor_subscriptions (realtor_id,db_id) VALUES
+    ('a3000000-0000-0000-0000-000000000001','d3000000-0000-0000-0000-000000000001');
+
+  -- 056: підбірка мусить бути ОПУБЛІКОВАНА — `is_draft` дефолтом TRUE, а
+  -- превʼю має `AND c.is_draft = false`. Саме на цьому спалилась перша
+  -- «спростована гіпотеза»: нуль рядків пояснювався чернеткою, а не
+  -- фільтрацією чужого обʼєкта.
+  UPDATE collections SET is_draft = false WHERE id='11113000-0000-0000-0000-000000000001';
+
+  -- anon-гілка: усі три публічні превʼю + лічильник переглядів.
+  SET LOCAL ROLE anon;
+  PERFORM set_config('request.jwt.claims','',true);
+
+  SELECT count(*) INTO n FROM get_public_db_preview('tok_sweep_db');
+  IF n < 1 THEN RAISE EXCEPTION 'RPC-свіп: get_public_db_preview не віддала жодного рядка'; END IF;
+  SELECT count(*) INTO n FROM get_public_property_preview('tok_sweep_prop');
+  IF n < 1 THEN RAISE EXCEPTION 'RPC-свіп: get_public_property_preview не віддала жодного рядка'; END IF;
+  SELECT count(*) INTO n FROM get_public_collection_preview('tok_sweep_col');
+  IF n < 1 THEN RAISE EXCEPTION 'RPC-свіп: get_public_collection_preview не віддала жодного рядка'; END IF;
+  PERFORM record_public_view('tok_sweep_db','db');
+  PERFORM record_public_view('tok_sweep_prop','property');
+  RESET ROLE;
+
+  -- authenticated-гілка: lookup-и й ротація власного шеру.
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"email":"930001@telegram.propspace.app"}',true);
+  SELECT count(*) INTO n FROM lookup_shared_db('tok_sweep_db');
+  IF n < 1 THEN RAISE EXCEPTION 'RPC-свіп: lookup_shared_db не знайшла базу за живим токеном'; END IF;
+  SELECT count(*) INTO n FROM lookup_shared_property('tok_sweep_prop');
+  IF n < 1 THEN RAISE EXCEPTION 'RPC-свіп: lookup_shared_property не знайшла обʼєкт'; END IF;
+  SELECT count(*) INTO n FROM lookup_shared_collection('tok_sweep_col');
+  IF n < 1 THEN RAISE EXCEPTION 'RPC-свіп: lookup_shared_collection не знайшла підбірку'; END IF;
+  RESET ROLE;
+
+  -- manage_share на ВЛАСНІЙ базі: ротація мусить справді змінити токен.
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"email":"920001@telegram.propspace.app"}',true);
+  SELECT * INTO r FROM manage_share('db','d3000000-0000-0000-0000-000000000001','rotate',NULL);
+  IF r.error IS NOT NULL THEN
+    RAISE EXCEPTION 'RPC-свіп: manage_share(rotate) на ВЛАСНІЙ базі відмовила: %', r.error;
+  END IF;
+  RESET ROLE;
+
+  SELECT d.share_token INTO tok FROM databases d WHERE d.id='d3000000-0000-0000-0000-000000000001';
+  IF tok = 'tok_sweep_db' THEN
+    RAISE EXCEPTION 'RPC-свіп: manage_share(rotate) відзвітувала успіх, але токен не змінився';
+  END IF;
+
+  RAISE NOTICE '  ✓ RPC-свіп: усі клієнтські функції відпрацьовують на УСПІШНІЙ гілці';
+END $$;
+
+DO $$
+DECLARE n INT;
+BEGIN
+  -- ── 13. 056: чужий обʼєкт не потрапляє у ПУБЛІЧНУ підбірку ──────────────
+  -- Гіпотеза, яку я спершу «спростував» ХИБНИМ заміром (підбірка була
+  -- чернеткою, тож превʼю віддавало нуль рядків з іншої причини). На
+  -- ОПУБЛІКОВАНІЙ підбірці вона підтвердилась: рієлтор публікував назву,
+  -- ціну й фото чужого обʼєкта поруч зі СВОЇМИ контактами.
+  INSERT INTO auth.users (id,email) VALUES ('e9000000-0000-0000-0000-000000000001','940001@telegram.propspace.app');
+  INSERT INTO users (id,tg_id,first_name,role) VALUES ('a9000000-0000-0000-0000-000000000001',940001,'ЖертваК','owner');
+  INSERT INTO databases (id,owner_id,name,type,share_token) VALUES
+    ('d9000000-0000-0000-0000-000000000001','a9000000-0000-0000-0000-000000000001','База жертви','business_center','tok_victim9');
+  INSERT INTO properties (id,db_id,owner_id,name,status,share_token) VALUES
+    ('f9000000-0000-0000-0000-000000000001','d9000000-0000-0000-0000-000000000001','a9000000-0000-0000-0000-000000000001','ТАЄМНИЙ ОБʼЄКТ ЖЕРТВИ','for_sale','tok_vprop9');
+  -- Рієлтор `a3000000…` НЕ підписаний на базу жертви, підбірка опублікована.
+  UPDATE collections SET is_draft = false WHERE id='11113000-0000-0000-0000-000000000001';
+
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"email":"930001@telegram.propspace.app"}',true);
+  BEGIN
+    INSERT INTO collection_properties (collection_id, property_id)
+    VALUES ('11113000-0000-0000-0000-000000000001','f9000000-0000-0000-0000-000000000001');
+    RAISE EXCEPTION '056: рієлтор поклав ЧУЖИЙ обʼєкт у свою підбірку';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  RESET ROLE;
+
+  -- Друга половина: рядок, посаджений В ОБХІД політики (як зробила б будь-яка
+  -- майбутня діра або як лежать легасі-рядки), не мусить світитись публічно.
+  INSERT INTO collection_properties (collection_id, property_id)
+  VALUES ('11113000-0000-0000-0000-000000000001','f9000000-0000-0000-0000-000000000001');
+
+  SET LOCAL ROLE anon;
+  PERFORM set_config('request.jwt.claims','',true);
+  SELECT count(*) INTO n FROM get_public_collection_preview('tok_sweep_col')
+   WHERE property_name = 'ТАЄМНИЙ ОБʼЄКТ ЖЕРТВИ';
+  IF n <> 0 THEN
+    RAISE EXCEPTION '056: публічна підбірка світить ЧУЖИЙ обʼєкт (% рядків)', n;
+  END IF;
+  -- Антивакуум: ВЛАСНИЙ обʼєкт підбірки мусить лишатись видимим.
+  SELECT count(*) INTO n FROM get_public_collection_preview('tok_sweep_col')
+   WHERE property_name = 'Свіп-обʼєкт';
+  IF n <> 1 THEN
+    RAISE EXCEPTION '056: фікс приховав і ЗАКОННИЙ обʼєкт підбірки (% рядків)', n;
+  END IF;
+  RESET ROLE;
+
+  RAISE NOTICE '  ✓ 056: чужий обʼєкт не потрапляє й не світиться в публічній підбірці';
+END $$;

@@ -100,6 +100,13 @@ WITH checks(ord, item, migration, ok) AS (VALUES
       EXISTS (SELECT 1 FROM pg_proc WHERE proname='subscribe_to_shared_db'
               AND prosrc LIKE '%ON CONSTRAINT realtor_subscriptions_realtor_id_db_id_key%')),
 
+  (29, 'підбірка не приймає чужий обʼєкт (056)', '056_collection_target_access.sql',
+      EXISTS (SELECT 1 FROM pg_policies WHERE tablename='collection_properties'
+              AND policyname='col_props_realtor_all' AND with_check LIKE '%get_realtor_property_ids%')),
+  (30, 'публічна підбірка не світить чужий обʼєкт (056)', '056_collection_target_access.sql',
+      EXISTS (SELECT 1 FROM pg_proc WHERE proname='get_public_collection_preview'
+              AND prosrc LIKE '%realtor_subscriptions rs%')),
+
   -- Наскрізні інваріанти
   (15, 'RLS увімкнено на всіх 15 таблицях', 'будь-яка пропущена',
       (SELECT count(*)>=15 FROM pg_tables t JOIN pg_class c ON c.relname=t.tablename
