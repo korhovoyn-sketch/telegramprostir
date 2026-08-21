@@ -35,6 +35,26 @@ jobs:
           path: coverage/
           if-no-files-found: ignore
 
+  migrations:
+    name: міграції (справжній Postgres)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # ЧОМУ ЦЕ ОКРЕМА РОБОТА. `supabase/migrations/` була ЄДИНОЮ текою репо
+      # без жодної автоматичної перевірки — і саме там жили два найгірші
+      # дефекти останніх раундів рев'ю: `ORDER BY` по неіснуючій колонці (весь
+      # батч відкотився б, забравши безпековий фікс) і перейменовані ключі
+      # JSON у RPC, чий єдиний споживач читав старі (порожній екран гостя без
+      # жодного сигналу). Юніт-гарди їх не бачать у принципі: вони звіряють
+      # ПІДРЯДКИ, а не виконують SQL.
+      #
+      # Постгрес на раннері вже стоїть (`/usr/lib/postgresql/*/bin`), тож
+      # ставити нічого не треба — досить знайти версію.
+      - name: Знайти Postgres
+        run: echo "PGBIN=$(ls -d /usr/lib/postgresql/*/bin | tail -1)" >> $GITHUB_ENV
+      - name: Накотити всі міграції + поведінкові перевірки
+        run: PGBIN=$PGBIN bash scripts/verify-migrations.sh
+
   e2e:
     name: e2e (Playwright)
     runs-on: ubuntu-latest
