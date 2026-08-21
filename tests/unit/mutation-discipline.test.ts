@@ -172,3 +172,36 @@ describe('доведення, а не лише повернення рядків
       .toEqual([])
   })
 })
+
+/**
+ * `assertAffected(rows, rows.length, …)` — перевірка, що НЕ МОЖЕ ВПАСТИ.
+ *
+ * `assertAffected` порівнює `rows?.length` з `expected`. Якщо `expected`
+ * виведений із тих самих `rows`, вираз зводиться до `got !== got` — тобто
+ * виклик виглядає як доказ, але не доводить нічого.
+ *
+ * Знайдено рев'ю в коміті, ЧИЯ ТЕЗА була «тавтологічна перевірка нічого не
+ * доводить» — тобто клас відтворився в тексті, що його ж і засуджував.
+ * Правильне `expected` завжди приходить із ЗАПИТУ (`1`, `ids.length`), а не з
+ * відповіді.
+ */
+describe('очікувана кількість не виводиться з відповіді', () => {
+  it('жоден assertAffected не порівнює набір сам із собою', () => {
+    const bad: string[] = []
+    for (const file of walk(SRC)) {
+      const src = readFileSync(file, 'utf8')
+      src.split('\n').forEach((line, i) => {
+        const m = line.match(/assertAffected\(\s*([A-Za-z_$][\w$]*)\s*,\s*([^,]+),/)
+        if (!m) return
+        const [, rows, expected] = m
+        // `expected`, що згадує ту саму змінну або будь-який `.length` від
+        // відповіді, — це `got !== got`.
+        if (new RegExp(`\\b${rows}\\b`).test(expected)) {
+          bad.push(`${file.replace(SRC + '/', '')}:${i + 1} — expected виведене з «${rows}»: ${line.trim().slice(0, 80)}`)
+        }
+      })
+    }
+    expect(bad, 'assertAffected із похідним expected не може впасти — це доказ із виду, а не по суті')
+      .toEqual([])
+  })
+})

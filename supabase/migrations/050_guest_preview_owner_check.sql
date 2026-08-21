@@ -17,57 +17,79 @@
 -- жертви. Нові такі рядки вже неможливі (`WITH CHECK` з 046), тож це саме
 -- залишок, а не відкритий вектор.
 CREATE OR REPLACE FUNCTION get_guest_property_preview(p_token TEXT)
-RETURNS JSONB LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
+RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
-  v_link RECORD;
-  v_out  JSONB;
+  v_link   RECORD;
+  v_result JSONB;
 BEGIN
-  SELECT gl.id, gl.property_id, gl.db_id, gl.status, gl.owner_id, gl.label
-  INTO v_link
-  FROM guest_links gl
-  WHERE gl.invite_token = p_token;
+  SELECT id, property_id, db_id, status, owner_id INTO v_link
+    FROM guest_links WHERE invite_token = p_token;
 
   IF NOT FOUND OR v_link.status = 'revoked' THEN
     RETURN NULL;
   END IF;
 
-  -- ЦІЛЬ МУСИТЬ НАЛЕЖАТИ ТОМУ, ХТО ВИДАВ ЛІНК. Той самий предикат, що 046
-  -- додала в `is_guest_of_property`; тут його бракувало.
   IF v_link.property_id IS NOT NULL THEN
     SELECT jsonb_build_object(
-      'kind', 'property',
-      'label', v_link.label,
+      'type',        'property',
+      'status',      v_link.status,
+      'owner_first', u.first_name,
       'property', jsonb_build_object(
-        'id', p.id, 'name', p.name, 'status', p.status, 'floor', p.floor,
-        'area_useful', p.area_useful, 'area_total', p.area_total
-      ),
-      'db', jsonb_build_object('id', d.id, 'name', d.name, 'type', d.type, 'color', d.color)
+        'id',          p.id,
+        'name',        p.name,
+        'status',      p.status,
+        'floor',       p.floor,
+        'area_useful', p.area_useful,
+        'area_total',  p.area_total,
+        'description', p.description,
+        'db_name',     d.name,
+        'db_type',     d.type,
+        'db_color',    d.color
+      )
     )
-    INTO v_out
-    FROM properties p
-    JOIN databases d ON d.id = p.db_id
-    WHERE p.id = v_link.property_id
-      AND d.owner_id = v_link.owner_id;   -- ← перевірка власності цілі
+    INTO v_result
+    FROM guest_links gl
+    JOIN properties p ON p.id = gl.property_id
+    JOIN databases  d ON d.id = p.db_id
+    JOIN users      u ON u.id = gl.owner_id
+    WHERE gl.invite_token = p_token
+      -- ЄДИНА ЗМІНА ПРОТИ 027, і вона вся тут: ціль лінка мусить належати
+      -- тому, хто лінк видав. Рядок із ЧУЖИМ property_id, посаджений до 046,
+      -- інакше й далі віддавав би вміст жертви анонімному викликачу.
+      AND p.owner_id = gl.owner_id;
   ELSE
     SELECT jsonb_build_object(
-      'kind', 'db',
-      'label', v_link.label,
-      'db', jsonb_build_object('id', d.id, 'name', d.name, 'type', d.type, 'color', d.color),
+      'type',        'database',
+      'status',      gl.status,
+      'owner_first', u.first_name,
+      'database', jsonb_build_object(
+        'id',    d.id,
+        'name',  d.name,
+        'type',  d.type,
+        'color', d.color
+      ),
       'properties', COALESCE((
         SELECT jsonb_agg(jsonb_build_object(
-          'id', p.id, 'name', p.name, 'status', p.status, 'floor', p.floor,
-          'area_useful', p.area_useful, 'area_total', p.area_total
+          'id',          p.id,
+          'name',        p.name,
+          'status',      p.status,
+          'floor',       p.floor,
+          'area_useful', p.area_useful,
+          'area_total',  p.area_total
         ) ORDER BY p.sort_order, p.created_at)
-        FROM properties p WHERE p.db_id = d.id
+        FROM properties p
+        WHERE p.db_id = d.id
       ), '[]'::jsonb)
     )
-    INTO v_out
-    FROM databases d
-    WHERE d.id = v_link.db_id
-      AND d.owner_id = v_link.owner_id;   -- ← перевірка власності цілі
+    INTO v_result
+    FROM guest_links gl
+    JOIN databases d ON d.id = gl.db_id
+    JOIN users     u ON u.id = gl.owner_id
+    WHERE gl.invite_token = p_token
+      AND d.owner_id = gl.owner_id;   -- та сама перевірка для лінка на базу
   END IF;
 
-  RETURN v_out;   -- NULL, якщо ціль не належить видавцеві лінка
+  RETURN v_result;
 END;
 $$;
 REVOKE ALL ON FUNCTION get_guest_property_preview(TEXT) FROM PUBLIC;

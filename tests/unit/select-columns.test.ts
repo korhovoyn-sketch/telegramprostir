@@ -24,6 +24,17 @@ import { resolve } from 'node:path'
 const SRC = resolve(process.cwd(), 'src')
 const read = (rel: string) => readFileSync(resolve(SRC, rel), 'utf8')
 
+/** Усі .ts/.tsx під src — спільний обхід для гардів нижче. */
+function walk(dir: string, acc: string[] = []): string[] {
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    const p = resolve(dir, e.name)
+    if (e.isDirectory()) walk(p, acc)
+    else if (/\.tsx?$/.test(e.name)) acc.push(p)
+  }
+  return acc
+}
+
+
 /** Колонки, які `PropertyFormScreen` кладе в payload. */
 function writtenColumns(): string[] {
   const src = read('screens/PropertyFormScreen.tsx')
@@ -56,14 +67,7 @@ describe('SELECT покриває все, що пише форма', () => {
 })
 
 describe('токен шарингу не роздається ширше, ніж треба', () => {
-  function walk(dir: string, acc: string[] = []): string[] {
-    for (const e of readdirSync(dir, { withFileTypes: true })) {
-      const p = resolve(dir, e.name)
-      if (e.isDirectory()) walk(p, acc)
-      else if (/\.tsx?$/.test(e.name)) acc.push(p)
-    }
-    return acc
-  }
+
 
   it("жоден select('*') не читає таблицю з share_token", () => {
     // `share_token` — це ПУБЛІЧНИЙ /v-лінк. Відданий рієлторові чи гостю, він
@@ -129,5 +133,56 @@ describe('порядок фото визначає обкладинку', () => 
     const { withSortedPhotos } = await import('../../src/lib/utils')
     const row = { photos: [{ id: 'x', sort_order: 1 }, { id: 'y', sort_order: null }] }
     expect(withSortedPhotos(row).photos.map((p) => p.id)).toEqual(['y', 'x'])
+  })
+})
+
+/**
+ * СПРАВЖНІЙ ІНВАРІАНТ — не «немає `select('*')`», а «токен не їде НЕ-ВЛАСНИКУ».
+ *
+ * Перевірка вище ловила лише зірочку — і пропустила ЯВНИЙ список колонок, що
+ * називає `share_token` поіменно. Саме так витік до редактора команди пережив
+ * раунд, у якому його «виправили»: те саме читання в `RealtorDashboardScreen`
+ * полагодили, а головне, в `useDatabases`, лишили. Гард звітував зелене про
+ * той самий клас, заради якого писався.
+ *
+ * `share_token` — це публічний /v-лінк. Відданий рієлторові, гостю чи
+ * редакторові, він переживає відписку й відкликання доступу (ротації ніхто не
+ * робить), а SWR-снапшот кладе його ще й у localStorage.
+ */
+describe('share_token не потрапляє до не-власника', () => {
+  it('кожен select із share_token або owner-скоупний, або має маркер', () => {
+    const offenders: string[] = []
+    for (const file of walk(SRC)) {
+      const src = readFileSync(file, 'utf8')
+      const lines = src.split('\n')
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i]
+        if (/^\s*(\/\/|\*|\/\*)/.test(line)) continue
+        if (!/share_token/.test(line)) continue
+        // Тільки рядки-запити: константи-списки колонок перевіряються за
+        // місцем ВЖИВАННЯ, інакше сам `DB_COLUMNS` вважався б порушенням.
+        if (!/\.select\s*\(|DB_COLUMNS\s*=|PROPERTY_COLUMNS\s*=|COLUMNS\s*=/.test(line)) continue
+        if (!/\.select\s*\(/.test(line)) continue
+        // Власник читає СВОЄ — це і є легальний випадок.
+        const ctx = lines.slice(i, Math.min(lines.length, i + 6)).join('\n')
+        if (/\.eq\(\s*['"]owner_id['"]\s*,\s*user/.test(ctx)) continue
+        const near = lines.slice(Math.max(0, i - 4), i + 1).join('\n')
+        if (/idor-ok:/.test(near)) continue
+        offenders.push(`${file.replace(SRC + '/', '')}:${i + 1} — ${line.trim().slice(0, 70)}`)
+      }
+    }
+    expect(offenders, 'share_token у запиті без owner-скоупу і без маркера').toEqual([])
+  })
+
+  it('member-бази читаються БЕЗ токена', () => {
+    // Прицільно на місце, де витік прожив цілий раунд: у `useDatabases`
+    // member-гілка мусить брати окремий список колонок.
+    const src = readFileSync(resolve(SRC, 'hooks/useDatabases.ts'), 'utf8')
+    const memberList = src.match(/const DB_COLUMNS_MEMBER = '([^']+)'/)
+    expect(memberList, 'окремого списку для member-баз немає').toBeTruthy()
+    expect(memberList![1], 'member-список тягне токен власника').not.toContain('share_token')
+
+    const call = src.slice(src.indexOf(".in('id', memberIds)") - 400, src.indexOf(".in('id', memberIds)"))
+    expect(call, 'member-запит бере повний список із токеном').toContain('DB_COLUMNS_MEMBER')
   })
 })

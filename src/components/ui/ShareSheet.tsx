@@ -64,6 +64,8 @@ export default function ShareSheet({ open, kind, id, name, shareText, onClose }:
       try {
         const { data } = await supabase
           .from(KIND_TABLE[kind])
+          // idor-ok: токен і Є предметом цього шита; сам шит відкривається лише
+          // з owner-only маршрутів (аналітика поширення, власні підбірки)
           .select('name,share_token,share_expires_at')
           .eq('id', latchedId)
           .single()

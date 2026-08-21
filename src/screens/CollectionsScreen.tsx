@@ -564,6 +564,8 @@ export default function CollectionsScreen() {
       const { data, error } = await supabase
         .from('collections')
         .insert({ realtor_id: user.id, name, is_draft: true })
+        // idor-ok: рієлтор СТВОРЮЄ власну підбірку (realtor_id = user.id у
+        // самому insert) — токен у відповіді його власний, ним він і ділиться
         .select('id,realtor_id,name,is_draft,share_token,share_expires_at,created_at,updated_at')
         .single()
       if (error) throw error

@@ -237,7 +237,10 @@ export default function PaymentCalendarScreen() {
       const { data, error } = await supabase
         .from('rent_payments').delete().eq('property_id', prop.id).select('id')
       if (error) throw error
-      assertAffected(data, data?.length ?? 0, 'видалення розкладу')
+      // ОЧІКУВАНЕ береться з ЗАПИТУ, а не з відповіді. `data?.length` тут
+      // означало б `got !== got` — перевірка, що не може впасти НІКОЛИ. Один
+      // рядок гарантує `UNIQUE(property_id)` у 021.
+      assertAffected(data, 1, 'видалення розкладу')
       setSchedules(prev => prev.filter(s => s.property_id !== prop.id))
       showToast({ type: 'success', title: 'Розклад видалено' })
     } catch (e) {

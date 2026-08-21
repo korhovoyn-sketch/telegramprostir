@@ -19,13 +19,25 @@
 --                 Це вже не втрата даних, а порушення обіцянки про стирання
 --                 (Політика конфіденційності §5).
 --
--- Тому прибирання переїжджає ВСЕРЕДИНУ функції: `SECURITY DEFINER` обходить
--- RLS на `storage.objects`, а порядок гарантований транзакцією — або зникає
--- все, або не зникає нічого. Клієнту лишається один виклик без порядку.
+-- Тому прибирання переїжджає ВСЕРЕДИНУ функції, у ту саму транзакцію: або
+-- зникає все, або не зникає нічого. Клієнту лишається один виклик без порядку.
 --
--- Видалення рядка `storage.objects` робить публічний URL недосяжним (резолв
--- шляху йде через цю ж таблицю); залишковий обʼєкт у S3 прибирає штатний
--- збирач осиротілих.
+-- ДВІ ТОЧНОСТІ, ЯКІ ТУТ ВАЖЛИВІ (перше формулювання було хибним):
+--
+--   1. `SECURITY DEFINER` НЕ обходить RLS. Він лише міняє ефективну роль;
+--      політики далі діють, якщо роль не володіє таблицею і не має BYPASSRLS.
+--      `storage.objects` належить `supabase_storage_admin`, а обидві delete-
+--      політики (038, 023) видані `TO authenticated` — тобто до `postgres`
+--      вони не застосовуються взагалі. Працює це тому, що в Supabase
+--      `postgres` має `rolbypassrls`. Це ЗОВНІШНЯ залежність, і саме тому
+--      нижче стоїть перевірка кількості: якщо припущення колись зміниться,
+--      функція мусить СКАЗАТИ про це, а не тихо лишити файли.
+--
+--   2. Видалення рядка `storage.objects` робить публічний URL недосяжним
+--      (резолв шляху йде через цю ж таблицю). Байти в S3 при цьому
+--      ЛИШАЮТЬСЯ — штатного збирача осиротілих у Supabase Storage немає.
+--      Через API вони недосяжні без рядка, тож живим лінком це не є, але
+--      стверджувати «прибере збирач» було вигадкою.
 
 DO $$
 DECLARE r RECORD;
@@ -44,8 +56,12 @@ CREATE FUNCTION delete_my_account()
 RETURNS TABLE (deleted BOOLEAN, error TEXT)
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
-  v_uid      UUID;
-  v_auth_uid UUID;
+  v_uid         UUID;
+  v_auth_uid    UUID;
+  v_want_photos BIGINT := 0;
+  v_want_files  BIGINT := 0;
+  v_got_photos  BIGINT := 0;
+  v_got_files   BIGINT := 0;
 BEGIN
   v_uid := current_app_user_id();
   IF v_uid IS NULL THEN
@@ -55,24 +71,44 @@ BEGIN
   -- ── Файли — ПЕРШИМИ, поки власність ще резолвиться ────────────────────────
   -- Після `DELETE FROM users` жоден із цих підзапитів не поверне нічого, тож
   -- порядок тут не стилістичний, а єдиний можливий.
+  -- Скільки файлів МАЄ зникнути — рахуємо ДО видалення.
+  SELECT count(*) INTO v_want_photos
+    FROM property_photos ph JOIN properties p ON p.id = ph.property_id
+   WHERE p.owner_id = v_uid;
+  SELECT count(*) INTO v_want_files
+    FROM property_files f JOIN properties p ON p.id = f.property_id
+   WHERE p.owner_id = v_uid;
+
   BEGIN
     DELETE FROM storage.objects
      WHERE bucket_id = 'photos'
        AND SPLIT_PART(name, '/', 1) IN (
          SELECT p.id::TEXT FROM properties p WHERE p.owner_id = v_uid
        );
+    GET DIAGNOSTICS v_got_photos = ROW_COUNT;
 
     DELETE FROM storage.objects
      WHERE bucket_id = 'property-files'
        AND SPLIT_PART(name, '/', 1) IN (
          SELECT p.id::TEXT FROM properties p WHERE p.owner_id = v_uid
        );
-  EXCEPTION WHEN undefined_table OR insufficient_privilege THEN
-    -- Бакета/прав немає — акаунт усе одно мусить піти. Осиротілий файл не є
-    -- витоком у сенсі правила 9 (політики читання привʼязані до рядків, яких
-    -- уже не буде), а от НЕвидалений акаунт — реальна проблема користувача.
-    NULL;
+    GET DIAGNOSTICS v_got_files = ROW_COUNT;
+  EXCEPTION WHEN undefined_table THEN
+    -- Бакета немає взагалі (свіжа БД без storage) — лічильники лишаються 0,
+    -- і перевірка нижче пропустить, бо чекати теж нема чого.
+    v_got_photos := v_want_photos;
+    v_got_files  := v_want_files;
   END;
+
+  -- ДОВЕСТИ, а не припустити. Відмова RLS не є помилкою: DELETE просто
+  -- зачепить нуль рядків і поверне успіх. Без цієї перевірки функція
+  -- рапортувала б `deleted = true`, лишивши фото в ПУБЛІЧНОМУ бакеті — рівно
+  -- те порушення обіцянки про стирання, заради якого міграція й пишеться.
+  -- Акаунт при цьому НЕ видаляється: стан «є акаунт і є файли» оборотний,
+  -- «немає акаунта, є файли» — ні.
+  IF v_got_photos < v_want_photos OR v_got_files < v_want_files THEN
+    RETURN QUERY SELECT FALSE, 'storage_not_cleared'::TEXT; RETURN;
+  END IF;
 
   -- Знеособити перегляди: NO ACTION FK інакше заблокує видалення.
   UPDATE property_views SET viewer_id = NULL WHERE viewer_id = v_uid;
@@ -118,6 +154,11 @@ NOTIFY pgrst, 'reload schema';
 SELECT p.proname,
        p.prosecdef                                   AS security_definer,
        has_function_privilege('authenticated', p.oid, 'EXECUTE') AS authed_can_call,
-       has_function_privilege('anon', p.oid, 'EXECUTE')          AS anon_can_call
+       has_function_privilege('anon', p.oid, 'EXECUTE')          AS anon_can_call,
+       -- Припущення, на якому тримається стирання файлів (див. шапку §1).
+       -- Якщо `owner_bypasses_rls` = false, функція не зможе чистити storage —
+       -- і тепер СКАЖЕ про це через `storage_not_cleared`, а не змовчить.
+       (SELECT r.rolbypassrls FROM pg_roles r WHERE r.rolname = pg_get_userbyid(p.proowner))
+         AS owner_bypasses_rls
   FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
  WHERE n.nspname = 'public' AND p.proname = 'delete_my_account';

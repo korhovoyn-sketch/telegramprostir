@@ -33,6 +33,9 @@ export default function RealtorDatabaseScreen() {
     setError(false)
     try {
       const [dbRes, propsRes] = await Promise.all([
+        // idor-ok: рієлтор ПІДПИСАНИЙ на цю базу і ділиться нею далі — токен
+        // потрібен саме тут (кнопка «Поділитись» нижче в цьому ж екрані).
+        // Це свідоме рішення про рієлтора, НЕ про редактора команди.
         supabase.from('databases').select('id,owner_id,name,address,type,color,share_token,share_expires_at,created_at,updated_at').eq('id', screenParams.dbId).single(),
         supabase.from('properties').select(PROPERTY_WITH_PHOTOS).eq('db_id', screenParams.dbId).order('created_at', { ascending: false }),
       ])
