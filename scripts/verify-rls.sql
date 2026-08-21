@@ -343,3 +343,55 @@ BEGIN
 
   RAISE NOTICE '  ✓ каскад: видалення бази не лишає сиріт у жодній із 10 залежних таблиць';
 END $$;
+
+DO $$
+DECLARE r RECORD; v JSONB; n INT;
+BEGIN
+  -- ── 11. Відкликання СПРАВДІ відкликає ───────────────────────────────────
+  -- Клас «дія скасовує ефект безпекової операції» цей проєкт уже ловив
+  -- (revoke ставив expiry, а токен лишався, тож будь-який set_expiry оживляв
+  -- мертвий лінк). Тут перевіряються ДВА входи, які досі не виконувались
+  -- жодного разу, і ОБИДВА — парою з позитивом: «not_found» однаково
+  -- пояснюється і правильною відмовою, і зламаною функцією.
+  INSERT INTO auth.users (id,email) VALUES
+    ('e2000000-0000-0000-0000-000000000001','920001@telegram.propspace.app'),
+    ('e2000000-0000-0000-0000-000000000002','920002@telegram.propspace.app');
+  INSERT INTO users (id,tg_id,first_name,role) VALUES
+    ('a2000000-0000-0000-0000-000000000001',920001,'Власник2','owner'),
+    ('a2000000-0000-0000-0000-000000000002',920002,'Рієлтор2','realtor');
+  INSERT INTO databases (id,owner_id,name,type,share_token,share_expires_at) VALUES
+    ('d2000000-0000-0000-0000-000000000001','a2000000-0000-0000-0000-000000000001','Протермінована','business_center','tok_expired', now() - INTERVAL '1 day'),
+    ('d2000000-0000-0000-0000-000000000002','a2000000-0000-0000-0000-000000000001','Жива','business_center','tok_alive', NULL);
+  INSERT INTO guest_links (id,owner_id,db_id,invite_token,label,status) VALUES
+    ('c2000000-0000-0000-0000-000000000001','a2000000-0000-0000-0000-000000000001','d2000000-0000-0000-0000-000000000002','tok_revoked_guest','Гість','revoked');
+
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"email":"920002@telegram.propspace.app"}',true);
+
+  -- ПОЗИТИВ: живий токен мусить працювати, інакше негатив нижче вакуумний.
+  SELECT * INTO r FROM subscribe_to_shared_db('tok_alive');
+  IF r.error IS NOT NULL THEN
+    RAISE EXCEPTION 'підписка: ЖИВИЙ токен відмовив (%) — негативна перевірка була б вакуумною', r.error;
+  END IF;
+
+  -- НЕГАТИВ: протермінований не пускає і не створює підписки.
+  SELECT * INTO r FROM subscribe_to_shared_db('tok_expired');
+  IF r.error IS DISTINCT FROM 'not_found' THEN
+    RAISE EXCEPTION 'підписка: ПРОТЕРМІНОВАНИЙ токен віддав % замість not_found', COALESCE(r.error,'NULL');
+  END IF;
+  SELECT count(*) INTO n FROM realtor_subscriptions rs WHERE rs.db_id='d2000000-0000-0000-0000-000000000001';
+  IF n <> 0 THEN RAISE EXCEPTION 'підписка: створена по ПРОТЕРМІНОВАНОМУ токену'; END IF;
+
+  -- Відкликаний гостьовий лінк не клеймиться і не воскресає.
+  v := claim_guest_link('tok_revoked_guest');
+  IF v->>'error' IS DISTINCT FROM 'revoked' THEN
+    RAISE EXCEPTION 'гість: ВІДКЛИКАНИЙ лінк віддав % замість revoked', COALESCE(v->>'error','NULL');
+  END IF;
+  RESET ROLE;
+
+  IF (SELECT gl.status FROM guest_links gl WHERE gl.id='c2000000-0000-0000-0000-000000000001') <> 'revoked' THEN
+    RAISE EXCEPTION 'гість: спроба клейму ОЖИВИЛА відкликаний лінк';
+  END IF;
+
+  RAISE NOTICE '  ✓ відкликання: протермінований шер і revoked-лінк не пускають, живий — пускає';
+END $$;

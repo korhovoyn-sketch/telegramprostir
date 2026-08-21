@@ -96,6 +96,10 @@ WITH checks(ord, item, migration, ok) AS (VALUES
       EXISTS (SELECT 1 FROM pg_proc WHERE proname='get_due_reminders_today'
               AND prosrc LIKE '%rp.owner_id = p.owner_id%')),
 
+  (28, 'subscribe_to_shared_db не падає на успішній гілці (ON CONFLICT)', '055_fix_subscribe_ambiguous_db_id.sql',
+      EXISTS (SELECT 1 FROM pg_proc WHERE proname='subscribe_to_shared_db'
+              AND prosrc LIKE '%ON CONSTRAINT realtor_subscriptions_realtor_id_db_id_key%')),
+
   -- Наскрізні інваріанти
   (15, 'RLS увімкнено на всіх 15 таблицях', 'будь-яка пропущена',
       (SELECT count(*)>=15 FROM pg_tables t JOIN pg_class c ON c.relname=t.tablename
