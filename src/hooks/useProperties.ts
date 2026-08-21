@@ -279,7 +279,13 @@ export function useProperties(dbId?: string) {
           .select(PROPERTY_WITH_PHOTOS)
           .single()
         if (error) throw error
-        const updated = one<Property>(data)
+        // Сортування ОБОВʼЯЗКОВЕ і тут: цей — оптимістичний — шлях досягається
+        // зі «Здати в оренду», «Звільнити обʼєкт» і undo, тобто зі звичайного
+        // перемикання статусу. Без нього несортований масив їде прямо в стор і
+        // у SWR-снапшот, а `photos[0]` на героєві обʼєкта — це обкладинка:
+        // перемикання статусу мовчки міняло б її. Сусідній рядок нижче фікс
+        // отримав, цей — ні; клас закриває гард `photo-order.test.ts`.
+        const updated = withSortedPhotos(one<Property>(data))
         setProperties((prev) => prev.map((p) => (
           p.id === id ? ({ ...updated, _view_count: (p as Property & { _view_count?: number })._view_count } as Property) : p
         )))

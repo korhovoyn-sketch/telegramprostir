@@ -71,15 +71,27 @@ BEGIN
   -- ── Файли — ПЕРШИМИ, поки власність ще резолвиться ────────────────────────
   -- Після `DELETE FROM users` жоден із цих підзапитів не поверне нічого, тож
   -- порядок тут не стилістичний, а єдиний можливий.
-  -- Скільки файлів МАЄ зникнути — рахуємо ДО видалення.
-  SELECT count(*) INTO v_want_photos
-    FROM property_photos ph JOIN properties p ON p.id = ph.property_id
-   WHERE p.owner_id = v_uid;
-  SELECT count(*) INTO v_want_files
-    FROM property_files f JOIN properties p ON p.id = f.property_id
-   WHERE p.owner_id = v_uid;
-
   BEGIN
+    -- Скільки обʼєктів ЛЕЖИТЬ У STORAGE — рахуємо там же, а НЕ по
+    -- `property_photos`. Різниця принципова: рядок БД і файл у бакеті законно
+    -- розходяться (файл прибрали раніше, аплоуд не дописав рядок, осиротілий
+    -- залишок давнього бага). Порівняння з `property_photos` означало б, що
+    -- ОДНЕ таке розходження робить акаунт НЕВИДАЛЬНИМ НАЗАВЖДИ — відмова в
+    -- праві на стирання, гірша за ту, яку перевірка мала спіймати.
+    --
+    -- Питання, на яке ми відповідаємо, інше: чи DELETE зачепив усе, що БАЧИВ.
+    -- Саме це й ловить відмову RLS, заради якої перевірка існує.
+    SELECT count(*) INTO v_want_photos FROM storage.objects
+     WHERE bucket_id = 'photos'
+       AND SPLIT_PART(name, '/', 1) IN (
+         SELECT p.id::TEXT FROM properties p WHERE p.owner_id = v_uid
+       );
+    SELECT count(*) INTO v_want_files FROM storage.objects
+     WHERE bucket_id = 'property-files'
+       AND SPLIT_PART(name, '/', 1) IN (
+         SELECT p.id::TEXT FROM properties p WHERE p.owner_id = v_uid
+       );
+
     DELETE FROM storage.objects
      WHERE bucket_id = 'photos'
        AND SPLIT_PART(name, '/', 1) IN (
@@ -94,10 +106,10 @@ BEGIN
        );
     GET DIAGNOSTICS v_got_files = ROW_COUNT;
   EXCEPTION WHEN undefined_table THEN
-    -- Бакета немає взагалі (свіжа БД без storage) — лічильники лишаються 0,
-    -- і перевірка нижче пропустить, бо чекати теж нема чого.
-    v_got_photos := v_want_photos;
-    v_got_files  := v_want_files;
+    -- Схеми storage немає взагалі (свіжа БД) — чекати нема чого, тож
+    -- зрівнюємо лічильники, щоб перевірка нижче пропустила.
+    v_want_photos := 0; v_got_photos := 0;
+    v_want_files  := 0; v_got_files  := 0;
   END;
 
   -- ДОВЕСТИ, а не припустити. Відмова RLS не є помилкою: DELETE просто

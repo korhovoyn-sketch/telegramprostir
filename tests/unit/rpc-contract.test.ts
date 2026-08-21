@@ -105,6 +105,27 @@ describe('get_guest_property_preview: форма JSON збігається з т
       'гілка бази мусить нести `database` і `properties`').toBe('database+properties')
   })
 
+  it('ВКЛАДЕНІ ключі теж збігаються — екран читає саме їх', () => {
+    // Верхній рівень — half of the contract. Екран дістає `p.db_color`,
+    // `d.type` тощо ВСЕРЕДИНІ `property`/`database`; зникнення такого ключа
+    // так само дає порожнє місце в UI без жодного сигналу, а гард на
+    // верхньому рівні цього не бачить у принципі.
+    const nested = new Set<string>()
+    for (const m of screen.matchAll(/\b[pd]\??\.([a-z_]+)/g)) nested.add(m[1])
+    // Поля з інших змінних того ж імені (публічне превʼю) сюди не належать.
+    const OTHER_SCOPE = /^property_/
+    const want = [...nested].filter((k) => !OTHER_SCOPE.test(k))
+
+    // Усі ключі, які функція кладе будь-де всередині вкладених обʼєктів.
+    const have = new Set<string>()
+    for (const m of body.matchAll(/'([a-z_]+)'\s*,\s*[a-z]\./g)) have.add(m[1])
+
+    const missing = want.filter((k) => !have.has(k))
+    expect(missing,
+      `екран читає вкладені ключі, яких функція не віддає: ${[...have].join(',')}`)
+      .toEqual([])
+  })
+
   it('вибірка не порожня — інакше гард вакуумний', () => {
     expect(read.size, 'екран нічого не читає з guestPreview: регекс застарів').toBeGreaterThan(3)
     for (const keys of branchKeys(body)) {

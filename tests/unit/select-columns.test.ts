@@ -186,3 +186,36 @@ describe('share_token не потрапляє до не-власника', () =>
     expect(call, 'member-запит бере повний список із токеном').toContain('DB_COLUMNS_MEMBER')
   })
 })
+
+/**
+ * ОБКЛАДИНКА — ЦЕ `photos[0]`, ТОБТО ПОРЯДОК МАСИВУ.
+ *
+ * PostgREST не гарантує порядок вбудованого відношення, тож кожен шлях, що
+ * кладе рядок обʼєкта у стор, мусить пройти його через `withSortedPhotos`.
+ * Пропущений шлях не падає й не помітний у тестах — просто на героєві колись
+ * зʼявляється інше фото.
+ *
+ * Знайдено рев'ю: оптимістична гілка `updateProperty` лишилась без сортування,
+ * хоч сусідня (8 рядків нижче) його отримала. Досяжна вона зі «Здати в
+ * оренду» / «Звільнити обʼєкт» / undo — тобто зі звичайного перемикання
+ * статусу.
+ */
+describe('порядок фото на кожному шляху в стор', () => {
+  it('кожен `one<Property>(data)` загорнутий у withSortedPhotos', () => {
+    const src = readFileSync(resolve(SRC, 'hooks/useProperties.ts'), 'utf8')
+    const bare: string[] = []
+    src.split('\n').forEach((line, i) => {
+      if (!/one<Property>\(data\)/.test(line)) return
+      if (/withSortedPhotos\(\s*one<Property>\(data\)\s*\)/.test(line)) return
+      bare.push(`hooks/useProperties.ts:${i + 1} — ${line.trim().slice(0, 70)}`)
+    })
+    expect(bare, 'рядок обʼєкта їде у стор із несортованими фото — обкладинка попливе')
+      .toEqual([])
+  })
+
+  it('вибірка не порожня — інакше гард вакуумний', () => {
+    const src = readFileSync(resolve(SRC, 'hooks/useProperties.ts'), 'utf8')
+    expect((src.match(/one<Property>\(data\)/g) ?? []).length,
+      'жодного входження не знайдено: назва хелпера змінилась').toBeGreaterThan(1)
+  })
+})
