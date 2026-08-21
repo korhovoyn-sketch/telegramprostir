@@ -287,3 +287,59 @@ BEGIN
 
   RAISE NOTICE '  ✓ storage: своє видаляється лише по sub-клейму, чуже — ні (054)';
 END $$;
+
+DO $$
+DECLARE bad TEXT;
+BEGIN
+  -- ── 10. Каскадне видалення бази не лишає сиріт ──────────────────────────
+  -- OWASP-таблиця в CLAUDE.md стверджує «Cascade deletes tested» (A08) — але
+  -- жоден тест цього не виконував: e2e ганяються проти мока, де FK не існує.
+  -- Тут перевіряється РЕЗУЛЬТАТ по всіх десяти залежних таблицях одразу.
+  --
+  -- Дві НЕ-каскадні звʼязки лишаються свідомо і перевіряються окремо:
+  -- `guest_links.guest_user_id` (SET NULL — лінк переживає видалення гостя) і
+  -- `property_views.viewer_id` (NO ACTION — саме тому `delete_my_account`
+  -- знеособлює його ПЕРЕД видаленням, інакше одна переглядова позначка
+  -- блокувала б видалення акаунта).
+  INSERT INTO auth.users (id,email) VALUES ('e1000000-0000-0000-0000-000000000001','910001@telegram.propspace.app');
+  INSERT INTO users (id,tg_id,first_name,role) VALUES ('a1000000-0000-0000-0000-000000000001',910001,'Каскад','owner');
+  INSERT INTO databases (id,owner_id,name,type) VALUES ('d1000000-0000-0000-0000-000000000001','a1000000-0000-0000-0000-000000000001','Каскадна','business_center');
+  INSERT INTO property_folders (id,db_id,owner_id,name) VALUES ('90000000-0000-0000-0000-000000000001','d1000000-0000-0000-0000-000000000001','a1000000-0000-0000-0000-000000000001','Папка');
+  INSERT INTO properties (id,db_id,owner_id,name,status,folder_id) VALUES ('f1000000-0000-0000-0000-000000000001','d1000000-0000-0000-0000-000000000001','a1000000-0000-0000-0000-000000000001','Обʼєкт','occupied','90000000-0000-0000-0000-000000000001');
+  INSERT INTO property_photos (property_id,storage_path,sort_order) VALUES ('f1000000-0000-0000-0000-000000000001','f1000000-0000-0000-0000-000000000001/a.jpg',0);
+  INSERT INTO property_files (property_id,owner_id,file_name,storage_path,mime_type,file_size) VALUES ('f1000000-0000-0000-0000-000000000001','a1000000-0000-0000-0000-000000000001','d.pdf','f1000000-0000-0000-0000-000000000001/d.pdf','application/pdf',10);
+  INSERT INTO rent_payments (property_id,owner_id,due_day,notify_days_before,is_active) VALUES ('f1000000-0000-0000-0000-000000000001','a1000000-0000-0000-0000-000000000001',5,3,true);
+  INSERT INTO rent_payment_records (property_id,owner_id,due_date,status) VALUES ('f1000000-0000-0000-0000-000000000001','a1000000-0000-0000-0000-000000000001',current_date,'pending');
+  -- `property_views_one_target`: рівно ОДНА ціль на рядок, тож лише property_id.
+  INSERT INTO property_views (property_id) VALUES ('f1000000-0000-0000-0000-000000000001');
+  INSERT INTO guest_links (owner_id,property_id,label) VALUES ('a1000000-0000-0000-0000-000000000001','f1000000-0000-0000-0000-000000000001','Гість');
+  INSERT INTO db_members (db_id,label) VALUES ('d1000000-0000-0000-0000-000000000001','Редактор');
+  INSERT INTO realtor_subscriptions (realtor_id,db_id) VALUES ('a1000000-0000-0000-0000-000000000001','d1000000-0000-0000-0000-000000000001');
+
+  -- Антивакуум: дані мусять реально ІСНУВАТИ до видалення, інакше «сиріт
+  -- немає» означало б «нічого й не було».
+  IF (SELECT count(*) FROM property_views WHERE property_id='f1000000-0000-0000-0000-000000000001') <> 1 THEN
+    RAISE EXCEPTION 'каскад: фікстура не посіялась — перевірка була б вакуумною';
+  END IF;
+
+  DELETE FROM databases WHERE id='d1000000-0000-0000-0000-000000000001';
+
+  SELECT string_agg(t||'='||c, ', ') INTO bad FROM (
+    SELECT 'properties' t, count(*) c FROM properties WHERE db_id='d1000000-0000-0000-0000-000000000001'
+    UNION ALL SELECT 'photos', count(*) FROM property_photos WHERE property_id='f1000000-0000-0000-0000-000000000001'
+    UNION ALL SELECT 'files', count(*) FROM property_files WHERE property_id='f1000000-0000-0000-0000-000000000001'
+    UNION ALL SELECT 'rent_payments', count(*) FROM rent_payments WHERE property_id='f1000000-0000-0000-0000-000000000001'
+    UNION ALL SELECT 'rent_records', count(*) FROM rent_payment_records WHERE property_id='f1000000-0000-0000-0000-000000000001'
+    UNION ALL SELECT 'views', count(*) FROM property_views WHERE property_id='f1000000-0000-0000-0000-000000000001'
+    UNION ALL SELECT 'guest_links', count(*) FROM guest_links WHERE property_id='f1000000-0000-0000-0000-000000000001'
+    UNION ALL SELECT 'db_members', count(*) FROM db_members WHERE db_id='d1000000-0000-0000-0000-000000000001'
+    UNION ALL SELECT 'subs', count(*) FROM realtor_subscriptions WHERE db_id='d1000000-0000-0000-0000-000000000001'
+    UNION ALL SELECT 'folders', count(*) FROM property_folders WHERE db_id='d1000000-0000-0000-0000-000000000001'
+  ) s WHERE c > 0;
+
+  IF bad IS NOT NULL THEN
+    RAISE EXCEPTION 'каскад: після видалення бази лишились сироти — %', bad;
+  END IF;
+
+  RAISE NOTICE '  ✓ каскад: видалення бази не лишає сиріт у жодній із 10 залежних таблиць';
+END $$;
