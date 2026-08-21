@@ -89,7 +89,12 @@ export function useNotifications() {
     loadTicket++
     setNotifications(snapshot.filter((n) => n.id !== id))
     try {
-      // rls-ok: сповіщення — похідні дані; рядок відновлюється наступним прогоном send-reminders, втрати даних немає
+      // ПОПЕРЕДНЯ причина тут була ХИБНА: писалось, що рядок «відновиться
+      // наступним прогоном send-reminders». Не відновиться —
+      // `get_due_reminders_today` має дедуп `NOT EXISTS … DATE_TRUNC('month')`,
+      // тобто цього місяця його вже не створять. Наслідок від цього не
+      // страшніший, але причина мусить описувати те, що справді стається.
+      // rls-ok: похідні дані; мовчазна відмова лише поверне рядок при наступному завантаженні списку, джерело (розклад) недоторкане
       const { error } = await supabase.from('notifications').delete().eq('id', id)
       if (error) throw error
     } catch (e) {

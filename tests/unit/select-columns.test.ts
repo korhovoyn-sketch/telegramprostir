@@ -64,6 +64,42 @@ describe('SELECT покриває все, що пише форма', () => {
       'форма ПИШЕ ці колонки, але READ-select їх не тягне: редагування зітре їх у null')
       .toEqual([])
   })
+
+  /**
+   * ДРУГИЙ, НЕЗАЛЕЖНИЙ список колонок `properties` живе в `ExportScreen` —
+   * гард вище його не бачив, бо читає лише `hooks/useProperties.ts`. Тобто два
+   * списки могли розходитись вільно, а це рівно той клас, заради якого гард і
+   * писався.
+   *
+   * Тут інша ціна помилки, ніж у формі: не «редагування зітре в null», а
+   * «поле в документі порожнє», причому мовчки — власник надсилає файл
+   * клієнту, не знаючи, що там дірка. Тому питання те саме: чи кожна колонка,
+   * яку експорт ЧИТАЄ, є в його ВЛАСНІЙ вибірці.
+   */
+  it('кожна колонка, яку читає ExportScreen, є в його власному select', () => {
+    const src = read('screens/ExportScreen.tsx')
+
+    const sel = src.slice(src.indexOf(".select('id,db_id,owner_id,name,floor"))
+    const selected = sel.slice(sel.indexOf("'") + 1, sel.indexOf("')"))
+      .replace(/photos:property_photos\([^)]*\)/, 'photos')
+      .split(',').map((c) => c.trim()).filter(Boolean)
+
+    // Читання виду `p.<колонка>` у тілі документа. Похідні/обчислені поля не
+    // є колонками й перелічені явно — інакше гард сварився б на власні
+    // проміжні значення.
+    const DERIVED = new Set(['photos', 'id', 'rent', 'utils', 'total', 'length', 'map', 'filter'])
+    const readCols = new Set<string>()
+    for (const m of src.matchAll(/\bp\.([a-z][a-z0-9_]*)\b/g)) {
+      const col = m[1]
+      if (!col.includes('_') && !selected.includes(col)) continue // p.name, p.status — теж колонки
+      if (!DERIVED.has(col)) readCols.add(col)
+    }
+
+    const missing = [...readCols].filter((c) => !selected.includes(c))
+    expect(missing,
+      'ExportScreen ЧИТАЄ ці колонки, але свій select їх не тягне — у документі буде порожньо')
+      .toEqual([])
+  })
 })
 
 describe('токен шарингу не роздається ширше, ніж треба', () => {

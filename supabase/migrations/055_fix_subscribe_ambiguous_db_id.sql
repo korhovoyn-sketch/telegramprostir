@@ -42,6 +42,21 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
+-- РОЗВʼЯЗУЄ неоднозначність в КОРЕНІ: у межах цієї функції ідентифікатор, що
+-- збігається і з колонкою, і зі змінною, читається як КОЛОНКА. Саме цього
+-- бракувало `ON CONFLICT (realtor_id, db_id)`.
+--
+-- Альтернатива — `ON CONFLICT ON CONSTRAINT <імʼя>` — була в першій редакції і
+-- ВІДКИНУТА: вона прив'язує міграцію до автозгенерованого імені з каталогу.
+-- Якщо його колись не виявиться (інша історія створення таблиці), запит упаде
+-- з `constraint … does not exist` — на ПАРСІ, тобто рівно тим самим класом
+-- відмови «лише на успішній гілці», який ця міграція й лікує. Прагма імені не
+-- потребує.
+--
+-- Перевірено, що вона не зачіпає решту тіла: єдиний ідентифікатор, який тут
+-- колідує, — `db_id`, і всюди інде він уже кваліфікований (`v_db.id`, `d.id`,
+-- `rs.db_id`), а OUT-параметри повертаються через явний `RETURN QUERY SELECT`.
+#variable_conflict use_column
 DECLARE
   v_uid UUID;
   v_db  RECORD;
@@ -63,11 +78,9 @@ BEGIN
     RETURN QUERY SELECT v_db.id, v_db.name::TEXT, 'own_db'::TEXT; RETURN;
   END IF;
 
-  -- Ціль конфлікту — ІМʼЯ обмеження: перелік колонок тут неоднозначний через
-  -- OUT-параметр `db_id` (див. шапку файлу).
   INSERT INTO realtor_subscriptions (realtor_id, db_id)
   VALUES (v_uid, v_db.id)
-  ON CONFLICT ON CONSTRAINT realtor_subscriptions_realtor_id_db_id_key DO NOTHING;
+  ON CONFLICT (realtor_id, db_id) DO NOTHING;
 
   -- Той, кому передали базу, діє як рієлтор. Користувач із дефолтною роллю
   -- 'owner', який жодної власної бази не створював, — саме такий випадок;

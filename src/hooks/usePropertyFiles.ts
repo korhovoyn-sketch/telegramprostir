@@ -209,8 +209,19 @@ export function usePropertyFiles(propertyId: string | undefined) {
       onError(humanizeDbError(e))
       return
     }
-    await supabase.storage.from(BUCKET).remove([storagePath]).catch(() => {})
     setFiles(prev => prev.filter(f => f.id !== fileId))
+
+    // Той самий контракт, що в `useProperties.deletePhoto`: перевіряємо
+    // ДОВЖИНУ, бо схований політикою обʼєкт приходить порожнім масивом без
+    // помилки. Раніше тут стояв `.catch(() => {})` — два сусідні шляхи з
+    // однаковою семантикою поводились протилежно, і жоден не доводив, що файл
+    // зник. Бакет `property-files` ПРИВАТНИЙ, тож осиротілий файл не читається
+    // ззовні — звідси м'якший тон, ніж у фото, але мовчати однаково не можна.
+    const { data: removed, error: rmErr } = await supabase.storage
+      .from(BUCKET).remove([storagePath])
+    if (rmErr || (removed?.length ?? 0) !== 1) {
+      onError('Документ прибрано зі списку, але файл лишився у сховищі')
+    }
   }, [])
 
   const getSignedUrl = useCallback(async (storagePath: string): Promise<string | null> => {

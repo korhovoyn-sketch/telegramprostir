@@ -96,9 +96,12 @@ WITH checks(ord, item, migration, ok) AS (VALUES
       EXISTS (SELECT 1 FROM pg_proc WHERE proname='get_due_reminders_today'
               AND prosrc LIKE '%rp.owner_id = p.owner_id%')),
 
+  -- Підрядок — свідома МЕЖА цього файлу, не недогляд: у Dashboard не можна
+  -- виконати успішну гілку, не створивши справжньої підписки. Доказ виконанням
+  -- дає CI (`verify-rls.sql`, блок «відкликання», позитивний контроль).
   (28, 'subscribe_to_shared_db не падає на успішній гілці (ON CONFLICT)', '055_fix_subscribe_ambiguous_db_id.sql',
       EXISTS (SELECT 1 FROM pg_proc WHERE proname='subscribe_to_shared_db'
-              AND prosrc LIKE '%ON CONSTRAINT realtor_subscriptions_realtor_id_db_id_key%')),
+              AND prosrc LIKE '%variable_conflict use_column%')),
 
   (29, 'підбірка не приймає чужий обʼєкт (056)', '056_collection_target_access.sql',
       EXISTS (SELECT 1 FROM pg_policies WHERE tablename='collection_properties'

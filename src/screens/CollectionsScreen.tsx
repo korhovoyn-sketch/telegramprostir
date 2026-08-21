@@ -238,12 +238,18 @@ function CollectionDetail({
       return
     }
     if (!isOnline && collection.is_draft) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
-    // Mark as active (not draft) when sharing
+    // Mark as active (not draft) when sharing.
+    //
+    // Тут раніше стояла причина «невдача видно одразу при наступному відкритті
+    // списку» — вона описувала НЕ ТОЙ наслідок. Якщо UPDATE мовчки не пройде,
+    // шит шарингу відкриється однаково, і користувач роздасть лінк, який
+    // `get_public_collection_preview` відфільтрує по `is_draft = false`, тобто
+    // одержувач побачить порожньо. Дізнається про це власник не «при
+    // наступному відкритті», а від скарги того, кому надіслав.
     if (collection.is_draft) {
       try {
         const { error } = await supabase
-          // rls-ok: зняття чернетки — прапорець на власному рядку рієлтора;
-          // невдача видно одразу при наступному відкритті списку підбірок
+          // rls-ok: прапорець на ВЛАСНОМУ рядку рієлтора (realtor_id = я), тож відмова політики означала б, що зламано саму col_realtor_all
           .from('collections')
           .update({ is_draft: false, updated_at: new Date().toISOString() })
           .eq('id', collection.id)

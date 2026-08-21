@@ -556,16 +556,34 @@ export function useProperties(dbId?: string) {
         .from('property_photos').delete().eq('id', photoId).select('id')
       if (error) throw error
       assertAffected(data, 1, 'видалення фото')
-      // Результат storage НЕ ігнорується: мовчазна відмова політики інакше
-      // лишає файл жити після видаленого рядка.
-      const { error: rmErr } = await supabase.storage.from('photos').remove([storagePath])
-      if (rmErr) throw rmErr
-
-      // Update local state — remove photo from the relevant property
+      // Стан оновлюємо ОДРАЗУ після доведеного видалення рядка: саме рядок є
+      // джерелом правди для застосунку, і він уже знесений. Якщо кинути тут
+      // виняток через storage, фото лишиться намальованим при мертвому рядку.
       setProperties((prev) => prev.map((p) => ({
         ...p,
         photos: p.photos?.filter((ph) => ph.id !== photoId),
       })))
+
+      // Storage-аналог `assertAffected`, і саме ДОВЖИНА, а не `error`.
+      // `storage.remove()` на схований політикою обʼєкт повертає ПОРОЖНІЙ
+      // масив і `error: null` — тобто «стер» і «не мав права» тут так само
+      // нерозрізненні, як у PostgREST під RLS (правило 8). Попередня редакція
+      // перевіряла `error` і мала коментар, що ловить мовчазну відмову; не
+      // ловила.
+      //
+      // Бакет `photos` ПУБЛІЧНИЙ, тож осиротілий файл лишається доступним за
+      // своїм URL — тут це не «нешкідливий сміттєвий файл» (пор. правило 9,
+      // писане про приватний бакет), а знімок, який власник вважає видаленим.
+      // Тому кажемо прямо, замість мовчати.
+      const { data: removed, error: rmErr } = await supabase.storage
+        .from('photos').remove([storagePath])
+      if (rmErr || (removed?.length ?? 0) !== 1) {
+        showToast({
+          type: 'error',
+          title: 'Фото прибрано, але файл лишився',
+          subtitle: 'Спробуйте ще раз пізніше — знімок може бути доступним за прямим посиланням',
+        })
+      }
     } catch (e) {
       showToast({ type: 'error', title: 'Помилка видалення фото', subtitle: humanizeDbError(e) })
       throw e

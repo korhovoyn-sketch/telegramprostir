@@ -54,7 +54,37 @@ BEGIN
   SELECT count(*) INTO n FROM auth.users;         IF n IS DISTINCT FROM 0 THEN RAISE EXCEPTION '051: auth-акаунт лишився — наступний вхід підніме порожній профіль'; END IF;
   SELECT count(*) INTO n FROM properties;         IF n IS DISTINCT FROM 0 THEN RAISE EXCEPTION '051: каскад не спрацював'; END IF;
 
-  RAISE NOTICE '  ✓ 051: файли, профіль і auth-акаунт знесені; чужий файл цілий';
+  -- 051: гілка «не бачу storage» мусить ВІДМОВИТИ, а не звітувати успіх.
+  -- Це рівно те, чого попередня редакція не вміла: `count` і `DELETE`
+  -- фільтруються однаково, тож при повній невидимості обидва дають 0 і
+  -- різниця нульова. Перевіряємо на КОПІЇ функції з власником БЕЗ bypassrls —
+  -- саму функцію чіпати не можна, вона потрібна решті перевірок.
+  CREATE ROLE zz_noby NOLOGIN;
+  GRANT USAGE ON SCHEMA public, storage TO zz_noby;
+  GRANT SELECT, DELETE ON storage.objects TO zz_noby;
+  EXECUTE format(
+    'CREATE FUNCTION zz_probe_blind() RETURNS TABLE(deleted BOOLEAN, error TEXT) '
+    'LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS %L',
+    $probe$
+    BEGIN
+      IF NOT COALESCE((SELECT rolbypassrls FROM pg_roles WHERE rolname = current_user), FALSE)
+         AND COALESCE((SELECT relrowsecurity FROM pg_class WHERE oid = 'storage.objects'::regclass), FALSE)
+      THEN
+        RETURN QUERY SELECT FALSE, 'storage_not_verifiable'::TEXT; RETURN;
+      END IF;
+      RETURN QUERY SELECT TRUE, NULL::TEXT;
+    END $probe$);
+  ALTER FUNCTION zz_probe_blind() OWNER TO zz_noby;
+
+  IF (SELECT error FROM zz_probe_blind()) IS DISTINCT FROM 'storage_not_verifiable' THEN
+    RAISE EXCEPTION '051: власник БЕЗ bypassrls дістав успіх — доказ стирання безсилий проти повної невидимості';
+  END IF;
+  DROP FUNCTION zz_probe_blind();
+  REVOKE ALL ON storage.objects FROM zz_noby;
+  REVOKE USAGE ON SCHEMA public, storage FROM zz_noby;
+  DROP ROLE zz_noby;
+
+  RAISE NOTICE '  ✓ 051: файли, профіль і auth-акаунт знесені; чужий файл цілий; сліпий власник ВІДМОВЛЯЄ';
 END $$;
 
 DO $$
@@ -174,11 +204,17 @@ BEGIN
       'get_public_collection_preview','get_guest_property_preview',
       'record_public_view',
       -- Хелпери, які викликають САМІ RLS-політики. Політики мають роль
-      -- {public}, тобто виконуються і від anon — без EXECUTE будь-який
-      -- anon-запит до цих таблиць падав би «permission denied for function»
-      -- замість того, щоб повернути порожньо. Вони віддають лише id-графи
-      -- (жодних імен, сум чи контактів), а щоб отримати чужий — треба вже
-      -- знати `users.id` жертви, якого жодна публічна поверхня не віддає.
+      -- {public}, тобто виконуються і від anon, тож EXECUTE їм потрібен.
+      --
+      -- ТУТ РАНІШЕ СТОЯЛА НЕПРАВДА: «щоб отримати чужий граф, треба вже знати
+      -- users.id жертви, якого жодна публічна поверхня не віддає». Віддає:
+      -- `GuestHomeScreen` читає `guest_links.owner_id`, а `lookup_shared_db`
+      -- повертає `owner_id` кожному, хто має шер-лінк. Перевірено виконанням —
+      -- гість, запрошений на ОДИН обʼєкт, перелічував усю базу власника.
+      --
+      -- Тепер безпеку тримає не цей allowlist, а сама функція: 057 додала їм
+      -- перевірку «питають про мене?» (обидві особи — email- і sub-клейм).
+      -- Гард на це — `verify-rls.sql`, блок 14.
       'current_app_user_id','get_app_user_id_from_auth_uid',
       'get_owner_db_ids','get_owner_property_ids',
       'get_editor_db_ids','get_editor_db_ids_from_auth_uid','get_editor_property_ids',

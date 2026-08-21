@@ -531,6 +531,11 @@ BEGIN
   -- Рієлтор `a3000000…` НЕ підписаний на базу жертви, підбірка опублікована.
   UPDATE collections SET is_draft = false WHERE id='11113000-0000-0000-0000-000000000001';
 
+  -- ДРУГИЙ обʼєкт у ДОСТУПНІЙ базі — для позитивного контролю нижче.
+  INSERT INTO properties (id,db_id,owner_id,name,status) VALUES
+    ('f3000000-0000-0000-0000-000000000002','d3000000-0000-0000-0000-000000000001',
+     'a2000000-0000-0000-0000-000000000001','Свіп-обʼєкт-2','free');
+
   SET LOCAL ROLE authenticated;
   PERFORM set_config('request.jwt.claims','{"email":"930001@telegram.propspace.app"}',true);
   BEGIN
@@ -539,6 +544,21 @@ BEGIN
     RAISE EXCEPTION '056: рієлтор поклав ЧУЖИЙ обʼєкт у свою підбірку';
   EXCEPTION WHEN insufficient_privilege THEN NULL;
   END;
+
+  -- АНТИВАКУУМ, і він тут НЕ формальність: без нього `WITH CHECK (false)` —
+  -- тобто політика, що вбиває підбірки ЦІЛКОМ, — проходила цей блок зеленою.
+  -- Перевірено виконанням. Позитив мусить іти саме через RLS (той самий
+  -- `SET LOCAL ROLE authenticated`), бо фікстури вставляються від postgres,
+  -- тобто повз політику, і доказом її працездатності не є.
+  BEGIN
+    INSERT INTO collection_properties (collection_id, property_id)
+    VALUES ('11113000-0000-0000-0000-000000000001','f3000000-0000-0000-0000-000000000002');
+    GET DIAGNOSTICS n = ROW_COUNT;
+  EXCEPTION WHEN insufficient_privilege THEN n := 0;
+  END;
+  IF n <> 1 THEN
+    RAISE EXCEPTION '056: рієлтор НЕ МОЖЕ додати ДОСТУПНИЙ обʼєкт — підбірки зламані ЦІЛКОМ (додано % рядків)', n;
+  END IF;
   RESET ROLE;
 
   -- Друга половина: рядок, посаджений В ОБХІД політики (як зробила б будь-яка
@@ -562,4 +582,47 @@ BEGIN
   RESET ROLE;
 
   RAISE NOTICE '  ✓ 056: чужий обʼєкт не потрапляє й не світиться в публічній підбірці';
+END $$;
+
+DO $$
+DECLARE n INT; victim UUID := 'a0000000-0000-0000-0000-00000000000a';
+BEGIN
+  -- ── 14. 057: хелпери не віддають ЧУЖИЙ id-граф ──────────────────────────
+  -- Сім SECURITY DEFINER хелперів беруть UUID користувача параметром і мають
+  -- EXECUTE від дефолтного PUBLIC. Доти будь-хто — включно з `anon` — питав
+  -- про будь-кого. `users.id` жертви не секрет: `GuestHomeScreen` читає
+  -- `guest_links.owner_id`, а `lookup_shared_db` віддає `owner_id` кожному,
+  -- хто має шер-лінк.
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"email":"900003@telegram.propspace.app"}',true);
+
+  SELECT count(*) INTO n FROM get_owner_property_ids(victim);
+  IF n <> 0 THEN
+    RAISE EXCEPTION '057: Клим перелічив % обʼєктів Аліси', n;
+  END IF;
+  SELECT count(*) INTO n FROM get_owner_db_ids(victim);
+  IF n <> 0 THEN
+    RAISE EXCEPTION '057: Клим перелічив % баз Аліси', n;
+  END IF;
+  RESET ROLE;
+
+  -- anon — те саме, і без жодного клейма.
+  SET LOCAL ROLE anon;
+  PERFORM set_config('request.jwt.claims','',true);
+  SELECT count(*) INTO n FROM get_owner_property_ids(victim);
+  IF n <> 0 THEN RAISE EXCEPTION '057: anon перелічив % обʼєктів Аліси', n; END IF;
+  RESET ROLE;
+
+  -- АНТИВАКУУМ: про СЕБЕ питати можна, інакше RLS-політики, які й кличуть ці
+  -- хелпери, перестали б бачити власні дані — тобто «нуль» вище однаково
+  -- пояснювався б і фіксом, і повністю зламаним хелпером.
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"email":"900001@telegram.propspace.app"}',true);
+  SELECT count(*) INTO n FROM get_owner_property_ids(victim);
+  IF n < 1 THEN
+    RAISE EXCEPTION '057: власник НЕ БАЧИТЬ власних обʼєктів через хелпер — RLS зламано цілком';
+  END IF;
+  RESET ROLE;
+
+  RAISE NOTICE '  ✓ 057: хелпери віддають лише СВІЙ id-граф (анти-enumeration)';
 END $$;
