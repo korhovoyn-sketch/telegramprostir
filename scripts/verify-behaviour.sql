@@ -224,5 +224,42 @@ BEGIN
     RAISE EXCEPTION '052: anon має EXECUTE на SECURITY DEFINER функціях поза allowlist-ом: %', leaked;
   END IF;
 
-  RAISE NOTICE '  ✓ 052: нагадування повертають рядки; anon не має службових функцій';
+  -- ── 058: власник БЕЗ tg_id не потрапляє в розсилку ──────────────────────
+  -- Інакше edge-функція кличе Telegram з `chat_id: null`, дістає 400 і НЕ
+  -- пише маркер дедуплікації (він пишеться лише на `res.ok`) — тобто той
+  -- самий рядок віддається ЩОДНЯ до кінця місяця. Дефект досяжний рівно з
+  -- моменту, коли 052 вмикає нагадування.
+  INSERT INTO auth.users (id,email) VALUES ('aaaaaaaa-0000-0000-0000-000000000058','777058@telegram.propspace.app');
+  INSERT INTO users (id,tg_id,first_name,role) VALUES ('bbbbbbbb-0000-0000-0000-000000000058',NULL,'БезTG','owner');
+  INSERT INTO databases (id,owner_id,name,type) VALUES
+    ('cccccccc-0000-0000-0000-000000000058','bbbbbbbb-0000-0000-0000-000000000058','База безTG','business_center');
+  INSERT INTO properties (id,db_id,owner_id,name,status,tenant_name) VALUES
+    ('dddddddd-0000-0000-0000-000000000058','cccccccc-0000-0000-0000-000000000058',
+     'bbbbbbbb-0000-0000-0000-000000000058','Офіс 58','occupied','Орендар');
+  INSERT INTO rent_payments (property_id,owner_id,due_day,notify_days_before,is_active)
+  SELECT 'dddddddd-0000-0000-0000-000000000058','bbbbbbbb-0000-0000-0000-000000000058', d, 3, true
+  FROM (SELECT EXTRACT(DAY FROM current_date + INTERVAL '3 day')::INT AS d) q
+  WHERE q.d BETWEEN 1 AND 28;
+
+  IF EXISTS (SELECT 1 FROM rent_payments rp WHERE rp.property_id='dddddddd-0000-0000-0000-000000000058') THEN
+    SELECT count(*) INTO n FROM get_due_reminders_today()
+     WHERE property_id='dddddddd-0000-0000-0000-000000000058';
+    IF n <> 0 THEN
+      RAISE EXCEPTION '058: власник без tg_id у розсилці (% рядків) — щоденний ретрай до кінця місяця', n;
+    END IF;
+
+    -- АНТИВАКУУМ, і чесно про його місце: занадто широкий предикат ловить
+    -- РАНІШЕ перевірка 052 у цьому ж блоці (вона вимагає рівно 1 рядок для
+    -- того самого обʼєкта) — заміряно, `AND FALSE` падає саме там. Ця
+    -- перевірка лишається як друга лінія: якщо 052-й позитив колись
+    -- приберуть чи переставлять, вимога «фільтр не ховає законного власника»
+    -- має стояти поруч із самим фільтром, а не залежати від сусіда.
+    SELECT count(*) INTO n FROM get_due_reminders_today()
+     WHERE property_id='dddddddd-0000-0000-0000-000000000052';
+    IF n <> 1 THEN
+      RAISE EXCEPTION '058: фільтр tg_id прибрав і ЗАКОННОГО власника (% рядків)', n;
+    END IF;
+  END IF;
+
+  RAISE NOTICE '  ✓ 052/058: нагадування повертають рядки; без tg_id — ні; anon не має службових функцій';
 END $$;

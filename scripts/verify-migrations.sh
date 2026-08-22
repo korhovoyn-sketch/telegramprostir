@@ -78,9 +78,15 @@ echo "✓ поведінкові перевірки пройдено"
 # лишає по собі напівпорожній стан, а тут кожен count() має бути точним.
 psql -h "$SOCK" -p $PORT -U postgres -q -c "CREATE DATABASE shadow_rls" >/dev/null
 $PSQL -d shadow_rls -f scripts/pg-shim.sql >/dev/null 2>&1
+# Помилки тут НЕ ковтаємо: другий прохід іде по тих самих файлах, але на
+# чистій базі, і міграція, що падає ЛИШЕ тут, була б невидима за побудовою.
+# (Перший прохід її не ловить: там інша послідовність станів — напр. дані,
+# посаджені поведінковими перевірками.)
 for f in $(ls supabase/migrations/*.sql | sort); do
   b=$(basename "$f"); case "$b" in 0041_*|009_*) continue;; esac
-  $PSQL -d shadow_rls -f "$f" >/dev/null 2>&1 || true
+  if ! out=$($PSQL -d shadow_rls -f "$f" 2>&1); then
+    echo "✗ (shadow_rls) $b"; echo "$out" | grep -E "ERROR|LINE" | head -3; exit 1
+  fi
 done
 $PSQL -d shadow_rls -f scripts/verify-rls.sql
 echo "✓ RLS-перевірки пройдено"

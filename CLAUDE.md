@@ -373,7 +373,7 @@ The session-start hook (`.claude/hooks/session-start.sh`) runs `npm install` and
 ## Testing
 
 - **Unit/component**: vitest 3 + jsdom + Testing Library (`tests/unit`, `tests/components`). Утиліти в `src/lib/utils.ts` покриті прицільно — плюрали, санітайзери, bulk-імена, розрахунки оренди. 285 unit.
-- **E2e**: Playwright, один проєкт `iphone-se` (375×667), 296 тестів (282 у пісочниці + 14 skipped: `screenshots*` знімає ТІЛЬКИ раннер). Проєкт один, але `devices.spec.ts` створює власні контексти з іншими геометріями — див. нижче. Харнес `tests/e2e/helpers/harness.ts` — стаб `window.Telegram.WebApp` (initData, CloudStorage, BackButton) + повний мок Supabase REST/Auth через `page.route`. Тести НЕ ходять у мережу.
+- **E2e**: Playwright, один проєкт `iphone-se` (375×667), **338 тестів** у 66 файлах (324 біжать у пісочниці + 14 skipped: `screenshots*` знімає ТІЛЬКИ раннер). Число не вгадувати — `npx playwright test --list | tail -1`. Проєкт один, але `devices.spec.ts` створює власні контексти з іншими геометріями — див. нижче. Харнес `tests/e2e/helpers/harness.ts` — стаб `window.Telegram.WebApp` (initData, CloudStorage, BackButton) + повний мок Supabase REST/Auth через `page.route`. Тести НЕ ходять у мережу.
 - **Спільні хелпери харнеса** (імпортуй, НЕ передекларовуй у спеку — легасі-копії в старих спеках мігруються поступово): `jsonRoute` (fulfill JSON), `skipCoachmarks` (сідить `ob_v1`), `seedSession` (сідить `ps_user` → Fast Path 0; без сесії Splash веде `db_`/`guest_` на публічний превʼю-екран замість useDeepLink-гілки — deep-link тести МУСЯТЬ сідити сесію).
 - **Опційні API Telegram у харнесі — вимкнені за замовчуванням**, бо саме так виглядає слабший клієнт, і фолбеки мусять лишатись покритими: `__tgEnablePopups(answer)` вмикає `showPopup` (`'ok' | 'cancel' | null`, відповідь асинхронна; виклики в `__tgPopups`), `__tgEnableMainButton(withSecondary)` — MainButton/SecondaryButton (стан у `__tgMain`/`__tgSecondary`, тап через `__tgMainClick()`/`__tgSecondaryClick()`). Без них екрани малюють DOM `.mbtn` і скляну модалку — і решта спеків перевіряє саме цей шлях.
 - **`native-client-sweep.spec.ts` — обхід усіх екранів із УВІМКНЕНОЮ нативною смугою і попапами.** Решта спеків ганяє слабший клієнт (DOM-фолбеки), а прод працює саме з нативними API — цей прохід закриває прогалину, через яку падіння форми створення не бачив жоден зі 150 тестів. Перевіряє: ЖОДЕН екран не в ErrorBoundary, підписи нашої CTA (`.mbtn`) по екранах, що вона не «протікає» на наступний екран після unmount, і що нативна смуга НЕ вмикається навіть коли клієнт її пропонує. Новий екран із первинною дією = новий крок тут.
@@ -1576,6 +1576,36 @@ This sandboxed environment has **no outbound network** to Vercel/Supabase previe
 ОБИДВА боки: політика запису + фільтр у самій превʼю (інакше вже посаджені
 рядки світились би далі). Контракт функції не змінено — ті самі 24 колонки в
 тому ж порядку, додано рівно один предикат у JOIN (урок 050).
+
+### 0s. UUID обʼєкта більше не «легасі-токен» (059)
+
+Файл: `supabase/migrations/059_drop_legacy_uuid_tokens.sql`. Порядок вільний.
+
+`lookup_shared_property` і `record_public_view` мали гілку
+`WHEN p_token ~ '^[0-9a-f]{8}-…$' THEN p.id = p_token::UUID`, тобто приймали
+СИРИЙ UUID там, де ключем має бути нездогадний share-токен. Друга з них видана
+**anon**, тож будь-хто накручував «Веб-перегляди» в ЧУЖУ аналітику (1/хв через
+дедуп) — цифри, за якими власник вирішує ціну й канали. Перша віддавала
+`db_id` автентифікованому користувачеві за UUID.
+
+UUID вгадувати не треба: `get_public_db_preview(token)` віддає `property_id`
+кожного обʼєкта бази, тож одного шер-лінка досить, щоб зібрати їх усі.
+
+Це залишок класу, який 049 уже прибрала для підбірок. **Ціна названа чесно:**
+лінки старого вигляду `prop_<uuid>` перестають резолвитись; `share_token` є в
+кожного обʼєкта з 023 (`NOT NULL`), тож ламаються лише посилання, роздані до
+того — рівно такий самий обмін, як у 049.
+
+### 0t. Нагадування для власника БЕЗ tg_id (058)
+
+Файл: `supabase/migrations/058_reminders_require_tg_id.sql`. Порядок вільний,
+але сенс має лише разом із 052.
+
+`users.tg_id` NULLABLE, а обидві функції нагадувань джойнили `users` без цієї
+умови. Для власника без `tg_id` edge-функція кличе Telegram з `chat_id: null`,
+дістає 400 — і, оскільки рядок `notifications` пишеться ЛИШЕ на `res.ok`,
+маркер дедуплікації не зʼявляється ніколи. Той самий рядок віддається ЩОДНЯ до
+кінця місяця. Дефект стає досяжним рівно тоді, коли 052 вмикає нагадування.
 
 ### 0q. КРИТИЧНО — підписка на спільну базу падала на КОЖНОМУ успішному виклику (055)
 
@@ -2812,7 +2842,7 @@ re-entry гард у `requestClose`, фокус-пастка Tab/Shift+Tab, по
 шару A (форми) успадковує один із них, а не обидва.
 
 **Верифікація:** type-check → lint → test (285 unit) → build → повний
-`CI=1 npx playwright test` (296 passed, 14 skipped, 0 failed) — зелено;
+`CI=1 npx playwright test` (324 passed, 14 skipped, 0 failed) — зелено;
 додатково `share-flow.spec.ts --repeat-each=15` (75 прогонів) підтвердив фікс
 race не статистично, а вичерпно для цього ланцюга. Тестові файли
 (`modal-sweep.spec.ts`, `modal-a11y.spec.ts`) НЕ редагувались — генеричні

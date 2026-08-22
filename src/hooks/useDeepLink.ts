@@ -117,8 +117,10 @@ export function useDeepLink() {
         }
 
         // ── prop_<share_token> — property share link ────────────────────────
-        // Lookup via SECURITY DEFINER RPC — handles both new share_token (24-char hex)
-        // and legacy UUID format for backward compatibility.
+        // Lookup via SECURITY DEFINER RPC — ЛИШЕ share_token (24-char hex).
+        // Легасі-гілку «UUID замість токена» прибрала 059: UUID не секрет
+        // (`get_public_db_preview` віддає `property_id` кожного обʼєкта бази),
+        // тож приймати його як ключ доступу — це правило 2 чеклісту §5 навпаки.
         if (parsed.kind === 'prop') {
           const token = parsed.token
           const { data: rows, error: rpcErr } = await supabase
@@ -138,7 +140,6 @@ export function useDeepLink() {
         }
 
         // ── col_<share_token> — collection share link ───────────────────────
-        // Handles both new share_token and legacy UUID.
         if (parsed.kind === 'col') {
           const token = parsed.token
           const { data: rows, error: rpcErr } = await supabase

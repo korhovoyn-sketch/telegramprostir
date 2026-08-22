@@ -1,7 +1,7 @@
 -- ============================================================================
 -- RLS ПО-СПРАВЖНЬОМУ: перевірка, якої в цьому проєкті не було НІКОЛИ
 -- ============================================================================
--- Уся модель безпеки застосунку — це RLS. При цьому всі 324 e2e ганяються
+-- Уся модель безпеки застосунку — це RLS. При цьому ВЕСЬ e2e-набір ганяється
 -- проти герметичного мока (`page.route`), де політик не існує в принципі:
 -- вони доводять, що ЕКРАН правильно малює те, що йому дали, і нічого не
 -- кажуть про те, чи сервер це дав би. Юніт-гарди читають SQL як ТЕКСТ.
@@ -134,7 +134,6 @@ BEGIN
   -- ВЛАСНУ базу — без цієї половини «Клим не зміг» однаково пояснюється і
   -- правильною перевіркою цілі, і повністю зламаною політикою.
   SET LOCAL ROLE authenticated;
-  PERFORM set_config('request.jwt.claims','900001@telegram.propspace.app',true);
   PERFORM set_config('request.jwt.claims','{"email":"900001@telegram.propspace.app"}',true);
   INSERT INTO guest_links (owner_id, db_id, label)
   VALUES ('a0000000-0000-0000-0000-00000000000a','d0000000-0000-0000-0000-00000000000a','Свій лінк');
@@ -625,4 +624,44 @@ BEGIN
   RESET ROLE;
 
   RAISE NOTICE '  ✓ 057: хелпери віддають лише СВІЙ id-граф (анти-enumeration)';
+END $$;
+
+DO $$
+DECLARE n INT; ok BOOLEAN;
+BEGIN
+  -- ── 15. 059: UUID обʼєкта — НЕ токен ────────────────────────────────────
+  -- Правило 2 чеклісту §5: UUID не секрет. `get_public_db_preview` віддає
+  -- `property_id` кожного обʼєкта бази, тож одного шер-лінка досить, щоб
+  -- зібрати їх усі. Доти обидві функції приймали такий UUID замість токена:
+  -- `record_public_view` (грант anon!) дозволяла накручувати ЧУЖУ аналітику,
+  -- `lookup_shared_property` — діставати `db_id`.
+  SET LOCAL ROLE anon;
+  PERFORM set_config('request.jwt.claims','',true);
+
+  ok := record_public_view('f3000000-0000-0000-0000-000000000001', 'prop');
+  IF ok THEN
+    RAISE EXCEPTION '059: anon накрутив перегляд по UUID обʼєкта — чужа аналітика підробляється';
+  END IF;
+
+  -- АНТИВАКУУМ: справжній токен мусить рахуватись, інакше «false» вище
+  -- однаково пояснюється і фіксом, і функцією, зламаною цілком.
+  ok := record_public_view('tok_sweep_prop', 'prop');
+  IF NOT ok THEN
+    RAISE EXCEPTION '059: справжній share-токен перестав рахувати перегляди — лічильник зламано';
+  END IF;
+  RESET ROLE;
+
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"email":"930001@telegram.propspace.app"}',true);
+  SELECT count(*) INTO n FROM lookup_shared_property('f3000000-0000-0000-0000-000000000001');
+  IF n <> 0 THEN
+    RAISE EXCEPTION '059: lookup_shared_property віддала обʼєкт за СИРИМ UUID';
+  END IF;
+  SELECT count(*) INTO n FROM lookup_shared_property('tok_sweep_prop');
+  IF n <> 1 THEN
+    RAISE EXCEPTION '059: lookup_shared_property не знаходить за СПРАВЖНІМ токеном (% рядків)', n;
+  END IF;
+  RESET ROLE;
+
+  RAISE NOTICE '  ✓ 059: UUID обʼєкта не приймається як токен; справжній токен працює';
 END $$;
