@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { offlineGuard } from '@/lib/offline'
 import { confirmAction } from '@/lib/confirm'
 import { useAuth } from '@/hooks/useAuth'
+import { supabase } from '@/lib/supabase'
 import TabBar from '@/components/ui/TabBar'
 import Toggle from '@/components/ui/Toggle'
 import Modal from '@/components/ui/Modal'
@@ -19,6 +20,15 @@ export default function ProfileScreen() {
   const [pushEnabled, setPushEnabled] = useState(user?.notification_push ?? true)
   const [weeklyReport, setWeeklyReport] = useState(user?.notification_weekly ?? true)
   const [newViews, setNewViews] = useState(user?.notification_views ?? true)
+  // Дефолт false і в БД (061), і тут: приватність не має залежати від того,
+  // чи встиг завантажитись профіль.
+  const [publicPhone, setPublicPhone] = useState(false)
+  // `public_phone` СВІДОМО не в `USER_COLUMNS`: той список читають шість
+  // місць, і додавання туди нової колонки зламало б вхід у застосунок до
+  // застосування 061 (PostgREST віддає 400 на невідому колонку). Тому екран
+  // питає її окремо і толерує відсутність — той самий патерн, що `useFolders`
+  // для 42P01 і `AccessList` для 42703: фіча просто не зʼявляється.
+  const [phoneOptAvailable, setPhoneOptAvailable] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [savingLang, setSavingLang] = useState(false)
@@ -45,6 +55,27 @@ export default function ProfileScreen() {
     setNewViews(v)
     const ok = await updateProfile({ notification_views: v })
     if (!ok) setNewViews(!v)
+  }
+
+  useEffect(() => {
+    if (!user?.id) return
+    let alive = true
+    void (async () => {
+      const { data, error } = await supabase
+        .from('users').select('public_phone').eq('id', user.id).maybeSingle()
+      if (!alive) return
+      if (error) return          // 42703 до міграції — фіча просто прихована
+      setPhoneOptAvailable(true)
+      setPublicPhone(Boolean((data as { public_phone?: boolean } | null)?.public_phone))
+    })()
+    return () => { alive = false }
+  }, [user?.id])
+
+  async function handlePublicPhoneToggle(v: boolean) {
+    if (offlineGuard()) return
+    setPublicPhone(v)
+    const ok = await updateProfile({ public_phone: v })
+    if (!ok) setPublicPhone(!v)
   }
 
   async function handleLogout() {
@@ -214,6 +245,22 @@ export default function ProfileScreen() {
             <Toggle value={newViews} onChange={handleNewViewsToggle} />
           </div>
         </div>
+
+        {/* Privacy */}
+        {phoneOptAvailable && (<>
+        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconEye size={14} color="var(--info)" />Приватність</span></div>
+        <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
+          <div className="fr">
+            <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconPhone size={14} color="var(--t3)" />Показувати телефон на публічних сторінках</span>
+            <Toggle value={publicPhone} onChange={handlePublicPhoneToggle} />
+          </div>
+          <div style={{ padding: '0 var(--pad-card) var(--pad-card)', fontSize: 'var(--fs-cap1)', color: 'var(--t4)' }}>
+            Вимкнено — глядач бачить ваше ім’я та Telegram, але не номер. Посилання
+            діють, доки ви їх не відкличете, тож номер, показаний раз, лишається
+            видимим усім, хто зберіг лінк.
+          </div>
+        </div>
+        </>)}
 
         {/* Support */}
         <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconMessage size={14} color="var(--info)" />Підтримка</span></div>

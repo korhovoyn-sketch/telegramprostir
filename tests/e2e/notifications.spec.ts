@@ -319,7 +319,9 @@ test('ГЛОБАЛЬНИЙ лічильник, випущений РАНІШЕ, 
   // браузера: послідовність подій та сама, але вона ВИМУШЕНА, а не очікувана.
   const wire: Wire = { patches: [], deletes: [] }
   let gets = 0
-  let releaseFirst: (() => void) | null = null
+  // `!` — виконавець Promise присвоює синхронно, але TS цього не бачить і
+  // звузив би тип до `never`.
+  let releaseFirst!: () => void
   const firstHeld = new Promise<void>((res) => { releaseFirst = res })
 
   await setupApp(page, { user: USER })
@@ -354,7 +356,7 @@ test('ГЛОБАЛЬНИЙ лічильник, випущений РАНІШЕ, 
   await expect.poll(() => wire.patches.length, { timeout: 15_000 }).toBeGreaterThan(0)
 
   // Аж ТЕПЕР віддаємо стару відповідь — ту, що везе `is_read:false`.
-  releaseFirst?.()
+  releaseFirst()
   await expect(badge(page), 'відповідь на запит, випущений РАНІШЕ, повернула бейдж').toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Прочитано' }),
     'разом із бейджем повернулась і кнопка «Прочитано»').toHaveCount(0)

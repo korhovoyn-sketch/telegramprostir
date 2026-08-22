@@ -20,6 +20,7 @@ export interface User {
   language_code: string
   currency: string
   plan: UserPlan
+  public_phone?: boolean
   notification_push?: boolean
   notification_weekly?: boolean
   notification_views?: boolean

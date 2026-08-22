@@ -665,3 +665,90 @@ BEGIN
 
   RAISE NOTICE '  ✓ 059: UUID обʼєкта не приймається як токен; справжній токен працює';
 END $$;
+
+DO $$
+DECLARE r RECORD; tok_before TEXT; tok_after TEXT; n INT;
+BEGIN
+  -- ── 16. 060: «Відкликати» ЗНИЩУЄ токен, а не лише протермінює ────────────
+  -- Токен — bearer-креденшл: хто зберіг, той тримає назавжди. Доти revoke
+  -- ставив лише `share_expires_at = now()`, тож будь-який наступний
+  -- `clear_expiry` ОЖИВЛЯВ старе посилання для всіх, хто його мав.
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"email":"920001@telegram.propspace.app"}',true);
+
+  SELECT d.share_token INTO tok_before FROM databases d
+   WHERE d.id='d2000000-0000-0000-0000-000000000002';
+
+  SELECT * INTO r FROM manage_share('db','d2000000-0000-0000-0000-000000000002','revoke',NULL);
+  IF r.error IS NOT NULL THEN RAISE EXCEPTION '060: revoke відмовив: %', r.error; END IF;
+
+  SELECT d.share_token INTO tok_after FROM databases d
+   WHERE d.id='d2000000-0000-0000-0000-000000000002';
+  IF tok_after = tok_before THEN
+    RAISE EXCEPTION '060: revoke лишив ТОЙ САМИЙ токен — старе посилання можна оживити';
+  END IF;
+
+  -- І головне: «оживлення» терміну не воскрешає СТАРИЙ лінк.
+  PERFORM manage_share('db','d2000000-0000-0000-0000-000000000002','clear_expiry',NULL);
+  RESET ROLE;
+
+  SET LOCAL ROLE anon;
+  PERFORM set_config('request.jwt.claims','',true);
+  SELECT count(*) INTO n FROM get_public_db_preview(tok_before);
+  IF n <> 0 THEN
+    RAISE EXCEPTION '060: СТАРИЙ токен ожив після clear_expiry (% рядків)', n;
+  END IF;
+  -- АНТИВАКУУМ: новий токен власника мусить працювати, інакше «нуль» вище
+  -- однаково пояснюється і фіксом, і зламаним шарингом узагалі.
+  SELECT count(*) INTO n FROM get_public_db_preview(tok_after);
+  IF n < 1 THEN
+    RAISE EXCEPTION '060: НОВИЙ токен не працює — шаринг зламано (% рядків)', n;
+  END IF;
+  RESET ROLE;
+
+  RAISE NOTICE '  ✓ 060: revoke знищує токен; старий лінк не оживає, новий працює';
+END $$;
+
+DO $$
+DECLARE ph TEXT; n INT;
+BEGIN
+  -- ── 17. 061: телефон на публічній /v — лише за згодою ───────────────────
+  -- Токен безстроковий за замовчуванням, тож «один раз надіслав лінк» = «номер
+  -- у нього назавжди». Контакт лишається (є `tg_username` — рідний канал
+  -- Telegram), але НОМЕР тепер під прапорцем.
+  -- ВЛАСНА фікстура, і це не педантизм: блок 16 щойно ЗРОТУВАВ `tok_alive`
+  -- (у цьому й суть 060), тож спиратись на нього тут означало б міряти
+  -- неіснуючий токен. Спіймав це власний антивакуум цього ж блоку.
+  INSERT INTO databases (id,owner_id,name,type,share_token) VALUES
+    ('d6100000-0000-0000-0000-000000000001','a2000000-0000-0000-0000-000000000001','База 061','business_center','tok_phone_061');
+  INSERT INTO properties (id,db_id,owner_id,name,status) VALUES
+    ('f6100000-0000-0000-0000-000000000001','d6100000-0000-0000-0000-000000000001','a2000000-0000-0000-0000-000000000001','Обʼєкт 061','free');
+  UPDATE users SET phone = '+380501112233', public_phone = false, tg_username = 'vlasnyk'
+   WHERE id = 'a2000000-0000-0000-0000-000000000001';
+
+  SET LOCAL ROLE anon;
+  PERFORM set_config('request.jwt.claims','',true);
+  SELECT owner_phone INTO ph FROM get_public_db_preview('tok_phone_061') LIMIT 1;
+  IF ph IS NOT NULL THEN
+    RAISE EXCEPTION '061: номер телефону віддається публічно без згоди (%)', ph;
+  END IF;
+  -- Контакт не зникає повністю — інакше це не приватність, а зламана сторінка.
+  SELECT count(*) INTO n FROM get_public_db_preview('tok_phone_061')
+   WHERE owner_tg_username IS NOT NULL OR owner_first_name IS NOT NULL;
+  IF n < 1 THEN
+    RAISE EXCEPTION '061: разом із номером зникли ВСІ контакти — глядачу нічим звʼязатись';
+  END IF;
+  RESET ROLE;
+
+  -- АНТИВАКУУМ: увімкнув — віддається. Інакше «NULL» вище однаково
+  -- пояснюється і прапорцем, і тим, що колонку взагалі відірвали.
+  UPDATE users SET public_phone = true WHERE id = 'a2000000-0000-0000-0000-000000000001';
+  SET LOCAL ROLE anon;
+  SELECT owner_phone INTO ph FROM get_public_db_preview('tok_phone_061') LIMIT 1;
+  IF ph IS DISTINCT FROM '+380501112233' THEN
+    RAISE EXCEPTION '061: власник УВІМКНУВ показ, а номер не віддається (%)', COALESCE(ph,'NULL');
+  END IF;
+  RESET ROLE;
+
+  RAISE NOTICE '  ✓ 061: номер лише за згодою; решта контактів лишається';
+END $$;

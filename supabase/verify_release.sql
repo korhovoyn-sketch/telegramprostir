@@ -110,6 +110,15 @@ WITH checks(ord, item, migration, ok) AS (VALUES
       EXISTS (SELECT 1 FROM pg_proc WHERE proname='get_public_collection_preview'
               AND prosrc LIKE '%realtor_subscriptions rs%')),
 
+  (31, 'revoke ЗНИЩУЄ токен, а не лише протермінює (060)', '060_revoke_destroys_token.sql',
+      EXISTS (SELECT 1 FROM pg_proc WHERE proname='manage_share'
+              AND prosrc LIKE '%IN (''rotate'',''revoke'')%')),
+  (32, 'телефон на /v лише за згодою (061)', '061_public_phone_opt_in.sql',
+      EXISTS (SELECT 1 FROM information_schema.columns
+              WHERE table_name='users' AND column_name='public_phone')
+      AND EXISTS (SELECT 1 FROM pg_proc WHERE proname='get_public_db_preview'
+                  AND prosrc LIKE '%public_phone%')),
+
   -- Наскрізні інваріанти
   (15, 'RLS увімкнено на всіх 15 таблицях', 'будь-яка пропущена',
       (SELECT count(*)>=15 FROM pg_tables t JOIN pg_class c ON c.relname=t.tablename
