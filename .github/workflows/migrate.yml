@@ -33,32 +33,50 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Незаданий секрет — це НЕ падіння, якщо воркфлоу поїхав сам собою.
+      #
+      # Він падав так 17 разів поспіль (жодного успішного запуску за всю
+      # історію проєкту), тобто на КОЖНОМУ коміті в main висів червоний
+      # хрестик. Ціна не в самому воркфлоу, а в тому, що червоний main
+      # перестає щось означати: рівно через це в серпні одне справжнє
+      # падіння встигло стати спадковим для трьох PR поспіль.
+      #
+      # Тому розрізняємо намір: автоматичний `push` із неналаштованими
+      # секретами ПРОПУСКАЄМО з поміткою, а `workflow_dispatch` — це
+      # свідома дія оператора, і мовчки «успішно нічого не зробити» там
+      # було б гірше за падіння.
       - name: Verify secrets
+        id: secrets
         run: |
-          missing=0
-          for s in SUPABASE_ACCESS_TOKEN SUPABASE_PROJECT_REF SUPABASE_DB_PASSWORD; do
-            v=""
-            case "$s" in
-              SUPABASE_ACCESS_TOKEN) v="${{ secrets.SUPABASE_ACCESS_TOKEN }}";;
-              SUPABASE_PROJECT_REF)  v="${{ secrets.SUPABASE_PROJECT_REF }}";;
-              SUPABASE_DB_PASSWORD)  v="${{ secrets.SUPABASE_DB_PASSWORD }}";;
-            esac
-            if [ -z "$v" ]; then echo "::error::$s secret is not set."; missing=1; fi
-          done
-          [ "$missing" = "0" ] || exit 1
+          missing=""
+          [ -n "${{ secrets.SUPABASE_ACCESS_TOKEN }}" ] || missing="$missing SUPABASE_ACCESS_TOKEN"
+          [ -n "${{ secrets.SUPABASE_PROJECT_REF }}"  ] || missing="$missing SUPABASE_PROJECT_REF"
+          [ -n "${{ secrets.SUPABASE_DB_PASSWORD }}"  ] || missing="$missing SUPABASE_DB_PASSWORD"
+          if [ -z "$missing" ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "ok=false" >> "$GITHUB_OUTPUT"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "::error::Немає секретів:$missing — запуск руками без них неможливий."
+            exit 1
+          fi
+          echo "::notice::Автозастосування міграцій вимкнене: немає секретів$missing. Міграції накочуються вручну через Dashboard (див. RELEASE_CHECKLIST.md). Це НЕ падіння."
 
       - uses: supabase/setup-cli@v1
+        if: steps.secrets.outputs.ok == 'true'
         with:
           version: latest
 
       - name: Link project
+        if: steps.secrets.outputs.ok == 'true'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
 
       - name: Baseline (mark existing migrations as applied)
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.baseline }}
+        if: ${{ steps.secrets.outputs.ok == 'true' && github.event_name == 'workflow_dispatch' && inputs.baseline }}
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
@@ -68,13 +86,14 @@ jobs:
           supabase migration repair --status applied $versions
 
       - name: Push new migrations
-        if: ${{ github.event_name == 'push' || !inputs.baseline }}
+        if: ${{ steps.secrets.outputs.ok == 'true' && (github.event_name == 'push' || !inputs.baseline) }}
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: supabase db push
 
       - name: Show migration status
+        if: steps.secrets.outputs.ok == 'true'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
