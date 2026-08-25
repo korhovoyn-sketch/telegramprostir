@@ -220,6 +220,36 @@ test('screens · owner journey', async ({ page }) => {
   await page.goto('/'); await page.getByText('Мої бази').waitFor()
   await page.getByText('БЦ Рубін').first().click(); await page.getByText('Всі (3)').waitFor()
 
+  // Повноекранні маршрути з фази 4 (три колишні пікери). Той самий обовʼязок,
+  // що для фаз 2-3: новий екран = новий кадр тим самим дифом.
+  await snap(page, 'folder-manage', async () => {
+    await page.getByLabel('Меню бази').click()
+    await page.getByText('Папки', { exact: true }).click()
+    await page.getByRole('button', { name: 'Додати папку' }).waitFor()
+  })
+  await page.goto('/'); await page.getByText('Мої бази').waitFor()
+  await page.getByText('БЦ Рубін').first().click(); await page.getByText('Всі (3)').waitFor()
+
+  await snap(page, 'folder-picker', async () => {
+    await page.getByLabel('Меню бази').click()
+    await page.getByText("Виділити об'єкти", { exact: true }).click()
+    await page.locator('.obj-card').first().click()
+    await page.getByRole('button', { name: /У папку/ }).click()
+    await page.getByRole('button', { name: 'Створити й перемістити' }).waitFor()
+  })
+  await page.goto('/'); await page.getByText('Мої бази').waitFor()
+  await page.getByText('БЦ Рубін').first().click(); await page.getByText('Всі (3)').waitFor()
+
+  await snap(page, 'db-picker', async () => {
+    await page.getByLabel('Меню бази').click()
+    await page.getByText("Виділити об'єкти", { exact: true }).click()
+    await page.locator('.obj-card').first().click()
+    await page.getByRole('button', { name: /В базу/ }).click()
+    await page.getByRole('button', { name: 'Створити й перенести' }).waitFor()
+  })
+  await page.goto('/'); await page.getByText('Мої бази').waitFor()
+  await page.getByText('БЦ Рубін').first().click(); await page.getByText('Всі (3)').waitFor()
+
   await snap(page, 'manage-guests', async () => {
     await page.getByLabel('Меню бази').click()
     await page.getByText('Управління гостями').click()
