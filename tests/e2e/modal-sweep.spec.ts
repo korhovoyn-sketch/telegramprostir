@@ -385,8 +385,22 @@ test('Escape закриває ЛИШЕ верхню модалку стеку', 
   await expect(page.locator('.modal'), 'підтвердження не стало другим шитом').toHaveCount(2, { timeout: 8_000 })
   await checkModal(page, 'nested-confirm')
 
+  // ЗАМІР ПІСЛЯ ОСІДАННЯ, а не `toHaveCount(1)` з таймаутом — і це не стиль.
+  // Попередня редакція була майже ВАКУУМНОЮ: коли Escape зносив ОБИДВА шити,
+  // їхні вузли зникали не разом (вихідна анімація ~240мс), тож між ними був
+  // проміжок, де на екрані рівно один шит. Полінг `toHaveCount` ловив саме цей
+  // проміжок і зеленів — на зламаному коді, у 4 прогонах із 6. Інструментований
+  // прогін показав дефект у 2 випадках із 2 ТАМ, ДЕ ТЕСТ ПРОХОДИВ:
+  //   [ESC] depth=2 isTop=true   ← закрилось підтвердження
+  //   [ESC] depth=1 isTop=true   ← закрився і шит під ним
+  // Тому: дати обом анімаціям добігти, і аж тоді питати, скільки лишилось.
   await page.keyboard.press('Escape')
-  await expect(page.locator('.modal'), 'Escape зніс і батьківський шит').toHaveCount(1, { timeout: 8_000 })
+  await expect(page.locator('.modal.closing'), 'підтвердження не почало виходити')
+    .toHaveCount(0, { timeout: 8_000 })
+  await page.waitForTimeout(400)
+  expect(await page.locator('.modal').count(), 'Escape зніс і батьківський шит').toBe(1)
+  await expect(page.locator('.modal .modal-h'), 'лишився не той шит').toHaveText('БЦ Рубін')
+
   await page.keyboard.press('Escape')
   await expect(page.locator('.modal')).toHaveCount(0, { timeout: 8_000 })
 })
