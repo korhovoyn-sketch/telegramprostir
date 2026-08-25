@@ -37,24 +37,23 @@ async function setup(page: Page, calls: { rpc: number; photoRemove: number; file
     localStorage.setItem('ob_v1', JSON.stringify(['owner-fab', 'obj-fab', 'realtor-qr', 'col-fab'])))
 }
 
-async function openDeleteModal(page: Page) {
+async function openDeleteScreen(page: Page) {
   await page.goto('/')
   await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
   await page.locator('.tabbar [aria-label="Профіль"]').click()
   await expect(page.getByText('Налаштування')).toBeVisible()
   await page.locator('.del-acc').click()
-  await expect(page.getByText('Видалити акаунт?')).toBeVisible()
+  // Видалення акаунта — ПОВНОЕКРАННИЙ маршрут (фаза 5): це форма з полем, тож
+  // за критерієм розділу вона не могла лишитись шитом.
+  await expect(page.getByLabel('Підтвердження видалення')).toBeVisible({ timeout: 15_000 })
 }
 
 test('видалення акаунта: кнопка заблокована, доки не вписано підтвердження', async ({ page }) => {
   const calls = { rpc: 0, photoRemove: 0, fileRemove: 0 }
   await setup(page, calls)
-  await openDeleteModal(page)
+  await openDeleteScreen(page)
 
-  // exact + скоуп у шит ОБОВʼЯЗКОВІ: підпис підтвердження скоротили до «Видалити»
-  // (довге «Видалити назавжди» вилазило за половинну кнопку), і тепер за
-  // підстрокою він збігається ще й з тригером «Видалити акаунт» на екрані.
-  const confirmBtn = page.locator('.modal').getByRole('button', { name: 'Видалити', exact: true })
+  const confirmBtn = page.getByRole('button', { name: 'Видалити акаунт', exact: true })
   await expect(confirmBtn).toBeDisabled()
 
   // Частково/неправильно вписане слово теж не розблоковує
@@ -83,10 +82,10 @@ test('видалення акаунта: кнопка заблокована, д
 test('видалення акаунта: один серверний виклик, без клієнтських дотиків до сховища', async ({ page }) => {
   const calls = { rpc: 0, photoRemove: 0, fileRemove: 0 }
   await setup(page, calls)
-  await openDeleteModal(page)
+  await openDeleteScreen(page)
 
   await page.getByLabel('Підтвердження видалення').fill('ВИДАЛИТИ')
-  await page.locator('.modal').getByRole('button', { name: 'Видалити', exact: true }).click()
+  await page.getByRole('button', { name: 'Видалити акаунт', exact: true }).click()
 
   await expect.poll(() => calls.rpc, { timeout: 10_000 }).toBe(1)
   // Клієнт НЕ має права торкатись сховища: після RPC його ідентичність уже не
@@ -109,12 +108,16 @@ test('видалення акаунта: помилка сервера НЕ ви
     calls.rpc++
     return jsonRoute(r, [{ deleted: false, error: 'not_authenticated' }])
   })
-  await openDeleteModal(page)
+  await openDeleteScreen(page)
 
   await page.getByLabel('Підтвердження видалення').fill('ВИДАЛИТИ')
-  await page.locator('.modal').getByRole('button', { name: 'Видалити', exact: true }).click()
+  await page.getByRole('button', { name: 'Видалити акаунт', exact: true }).click()
 
   await expect(page.getByText('Не вдалося видалити акаунт')).toBeVisible({ timeout: 10_000 })
-  // Лишаємось у профілі — не викидає на welcome при збої
-  await expect(page.getByText('Налаштування')).toBeVisible()
+  // НЕ викидає на welcome при збої. Після фази 5 лишаємось на екрані
+  // видалення, а не в профілі — і це краще: вписане слово збережене, тож
+  // повтор не вимагає набирати його заново. Суть гарда та сама: користувач
+  // усередині застосунку, а не викинутий із нього.
+  await expect(page.getByLabel('Підтвердження видалення')).toBeVisible()
+  await expect(page.getByText('Вхід через Telegram')).toHaveCount(0)
 })

@@ -85,25 +85,33 @@ async function fixtures(page: Page) {
   })
 }
 
-async function openRentModal(page: Page) {
+/** Меню бази — ActionSheet, що лишився після видалення Modal.tsx. */
+async function openSheet(page: Page) {
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+  await page.getByText('БЦ Рубін').first().click()
+  await expect(page.getByText('Всі (3)')).toBeVisible()
+  await page.getByLabel('Меню бази').click()
+  await expect(page.locator('.modal')).toBeVisible()
+  await page.waitForTimeout(420)
+}
+
+async function openRentScreen(page: Page) {
   await page.goto('/')
   await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
   await page.getByText('БЦ Рубін').first().click()
   await expect(page.getByText('Всі (3)')).toBeVisible()
   // Клік по заголовку — центр короткої картки влучає в рядок дій
   await page.locator('.obj-card', { hasText: 'Офіс 102' }).locator('.obj-t').click()
-  await page.getByRole('button', { name: 'Здати в оренду' }).click()
-  // Чекати на ТЕКСТ тут не можна: «Здати в оренду» — це ще й підпис самої
-  // плаваючої кнопки, яка лишається в DOM під шитом, тож `.first()` матчив її
-  // і повертав керування ДО монтування модалки (`document.querySelector('.modal')`
-  // → null → getComputedStyle кидав). Чекаємо на сам шит.
-  await expect(page.locator('.modal')).toBeVisible()
-  await expect(page.locator('.modal').getByText('Здати в оренду', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Здати в оренду' }).first().click()
+  // Оренда — ПОВНОЕКРАННИЙ маршрут (фаза 5). Чекаємо на поле, а не на текст:
+  // «Здати в оренду» — це ще й підпис CTA самого екрана.
+  await expect(page.getByLabel('Орендар')).toBeVisible({ timeout: 15_000 })
 }
 
 test('rent modal: disabled CTA, live monthly preview, currency-aware unit labels', async ({ page }) => {
   await fixtures(page)
-  await openRentModal(page)
+  await openRentScreen(page)
 
   // «Здати» must be disabled until the tenant is named
   const submit = page.getByRole('button', { name: 'Здати', exact: true })
@@ -143,7 +151,7 @@ test('rent modal: lease that ends before it starts is rejected; valid save PATCH
     patches.push(body)
     return json(route, { ...PROPERTIES[1], ...body })
   })
-  await openRentModal(page)
+  await openRentScreen(page)
 
   await page.getByPlaceholder('ТОВ «Назва» або ФОП').fill('ФОП Петренко')
   const dates = page.locator('.modal input[type="date"]')
@@ -166,7 +174,7 @@ test('rent modal: lease that ends before it starts is rejected; valid save PATCH
 
 test('modal closes on Escape and on backdrop tap, not on inner tap', async ({ page }) => {
   await fixtures(page)
-  await openRentModal(page)
+  await openSheet(page)
 
   // Тап всередині модалки не закриває
   await page.locator('.modal-head').click()
@@ -177,7 +185,7 @@ test('modal closes on Escape and on backdrop tap, not on inner tap', async ({ pa
   await expect(page.locator('.modal')).toHaveCount(0)
 
   // Бекдроп закриває
-  await page.getByRole('button', { name: 'Здати в оренду' }).click()
+  await page.getByLabel('Меню бази').click()
   await expect(page.locator('.modal')).toBeVisible()
   await page.locator('.modal-overlay').click({ position: { x: 10, y: 10 } })
   await expect(page.locator('.modal')).toHaveCount(0)
@@ -185,7 +193,7 @@ test('modal closes on Escape and on backdrop tap, not on inner tap', async ({ pa
 
 test('modal: swipe down on the header dismisses', async ({ page }) => {
   await fixtures(page)
-  await openRentModal(page)
+  await openSheet(page)
 
   // Simulate a downward drag on the grabber/header past the dismiss threshold.
   await page.locator('.modal-head').evaluate((el) => {
@@ -207,26 +215,6 @@ test('modal: swipe down on the header dismisses', async ({ page }) => {
   await expect(page.locator('.modal')).toHaveCount(0)
 })
 
-test('modal не схлопується при некоректній висоті клавіатури', async ({ page }) => {
-  await fixtures(page)
-  await openRentModal(page)
-  await page.waitForTimeout(400)
-  const before = await page.locator('.modal').boundingBox()
-  expect(before!.height).toBeGreaterThan(100)
-
-  // Платформа може повідомити абсурдну висоту клавіатури (iOS + зум/скрол у
-  // Telegram). Без нижньої межі max-height ставав ≈0 і модалка ЗНИКАЛА,
-  // лишаючи тільки затемнення — саме це користувач бачив як «не відкривається».
-  for (const kb of [600, 900, 2000]) {
-    await page.evaluate((k) => document.documentElement.style.setProperty('--keyboard-h', `${k}px`), kb)
-    await page.waitForTimeout(250)
-    const box = await page.locator('.modal').boundingBox()
-    expect(box, `модалка існує при --keyboard-h:${kb}px`).not.toBeNull()
-    expect(box!.height, `модалка не схлопнулась при --keyboard-h:${kb}px`).toBeGreaterThan(100)
-    // Заголовок лишається читабельним
-    await expect(page.getByText('Здати в оренду', { exact: true }).first()).toBeVisible()
-  }
-})
 
 test('nested modal fills the viewport, not the parent sheet', async ({ page }) => {
   await fixtures(page)
@@ -305,129 +293,9 @@ test('payment schedule screen: day outside 1–28 shows the range error; valid d
   await expect(page.getByText(/Платежі — Офіс 101|Календар платежів/)).toBeVisible({ timeout: 10_000 })
 })
 
-test('ліфт вимикається, якщо справжня висота клавіатури приходить ПІЗНІШЕ за пробу', async ({ page }) => {
-  // Реальний кейс із відео користувача: на iOS-оверлеї visualViewport.resize
-  // іноді приходить пізніше за 350мс-пробу. Одноразовий замір рівно на цій межі
-  // бачив «клавіатури ще нема», вмикав фейковий ліфт 320px ПОВЕРХ реальної
-  // клавіатури, що вже відкривалась, — поле «Орендар» сіпалось і модалка
-  // перекомпоновувалась на секунду-дві, поки нічого не приводило її до тями.
-  await fixtures(page)
-  await openRentModal(page)
 
-  await page.locator('.modal input').first().focus()
-  // Нічого не звітуємо ДО проби — фолбек мусить спрацювати (як і раніше).
-  await page.waitForTimeout(600) // 350 проба + 200 підтвердження + запас
-  const guessed = await page.evaluate(() => {
-    const ov = document.querySelector('.modal-overlay') as HTMLElement
-    return { inline: ov.style.getPropertyValue('--keyboard-h'), computed: parseFloat(getComputedStyle(ov).paddingBottom) }
-  })
-  expect(guessed.inline, 'фолбек застосувався фейковими 320px').toBe('320px')
 
-  // Тепер, ПІЗНО, приходить справжня висота — так, як реальна клавіатура
-  // відрапортувала б із запізненням. Headless Chromium не показує нативну
-  // клавіатуру, тож підміняємо `visualViewport.height` напряму (getter на
-  // прототипі, own-property на інстансі його затінює) — це той самий сигнал,
-  // який на реальному iOS обробляє `applyKeyboardFromVV` у page.tsx й записує
-  // в ГЛОБАЛЬНИЙ `--keyboard-h`. Проста подія `resize` без зміни `height`
-  // нічого не симулює: `applyKeyboardFromVV` перерахував би 0 і сам стер би
-  // будь-яке ручне значення `--keyboard-h`, яке виставив би тест.
-  await page.evaluate(() => {
-    const vv = window.visualViewport!
-    Object.defineProperty(vv, 'height', { configurable: true, get: () => window.innerHeight - 260 })
-    vv.dispatchEvent(new Event('resize'))
-  })
-  await page.waitForFunction(() => {
-    const ov = document.querySelector('.modal-overlay') as HTMLElement
-    return ov.style.getPropertyValue('--keyboard-h') === ''
-  }, undefined, { timeout: 2000 })
-  await page.waitForTimeout(300) // .25s padding-bottom transition — читаємо ПІСЛЯ
 
-  const reconciled = await page.evaluate(() => {
-    const ov = document.querySelector('.modal-overlay') as HTMLElement
-    return {
-      inline: ov.style.getPropertyValue('--keyboard-h'),
-      computed: Math.round(parseFloat(getComputedStyle(ov).paddingBottom)),
-    }
-  })
-  expect(reconciled.inline, 'локальний фейковий ліфт знято').toBe('')
-  expect(reconciled.computed, 'падинг тепер зі справжньої висоти, не з вигаданої').toBe(260)
-})
-
-test('ліфт НЕ дублюється, коли платформа рапортує висоту клавіатури', async ({ page }) => {
-  await fixtures(page)
-  await openRentModal(page)
-  // Android/веб: webview ресайзиться, --keyboard-h реальний. Тоді власного
-  // ліфту бути не повинно — інакше шит підскочив би двічі.
-  await page.evaluate(() => document.documentElement.style.setProperty('--keyboard-h', '300px'))
-  await page.locator('.modal input').first().focus()
-  await page.waitForTimeout(700)
-  const pad = await page.evaluate(() => {
-    const ov = document.querySelector('.modal-overlay') as HTMLElement
-    return { inline: ov.style.getPropertyValue('--keyboard-h'), computed: parseFloat(getComputedStyle(ov).paddingBottom) }
-  })
-  expect(pad.inline, 'локальний fallback не застосовано').toBe('')
-  expect(Math.round(pad.computed), 'працює лише реальна висота').toBe(300)
-})
-
-test('шит не СНЕПАЄ між висотами — max-height анімується так само, як padding-bottom', async ({ page }) => {
-  // Реальний пристрій шле висоту клавіатури кількома тіками, поки вона сама
-  // анімується (нормальна поведінка ОС, не баг сигналу). `.modal-overlay`'s
-  // padding-bottom вже їде transition-ом (.25s), а .modal's max-height
-  // перераховувався МИТТЄВО — шит візуально «стрибав»/«стискався» на кожен тік,
-  // хоч кожне окреме значення було коректним. Відео користувача: «стискається
-  // так, що з нею неможливо працювати».
-  await fixtures(page)
-  await openRentModal(page)
-  const hasTransition = await page.evaluate(() => {
-    const m = document.querySelector('.modal') as HTMLElement
-    const cs = getComputedStyle(m)
-    const idx = cs.transitionProperty.split(',').findIndex(p => p.trim() === 'max-height')
-    if (idx === -1) return null
-    return parseFloat(cs.transitionDuration.split(',')[idx] ?? cs.transitionDuration)
-  })
-  expect(hasTransition, 'max-height мусить мати ненульову transition-duration').not.toBeNull()
-  expect(hasTransition).toBeGreaterThan(0)
-})
-
-test('блюр знято, поки шит їде під клавіатуру', async ({ page }) => {
-  // Розширення прийому, що вже стоїть на виїзді шита і в акордеоні папок: на
-  // WebKit кожен кадр із новою геометрією = переблюрювання всієї поверхні
-  // (`.modal` 48px + `.modal-overlay` 4px) поверх екрана зі скляними картками.
-  // Клавіатура рухає шит ПІЗНІШЕ за анімацію відкриття і власними переходами,
-  // тобто повз `moving`, який гасне на `animationend`, — саме ці кадри й
-  // лишались із блюром.
-  await fixtures(page)
-  await openRentModal(page)
-  // Спокій: блюр НА МІСЦІ (інакше гард нижче нічого не доводить — «none» був би
-  // і без фіксу).
-  await expect(page.locator('.modal-overlay.moving')).toHaveCount(0, { timeout: 8_000 })
-  const atRest = await page.evaluate(() =>
-    getComputedStyle(document.querySelector('.modal') as HTMLElement).backdropFilter)
-  expect(atRest, 'у спокої шит — скло').not.toBe('none')
-
-  // Клавіатура зʼявляється так, як її бачить прод: змінюється visualViewport
-  // (див. коментар до «ліфт вимикається…» — простий resize без зміни height
-  // нічого не симулює).
-  await page.evaluate(() => {
-    const vv = window.visualViewport!
-    Object.defineProperty(vv, 'height', { configurable: true, get: () => window.innerHeight - 300 })
-    vv.dispatchEvent(new Event('resize'))
-  })
-  // Клас вішає РЕНДЕР React, а не сам обробник події, тож читати computed style
-  // у тому ж `evaluate`, що й dispatch, — це замір ДО коміту. Чекаємо на факт.
-  await page.waitForFunction(
-    () => getComputedStyle(document.querySelector('.modal') as HTMLElement).backdropFilter === 'none',
-    undefined,
-    { timeout: 2000 },
-  )
-
-  // І повертається, коли рух скінчився: знятий назавжди блюр — це вже не
-  // оптимізація, а зміна вигляду.
-  await expect(page.locator('.modal-overlay.moving')).toHaveCount(0, { timeout: 8_000 })
-  const after = await page.evaluate(() =>
-    getComputedStyle(document.querySelector('.modal') as HTMLElement).backdropFilter)
-  expect(after, 'після руху скло повернулось').toBe(atRest)
-})
 
 // «поле у фокусі не ховається під кнопками дій навіть у затиснутій модалці» —
 // видалено у фазі 2 переробки модалок: розклад платежів більше не шит, а
@@ -438,7 +306,7 @@ test('блюр знято, поки шит їде під клавіатуру', 
 test('кнопки дій — напівпрозоре скло, неактивна лишається видимою', async ({ page }) => {
   // Дії були єдиними суцільними заливками в інтерфейсі, збудованому на склі.
   await fixtures(page)
-  await openRentModal(page)
+  await openSheet(page)
   await page.waitForTimeout(450)
 
   const cta = await page.evaluate(() => {
@@ -472,46 +340,6 @@ test('кнопки дій — напівпрозоре скло, неактив�
   expect(on.bf, 'liquid glass = блюр підкладки').toContain('blur')
 })
 
-test('шит НЕ підстрибує вгору, коли webview стиснувся, а Telegram про це не звітує', async ({ page }) => {
-  // Реальний скріншот користувача (тоді — модалка «Папки»): шит відлетів угору,
-  // під ним діра, унизу клавіатура. Це ПОДВІЙНИЙ ліфт — лейаут уже стиснувся під
-  // клавіатуру, і шит підняв себе ще на KB_FALLBACK_PX поверх цього.
-  //
-  // Гард від подвійного ліфту існував, але питав про стискання САМЕ Telegram
-  // (viewportHeight vs viewportStableHeight). Клієнт користувача webview стискав,
-  // а цих значень не оновлював — тож гард казав «не стиснувся». Тут відтворюємо
-  // рівно це: висоту вікна ріжемо, а __tgViewportStable/__tgKeyboard НЕ чіпаємо.
-  await fixtures(page)
-  await page.goto('/')
-  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
-  await page.getByText('БЦ Рубін').first().click()
-  await expect(page.getByText('Всі (3)')).toBeVisible()
-
-  // Носій тесту — шит ОРЕНДИ: «Папки» з фази 4 більше не `<Modal>`, а екран,
-  // тож клавіатурної евристики, яку цей гард перевіряє, там немає в принципі.
-  await openRentModal(page)
-
-  const size = page.viewportSize()!
-  const modal = page.locator('.modal').last()
-  await expect(modal).toBeVisible()
-
-  // Телеграм мовчить: жодного __tgKeyboard / __tgViewportStable — лише реальне
-  // стискання вікна, як робить сам клієнт.
-  await page.setViewportSize({ width: size.width, height: size.height - 300 })
-  await page.locator('.modal input').first().focus()
-  // Довше за KB_PROBE_MS + KB_CONFIRM_MS + transition, щоб фолбек устиг би
-  // увімкнутись, якби гард не спрацював.
-  await page.waitForTimeout(1200)
-
-  const gap = await page.evaluate(() => {
-    const ov = document.querySelectorAll('.modal-overlay')
-    const m = ov[ov.length - 1]?.querySelector('.modal') as HTMLElement
-    return Math.round(window.innerHeight - m.getBoundingClientRect().bottom)
-  })
-  // Шит мусить лишатись ПРИКЛЕЄНИМ до низу вже стиснутого вікна. Клавіатуру
-  // лейаут відняв сам; будь-який власний ліфт тут — це другий відлік.
-  expect(gap, `шит відірвався від низу на ${gap}px — знову подвійний ліфт`).toBeLessThan(24)
-})
 
 // ─── ПІДЙОМ НА ФОКУС: старт одночасно з клавіатурою ───────────────────────────
 //
@@ -635,3 +463,19 @@ test('на клієнті, що СТИСКАЄ лейаут, підйому на
   await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => r(null))))
   expect(await kbVar(page), 'лейаут уже без клавіатури — наш ліфт відняв би її вдруге').toBe(0)
 })
+
+// ─── ВИДАЛЕНО РАЗОМ ІЗ `Modal.tsx` (фаза 5) ──────────────────────────────────
+//
+// Шість тестів перевіряли КЛАВІАТУРНУ ЕВРИСТИКУ `Modal.tsx`: пробу висоти з
+// підтвердженням, фолбек `KB_FALLBACK_PX` із самоскасуванням, подвійний сигнал
+// стискання лейауту, зняття блюру під клавіатурний рух, анімацію `max-height`.
+// Кожен із них колись знайшов справжній production-баг, і кожен ловив свій.
+//
+// Файла більше немає: усі шити з полями стали повноекранними маршрутами, де
+// клавіатуру тримає ОДНА глобальна `--keyboard-h` з `page.tsx`, а власної
+// евристики немає ні в кого. Тобто інваріанти цих гардів не можуть настати —
+// а гард, який не здатен упасти, лише додає зелені (те саме правило, за яким
+// раніше прибрано тест про `.batchbar`).
+//
+// Що лишилось замість них: сюїта «ПІДЙОМ НА ФОКУС» нижче — вона міряє саме
+// глобальну змінну й агностична до того, шит це чи екран.

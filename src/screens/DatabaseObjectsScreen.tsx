@@ -678,7 +678,7 @@ export default function DatabaseObjectsScreen() {
 
         {/* Property cards */}
         {loading ? (
-          <SkeletonLoader rowHeight={compactView ? 69 : 200} />
+          <SkeletonLoader rowHeight={compactView ? 69 : 150} />
         ) : error && properties.length === 0 ? (
           <RetryState subtitle={error} onRetry={() => loadProperties(screenParams.dbId)} />
         ) : filtered.length === 0 && properties.length === 0 ? (
