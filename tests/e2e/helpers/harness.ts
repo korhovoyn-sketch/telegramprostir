@@ -290,3 +290,19 @@ export function seedSession(page: Page, user: Record<string, unknown>) {
     localStorage.setItem('ob_v1', JSON.stringify(['owner-fab', 'obj-fab', 'realtor-qr', 'col-fab']))
   }, user)
 }
+
+/**
+ * Дія над обʼєктом зі списку. Раніше це був тап по кнопці в рядку картки
+ * (`.obj-act-btn`); рядок прибрано — він займав 25-32% картки, а його кнопки
+ * не могли взяти 44px, бо над ними лежить тіло картки. Тепер дії живуть у
+ * шиті за кнопкою «⋯».
+ *
+ * Рецепт був у 13 спеках однаковим, тож він тут, а не скопійований учотирнадцяте.
+ */
+export async function objectAction(page: Page, label: string, index = 0) {
+  await page.locator('.obj-more').nth(index).click()
+  // Шит виїжджає з-під низу (~320мс): тап по рядку під час руху промахується —
+  // та сама пастка, що вже описана для меню бази.
+  await page.waitForTimeout(420)
+  await page.locator('.sheet-row').filter({ hasText: label }).first().click()
+}

@@ -141,7 +141,7 @@ test('дії останньої картки не під таббаром', asyn
   const res = await page.evaluate(() => {
     const bar = document.querySelector('.tabbar') as HTMLElement
     const barTop = bar.getBoundingClientRect().top
-    const acts = [...document.querySelectorAll('.obj-act-btn')] as HTMLElement[]
+    const acts = [...document.querySelectorAll('.obj-more')] as HTMLElement[]
     const last = acts[acts.length - 1]
     const r = last?.getBoundingClientRect()
     // Чи справді таббар перехоплює тап у центрі кнопки?
@@ -153,7 +153,7 @@ test('дії останньої картки не під таббаром', asyn
       lastBottom: r ? Math.round(r.bottom) : -1,
       overlap: r ? Math.round(r.bottom - barTop) : -1,
       hitClass: hit ? (hit.className?.toString().slice(0, 30) || hit.tagName) : 'нічого',
-      hitIsAction: !!hit?.closest('.obj-act-btn'),
+      hitIsAction: !!hit?.closest('.obj-more'),
     }
   })
   console.log('\n─── ДІЇ КАРТКИ vs ТАББАР ───')

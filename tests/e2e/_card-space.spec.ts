@@ -12,8 +12,10 @@ test('скільки місця їсть рядок дій картки', async 
   const data = await page.evaluate(() => {
     const cards = Array.from(document.querySelectorAll('.obj-card'))
     return cards.slice(0, 4).map((c) => {
+      // Рядок дій прибрано (замінений кнопкою «⋯» у шапці) — інструмент
+      // лишається, щоб МІРЯТИ виграш і ловити його втрату, якщо рядок повернуть.
       const act = c.querySelector('.obj-act') as HTMLElement | null
-      const btns = Array.from(c.querySelectorAll('.obj-act-btn')) as HTMLElement[]
+      const btns = Array.from(c.querySelectorAll('.obj-more')) as HTMLElement[]
       const cb = c.getBoundingClientRect()
       const ab = act?.getBoundingClientRect()
       return {
@@ -24,11 +26,14 @@ test('скільки місця їсть рядок дій картки', async 
         btns: btns.length,
         btnH: btns[0] ? Math.round(btns[0].getBoundingClientRect().height) : 0,
         widths: btns.map((b) => Math.round(b.getBoundingClientRect().width)),
+        hd: Math.round((c.querySelector('.obj-hd') as HTMLElement)?.getBoundingClientRect().height ?? 0),
+        titleLines: Math.round(((c.querySelector('.obj-t') as HTMLElement)?.getBoundingClientRect().height ?? 0)),
+        factsLines: Math.round(((c.querySelector('.obj-s') as HTMLElement)?.getBoundingClientRect().height ?? 0)),
       }
     })
   })
   for (const d of data) {
-    console.log(`${d.name.padEnd(22)} картка ${String(d.card).padStart(4)}px | рядок ${String(d.row).padStart(3)}px (${d.pct}%) | кнопок ${d.btns} × ${d.btnH}px | ширини ${d.widths.join(', ')}`)
+    console.log(`${d.name.padEnd(22)} картка ${String(d.card).padStart(4)}px | рядок ${String(d.row).padStart(3)}px (${d.pct}%) | кнопок ${d.btns} × ${d.btnH}px | ширини ${d.widths.join(', ')} | шапка ${d.hd}px (назва ${d.titleLines}, факти ${d.factsLines})`)
   }
   const vh = page.viewportSize()!.height
   console.log(`\nвиджет 375×${vh}; сумарно рядки дій зʼїдають ${data.reduce((a, d) => a + d.row, 0)}px по чотирьох картках`)

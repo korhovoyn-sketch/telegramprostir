@@ -699,9 +699,16 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 /* Price value — Subhead Bold */
 .obj-tot-v{font-size:var(--fs-sub);font-weight:var(--fw-bold);color:var(--t1);letter-spacing:-.02em}
 .obj-tot-sub{font-size:var(--fs-cap2);color:var(--t3);margin-top:2px}
-.obj-act{display:flex;gap:6px;padding:10px var(--pad-card) 12px;justify-content:space-between;flex-wrap:nowrap}
-.obj-act-btn{display:flex;align-items:center;justify-content:center;gap:4px;padding:7px 8px;border-radius:var(--r-pill);background:var(--glass-2);border:var(--bd);color:var(--t2);font-size:var(--fs-cap1);font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:1;min-width:0;transition:background .15s,color .15s}
-.obj-act-btn:active{background:var(--glass-3);color:var(--t1);transform:scale(.96)}
+/* Дії обʼєкта — одна кнопка «⋯» у шапці картки замість рядка з чотирьох.
+   Рядок займав 56px, тобто 25-32% КОЖНОЇ картки (заміряно на рендері), а його
+   кнопки були 34px і підняти їх було НЕМОЖЛИВО: над ними лежить тіло картки,
+   яке відкриває обʼєкт, тож розширення вгору вкрало б його тапи. Тут місця
+   вистачає — 44px беруться повністю, і кожна дія в шиті ще й має підпис. */
+.obj-hd-r{flex-shrink:0;display:flex;align-items:center;gap:2px}
+.obj-more{display:flex;align-items:center;justify-content:center;width:44px;height:44px;
+  margin:-10px -12px -10px -2px;background:none;border:none;color:var(--t3);cursor:pointer;
+  border-radius:var(--r-sm);transition:background .15s,color .15s}
+.obj-more:active{background:var(--glass-2);color:var(--t1)}
 
 /* Дії в рядку доступу (гості, команда). Окремий клас, а не `.obj-act-btn`:
    там 35px — СВІДОМИЙ виняток, бо над кнопками лежить тіло картки, яке

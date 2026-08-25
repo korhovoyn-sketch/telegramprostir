@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { setupApp, DEFAULT_USER, jsonRoute } from './helpers/harness'
+import { setupApp, DEFAULT_USER, jsonRoute, objectAction } from './helpers/harness'
 
 // UI/UX regression audit під ворожими даними (дуже довгі назви, величезні суми)
 // з програмними інваріантами, а не лише скріншотами:
@@ -251,7 +251,7 @@ test('QA: екран папок із дуже довгою назвою', async 
 test('QA: property form long values + all sections', async ({ page }, ti) => {
   await setup(page)
   await openObjects(page)
-  await page.locator('.obj-act-btn', { hasText: 'Редагувати' }).first().click()
+  await objectAction(page, 'Редагувати')
   await expect(page.getByText('Редагування')).toBeVisible()
   await page.waitForTimeout(500)
   await noHScroll(page, 'form')

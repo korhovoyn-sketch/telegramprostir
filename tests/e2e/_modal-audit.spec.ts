@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Route } from '@playwright/test'
-import { setupApp, DEFAULT_USER } from './helpers/harness'
+import { setupApp, DEFAULT_USER, objectAction } from './helpers/harness'
 
 /**
  * ТИМЧАСОВИЙ аудит усіх модалок: відкриття, ЗАКРИТТЯ кожним шляхом і вигляд.
@@ -288,7 +288,7 @@ test('обʼєкт: оренда, пікер папки у формі', async ({
 
   // 8. Пікер папки у ФОРМІ обʼєкта (інший інстанс, ніж bulk).
   await toObjects(page)
-  await page.locator('.obj-act-btn', { hasText: 'Редагувати' }).first().click()
+  await objectAction(page, 'Редагувати')
   await expect(page.getByText('Редагування')).toBeVisible({ timeout: 15_000 })
   const folderRow = page.getByText(/Папка/).first()
   if (await folderRow.count()) {

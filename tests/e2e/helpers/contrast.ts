@@ -138,7 +138,7 @@ export const smallTargets = (page: Page, min: number) => page.evaluate<SmallTarg
   // Міряти від верху таббару, а не від `innerHeight`: оболонка (--tg-vh) нижча
   // за вікно, тож усе під нею просто нижче фолду, а не «вкрадене».
   const fold = bar ? bar.getBoundingClientRect().top : window.innerHeight
-  document.querySelectorAll('button,[role="button"],a,input[type="checkbox"],.sheet-row,.notif-tab,.seg-b,.view-seg-b,.fr-seg-b,.tab,.obj-act-btn,.hdr-back').forEach((el) => {
+  document.querySelectorAll('button,[role="button"],a,input[type="checkbox"],.sheet-row,.notif-tab,.seg-b,.view-seg-b,.fr-seg-b,.tab,.obj-more,.hdr-back').forEach((el) => {
     const e = el as HTMLElement
     const r = e.getBoundingClientRect()
     if (r.width < 4 || r.height < 4) return
@@ -210,9 +210,11 @@ export function expectAllowed(
  * одна до одної в спільній обгородці: розширення вкрало б тап у сусідню, тож це
  * рішення про геометрію пари, а не про сам контрол.
  *
- * `.obj-act-btn` — рядок дій картки. Природний бокс (~35px) СВІДОМО не
- * розширюють через `::after`: над кнопками тіло картки, яке відкриває обʼєкт, і
- * розширена зона вкрала б у нього тапи.
+ * `.obj-act-btn` ЗВІДСИ ПРИБРАНО — клас більше не існує. Це був найдовший борг
+ * списку: рядок дій картки мав ~35px і його НЕ МОЖНА було розширити через
+ * `::after`, бо над кнопками лежить тіло картки, яке відкриває обʼєкт. Дії
+ * переїхали в шит за кнопкою «⋯», де кожна дістає повні 44px — тобто борг
+ * закрито переверсткою, а не послабленням порога.
  *
  * Решта зʼявилась разом із розширенням обходу на 21 екран — і це інвентар, а не
  * рішення «так і треба»: степер кількості в формі (32×32), чіпи сортування
@@ -222,7 +224,7 @@ export function expectAllowed(
  * Піднімати їх — окрема робота з переверсткою рядків, а не правка порогу.
  */
 export const TAP_DEBT: ReadonlySet<string> = new Set([
-  'view-seg-b', 'obj-act-btn', 'sort-chip', 'owner-act', 'button',
+  'view-seg-b', 'sort-chip', 'owner-act', 'button',
   // Сегмент фільтра («Всі / Вільно / Зайнято / Продаж»), 34px — рішення
   // власника про компактніше меню. Розширити зону через `::after` тут
   // НЕМОЖЛИВО: власний `overflow:hidden` під ellipsis клiпає псевдоелемент

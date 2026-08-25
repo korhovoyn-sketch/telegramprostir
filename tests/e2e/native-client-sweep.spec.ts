@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Route } from '@playwright/test'
-import { setupApp, DEFAULT_USER } from './helpers/harness'
+import { setupApp, DEFAULT_USER, objectAction } from './helpers/harness'
 
 /**
  * Обхід ВСІХ екранів так, як їх бачить реальний Telegram: з нативною нижньою
@@ -159,7 +159,7 @@ test('нативний клієнт: усі екрани власника жив
 
   // ── Редагування об'єкта: збереження + видалення в хедері
   await toObjects(page)
-  await page.locator('.obj-act-btn', { hasText: 'Редагувати' }).first().click()
+  await objectAction(page, 'Редагувати')
   await expect(page.getByText('Редагування')).toBeVisible()
   await alive(page, 'property-form-edit')
   await expect(cta).toHaveText('Зберегти зміни')

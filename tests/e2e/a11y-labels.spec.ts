@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { setupApp, DEFAULT_USER, jsonRoute } from './helpers/harness'
+import { setupApp, DEFAULT_USER, jsonRoute, objectAction } from './helpers/harness'
 
 // Гайдлайни Telegram вимагають підписів для полів і зображень. Наші рядки форм
 // кладуть підпис у СУСІДНІЙ span — візуально добре, програмно не звʼязано, тож
@@ -108,7 +108,7 @@ test('усі поля, кнопки та зображення мають дос�
   await expect(page.getByText('Всі (1)')).toBeVisible({ timeout: 15_000 })
   await auditScreen(page, 'db-objects')
 
-  await page.locator('.obj-act-btn', { hasText: 'Редагувати' }).first().click()
+  await objectAction(page, 'Редагувати')
   await expect(page.getByText('Редагування')).toBeVisible()
   await auditScreen(page, 'property-form')
 })

@@ -306,7 +306,7 @@ test('дії останньої картки не ховаються під та
   const res = await page.evaluate(() => {
     const bar = document.querySelector('.tabbar') as HTMLElement
     const barTop = bar.getBoundingClientRect().top
-    const acts = [...document.querySelectorAll('.obj-act-btn')] as HTMLElement[]
+    const acts = [...document.querySelectorAll('.obj-more')] as HTMLElement[]
     const last = acts[acts.length - 1]
     const r = last?.getBoundingClientRect()
     const cx = r ? Math.round(r.left + r.width / 2) : 0
@@ -316,7 +316,7 @@ test('дії останньої картки не ховаються під та
       found: !!r,
       overlap: r ? Math.round(r.bottom - barTop) : -1,
       hitClass: hit ? (hit.className?.toString().slice(0, 30) || hit.tagName) : 'нічого',
-      hitIsAction: !!hit?.closest('.obj-act-btn'),
+      hitIsAction: !!hit?.closest('.obj-more'),
     }
   })
   expect(res.found, 'дій картки не знайдено — селектор застарів').toBe(true)

@@ -15,6 +15,7 @@ import SearchBar from '@/components/ui/SearchBar'
 import { StatusBadge } from '@/components/ui/Badge'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import ActionSheet from '@/components/ui/ActionSheet'
+import { useLatch } from '@/lib/useLatch'
 import Collapsible from '@/components/ui/Collapsible'
 import { IconCheck, IconPlus, IconDots, IconPhoto, IconChevronUp, IconChevronDown, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconCopy, IconUser, IconUsers, IconFile, IconLayers, IconLayoutGrid, IconChartBar, IconKey, IconFileExport, IconCircleCheck, IconAdjustments, IconTrash, IconChevronRight, IconFolder, IconInbox } from '@/components/Icons'
 import DatabaseStatsPanel from '@/components/ui/DatabaseStatsPanel'
@@ -33,6 +34,15 @@ export default function DatabaseObjectsScreen() {
   const { properties, loading, error, loadProperties, reorderProperty, batchDeleteProperties, batchUpdateStatus } = useProperties(screenParams.dbId)
   const { folders, unavailable: foldersUnavailable, loadFolders } = useFolders(screenParams.dbId)
   const memberDbIds = useAppStore(st => st.memberDbIds)
+
+  // Дії обʼєкта переїхали з рядка на картці в шит: рядок займав 56px, тобто
+  // 25-32% КОЖНОЇ картки (заміряно), а його кнопки були 34px — під 44px HIG,
+  // і підняти їх було неможливо, бо над ними лежить тіло картки, яке відкриває
+  // обʼєкт. У шиті кожна дія дістає повні 44px і підпис.
+  const [actionsFor, setActionsFor] = useState<Property | null>(null)
+  // Дані нулюються РАЗОМ із закриттям, тож без латча шит домалював би кадр
+  // вихідної анімації з порожнім заголовком (урок фази 1).
+  const sheetProp = useLatch(actionsFor)
   // «Меню бази» веде до трьох речей, що зʼявляються НА ТОМУ Ж екрані, поки
   // ActionSheet ще дограє власну анімацію закриття (~250-320мс): режим
   // виділення, режим порядку, «Папки» і підтвердження видалення (через
@@ -467,8 +477,22 @@ export default function DatabaseObjectsScreen() {
                   </>}
                 </div>
               </div>
-              <div style={{ flexShrink: 0 }}>
+              {/* Бейдж і «⋯» — РЯДКОМ. Колонку пробував і відкинув ЗА ЗАМІРОМ:
+                  вона прибирає перенос фактів, але робить шапку 87px замість 65
+                  на КОЖНІЙ картці, тож виграш падає з −56 до −34px. У рядку
+                  платять лише картки з довшими фактами (там факти йдуть у два
+                  рядки), і навіть вони лишаються на 36px нижчими за старі. */}
+              <div className="obj-hd-r">
                 <StatusBadge status={p.status} />
+                {!selectMode && !reorderMode && (
+                  <button
+                    className="obj-more"
+                    aria-label={`Дії з обʼєктом «${p.name}»`}
+                    onClick={(e) => { e.stopPropagation(); hapticSelection(); setActionsFor(p) }}
+                  >
+                    <IconDots size={18} />
+                  </button>
+                )}
               </div>
             </div>
 
@@ -519,40 +543,6 @@ export default function DatabaseObjectsScreen() {
                   </div>
                 </div>
                 <div className="obj-tot-v">{formatPrice(dispVal, user?.currency)}</div>
-              </div>
-            )}
-            {!selectMode && !reorderMode && (
-              <div className="obj-act" onClick={e => e.stopPropagation()}>
-                {isOwner && (
-                  <button
-                    className="obj-act-btn"
-                    onClick={() => navigate('property-form', { propertyId: p.id, dbId: db.id })}
-                  >
-                    <IconEdit size={12} /> Редагувати
-                  </button>
-                )}
-                {isOwner && (
-                  <button
-                    className="obj-act-btn"
-                    onClick={() => { hapticSelection(); navigate('property-form', { dbId: db.id, duplicateId: p.id }) }}
-                  >
-                    <IconCopy size={12} /> Дублювати
-                  </button>
-                )}
-                {p.status === 'occupied' && (
-                  <button
-                    className="obj-act-btn"
-                    onClick={() => navigate('payment-calendar', { propertyId: p.id, dbId: db.id })}
-                  >
-                    <IconCalendar size={12} /> Платежі
-                  </button>
-                )}
-                <button
-                  className="obj-act-btn"
-                  onClick={() => navigate('property-detail', { propertyId: p.id, dbId: db.id, scrollTo: 'files' })}
-                >
-                  <IconFile size={12} /> Файли
-                </button>
               </div>
             )}
           </div>
@@ -862,6 +852,37 @@ export default function DatabaseObjectsScreen() {
                 <span className="sheet-ic"><Icon size={16} /></span>
                 <span className="sheet-lbl">{label}</span>
                 {nav && <IconChevronRight size={16} className="sheet-chev" />}
+              </button>
+            ))}
+          </div>
+        </ActionSheet>
+      )}
+
+      {/* Дії обʼєкта. Демонтується разом із режимами виділення/порядку — у них
+          картка має інший контракт тапу. */}
+      {!selectMode && !reorderMode && (
+        <ActionSheet
+          open={!!actionsFor}
+          title={sheetProp?.name ?? ''}
+          subtitle="Дії з обʼєктом"
+          onClose={() => setActionsFor(null)}
+          actions={[{ label: 'Скасувати', variant: 'secondary', onClick: () => setActionsFor(null) }]}
+        >
+          <div className="sheet-group">
+            {sheetProp && [
+              ...(isOwner ? [
+                { Icon: IconEdit,   label: 'Редагувати', action: () => { setActionsFor(null); navigate('property-form', { propertyId: sheetProp.id, dbId: screenParams.dbId }) } },
+                { Icon: IconCopy,   label: 'Дублювати',  action: () => { setActionsFor(null); navigate('property-form', { dbId: screenParams.dbId, duplicateId: sheetProp.id }) } },
+              ] : []),
+              ...(sheetProp.status === 'occupied' ? [
+                { Icon: IconCalendar, label: 'Платежі',  action: () => { setActionsFor(null); navigate('payment-calendar', { propertyId: sheetProp.id, dbId: screenParams.dbId }) } },
+              ] : []),
+              { Icon: IconFile,     label: 'Файли',      action: () => { setActionsFor(null); navigate('property-detail', { propertyId: sheetProp.id, dbId: screenParams.dbId, scrollTo: 'files' }) } },
+            ].map(({ Icon, label, action }) => (
+              <button key={label} type="button" className="sheet-row" onClick={action}>
+                <span className="sheet-ic"><Icon size={16} /></span>
+                <span className="sheet-lbl">{label}</span>
+                <IconChevronRight size={16} className="sheet-chev" />
               </button>
             ))}
           </div>

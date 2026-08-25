@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { setupApp, DEFAULT_USER, jsonRoute } from './helpers/harness'
+import { setupApp, DEFAULT_USER, jsonRoute, objectAction } from './helpers/harness'
 
 // «Перевір, щоб такого більше ніде не було» — прохід по ВСІХ екранах із полями
 // вводу: жодне поле у фокусі не має ховатись під плаваючою смугою (фіксована
@@ -116,7 +116,7 @@ test('форма обʼєкта: жодне поле не ховається п�
   await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
   await page.getByText('БЦ Рубін').first().click()
   await expect(page.getByText('Всі (1)')).toBeVisible({ timeout: 15_000 })
-  await page.locator('.obj-act-btn', { hasText: 'Редагувати' }).first().click()
+  await objectAction(page, 'Редагувати')
   await expect(page.getByText('Редагування')).toBeVisible()
 
   await keyboardOverlay(page, 300)
@@ -129,7 +129,7 @@ test('форма обʼєкта: те саме, коли webview стискає�
   await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
   await page.getByText('БЦ Рубін').first().click()
   await expect(page.getByText('Всі (1)')).toBeVisible({ timeout: 15_000 })
-  await page.locator('.obj-act-btn', { hasText: 'Редагувати' }).first().click()
+  await objectAction(page, 'Редагувати')
   await expect(page.getByText('Редагування')).toBeVisible()
 
   await keyboardShrink(page, 300)
