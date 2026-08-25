@@ -397,55 +397,13 @@ test('керування шарингом під час запиту — спр�
   expect(calls, 'неактивний рядок усе одно вистрілив запитом').toBe(1)
 })
 
-test('Escape під час перейменування папки скасовує ЛИШЕ рядок, не весь шит', async ({ page }) => {
-  // Modal слухає Escape на window і закриває верхній шит стеку. Локальний обробник
-  // на інпуті перейменування без `stopPropagation` конкурував із ним: користувач
-  // тиснув Escape, щоб відмовитись від правки назви, і втрачав усю модалку папок
-  // разом із нею.
-  await fixtures(page)
-  const FOLDER = {
-    id: '30000000-0000-0000-0000-000000000001',
-    db_id: DB_ID, owner_id: USER.id, name: 'Перший поверх', sort_order: 100,
-    created_at: NOW, updated_at: NOW,
-  }
-  await page.route('**/rest/v1/property_folders**', (r) => json(r, [FOLDER]))
-
-  await page.goto('/')
-  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
-  await page.getByText('БЦ Рубін').first().click()
-  await expect(page.getByText('Всі (9)')).toBeVisible({ timeout: 15_000 })
-  await page.getByLabel('Меню бази').click()
-  await page.getByText('Папки', { exact: true }).click()
-  await expect(page.locator('.modal').getByText('Папки', { exact: true })).toBeVisible()
-
-  await page.getByLabel('Перейменувати').first().click()
-  const input = page.locator('.fold-mng-row .fold-mng-input')
-  await expect(input).toHaveValue('Перший поверх')
-  await input.fill('Інша назва')
-
-  await input.press('Escape')
-
-  // Правка скасована…
-  await expect(input, 'Escape не вийшов з режиму перейменування').toHaveCount(0)
-  await expect(page.locator('.modal').getByText('Перший поверх')).toBeVisible()
-
-  // …а шит на місці. Пауза ОБОВʼЯЗКОВА і не є довільною: закриття двофазне, шит
-  // живе в DOM ще ~320мс із класом `closing` (плюс safety-net таймер такої ж
-  // довжини). Без цієї паузи `toHaveCount(1)` збігався на першому ж полінгу
-  // ПОСЕРЕД виходу — гард проходив і зі зламаним `stopPropagation`, тобто не
-  // перевіряв нічого. Перевірено falsification-ом.
-  await page.waitForTimeout(600)
-  await expect(page.locator('.modal.closing'), 'шит почав закриватись від Escape у полі').toHaveCount(0)
-  await expect(page.locator('.modal'), 'Escape у полі зніс усю модалку папок').toHaveCount(1)
-  await expect(page.locator('.modal').getByText('Папки', { exact: true })).toBeVisible()
-
-  // Другий Escape — уже поза полем — закриває шит, як і має.
-  await page.keyboard.press('Escape')
-  await expect(page.locator('.modal')).toHaveCount(0)
-})
-
-/** Швидкий флік — той самий жест, але кадри по ~16мс, тобто висока швидкість. */
 const fling = (page: Page, selector: string, dy: number) => drag(page, selector, dy, true, 16)
+
+// ВИДАЛЕНО: «Escape під час перейменування папки скасовує ЛИШЕ рядок».
+// Клас дефекту структурно зник у фазі 4: керування папками більше не `<Modal>`,
+// а екран, тож window-обробника Escape, з яким конкурував локальний, там немає
+// взагалі. Гард, чий інваріант не може настати, лише додає зелені — правило
+// того ж роду, що вже застосоване до спростованої гіпотези з `.batchbar`.
 
 test('швидкий флік закриває шит, не доходячи до порога відстані', async ({ page }) => {
   // Порогом була ЛИШЕ відстань (96px), тобто на короткому шиті рішучий рух пальцем

@@ -147,9 +147,10 @@ test('нова база з обраних: створюється і одраз�
 
   await page.getByRole('button', { name: /В базу/ }).click()
   await expect(page.getByText('Інших баз ще немає')).toBeVisible()
-  await page.getByRole('button', { name: /Нова база з обраних/ }).click()
-  await page.locator('.fold-mng-input').fill('БЦ Новий')
-  await page.getByRole('button', { name: 'Створити', exact: true }).click()
+  // Пікер — повноекранний маршрут (фаза 4): поле відкрите завжди, а створення
+  // й перенос робить його ж CTA.
+  await page.getByLabel('Назва нової бази').fill('БЦ Новий')
+  await page.getByRole('button', { name: 'Створити й перенести', exact: true }).click()
 
   await expect.poll(() => captured.newDb, { timeout: 10_000 }).toBeTruthy()
   expect(captured.newDb!.name).toBe('БЦ Новий')

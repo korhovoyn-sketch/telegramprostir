@@ -277,7 +277,7 @@ async function menu(page: Page, item: string) {
   await page.getByText(item, { exact: true }).click()
 }
 
-test('шити бази: меню, папки, вибір папки, перенос у базу, поширення', async ({ page }) => {
+test('шити бази: меню бази і поширення', async ({ page }) => {
   test.setTimeout(180_000)
   await setupApp(page, { user: OWNER })
   await ownerRoutes(page)
@@ -287,18 +287,10 @@ test('шити бази: меню, папки, вибір папки, перен
   await page.getByLabel('Меню бази').click()
   expect(await sweep(page, 'db-menu')).toBe('БЦ Рубін')
 
-  // 2. FolderManageModal
-  await menu(page, 'Папки')
-  expect(await sweep(page, 'folders')).toBe('Папки')
-
-  // 3+4. Режим вибору → «У папку» і «Перенести» (FolderPicker + DbPicker).
-  await menu(page, 'Виділити об\'єкти')
-  await page.locator('.obj-card').first().click()
-  await expect(page.locator('.batchbar')).toBeVisible()
-  await page.locator('.batch-pill', { hasText: 'У папку' }).click()
-  await sweep(page, 'folder-picker')
-  await page.locator('.batch-pill').filter({ hasText: /базу|Перенести/ }).first().click()
-  expect(await sweep(page, 'db-picker')).toBe('Перенести в базу')
+  // Папки, вибір папки і перенос у базу — ПОВНОЕКРАННІ маршрути (фаза 4), тож
+  // контракт `<Modal>` до них не застосовний. Їхній вигляд і доступність міряє
+  // спільний обхід (`helpers/screens.ts`) у contrast / design-system-runtime /
+  // devices / screen-text-fit, а поведінку — folders-wire і move-to-db.
 
   // 5. ShareSheet з екрана аналітики.
   await toObjects(page)

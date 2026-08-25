@@ -235,12 +235,17 @@ test('nested modal fills the viewport, not the parent sheet', async ({ page }) =
   await page.getByText('БЦ Рубін').first().click()
   await expect(page.getByText('Всі (3)')).toBeVisible()
 
-  // Меню бази → Папки → підтвердження видалення = модалка ВСЕРЕДИНІ модалки.
+  // Потрібен шит, ВСЕРЕДИНІ якого відкривається підтвердження. Після фази 4
+  // таким лишився шит поширення: «Відкликати» кличе confirmAction, не
+  // розмонтовуючи себе (меню бази, навпаки, демонтується — див. фазу 1).
   await page.getByLabel('Меню бази').click()
-  await page.getByText('Папки', { exact: true }).click()
-  await expect(page.getByText('Групуйте').first()).toBeVisible()
-  await page.getByLabel('Видалити').first().click()
-  await expect(page.getByText(/Видалити папку/)).toBeVisible()
+  await page.getByText('Аналітика і поширення', { exact: true }).click()
+  await expect(page.getByText(/Аналітика|Поділитись/).first()).toBeVisible({ timeout: 15_000 })
+  await page.getByRole('button', { name: /Поділитись|Поділитися/ }).first().click()
+  await expect(page.locator('.modal')).toBeVisible()
+  await page.waitForTimeout(420)
+  await page.getByRole('button', { name: /Відкликати/ }).first().click()
+  await expect(page.getByText(/Відкликати доступ|Відкликати посилання/)).toBeVisible({ timeout: 10_000 })
   // Чекаємо, доки slide-up ЗАВЕРШИТЬСЯ, а не фіксовану паузу: під паралельним
   // навантаженням 500мс іноді не вистачало і замір ловив кадр анімації.
   await page.waitForFunction(() => {
@@ -465,7 +470,7 @@ test('кнопки дій — напівпрозоре скло, неактив�
 })
 
 test('шит НЕ підстрибує вгору, коли webview стиснувся, а Telegram про це не звітує', async ({ page }) => {
-  // Реальний скріншот користувача (модалка «Папки»): шит відлетів у верх екрана,
+  // Реальний скріншот користувача (тоді — модалка «Папки»): шит відлетів угору,
   // під ним діра, унизу клавіатура. Це ПОДВІЙНИЙ ліфт — лейаут уже стиснувся під
   // клавіатуру, і шит підняв себе ще на KB_FALLBACK_PX поверх цього.
   //
@@ -479,9 +484,9 @@ test('шит НЕ підстрибує вгору, коли webview стисну
   await page.getByText('БЦ Рубін').first().click()
   await expect(page.getByText('Всі (3)')).toBeVisible()
 
-  await page.getByLabel('Меню бази').click()
-  await page.getByText('Папки', { exact: true }).click()
-  await expect(page.getByText('Групуйте').first()).toBeVisible()
+  // Носій тесту — шит ОРЕНДИ: «Папки» з фази 4 більше не `<Modal>`, а екран,
+  // тож клавіатурної евристики, яку цей гард перевіряє, там немає в принципі.
+  await openRentModal(page)
 
   const size = page.viewportSize()!
   const modal = page.locator('.modal').last()
