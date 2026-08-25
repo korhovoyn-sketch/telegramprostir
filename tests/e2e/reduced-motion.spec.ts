@@ -158,3 +158,55 @@ test('жодна анімація на екрані не переживає ка
     expect(running, `${label}: анімація ${running}ms обходить reduced-motion`).toBeLessThanOrEqual(17)
   }
 })
+
+test('числові плитки показують КІНЦЕВЕ значення одразу, а не відлічують його', async ({ page }) => {
+  // Третій клас, якого не бачив жоден із двох тестів вище: `useCountUp` крутить
+  // rAF, а не Web Animation, тож `getAnimations()` його не показує — саме тому
+  // він і проліз. Знайдено не аудитом, а РОЗБІЖНІСТЮ БЕЙСЛАЙНІВ: два прогони
+  // на тих самих фікстурах і замороженому годиннику дали «$4 660» і «$4 657»,
+  // бо кадр ловив довільну мить відліку.
+  //
+  // ЗАМІРЯТИ ДВІЧІ З ПАУЗОЮ — ВАКУУМНО, і це перевірено фальсифікацією: відлік
+  // триває 620мс, а перше читання приходить пізніше за завантаження екрана,
+  // тож обидва заміри ловлять уже КІНЦЕВЕ число і гард проходить на зламаному
+  // коді. Тому спостерігач ставиться ДО навігації й записує КОЖНЕ значення,
+  // яке плитка колись мала: з фіксом їх рівно одне.
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await setup(page)
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+
+  // Семплер запускається ОДРАЗУ після кліку, тобто ДО того, як панель
+  // змонтується, і збирає кожне значення покадрово. Читати двічі з паузою —
+  // вакуумно (перевірено фальсифікацією): відлік триває 620мс і встигає
+  // добігти ще до першого читання.
+  await page.getByText('БЦ Рубін').first().click()
+  // Ключ — ПІДПИС плитки, а не саме число: «$0», «$600» і «$4 320» належать
+  // трьом різним плиткам, і склеювання їх в один ключ давало хибне падіння
+  // (наступив на це власним гардом).
+  const seen: Record<string, string[]> = await page.evaluate(async () => {
+    const byLabel: Record<string, string[]> = {}
+    const t0 = performance.now()
+    while (performance.now() - t0 < 2500) {
+      document.querySelectorAll('.dash-c, [class*="dash-c"]').forEach((card) => {
+        const label = (card.querySelector('.dash-l')?.textContent ?? '').trim()
+        const value = (card.querySelector('.dash-n')?.textContent ?? '').trim()
+        if (!label || !value) return
+        const arr = (byLabel[label] ??= [])
+        if (arr[arr.length - 1] !== value) arr.push(value)
+      })
+      await new Promise((r) => requestAnimationFrame(() => r(null)))
+    }
+    return byLabel
+  })
+
+  // АНТИВАКУУМ: без жодної плитки «проміжних немає» означало б лише те, що
+  // семплер нічого не побачив.
+  expect(Object.keys(seen).length, 'семплер не побачив жодної плитки').toBeGreaterThan(0)
+
+  // Поріг 2, а не 1, і це не поступка: плитка ЗАКОННО має два стани — порожній
+  // до приходу даних і кінцевий після. Відлік дав би десятки проміжних, тож
+  // межа між «дані доїхали» і «число крутиться» тут однозначна.
+  const counting = Object.entries(seen).filter(([, vals]) => vals.length > 2)
+  expect(counting, `плитка відлічувала: ${JSON.stringify(counting)}`).toEqual([])
+})
