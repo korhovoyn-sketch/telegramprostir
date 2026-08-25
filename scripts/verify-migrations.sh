@@ -129,3 +129,40 @@ if [ "$miss" != "0" ]; then
   exit 1
 fi
 echo "✓ verify_release.sql: 0 MISSING"
+
+# ── RELEASE.sql не розійшовся з міграціями ─────────────────────────────────
+# Склеєний файл — ПОХІДНИЙ. Якщо він розійдеться з `supabase/migrations/`,
+# оператор накотить у прод НЕ ТЕ, що лежить у репозиторії, і дізнається про це
+# найгіршим способом. Тому перевіряємо байт у байт: перегенерувати й порівняти.
+OUT=/tmp/RELEASE.regen.sql bash scripts/build-release-sql.sh >/dev/null
+if ! diff -q supabase/RELEASE.sql /tmp/RELEASE.regen.sql >/dev/null; then
+  echo "✗ supabase/RELEASE.sql розійшовся з supabase/migrations/"
+  echo "  Перезібери: bash scripts/build-release-sql.sh"
+  diff supabase/RELEASE.sql /tmp/RELEASE.regen.sql | head -20
+  exit 1
+fi
+echo "✓ RELEASE.sql збігається з міграціями"
+
+# ── І він СПРАВДІ дає ту саму схему, що поштучний накат ────────────────────
+# Це не формальність: доводиться саме ЕКВІВАЛЕНТНІСТЬ, а не лише те, що файл
+# виконується. База `shadow` вище вже зібрана поштучно — збираємо другу з
+# прод-стану (до 048) плюс один файл і звіряємо хеші визначень.
+psql -h "$SOCK" -p $PORT -U postgres -q -c "CREATE DATABASE shadow_rel" >/dev/null
+$PSQL -d shadow_rel -f scripts/pg-shim.sql >/dev/null 2>&1
+for f in $(ls supabase/migrations/*.sql | sort); do
+  b=$(basename "$f"); case "$b" in 0041_*|009_*) continue;; esac
+  if [[ "$b" =~ ^([0-9]{3})_ ]]; then n=$((10#${BASH_REMATCH[1]})); else n=0; fi
+  [ "$n" -ge 48 ] && continue
+  $PSQL -d shadow_rel -f "$f" >/dev/null 2>&1 || true
+done
+$PSQL -d shadow_rel -f supabase/RELEASE.sql >/dev/null
+# Повторний накат — доказ ідемпотентності (оператор може натиснути двічі).
+$PSQL -d shadow_rel -f supabase/RELEASE.sql >/dev/null
+psql -h "$SOCK" -p $PORT -U postgres -d shadow     -At -f scripts/schema-fingerprint.sql > /tmp/fp_a.txt
+psql -h "$SOCK" -p $PORT -U postgres -d shadow_rel -At -f scripts/schema-fingerprint.sql > /tmp/fp_b.txt
+if ! diff -q /tmp/fp_a.txt /tmp/fp_b.txt >/dev/null; then
+  echo "✗ RELEASE.sql дає ІНШУ схему, ніж поштучний накат:"
+  diff /tmp/fp_a.txt /tmp/fp_b.txt | head -20
+  exit 1
+fi
+echo "✓ RELEASE.sql еквівалентний поштучному накату ($(wc -l < /tmp/fp_a.txt) обʼєктів) і ідемпотентний"
