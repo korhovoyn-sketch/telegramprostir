@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { setupApp, DEFAULT_USER, jsonRoute } from './helpers/harness'
+import { setupApp, DEFAULT_USER, jsonRoute, objectAction } from './helpers/harness'
 
 // «Перевір, щоб такого більше ніде не було» — прохід по ВСІХ екранах із полями
 // вводу: жодне поле у фокусі не має ховатись під плаваючою смугою (фіксована
@@ -116,7 +116,7 @@ test('форма обʼєкта: жодне поле не ховається п�
   await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
   await page.getByText('БЦ Рубін').first().click()
   await expect(page.getByText('Всі (1)')).toBeVisible({ timeout: 15_000 })
-  await page.locator('.obj-act-btn', { hasText: 'Редагувати' }).first().click()
+  await objectAction(page, 'Редагувати')
   await expect(page.getByText('Редагування')).toBeVisible()
 
   await keyboardOverlay(page, 300)
@@ -129,7 +129,7 @@ test('форма обʼєкта: те саме, коли webview стискає�
   await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
   await page.getByText('БЦ Рубін').first().click()
   await expect(page.getByText('Всі (1)')).toBeVisible({ timeout: 15_000 })
-  await page.locator('.obj-act-btn', { hasText: 'Редагувати' }).first().click()
+  await objectAction(page, 'Редагувати')
   await expect(page.getByText('Редагування')).toBeVisible()
 
   await keyboardShrink(page, 300)
@@ -167,7 +167,9 @@ test('форма розкладу платежів: поле не ховаєть
   await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
   await page.getByText('БЦ Рубін').first().click()
   await page.locator('.obj-card', { hasText: 'Офіс 101' })
-    .getByRole('button', { name: 'Платежі' }).click()
+    .locator('.obj-more').click()
+  await page.waitForTimeout(420)
+  await page.locator('.sheet-row').filter({ hasText: 'Платежі' }).click()
   await expect(page.getByText(/Платежі — Офіс 101|Календар платежів/)).toBeVisible({ timeout: 15_000 })
   await page.getByRole('button', { name: /Налаштувати/ }).first().click()
   await expect(page.getByText('Налаштувати розклад')).toBeVisible()
@@ -176,7 +178,7 @@ test('форма розкладу платежів: поле не ховаєть
   expect(await findObstructed(page), 'розклад платежів').toEqual([])
 })
 
-test('модалка папок: поле нової папки лишається видимим', async ({ page }) => {
+test('екран папок: поле нової папки лишається видимим', async ({ page }) => {
   await setup(page)
   await page.goto('/')
   await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
@@ -184,8 +186,10 @@ test('модалка папок: поле нової папки лишаєтьс
   await expect(page.getByText('Всі (1)')).toBeVisible({ timeout: 15_000 })
   await page.getByLabel('Меню бази').click()
   await page.getByText('Папки', { exact: true }).click()
-  await expect(page.locator('.fold-mng-input')).toBeVisible()
+  // Керування папками — повноекранний маршрут (фаза 4): скоупитись у `.modal`
+  // більше нікуди, поле живе прямо на екрані.
+  await expect(page.getByLabel('Назва нової папки')).toBeVisible({ timeout: 15_000 })
 
   await keyboardShrink(page, 300)
-  expect(await findObstructed(page, '.modal')).toEqual([])
+  expect(await findObstructed(page)).toEqual([])
 })

@@ -26,6 +26,20 @@ import { createPortal } from 'react-dom'
 // зносити те, що під ним.
 const sheetStack: symbol[] = []
 
+// Одне натискання Escape мусить закрити РІВНО один шит, і перечитувати стек у
+// кожному слухачі для цього НЕ ДОСИТЬ. `requestClose` верхнього шита кличе
+// `onClose`, а той у наших сайтах пише в zustand-стор; zustand ходить через
+// `useSyncExternalStore`, який React 18 флашить СИНХРОННО — тобто верхній шит
+// устигає закомітити `open:false` і зняти себе зі стека ПОСЕРЕД доставки тієї
+// самої події. Наступний слухач бачить стек уже коротшим і себе верхнім —
+// Escape зносив і шит, який лежав ПІД підтвердженням.
+//
+// Замір (лог із `[ESC]` у кожному слухачі): на одну натискання приходили ДВА
+// спрацювання, `top=2 isTop=true` і одразу `top=1 isTop=true`. Порядок
+// слухачів тут не рятує в жодному з двох напрямків — тому позначається САМА
+// подія: хто на ній спрацював, той і єдиний.
+let escHandled: KeyboardEvent | null = null
+
 const BTN_GLASS: Record<string, string> = {
   primary: 'btn-glass info',
   danger: 'btn-glass err',
@@ -232,7 +246,10 @@ export default function ActionSheet({ open, title, subtitle, onClose, children, 
   // Desktop Telegram / web: Escape дзеркалить бекдроп-тап — лише верхній шит.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && sheetStack[sheetStack.length - 1] === idRef.current) requestClose()
+      if (e.key !== 'Escape' || escHandled === e) return
+      if (sheetStack[sheetStack.length - 1] !== idRef.current) return
+      escHandled = e
+      requestClose()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -256,14 +273,24 @@ export default function ActionSheet({ open, title, subtitle, onClose, children, 
     return () => { opener?.focus?.() }
   }, [open])
 
-  // Фокус — усередину шита. Залежність від `mounted` ОБОВʼЯЗКОВА: до порталу
-  // (Node-пререндер) `modalRef` порожній, і без цього фокус не заходив би в
-  // діалог НІКОЛИ на першому в житті сторінки відкритті.
+  // Фокус — усередину шита.
+  //
+  // ЗАЛЕЖНІСТЬ ВІД `rendered` ТАКА САМА ОБОВʼЯЗКОВА, ЯК ВІД `mounted`, і це не
+  // перестраховка: `open:false→true` спершу лише ВИСТАВЛЯЄ `rendered`, а вузол
+  // зʼявляється в DOM аж наступним рендером. Без `rendered` у залежностях ефект
+  // біжить рівно один раз — коли `modalRef` іще порожній, — і фокус не заходить
+  // у діалог НІКОЛИ. Читалка при цьому озвучує екран ПІД шитом.
+  //
+  // Це той самий клас, що вже ловили на `Modal.tsx` (ефект із `[]`-залежностями
+  // до монтування порталу) і на втраченому `moving` у фазі 1: ефект, що чекає на
+  // DOM, мусить залежати від УСЬОГО стану, який цей DOM створює. Дефект прожив
+  // від фази 1 до фази 5 непоміченим лише тому, що `modal-a11y` міряв тоді
+  // `Modal`, а не `ActionSheet`.
   useEffect(() => {
-    if (!mounted || !open) return
+    if (!mounted || !open || !rendered) return
     const el = modalRef.current
     if (el && !el.contains(document.activeElement)) el.focus()
-  }, [mounted, open])
+  }, [mounted, open, rendered])
 
   // Фокус-пастка: Tab/Shift+Tab не виходять за межі верхнього шита.
   useEffect(() => {

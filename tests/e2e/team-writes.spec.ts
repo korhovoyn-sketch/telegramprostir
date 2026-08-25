@@ -186,10 +186,10 @@ test('папка, створена редактором, теж належить
   await expect(page.locator('.modal')).toBeVisible()
   await page.waitForTimeout(420)
   await page.getByText('Папки', { exact: true }).click()
-  await expect(page.getByPlaceholder('Нова папка…')).toBeVisible({ timeout: 15_000 })
-  await page.getByPlaceholder('Нова папка…').fill('Перший поверх')
-  // `Додати` неоднозначне (є ще «Додати обʼєкт» під шитом) — скоупимо в модалку.
-  await page.locator('.modal').getByRole('button', { name: 'Додати', exact: true }).click()
+  // Керування папками — повноекранний маршрут (фаза 4).
+  await expect(page.getByLabel('Назва нової папки')).toBeVisible({ timeout: 15_000 })
+  await page.getByLabel('Назва нової папки').fill('Перший поверх')
+  await page.getByRole('button', { name: 'Додати папку', exact: true }).click()
 
   await expect.poll(() => ownerIdsFor(sent, 'property_folders').length, { timeout: 15_000 })
     .toBeGreaterThan(0)

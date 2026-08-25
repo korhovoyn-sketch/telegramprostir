@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { setupApp, DEFAULT_USER, jsonRoute } from './helpers/harness'
+import { setupApp, DEFAULT_USER, jsonRoute, objectAction } from './helpers/harness'
 
 // Гайдлайни Telegram вимагають підписів для полів і зображень. Наші рядки форм
 // кладуть підпис у СУСІДНІЙ span — візуально добре, програмно не звʼязано, тож
@@ -108,12 +108,12 @@ test('усі поля, кнопки та зображення мають дос�
   await expect(page.getByText('Всі (1)')).toBeVisible({ timeout: 15_000 })
   await auditScreen(page, 'db-objects')
 
-  await page.locator('.obj-act-btn', { hasText: 'Редагувати' }).first().click()
+  await objectAction(page, 'Редагувати')
   await expect(page.getByText('Редагування')).toBeVisible()
   await auditScreen(page, 'property-form')
 })
 
-test('поля модалок теж названі (оренда, папки)', async ({ page }) => {
+test('поля екранів оренди й папок названі', async ({ page }) => {
   await setup(page)
   await page.goto('/')
   await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
@@ -124,8 +124,7 @@ test('поля модалок теж названі (оренда, папки)',
   await page.locator('.obj-card', { hasText: 'Офіс 101' }).locator('.obj-t').click()
   await expect(page.getByRole('button', { name: /Здати/ })).toBeVisible({ timeout: 15_000 })
   await page.getByRole('button', { name: /Здати/ }).click()
-  await expect(page.locator('.modal')).toBeVisible()
-  await auditScreen(page, 'rent-modal')
+  await auditScreen(page, 'rent-property')
   // Дати мусять бути розрізненні на слух
   await expect(page.getByLabel('Договір від')).toBeVisible()
   await expect(page.getByLabel('Договір до')).toBeVisible()
@@ -142,8 +141,8 @@ test('поля модалок теж названі (оренда, папки)',
   await page.getByLabel('Меню бази').click()
   await page.waitForTimeout(420)
   await page.getByText('Папки', { exact: true }).click()
-  await expect(page.locator('.modal')).toBeVisible()
-  await auditScreen(page, 'folders-modal')
+  await expect(page.getByText(/Групуйте об.єкти бази/)).toBeVisible({ timeout: 15_000 })
+  await auditScreen(page, 'folder-manage')
 })
 
 /**
@@ -151,7 +150,7 @@ test('поля модалок теж названі (оренда, папки)',
  * поля не перевіряв ніхто: обхід вище знає чотири екрани, а модальний тест
  * після переносу дійшов лише до оренди.
  */
-test('поля повноекранних форм названі (розклад, платіж, запрошення)', async ({ page }) => {
+test('поля повноекранних форм названі (розклад, платіж, запрошення, видалення акаунта)', async ({ page }) => {
   await setup(page)
 
   // Розклад платежів
@@ -206,4 +205,15 @@ test('поля повноекранних форм названі (розкла�
   await expect(page.getByText('Запросити гостя')).toBeVisible({ timeout: 15_000 })
   await auditScreen(page, 'create-invite')
   await expect(page.getByLabel('Підпис гостьового лінка')).toBeVisible()
+
+  // Видалення акаунта — фаза 5. Поле тут не «ще одне поле»: воно єдине, що
+  // відділяє користувача від незворотної дії, тож без імені читалка озвучила б
+  // його плейсхолдером, тобто самим словом, яке треба вписати.
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+  await page.locator('.tabbar [aria-label="Профіль"]').click()
+  await expect(page.getByText('Налаштування')).toBeVisible({ timeout: 15_000 })
+  await page.locator('.del-acc').click()
+  await expect(page.getByLabel('Підтвердження видалення')).toBeVisible({ timeout: 15_000 })
+  await auditScreen(page, 'delete-account')
 })

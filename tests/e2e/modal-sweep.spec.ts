@@ -277,7 +277,7 @@ async function menu(page: Page, item: string) {
   await page.getByText(item, { exact: true }).click()
 }
 
-test('шити бази: меню, папки, вибір папки, перенос у базу, поширення', async ({ page }) => {
+test('шити бази: меню бази і поширення', async ({ page }) => {
   test.setTimeout(180_000)
   await setupApp(page, { user: OWNER })
   await ownerRoutes(page)
@@ -287,18 +287,10 @@ test('шити бази: меню, папки, вибір папки, перен
   await page.getByLabel('Меню бази').click()
   expect(await sweep(page, 'db-menu')).toBe('БЦ Рубін')
 
-  // 2. FolderManageModal
-  await menu(page, 'Папки')
-  expect(await sweep(page, 'folders')).toBe('Папки')
-
-  // 3+4. Режим вибору → «У папку» і «Перенести» (FolderPicker + DbPicker).
-  await menu(page, 'Виділити об\'єкти')
-  await page.locator('.obj-card').first().click()
-  await expect(page.locator('.batchbar')).toBeVisible()
-  await page.locator('.batch-pill', { hasText: 'У папку' }).click()
-  await sweep(page, 'folder-picker')
-  await page.locator('.batch-pill').filter({ hasText: /базу|Перенести/ }).first().click()
-  expect(await sweep(page, 'db-picker')).toBe('Перенести в базу')
+  // Папки, вибір папки і перенос у базу — ПОВНОЕКРАННІ маршрути (фаза 4), тож
+  // контракт `<Modal>` до них не застосовний. Їхній вигляд і доступність міряє
+  // спільний обхід (`helpers/screens.ts`) у contrast / design-system-runtime /
+  // devices / screen-text-fit, а поведінку — folders-wire і move-to-db.
 
   // 5. ShareSheet з екрана аналітики.
   await toObjects(page)
@@ -308,21 +300,11 @@ test('шити бази: меню, папки, вибір папки, перен
   await sweep(page, 'share-sheet')
 })
 
-test('шит обʼєкта: здати в оренду', async ({ page }) => {
-  test.setTimeout(180_000)
-  await setupApp(page, { user: OWNER })
-  await ownerRoutes(page)
+// ВИДАЛЕНО: «шит обʼєкта: здати в оренду». Оренда — повноекранний маршрут
+// (фаза 5), тож контракт `<Modal>` до неї не застосовний. Її вигляд і
+// доступність міряє спільний обхід (крок `rent-property`), поведінку —
+// `modals.spec.ts`, а поля — `a11y-labels`/`inputs`.
 
-  // «Здати в оренду» (PropertyDetailScreen) — на вільному об'єкті. Розклад
-  // платежів і підтвердження платежу — тепер повноекранні маршрути
-  // (payment-schedule/payment-confirm, фаза 2), не шити: їхня функціональна
-  // перевірка (включно з валідацією суми) — у deep-lifecycle.spec.ts.
-  await toObjects(page)
-  await page.locator('.obj-card', { hasText: 'Офіс 102' }).locator('.obj-t').click()
-  await expect(page.getByRole('button', { name: /Здати в оренду/ })).toBeVisible({ timeout: 15_000 })
-  await page.getByRole('button', { name: /Здати в оренду/ }).click()
-  expect(await sweep(page, 'rent')).toBe('Здати в оренду')
-})
 
 // «Шити доступів: гості, команда, і створене посилання» — видалено (фаза 3
 // переробки модалок, atomic-riding-clock.md): InviteSheet/CreatedLinkSheet
@@ -330,7 +312,7 @@ test('шит обʼєкта: здати в оренду', async ({ page }) => {
 // двох шитів і після видалення не лишав жодного `<Modal>`-кроку. Функціональне
 // покриття тепер у team.spec.ts (`owner: creates a team invite and revokes it`).
 
-test('шити профілю: вихід і видалення акаунта', async ({ page }) => {
+test('шит профілю: вихід з акаунту', async ({ page }) => {
   test.setTimeout(120_000)
   await setupApp(page, { user: OWNER })
   await ownerRoutes(page)
@@ -344,14 +326,10 @@ test('шити профілю: вихід і видалення акаунта',
   await page.getByText('Вийти з акаунту', { exact: true }).click()
   expect(await sweep(page, 'logout')).toBe('Вийти з акаунту?')
 
-  // 13. Видалення акаунта — свідомо на власній модалці, бо потребує ВВЕДЕННЯ
-  // слова підтвердження, чого нативний попап Telegram не вміє.
-  await page.getByText('Видалити акаунт', { exact: true }).click()
-  const title = await checkModal(page, 'delete-account')
-  expect(title).toBe('Видалити акаунт?')
-  const confirm = page.locator('.modal-btn').filter({ hasText: /Видалити/ }).last()
-  await expect(confirm, 'кнопка активна ще до введення слова підтвердження').toBeDisabled()
-  await closeByBackdrop(page, 'delete-account')
+  // Видалення акаунта переїхало на власний ЕКРАН (фаза 5) — це форма з полем,
+  // тож за критерієм розділу шитом лишитись не могло. Його гарди —
+  // `delete-account.spec.ts` (кнопка заблокована без слова, один серверний
+  // виклик, збій не викидає з акаунта).
 })
 
 test('шити рієлтора: підбірка і додавання об\'єкта', async ({ page }) => {
@@ -407,8 +385,22 @@ test('Escape закриває ЛИШЕ верхню модалку стеку', 
   await expect(page.locator('.modal'), 'підтвердження не стало другим шитом').toHaveCount(2, { timeout: 8_000 })
   await checkModal(page, 'nested-confirm')
 
+  // ЗАМІР ПІСЛЯ ОСІДАННЯ, а не `toHaveCount(1)` з таймаутом — і це не стиль.
+  // Попередня редакція була майже ВАКУУМНОЮ: коли Escape зносив ОБИДВА шити,
+  // їхні вузли зникали не разом (вихідна анімація ~240мс), тож між ними був
+  // проміжок, де на екрані рівно один шит. Полінг `toHaveCount` ловив саме цей
+  // проміжок і зеленів — на зламаному коді, у 4 прогонах із 6. Інструментований
+  // прогін показав дефект у 2 випадках із 2 ТАМ, ДЕ ТЕСТ ПРОХОДИВ:
+  //   [ESC] depth=2 isTop=true   ← закрилось підтвердження
+  //   [ESC] depth=1 isTop=true   ← закрився і шит під ним
+  // Тому: дати обом анімаціям добігти, і аж тоді питати, скільки лишилось.
   await page.keyboard.press('Escape')
-  await expect(page.locator('.modal'), 'Escape зніс і батьківський шит').toHaveCount(1, { timeout: 8_000 })
+  await expect(page.locator('.modal.closing'), 'підтвердження не почало виходити')
+    .toHaveCount(0, { timeout: 8_000 })
+  await page.waitForTimeout(400)
+  expect(await page.locator('.modal').count(), 'Escape зніс і батьківський шит').toBe(1)
+  await expect(page.locator('.modal .modal-h'), 'лишився не той шит').toHaveText('БЦ Рубін')
+
   await page.keyboard.press('Escape')
   await expect(page.locator('.modal')).toHaveCount(0, { timeout: 8_000 })
 })

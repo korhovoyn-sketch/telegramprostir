@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { setupApp, DEFAULT_USER, jsonRoute, skipCoachmarks } from './helpers/harness'
+import { setupApp, DEFAULT_USER, jsonRoute, skipCoachmarks, objectAction } from './helpers/harness'
 
 // Гайдлайни Telegram: незворотні дії підтверджує НАТИВНИЙ попап — він несе
 // авторитет платформи. У клієнтів без `showPopup` (браузер, старий клієнт)
@@ -56,7 +56,7 @@ async function openEditForm(page: Page) {
   await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
   await page.getByText('БЦ Рубін').first().click()
   await expect(page.getByText('Всі (1)')).toBeVisible({ timeout: 15_000 })
-  await page.locator('.obj-act-btn', { hasText: 'Редагувати' }).first().click()
+  await objectAction(page, 'Редагувати')
   await expect(page.getByText('Редагування')).toBeVisible()
 }
 

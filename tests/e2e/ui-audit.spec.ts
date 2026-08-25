@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { setupApp, DEFAULT_USER, jsonRoute } from './helpers/harness'
+import { setupApp, DEFAULT_USER, jsonRoute, objectAction } from './helpers/harness'
 
 // UI/UX regression audit під ворожими даними (дуже довгі назви, величезні суми)
 // з програмними інваріантами, а не лише скріншотами:
@@ -225,32 +225,33 @@ test('QA: property detail with long tenant + big money', async ({ page }, ti) =>
   await page.screenshot({ path: ti.outputPath('detail.png'), fullPage: true })
 })
 
-test('QA: folder modal with a very long folder name', async ({ page }, ti) => {
+test('QA: екран папок із дуже довгою назвою', async ({ page }, ti) => {
   await setup(page)
   await openObjects(page)
   await page.getByLabel('Меню бази').click()
   await page.getByText('Папки', { exact: true }).click()
   await expect(page.getByText('Групуйте').first()).toBeVisible()
   await page.waitForTimeout(500)
-  await noHScroll(page, 'folder-modal')
-  await tapTargets(page, 'folder-modal')
-  // modal must not overflow sideways either
+  await noHScroll(page, 'folder-manage')
+  await tapTargets(page, 'folder-manage')
+  // Список папок теж не сміє переповнюватись убік — довга назва мусить
+  // обрізатись, а не рвати екран (той самий інваріант, що був для шита).
   const mo = await page.evaluate(() => {
-    const m = document.querySelector('.modal') as HTMLElement
+    const m = document.querySelector('.fold-mng') as HTMLElement
     const r = m.getBoundingClientRect()
     return { left: Math.round(r.left), right: Math.round(r.right), vw: window.innerWidth,
              scrollW: m.scrollWidth, clientW: m.clientWidth }
   })
-  expect(mo.left, 'modal left edge').toBeGreaterThanOrEqual(-1)
-  expect(mo.right, 'modal right edge').toBeLessThanOrEqual(mo.vw + 1)
-  expect(mo.scrollW, 'modal inner h-overflow').toBeLessThanOrEqual(mo.clientW + 1)
-  await page.screenshot({ path: ti.outputPath('folder-modal.png') })
+  expect(mo.left, 'ліва межа списку').toBeGreaterThanOrEqual(-1)
+  expect(mo.right, 'права межа списку').toBeLessThanOrEqual(mo.vw + 1)
+  expect(mo.scrollW, 'горизонтальне переповнення списку').toBeLessThanOrEqual(mo.clientW + 1)
+  await page.screenshot({ path: ti.outputPath('folder-manage.png') })
 })
 
 test('QA: property form long values + all sections', async ({ page }, ti) => {
   await setup(page)
   await openObjects(page)
-  await page.locator('.obj-act-btn', { hasText: 'Редагувати' }).first().click()
+  await objectAction(page, 'Редагувати')
   await expect(page.getByText('Редагування')).toBeVisible()
   await page.waitForTimeout(500)
   await noHScroll(page, 'form')

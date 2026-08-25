@@ -110,8 +110,9 @@ async function openFolderManager(page: Page) {
   await expect(page.locator('.modal')).toBeVisible()
   await page.waitForTimeout(420)
   await page.getByText('Папки', { exact: true }).click()
-  await expect(page.locator('.modal')).toBeVisible()
-  await page.waitForTimeout(420)
+  // Керування папками — ПОВНОЕКРАННИЙ маршрут (фаза 4), а не шит: чекаємо на
+  // заголовок екрана, а не на появу `.modal`.
+  await expect(page.getByText(/Групуйте об.єкти бази/)).toBeVisible({ timeout: 15_000 })
 }
 
 test('перейменування летить PATCH-ом із новою назвою', async ({ page }) => {
@@ -120,9 +121,8 @@ test('перейменування летить PATCH-ом із новою на�
   await openFolderManager(page)
 
   await page.getByLabel('Перейменувати').first().click()
-  // Скоуп на РЯДОК папки: клас `.fold-mng-input` носить і поле «Нова папка»
-  // (`SheetCreateRow`), тож голий локатор дає два збіги, а `.modal input` першим
-  // влучає у створення — правка тоді не комітиться взагалі.
+  // Скоуп на РЯДОК папки: на екрані є ще поле «Нова», тож голий локатор інпута
+  // дав би два збіги і правка не комітилась би взагалі.
   const input = page.locator('.fold-mng-row .fold-mng-input')
   await input.fill('Орендарі 2026')
   await page.getByLabel('Зберегти').first().click()
@@ -146,8 +146,10 @@ test('невдале перейменування ВІДКОЧУЄ оптимі�
 
   await expect(page.locator('.toast')).toBeVisible()
   // Оптимістика знята: у списку знову стара назва, а не та, що не збереглась.
-  await expect(page.locator('.modal')).toContainText('Орендарі')
-  await expect(page.locator('.modal')).not.toContainText('Назва, якої не буде')
+  // Список тепер на ЕКРАНІ (`.fold-mng`), а не в шиті — `.modal` тут лишився б
+  // лише від підтвердження, тобто асерт мовчки перевіряв би не той вузол.
+  await expect(page.locator('.fold-mng')).toContainText('Орендарі')
+  await expect(page.locator('.fold-mng')).not.toContainText('Назва, якої не буде')
 })
 
 test('видалення непорожньої папки попереджає про долю обʼєктів', async ({ page }) => {
@@ -178,7 +180,7 @@ test('невдале видалення повертає папку у спис�
   await page.waitForTimeout(1200)
 
   await expect(page.locator('.toast')).toBeVisible()
-  await expect(page.locator('.modal'), 'папка повернулась після відкату').toContainText('Орендарі')
+  await expect(page.locator('.fold-mng'), 'папка повернулась після відкату').toContainText('Орендарі')
 })
 
 test('зміна порядку шле два PATCH зі свопнутими sort_order', async ({ page }) => {

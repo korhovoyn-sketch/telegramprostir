@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { setupApp, DEFAULT_USER, jsonRoute } from './helpers/harness'
+import { setupApp, DEFAULT_USER, jsonRoute, objectAction } from './helpers/harness'
 
 // Чи РЕАЛЬНО зберігаються зміни: перехоплюємо PATCH і перевіряємо, що
 // відредаговані поля долітають до бекенда, а екран показує їх після повернення.
@@ -78,7 +78,7 @@ test('редагування ОБʼЄКТА: зміни долітають у PA
   await page.getByText('БЦ Рубін').first().click()
   await expect(page.getByText('Всі (1)')).toBeVisible()
 
-  await page.locator('.obj-act-btn', { hasText: 'Редагувати' }).first().click()
+  await objectAction(page, 'Редагувати')
   await expect(page.getByText('Редагування')).toBeVisible()
 
   // Міняємо кілька різнотипних полів: текст, число, ставку експлуатації
@@ -140,7 +140,7 @@ test('редагування ОБʼЄКТА зі статусом «зайнят
   await page.goto('/')
   await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
   await page.getByText('БЦ Рубін').first().click()
-  await page.locator('.obj-act-btn', { hasText: 'Редагувати' }).first().click()
+  await objectAction(page, 'Редагувати')
   await expect(page.getByText('Редагування')).toBeVisible()
 
   await page.getByPlaceholder('2.5').fill('9.99')
@@ -176,7 +176,7 @@ test('редагування ОБʼЄКТА: очищене поле доліт�
   await page.getByText('БЦ Рубін').first().click()
   await expect(page.getByText('Всі (1)')).toBeVisible()
 
-  await page.locator('.obj-act-btn', { hasText: 'Редагувати' }).first().click()
+  await objectAction(page, 'Редагувати')
   await expect(page.getByText('Редагування')).toBeVisible()
 
   // Чистимо різнотипні опційні поля: текстове, числове й ставку.
@@ -239,7 +239,7 @@ test('редагування ПАРКІНГА: тип місця і зарядк
   await page.getByText('БЦ Рубін').first().click()
   await expect(page.getByText('Всі (1)')).toBeVisible({ timeout: 15_000 })
 
-  await page.locator('.obj-act-btn', { hasText: 'Редагувати' }).first().click()
+  await objectAction(page, 'Редагувати')
   await expect(page.getByText('Редагування')).toBeVisible({ timeout: 15_000 })
 
   // Міняємо ЛИШЕ назву. Усе інше має доїхати назад незмінним.

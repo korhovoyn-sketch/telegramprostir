@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useMemo, type ReactNode } from 'react'
 import { monthlyRent, calcUtilities, basisArea, formatPrice, objectsWord } from '@/lib/utils'
 import { IconActivity, IconCurrencyDollar, IconBolt, IconRuler, IconLayers, IconCircleCheck } from '@/components/Icons'
+import { prefersReducedMotion } from '@/lib/motion'
 import type { Property } from '@/types'
 
 interface Props {
@@ -22,12 +23,23 @@ interface CardData {
 }
 
 function useCountUp(target: number, duration = 620): number {
-  const [val, setVal] = useState(0)
+  // З вимкненим рухом стартуємо ВІДРАЗУ з цілі, а не з нуля: інакше лишався б
+  // кадр «$0» до першого ефекту — і саме він робив кадр бейслайна лотереєю.
+  const [val, setVal] = useState(() => (prefersReducedMotion() ? target : 0))
   const rafRef = useRef(0)
-  const fromRef = useRef(0)
+  const fromRef = useRef(prefersReducedMotion() ? target : 0)
 
   useEffect(() => {
     cancelAnimationFrame(rafRef.current)
+    // Лічильник крутить rAF, тож CSS-блок reduced-motion його не спиняє —
+    // виходимо в кінцеве значення СИНХРОННО. Це не лише a11y: кадр бейслайна
+    // інакше ловить довільну мить відліку, і `db-objects` двічі поспіль дав
+    // «$4 660» проти «$4 657» на тих самих фікстурах і замороженому годиннику.
+    if (prefersReducedMotion()) {
+      fromRef.current = target
+      setVal(target)
+      return
+    }
     const from = fromRef.current
     let startTs = 0
     const tick = (ts: number) => {

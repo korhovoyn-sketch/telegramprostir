@@ -530,6 +530,33 @@ body{
 .fr-l{font-size:var(--fs-sub);color:var(--t1);flex:0 0 auto;min-width:82px;line-height:var(--lh-snug)}
 /* Input value — Callout (16px, prevents iOS zoom) */
 .fr-i{flex:1;background:transparent;border:none;outline:none;font-size:var(--fs-call);color:var(--t1);text-align:right;font-family:inherit;min-width:0;-moz-appearance:textfield;line-height:var(--lh-snug)}
+/* Рядок форми, який САМ є контролом (розгортає список, обирає значення).
+   `<button>`, а не `<div onClick>`: інакше рядок недосяжний з клавіатури і
+   не оголошується читалкою — те саме правило, що для `.sheet-row`. Скидання
+   UA-стилів кнопки тут обовʼязкове, бо геометрію задає `.fr`. */
+.fr-tap{width:100%;background:none;font:inherit;text-align:left;cursor:pointer;color:inherit;border:none;border-bottom:.5px solid rgba(255,255,255,.08)}
+.fr-tap:active{background:var(--glass-2)}
+/* Вкладений рядок розгорнутого списку — відступ показує підпорядкування. */
+.fr-sub{padding-left:calc(var(--pad-card) + 18px)}
+.fr-sub .fr-l{color:var(--t2);min-width:0}
+/* Кнопка підтвердження всередині рядка «Нова». 44px — повна зона дотику:
+   тут, на відміну від рядка дій картки, над нею нічого не лежить. */
+.fr-add{display:flex;align-items:center;justify-content:center;flex:0 0 44px;height:44px;
+  background:none;border:none;color:var(--ok);cursor:pointer;border-radius:var(--r-sm)}
+.fr-add:disabled{color:var(--t4);cursor:default}
+.fr-add:active:not(:disabled){background:var(--glass-2)}
+
+/* Підсумок місячної суми у формі оренди (колишній інлайновий блок шита). */
+.rent-sum{display:flex;justify-content:space-between;align-items:baseline;
+  padding:2px 4px 0;font-size:var(--fs-foot);color:var(--t3)}
+.rent-sum-v{font-size:var(--fs-head);font-weight:var(--fw-bold);color:var(--ok-fg)}
+
+/* Попередження перед незворотним видаленням акаунта. Іконка + текст у рядок:
+   на екрані є місце, якого не було в підзаголовку шита. */
+.del-warn{display:flex;gap:10px;align-items:flex-start;margin:0 12px 12px;
+  padding:var(--pad-card);border-radius:var(--r-md);border:1px solid var(--err-bd)}
+.del-warn p{margin:0;font-size:var(--fs-sub);color:var(--t2);line-height:var(--lh-norm)}
+.del-warn b{color:var(--err-fg)}
 .fr-i::-webkit-outer-spin-button,.fr-i::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .fr-i::placeholder{color:var(--t4)}
 /* Unit label — Caption 1 */
@@ -684,9 +711,16 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 /* Price value — Subhead Bold */
 .obj-tot-v{font-size:var(--fs-sub);font-weight:var(--fw-bold);color:var(--t1);letter-spacing:-.02em}
 .obj-tot-sub{font-size:var(--fs-cap2);color:var(--t3);margin-top:2px}
-.obj-act{display:flex;gap:6px;padding:10px var(--pad-card) 12px;justify-content:space-between;flex-wrap:nowrap}
-.obj-act-btn{display:flex;align-items:center;justify-content:center;gap:4px;padding:7px 8px;border-radius:var(--r-pill);background:var(--glass-2);border:var(--bd);color:var(--t2);font-size:var(--fs-cap1);font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:1;min-width:0;transition:background .15s,color .15s}
-.obj-act-btn:active{background:var(--glass-3);color:var(--t1);transform:scale(.96)}
+/* Дії обʼєкта — одна кнопка «⋯» у шапці картки замість рядка з чотирьох.
+   Рядок займав 56px, тобто 25-32% КОЖНОЇ картки (заміряно на рендері), а його
+   кнопки були 34px і підняти їх було НЕМОЖЛИВО: над ними лежить тіло картки,
+   яке відкриває обʼєкт, тож розширення вгору вкрало б його тапи. Тут місця
+   вистачає — 44px беруться повністю, і кожна дія в шиті ще й має підпис. */
+.obj-hd-r{flex-shrink:0;display:flex;align-items:center;gap:2px}
+.obj-more{display:flex;align-items:center;justify-content:center;width:44px;height:44px;
+  margin:-10px -12px -10px -2px;background:none;border:none;color:var(--t3);cursor:pointer;
+  border-radius:var(--r-sm);transition:background .15s,color .15s}
+.obj-more:active{background:var(--glass-2);color:var(--t1)}
 
 /* Дії в рядку доступу (гості, команда). Окремий клас, а не `.obj-act-btn`:
    там 35px — СВІДОМИЙ виняток, бо над кнопками лежить тіло картки, яке
@@ -1283,10 +1317,10 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
 .fold-mng-cnt{font-size:var(--fs-cap2);color:var(--t3);font-variant-numeric:tabular-nums}
 .fold-mng-input{flex:1;min-width:0;background:transparent;border:none;outline:none;font-size:var(--fs-call);color:var(--t1);font-family:inherit}
 .fold-mng-input::placeholder{color:var(--t4)}
-.fold-mng-act{display:flex;align-items:center;gap:2px;flex-shrink:0}
-.fold-mng-act button{width:34px;height:34px;display:flex;align-items:center;justify-content:center;background:none;border:none;color:var(--t2);cursor:pointer;border-radius:var(--r-xs);transition:background .14s}
+.fold-mng-act{display:flex;align-items:center;gap:0;flex-shrink:0}
+.fold-mng-act button{width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:none;border:none;color:var(--t2);cursor:pointer;border-radius:var(--r-xs);transition:background .14s}
 .fold-mng-act button:active{background:var(--glass-2)}
-.fold-mng-act button:disabled{color:var(--t4);opacity:.5;cursor:default}
+.fold-mng-act button:disabled{color:var(--t4);cursor:default}
 .fold-mng-act button.danger{color:var(--err-fg)}
 .fold-mng-add{flex-shrink:0;padding:6px 12px;border-radius:var(--r-xs);background:var(--ok-bg);border:none;color:var(--ok-fg);font-size:var(--fs-cap1);font-weight:var(--fw-semi);cursor:pointer}
 .fold-mng-add:disabled{background:var(--glass-2);color:var(--t4);cursor:default}

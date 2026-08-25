@@ -99,17 +99,17 @@ test('folders: accordion sections group objects and collapse', async ({ page }) 
   await expect(page.locator('.obj-card', { hasText: 'Офіс 103' })).toBeVisible()
 })
 
-test('folders: manage modal creates a folder', async ({ page }) => {
+test('folders: manage screen creates a folder', async ({ page }) => {
   await setupFixtures(page)
   await openObjects(page)
 
   await page.getByLabel('Меню бази').click()
   await page.getByText('Папки', { exact: true }).click()
-  await expect(page.getByText('Групуйте об\'єкти всередині бази')).toBeVisible()
+  await expect(page.getByText(/Групуйте об.єкти бази/)).toBeVisible()
 
   const postReq = page.waitForRequest(r => r.url().includes('/rest/v1/property_folders') && r.method() === 'POST')
-  await page.getByPlaceholder('Нова папка…').fill('Підвал')
-  await page.getByRole('button', { name: 'Додати', exact: true }).click()
+  await page.getByLabel('Назва нової папки').fill('Підвал')
+  await page.getByRole('button', { name: 'Додати папку', exact: true }).click()
   const req = await postReq
   expect(JSON.parse(req.postData() ?? '{}').name).toBe('Підвал')
 })
@@ -126,8 +126,8 @@ test('folders: duplicate name is rejected without a POST', async ({ page }) => {
   await page.getByLabel('Меню бази').click()
   await page.getByText('Папки', { exact: true }).click()
   // "Перший поверх" already exists in the fixture folders.
-  await page.getByPlaceholder('Нова папка…').fill('Перший поверх')
-  await page.getByRole('button', { name: 'Додати', exact: true }).click()
+  await page.getByLabel('Назва нової папки').fill('Перший поверх')
+  await page.getByRole('button', { name: 'Додати папку', exact: true }).click()
   await expect(page.getByText('Така папка вже є')).toBeVisible()
   expect(posted).toBe(false)
 })
@@ -165,9 +165,13 @@ test('folders: form folder selector picks a folder', async ({ page }) => {
   await page.getByLabel("Додати об'єкт").click()
   await expect(page.getByText("Новий об'єкт")).toBeVisible()
 
-  // Folder row defaults to "Без папки"; picking a folder updates the label.
-  await page.locator('.fr', { hasText: 'Папка' }).click()
-  await expect(page.getByText('Оберіть папку або створіть нову')).toBeVisible()
-  await page.getByText('Другий поверх').click()
-  await expect(page.locator('.fr', { hasText: 'Папка' }).getByText('Другий поверх')).toBeVisible()
+  // Вибір папки у формі — ІНЛАЙНОВИЙ (фаза 4): рядок розгортає список прямо
+  // тут, бо перехід на окремий екран розмонтував би незбережену форму.
+  await page.locator('.fr-tap', { hasText: 'Папка' }).click()
+  const sub = page.locator('.fr-sub')
+  await expect(sub.filter({ hasText: 'Без папки' })).toBeVisible()
+  await sub.filter({ hasText: 'Другий поверх' }).click()
+  // Список згорнувся, а рядок показує обрану папку.
+  await expect(page.locator('.fr-sub')).toHaveCount(0)
+  await expect(page.locator('.fr-tap', { hasText: 'Папка' }).getByText('Другий поверх')).toBeVisible()
 })

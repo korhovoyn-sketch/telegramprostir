@@ -240,8 +240,13 @@ describe('шкали дизайн-системи', () => {
 describe('клавіатура в модалках', () => {
   it('жоден шит не фокусує поле сам — ні при відкритті, ні на тапі', () => {
     const SHEETS = files.filter((f) =>
-      /src\/components\/ui\/(Modal|ShareSheet|Folder\w+|DbPickerModal|FilePreviewModal|SheetCreateRow)\.tsx$/.test(f))
-    expect(SHEETS.length, 'список шитів порожній — регекс застарів').toBeGreaterThan(4)
+      // Фаза 4 прибрала Folder*/DbPicker/SheetCreateRow, фаза 5 — сам
+      // Modal.tsx: усі вони стали екранами. Список навмисно ЯВНИЙ, а не «усе,
+      // що схоже на шит» — інакше зникнення файлу регекс проковтнув би тихо, і
+      // антивакуум нижче був би єдиним, що про це скаже (саме він і спрацював
+      // на обох фазах).
+      /src\/components\/ui\/(ActionSheet|ShareSheet|FilePreviewModal)\.tsx$/.test(f))
+    expect(SHEETS.length, 'список шитів порожній — регекс застарів').toBeGreaterThan(2)
     const bad: string[] = []
     for (const file of SHEETS) {
       const txt = stripComments(readFileSync(file, 'utf8'))

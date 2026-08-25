@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Route } from '@playwright/test'
-import { setupApp, DEFAULT_USER } from './helpers/harness'
+import { setupApp, DEFAULT_USER, objectAction } from './helpers/harness'
 
 /**
  * Обхід ВСІХ екранів так, як їх бачить реальний Telegram: з нативною нижньою
@@ -159,7 +159,7 @@ test('нативний клієнт: усі екрани власника жив
 
   // ── Редагування об'єкта: збереження + видалення в хедері
   await toObjects(page)
-  await page.locator('.obj-act-btn', { hasText: 'Редагувати' }).first().click()
+  await objectAction(page, 'Редагувати')
   await expect(page.getByText('Редагування')).toBeVisible()
   await alive(page, 'property-form-edit')
   await expect(cta).toHaveText('Зберегти зміни')
@@ -222,19 +222,41 @@ test('нативний клієнт: усі екрани власника жив
   await toObjects(page)
   await expect(cta, 'CTA прибрано після виходу з create-invite').toHaveCount(0)
 
-  // ── Папки, режим вибору, шит поширення
+  // ── Папки, режим вибору, пакетні пікери
+  // Керування папками і обидва пікери — ПОВНОЕКРАННІ маршрути (фаза 4), тож
+  // у кожного своя первинна дія, і кожна мусить бути перевірена тут: саме
+  // цей прохід закриває прогалину, через яку падіння форми створення колись
+  // не побачив жоден тест.
   await toObjects(page)
   await page.getByLabel('Меню бази').click()
   await page.getByText('Папки', { exact: true }).click()
-  await expect(page.locator('.modal')).toBeVisible()
-  await alive(page, 'folders-modal')
-  await page.keyboard.press('Escape')
+  await expect(page.getByText(/Групуйте об.єкти бази/)).toBeVisible({ timeout: 15_000 })
+  await alive(page, 'folder-manage')
+  await expect(cta).toHaveText('Додати папку')
+  expect((await bar(page)).main.isVisible, 'folder-manage — нативна смуга вимкнена').toBe(false)
 
+  await toObjects(page)
   await page.getByLabel('Меню бази').click()
   await page.getByText('Виділити об\'єкти', { exact: true }).click()
   await page.locator('.obj-card').first().click()
   await expect(page.locator('.batchbar')).toBeVisible()
   await alive(page, 'select-mode')
+
+  await page.getByRole('button', { name: /У папку/ }).click()
+  await expect(page.getByText('Оберіть папку або створіть нову')).toBeVisible({ timeout: 15_000 })
+  await alive(page, 'folder-picker')
+  await expect(cta).toHaveText('Створити й перемістити')
+  expect((await bar(page)).main.isVisible, 'folder-picker — нативна смуга вимкнена').toBe(false)
+
+  await toObjects(page)
+  await page.getByLabel('Меню бази').click()
+  await page.getByText('Виділити об\'єкти', { exact: true }).click()
+  await page.locator('.obj-card').first().click()
+  await page.getByRole('button', { name: /В базу/ }).click()
+  await expect(page.getByText(/буде переміщено/)).toBeVisible({ timeout: 15_000 })
+  await alive(page, 'db-picker')
+  await expect(cta).toHaveText('Створити й перенести')
+  expect((await bar(page)).main.isVisible, 'db-picker — нативна смуга вимкнена').toBe(false)
 
   // ── Режим порядку
   await toObjects(page)
@@ -252,6 +274,15 @@ test('нативний клієнт: усі екрани власника жив
   await expect(cta).toHaveText('Зберегти зміни')
   expect((await bar(page)).main.isVisible, 'нативна смуга не вмикається').toBe(false)
 
+  // ── Оренда: первинна дія форми, що прийшла з шита у фазі 5
+  await toObjects(page)
+  await page.locator('.obj-t').filter({ hasText: 'Офіс 102' }).first().click()
+  await page.getByRole('button', { name: 'Здати в оренду' }).first().click()
+  await expect(page.getByLabel('Орендар')).toBeVisible({ timeout: 15_000 })
+  await alive(page, 'rent-property')
+  await expect(cta).toHaveText('Здати в оренду')
+  expect((await bar(page)).main.isVisible, 'rent-property — нативна смуга вимкнена').toBe(false)
+
   // ── Таби
   await page.goto('/')
   await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
@@ -261,6 +292,15 @@ test('нативний клієнт: усі екрани власника жив
     await alive(page, `tab:${tab}`)
     expect((await bar(page)).main.isVisible, `tab:${tab} — чужа кнопка`).toBe(false)
   }
+
+  // ── Видалення акаунта: єдиний екран, чия первинна дія СВІДОМО неактивна,
+  // доки не вписано підтвердження. Тому перевіряється підпис і сам факт, що
+  // вона наша (`.mbtn`), а не нативна смуга.
+  await page.locator('.del-acc').click()
+  await expect(page.getByLabel('Підтвердження видалення')).toBeVisible({ timeout: 15_000 })
+  await alive(page, 'delete-account')
+  await expect(cta).toHaveText('Видалити акаунт')
+  expect((await bar(page)).main.isVisible, 'delete-account — нативна смуга вимкнена').toBe(false)
 })
 
 test('нативний клієнт: екрани рієлтора і підбірки живі', async ({ page }) => {

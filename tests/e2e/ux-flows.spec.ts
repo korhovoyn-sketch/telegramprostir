@@ -150,7 +150,9 @@ test('duplicate: opens the form prefilled with the next free name, tenant not co
   await expect(page.getByText('Всі (3)')).toBeVisible()
 
   await page.locator('.obj-card', { hasText: 'Офіс 101' })
-    .getByRole('button', { name: 'Дублювати' }).click()
+    .locator('.obj-more').click()
+  await page.waitForTimeout(420)
+  await page.locator('.sheet-row').filter({ hasText: 'Дублювати' }).click()
   await expect(page.getByText("Новий об'єкт")).toBeVisible()
 
   // 101..103 taken → the copy becomes 104; fields copied, tenant NOT

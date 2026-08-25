@@ -109,12 +109,12 @@ test('редактор робить РЕАЛЬНИЙ запис у чужу ба
   // Здаємо обʼєкт в оренду — це справжня мутація, доступна редактору.
   await page.locator('.obj-t').first().click()
   await expect(page.getByRole('button', { name: /Здати в оренду/ })).toBeVisible({ timeout: 15_000 })
-  await page.getByRole('button', { name: /Здати в оренду/ }).click()
-  await expect(page.locator('.modal')).toBeVisible()
-  await page.waitForTimeout(450)
+  await page.getByRole('button', { name: /Здати в оренду/ }).first().click()
+  // Оренда — повноекранний маршрут (фаза 5), а не шит.
+  await expect(page.getByLabel('Орендар')).toBeVisible({ timeout: 15_000 })
 
-  await page.locator('.modal input').first().fill('ТОВ «Ромашка»')
-  await page.locator('.modal').getByRole('button', { name: /^Здати$/ }).click()
+  await page.getByLabel('Орендар').fill('ТОВ «Ромашка»')
+  await page.getByRole('button', { name: 'Здати в оренду', exact: true }).click()
   await expect.poll(() => patches.length, { timeout: 15_000 }).toBeGreaterThan(0)
 
   const patch = patches[patches.length - 1]

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { setupApp, DEFAULT_USER, jsonRoute } from './helpers/harness'
+import { setupApp, DEFAULT_USER, jsonRoute, objectAction } from './helpers/harness'
 
 // Користувач: «не зберігаються зміни ставки оренди та експлуатації на картці
 // простору». PATCH-и вже покриті edit-persistence.spec — тут перевіряємо ПОВНИЙ
@@ -125,7 +125,7 @@ test('картка у списку показує нову ставку одра
   // база розрахунку — розрахункова площа: 120 × 18 + 120 × 2.5 = 2 460
   await expect(page.locator('.obj-card', { hasText: 'Офіс 101' })).toContainText('2 460')
 
-  await page.locator('.obj-act-btn', { hasText: 'Редагувати' }).first().click()
+  await objectAction(page, 'Редагувати')
   await expect(page.getByText('Редагування')).toBeVisible()
   await expect(page.getByPlaceholder('18')).toHaveValue('18', { timeout: 10_000 })
   await page.getByPlaceholder('18').fill('25')
@@ -145,7 +145,7 @@ test('Back зі списку обʼєктів після редагування 
 
   await page.goto('/')
   await openObjects(page)
-  await page.locator('.obj-act-btn', { hasText: 'Редагувати' }).first().click()
+  await objectAction(page, 'Редагувати')
   await expect(page.getByText('Редагування')).toBeVisible()
   await page.getByPlaceholder('Офіс 101').fill('Офіс 101-В')
   await page.getByRole('button', { name: 'Зберегти зміни' }).click()

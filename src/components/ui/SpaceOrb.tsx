@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { prefersReducedMotion } from '@/lib/motion'
 
 /**
  * Персонаж порожнього героя картки обʼєкта — замість колишнього будинку.
@@ -44,10 +45,6 @@ const PALETTE: Record<OrbStatus, { a: string; b: string; halo: string; eye: stri
 const BLINK_MIN = 2600
 const BLINK_MAX = 6200
 
-function prefersReducedMotion(): boolean {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches
-}
 
 export default function SpaceOrb({ status = 'free' }: { status?: OrbStatus }) {
   const stageRef = useRef<HTMLDivElement>(null)

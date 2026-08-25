@@ -254,6 +254,11 @@ export type ScreenName =
   | 'payment-schedule'
   | 'payment-confirm'
   | 'create-invite'
+  | 'folder-manage'
+  | 'db-picker'
+  | 'folder-picker'
+  | 'rent-property'
+  | 'delete-account'
 
 export interface RentPayment {
   id: string
@@ -284,6 +289,11 @@ export interface ScreenParams {
   propertyId?: string
   dueDate?: string
   kind?: 'team' | 'guest'
+  /** Обʼєкти, над якими діє пікер (пакетне переміщення в базу чи папку).
+   *  Виділення живе в стані DatabaseObjectsScreen і зникає при навігації —
+   *  тому переміщення виконує САМ пікер, а не викликач: повернення на
+   *  перемонтований екран показує вже готовий результат (урок фази 2). */
+  propertyIds?: string[]
   collectionId?: string
   /** Share-токен підбірки. Носити його ДАЛІ обовʼязково: read-only перегляд
    *  авторизується саме токеном, а не UUID підбірки (див. IDOR у 049). */

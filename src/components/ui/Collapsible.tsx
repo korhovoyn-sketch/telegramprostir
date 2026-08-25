@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { prefersReducedMotion } from '@/lib/motion'
 
 // Height-animated accordion body.
 //
@@ -27,10 +28,6 @@ const EASE = 'cubic-bezier(.16,1,.3,1)'
  * тоді, коли користувач вимкнув рух у налаштуваннях системи — єдине місце
  * застосунку, що обходило власне ж правило.
  */
-function prefersReducedMotion(): boolean {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches
-}
 
 export default function Collapsible({ open, className, children }: {
   open: boolean

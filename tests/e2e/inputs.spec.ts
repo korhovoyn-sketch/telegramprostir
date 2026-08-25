@@ -169,10 +169,11 @@ async function walkForms(page: Page, visit: (label: string) => Promise<void>) {
   await expect(page.getByText('БЦ Рубін').first()).toBeVisible({ timeout: 20_000 })
   await page.getByText('БЦ Рубін').first().click()
   await page.locator('.obj-card').first().locator('.obj-t').click()
-  await expect(page.getByRole('button', { name: /Здати в оренду/ })).toBeVisible({ timeout: 15_000 })
-  await page.getByRole('button', { name: /Здати в оренду/ }).click()
-  await expect(page.locator('.modal')).toBeVisible()
-  await visit('rent-modal')
+  await expect(page.getByRole('button', { name: /Здати в оренду/ }).first()).toBeVisible({ timeout: 15_000 })
+  await page.getByRole('button', { name: /Здати в оренду/ }).first().click()
+  // Оренда — повноекранний маршрут (фаза 5), тож чекаємо на поле, а не на шит.
+  await expect(page.getByLabel('Орендар')).toBeVisible({ timeout: 15_000 })
+  await visit('rent-property')
 }
 
 test('поля вводу: жодного type=number, правильний inputMode, свій шар', async ({ page }) => {
