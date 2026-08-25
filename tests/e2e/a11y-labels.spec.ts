@@ -150,7 +150,7 @@ test('поля екранів оренди й папок названі', async 
  * поля не перевіряв ніхто: обхід вище знає чотири екрани, а модальний тест
  * після переносу дійшов лише до оренди.
  */
-test('поля повноекранних форм названі (розклад, платіж, запрошення)', async ({ page }) => {
+test('поля повноекранних форм названі (розклад, платіж, запрошення, видалення акаунта)', async ({ page }) => {
   await setup(page)
 
   // Розклад платежів
@@ -205,4 +205,15 @@ test('поля повноекранних форм названі (розкла�
   await expect(page.getByText('Запросити гостя')).toBeVisible({ timeout: 15_000 })
   await auditScreen(page, 'create-invite')
   await expect(page.getByLabel('Підпис гостьового лінка')).toBeVisible()
+
+  // Видалення акаунта — фаза 5. Поле тут не «ще одне поле»: воно єдине, що
+  // відділяє користувача від незворотної дії, тож без імені читалка озвучила б
+  // його плейсхолдером, тобто самим словом, яке треба вписати.
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+  await page.locator('.tabbar [aria-label="Профіль"]').click()
+  await expect(page.getByText('Налаштування')).toBeVisible({ timeout: 15_000 })
+  await page.locator('.del-acc').click()
+  await expect(page.getByLabel('Підтвердження видалення')).toBeVisible({ timeout: 15_000 })
+  await auditScreen(page, 'delete-account')
 })
