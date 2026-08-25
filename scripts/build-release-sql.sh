@@ -42,6 +42,46 @@ done | sort)
   echo
   echo "BEGIN;"
   echo
+  cat <<'PREFLIGHT'
+-- ─────────────────────────────────────────────────────────────────────────
+-- ПЕРЕДПОЛЬОТНА ПЕРЕВІРКА
+-- ─────────────────────────────────────────────────────────────────────────
+-- Накат у проді робився ВРУЧНУ і з прогалинами: реальний випадок — файл упав
+-- на `mark_overdue_payments() does not exist`, бо міграція 024 туди так і не
+-- потрапила. Помилка від Postgres називає лише сам обʼєкт, не кажучи ані що
+-- саме бракує в цілому, ані яку міграцію запустити.
+--
+-- Тому спершу перевіряємо ВСЕ, на що спирається цей файл, і при потребі
+-- падаємо ОДИН раз зі списком. Транзакція все одно відкотиться, тож стан бази
+-- не змінюється — просто ви одразу бачите повну картину.
+DO $$
+DECLARE missing TEXT := '';
+BEGIN
+  -- Таблиці, на яких створюються політики або додаються колонки.
+  IF to_regclass('public.users')                 IS NULL THEN missing := missing || E'\n  * таблиця users (001_schema)'; END IF;
+  IF to_regclass('public.properties')            IS NULL THEN missing := missing || E'\n  * таблиця properties (001_schema)'; END IF;
+  IF to_regclass('public.guest_links')           IS NULL THEN missing := missing || E'\n  * таблиця guest_links (027_guest_role)'; END IF;
+  IF to_regclass('public.collection_properties') IS NULL THEN missing := missing || E'\n  * таблиця collection_properties (001_schema)'; END IF;
+  IF to_regclass('public.rent_payments')         IS NULL THEN missing := missing || E'\n  * таблиця rent_payments (021_rent_payments)'; END IF;
+  IF to_regclass('public.rent_payment_records')  IS NULL THEN missing := missing || E'\n  * таблиця rent_payment_records (021_rent_payments)'; END IF;
+  IF to_regclass('public.db_members')            IS NULL THEN missing := missing || E'\n  * таблиця db_members (041_team_members)'; END IF;
+  IF to_regclass('public.property_files')        IS NULL THEN missing := missing || E'\n  * таблиця property_files (033_property_files)'; END IF;
+
+  -- Хелпери, які викликаються з тіл функцій і предикатів політик.
+  IF NOT EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+                 WHERE n.nspname='public' AND p.proname='current_app_user_id')
+    THEN missing := missing || E'\n  * функція current_app_user_id() (002_rls / 003_reconcile)'; END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+                 WHERE n.nspname='public' AND p.proname='get_app_user_id_from_auth_uid')
+    THEN missing := missing || E'\n  * функція get_app_user_id_from_auth_uid() (030 / 045)'; END IF;
+
+  IF missing <> '' THEN
+    RAISE EXCEPTION E'У базі бракує того, на що спирається цей файл:%\n\nЗапустіть спершу вказані міграції з supabase/migrations/, потім цей файл ще раз.\nНІЧОГО не застосовано — транзакцію відкочено.', missing;
+  END IF;
+END $$;
+
+PREFLIGHT
+  echo
   for f in $files; do
     echo "-- ─────────────────────────────────────────────────────────────────────────"
     echo "-- $(basename "$f")"

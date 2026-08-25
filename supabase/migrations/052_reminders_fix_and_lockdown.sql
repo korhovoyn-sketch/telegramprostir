@@ -153,9 +153,25 @@ $$;
 -- не чіпає.
 REVOKE ALL ON FUNCTION get_due_reminders_today()  FROM PUBLIC;
 REVOKE ALL ON FUNCTION get_due_guest_reminders()  FROM PUBLIC;
-REVOKE ALL ON FUNCTION mark_overdue_payments()    FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION get_due_reminders_today() TO service_role;
 GRANT EXECUTE ON FUNCTION get_due_guest_reminders() TO service_role;
-GRANT EXECUTE ON FUNCTION mark_overdue_payments()   TO service_role;
+
+-- `mark_overdue_payments` створює 024, і в проді її може НЕ БУТИ: накат там
+-- історично робився вручну, з прогалинами. `REVOKE`/`GRANT` на неіснуючу
+-- функцію — це помилка 42883, яка валить УВЕСЬ файл накату (перевірено на
+-- живій базі власника). Замикати ACL тут — річ корисна, але не обовʼязкова:
+-- якщо функції немає, то й замикати нічого. Тому умовно.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public' AND p.proname = 'mark_overdue_payments'
+  ) THEN
+    EXECUTE 'REVOKE ALL ON FUNCTION mark_overdue_payments() FROM PUBLIC';
+    EXECUTE 'GRANT EXECUTE ON FUNCTION mark_overdue_payments() TO service_role';
+  ELSE
+    RAISE NOTICE '052: mark_overdue_payments() немає (міграція 024 не застосована) — ACL пропущено';
+  END IF;
+END $$;
 
 NOTIFY pgrst, 'reload schema';

@@ -166,3 +166,42 @@ if ! diff -q /tmp/fp_a.txt /tmp/fp_b.txt >/dev/null; then
   exit 1
 fi
 echo "✓ RELEASE.sql еквівалентний поштучному накату ($(wc -l < /tmp/fp_a.txt) обʼєктів) і ідемпотентний"
+
+# ── RELEASE.sql на базі З ПРОГАЛИНАМИ ──────────────────────────────────────
+# ЧОМУ ЦЕ ОКРЕМА ПЕРЕВІРКА. Попередня доводить еквівалентність на
+# ОПТИМІСТИЧНІЙ базі — тій, де застосовано всі 001..047. Прод такою НЕ Є:
+# накат там робився вручну, і файл реально впав на
+# `mark_overdue_payments() does not exist`, бо міграції 024 у проді немає.
+# Тобто доказ був справжній, але передумова — хибна.
+#
+# Тому другий стенд: та сама база БЕЗ 024. Файл мусить пройти (ACL на
+# відсутню функцію пропускається свідомо), а не впасти.
+psql -h "$SOCK" -p $PORT -U postgres -q -c "CREATE DATABASE shadow_gap" >/dev/null
+$PSQL -d shadow_gap -f scripts/pg-shim.sql >/dev/null 2>&1
+for f in $(ls supabase/migrations/*.sql | sort); do
+  b=$(basename "$f"); case "$b" in 0041_*|009_*|024_*) continue;; esac
+  if [[ "$b" =~ ^([0-9]{3})_ ]]; then n=$((10#${BASH_REMATCH[1]})); else n=0; fi
+  [ "$n" -ge 48 ] && continue
+  $PSQL -d shadow_gap -f "$f" >/dev/null 2>&1 || true
+done
+if ! out=$($PSQL -d shadow_gap -f supabase/RELEASE.sql 2>&1); then
+  echo "✗ RELEASE.sql падає на базі з прогалиною (немає 024) — саме цей клас уже стався в проді:"
+  echo "$out" | grep -E "ERROR|ПІДКАЗКА|бракує" | head -5
+  exit 1
+fi
+echo "✓ RELEASE.sql переживає прогалину в базі (024 відсутня)"
+
+# І навпаки: якщо бракує чогось ОБОВʼЯЗКОВОГО, файл мусить сказати ЩО САМЕ,
+# а не впасти на першому-ліпшому обʼєкті.
+psql -h "$SOCK" -p $PORT -U postgres -q -c "CREATE DATABASE shadow_bare" >/dev/null
+$PSQL -d shadow_bare -f scripts/pg-shim.sql >/dev/null 2>&1
+if out=$($PSQL -d shadow_bare -f supabase/RELEASE.sql 2>&1); then
+  echo "✗ RELEASE.sql пройшов на ПОРОЖНІЙ базі — передпольотна перевірка не працює"
+  exit 1
+fi
+if ! echo "$out" | grep -q "бракує того, на що спирається"; then
+  echo "✗ на порожній базі впало БЕЗ зрозумілого пояснення:"
+  echo "$out" | grep -E "ERROR" | head -3
+  exit 1
+fi
+echo "✓ на базі без передумов файл називає, ЧОГО бракує і яку міграцію запустити"
