@@ -161,9 +161,20 @@ const s = {
     boxShadow: '0 3px 12px rgba(34,158,217,.35)',
     whiteSpace: 'nowrap',
   } as React.CSSProperties,
+  // Стрілка галереї. Винесена в стилі, бо тепер двічі однакова, і головне —
+  // 44px замість 32: кнопка лежить ПОВЕРХ фото, тобто промах веде до
+  // випадкового тапу по знімку, а не в порожнечу.
+  galArrow: {
+    position: 'absolute' as const, top: '50%', transform: 'translateY(-50%)',
+    background: 'rgba(0,0,0,.5)', border: 'none', borderRadius: '50%',
+    width: 44, height: 44, color: '#fff', fontSize: 'var(--fs-lead)',
+    cursor: 'pointer', alignItems: 'center', justifyContent: 'center',
+  },
   tgIconBtn: {
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
+    // 44px — Apple HIG. Це ЄДИНА дія в шапці публічної сторінки, тобто
+    // головний шлях відвідувача до власника; 36px тут коштували б угодою.
+    width: 44, height: 44, borderRadius: '50%', flexShrink: 0,
     background: 'linear-gradient(135deg,#2AABEE,#229ED9)',
     color: '#fff',
     textDecoration: 'none', cursor: 'pointer',
@@ -324,7 +335,7 @@ function PhotoGallery({ paths }: { paths: string[] }) {
           key={active}
           className="v-fade"
           src={photoUrl(paths[active])}
-          alt=""
+          alt={`Фото обʼєкта ${active + 1} з ${paths.length}`}
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
         />
         {paths.length > 1 && (
@@ -337,15 +348,19 @@ function PhotoGallery({ paths }: { paths: string[] }) {
             }}>
               {active + 1}/{paths.length}
             </div>
+            {/* `aria-label` обовʼязковий: підпис кнопки — гліф «‹», який читалка
+                озвучує як назву пунктуаційного знака, тобто ніяк. */}
             <button
               className="v-btn"
+              aria-label="Попереднє фото"
               onClick={() => setActive(a => Math.max(0, a - 1))}
-              style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,.5)', border: 'none', borderRadius: '50%', width: 32, height: 32, color: '#fff', fontSize: 'var(--fs-lead)', cursor: 'pointer', display: active === 0 ? 'none' : 'flex', alignItems: 'center', justifyContent: 'center' }}
+              style={{ ...s.galArrow, left: 8, display: active === 0 ? 'none' : 'flex' }}
             >‹</button>
             <button
               className="v-btn"
+              aria-label="Наступне фото"
               onClick={() => setActive(a => Math.min(paths.length - 1, a + 1))}
-              style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,.5)', border: 'none', borderRadius: '50%', width: 32, height: 32, color: '#fff', fontSize: 'var(--fs-lead)', cursor: 'pointer', display: active === paths.length - 1 ? 'none' : 'flex', alignItems: 'center', justifyContent: 'center' }}
+              style={{ ...s.galArrow, right: 8, display: active === paths.length - 1 ? 'none' : 'flex' }}
             >›</button>
           </>
         )}
@@ -353,8 +368,11 @@ function PhotoGallery({ paths }: { paths: string[] }) {
       {paths.length > 1 && (
         <div style={{ display: 'flex', gap: 6, padding: '8px 12px', overflowX: 'auto' }}>
           {paths.map((p, i) => (
-            <button key={i} className="v-thumb" onClick={() => setActive(i)} style={{
-              flexShrink: 0, width: 52, height: 40, borderRadius: 8,
+            <button key={i} className="v-thumb" onClick={() => setActive(i)}
+              aria-label={`Фото ${i + 1} з ${paths.length}`}
+              aria-current={active === i ? 'true' : undefined}
+              style={{
+              flexShrink: 0, width: 56, height: 44, borderRadius: 8,
               overflow: 'hidden', border: active === i ? '2px solid #2AABEE' : '2px solid transparent',
               padding: 0, cursor: 'pointer', background: 'none',
               opacity: active === i ? 1 : .7,

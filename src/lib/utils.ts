@@ -486,3 +486,23 @@ export function searchPattern(query: string): string {
   const tokens = query.replace(/[,()*]/g, ' ').split(/\s+/).filter(Boolean)
   return tokens.reduce((longest, t) => (t.length > longest.length ? t : longest), '')
 }
+
+
+/**
+ * Порядок фото — це ОБКЛАДИНКА, а не косметика.
+ *
+ * `photos?.[0]` править обкладинкою в пʼятьох місцях застосунку, але вбудоване
+ * відношення PostgREST повертає в ДОВІЛЬНОМУ порядку: `select` його не сортує,
+ * а `order` для вбудованих треба просити окремо. Публічна `/v` при цьому має
+ * власний `ORDER BY ph.sort_order` у RPC — тобто обкладинка, яку бачить
+ * власник, і та, яку бачить потенційний орендар, могли розходитись, і жоден
+ * тест цього не бачив, бо мок віддає фікстуру в порядку її оголошення.
+ *
+ * Сортуємо на клієнті, а не запитом: результат тоді не залежить від того, що
+ * саме віддав бекенд, і перевіряється звичайним юніт-тестом.
+ */
+export function withSortedPhotos<T extends { photos?: { sort_order?: number | null }[] | null }>(row: T): T {
+  if (!row?.photos || row.photos.length < 2) return row
+  const photos = [...row.photos].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+  return { ...row, photos }
+}

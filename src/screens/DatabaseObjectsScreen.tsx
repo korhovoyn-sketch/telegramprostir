@@ -214,7 +214,11 @@ export default function DatabaseObjectsScreen() {
     setDbFetchDone(false)
     supabase
       .from('databases')
-      .select('id,owner_id,name,address,type,color,share_token,share_expires_at,created_at,updated_at')
+      // БЕЗ `share_token`: екран його не читає жодного разу, а на цю гілку
+      // потрапляє і РЕДАКТОР member-бази — тобто токен власника їхав людині,
+      // якій шаринг не дозволений за задумом, і переживав би відкликання її
+      // membership. Шит поширення тягне токен сам, і лише для власника.
+      .select('id,owner_id,name,address,type,color,created_at,updated_at')
       .eq('id', screenParams.dbId)
       .maybeSingle()
       .then(({ data }) => {

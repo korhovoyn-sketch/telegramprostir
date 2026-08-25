@@ -169,14 +169,32 @@ test('col share deep link: foreign collection opens the read-only shared view', 
 
   await page.route('**/rest/v1/rpc/lookup_shared_collection', (route) =>
     json(route, [{ id: COL_ID, realtor_id: FOREIGN_OWNER }]))
-  await page.route('**/rest/v1/rpc/get_shared_collection', (route) =>
-    json(route, { id: COL_ID, name: 'Топ офіси', description: null, properties: [] }))
+  // Перегляд авторизується ТОКЕНОМ, а не UUID підбірки: попередній шлях
+  // (`get_shared_collection(p_collection_id)`) був IDOR — SECURITY DEFINER,
+  // виданий anon, без жодної перевірки токена (міграція 049).
+  let sawToken: string | undefined
+  await page.route('**/rest/v1/rpc/get_public_collection_preview', (route) => {
+    sawToken = JSON.parse(route.request().postData() ?? '{}').p_token
+    return json(route, [{
+      collection_id: COL_ID, collection_name: 'Топ офіси', share_expires_at: null,
+      realtor_first_name: 'Олена', realtor_last_name: 'Р.',
+      realtor_tg_username: null, realtor_phone: null,
+      property_id: null, property_name: null, property_status: null,
+      property_floor: null, property_area_useful: null, property_area_total: null,
+      property_rent_type: null, property_rent_rate: null, property_sale_price: null,
+      property_description: null, owner_currency: 'UAH',
+      db_id: null, db_name: null, db_type: null, db_color: null, first_photo: null,
+    }])
+  })
 
   await page.goto('/')
   // Чужа підбірка → read-only SharedCollectionScreen з її назвою
   await expect(page.getByText('Топ офіси')).toBeVisible({ timeout: 20_000 })
   await expect(page.getByText("0 об'єктів")).toBeVisible()
+  expect(sawToken, 'перегляд пішов не по токену — авторизацію можна обминути')
+    .toBe('cc00112233445566778899dd')
 })
+
 
 // ─── Незареєстрований користувач: /v → Telegram → превʼю → підключення ─────────
 // Повний першозаходовий ланцюг БЕЗ сесії: Splash веде db_ на публічний

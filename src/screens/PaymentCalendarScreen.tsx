@@ -6,6 +6,7 @@ import RetryState from '@/components/ui/RetryState'
 import { confirmAction } from '@/lib/confirm'
 import { offlineGuard } from '@/lib/offline'
 import { supabase } from '@/lib/supabase'
+import { assertAffected } from '@/lib/dbWrite'
 import Header from '@/components/ui/Header'
 import { SkeletonList } from '@/components/ui/SkeletonLoader'
 import { IconCalendar, IconClock, IconPlus, IconTrash, IconFile, IconCheckCircle } from '@/components/Icons'
@@ -63,7 +64,7 @@ export default function PaymentCalendarScreen() {
     try {
       let propsQuery = supabase
         .from('properties')
-        .select('id, db_id, owner_id, name, floor, status, rent_type, rent_rate, utilities_rate, tenant_name, lease_start_date, lease_end_date, area_useful, area_total, sort_order, has_parking, parking_spaces, created_at, updated_at')
+        .select('id, db_id, owner_id, name, floor, status, rent_type, rent_rate, utilities_rate, tenant_name, lease_start_date, lease_end_date, area_useful, area_total, area_basis, sort_order, has_parking, parking_spaces, created_at, updated_at')
         .eq('status', 'occupied')
       // Видимість обмежує RLS (власник / член команди / гість) — клієнтський
       // owner_id-фільтр ховав би бази команди від редактора.
@@ -230,7 +231,16 @@ export default function PaymentCalendarScreen() {
     })
     if (!ok || offlineGuard()) return
     try {
-      await supabase.from('rent_payments').delete().eq('property_id', prop.id)
+      // Розклад — не похідні дані: відновити його можна лише руками, тож
+      // «видалено» без доказу запису означало б втрату налаштування, про яку
+      // власник дізнається наступного місяця.
+      const { data, error } = await supabase
+        .from('rent_payments').delete().eq('property_id', prop.id).select('id')
+      if (error) throw error
+      // ОЧІКУВАНЕ береться з ЗАПИТУ, а не з відповіді. `data?.length` тут
+      // означало б `got !== got` — перевірка, що не може впасти НІКОЛИ. Один
+      // рядок гарантує `UNIQUE(property_id)` у 021.
+      assertAffected(data, 1, 'видалення розкладу')
       setSchedules(prev => prev.filter(s => s.property_id !== prop.id))
       showToast({ type: 'success', title: 'Розклад видалено' })
     } catch (e) {
@@ -247,8 +257,12 @@ export default function PaymentCalendarScreen() {
     })
     if (!ok || offlineGuard()) return
     try {
-      const { error } = await supabase.from('rent_payment_records').delete().eq('id', rec.id)
+      // ГРОШОВИЙ запис. Мовчазна відмова тут — це «платіж скасовано» на
+      // екрані при живому записі в базі, тобто розходження звітності.
+      const { data, error } = await supabase
+        .from('rent_payment_records').delete().eq('id', rec.id).select('id')
       if (error) throw error
+      assertAffected(data, 1, 'скасування платежу')
       setRecords(prev => prev.filter(r => r.id !== rec.id))
       if (archiveLoaded) setArchiveRecords(prev => prev.filter(r => r.id !== rec.id))
       showToast({ type: 'success', title: 'Платіж скасовано' })

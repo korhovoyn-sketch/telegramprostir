@@ -11,6 +11,16 @@ import type { Database } from '@/types'
 // Single source of truth for the databases column list — keeps loadDatabases,
 // createDatabase and updateDatabase from drifting apart.
 const DB_COLUMNS = 'id,owner_id,name,address,type,color,share_token,share_expires_at,created_at,updated_at'
+/**
+ * Те саме БЕЗ токена шарингу — для баз, де користувач лише РЕДАКТОР.
+ *
+ * `share_token` — це публічний /v-лінк власника. Шаринг бази owner-only за
+ * задумом (див. Team editors), тож редактор із цим токеном роздавав би доступ,
+ * якого йому не давали, а відкликання membership цього не скасувало б:
+ * ротації токенів при цьому ніхто не робить. Гірше — `writeSnapshot` кладе
+ * рядок у localStorage редактора, де він переживає відкликання геть.
+ */
+const DB_COLUMNS_MEMBER = 'id,owner_id,name,address,type,color,created_at,updated_at'
 
 export function useDatabases() {
   const [loading, setLoading] = useState(false)
@@ -65,7 +75,7 @@ export function useDatabases() {
       if (memberIds.length > 0) {
         const { data: mData, error: mErr } = await supabase
           .from('databases')
-          .select(`${DB_COLUMNS}, properties(status, rent_rate, area_useful, area_total, area_basis, rent_type)`)
+          .select(`${DB_COLUMNS_MEMBER}, properties(status, rent_rate, area_useful, area_total, area_basis, rent_type)`)
           .in('id', memberIds)
           .order('created_at', { ascending: false })
         // Тихо ковтати цю помилку не можна: членство Є, але самі рядки баз не
@@ -79,7 +89,10 @@ export function useDatabases() {
             subtitle: humanizeDbError(mErr),
           })
         }
-        memberRows = mData ?? []
+        // Каст свідомий: у member-рядках НЕМА `share_token`/`share_expires_at`,
+        // і саме цього ми й домагались. Далі `_member: true` гейтить шаринг у
+        // UI, тож відсутні поля ніде не читаються.
+        memberRows = (mData ?? []) as unknown as typeof memberRows
       }
 
       const dbs = [

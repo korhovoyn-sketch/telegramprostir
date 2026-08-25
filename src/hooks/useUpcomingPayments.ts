@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAppStore } from '@/store/appStore'
-import { daysUntil, monthlyRent } from '@/lib/utils'
+import { basisArea, daysUntil, monthlyRent } from '@/lib/utils'
 
 /**
  * Найближчі платежі для екрана сповіщень.
@@ -64,6 +64,8 @@ interface ScheduleRow {
     rent_type: string
     rent_rate: number | null
     area_useful: number | null
+    area_total: number | null
+    area_basis: string | null
   } | null
 }
 
@@ -80,7 +82,7 @@ export function useUpcomingPayments() {
       // перелічені явно — екран малює саме їх (правило «explicit columns»).
       const { data: schedData, error: schedErr } = await supabase
         .from('rent_payments')
-        .select('property_id,due_day,property:properties(id,db_id,name,tenant_name,status,rent_type,rent_rate,area_useful)')
+        .select('property_id,due_day,property:properties(id,db_id,name,tenant_name,status,rent_type,rent_rate,area_useful,area_total,area_basis)')
         .eq('owner_id', user.id)
         .eq('is_active', true)
 
@@ -130,7 +132,7 @@ export function useUpcomingPayments() {
           dueDate,
           // Та сама нормалізація, що в календарі: сира `rent_rate` для per_m2 —
           // це ставка за метр, і показувати її як суму до сплати було б брехнею.
-          amount: p.rent_rate ? monthlyRent(p.area_useful ?? 0, p.rent_rate, p.rent_type) : 0,
+          amount: p.rent_rate ? monthlyRent(basisArea(p.area_useful, p.area_total, p.area_basis), p.rent_rate, p.rent_type) : 0,
           days,
           level: levelFor(days),
         })

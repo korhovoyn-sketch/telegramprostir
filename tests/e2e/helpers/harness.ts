@@ -1,4 +1,5 @@
 import type { Page, Route } from '@playwright/test'
+import { parseSelect, project } from './selectProjection'
 
 export interface HarnessUser {
   id: string
@@ -246,10 +247,32 @@ export async function setupApp(page: Page, opts: HarnessOptions = {}) {
   await mockBackend(page, opts)
 }
 
-/** Standard JSON fulfill for page.route handlers — import instead of
- *  re-declaring per spec (the inline copies had already drifted on `status`). */
-export const jsonRoute = (route: Route, body: unknown, status = 200) =>
-  route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
+/**
+ * Standard JSON fulfill for page.route handlers — import instead of
+ * re-declaring per spec (the inline copies had already drifted on `status`).
+ *
+ * ПРОЄКТУЄ ВІДПОВІДЬ ЧЕРЕЗ `select=`, І ЦЕ НЕ ПЕДАНТИЗМ. Доти харнес віддавав
+ * фікстуру ЦІЛКОМ, з усіма полями — тобто весь набір був СТРУКТУРНО СЛІПИЙ до
+ * колонки, пропущеної в `select()`: код читав її з відповіді, якої в проді не
+ * буде. Саме так `PROPERTY_COLUMNS` без `parking_type`/`ev_charger` пройшов повз
+ * 322 тести, а редагування паркінга мовчки стирало обидва поля.
+ *
+ * Fail-open за побудовою: немає `select`, він `*`, або тіло не обʼєкт —
+ * віддаємо як є. Гард має ловити пропущені колонки, а не ламати спеки, що
+ * мокають RPC чи storage.
+ */
+export const jsonRoute = (route: Route, body: unknown, status = 200) => {
+  let out = body
+  try {
+    const sel = new URL(route.request().url()).searchParams.get('select')
+    if (sel && sel.trim() !== '*' && body && typeof body === 'object') {
+      out = project(body, parseSelect(sel))
+    }
+  } catch {
+    // Невідома форма URL — краще віддати фікстуру цілком, ніж завалити спек.
+  }
+  return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(out) })
+}
 
 /** Every onboarding coachmark pre-dismissed — one source for the id list so a
  *  new coachmark can't silently re-appear and steal clicks in old specs. */

@@ -219,3 +219,109 @@ test('/v?db network failure shows a retryable error, then succeeds on retry', as
   await retryBtn.click()
   await expect(page.getByText('БЦ Рубін')).toBeVisible({ timeout: 20_000 })
 })
+
+// ─── Галерея фото ─────────────────────────────────────────────────────────────
+//
+// ПРОГАЛИНА, ЯКА БУЛА СТРУКТУРНОЮ: усі фікстури вище віддають `photos: []` і
+// `first_photo: null`, тож галерея не малювалась у жодному тесті — ні стрілки,
+// ні смужка мініатюр, ні лічильник, ні свайп. Для сторінки, яка продає обʼєкт
+// незнайомцю, це найважливіший елемент і водночас єдиний геть не покритий.
+
+const PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  'base64')
+
+const PROP_WITH_PHOTOS = { ...PROP_PREVIEW, photos: ['p/1.jpg', 'p/2.jpg', 'p/3.jpg'] }
+
+async function openGallery(page: Page) {
+  await stubTelegram(page)
+  await page.route('**/rest/v1/rpc/get_public_property_preview', (r) => json(r, [PROP_WITH_PHOTOS]))
+  await page.route('**/rest/v1/rpc/record_public_view', (r) => json(r, true))
+  await page.route('**/storage/v1/object/public/**', (r) =>
+    r.fulfill({ status: 200, contentType: 'image/png', body: PNG }))
+  await page.goto('/v/?prop=aabbccddeeff001122334455')
+  await expect(page.getByText('Офіс 101')).toBeVisible({ timeout: 20_000 })
+}
+
+test('/v галерея: лічильник, стрілки і повернення назад', async ({ page }) => {
+  await openGallery(page)
+
+  await expect(page.getByText('1/3')).toBeVisible()
+  // На першому кадрі «назад» не має бути взагалі — інакше тап у неї нічого не
+  // робить, а кнопка виглядає живою.
+  await expect(page.getByRole('button', { name: 'Попереднє фото' })).toBeHidden()
+
+  await page.getByRole('button', { name: 'Наступне фото' }).click()
+  await expect(page.getByText('2/3')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Попереднє фото' })).toBeVisible()
+
+  await page.getByRole('button', { name: 'Наступне фото' }).click()
+  await expect(page.getByText('3/3')).toBeVisible()
+  // На останньому кадрі зникає «вперед».
+  await expect(page.getByRole('button', { name: 'Наступне фото' })).toBeHidden()
+
+  await page.getByRole('button', { name: 'Попереднє фото' }).click()
+  await expect(page.getByText('2/3')).toBeVisible()
+})
+
+test('/v галерея: тап по мініатюрі відкриває саме те фото', async ({ page }) => {
+  await openGallery(page)
+
+  await page.getByRole('button', { name: 'Фото 3 з 3' }).click()
+  await expect(page.getByText('3/3')).toBeVisible()
+
+  await page.getByRole('button', { name: 'Фото 1 з 3' }).click()
+  await expect(page.getByText('1/3')).toBeVisible()
+})
+
+test('/v галерея: свайп гортає, короткий рух — ні', async ({ page }) => {
+  await openGallery(page)
+
+  const stage = page.locator('img[alt="Фото обʼєкта 1 з 3"]').locator('..')
+  const box = (await stage.boundingBox())!
+  const y = box.y + box.height / 2
+
+  // Свайп ліворуч — далі. Поріг у компоненті 40px, тож 120 — впевнений жест.
+  await page.locator('body').evaluate((_, args) => {
+    const el = document.elementFromPoint(args.x, args.y)!
+    const mk = (type: string, cx: number) => new TouchEvent(type, {
+      bubbles: true, cancelable: true,
+      changedTouches: [new Touch({ identifier: 1, target: el, clientX: cx, clientY: args.y })],
+      touches: type === 'touchend' ? [] : [new Touch({ identifier: 1, target: el, clientX: cx, clientY: args.y })],
+    })
+    el.dispatchEvent(mk('touchstart', args.x))
+    el.dispatchEvent(mk('touchend', args.x - 120))
+  }, { x: box.x + box.width / 2, y })
+  await expect(page.getByText('2/3')).toBeVisible()
+
+  // Рух нижче порога не має гортати: інакше будь-який дотик до фото зсуває кадр.
+  await page.locator('body').evaluate((_, args) => {
+    const el = document.elementFromPoint(args.x, args.y)!
+    const mk = (type: string, cx: number) => new TouchEvent(type, {
+      bubbles: true, cancelable: true,
+      changedTouches: [new Touch({ identifier: 1, target: el, clientX: cx, clientY: args.y })],
+      touches: type === 'touchend' ? [] : [new Touch({ identifier: 1, target: el, clientX: cx, clientY: args.y })],
+    })
+    el.dispatchEvent(mk('touchstart', args.x))
+    el.dispatchEvent(mk('touchend', args.x - 12))
+  }, { x: box.x + box.width / 2, y })
+  await expect(page.getByText('2/3')).toBeVisible()
+})
+
+test('/v галерея: одне фото — без стрілок, лічильника і смужки', async ({ page }) => {
+  await stubTelegram(page)
+  await page.route('**/rest/v1/rpc/get_public_property_preview', (r) =>
+    json(r, [{ ...PROP_PREVIEW, photos: ['p/1.jpg'] }]))
+  await page.route('**/rest/v1/rpc/record_public_view', (r) => json(r, true))
+  await page.route('**/storage/v1/object/public/**', (r) =>
+    r.fulfill({ status: 200, contentType: 'image/png', body: PNG }))
+  await page.goto('/v/?prop=aabbccddeeff001122334455')
+  await expect(page.getByText('Офіс 101')).toBeVisible({ timeout: 20_000 })
+
+  await expect(page.getByRole('button', { name: 'Наступне фото' })).toHaveCount(0)
+  await expect(page.getByText('1/1')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /^Фото \d+ з/ })).toHaveCount(0)
+  // Саме фото при цьому МУСИТЬ бути — інакше тест «немає хрому» проходив би
+  // і на зламаній галереї, що не показує нічого.
+  await expect(page.locator('img[alt="Фото обʼєкта 1 з 1"]')).toBeVisible()
+})

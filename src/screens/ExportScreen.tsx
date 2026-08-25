@@ -7,7 +7,8 @@ import { supabase } from '@/lib/supabase'
 import Header from '@/components/ui/Header'
 import Toggle from '@/components/ui/Toggle'
 import { IconFileExport, IconFile, IconAdjustments } from '@/components/Icons'
-import { calcRentUtils, currencySymbol, rentUnitLabel, objectsWord, DB_TYPE_LABELS, STATUS_LABELS, formatDate, humanizeDbError, safeFileName } from '@/lib/utils'
+import { withSortedPhotos, calcRentUtils, currencySymbol, rentUnitLabel, objectsWord, DB_TYPE_LABELS, STATUS_LABELS, formatLeaseDate, humanizeDbError, safeFileName, photoUrl } from '@/lib/utils'
+import { UTILITY_META } from '@/lib/utilityMeta'
 import type { Property, Database } from '@/types'
 
 const FORMATS = [
@@ -15,10 +16,53 @@ const FORMATS = [
   { id: 'excel', label: 'Excel таблиця',   desc: 'Аналітика, розрахунки — .xlsx',               emoji: '📊' },
 ]
 
-const TEMPLATES = [
-  { id: 'classic', label: 'Класик',  accent: '#7AB3FF', accentDark: '#2255CC' },
-  { id: 'modern',  label: 'Модерн',  accent: '#A87CFF', accentDark: '#5B1FD4' },
-  { id: 'dark',    label: 'Нічний',  accent: '#5AC8FA', accentDark: '#1A6A8A' },
+type Rgb = [number, number, number]
+
+/**
+ * Палітра сторінки — ЧАСТИНА теми, а не константа.
+ *
+ * Раніше тема задавала лише пару акцентів, а тло/картки/текст були намертво
+ * темні (#09081f заливкою на КОЖНІЙ сторінці). Для документа, який власник
+ * надсилає клієнту і час від часу друкує, це дорогий дефолт: чорний аркуш
+ * зʼїдає картридж і на папері читається гірше за екран. Тому «Класик» і
+ * «Модерн» тепер світлі, а темна подача лишається окремим вибором — «Нічний».
+ */
+interface PdfTheme {
+  id: string
+  label: string
+  /** Акцент для заголовків секцій і сум. */
+  accent: string
+  /** Насичений акцент для шапки й заливок. */
+  accentDark: string
+  bg: Rgb
+  card: Rgb
+  border: Rgb
+  /** Основний текст. */
+  tx1: Rgb
+  /** Другорядний. */
+  tx2: Rgb
+  /** Підписи полів. */
+  tx3: Rgb
+  /** Текст на заливці `accentDark` — на світлій темі шапка лишається кольоровою. */
+  onAccent: Rgb
+}
+
+const TEMPLATES: PdfTheme[] = [
+  {
+    id: 'classic', label: 'Класик', accent: '#1D4ED8', accentDark: '#1E3A8A',
+    bg: [255, 255, 255], card: [246, 248, 252], border: [214, 222, 235],
+    tx1: [17, 24, 39], tx2: [71, 85, 105], tx3: [128, 141, 160], onAccent: [255, 255, 255],
+  },
+  {
+    id: 'modern', label: 'Модерн', accent: '#6D28D9', accentDark: '#4C1D95',
+    bg: [255, 255, 255], card: [249, 246, 254], border: [223, 214, 240],
+    tx1: [24, 18, 43], tx2: [82, 71, 105], tx3: [140, 130, 160], onAccent: [255, 255, 255],
+  },
+  {
+    id: 'dark', label: 'Нічний', accent: '#5AC8FA', accentDark: '#1A6A8A',
+    bg: [9, 8, 31], card: [20, 18, 52], border: [42, 38, 96],
+    tx1: [232, 232, 248], tx2: [140, 140, 180], tx3: [110, 110, 150], onAccent: [255, 255, 255],
+  },
 ]
 
 // ── save / share generated file on mobile ────────────────────────────────────
@@ -60,6 +104,79 @@ async function shareFile(blob: Blob, fileName: string, mimeType: string) {
   setTimeout(() => URL.revokeObjectURL(url), 5000)
 }
 
+// ── Фото для PDF ──────────────────────────────────────────────────────────────
+
+/** Головне фото + до трьох у смужці. Більше на сторінку А4 просто не лізе. */
+const PHOTOS_PER_OBJECT = 4
+
+/**
+ * Пропорції двох боксів, у які лягають фото. Кадрування робиться ЗАЗДАЛЕГІДЬ
+ * під них, а не кліпом усередині PDF: `doc.clip()` у jsPDF вимагає окремої
+ * побудови шляху і `discardPath()`, і при найменшій помилці мовчки НЕ обрізає —
+ * зображення тоді вилазить за рамку й накриває пів сторінки (спостережено).
+ * Обрізаний заздалегідь кадр не може вилізти в принципі.
+ */
+const HERO_ASPECT = 182 / 52
+const THUMB_ASPECT = 58 / 20
+
+interface LoadedPhoto { hero: string; thumb: string; fmt: string }
+
+/** Обрізає під задану пропорцію по центру (cover) і віддає dataURL. */
+function cropTo(img: HTMLImageElement, aspect: number, outW: number): string {
+  const cv = document.createElement('canvas')
+  cv.width = outW
+  cv.height = Math.round(outW / aspect)
+  const ctx = cv.getContext('2d')!
+  const srcAspect = img.naturalWidth / img.naturalHeight
+  let sw = img.naturalWidth, sh = img.naturalHeight, sx = 0, sy = 0
+  if (srcAspect > aspect) { sw = img.naturalHeight * aspect; sx = (img.naturalWidth - sw) / 2 }
+  else { sh = img.naturalWidth / aspect; sy = (img.naturalHeight - sh) / 2 }
+  ctx.drawImage(img, sx, sy, sw, sh, 0, 0, cv.width, cv.height)
+  // JPEG якості .82 — компроміс між вагою файлу і тим, щоб фото не «сипалось»
+  // на друку. PNG тут дав би вчетверо важчий документ ні за що.
+  return cv.toDataURL('image/jpeg', 0.82)
+}
+
+/**
+ * Тягне фото обʼєкта й переводить у dataURL для `doc.addImage`.
+ *
+ * Бакет `photos` публічний (той самий `photoUrl`, що малює застосунок), тож
+ * підписані URL не потрібні. **Кожне фото — fail-open:** мережевий збій чи
+ * прибраний файл НЕ мають валити весь експорт, інакше один осиротілий рядок
+ * позбавляв би власника всього документа. Пропущене фото — просто менша
+ * смужка, і це видно на око.
+ */
+async function loadPhotos(paths: string[]): Promise<LoadedPhoto[]> {
+  const out = await Promise.all(paths.slice(0, PHOTOS_PER_OBJECT).map(async (path) => {
+    try {
+      const res = await fetch(photoUrl(path))
+      if (!res.ok) return null
+      const blob = await res.blob()
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const fr = new FileReader()
+        fr.onload = () => resolve(fr.result as string)
+        fr.onerror = () => reject(fr.error)
+        fr.readAsDataURL(blob)
+      })
+      const img = await new Promise<HTMLImageElement | null>((resolve) => {
+        const im = new Image()
+        im.onload = () => resolve(im)
+        im.onerror = () => resolve(null)
+        im.src = dataUrl
+      })
+      if (!img?.naturalWidth || !img.naturalHeight) return null
+      return {
+        hero: cropTo(img, HERO_ASPECT, 1100),
+        thumb: cropTo(img, THUMB_ASPECT, 420),
+        fmt: 'JPEG',
+      }
+    } catch {
+      return null
+    }
+  }))
+  return out.filter((p): p is LoadedPhoto => p !== null)
+}
+
 // ── PDF generation ────────────────────────────────────────────────────────────
 
 async function generatePDF(
@@ -83,31 +200,52 @@ async function generatePDF(
   const rows = onlyFree ? properties.filter(p => p.status === 'free') : properties
   const tpl  = TEMPLATES.find(t => t.id === template) ?? TEMPLATES[1]
 
-  // ── Design tokens (dark-themed, matches the app) ──────────────────────────
-  const BG:      [number,number,number] = [9,  8,  31]   // #09081f
-  const CARD:    [number,number,number] = [20, 18, 52]   // #141234
-  const BORDER:  [number,number,number] = [42, 38, 96]   // #2a2660
-  const TXPRI:   [number,number,number] = [232,232,248]  // near-white
-  const TXSEC:   [number,number,number] = [140,140,180]  // muted
-  const TXMUT:   [number,number,number] = [80, 80, 120]  // very muted
+  // ── Design tokens — з ТЕМИ, а не захардкоджені ────────────────────────────
+  const BG     = tpl.bg
+  const CARD   = tpl.card
+  const BORDER = tpl.border
+  const TXPRI  = tpl.tx1
+  const TXSEC  = tpl.tx2
+  const TXMUT  = tpl.tx3
+  const isDark = tpl.id === 'dark'
 
-  const hexRgb = (hex: string): [number,number,number] => {
+  const hexRgb = (hex: string): Rgb => {
     const n = parseInt(hex.slice(1), 16)
     return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
   }
   const ACC = hexRgb(tpl.accent)      // accent bright
   const ACD = hexRgb(tpl.accentDark)  // accent dark (for fills)
 
-  const STATUS_STYLE: Record<string, { bg: [number,number,number]; fg: [number,number,number] }> = {
-    free:     { bg: [20, 60, 30],  fg: [52,  199, 89]  },
-    occupied: { bg: [60, 35,  8],  fg: [255, 149,  0]  },
-    for_sale: { bg: [10, 40, 70],  fg: [90,  200, 250] },
-  }
+  // Статусна пігулка мусить читатись на СВОЄМУ тлі: на темній сторінці це
+  // глухий колір + яскравий текст, на світлій — навпаки, світла плашка й
+  // насичений текст. Одна пара на обидві теми давала або невидимий текст,
+  // або чорний прямокутник посеред білого аркуша.
+  const STATUS_STYLE: Record<string, { bg: Rgb; fg: Rgb }> = isDark
+    ? {
+        free:     { bg: [20, 60, 30], fg: [52, 199, 89] },
+        occupied: { bg: [60, 35,  8], fg: [255, 149, 0] },
+        for_sale: { bg: [10, 40, 70], fg: [90, 200, 250] },
+      }
+    : {
+        free:     { bg: [223, 246, 229], fg: [22, 122, 60] },
+        occupied: { bg: [255, 238, 214], fg: [166, 90, 0] },
+        for_sale: { bg: [222, 240, 253], fg: [17, 94, 145] },
+      }
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const W = doc.internal.pageSize.getWidth()
   const H = doc.internal.pageSize.getHeight()
   const M = 14  // margin
+
+  // Один форматер на весь документ. Плитка «Оренда» на обкладинці розділяла
+  // тисячі, а ті самі гроші в таблиці й на сторінці обʼєкта — ні: «$26 800»
+  // проти «$25000» в одному файлі читалось як два різні документи.
+  const money = (n: number) => `${cur}${n.toLocaleString('uk-UA')}`
+  // Ставка несе ОДИНИЦЮ, а не речення: підпис поля вже сказав «Ставка
+  // оренди», тож «25000 $ / міс (фіксована)» повторював сам себе, а пробіли
+  // навколо скісних рвали число й одиницю на три окремі слова.
+  const rateOf = (n: number, type: string) =>
+    `${n.toLocaleString('uk-UA')} ${cur}/${type === 'per_m2' ? 'м²' : type === 'per_day' ? 'добу' : 'міс'}`
 
   // ── Embed Roboto for Cyrillic support ────────────────────────────────────────
   const toBase64 = (buf: ArrayBuffer): string => {
@@ -147,40 +285,58 @@ async function generatePDF(
   // ── PAGE 1: cover + summary table ────────────────────────────────────────
   fillBg()
 
+  // Смуга росте під адресу: тримати адресу ПІД смугою означало лишити її
+  // самотнім рядком на білому між шапкою і плитками — вона читалась як
+  // відірваний підпис, а не як частина шапки.
+  const bandH = db.address ? 52 : 44
+
   // Header gradient band
   doc.setFillColor(...ACD)
-  doc.rect(0, 0, W, 44, 'F')
+  doc.rect(0, 0, W, bandH, 'F')
   // Diagonal accent stripe inside header
   doc.setFillColor(...ACC)
   doc.setGState(new GState({ opacity: 0.12 }))
-  doc.triangle(W - 60, 0, W, 0, W, 44, 'F')
+  doc.triangle(W - 60, 0, W, 0, W, bandH, 'F')
   doc.setGState(new GState({ opacity: 1 }))
 
   // "PropSpace" wordmark
   doc.setFont('Roboto', 'bold')
   doc.setFontSize(8)
-  doc.setTextColor(...TXMUT)
+  // Текст НА кольоровій смузі бере власний колір теми: `TXMUT`/`TXSEC` — це
+  // сірі теми СТОРІНКИ, і на синій заливці вони майже зникали.
+  doc.setTextColor(...tpl.onAccent)
+  doc.setGState(new GState({ opacity: 0.62 }))
   doc.text('PROPSPACE', M, 11)
+  doc.setGState(new GState({ opacity: 1 }))
 
   // DB name
   doc.setFontSize(20)
-  doc.setTextColor(...TXPRI)
+  // `TXPRI` — колір тексту СТОРІНКИ (#111827), а назва лежить на кольоровій
+  // смузі: заміряно 1.63:1, тобто заголовок усього документа був фактично
+  // нечитабельний. На смузі колір може бути лише `onAccent` — те саме
+  // правило, що вже застосоване до вордмарка й підзаголовка нижче.
+  doc.setTextColor(...tpl.onAccent)
   const dbNameLines = doc.splitTextToSize(db.name, W - M * 2 - 20)
   doc.text(dbNameLines[0] as string, M, 26)
 
   // Subtitle
   doc.setFontSize(8.5)
   doc.setFont('Roboto', 'normal')
-  doc.setTextColor(...TXSEC)
+  doc.setTextColor(...tpl.onAccent)
+  doc.setGState(new GState({ opacity: 0.78 }))
   const typeLabel = DB_TYPE_LABELS[db.type] ?? db.type
   const dateStr   = new Date().toLocaleDateString('uk-UA', { day: 'numeric', month: 'long', year: 'numeric' })
   doc.text(`${typeLabel}  ·  ${rows.length} ${objectsWord(rows.length)}  ·  ${dateStr}`, M, 38)
+  doc.setGState(new GState({ opacity: 1 }))
 
-  // Address (if any)
+  // Address (if any) — без емодзі: у вбудованому Roboto гліфа «📍» немає,
+  // тож він друкувався порожнечею, і рядок починався з видимого відступу.
   if (db.address) {
     doc.setFontSize(7.5)
-    doc.setTextColor(...TXMUT)
-    doc.text('📍 ' + db.address, M, 50)
+    doc.setTextColor(...tpl.onAccent)
+    doc.setGState(new GState({ opacity: 0.62 }))
+    doc.text(doc.splitTextToSize(db.address, W - M * 2)[0] as string, M, 47)
+    doc.setGState(new GState({ opacity: 1 }))
   }
 
   // ── Summary stat cards ─────────────────────────────────────────────────
@@ -194,12 +350,12 @@ async function generatePDF(
     return s + (total - utils)
   }, 0)
 
-  const cardY = db.address ? 56 : 48
+  const cardY = bandH + 12
   const cards: [string, string, [number,number,number]][] = [
     ['Вільно',  String(freeCount),     STATUS_STYLE.free.fg],
     ['Зайнято', String(occupiedCount), STATUS_STYLE.occupied.fg],
     ['Продаж',  String(saleCount),     STATUS_STYLE.for_sale.fg],
-    ['Оренда',  `${cur}${totalRent.toLocaleString('uk-UA')}`, ACC],
+    ['Оренда',  money(totalRent), ACC],
   ]
   const cardW = (W - M * 2 - 9) / 4
   cards.forEach(([label, val, color], i) => {
@@ -230,12 +386,12 @@ async function generatePDF(
       STATUS_LABELS[p.status] ?? p.status,
       p.area_useful ? `${p.area_useful}` : '—',
       p.area_total  ? `${p.area_total}`  : '—',
-      p.rent_rate   ? `${p.rent_rate}${p.rent_type === 'fixed' ? '' : rentUnitLabel(p.rent_type)}` : '—',
-      utils ? `${cur}${utils}`  : '—',
+      p.rent_rate   ? `${p.rent_rate.toLocaleString('uk-UA')}${p.rent_type === 'fixed' ? '' : rentUnitLabel(p.rent_type)}` : '—',
+      utils ? money(utils) : '—',
       // total — з calcRentUtils, УЖЕ нормалізований до місяця (per_day
       // множиться на 30 всередині) — рахувати rent+utils тут САМОСТІЙНО
       // означало б знову змішати добову ставку з місячними експлуатаційними.
-      total ? `${cur}${total}` : '—',
+      total ? money(total) : '—',
     ]
   })
 
@@ -288,7 +444,7 @@ async function generatePDF(
   })
 
   // ── PAGES 2+: full detail card per property ───────────────────────────────
-  const drawDetailPage = (p: Property, idx: number) => {
+  const drawDetailPage = (p: Property, idx: number, shots: LoadedPhoto[]) => {
     doc.addPage()
     fillBg()
 
@@ -303,8 +459,10 @@ async function generatePDF(
     doc.setTextColor(255, 255, 255)
     doc.text('PROPSPACE  ·  ' + db.name.toUpperCase(), M, 8)
     doc.setFont('Roboto', 'normal')
-    doc.setTextColor(...TXSEC)
-    doc.text(`${idx + 1} / ${rows.length}`, W - M, 8, { align: 'right' })
+    doc.setTextColor(...tpl.onAccent)
+    doc.setGState(new GState({ opacity: 0.7 }))
+    doc.text(`Обʼєкт ${idx + 1} з ${rows.length}`, W - M, 8, { align: 'right' })
+    doc.setGState(new GState({ opacity: 1 }))
 
     let y = 20
 
@@ -339,7 +497,10 @@ async function generatePDF(
     y += 28
 
     // helper: draw a labelled field in a two-column grid
-    const drawField = (label: string, value: string, x: number, fy: number, w: number): number => {
+    // `suffix` малюється ПІСЛЯ значення приглушеним і тонким — саме тому це
+    // не частина рядка значення: маркер бази розрахунку в тій самій жирній
+    // подачі читався як друге значення поля, а не як позначка на першому.
+    const drawField = (label: string, value: string, x: number, fy: number, w: number, suffix?: string): number => {
       doc.setFont('Roboto', 'normal')
       doc.setFontSize(7)
       doc.setTextColor(...TXMUT)
@@ -349,6 +510,16 @@ async function generatePDF(
       doc.setTextColor(...TXPRI)
       const lines = doc.splitTextToSize(value || '—', w - 2)
       doc.text(lines.slice(0, 2) as string[], x, fy + 5.5)
+      if (suffix && lines.length === 1) {
+        // Ширину значення міряємо ПОКИ активний його власний шрифт:
+        // `getTextWidth` рахує за поточним кеглем, тож замір після переходу на
+        // 7pt дав би ширину чужого рядка й підпис поїхав би на значення.
+        const vw = doc.getTextWidth(lines[0] as string)
+        doc.setFont('Roboto', 'normal')
+        doc.setFontSize(7)
+        doc.setTextColor(...TXMUT)
+        doc.text(suffix, x + vw + 5, fy + 5.5)
+      }
       return fy + 5.5 + (lines.length > 1 ? 5 : 0)
     }
 
@@ -368,33 +539,96 @@ async function generatePDF(
     const CL = M           // left col x
     const CR = W / 2 + 2   // right col x
     const CW = W / 2 - M - 2
+    // Ритм рядків. Було 3мм між парами, тобто підпис наступного поля стояв
+    // упритул під значенням попереднього і читався як його продовження
+    // («100 м²  /  ПОВЕРХ»). Секційний відступ мусить бути помітно більшим
+    // за внутрішній, інакше межі секцій зникають.
+    const ROW = 6.5
+    const SEC = 9
 
-    // ── ПЛОЩА ─────────────────────────────────────────────────────────
-    drawSection('ПЛОЩА', y)
+    // ── ПЛОЩА І РОЗТАШУВАННЯ ──────────────────────────────────────────
+    drawSection('ПЛОЩА І РОЗТАШУВАННЯ', y)
     y += 5
-    const yL1 = drawField('Корисна площа', p.area_useful ? `${p.area_useful} м²` : '—', CL, y, CW)
-    const yR1 = drawField('Розрахункова площа', p.area_total  ? `${p.area_total} м²`  : '—', CR, y, CW)
-    y = Math.max(yL1, yR1) + 3
+    // Позначка бази розрахунку — не декор: саме вона каже, на яку з двох площ
+    // множиться ставка $/м². Без неї читач бачить дві площі й суму, і не може
+    // звести їх між собою.
+    // Маркер бази йде до ЗНАЧЕННЯ, а не в підпис: у підписі він читався як
+    // друга назва поля («КОРИСНА ПЛОЩА  БАЗА РОЗРАХУНКУ») і плутав.
+    const basis = p.area_basis ?? 'total'
+    const areaVal = (v: number | null | undefined) => (v ? `${v} м²` : '—')
+    const basisMark = (which: 'useful' | 'total') => (basis === which ? 'база розрахунку' : undefined)
+    const yL1 = drawField('Корисна площа', areaVal(p.area_useful), CL, y, CW, basisMark('useful'))
+    const yR1 = drawField('Розрахункова площа', areaVal(p.area_total), CR, y, CW, basisMark('total'))
+    y = Math.max(yL1, yR1) + ROW
     const yL2 = drawField('Поверх', p.floor ? `${p.floor} поверх` : '—', CL, y, CW)
-    y = yL2 + 6
+    const yR2 = p.address ? drawField('Адреса', p.address, CR, y, CW) : y
+    y = Math.max(yL2, yR2) + SEC
+
+    // ── ОРЕНДАР І ДОГОВІР ─────────────────────────────────────────────
+    // Обʼєкт із орендарем без ІМЕНІ орендаря — це half-документ: у застосунку
+    // ця інформація на картці є, а в PDF її не було взагалі, як і дат
+    // договору. Секція йде ПЕРЕД грошима, бо це перше, що питають.
+    if (p.tenant_name || p.lease_start_date || p.lease_end_date) {
+      drawSection('ОРЕНДАР', y)
+      y += 5
+      const leaseStr = p.lease_start_date || p.lease_end_date
+        ? `${p.lease_start_date ? formatLeaseDate(p.lease_start_date) : '—'} – ${p.lease_end_date ? formatLeaseDate(p.lease_end_date) : '—'}`
+        : '—'
+      const yT1 = drawField('Орендар', p.tenant_name || '—', CL, y, CW)
+      const yT2 = leaseStr === '—' ? y : drawField('Договір', leaseStr, CR, y, CW)
+      y = Math.max(yT1, yT2) + SEC
+    }
+
+    // ── ПРОДАЖ ────────────────────────────────────────────────────────
+    // Обʼєкт на продаж раніше діставав секцію «Оренда» з суцільними «—» і
+    // великий блок «Разом на місяць: —», а ЦІНИ не показував ніде. Тобто
+    // сторінка продажу була порожньою — найгірший випадок усього документа.
+    if (p.status === 'for_sale' || p.sale_price) {
+      drawSection('ПРОДАЖ', y)
+      y += 5
+      doc.setFillColor(...ACD)
+      doc.setGState(new GState({ opacity: isDark ? 0.22 : 0.10 }))
+      doc.roundedRect(M, y - 1, W - M * 2, 16, 3, 3, 'F')
+      doc.setGState(new GState({ opacity: 1 }))
+      doc.setFont('Roboto', 'normal')
+      doc.setFontSize(8.5)
+      doc.setTextColor(...TXSEC)
+      doc.text('Ціна продажу', M + 5, y + 9)
+      doc.setFont('Roboto', 'bold')
+      doc.setFontSize(16)
+      doc.setTextColor(...ACC)
+      doc.text(p.sale_price ? money(p.sale_price) : '—', W - M - 4, y + 10, { align: 'right' })
+      y += 22
+    }
 
     // ── ОРЕНДА ────────────────────────────────────────────────────────
+    // Тільки якщо є ЩО показати. Обʼєкт на продаж не має ані ставки, ані
+    // експлуатаційних, тож раніше діставав секцію з чотирьох «—» і великий
+    // блок «Разом на місяць: —» — половину сторінки порожнечі під цінником,
+    // який щойно домалювали вище.
+    const hasRent = !!(p.rent_rate || p.utilities_rate)
+    if (hasRent) {
     drawSection('ОРЕНДА', y)
     y += 5
-    const rentRateStr = p.rent_rate
-      ? `${p.rent_rate} ${p.rent_type === 'per_m2' ? `${cur} / м² / міс` : p.rent_type === 'per_day' ? `${cur} / добу` : `${cur} / міс (фіксована)`}`
-      : '—'
+    const rentRateStr = p.rent_rate ? rateOf(p.rent_rate, p.rent_type) : '—'
     const yL3 = drawField('Ставка оренди',    rentRateStr,            CL, y, CW)
     // «на місяць» у підписі — для per_day сире `rent` лишається ДОБОВОЮ
     // ставкою (Ставка оренди рядком вище її й показує), тут потрібен
     // нормалізований еквівалент: total мінус utils.
     const monthlyRentOnly = total - utils
-    const yR3 = drawField('Оренда на місяць', monthlyRentOnly ? `${cur}${monthlyRentOnly}` : '—', CR, y, CW)
-    y = Math.max(yL3, yR3) + 3
-    const utilsRateStr = p.utilities_rate ? `${p.utilities_rate} ${cur} / м² / міс` : '—'
-    const yL4 = drawField('Ставка експлуатаційних',    utilsRateStr,          CL, y, CW)
-    const yR4 = drawField('Експлуатаційні на місяць',  utils ? `${cur}${utils}` : '—', CR, y, CW)
-    y = Math.max(yL4, yR4) + 4
+    const yR3 = drawField('Оренда на місяць', monthlyRentOnly ? money(monthlyRentOnly) : '—', CR, y, CW)
+    y = Math.max(yL3, yR3)
+    // Рядок експлуатаційних малюється, ЛИШЕ якщо в ньому є що читати. Обʼєкт
+    // із фіксованою орендою без комуналки інакше діставав пару полів із двома
+    // «—» — тобто підпис стверджував, що дані мали б бути, а їх нема.
+    if (p.utilities_rate || utils) {
+      y += ROW
+      const yL4 = drawField('Ставка експлуатаційних',
+        p.utilities_rate ? rateOf(p.utilities_rate, 'per_m2') : '—', CL, y, CW)
+      const yR4 = drawField('Експлуатаційні на місяць', utils ? money(utils) : '—', CR, y, CW)
+      y = Math.max(yL4, yR4)
+    }
+    y += 5
 
     // Total highlight box
     doc.setFillColor(...ACD)
@@ -414,17 +648,45 @@ async function generatePDF(
     doc.setFont('Roboto', 'bold')
     doc.setFontSize(16)
     doc.setTextColor(...ACC)
-    doc.text(total ? `${cur}${total.toLocaleString('uk-UA')}` : '—', W - M - 4, y + 11, { align: 'right' })
+    doc.text(total ? money(total) : '—', W - M - 4, y + 11, { align: 'right' })
     y += 22
+    }
 
     // ── ПАРКІНГ ───────────────────────────────────────────────────────
     drawSection('ПАРКІНГ', y)
     y += 5
-    const yL5 = drawField('Наявність',      p.has_parking ? 'Так ✓' : 'Немає', CL, y, CW)
+    const yL5 = drawField('Наявність',      p.has_parking ? 'Так' : 'Немає', CL, y, CW)
     const yR5 = p.has_parking
       ? drawField('Кількість місць', String(p.parking_spaces || 0),    CR, y, CW)
       : y
-    y = Math.max(yL5, yR5) + 6
+    y = Math.max(yL5, yR5) + SEC
+
+    // ── ЕКСПЛУАТАЦІЙНІ ПОСЛУГИ ────────────────────────────────────────
+    // Список послуг є на картці обʼєкта в застосунку, але в документ не
+    // потрапляв — а це саме те, про що питає орендар («світло є? газ є?»).
+    const utilList = (p.utilities ?? [])
+      .map((uid) => UTILITY_META.find((m) => m.id === uid)?.label)
+      .filter((l): l is string => !!l)
+    if (utilList.length > 0) {
+      drawSection('ЕКСПЛУАТАЦІЙНІ ПОСЛУГИ', y)
+      y += 5
+      let px = M
+      doc.setFont('Roboto', 'normal')
+      doc.setFontSize(8)
+      for (const label of utilList) {
+        const wLbl = doc.getTextWidth(label) + 8
+        if (px + wLbl > W - M) { px = M; y += 8 }
+        doc.setFillColor(...CARD)
+        doc.roundedRect(px, y - 4, wLbl, 7, 2, 2, 'F')
+        doc.setDrawColor(...BORDER)
+        doc.setLineWidth(0.2)
+        doc.roundedRect(px, y - 4, wLbl, 7, 2, 2, 'S')
+        doc.setTextColor(...TXSEC)
+        doc.text(label, px + 4, y + 0.8)
+        px += wLbl + 3
+      }
+      y += 10
+    }
 
     // ── ОПИС ──────────────────────────────────────────────────────────
     if (p.description) {
@@ -436,6 +698,64 @@ async function generatePDF(
       const descLines = doc.splitTextToSize(p.description, W - M * 2)
       doc.text(descLines.slice(0, 10) as string[], M, y)
       y += descLines.slice(0, 10).length * 5 + 6
+    }
+
+    // ── ФОТО ──────────────────────────────────────────────────────────
+    // Фото тягнулись із БД разом з обʼєктом і мовчки викидались — документ
+    // про нерухомість без жодного знімка. Головне велике + до трьох у смужці:
+    // більше на А4 під рештою секцій просто не лишається місця.
+    if (shots.length > 0) {
+      drawSection('ФОТО', y)
+      y += 5
+      const gap = 3
+      const fullW = W - M * 2
+      const rest = shots.slice(1, 4)
+      // Місце під контакти й колонтитул лишається за ними — інакше фото
+      // налазить на підпис власника внизу сторінки.
+      const room = H - 30 - y
+
+      // Блок фото МАСШТАБУЄТЬСЯ під залишок сторінки, а не зникає по частинах.
+      // Жорсткі висоти давали найгірший з можливих результатів: на щільній
+      // сторінці смужка не влазила на кілька міліметрів і мовчки не малювалась
+      // узагалі — тобто обʼєкт із трьома фото показував одне, і причину цього
+      // не було видно ніде. Пропорції беруться з попереднього кропу, тож
+      // однаковий множник на ширину й висоту їх зберігає.
+      const wantH = fullW / HERO_ASPECT
+        + (rest.length > 0 ? gap + (fullW - gap * 2) / 3 / THUMB_ASPECT : 0)
+      const k = Math.min(1, room / wantH)
+
+      // Нижче 0.55 знімок перестає щось показувати — краще чесно не малювати
+      // блок, ніж лишити смужку висотою в рядок тексту.
+      if (k >= 0.55) {
+        const heroW = fullW * k
+        const heroH = heroW / HERO_ASPECT
+        // Зменшений блок ЦЕНТРУЄТЬСЯ: притиснутий до лівого поля, він читався
+        // не як менше фото, а як зʼїхала верстка — решта сторінки йде від
+        // краю до краю, і вужчий блок при лівому вирівнюванні лишає вирву
+        // саме праворуч, куди око йде за наступним рядком.
+        const hx = M + (fullW - heroW) / 2
+        doc.addImage(shots[0].hero, shots[0].fmt, hx, y, heroW, heroH)
+        doc.setDrawColor(...BORDER)
+        doc.setLineWidth(0.3)
+        doc.roundedRect(hx, y, heroW, heroH, 3, 3, 'S')
+        y += heroH + gap
+
+        if (rest.length > 0) {
+          // Смужка ЗАВЖДИ на три колонки, скільки б фото не було: при діленні
+          // на фактичну кількість одна мініатюра розтягувалась на всю ширину
+          // і ставала вищою за головне фото.
+          const tw = (heroW - gap * 2) / 3
+          const th = tw / THUMB_ASPECT
+          rest.forEach((sh, i) => {
+            const x = hx + i * (tw + gap)
+            doc.addImage(sh.thumb, sh.fmt, x, y, tw, th)
+            doc.setDrawColor(...BORDER)
+            doc.setLineWidth(0.3)
+            doc.roundedRect(x, y, tw, th, 2, 2, 'S')
+          })
+          y += th + 4
+        }
+      }
     }
 
     // ── Contacts ──────────────────────────────────────────────────────
@@ -455,7 +775,15 @@ async function generatePDF(
     }
   }
 
-  rows.forEach((p, idx) => drawDetailPage(p, idx))
+  // Фото тягнуться ПАРАЛЕЛЬНО для всіх обʼєктів, а не по одному на сторінку:
+  // послідовно 30 обʼєктів × 4 фото = 120 запитів у чергу, тобто десятки
+  // секунд очікування з нерухомою кнопкою.
+  const shotsByProperty = await Promise.all(
+    // Порядок фото в документі мусить збігатись із застосунком і з /v:
+    // вбудоване відношення приходить несортованим, тож перше фото — довільне.
+    rows.map((p) => loadPhotos((withSortedPhotos(p).photos ?? []).map((ph) => ph.storage_path)))
+  )
+  rows.forEach((p, idx) => drawDetailPage(p, idx, shotsByProperty[idx]))
 
   // ── Page numbers ──────────────────────────────────────────────────────────
   const pageCount = doc.getNumberOfPages()
@@ -497,13 +825,34 @@ async function generateExcel(
   // Header
   const headers = [
     '№', 'Назва', 'Поверх', 'Статус',
-    'Площа корисна (м²)', 'Площа розрахункова (м²)',
+    // Орендар і договір були відсутні: на картці обʼєкта в застосунку вони є,
+    // а в таблиці — ні, тож зведення «хто де сидить і до якого числа» з
+    // експорту зробити було неможливо.
+    'Орендар', 'Договір з', 'Договір до',
+    'Площа корисна (м²)', 'Площа розрахункова (м²)', 'База розрахунку',
     'Ставка оренди', 'Тип ставки',
     `Оренда на місяць (${cur})`, `Експлуатаційні на місяць (${cur})`,
     `Разом на місяць (${cur})`,
+    // Ціна продажу не потрапляла нікуди — обʼєкт на продаж їхав у файл із
+    // порожніми орендними колонками і без жодної цифри.
+    `Ціна продажу (${cur})`,
     'Паркінг', 'Місць паркінгу',
+    'Адреса', 'Експлуатаційні послуги',
     'Опис', 'Додано',
   ]
+
+  /**
+   * Літера колонки за НАЗВОЮ заголовка, а не жорстким «E»/«I».
+   *
+   * Підсумковий рядок унизу підбиває SUM по колонках, і поки літери стояли в
+   * коді константами, будь-яка вставка колонки посеред таблиці мовчки зсувала
+   * суму на сусідній стовпець — помилка в ГРОШАХ, яку в готовому файлі видно
+   * тільки якщо перерахувати вручну.
+   */
+  const colLetter = (header: string): string => {
+    const i = headers.indexOf(header)
+    return String.fromCharCode(65 + i)
+  }
   sheetData.push(headers)
 
   const headerRowIndex = sheetData.length // 1-based for xlsx (row 6)
@@ -516,8 +865,12 @@ async function generateExcel(
       p.name,
       p.floor ?? '',
       STATUS_LABELS[p.status] ?? p.status,
+      p.tenant_name ?? '',
+      p.lease_start_date ? formatLeaseDate(p.lease_start_date) : '',
+      p.lease_end_date ? formatLeaseDate(p.lease_end_date) : '',
       p.area_useful ?? '',
       p.area_total  ?? '',
+      (p.area_basis ?? 'total') === 'useful' ? 'корисна' : 'розрахункова',
       p.rent_rate   ?? '',
       p.rent_type === 'per_m2' ? `${cur}/м²/міс` : p.rent_type === 'per_day' ? `${cur}/добу` : `фіксована ${cur}/міс`,
       // «Оренда на місяць» — заголовок каже "на місяць", тож потрібен
@@ -529,10 +882,15 @@ async function generateExcel(
       // самостійно знову змішав би добову ставку per_day з місячними
       // експлуатаційними в колонці, підписаній «Разом на місяць».
       total || '',
+      p.sale_price || '',
       p.has_parking ? 'Так' : 'Ні',
       p.parking_spaces || '',
+      p.address ?? '',
+      (p.utilities ?? [])
+        .map((uid) => UTILITY_META.find((m) => m.id === uid)?.label)
+        .filter(Boolean).join(', '),
       p.description ?? '',
-      formatDate(p.created_at),
+      formatLeaseDate(p.created_at),
     ])
   })
 
@@ -540,38 +898,41 @@ async function generateExcel(
   const dataStart = headerRowIndex + 1
   const dataEnd   = sheetData.length
   if (rows.length > 0) {
-    sheetData.push([
-      '', 'РАЗОМ', '', '',
-      { f: `SUM(E${dataStart}:E${dataEnd})` } as unknown as number,
-      { f: `SUM(F${dataStart}:F${dataEnd})` } as unknown as number,
-      '', '',
-      { f: `SUM(I${dataStart}:I${dataEnd})` } as unknown as number,
-      { f: `SUM(J${dataStart}:J${dataEnd})` } as unknown as number,
-      { f: `SUM(K${dataStart}:K${dataEnd})` } as unknown as number,
-      '', '', '', '',
-    ])
+    // Рядок будується за ІНДЕКСОМ заголовка, а не позиційним переліком: інакше
+    // додана колонка зсуває всі значення праворуч, і «РАЗОМ» опиняється не під
+    // своїм стовпцем.
+    const SUMMED = [
+      'Площа корисна (м²)', 'Площа розрахункова (м²)',
+      `Оренда на місяць (${cur})`, `Експлуатаційні на місяць (${cur})`,
+      `Разом на місяць (${cur})`, `Ціна продажу (${cur})`,
+    ]
+    const totalsRow: (string | number)[] = headers.map((h, i) => {
+      if (i === 1) return 'РАЗОМ'
+      if (!SUMMED.includes(h)) return ''
+      const L = colLetter(h)
+      return { f: `SUM(${L}${dataStart}:${L}${dataEnd})` } as unknown as number
+    })
+    sheetData.push(totalsRow)
   }
 
   const ws = XLSX.utils.aoa_to_sheet(sheetData)
 
   // Column widths
-  ws['!cols'] = [
-    { wch: 4  }, // №
-    { wch: 30 }, // Назва
-    { wch: 8  }, // Поверх
-    { wch: 12 }, // Статус
-    { wch: 18 }, // Площа корисна
-    { wch: 18 }, // Площа розрахункова
-    { wch: 14 }, // Ставка
-    { wch: 18 }, // Тип ставки
-    { wch: 18 }, // Оренда
-    { wch: 18 }, // Експлуатаційні
-    { wch: 18 }, // Разом
-    { wch: 10 }, // Паркінг
-    { wch: 12 }, // Місць
-    { wch: 35 }, // Опис
-    { wch: 16 }, // Додано
-  ]
+  // Ширини — за НАЗВОЮ колонки, щоб додана колонка не зсувала всі решта.
+  const COL_W: Record<string, number> = {
+    '№': 4, 'Назва': 30, 'Поверх': 8, 'Статус': 12,
+    'Орендар': 24, 'Договір з': 13, 'Договір до': 13,
+    'Площа корисна (м²)': 18, 'Площа розрахункова (м²)': 20, 'База розрахунку': 16,
+    'Ставка оренди': 14, 'Тип ставки': 18,
+    [`Оренда на місяць (${cur})`]: 18,
+    [`Експлуатаційні на місяць (${cur})`]: 22,
+    [`Разом на місяць (${cur})`]: 18,
+    [`Ціна продажу (${cur})`]: 18,
+    'Паркінг': 10, 'Місць паркінгу': 12,
+    'Адреса': 30, 'Експлуатаційні послуги': 32,
+    'Опис': 35, 'Додано': 12,
+  }
+  ws['!cols'] = headers.map((h) => ({ wch: COL_W[h] ?? 14 }))
 
   // Freeze header row so columns stay visible while scrolling
   ws['!freeze'] = { xSplit: 0, ySplit: headerRowIndex, topLeftCell: `A${headerRowIndex + 1}` }

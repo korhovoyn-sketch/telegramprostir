@@ -53,6 +53,7 @@ export function useNotifications() {
 
   const markRead = useCallback(async (id: string) => {
     try {
+      // rls-ok: сповіщення — похідні дані; наступний loadNotifications перечитає правду з сервера, а зайва секунда «прочитано» нікому не шкодить
       const { error } = await supabase.from('notifications').update({ is_read: true }).eq('id', id)
       if (error) throw error
       loadTicket++
@@ -67,6 +68,8 @@ export function useNotifications() {
     if (!user) return
     try {
       const { error } = await supabase
+        // rls-ok: пакетне «прочитати все» — похідний стан; заблокована відмова
+        // видно вже на наступному завантаженні, дані при цьому не втрачаються
         .from('notifications')
         .update({ is_read: true })
         .eq('user_id', user.id)
@@ -86,6 +89,12 @@ export function useNotifications() {
     loadTicket++
     setNotifications(snapshot.filter((n) => n.id !== id))
     try {
+      // ПОПЕРЕДНЯ причина тут була ХИБНА: писалось, що рядок «відновиться
+      // наступним прогоном send-reminders». Не відновиться —
+      // `get_due_reminders_today` має дедуп `NOT EXISTS … DATE_TRUNC('month')`,
+      // тобто цього місяця його вже не створять. Наслідок від цього не
+      // страшніший, але причина мусить описувати те, що справді стається.
+      // rls-ok: похідні дані; мовчазна відмова лише поверне рядок при наступному завантаженні списку, джерело (розклад) недоторкане
       const { error } = await supabase.from('notifications').delete().eq('id', id)
       if (error) throw error
     } catch (e) {

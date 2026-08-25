@@ -348,6 +348,7 @@ export function useAuth() {
     _restorePromise = null
     clearPersistedSession()
     setUser(null)
+    useAppStore.getState().resetUserData()
     navigateRoot('welcome', { fromLogout: true })
     // scope:'local' clears the stored session WITHOUT a network POST to
     // /auth/v1/logout. A global signOut's network call can hang in the Telegram
@@ -360,37 +361,25 @@ export function useAuth() {
   }, [setUser, navigateRoot])
 
   // Незворотне видалення акаунта (право на стирання — обіцяне в Політиці).
-  // Порядок важливий: файли зі storage прибираємо ДО видалення рядків, бо після
-  // каскаду ми вже не знатимемо шляхів. Далі RPC зносить профіль (каскадом усе
-  // володіння) і auth-акаунт, і лише потім локальний вихід.
+  //
+  // ПОРЯДКУ ТУТ БІЛЬШЕ НЕМАЄ, І ЦЕ НАВМИСНО. Обидва клієнтські порядки зламані:
+  //   файли → RPC   RPC падає → користувач лишається в акаунті БЕЗ фото, усі
+  //                 рядки показують 404. Незворотно.
+  //   RPC → файли   Після RPC політика storage не матчить нічого (properties
+  //                 знесені каскадом, `auth.users` теж — тобто
+  //                 `get_app_user_id_from_auth_uid()` віддає NULL), тож DELETE
+  //                 «успішно» стирає НУЛЬ обʼєктів, а фото лишаються в
+  //                 ПУБЛІЧНОМУ бакеті за тими URL, що роздавались на /v.
+  // Тому стирання файлів переїхало ВСЕРЕДИНУ `delete_my_account()` (міграція
+  // 051): одна транзакція, порядок гарантований сервером, клієнту лишається
+  // один виклик. Не «оптимізуй» це назад у клієнтські кроки.
   const deleteAccount = useCallback(async (): Promise<boolean> => {
     setLoading(true)
     try {
       const me = useAppStore.getState().user
       if (!me) throw new Error('Not authenticated')
 
-      // 1. Зібрати шляхи файлів усіх власних обʼєктів і прибрати з бакетів.
-      const { data: props } = await supabase
-        .from('properties').select('id').eq('owner_id', me.id)
-      const propIds = (props ?? []).map((p: { id: string }) => p.id)
-      if (propIds.length > 0) {
-        const [{ data: photos }, { data: docs }] = await Promise.all([
-          supabase.from('property_photos').select('storage_path').in('property_id', propIds),
-          supabase.from('property_files').select('storage_path').in('property_id', propIds),
-        ])
-        // Аплоуди — best-effort: осиротілий файл не є витоком (рядків, що на
-        // нього посилаються, вже не буде), тож збій тут не блокує видалення.
-        if (photos?.length) {
-          await supabase.storage.from('photos')
-            .remove(photos.map((p: { storage_path: string }) => p.storage_path)).catch(() => {})
-        }
-        if (docs?.length) {
-          await supabase.storage.from('property-files')
-            .remove(docs.map((d: { storage_path: string }) => d.storage_path)).catch(() => {})
-        }
-      }
-
-      // 2. Знести профіль + auth-акаунт одним серверним викликом.
+      // Файли, профіль і auth-акаунт зносить САМА функція, атомарно.
       const { data, error } = await supabase.rpc('delete_my_account')
       if (error) throw error
       const row = Array.isArray(data) ? data[0] : data
@@ -400,11 +389,12 @@ export function useAuth() {
         throw new Error(parsed.success ? (parsed.data.error ?? 'delete_failed') : 'delete_failed')
       }
 
-      // 3. Локальний вихід + очистка кешів профілю/сесії.
+      // Локальний вихід + очистка кешів профілю/сесії.
       _intentionalLogout = true
       _restorePromise = null
       clearPersistedSession()
       setUser(null)
+      useAppStore.getState().resetUserData()
       showToast({ type: 'success', title: 'Акаунт видалено' })
       navigateRoot('welcome', { fromLogout: true })
       _signOutPromise = supabase.auth.signOut({ scope: 'local' })

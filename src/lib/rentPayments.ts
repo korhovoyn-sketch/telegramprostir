@@ -1,4 +1,4 @@
-import { monthlyRent } from '@/lib/utils'
+import { basisArea, monthlyRent } from '@/lib/utils'
 import type { Property } from '@/types'
 
 /**
@@ -21,7 +21,13 @@ export const RENT_PAYMENT_RECORD_COLUMNS =
 // unit to a month so the confirm-payment default matches the other screens.
 export function expectedRent(p: Property): number {
   if (!p.rent_rate) return 0
-  return monthlyRent(p.area_useful ?? 0, p.rent_rate, p.rent_type)
+  // Площа — через `basisArea`, а не сира `area_useful`. Міграція 042 зробила
+  // `area_basis` тим, що ВИРІШУЄ, на яку площу множиться $/м²-ставка, і всі
+  // інші поверхні (картка, деталь, експорт, /v) її враховують. Тут не
+  // враховувалась, тож календар і форма підтвердження друкували ІНШУ суму, ніж
+  // решта застосунку, — а вона потрапляє в `rent_payment_records.amount`, тобто
+  // стає архівним записом про те, скільки нібито отримали.
+  return monthlyRent(basisArea(p.area_useful, p.area_total, p.area_basis), p.rent_rate, p.rent_type)
 }
 
 export function fmtDueDate(dateStr: string): string {

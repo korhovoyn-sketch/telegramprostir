@@ -8,11 +8,16 @@ import { hapticNotify } from '@/lib/telegram'
 import { offlineGuard } from '@/lib/offline'
 import { confirmAction } from '@/lib/confirm'
 import { supabase } from '@/lib/supabase'
+import { assertAffected } from '@/lib/dbWrite'
+// Явні колонки, а не `*`: `properties.share_token` — це ПУБЛІЧНИЙ /v-лінк, і
+// віддавати його підписаному рієлторові означає дати доступ, що переживе
+// відписку (ротація токенів при відписці не робиться).
+import { PROPERTY_WITH_PHOTOS } from '@/hooks/useProperties'
 import TabBar from '@/components/ui/TabBar'
 import { StatusBadge } from '@/components/ui/Badge'
 import ActionSheet from '@/components/ui/ActionSheet'
 import { IconPlus, IconShare, IconX, IconChevronLeft, IconTrash, IconBuilding } from '@/components/Icons'
-import { formatPrice, calcRent, basisArea, computedRentUnit, objectsWord, formatDate, photoUrl, humanizeDbError } from '@/lib/utils'
+import { formatPrice, calcRent, basisArea, computedRentUnit, objectsWord, formatDate, photoUrl, humanizeDbError, withSortedPhotos } from '@/lib/utils'
 import ShareSheet from '@/components/ui/ShareSheet'
 import type { Property, Collection } from '@/types'
 import CoachMark from '@/components/ui/CoachMark'
@@ -130,7 +135,9 @@ function CollectionDetail({
     try {
       const { data, error } = await supabase
         .from('collection_properties')
-        .select('property_id, property:properties(*, photos:property_photos(*))')
+        // Явні колонки: `properties(*, …)` віддавав рієлторові `share_token`
+        // ЧУЖИХ обʼєктів — публічний /v-лінк, що переживе видалення підбірки.
+        .select('property_id, property:properties(' + PROPERTY_WITH_PHOTOS + ')')
         .eq('collection_id', collection.id)
       if (error) throw error
       setCollectionProps((data ?? []) as unknown as CollectionProperty[])
@@ -164,7 +171,7 @@ function CollectionDetail({
 
       const { data: props, error: propsErr } = await supabase
         .from('properties')
-        .select('*, photos:property_photos(*)')
+        .select(PROPERTY_WITH_PHOTOS)
         .in('db_id', dbIds)
         .order('created_at', { ascending: false })
       if (propsErr) throw propsErr
@@ -209,6 +216,8 @@ function CollectionDetail({
     if (offlineGuard()) return
     try {
       const { error } = await supabase
+        // rls-ok: звʼязок «обʼєкт у підбірці» — власні рядки рієлтора без
+        // файлів; помилка проявиться на перезавантаженні, обʼєкт цілий
         .from('collection_properties')
         .delete()
         .eq('collection_id', collection.id)
@@ -229,10 +238,18 @@ function CollectionDetail({
       return
     }
     if (!isOnline && collection.is_draft) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
-    // Mark as active (not draft) when sharing
+    // Mark as active (not draft) when sharing.
+    //
+    // Тут раніше стояла причина «невдача видно одразу при наступному відкритті
+    // списку» — вона описувала НЕ ТОЙ наслідок. Якщо UPDATE мовчки не пройде,
+    // шит шарингу відкриється однаково, і користувач роздасть лінк, який
+    // `get_public_collection_preview` відфільтрує по `is_draft = false`, тобто
+    // одержувач побачить порожньо. Дізнається про це власник не «при
+    // наступному відкритті», а від скарги того, кому надіслав.
     if (collection.is_draft) {
       try {
         const { error } = await supabase
+          // rls-ok: прапорець на ВЛАСНОМУ рядку рієлтора (realtor_id = я), тож відмова політики означала б, що зламано саму col_realtor_all
           .from('collections')
           .update({ is_draft: false, updated_at: new Date().toISOString() })
           .eq('id', collection.id)
@@ -255,11 +272,16 @@ function CollectionDetail({
     })
     if (!ok || offlineGuard()) return
     try {
-      const { error } = await supabase
+      // Деструктивна дія: файлового дозволу тут раніше вистачало, щоб вона
+      // лишалась без доказу запису — тобто заблокована RLS відмова малювала
+      // «Підбірку видалено», а підбірка жила далі.
+      const { data, error } = await supabase
         .from('collections')
         .delete()
         .eq('id', collection.id)
+        .select('id')
       if (error) throw error
+      assertAffected(data, 1, 'видалення підбірки')
       hapticNotify('success')
       showToast({ type: 'success', title: 'Підбірку видалено' })
       onDelete(collection.id)
@@ -325,7 +347,7 @@ function CollectionDetail({
             {collectionProps.map((cp) => {
               const p = cp.property
               if (!p) return null
-              const firstPhoto = p.photos?.[0]
+              const firstPhoto = withSortedPhotos(p).photos?.[0]
               const thumbUrl = firstPhoto ? photoUrl(firstPhoto.storage_path) : null
 
               return (
@@ -406,7 +428,7 @@ function CollectionDetail({
             ) : (
               <div className="list" style={{ gap: 6 }}>
                 {availableProps.map((p) => {
-                  const firstPhoto = p.photos?.[0]
+                  const firstPhoto = withSortedPhotos(p).photos?.[0]
                   const thumbUrl = firstPhoto ? photoUrl(firstPhoto.storage_path) : null
 
                   return (
@@ -481,6 +503,9 @@ export default function CollectionsScreen() {
       // Single query for counts + one batch query for thumbnails — no N+1
       const { data: colsData, error } = await supabase
         .from('collections')
+        // idor-ok: ВЛАСНІ підбірки рієлтора (.eq('realtor_id', user.id)) —
+        // `share_token` тут його власний і потрібен, щоб ділитись. Витік — це
+        // чужий токен, а не свій.
         .select('*, collection_properties(count)')
         .eq('realtor_id', user.id)
         .order('created_at', { ascending: false })
@@ -493,18 +518,19 @@ export default function CollectionsScreen() {
       const colIds = cols.map(c => c.id)
       const { data: cpRows } = await supabase
         .from('collection_properties')
-        .select('collection_id, property:properties(id, photos:property_photos(storage_path))')
+        .select('collection_id, property:properties(id, photos:property_photos(storage_path,sort_order))')
         .in('collection_id', colIds)
 
       // Build map: collectionId → first 3 photo URLs
       const thumbMap: Record<string, string[]> = {}
       for (const row of (cpRows ?? []) as unknown as Array<{
         collection_id: string
-        property: { id: string; photos: { storage_path: string }[] } | null
+        property: { id: string; photos: { storage_path: string; sort_order: number | null }[] } | null
       }>) {
         const urls = (thumbMap[row.collection_id] ??= [])
-        if (urls.length < 3 && row.property?.photos?.[0]?.storage_path) {
-          urls.push(photoUrl(row.property.photos[0].storage_path))
+        const cover = withSortedPhotos(row.property ?? { photos: [] }).photos?.[0]
+        if (urls.length < 3 && cover?.storage_path) {
+          urls.push(photoUrl(cover.storage_path))
         }
       }
 
@@ -544,6 +570,8 @@ export default function CollectionsScreen() {
       const { data, error } = await supabase
         .from('collections')
         .insert({ realtor_id: user.id, name, is_draft: true })
+        // idor-ok: рієлтор СТВОРЮЄ власну підбірку (realtor_id = user.id у
+        // самому insert) — токен у відповіді його власний, ним він і ділиться
         .select('id,realtor_id,name,is_draft,share_token,share_expires_at,created_at,updated_at')
         .single()
       if (error) throw error

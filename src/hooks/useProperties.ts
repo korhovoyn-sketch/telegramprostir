@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
-import { humanizeDbError, objectsWord } from '@/lib/utils'
+import { humanizeDbError, objectsWord, withSortedPhotos } from '@/lib/utils'
 import { assertAffected } from '@/lib/dbWrite'
 import { readSnapshot, writeSnapshot } from '@/lib/snapshot'
 import { useAppStore } from '@/store/appStore'
@@ -10,15 +10,21 @@ import type { Property, PropertyStatus } from '@/types'
 
 // Scalar column list + the photos relation, shared across every select so the
 // four query sites can't drift apart (and none falls back to select('*')).
+//
+// КОЛОНКА, ЯКОЇ ТУТ НЕМА, — ЦЕ КОЛОНКА, ЯКУ РЕДАГУВАННЯ СТИРАЄ. `parking_type`
+// і `ev_charger` бракувало: форма префілиться з рядка ЦЬОГО select-а, тож вони
+// приходили `undefined` → поля скидались у порожнє → PATCH писав `null`, і
+// тост казав «Збережено». Створення при цьому працювало, тобто дефект бив саме
+// по редагуванню вже заповненого паркінга.
 const PROPERTY_COLUMNS = `
   id, db_id, owner_id, name, floor, status,
   area_useful, area_total, area_basis, folder_id, rent_type, rent_rate, utilities_rate,
-  has_parking, parking_spaces, description,
+  has_parking, parking_spaces, parking_type, ev_charger, description,
   address, utilities,
   sale_price, tenant_name, lease_start_date, lease_end_date,
   sort_order, created_at, updated_at
 `
-const PROPERTY_WITH_PHOTOS = `${PROPERTY_COLUMNS}, photos:property_photos(id, storage_path, sort_order)`
+export const PROPERTY_WITH_PHOTOS = `${PROPERTY_COLUMNS}, photos:property_photos(id, storage_path, sort_order)`
 
 // loadProperties/loadSingleProperty additionally pull the view relation so the
 // card can show a view count; create/update don't need it (a fresh row has none).
@@ -122,7 +128,7 @@ export function useProperties(dbId?: string) {
       if (err) throw err
       const mapped = (rows ?? []).map((p) => {
         const { views, ...rest } = p as Record<string, unknown>
-        return { ...rest, _view_count: (views as unknown[])?.length ?? 0 }
+        return withSortedPhotos({ ...rest, _view_count: (views as unknown[])?.length ?? 0 } as { photos?: { sort_order?: number | null }[] | null })
       })
       fullListDbIdRef.current = targetDbId
       setProperties(mapped as unknown as Property[])
@@ -158,7 +164,7 @@ export function useProperties(dbId?: string) {
       }
       if (err) throw err
       const { views, ...rest } = row as Record<string, unknown>
-      const mapped = { ...rest, _view_count: (views as unknown[])?.length ?? 0 } as unknown as Property
+      const mapped = withSortedPhotos({ ...rest, _view_count: (views as unknown[])?.length ?? 0 } as unknown as Property)
       // Один рядок — не повний список бази: кеш списку з нього писати НЕ можна.
       fullListDbIdRef.current = null
       setProperties([mapped])
@@ -273,7 +279,13 @@ export function useProperties(dbId?: string) {
           .select(PROPERTY_WITH_PHOTOS)
           .single()
         if (error) throw error
-        const updated = one<Property>(data)
+        // Сортування ОБОВʼЯЗКОВЕ і тут: цей — оптимістичний — шлях досягається
+        // зі «Здати в оренду», «Звільнити обʼєкт» і undo, тобто зі звичайного
+        // перемикання статусу. Без нього несортований масив їде прямо в стор і
+        // у SWR-снапшот, а `photos[0]` на героєві обʼєкта — це обкладинка:
+        // перемикання статусу мовчки міняло б її. Сусідній рядок нижче фікс
+        // отримав, цей — ні; клас закриває гард `photo-order.test.ts`.
+        const updated = withSortedPhotos(one<Property>(data))
         setProperties((prev) => prev.map((p) => (
           p.id === id ? ({ ...updated, _view_count: (p as Property & { _view_count?: number })._view_count } as Property) : p
         )))
@@ -296,7 +308,7 @@ export function useProperties(dbId?: string) {
         .single()
 
       if (error) throw error
-      const updated = one<Property>(data)
+      const updated = withSortedPhotos(one<Property>(data))
       setProperties((prev) => prev.map((p) => (p.id === id ? updated : p)))
       if (!opts?.silent) showToast({ type: 'success', title: 'Збережено' })
       return true
@@ -535,16 +547,43 @@ export function useProperties(dbId?: string) {
 
   const deletePhoto = useCallback(async (photoId: string, storagePath: string) => {
     try {
-      // Remove from storage first, then the DB record
-      await supabase.storage.from('photos').remove([storagePath])
-      const { error } = await supabase.from('property_photos').delete().eq('id', photoId)
+      // Рядок ПЕРШИМ і з доказом, файл — після. Сусіди в цьому ж файлі
+      // (`deleteProperty`, `batchDeleteProperties`) давно на цьому порядку;
+      // `deletePhoto` лишалась єдиним винятком. Зворотний порядок знищував
+      // знімок навіть тоді, коли політика не пускала видалити рядок, — і
+      // власник діставав вічно биту картинку без жодної помилки.
+      const { data, error } = await supabase
+        .from('property_photos').delete().eq('id', photoId).select('id')
       if (error) throw error
-
-      // Update local state — remove photo from the relevant property
+      assertAffected(data, 1, 'видалення фото')
+      // Стан оновлюємо ОДРАЗУ після доведеного видалення рядка: саме рядок є
+      // джерелом правди для застосунку, і він уже знесений. Якщо кинути тут
+      // виняток через storage, фото лишиться намальованим при мертвому рядку.
       setProperties((prev) => prev.map((p) => ({
         ...p,
         photos: p.photos?.filter((ph) => ph.id !== photoId),
       })))
+
+      // Storage-аналог `assertAffected`, і саме ДОВЖИНА, а не `error`.
+      // `storage.remove()` на схований політикою обʼєкт повертає ПОРОЖНІЙ
+      // масив і `error: null` — тобто «стер» і «не мав права» тут так само
+      // нерозрізненні, як у PostgREST під RLS (правило 8). Попередня редакція
+      // перевіряла `error` і мала коментар, що ловить мовчазну відмову; не
+      // ловила.
+      //
+      // Бакет `photos` ПУБЛІЧНИЙ, тож осиротілий файл лишається доступним за
+      // своїм URL — тут це не «нешкідливий сміттєвий файл» (пор. правило 9,
+      // писане про приватний бакет), а знімок, який власник вважає видаленим.
+      // Тому кажемо прямо, замість мовчати.
+      const { data: removed, error: rmErr } = await supabase.storage
+        .from('photos').remove([storagePath])
+      if (rmErr || (removed?.length ?? 0) !== 1) {
+        showToast({
+          type: 'error',
+          title: 'Фото прибрано, але файл лишився',
+          subtitle: 'Спробуйте ще раз пізніше — знімок може бути доступним за прямим посиланням',
+        })
+      }
     } catch (e) {
       showToast({ type: 'error', title: 'Помилка видалення фото', subtitle: humanizeDbError(e) })
       throw e

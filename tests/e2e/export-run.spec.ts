@@ -31,7 +31,8 @@ function prop(n: number, status: string) {
     tenant_name: status === 'occupied' ? 'ТОВ «Ромашка»' : null,
     lease_start_date: null, lease_end_date: null,
     sort_order: n * 100, share_token: `bb0000000000000000000${n}`, share_expires_at: null,
-    created_at: NOW, updated_at: NOW, photos: [],
+    created_at: NOW, updated_at: NOW,
+    photos: [] as Record<string, unknown>[],
   }
 }
 
@@ -183,6 +184,65 @@ test('PDF віддається тим самим шляхом', async ({ page })
   expect(files.length).toBe(1)
   expect(files[0].name).toMatch(/\.pdf$/)
   expect(files[0].type).toBe('application/pdf')
+})
+
+/**
+ * ДАНІ, ЯКІ ДОКУМЕНТ МУСИТЬ НЕСТИ.
+ *
+ * Картка обʼєкта в застосунку показує орендаря, дати договору, ціну продажу,
+ * адресу, експлуатаційні послуги й фото — а в експорт із цього не потрапляло
+ * НІЧОГО. Найгірший випадок був обʼєкт на продаж: PDF малював йому секцію
+ * «Оренда» з суцільними «—», великий блок «Разом на місяць: —», і ціни не
+ * показував ніде, тобто сторінка продажу лишалась порожньою.
+ *
+ * Перевіряти вміст готового PDF попіксельно тут неможливо (текст у ньому — це
+ * гліфи субсету шрифту), тож гард стоїть на ДЖЕРЕЛІ: усі ці поля мусять бути у
+ * вибірці, а фото — реально завантажуватись.
+ */
+test('експорт тягне орендаря, договір, ціну продажу, адресу й послуги', async ({ page }) => {
+  const wire: Wire = { selects: [] }
+  await setup(page, wire)
+  await openExport(page)
+
+  const before = wire.selects.length
+  await page.getByRole('button', { name: /Завантажити PDF/ }).click()
+  await expect.poll(() => wire.selects.length, { timeout: 15_000 }).toBeGreaterThan(before)
+
+  const sel = wire.selects[wire.selects.length - 1]
+  for (const col of ['tenant_name', 'lease_start_date', 'lease_end_date',
+                     'sale_price', 'address', 'utilities', 'area_basis']) {
+    expect(sel, `${col}: є на картці обʼєкта, мусить бути й у документі`).toContain(col)
+  }
+  expect(sel, 'фото мусять їхати з обʼєктом').toContain('property_photos')
+})
+
+test('фото обʼєкта реально вбудовуються у PDF', async ({ page }) => {
+  const wire: Wire = { selects: [] }
+  await stubShare(page)
+  // Обʼєкт із фото: віддамо крихітний валідний JPEG зі storage.
+  const withPhoto = {
+    ...prop(1, 'free'),
+    photos: [{ id: 'ph1', property_id: prop(1, 'free').id, storage_path: 'p1/a.jpg', sort_order: 0, created_at: NOW }],
+  }
+  await setup(page, wire, [withPhoto])
+
+  let photoHits = 0
+  // 1×1 JPEG — досить, щоб `new Image()` дав ненульові розміри.
+  const JPEG = Buffer.from(
+    '/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0a' +
+    'HBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAA' +
+    'AAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==', 'base64')
+  await page.route('**/storage/v1/object/public/photos/**', (r) => {
+    photoHits++
+    return r.fulfill({ status: 200, contentType: 'image/jpeg', body: JPEG })
+  })
+
+  await openExport(page)
+  await page.getByRole('button', { name: /Завантажити PDF/ }).click()
+  await expect(page.getByText(/PDF збережено/)).toBeVisible({ timeout: 25_000 })
+
+  expect(photoHits, 'фото не завантажувались — документ вийшов без жодного знімка')
+    .toBeGreaterThan(0)
 })
 
 test('перемикання на Excel міняє підпис кнопки і теж виконується', async ({ page }) => {

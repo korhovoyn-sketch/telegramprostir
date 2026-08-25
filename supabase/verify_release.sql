@@ -6,9 +6,13 @@
 
 WITH checks(ord, item, migration, ok) AS (VALUES
   -- 026: security audit fixes
-  (1,  'get_shared_collection перевіряє share_expires_at', '026_security_audit_fixes.sql',
-      EXISTS (SELECT 1 FROM pg_proc WHERE proname='get_shared_collection'
-              AND prosrc LIKE '%share_expires_at%')),
+  -- 049 ВИДАЛИЛА get_shared_collection як IDOR (SECURITY DEFINER по UUID,
+  -- виданий anon, без звірки токена — ротація лінка її не стосувалась).
+  -- Тому перевіряємо ВІДСУТНІСТЬ, а не наявність терміну дії: доти цей рядок
+  -- вічно світив «MISSING → виконай 026» і посилав оператора не туди.
+  (1,  'get_shared_collection ВІДСУТНЯ (IDOR, прибрано 049)', '049_drop_idor_get_shared_collection.sql',
+      NOT EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+                  WHERE n.nspname='public' AND p.proname='get_shared_collection')),
   (2,  'індекс idx_audit_log_user_created', '026_security_audit_fixes.sql',
       EXISTS (SELECT 1 FROM pg_indexes WHERE indexname='idx_audit_log_user_created')),
 
@@ -22,9 +26,15 @@ WITH checks(ord, item, migration, ok) AS (VALUES
               WHERE table_name='databases' AND column_name='share_token' AND is_nullable='NO')),
 
   -- 038: storage write hardening (пермісивні політики МАЮТЬ зникнути)
-  (6,  'photos: пермісивна photos_insert_auth ВИДАЛЕНА', '038_storage_write_hardening.sql',
+  -- УВАГА: тут стояло «виконай 038», і це була НЕБЕЗПЕЧНА порада. 038 несе
+  -- копію get_app_user_id_from_auth_uid() ДО 031 — без доменного якоря і
+  -- tg_id>0 — тож на базі, де 045 застосована, а 038 ні (реальний стан
+  -- проду), запуск 038 відкотив би фікс і знову відкрив захоплення акаунта.
+  -- 062 робить лише те, чого бракує, і функцій ідентичності не чіпає.
+  (6,  'photos: пермісивні політики запису ВИДАЛЕНІ', '062_legacy_permissive_and_acl.sql',
       NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='storage'
-                  AND tablename='objects' AND policyname='photos_insert_auth')),
+                  AND tablename='objects'
+                  AND policyname IN ('photos_insert_auth','photos_delete_auth'))),
   (7,  'photos: строга storage_photos_insert існує', '038_storage_write_hardening.sql',
       EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='storage'
               AND tablename='objects' AND policyname='storage_photos_insert')),
@@ -71,6 +81,56 @@ WITH checks(ord, item, migration, ok) AS (VALUES
   (22, 'get_editor_db_ids_from_auth_uid має tg_id>0 (045 hardening)', '045_fix_auth_uid_identity_regression.sql',
       EXISTS (SELECT 1 FROM pg_proc WHERE proname='get_editor_db_ids_from_auth_uid'
               AND prosrc LIKE '%tg_id > 0%')),
+
+  (23, 'нагадування ВЗАГАЛІ викликаються (тип результату полагоджено)', '052_reminders_fix_and_lockdown.sql',
+      EXISTS (SELECT 1 FROM pg_proc WHERE proname='get_due_reminders_today'
+              AND prosrc LIKE '%p.name::TEXT%')),
+  (24, 'anon НЕ має службових функцій (дефолтний PUBLIC знято)', '062_legacy_permissive_and_acl.sql',
+      NOT EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+                  WHERE n.nspname='public'
+                    AND p.proname IN ('get_due_reminders_today','get_due_guest_reminders','mark_overdue_payments')
+                    AND has_function_privilege('anon', p.oid, 'EXECUTE'))),
+
+  (25, 'props_owner_all перевіряє, що БАЗА твоя (не лише owner_id)', '053_owner_policies_target_ownership.sql',
+      EXISTS (SELECT 1 FROM pg_policies WHERE tablename='properties'
+              AND policyname='props_owner_all' AND with_check LIKE '%get_owner_db_ids%')),
+  (26, 'платежі перевіряють, що ОБʼЄКТ твій', '053_owner_policies_target_ownership.sql',
+      (SELECT count(*)=2 FROM pg_policies
+       WHERE tablename IN ('rent_payments','rent_payment_records')
+         AND with_check LIKE '%get_owner_property_ids%')),
+  (27, 'нагадування не розсилають чужих даних (rp.owner_id = p.owner_id)', '053_owner_policies_target_ownership.sql',
+      EXISTS (SELECT 1 FROM pg_proc WHERE proname='get_due_reminders_today'
+              AND prosrc LIKE '%rp.owner_id = p.owner_id%')),
+
+  -- Підрядок — свідома МЕЖА цього файлу, не недогляд: у Dashboard не можна
+  -- виконати успішну гілку, не створивши справжньої підписки. Доказ виконанням
+  -- дає CI (`verify-rls.sql`, блок «відкликання», позитивний контроль).
+  (28, 'subscribe_to_shared_db не падає на успішній гілці (ON CONFLICT)', '055_fix_subscribe_ambiguous_db_id.sql',
+      EXISTS (SELECT 1 FROM pg_proc WHERE proname='subscribe_to_shared_db'
+              AND prosrc LIKE '%variable_conflict use_column%')),
+
+  (29, 'підбірка не приймає чужий обʼєкт (056)', '056_collection_target_access.sql',
+      EXISTS (SELECT 1 FROM pg_policies WHERE tablename='collection_properties'
+              AND policyname='col_props_realtor_all' AND with_check LIKE '%get_realtor_property_ids%')),
+  (30, 'публічна підбірка не світить чужий обʼєкт (056)', '056_collection_target_access.sql',
+      EXISTS (SELECT 1 FROM pg_proc WHERE proname='get_public_collection_preview'
+              AND prosrc LIKE '%realtor_subscriptions rs%')),
+
+  (31, 'revoke ЗНИЩУЄ токен, а не лише протермінює (060)', '060_revoke_destroys_token.sql',
+      EXISTS (SELECT 1 FROM pg_proc WHERE proname='manage_share'
+              AND prosrc LIKE '%IN (''rotate'',''revoke'')%')),
+  (32, 'телефон на /v лише за згодою (061)', '061_public_phone_opt_in.sql',
+      EXISTS (SELECT 1 FROM information_schema.columns
+              WHERE table_name='users' AND column_name='public_phone')
+      AND EXISTS (SELECT 1 FROM pg_proc WHERE proname='get_public_db_preview'
+                  AND prosrc LIKE '%public_phone%')),
+
+  -- Пермісивна політика поруч зі строгою робить строгу безглуздою: правила
+  -- обʼєднуються через OR. Рядок 8 цього НЕ бачив — він перевіряє лише, що
+  -- строга існує, а не що пермісивної немає. Знайдено на живій базі.
+  (33, 'property_files: пермісивні realtor-політики ВИДАЛЕНІ', '062_legacy_permissive_and_acl.sql',
+      NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='property_files'
+                  AND policyname IN ('pfiles_insert_realtor','pfiles_update_realtor'))),
 
   -- Наскрізні інваріанти
   (15, 'RLS увімкнено на всіх 15 таблицях', 'будь-яка пропущена',

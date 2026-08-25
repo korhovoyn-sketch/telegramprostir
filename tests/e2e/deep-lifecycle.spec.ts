@@ -20,7 +20,12 @@ const DB = {
 const PROP = {
   id: '20000000-0000-0000-0000-000000000001',
   db_id: DB_ID, owner_id: USER.id, name: 'Офіс 101', floor: '2',
-  status: 'occupied', area_useful: 100, area_total: 120, rent_type: 'per_m2',
+  // `area_basis` ЯВНО: саме вона вирішує, на яку площу множиться $/м²-ставка.
+  // Поки її тут не було, фікстура мовчки брала дефолт 'total' (120 м²), тобто
+  // картка й експорт рахували 2 160, а календар — 1 800, і тест закріплював
+  // РОЗБІЖНІСТЬ як норму. Тепер умова висловлена, і всі поверхні дають 1 800.
+  status: 'occupied', area_useful: 100, area_total: 120, area_basis: 'useful',
+  rent_type: 'per_m2',
   rent_rate: 18, utilities_rate: null, has_parking: false, parking_spaces: 0,
   parking_type: null, ev_charger: false, utilities: null, description: null,
   address: null, sale_price: null, tenant_name: 'ТОВ «Ромашка»',
@@ -86,8 +91,13 @@ test('payment lifecycle: schedule → due item → mark paid → stats → unpay
       return json(route, row, 201)
     }
     if (req.method() === 'DELETE') {
-      records.length = 0
-      return json(route, [])
+      // ВІДДАЄМО ЗАЧЕПЛЕНИЙ РЯДОК, а не порожній масив. Порожній набір із
+      // NULL у `error` — це рівно те, як PostgREST під RLS повідомляє про
+      // ВІДМОВУ, тож мок, який так відповідає, моделює заблокований запис і
+      // видає його за успіх. Та сама пастка вже ловилась на відкликанні
+      // доступу й на пакетних діях.
+      const removed = records.splice(0, records.length)
+      return json(route, removed.map((r) => ({ id: (r as { id: string }).id })))
     }
     // .maybeSingle() (PaymentConfirmScreen) asks for a single object via Accept.
     return json(route, accept.includes('object') ? (records[0] ?? null) : records)

@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 import { z } from 'https://esm.sh/zod@3.23.8'
 import { allowedOrigin, corsHeadersFor, serializeError } from '../_shared/cors.ts'
+import { rateDecision } from '../_shared/rateLimit.ts'
 
 // This function's allowed methods (shared corsHeadersFor takes it as a param).
 const CORS_METHODS = 'POST, OPTIONS, GET'
@@ -43,14 +44,26 @@ async function checkRateLimit(
   windowMs = 60_000,
 ): Promise<boolean> {
   try {
-    const now = new Date().toISOString()
-    const { data } = await adminClient
+    // `error` МУСИТЬ читатись: supabase-js РЕЗОЛВИТЬ збій запиту як
+    // `{data: null, error}` і не кидає, тож catch нижче для нього не спрацює.
+    // Без цієї гілки будь-яка невдача (немає таблиці, зміна RLS, 5xx,
+    // вичерпаний пул) давала `!data` → upsert → `return true`, тобто ПРОПУСК —
+    // рівно навпаки до того, що стверджує коментар у шапці файлу.
+    const { data, error } = await adminClient
       .from('rate_limits')
       .select('count, reset_at')
       .eq('ip', key)
       .maybeSingle()
 
-    if (!data || data.reset_at < now) {
+    // Саме РІШЕННЯ живе в `_shared/rateLimit.ts` — чистій функції без
+    // імпортів, яку перевіряє `tests/unit/edge-rate-limit.test.ts`. Тримати
+    // його тут означало б лишити логіку ідентичності без жодного тесту, як і
+    // було. Гілка `failed` обовʼязкова: supabase-js резолвить збій запиту як
+    // `{data:null,error}` і НЕ кидає, тож catch нижче для нього не спрацює.
+    const decision = rateDecision(data, !!error, Date.now(), maxRequests)
+    if (!decision.allow) return false
+
+    if (decision.action === 'reset') {
       await adminClient.from('rate_limits').upsert({
         ip: key,
         count: 1,
@@ -59,11 +72,15 @@ async function checkRateLimit(
       return true
     }
 
-    if (data.count >= maxRequests) return false
-
+    // ВІДОМА МЕЖА: read-then-write не атомарний, тож N паралельних запитів
+    // читають однаковий `count` і всі пишуть `+1` — стеля обходиться
+    // паралелізмом. Виправляється лише серверним `ON CONFLICT DO UPDATE …
+    // RETURNING`, тобто новою міграцією; поки її немає, це задокументована
+    // слабкість, а не непомічена. Практичний вплив обмежений: HMAC
+    // валідується ДО лімітера, тож виграє лише власник валідного initData.
     await adminClient
       .from('rate_limits')
-      .update({ count: data.count + 1 })
+      .update({ count: data!.count + 1 })
       .eq('ip', key)
     return true
   } catch (err) {

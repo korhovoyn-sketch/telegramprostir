@@ -417,3 +417,65 @@ test('deep link: повторний claim тим самим користувач
   // повторний клейм полетів би на кожен ре-рендер.
   expect(calls, 'клейм відпрацьовує один раз за сесію').toBe(1)
 })
+
+/**
+ * ВІДКЛИКАННЯ, ЗАБЛОКОВАНЕ RLS, НЕ МАЄ ВДАВАТИ УСПІХ.
+ *
+ * `handleRevoke` була єдиною мутацією застосунку без `.select('id')` +
+ * `assertAffected` — і водночас БЕЗПЕКОВОЮ: під RLS заблокований UPDATE
+ * повертає порожній набір і NULL у `error`, тож екран малював бейдж
+ * «Відкликано», а доступ лишався ЖИВИМ. Власник дізнався б про це, лише
+ * побачивши чужі правки у своїй базі.
+ *
+ * Мок віддає порожній масив — саме так виглядає відмова політики на дроті.
+ * Наявний тест вище цього не бачив, бо його мок віддає рядок, тобто моделює
+ * успіх там, де реальний бекенд моделює неоднозначність.
+ */
+test('owner: заблокований RLS revoke каже про себе і не малює «Відкликано»', async ({ page }) => {
+  await setupApp(page, { user: OWNER })
+  await skipCoachmarks(page)
+
+  const OWN_DB = db(OWN_DB_ID, OWNER.id, 'БЦ Рубін')
+  await page.route('**/rest/v1/databases**', (route) => {
+    const accept = route.request().headers()['accept'] ?? ''
+    return json(route, accept.includes('object') ? OWN_DB : [OWN_DB])
+  })
+  await page.route('**/rest/v1/properties**', (route) =>
+    route.request().method() === 'GET' ? json(route, []) : route.fallback())
+
+  const MEMBER = {
+    id: '30000000-0000-0000-0000-000000000001', db_id: OWN_DB_ID,
+    user_id: null, role: 'editor', invite_token: 'feedfacecafe00112233',
+    label: 'Менеджер Оля', member_name: null, status: 'pending',
+    claimed_at: null, created_at: NOW,
+  }
+  let patched = false
+  await page.route('**/rest/v1/db_members**', (route) => {
+    if (route.request().method() === 'PATCH') {
+      patched = true
+      return json(route, [])          // ← політика відмовила: 0 рядків, NULL error
+    }
+    return json(route, [MEMBER])
+  })
+
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+  await page.getByText('БЦ Рубін').first().click()
+  await page.getByRole('button', { name: 'Меню бази' }).click()
+  await page.getByText('Команда', { exact: true }).click()
+  await expect(page.getByText('Менеджер Оля')).toBeVisible()
+
+  await page.getByRole('button', { name: 'Відкликати' }).click()
+  await expect(page.getByText('Відкликати доступ?')).toBeVisible()
+  await page.locator('.modal-actions, [class*=modal]').getByRole('button', { name: 'Відкликати' }).last().click()
+
+  // Підтвердження і сам запит асинхронні — прапорець читається ПОЛЛОМ, а не
+  // синхронно після кліку: інакше гард падає на власному заміру, а не на коді.
+  await expect.poll(() => patched, { timeout: 10_000 }).toBe(true)
+  await expect(page.locator('.toast'), 'мовчазна відмова видається за успіх')
+    .toContainText(/Не вдалося|доступ/i, { timeout: 10_000 })
+  // Бейдж мусить лишитись «Очікує»: показати «Відкликано» означало б збрехати
+  // власнику про стан доступу, який насправді не змінився.
+  await expect(page.getByText('Відкликано')).toHaveCount(0)
+  await expect(page.getByText('Очікує')).toBeVisible()
+})
