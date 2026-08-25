@@ -26,9 +26,15 @@ WITH checks(ord, item, migration, ok) AS (VALUES
               WHERE table_name='databases' AND column_name='share_token' AND is_nullable='NO')),
 
   -- 038: storage write hardening (пермісивні політики МАЮТЬ зникнути)
-  (6,  'photos: пермісивна photos_insert_auth ВИДАЛЕНА', '038_storage_write_hardening.sql',
+  -- УВАГА: тут стояло «виконай 038», і це була НЕБЕЗПЕЧНА порада. 038 несе
+  -- копію get_app_user_id_from_auth_uid() ДО 031 — без доменного якоря і
+  -- tg_id>0 — тож на базі, де 045 застосована, а 038 ні (реальний стан
+  -- проду), запуск 038 відкотив би фікс і знову відкрив захоплення акаунта.
+  -- 062 робить лише те, чого бракує, і функцій ідентичності не чіпає.
+  (6,  'photos: пермісивні політики запису ВИДАЛЕНІ', '062_legacy_permissive_and_acl.sql',
       NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='storage'
-                  AND tablename='objects' AND policyname='photos_insert_auth')),
+                  AND tablename='objects'
+                  AND policyname IN ('photos_insert_auth','photos_delete_auth'))),
   (7,  'photos: строга storage_photos_insert існує', '038_storage_write_hardening.sql',
       EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='storage'
               AND tablename='objects' AND policyname='storage_photos_insert')),
@@ -79,7 +85,7 @@ WITH checks(ord, item, migration, ok) AS (VALUES
   (23, 'нагадування ВЗАГАЛІ викликаються (тип результату полагоджено)', '052_reminders_fix_and_lockdown.sql',
       EXISTS (SELECT 1 FROM pg_proc WHERE proname='get_due_reminders_today'
               AND prosrc LIKE '%p.name::TEXT%')),
-  (24, 'anon НЕ має службових функцій (дефолтний PUBLIC знято)', '052_reminders_fix_and_lockdown.sql',
+  (24, 'anon НЕ має службових функцій (дефолтний PUBLIC знято)', '062_legacy_permissive_and_acl.sql',
       NOT EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
                   WHERE n.nspname='public'
                     AND p.proname IN ('get_due_reminders_today','get_due_guest_reminders','mark_overdue_payments')
@@ -118,6 +124,13 @@ WITH checks(ord, item, migration, ok) AS (VALUES
               WHERE table_name='users' AND column_name='public_phone')
       AND EXISTS (SELECT 1 FROM pg_proc WHERE proname='get_public_db_preview'
                   AND prosrc LIKE '%public_phone%')),
+
+  -- Пермісивна політика поруч зі строгою робить строгу безглуздою: правила
+  -- обʼєднуються через OR. Рядок 8 цього НЕ бачив — він перевіряє лише, що
+  -- строга існує, а не що пермісивної немає. Знайдено на живій базі.
+  (33, 'property_files: пермісивні realtor-політики ВИДАЛЕНІ', '062_legacy_permissive_and_acl.sql',
+      NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='property_files'
+                  AND policyname IN ('pfiles_insert_realtor','pfiles_update_realtor'))),
 
   -- Наскрізні інваріанти
   (15, 'RLS увімкнено на всіх 15 таблицях', 'будь-яка пропущена',

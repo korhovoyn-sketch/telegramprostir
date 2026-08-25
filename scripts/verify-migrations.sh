@@ -238,3 +238,46 @@ if ! echo "$out" | grep -q "properties.area_basis (042_area_basis)"; then
   exit 1
 fi
 echo "✓ прогалина в колонці називається передпольотною перевіркою, а не помилкою посеред накату"
+
+# ── ЛЕГАСІ-СТЕНД: пермісивні політики й відкритий грант, як у справжньому проді
+# Прод дав два MISSING там, де всі мої стенди були зелені: 038 туди ніколи не
+# доїхала, тож пермісивні `photos_insert_auth`/`photos_delete_auth` (008) живі
+# й перебивають строгі правила 054 (політики обʼєднуються через OR), а на
+# функції нагадувань лишився дефолтний PUBLIC, якого точний REVOKE із 052 не
+# зняв. Обидва невидимі на чистому наканаті — тут вони СІЮТЬСЯ навмисно.
+#
+# Порада «виконай 038» була б небезпечною: 038 несе копію
+# get_app_user_id_from_auth_uid() ДО 031, тобто відкотила б фікс 045. Тому
+# стенд окремо перевіряє, що після накату захист 045 НА МІСЦІ.
+psql -h "$SOCK" -p $PORT -U postgres -q -c "CREATE DATABASE shadow_legacy" >/dev/null
+$PSQL -d shadow_legacy -f scripts/pg-shim.sql >/dev/null 2>&1
+for f in $(ls supabase/migrations/*.sql | sort); do
+  b=$(basename "$f"); case "$b" in 0041_*|009_*|024_*|038_*) continue;; esac
+  if [[ "$b" =~ ^([0-9]{3})_ ]]; then n=$((10#${BASH_REMATCH[1]})); else n=0; fi
+  [ "$n" -ge 48 ] && continue
+  $PSQL -d shadow_legacy -f "$f" >/dev/null 2>&1 || true
+done
+# Пермісивні політики тут переважно вже Є — їх створює 008/033, а 038, яка їх
+# прибирає, у цьому стенді пропущена (як і в проді). Сіємо все одно, щоб намір
+# стенда був явним, а не залежав від того, що саме лишили попередні міграції;
+# `|| true` — бо «вже існує» тут очікуваний, а не збій.
+$PSQL -d shadow_legacy -c "CREATE POLICY photos_insert_auth ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id='photos')" >/dev/null 2>&1 || true
+$PSQL -d shadow_legacy -c "CREATE POLICY photos_delete_auth ON storage.objects FOR DELETE TO authenticated USING (bucket_id='photos')" >/dev/null 2>&1 || true
+$PSQL -d shadow_legacy -c "CREATE POLICY pfiles_insert_realtor ON property_files FOR INSERT TO authenticated WITH CHECK (true)" >/dev/null 2>&1 || true
+# АНТИВАКУУМ: без цього «нуль MISSING» означало б і «сіяти не вдалось».
+seeded=$($PSQL -d shadow_legacy -t -A -c "SELECT count(*) FROM pg_policies WHERE policyname IN ('photos_insert_auth','photos_delete_auth','pfiles_insert_realtor')")
+if [ "$seeded" -lt 3 ]; then echo "✗ легасі-стенд порожній: пермісивних політик $seeded із 3"; exit 1; fi
+if ! out=$($PSQL -d shadow_legacy -f supabase/RELEASE.sql 2>&1); then
+  echo "✗ RELEASE.sql падає на легасі-стенді:"; echo "$out" | grep -E "ERROR" | head -3; exit 1
+fi
+# Дефолтний PUBLIC, що пережив 052 у проді — відтворюємо і вимагаємо зняття.
+$PSQL -d shadow_legacy -c "GRANT EXECUTE ON FUNCTION get_due_reminders_today() TO PUBLIC" >/dev/null 2>&1 || true
+$PSQL -d shadow_legacy -f supabase/migrations/062_legacy_permissive_and_acl.sql >/dev/null 2>&1 || true
+vr=$($PSQL -d shadow_legacy -f supabase/verify_release.sql 2>&1)
+# Позитивний контроль: без нього «нуль MISSING» означало б і «файл не виконався».
+oks=$(echo "$vr" | grep -c "OK")
+if [ "$oks" -lt 30 ]; then echo "✗ verify_release не виконався на легасі-стенді (OK=$oks)"; exit 1; fi
+if echo "$vr" | grep -qi MISSING; then
+  echo "✗ легасі-стенд: лишились MISSING після накату"; echo "$vr" | grep -i MISSING; exit 1
+fi
+echo "✓ легасі-стенд: пермісивні політики й відкритий грант знято, фікс 045 на місці"
