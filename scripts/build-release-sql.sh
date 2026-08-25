@@ -66,6 +66,34 @@ BEGIN
   IF to_regclass('public.rent_payment_records')  IS NULL THEN missing := missing || E'\n  * таблиця rent_payment_records (021_rent_payments)'; END IF;
   IF to_regclass('public.db_members')            IS NULL THEN missing := missing || E'\n  * таблиця db_members (041_team_members)'; END IF;
   IF to_regclass('public.property_files')        IS NULL THEN missing := missing || E'\n  * таблиця property_files (033_property_files)'; END IF;
+  IF to_regclass('public.collections')           IS NULL THEN missing := missing || E'\n  * таблиця collections (001_schema)'; END IF;
+  IF to_regclass('public.databases')             IS NULL THEN missing := missing || E'\n  * таблиця databases (001_schema)'; END IF;
+  IF to_regclass('public.property_views')        IS NULL THEN missing := missing || E'\n  * таблиця property_views (001_schema)'; END IF;
+  IF to_regclass('public.realtor_subscriptions') IS NULL THEN missing := missing || E'\n  * таблиця realtor_subscriptions (001_schema)'; END IF;
+
+  -- Колонки з ПІЗНІХ міграцій, які читають тіла функцій цього файлу. Саме цей
+  -- клас і дав збій на `mark_overdue_payments`: прогалина всередині 001-047
+  -- проявляється не на початку накату, а посеред нього — і повідомлення
+  -- Postgres назве колонку, не сказавши, якої міграції бракує.
+  IF to_regclass('public.properties') IS NOT NULL THEN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                   WHERE table_schema='public' AND table_name='properties' AND column_name='area_basis')
+      THEN missing := missing || E'\n  * колонка properties.area_basis (042_area_basis)'; END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                   WHERE table_schema='public' AND table_name='properties' AND column_name='parking_type')
+      THEN missing := missing || E'\n  * колонка properties.parking_type (039_parking_fields)'; END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                   WHERE table_schema='public' AND table_name='properties' AND column_name='ev_charger')
+      THEN missing := missing || E'\n  * колонка properties.ev_charger (039_parking_fields)'; END IF;
+  END IF;
+  IF to_regclass('public.property_views') IS NOT NULL THEN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                   WHERE table_schema='public' AND table_name='property_views' AND column_name='db_id')
+      THEN missing := missing || E'\n  * колонка property_views.db_id (040_public_preview_fixes)'; END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                   WHERE table_schema='public' AND table_name='property_views' AND column_name='collection_id')
+      THEN missing := missing || E'\n  * колонка property_views.collection_id (040_public_preview_fixes)'; END IF;
+  END IF;
 
   -- Хелпери, які викликаються з тіл функцій і предикатів політик.
   IF NOT EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace

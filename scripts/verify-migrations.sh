@@ -64,6 +64,14 @@ for f in $(ls supabase/migrations/*.sql | sort); do
     0041_*|009_*) continue;;
   esac
   if ! out=$($PSQL -d shadow -f "$f" 2>&1); then
+    # psql віддає ненульовий код і тоді, коли впав НЕ SQL, а зʼєднання (сервер
+    # не піднявся, кластер прибили ззовні). Без цієї гілки такий збій
+    # репортується як «міграція зламана», і наступний читач шукає дефект у
+    # файлі, з яким усе гаразд — спостережено один раз саме так.
+    if ! echo "$out" | grep -q "ERROR:"; then
+      echo "✗ ЗБІЙ ЗʼЄДНАННЯ, не міграції (на $b):"; echo "$out" | head -3
+      echo "  (кластер не відповідає — це проблема стенда, а не SQL)"; exit 2
+    fi
     echo "✗ $b"; echo "$out" | grep -E "ERROR|LINE" | head -3; fail=$((fail+1))
   fi
 done
@@ -205,3 +213,28 @@ if ! echo "$out" | grep -q "бракує того, на що спираєтьс�
   exit 1
 fi
 echo "✓ на базі без передумов файл називає, ЧОГО бракує і яку міграцію запустити"
+
+# ── Прогалина в КОЛОНЦІ, а не у функції ────────────────────────────────────
+# Той самий клас, інший бік: `mark_overdue_payments` бракувало функції, і це
+# видно на ACL — тобто на початку. Колонка з пізньої міграції проявляється
+# ПОСЕРЕД накату, у тілі превʼю, і повідомлення Postgres назве саму колонку,
+# не сказавши, якої міграції бракує. Стенд без 042 доводить, що передпольотна
+# перевірка ловить це РАНІШЕ і називає міграцію.
+psql -h "$SOCK" -p $PORT -U postgres -q -c "CREATE DATABASE shadow_colgap" >/dev/null
+$PSQL -d shadow_colgap -f scripts/pg-shim.sql >/dev/null 2>&1
+for f in $(ls supabase/migrations/*.sql | sort); do
+  b=$(basename "$f"); case "$b" in 0041_*|009_*|042_*) continue;; esac
+  if [[ "$b" =~ ^([0-9]{3})_ ]]; then n=$((10#${BASH_REMATCH[1]})); else n=0; fi
+  [ "$n" -ge 48 ] && continue
+  $PSQL -d shadow_colgap -f "$f" >/dev/null 2>&1 || true
+done
+if out=$($PSQL -d shadow_colgap -f supabase/RELEASE.sql 2>&1); then
+  echo "✗ RELEASE.sql пройшов без 042 — колонку area_basis читають тіла превʼю, це не могло спрацювати"
+  exit 1
+fi
+if ! echo "$out" | grep -q "properties.area_basis (042_area_basis)"; then
+  echo "✗ прогалина в колонці впала БЕЗ називання міграції:"
+  echo "$out" | grep -E "ERROR" | head -3
+  exit 1
+fi
+echo "✓ прогалина в колонці називається передпольотною перевіркою, а не помилкою посеред накату"
