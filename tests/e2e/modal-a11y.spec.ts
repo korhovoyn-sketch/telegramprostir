@@ -114,7 +114,7 @@ test('фокус іде в шит при відкритті і вертаєть�
   // починає обхід з початку екрана.
   const restored = await page.evaluate(() => {
     const a = document.activeElement as HTMLElement | null
-    return !!a && a.classList.contains('fbtn')
+    return !!a && a.classList.contains('obj-more')
   })
   expect(restored, `фокус не повернувся на опенер, зараз: ${await activeDesc(page)}`).toBe(true)
 })

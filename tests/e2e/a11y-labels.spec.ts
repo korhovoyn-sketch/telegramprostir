@@ -113,7 +113,7 @@ test('усі поля, кнопки та зображення мають дос�
   await auditScreen(page, 'property-form')
 })
 
-test('поля модалок теж названі (оренда, папки)', async ({ page }) => {
+test('поля екранів оренди й папок названі', async ({ page }) => {
   await setup(page)
   await page.goto('/')
   await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
@@ -124,8 +124,7 @@ test('поля модалок теж названі (оренда, папки)',
   await page.locator('.obj-card', { hasText: 'Офіс 101' }).locator('.obj-t').click()
   await expect(page.getByRole('button', { name: /Здати/ })).toBeVisible({ timeout: 15_000 })
   await page.getByRole('button', { name: /Здати/ }).click()
-  await expect(page.locator('.modal')).toBeVisible()
-  await auditScreen(page, 'rent-modal')
+  await auditScreen(page, 'rent-property')
   // Дати мусять бути розрізненні на слух
   await expect(page.getByLabel('Договір від')).toBeVisible()
   await expect(page.getByLabel('Договір до')).toBeVisible()
