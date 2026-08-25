@@ -555,7 +555,7 @@ body{
    на екрані є місце, якого не було в підзаголовку шита. */
 .del-warn{display:flex;gap:10px;align-items:flex-start;margin:0 12px 12px;
   padding:var(--pad-card);border-radius:var(--r-md);border:1px solid var(--err-bd)}
-.del-warn p{margin:0;font-size:var(--fs-sub);color:var(--t2);line-height:var(--lh-body)}
+.del-warn p{margin:0;font-size:var(--fs-sub);color:var(--t2);line-height:var(--lh-norm)}
 .del-warn b{color:var(--err-fg)}
 .fr-i::-webkit-outer-spin-button,.fr-i::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .fr-i::placeholder{color:var(--t4)}
