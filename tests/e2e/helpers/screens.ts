@@ -159,6 +159,19 @@ async function viaDbMenu(page: Page, item: string, done: RegExp | string) {
     .toBeVisible({ timeout: 15_000 })
 }
 
+/** Пакетна дія — вхід у режим виділення й тап по пілюлі панелі обраних. */
+async function viaBatch(page: Page, pill: string, done: RegExp) {
+  await atDbObjects(page)
+  await page.getByLabel('Меню бази').click()
+  await expect(page.locator('.modal')).toBeVisible()
+  await page.waitForTimeout(420)
+  await page.getByText("Виділити об'єкти", { exact: true }).click()
+  await page.waitForTimeout(400)
+  await page.locator('.obj-card, .row').first().click()
+  await page.getByRole('button', { name: new RegExp(pill) }).click()
+  await expect(page.getByText(done).first()).toBeVisible({ timeout: 15_000 })
+}
+
 export const OWNER_SCREENS: ScreenStep[] = [
   { label: 'db-list', go: atDbList },
   { label: 'db-objects', go: atDbObjects },
@@ -265,6 +278,17 @@ export const OWNER_SCREENS: ScreenStep[] = [
       await page.getByRole('button', { name: 'Створити' }).click()
       await expect(page.getByText('Посилання створено!')).toBeVisible({ timeout: 15_000 })
     },
+  },
+  { label: 'folder-manage', go: (page) => viaDbMenu(page, 'Папки', /Групуйте|Додати папку/) },
+  {
+    // Пакетні пікери — окремі екрани з фази 4. Вхід лише через режим виділення,
+    // тож крок відтворює його цілком: меню → «Виділити обʼєкти» → тап по картці.
+    label: 'folder-picker',
+    go: (page) => viaBatch(page, 'У папку', /Оберіть папку|Створити й перемістити/),
+  },
+  {
+    label: 'db-picker',
+    go: (page) => viaBatch(page, 'В базу', /буде переміщено|Створити й перенести/),
   },
   { label: 'team', go: (page) => viaDbMenu(page, 'Команда', /Команда|Запросити/) },
   { label: 'export', go: (page) => viaDbMenu(page, 'Експорт', /Формат файлу|Завантажити/) },

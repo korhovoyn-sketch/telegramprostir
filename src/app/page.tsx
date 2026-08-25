@@ -49,6 +49,9 @@ const PaymentCalendarScreen = dynamic(() => import('@/screens/PaymentCalendarScr
 const PaymentScheduleScreen = dynamic(() => import('@/screens/PaymentScheduleScreen'), { loading: () => screenFallback })
 const PaymentConfirmScreen = dynamic(() => import('@/screens/PaymentConfirmScreen'), { loading: () => screenFallback })
 const CreateInviteScreen = dynamic(() => import('@/screens/CreateInviteScreen'), { loading: () => screenFallback })
+const FolderManageScreen = dynamic(() => import('@/screens/FolderManageScreen'), { loading: () => screenFallback })
+const DbPickerScreen = dynamic(() => import('@/screens/DbPickerScreen'), { loading: () => screenFallback })
+const FolderPickerScreen = dynamic(() => import('@/screens/FolderPickerScreen'), { loading: () => screenFallback })
 
 export default function Page() {
   const screen = useAppStore((s) => s.screen)
@@ -451,6 +454,9 @@ export default function Page() {
       case 'payment-schedule': return <PaymentScheduleScreen />
       case 'payment-confirm': return <PaymentConfirmScreen />
       case 'create-invite': return <CreateInviteScreen />
+      case 'folder-manage': return <FolderManageScreen />
+      case 'db-picker': return <DbPickerScreen />
+      case 'folder-picker': return <FolderPickerScreen />
       default: return <SplashScreen />
     }
   }

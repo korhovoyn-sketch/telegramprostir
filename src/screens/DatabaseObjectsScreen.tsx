@@ -15,8 +15,6 @@ import SearchBar from '@/components/ui/SearchBar'
 import { StatusBadge } from '@/components/ui/Badge'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import ActionSheet from '@/components/ui/ActionSheet'
-import FolderManageModal from '@/components/ui/FolderManageModal'
-import FolderPickerModal from '@/components/ui/FolderPickerModal'
 import Collapsible from '@/components/ui/Collapsible'
 import { IconCheck, IconPlus, IconDots, IconPhoto, IconChevronUp, IconChevronDown, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconCopy, IconUser, IconUsers, IconFile, IconLayers, IconLayoutGrid, IconChartBar, IconKey, IconFileExport, IconCircleCheck, IconAdjustments, IconTrash, IconChevronRight, IconFolder, IconInbox } from '@/components/Icons'
 import DatabaseStatsPanel from '@/components/ui/DatabaseStatsPanel'
@@ -24,7 +22,6 @@ import FloatingButton from '@/components/ui/FloatingButton'
 import { formatPrice, calcRent, calcRentUtils, basisArea, floorSortKey, computedRentUnit, rentUnitLabel, objectsWord, DB_TYPE_LABELS, formatLeasePeriod, STATUS_COLORS, matchesQuery } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import type { Database, Property, PropertyStatus } from '@/types'
-import DbPickerModal from '@/components/ui/DbPickerModal'
 import CoachMark from '@/components/ui/CoachMark'
 import { useOnboarding } from '@/hooks/useOnboarding'
 import { useHideOnScrollDown } from '@/hooks/useHideOnScrollDown'
@@ -32,9 +29,9 @@ import { useHideOnScrollDown } from '@/hooks/useHideOnScrollDown'
 export default function DatabaseObjectsScreen() {
   const fabHidden = useHideOnScrollDown()
   const { screenParams, navigate, databases, user } = useAppStore()
-  const { deleteDatabase, createDatabase } = useDatabases()
-  const { properties, loading, error, loadProperties, reorderProperty, batchDeleteProperties, batchUpdateStatus, moveToFolder, moveToDatabase } = useProperties(screenParams.dbId)
-  const { folders, unavailable: foldersUnavailable, loadFolders, createFolder, renameFolder, deleteFolder, reorderFolder } = useFolders(screenParams.dbId)
+  const { deleteDatabase } = useDatabases()
+  const { properties, loading, error, loadProperties, reorderProperty, batchDeleteProperties, batchUpdateStatus } = useProperties(screenParams.dbId)
+  const { folders, unavailable: foldersUnavailable, loadFolders } = useFolders(screenParams.dbId)
   const memberDbIds = useAppStore(st => st.memberDbIds)
   // «Меню бази» веде до трьох речей, що зʼявляються НА ТОМУ Ж екрані, поки
   // ActionSheet ще дограє власну анімацію закриття (~250-320мс): режим
@@ -52,9 +49,6 @@ export default function DatabaseObjectsScreen() {
   const [reorderMode, setReorderMode] = useState(false)
   const [selectMode, setSelectMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  const [showFolderManage, setShowFolderManage] = useState(false)
-  const [showFolderPicker, setShowFolderPicker] = useState(false)
-  const [showDbPicker, setShowDbPicker] = useState(false)
   // Згорнуті папки — ключі папок ('__none__' для «Без папки»), персист per user+db.
   const collapseKey = user && screenParams.dbId ? `ps:foldCollapse:${user.id}:${screenParams.dbId}` : ''
   const [collapsed, setCollapsed] = useState<Set<string>>(() => {
@@ -75,25 +69,16 @@ export default function DatabaseObjectsScreen() {
     })
   }
 
-  async function handleBulkMove(folderId: string | null) {
-    setShowFolderPicker(false)
-    if (offlineGuard()) return
-    await moveToFolder([...selectedIds], folderId)
-    exitSelectMode()
+  // Пакетне переміщення виконують САМІ пікери (`folder-picker` / `db-picker`).
+  // Тут лишається тільки перехід: `selectedIds` живуть у стані цього екрана й
+  // зникають при навігації, тож передаємо їх уперед через screenParams, а
+  // повернення перемонтовує екран уже з готовим результатом.
+  function openFolderPicker() {
+    navigate('folder-picker', { dbId: screenParams.dbId, propertyIds: [...selectedIds] })
   }
 
-  async function handleMoveToDb(target: Database) {
-    setShowDbPicker(false)
-    if (offlineGuard()) return
-    await moveToDatabase([...selectedIds], target.id, target.owner_id, target.name)
-    exitSelectMode()
-  }
-
-  // Нова база під перенос успадковує тип і колір поточної — обрані обʼєкти майже
-  // завжди тієї ж природи (форма обʼєкта залежить від типу бази).
-  async function handleCreateDbForMove(name: string): Promise<Database | null> {
-    if (!db) return null
-    return createDatabase({ name, address: db.address, type: db.type, color: db.color }, { navigate: false })
+  function openDbPicker() {
+    navigate('db-picker', { dbId: screenParams.dbId, propertyIds: [...selectedIds] })
   }
   // Одне вподобання «компактно» на обидві статусні вкладки (зайняті + вільні).
   // Ключ лишається історичним 'ps:occCompact', щоб не скидати вибір користувачам.
@@ -265,13 +250,6 @@ export default function DatabaseObjectsScreen() {
   }), [properties])
 
   const compactView = statusCompact && !reorderMode && !selectMode
-
-  // Кількість об'єктів у кожній папці — по ВСІХ об'єктах (для modal керування).
-  const folderCounts = useMemo(() => {
-    const m = new Map<string, number>()
-    for (const p of properties) if (p.folder_id) m.set(p.folder_id, (m.get(p.folder_id) ?? 0) + 1)
-    return m
-  }, [properties])
 
   const foldersById = useMemo(() => new Map(folders.map(f => [f.id, f])), [folders])
   const foldersEnabled = !foldersUnavailable && folders.length > 0
@@ -817,11 +795,11 @@ export default function DatabaseObjectsScreen() {
           <span className="batchbar-n">{selectedIds.size} обрано</span>
           <div className="batch-scroll">
             {!foldersUnavailable && (
-              <button className="batch-pill" onClick={() => setShowFolderPicker(true)}>
+              <button className="batch-pill" onClick={openFolderPicker}>
                 <IconFolder size={14} /> У папку
               </button>
             )}
-            <button className="batch-pill" onClick={() => setShowDbPicker(true)}>
+            <button className="batch-pill" onClick={openDbPicker}>
               <IconBuilding size={14} /> В базу
             </button>
             <button className="batch-pill ok" onClick={() => handleBatchStatus('free')}>Вільно</button>
@@ -844,7 +822,7 @@ export default function DatabaseObjectsScreen() {
           Демонтована ВІДРАЗУ (без анімації), щойно пункт меню відкриває щось
           на цьому ж екрані — див. коментар при `confirmOpen` вище. Полiтою
           анімацію лишає для бекдропу/Escape/свайпу й «Скасувати» в actions. */}
-      {!selectMode && !reorderMode && !showFolderManage && !confirmOpen && (
+      {!selectMode && !reorderMode && !confirmOpen && (
         <ActionSheet
           open={showMenu}
           title={db.name}
@@ -865,7 +843,7 @@ export default function DatabaseObjectsScreen() {
               ] : []),
               { Icon: IconFileExport,  label: 'Експорт',               nav: true,  danger: false, action: () => { setShowMenu(false); navigate('export', { dbId: db.id }) } },
               ...(!foldersUnavailable ? [
-                { Icon: IconFolder,    label: 'Папки',                 nav: false, danger: false, action: () => { setShowMenu(false); setShowFolderManage(true) } },
+                { Icon: IconFolder,    label: 'Папки',                 nav: false, danger: false, action: () => { setShowMenu(false); navigate('folder-manage', { dbId: screenParams.dbId }) } },
               ] : []),
               { Icon: IconCircleCheck, label: 'Виділити об\'єкти',      nav: false, danger: false, action: enterSelectMode },
               { Icon: IconAdjustments, label: 'Змінити порядок',       nav: false, danger: false, action: enterReorderMode },
@@ -890,45 +868,9 @@ export default function DatabaseObjectsScreen() {
         </ActionSheet>
       )}
 
-      {/* Folder management */}
-      {showFolderManage && (
-        <FolderManageModal
-          folders={folders}
-          counts={folderCounts}
-          onCreate={createFolder}
-          onRename={renameFolder}
-          // Перезавантажувати список НЕ треба: секції групують лише по папках, що
-          // існують (foldersById.has), тож обʼєкти видаленої папки самі падають у
-          // «Без папки». Зайвий раунд-трип лише підвішував модалку.
-          onDelete={deleteFolder}
-          onReorder={reorderFolder}
-          onClose={() => setShowFolderManage(false)}
-        />
-      )}
-
-      {/* Bulk move to folder */}
-      {showFolderPicker && (
-        <FolderPickerModal
-          folders={folders}
-          title={`Перемістити ${selectedIds.size} ${objectsWord(selectedIds.size)}`}
-          subtitle="Оберіть папку або створіть нову"
-          onPick={handleBulkMove}
-          onCreate={createFolder}
-          onClose={() => setShowFolderPicker(false)}
-        />
-      )}
-
-      {/* Bulk move to another database (or a brand-new one) */}
-      {showDbPicker && (
-        <DbPickerModal
-          databases={databases.filter((d) => d.id !== screenParams.dbId)}
-          count={selectedIds.size}
-          onPick={handleMoveToDb}
-          onCreate={handleCreateDbForMove}
-          onClose={() => setShowDbPicker(false)}
-        />
-      )}
-
+      
+      
+      
     </div>
   )
 }

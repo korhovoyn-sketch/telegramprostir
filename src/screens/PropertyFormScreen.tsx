@@ -9,8 +9,7 @@ import { useProperties } from '@/hooks/useProperties'
 import { useFolders } from '@/hooks/useFolders'
 import Header from '@/components/ui/Header'
 import Toggle from '@/components/ui/Toggle'
-import FolderPickerModal from '@/components/ui/FolderPickerModal'
-import { IconRuler, IconLayers, IconLayoutGrid, IconActivity, IconBuilding, IconCurrencyDollar, IconBolt, IconCarGarage, IconFile, IconUser, IconKey, IconMapPin, IconEdit, IconFolder, IconChevronRight, IconTrash } from '@/components/Icons'
+import { IconRuler, IconLayers, IconLayoutGrid, IconActivity, IconBuilding, IconCurrencyDollar, IconBolt, IconCarGarage, IconFile, IconUser, IconKey, IconMapPin, IconEdit, IconFolder, IconChevronRight, IconTrash, IconCheck, IconPlus } from '@/components/Icons'
 import { UTILITY_META } from '@/lib/utilityMeta'
 import FilesList from '@/components/ui/FilesList'
 import { currencySymbol, sanitizeDecimal, sanitizeInt, formatPrice, calcRent, calcUtilities, basisArea, rentUnitLabel, nextCopyName, bulkCreateNames, objectsWord, scrollFocusedIntoView } from '@/lib/utils'
@@ -73,7 +72,23 @@ export default function PropertyFormScreen() {
   // Папка призначення. Create-режим може успадкувати з контексту (FAB усередині
   // папки передає screenParams.folderId).
   const [folderId, setFolderId] = useState<string | null>((screenParams.folderId as string | undefined) ?? null)
-  const [showFolderPicker, setShowFolderPicker] = useState(false)
+  const [folderOpen, setFolderOpen] = useState(false)
+  const [newFolderName, setNewFolderName] = useState('')
+  const [addingFolder, setAddingFolder] = useState(false)
+
+  // Створення ЗАВЕРШУЄ вибір: нова папка одразу стає обраною — так само, як
+  // це робив пікер до переходу на інлайновий список.
+  async function addFolder() {
+    const name = newFolderName.trim()
+    if (!name || addingFolder) return
+    setAddingFolder(true)
+    try {
+      const created = await createFolder(name)
+      if (created) { setFolderId(created.id); setNewFolderName(''); setFolderOpen(false) }
+    } finally {
+      setAddingFolder(false)
+    }
+  }
   // Bulk creation: how many objects to create from this one form (create mode
   // only). Names are auto-numbered from the entered name.
   const [count, setCount] = useState(1)
@@ -548,16 +563,75 @@ export default function PropertyFormScreen() {
               ))}
             </div>
           </div>
+          {/* Вибір папки — ІНЛАЙНОВИЙ, а не шит і не окремий екран. Причина
+              структурна: значення потрібне НЕЗБЕРЕЖЕНІЙ формі, а перехід на
+              інший маршрут розмонтував би її разом з усіма правками (чернетка
+              є лише в режимі створення). Оверлея тут теж не треба — це
+              звичайне поле форми, і клавіатура для «нової папки» працює як у
+              будь-якого іншого поля екрана. */}
           {!foldersUnavailable && (
-            <div className="fr" onClick={() => { hapticSelection(); setShowFolderPicker(true) }} style={{ cursor: 'pointer' }}>
-              <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconFolder size={14} color="var(--t3)" />Папка</span>
-              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, color: folderId ? 'var(--t1)' : 'var(--t3)', fontSize: 'var(--fs-call)' }}>
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 180 }}>
-                  {folders.find(f => f.id === folderId)?.name ?? 'Без папки'}
-                </span>
-                <IconChevronRight size={16} color="var(--t4)" />
-              </div>
-            </div>
+            <>
+              <button
+                type="button"
+                className="fr fr-tap"
+                aria-expanded={folderOpen}
+                onClick={() => { hapticSelection(); setFolderOpen(o => !o) }}
+              >
+                <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconFolder size={14} color="var(--t3)" />Папка</span>
+                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, color: folderId ? 'var(--t1)' : 'var(--t3)', fontSize: 'var(--fs-call)' }}>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 180 }}>
+                    {folders.find(f => f.id === folderId)?.name ?? 'Без папки'}
+                  </span>
+                  <span style={{ display: 'flex', transform: folderOpen ? 'rotate(90deg)' : 'none', transition: 'transform var(--dur-sm) var(--ease-out)' }}>
+                    <IconChevronRight size={16} color="var(--t4)" />
+                  </span>
+                </div>
+              </button>
+              {folderOpen && (
+                <>
+                  <button
+                    type="button"
+                    className="fr fr-tap fr-sub"
+                    onClick={() => { hapticSelection(); setFolderId(null); setFolderOpen(false) }}
+                  >
+                    <span className="fr-l">Без папки</span>
+                    {folderId === null && <span style={{ marginLeft: 'auto', display: 'flex' }}><IconCheck size={16} color="var(--ok)" /></span>}
+                  </button>
+                  {folders.map(f => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      className="fr fr-tap fr-sub"
+                      onClick={() => { hapticSelection(); setFolderId(f.id); setFolderOpen(false) }}
+                    >
+                      <span className="fr-l">{f.name}</span>
+                      {folderId === f.id && <span style={{ marginLeft: 'auto', display: 'flex' }}><IconCheck size={16} color="var(--ok)" /></span>}
+                    </button>
+                  ))}
+                  <div className="fr fr-sub">
+                    <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconPlus size={14} color="var(--t3)" />Нова</span>
+                    <input
+                      className="fr-i"
+                      aria-label="Назва нової папки"
+                      placeholder="Назва папки…"
+                      value={newFolderName}
+                      maxLength={40}
+                      onChange={(e) => setNewFolderName(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void addFolder() } }}
+                    />
+                    <button
+                      type="button"
+                      className="fr-add"
+                      aria-label="Додати папку"
+                      disabled={!newFolderName.trim() || addingFolder}
+                      onClick={() => void addFolder()}
+                    >
+                      <IconCheck size={16} />
+                    </button>
+                  </div>
+                </>
+              )}
+            </>
           )}
         </div>
 
@@ -857,7 +931,7 @@ export default function PropertyFormScreen() {
             наклеєною на чужу смугу. У потоці тіла вона просто йде за останнім
             полем, на тому самому фоні. Ховається під шитом вибору папки — його
             власна кнопка мусить лишатись єдиною первинною дією на екрані. */}
-        {!showFolderPicker && (
+        {(
           <button
             className={`mbtn success mbtn-flow ${!canSave || loading ? 'disabled' : ''} ${loading ? 'is-loading' : ''}`}
             onClick={handleSave}
@@ -870,17 +944,6 @@ export default function PropertyFormScreen() {
 
       </div>
 
-      {showFolderPicker && (
-        <FolderPickerModal
-          folders={folders}
-          title="Папка об'єкта"
-          subtitle="Оберіть папку або створіть нову"
-          currentFolderId={folderId}
-          onPick={(id) => { setFolderId(id); setShowFolderPicker(false) }}
-          onCreate={createFolder}
-          onClose={() => setShowFolderPicker(false)}
-        />
-      )}
 
     </div>
   )

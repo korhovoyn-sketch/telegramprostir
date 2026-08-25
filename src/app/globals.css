@@ -530,6 +530,21 @@ body{
 .fr-l{font-size:var(--fs-sub);color:var(--t1);flex:0 0 auto;min-width:82px;line-height:var(--lh-snug)}
 /* Input value — Callout (16px, prevents iOS zoom) */
 .fr-i{flex:1;background:transparent;border:none;outline:none;font-size:var(--fs-call);color:var(--t1);text-align:right;font-family:inherit;min-width:0;-moz-appearance:textfield;line-height:var(--lh-snug)}
+/* Рядок форми, який САМ є контролом (розгортає список, обирає значення).
+   `<button>`, а не `<div onClick>`: інакше рядок недосяжний з клавіатури і
+   не оголошується читалкою — те саме правило, що для `.sheet-row`. Скидання
+   UA-стилів кнопки тут обовʼязкове, бо геометрію задає `.fr`. */
+.fr-tap{width:100%;background:none;font:inherit;text-align:left;cursor:pointer;color:inherit;border:none;border-bottom:.5px solid rgba(255,255,255,.08)}
+.fr-tap:active{background:var(--glass-2)}
+/* Вкладений рядок розгорнутого списку — відступ показує підпорядкування. */
+.fr-sub{padding-left:calc(var(--pad-card) + 18px)}
+.fr-sub .fr-l{color:var(--t2);min-width:0}
+/* Кнопка підтвердження всередині рядка «Нова». 44px — повна зона дотику:
+   тут, на відміну від рядка дій картки, над нею нічого не лежить. */
+.fr-add{display:flex;align-items:center;justify-content:center;flex:0 0 44px;height:44px;
+  background:none;border:none;color:var(--ok);cursor:pointer;border-radius:var(--r-sm)}
+.fr-add:disabled{color:var(--t4);cursor:default}
+.fr-add:active:not(:disabled){background:var(--glass-2)}
 .fr-i::-webkit-outer-spin-button,.fr-i::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .fr-i::placeholder{color:var(--t4)}
 /* Unit label — Caption 1 */
