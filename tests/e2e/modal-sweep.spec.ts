@@ -300,21 +300,11 @@ test('шити бази: меню бази і поширення', async ({ page
   await sweep(page, 'share-sheet')
 })
 
-test('шит обʼєкта: здати в оренду', async ({ page }) => {
-  test.setTimeout(180_000)
-  await setupApp(page, { user: OWNER })
-  await ownerRoutes(page)
+// ВИДАЛЕНО: «шит обʼєкта: здати в оренду». Оренда — повноекранний маршрут
+// (фаза 5), тож контракт `<Modal>` до неї не застосовний. Її вигляд і
+// доступність міряє спільний обхід (крок `rent-property`), поведінку —
+// `modals.spec.ts`, а поля — `a11y-labels`/`inputs`.
 
-  // «Здати в оренду» (PropertyDetailScreen) — на вільному об'єкті. Розклад
-  // платежів і підтвердження платежу — тепер повноекранні маршрути
-  // (payment-schedule/payment-confirm, фаза 2), не шити: їхня функціональна
-  // перевірка (включно з валідацією суми) — у deep-lifecycle.spec.ts.
-  await toObjects(page)
-  await page.locator('.obj-card', { hasText: 'Офіс 102' }).locator('.obj-t').click()
-  await expect(page.getByRole('button', { name: /Здати в оренду/ })).toBeVisible({ timeout: 15_000 })
-  await page.getByRole('button', { name: /Здати в оренду/ }).click()
-  expect(await sweep(page, 'rent')).toBe('Здати в оренду')
-})
 
 // «Шити доступів: гості, команда, і створене посилання» — видалено (фаза 3
 // переробки модалок, atomic-riding-clock.md): InviteSheet/CreatedLinkSheet
@@ -322,7 +312,7 @@ test('шит обʼєкта: здати в оренду', async ({ page }) => {
 // двох шитів і після видалення не лишав жодного `<Modal>`-кроку. Функціональне
 // покриття тепер у team.spec.ts (`owner: creates a team invite and revokes it`).
 
-test('шити профілю: вихід і видалення акаунта', async ({ page }) => {
+test('шит профілю: вихід з акаунту', async ({ page }) => {
   test.setTimeout(120_000)
   await setupApp(page, { user: OWNER })
   await ownerRoutes(page)
@@ -336,14 +326,10 @@ test('шити профілю: вихід і видалення акаунта',
   await page.getByText('Вийти з акаунту', { exact: true }).click()
   expect(await sweep(page, 'logout')).toBe('Вийти з акаунту?')
 
-  // 13. Видалення акаунта — свідомо на власній модалці, бо потребує ВВЕДЕННЯ
-  // слова підтвердження, чого нативний попап Telegram не вміє.
-  await page.getByText('Видалити акаунт', { exact: true }).click()
-  const title = await checkModal(page, 'delete-account')
-  expect(title).toBe('Видалити акаунт?')
-  const confirm = page.locator('.modal-btn').filter({ hasText: /Видалити/ }).last()
-  await expect(confirm, 'кнопка активна ще до введення слова підтвердження').toBeDisabled()
-  await closeByBackdrop(page, 'delete-account')
+  // Видалення акаунта переїхало на власний ЕКРАН (фаза 5) — це форма з полем,
+  // тож за критерієм розділу шитом лишитись не могло. Його гарди —
+  // `delete-account.spec.ts` (кнопка заблокована без слова, один серверний
+  // виклик, збій не викидає з акаунта).
 })
 
 test('шити рієлтора: підбірка і додавання об\'єкта', async ({ page }) => {

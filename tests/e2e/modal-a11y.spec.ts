@@ -70,22 +70,24 @@ async function fixtures(page: Page) {
 }
 
 /**
- * Відкриває шит «Здати в оренду». Опенер — СПРАВЖНЯ кнопка (`.fbtn`), тож на ній
- * можна перевірити повернення фокуса.
+ * Носій діалогової механіки — шит ДІЙ ОБʼЄКТА («⋯» на картці).
+ *
+ * Раніше тут був шит оренди, але після фази 5 оренда — повноекранний маршрут,
+ * а `Modal.tsx` видалений. Цей шит підходить краще за меню бази: його відкриває
+ * ЯВНА кнопка (тобто повернення фокуса на опенер узагалі можна перевірити), і в
+ * ньому чотири фокусовані рядки — пастка Tab не вироджується в «контейнер сам
+ * себе тримає», через що гард ставав би вакуумним.
  */
 async function openRentSheet(page: Page) {
   await page.goto('/')
   await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
   await page.getByText('БЦ Рубін').first().click()
   await expect(page.getByText('Всі (9)')).toBeVisible({ timeout: 15_000 })
-  await page.locator('.obj-card', { hasText: 'Офіс 102' }).locator('.obj-t').click()
-  const opener = page.getByRole('button', { name: 'Здати в оренду' })
+  const opener = page.locator('.obj-more').first()
   await expect(opener).toBeVisible({ timeout: 15_000 })
   await opener.click()
-  // Чекати на текст не можна: «Здати в оренду» — ще й підпис плаваючої кнопки під
-  // шитом. Чекаємо на сам шит (див. CLAUDE.md про `.modal`, що перерішується).
   await expect(page.locator('.modal')).toBeVisible()
-  await expect(page.locator('.modal').getByText('Здати в оренду', { exact: true })).toBeVisible()
+  await page.waitForTimeout(420)
 }
 
 /** Клас/тег елемента у фокусі — читабельніше за сирий HTML у повідомленні падіння. */
@@ -153,8 +155,7 @@ test('прокрутка фону заблокована, поки шит від
 
   const before = await page.evaluate(() => document.body.style.overflow)
 
-  await page.locator('.obj-card', { hasText: 'Офіс 102' }).locator('.obj-t').click()
-  await page.getByRole('button', { name: 'Здати в оренду' }).click()
+  await page.locator('.obj-more').first().click()
   await expect(page.locator('.modal')).toBeVisible()
 
   expect(await page.evaluate(() => document.body.style.overflow),

@@ -109,40 +109,40 @@ async function openRentScreen(page: Page) {
   await expect(page.getByLabel('Орендар')).toBeVisible({ timeout: 15_000 })
 }
 
-test('rent modal: disabled CTA, live monthly preview, currency-aware unit labels', async ({ page }) => {
+test('екран оренди: disabled CTA, live monthly preview, currency-aware unit labels', async ({ page }) => {
   await fixtures(page)
   await openRentScreen(page)
 
   // «Здати» must be disabled until the tenant is named
-  const submit = page.getByRole('button', { name: 'Здати', exact: true })
+  const submit = page.getByRole('button', { name: 'Здати в оренду', exact: true })
   await expect(submit).toBeDisabled()
 
   // Одиниця несе валюту власника (USD → $), але живе тепер КОЛО ЗНАЧЕННЯ, а не в
   // підписі: у половинному полі «Експлуатаційні, $/м²» не вміщалось і ellipsis
   // зʼїдав саму одиницю — користувач не бачив, ставку за м² він вводить чи суму.
-  await expect(page.locator('.modal').getByText('Оренда', { exact: true })).toBeVisible()
-  await expect(page.locator('.modal').getByText('Експлуатаційні', { exact: true })).toBeVisible()
-  expect(await page.locator('.modal .fld-u').allInnerTexts()).toEqual(['$/м²', '$/м²'])
+  await expect(page.getByText('Оренда', { exact: true })).toBeVisible()
+  await expect(page.getByText('Експлуатаційні', { exact: true })).toBeVisible()
+  expect(await page.locator('.fld-u').allInnerTexts()).toEqual(['$/м²', '$/м²'])
 
   // Live preview on the default basis (розрахункова/total area 52):
   // 52 м² × 20 + 52 м² × 5 = 1 300 — recomputes as you type
   await page.getByPlaceholder('ТОВ «Назва» або ФОП').fill('ФОП Петренко')
   await expect(submit).toBeEnabled()
-  const rateInput = page.locator('.modal .fld input[inputmode="decimal"]').first()
-  const utilInput = page.locator('.modal .fld input[inputmode="decimal"]').nth(1)
+  const rateInput = page.locator('.fld input[inputmode="decimal"]').first()
+  const utilInput = page.locator('.fld input[inputmode="decimal"]').nth(1)
   await rateInput.fill('20')
   await expect(page.getByText('Разом на місяць')).toBeVisible()
-  await expect(page.locator('.modal').getByText(/\$1\s?040/)).toBeVisible()
+  await expect(page.getByText(/\$1\s?040/)).toBeVisible()
   await utilInput.fill('5')
-  await expect(page.locator('.modal').getByText(/\$1\s?300/)).toBeVisible()
+  await expect(page.getByText(/\$1\s?300/)).toBeVisible()
 
-  // All modal inputs obey the 16px anti-zoom floor
-  const sizes = await page.locator('.modal input').evaluateAll(els =>
+  // Усі поля екрана тримають поріг 16px проти автозуму iOS
+  const sizes = await page.locator('.body input').evaluateAll(els =>
     els.map(el => parseFloat(getComputedStyle(el).fontSize)))
   for (const s of sizes) expect(s).toBeGreaterThanOrEqual(16)
 })
 
-test('rent modal: lease that ends before it starts is rejected; valid save PATCHes', async ({ page }) => {
+test('екран оренди: lease that ends before it starts is rejected; valid save PATCHes', async ({ page }) => {
   await fixtures(page)
   const patches: Record<string, unknown>[] = []
   await page.route('**/rest/v1/properties?id=eq.*', (route) => {
@@ -154,18 +154,18 @@ test('rent modal: lease that ends before it starts is rejected; valid save PATCH
   await openRentScreen(page)
 
   await page.getByPlaceholder('ТОВ «Назва» або ФОП').fill('ФОП Петренко')
-  const dates = page.locator('.modal input[type="date"]')
+  const dates = page.locator('input[type="date"]')
   await dates.first().fill('2026-05-10')
   await dates.nth(1).fill('2026-05-01') // раніше початку
 
-  await page.getByRole('button', { name: 'Здати', exact: true }).click()
+  await page.getByRole('button', { name: 'Здати в оренду', exact: true }).click()
   await expect(page.getByText('Дата закінчення оренди раніше початку')).toBeVisible()
-  // Модалка лишається відкритою, нічого не збережено
-  await expect(page.locator('.modal')).toBeVisible()
+  // Екран лишається відкритим, нічого не збережено
+  await expect(page.getByLabel('Орендар')).toBeVisible()
   expect(patches).toHaveLength(0)
 
   await dates.nth(1).fill('2026-12-01')
-  await page.getByRole('button', { name: 'Здати', exact: true }).click()
+  await page.getByRole('button', { name: 'Здати в оренду', exact: true }).click()
   await expect.poll(() => patches.length).toBe(1)
   expect(patches[0].status).toBe('occupied')
   expect(patches[0].tenant_name).toBe('ФОП Петренко')
@@ -274,8 +274,10 @@ test('payment schedule screen: day outside 1–28 shows the range error; valid d
   await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
   await page.getByText('БЦ Рубін').first().click()
   await expect(page.getByText('Всі (3)')).toBeVisible()
-  await page.locator('.obj-card', { hasText: 'Офіс 101' })
-    .getByRole('button', { name: 'Платежі' }).click()
+  // «Платежі» переїхали з рядка картки в шит за кнопкою «⋯».
+  await page.locator('.obj-card', { hasText: 'Офіс 101' }).locator('.obj-more').click()
+  await page.waitForTimeout(420)
+  await page.locator('.sheet-row').filter({ hasText: 'Платежі' }).click()
   // Заголовок залежить від входу: per-property — «Платежі — <назва>»
   await expect(page.getByText(/Платежі — Офіс 101|Календар платежів/)).toBeVisible({ timeout: 15_000 })
 
@@ -303,41 +305,36 @@ test('payment schedule screen: day outside 1–28 shows the range error; valid d
 // тут уже не застосовна. Еквівалентне покриття (поле не ховається під
 // `.mbtn-flow`) — генерично в field-obstruction.spec.ts/keyboard-viewport.spec.ts.
 
-test('кнопки дій — напівпрозоре скло, неактивна лишається видимою', async ({ page }) => {
+test('кнопки дій шита — напівпрозоре скло', async ({ page }) => {
   // Дії були єдиними суцільними заливками в інтерфейсі, збудованому на склі.
+  //
+  // Носій змінився: раніше це був шит оренди з ПЕРВИННОЮ кнопкою «Здати», але
+  // після фази 5 оренда — екран, а меню бази має лише «Скасувати». Єдиний
+  // шит, що лишився з первинною дією, — підтвердження (`ConfirmHost`).
+  //
+  // Друга половина колишнього тесту («неактивна не через opacity») сюди не
+  // переїхала СВІДОМО: тепер це стан екранної CTA, і його вже міряє
+  // `design-system-runtime` на всіх 25 екранах — дублювати означало б мати
+  // два джерела правди про одне правило.
   await fixtures(page)
   await openSheet(page)
-  await page.waitForTimeout(450)
+  await page.getByText('Видалити базу', { exact: true }).click()
+  await expect(page.locator('.modal-h').filter({ hasText: /Видалити/ }))
+    .toBeVisible({ timeout: 10_000 })
+  await page.waitForTimeout(420)
 
-  const cta = await page.evaluate(() => {
-    const btn = [...document.querySelectorAll('.modal-btn')]
-      .find((b) => (b.textContent ?? '').includes('Здати')) as HTMLElement
-    const cs = getComputedStyle(btn)
-    return { cls: btn.className, bgImage: cs.backgroundImage, bf: cs.backdropFilter, disabled: (btn as HTMLButtonElement).disabled }
-  })
-  expect(cta.cls, 'первинна дія — скляна').toContain('btn-glass')
-  expect(cta.disabled, 'без орендаря кнопка неактивна').toBe(true)
-
-  // Неактивна: нейтральне скло, а не привид (opacity .45 над темним шитом
-  // робив кнопку майже невидимою)
-  const offAlpha = await page.evaluate(() => parseFloat(getComputedStyle(
-    [...document.querySelectorAll('.modal-btn')].find((b) => (b.textContent ?? '').includes('Здати'))!,
-  ).opacity))
-  expect(offAlpha).toBe(1)
-
-  // Активуємо — тон стає кольоровим і НАПІВПРОЗОРИМ
-  await page.locator('.modal input').first().fill('ТОВ «Ромашка»')
-  await page.waitForTimeout(250)
   const on = await page.evaluate(() => {
     const btn = [...document.querySelectorAll('.modal-btn')]
-      .find((b) => (b.textContent ?? '').includes('Здати')) as HTMLElement
+      .find((b) => (b.textContent ?? '').includes('Видалити')) as HTMLElement
     const cs = getComputedStyle(btn)
-    return { bgImage: cs.backgroundImage, bf: cs.backdropFilter }
+    return { cls: btn.className, bgImage: cs.backgroundImage, bf: cs.backdropFilter, opacity: cs.opacity }
   })
+  expect(on.cls, 'дія шита — скляна').toContain('btn-glass')
   const alphas = [...on.bgImage.matchAll(/rgba\([^)]*?,\s*([\d.]+)\)/g)].map((m) => Number(m[1]))
   expect(alphas.length, 'фон — тонований градієнт').toBeGreaterThan(0)
   expect(Math.max(...alphas), 'жоден стоп не суцільний').toBeLessThan(0.8)
   expect(on.bf, 'liquid glass = блюр підкладки').toContain('blur')
+  expect(parseFloat(on.opacity), 'кнопка не привид').toBe(1)
 })
 
 
@@ -378,8 +375,10 @@ async function openScheduleScreen(page: Page, kbCachePx = 0) {
   if (kbCachePx > 0) await seedKbCache(page, kbCachePx)
   await page.getByText('БЦ Рубін').first().click()
   await expect(page.getByText('Всі (3)')).toBeVisible()
-  await page.locator('.obj-card', { hasText: 'Офіс 101' })
-    .getByRole('button', { name: 'Платежі' }).click()
+  // «Платежі» переїхали з рядка картки в шит за кнопкою «⋯».
+  await page.locator('.obj-card', { hasText: 'Офіс 101' }).locator('.obj-more').click()
+  await page.waitForTimeout(420)
+  await page.locator('.sheet-row').filter({ hasText: 'Платежі' }).click()
   await expect(page.getByText(/Платежі — Офіс 101|Календар платежів/)).toBeVisible({ timeout: 15_000 })
   await page.getByRole('button', { name: /Налаштувати/ }).first().click()
   await expect(page.getByText('Налаштувати розклад')).toBeVisible()
