@@ -106,6 +106,7 @@ const FROZEN: Record<string, number> = {
   'create-invite': 0,
   'create-invite-created': 0,
   'folder-manage': 0,
+  'rent-property': 0,
   'folder-picker': 0,
   'db-picker': 0,
   team: 0,

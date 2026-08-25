@@ -257,6 +257,8 @@ export type ScreenName =
   | 'folder-manage'
   | 'db-picker'
   | 'folder-picker'
+  | 'rent-property'
+  | 'delete-account'
 
 export interface RentPayment {
   id: string

@@ -279,6 +279,17 @@ export const OWNER_SCREENS: ScreenStep[] = [
       await expect(page.getByText('Посилання створено!')).toBeVisible({ timeout: 15_000 })
     },
   },
+  {
+    // Оренда — фаза 5. Вхід із картки вільного обʼєкта через плаваючу дію.
+    label: 'rent-property',
+    go: async (page) => {
+      await atDbObjects(page)
+      await page.locator('.obj-t').filter({ hasText: 'Офіс 102' }).first().click()
+      await expect(page.getByText(/Здати в оренду/).first()).toBeVisible({ timeout: 15_000 })
+      await page.getByRole('button', { name: 'Здати в оренду' }).first().click()
+      await expect(page.getByLabel('Орендар')).toBeVisible({ timeout: 15_000 })
+    },
+  },
   { label: 'folder-manage', go: (page) => viaDbMenu(page, 'Папки', /Групуйте|Додати папку/) },
   {
     // Пакетні пікери — окремі екрани з фази 4. Вхід лише через режим виділення,

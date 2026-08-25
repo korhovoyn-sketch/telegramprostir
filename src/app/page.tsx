@@ -52,6 +52,8 @@ const CreateInviteScreen = dynamic(() => import('@/screens/CreateInviteScreen'),
 const FolderManageScreen = dynamic(() => import('@/screens/FolderManageScreen'), { loading: () => screenFallback })
 const DbPickerScreen = dynamic(() => import('@/screens/DbPickerScreen'), { loading: () => screenFallback })
 const FolderPickerScreen = dynamic(() => import('@/screens/FolderPickerScreen'), { loading: () => screenFallback })
+const RentPropertyScreen = dynamic(() => import('@/screens/RentPropertyScreen'), { loading: () => screenFallback })
+const DeleteAccountScreen = dynamic(() => import('@/screens/DeleteAccountScreen'), { loading: () => screenFallback })
 
 export default function Page() {
   const screen = useAppStore((s) => s.screen)
@@ -457,6 +459,8 @@ export default function Page() {
       case 'folder-manage': return <FolderManageScreen />
       case 'db-picker': return <DbPickerScreen />
       case 'folder-picker': return <FolderPickerScreen />
+      case 'rent-property': return <RentPropertyScreen />
+      case 'delete-account': return <DeleteAccountScreen />
       default: return <SplashScreen />
     }
   }

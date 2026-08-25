@@ -1,7 +1,7 @@
 'use client'
 
 /* eslint-disable @next/next/no-img-element */
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, } from 'react'
 import { useAppStore } from '@/store/appStore'
 import RetryState from '@/components/ui/RetryState'
 import { hapticImpact, hapticNotify } from '@/lib/telegram'
@@ -9,13 +9,12 @@ import { offlineGuard } from '@/lib/offline'
 import { confirmAction } from '@/lib/confirm'
 import { useProperties } from '@/hooks/useProperties'
 import Header from '@/components/ui/Header'
-import Modal from '@/components/ui/Modal'
 import { StatusBadge } from '@/components/ui/Badge'
 import { IconEdit, IconShare, IconMapPin, IconPhoto, IconX, IconCamera, IconRuler, IconBuildingSkyscraper, IconCircleCheck, IconCurrencyDollar, IconCarGarage, IconUser, IconKey, IconBolt, IconCalendar, IconFile, IconChevronRight } from '@/components/Icons'
 import FilesList from '@/components/ui/FilesList'
 import FloatingButton from '@/components/ui/FloatingButton'
 import SpaceOrb, { type OrbStatus } from '@/components/ui/SpaceOrb'
-import { currencySymbol, sanitizeDecimal, formatPrice, calcRent, calcUtilities, calcRentUtils, basisArea, rentUnitLabel, computedRentUnit, parkingTypeLabel, STATUS_LABELS, STATUS_COLORS, formatLeasePeriod, photoUrl, daysUntil } from '@/lib/utils'
+import { formatPrice, calcRentUtils, computedRentUnit, parkingTypeLabel, STATUS_LABELS, STATUS_COLORS, formatLeasePeriod, photoUrl, daysUntil } from '@/lib/utils'
 import { UTILITY_META } from '@/lib/utilityMeta'
 import { supabase } from '@/lib/supabase'
 
@@ -24,14 +23,7 @@ export default function PropertyDetailScreen() {
   const { screenParams, navigate, user, showToast, databases } = useAppStore()
   const { properties, loading, error, loadSingleProperty, deletePhoto, updateProperty } = useProperties(screenParams.dbId)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const tenantInputRef = useRef<HTMLInputElement>(null)
   const filesSectionRef = useRef<HTMLDivElement>(null)
-  const [showRentModal, setShowRentModal] = useState(false)
-  const [rentTenantName, setRentTenantName] = useState('')
-  const [rentLeaseStart, setRentLeaseStart] = useState('')
-  const [rentLeaseEnd, setRentLeaseEnd] = useState('')
-  const [rentRentRate, setRentRentRate] = useState('')
-  const [rentUtilitiesRate, setRentUtilitiesRate] = useState('')
 
   const property = properties.find(p => p.id === screenParams.propertyId)
   const memberDbIds = useAppStore(st => st.memberDbIds)
@@ -110,36 +102,6 @@ export default function PropertyDetailScreen() {
     navigate('photo-gallery', { photos, initialIndex: index })
   }
 
-  function handleRentOut() {
-    if (!rentTenantName.trim() || !property) return
-    if (offlineGuard()) return
-    // Same rule as PropertyFormScreen — the modal must not accept a lease
-    // that ends before it starts.
-    if (rentLeaseStart && rentLeaseEnd && rentLeaseEnd < rentLeaseStart) {
-      showToast({ type: 'error', title: 'Дата закінчення оренди раніше початку' })
-      return
-    }
-    const parsedRate = parseFloat(rentRentRate)
-    const parsedUtils = parseFloat(rentUtilitiesRate)
-    // Optimistic: the modal closes instantly, the update syncs in the
-    // background and rolls back (with an error toast) if it fails.
-    updateProperty(property.id, {
-      status: 'occupied',
-      tenant_name: rentTenantName.trim(),
-      lease_start_date: rentLeaseStart || undefined,
-      lease_end_date: rentLeaseEnd || undefined,
-      ...(isFinite(parsedRate) && parsedRate >= 0 ? { rent_rate: parsedRate } : {}),
-      ...(isFinite(parsedUtils) && parsedUtils >= 0 ? { utilities_rate: parsedUtils } : {}),
-    }, { optimistic: true, silent: true })
-    hapticNotify('success')
-    showToast({ type: 'success', title: 'Об\'єкт здано в оренду' })
-    setShowRentModal(false)
-    setRentTenantName('')
-    setRentLeaseStart('')
-    setRentLeaseEnd('')
-    setRentRentRate('')
-    setRentUtilitiesRate('')
-  }
 
   function handleFreeProperty() {
     if (!property) return
@@ -598,12 +560,9 @@ export default function PropertyDetailScreen() {
           label="Здати в оренду"
           onClick={() => {
             hapticImpact('light')
-            setRentTenantName('')
-            setRentLeaseStart('')
-            setRentLeaseEnd('')
-            setRentRentRate(property.rent_rate != null ? String(property.rent_rate) : '')
-            setRentUtilitiesRate(property.utilities_rate != null ? String(property.utilities_rate) : '')
-            setShowRentModal(true)
+            // Префіл ставок робить САМ екран із рядка обʼєкта — передавати їх
+            // через screenParams означало б тримати друге джерело правди.
+            navigate('rent-property', { propertyId: property.id, dbId: property.db_id })
           }}
         />
       )}
@@ -625,122 +584,6 @@ export default function PropertyDetailScreen() {
       )}
 
 
-      {showRentModal && (
-        <Modal
-          title="Здати в оренду"
-          subtitle={property.name}
-          onClose={() => setShowRentModal(false)}
-          actions={[
-            {
-              label: 'Здати',
-              variant: 'primary',
-              disabled: !rentTenantName.trim(),
-              onClick: handleRentOut,
-            },
-            { label: 'Скасувати', variant: 'secondary', onClick: () => setShowRentModal(false) },
-          ]}
-        >
-          {(() => {
-            const rateVal = parseFloat(rentRentRate)
-            const utilVal = parseFloat(rentUtilitiesRate)
-            const previewArea = basisArea(property.area_useful, property.area_total, property.area_basis)
-            const previewRent = isFinite(rateVal) && rateVal > 0
-              ? calcRent(previewArea, rateVal, property.rent_type)
-              : 0
-            const previewUtils = isFinite(utilVal) && utilVal > 0
-              ? (property.area_total ? calcUtilities(previewArea, utilVal) : utilVal)
-              : 0
-            const previewTotal = property.rent_type === 'per_day' ? 0 : previewRent + previewUtils
-            const rateUnit = `${currencySymbol(user?.currency)}${rentUnitLabel(property.rent_type)}`
-            const utilUnit = `${currencySymbol(user?.currency)}${isParking ? '/міс' : '/м²'}`
-
-            return (
-              <div style={{ paddingTop: 4 }}>
-                <div className="fld-row">
-                  <div className="fld">
-                    <div className="fld-l"><IconUser size={12} />Орендар</div>
-                    <input
-                      aria-label="Орендар"
-                      ref={tenantInputRef}
-                      placeholder="ТОВ «Назва» або ФОП"
-                      value={rentTenantName}
-                      onChange={e => setRentTenantName(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="fld-row">
-                  {/* Одиниця — коло ЗНАЧЕННЯ, а не в підписі. У підписі половинного
-                      поля «Експлуатаційні, $/м²» не вміщалась (заміряно: треба
-                      150px, є 142), і ellipsis зʼїдав саму одиницю — користувач
-                      втрачав те, ЩО він вводить: ставку за м² чи фіксовану суму.
-                      Решта застосунку теж тримає одиницю коло числа (див. .fr-u). */}
-                  <div className="fld">
-                    <div className="fld-l"><IconCurrencyDollar size={12} />Оренда</div>
-                    <div className="fld-v">
-                      <input
-                        aria-label="Орендна ставка"
-                        type="text"
-                        inputMode="decimal"
-                        placeholder="0"
-                        value={rentRentRate}
-                        onChange={e => setRentRentRate(sanitizeDecimal(e.target.value))}
-                      />
-                      <span className="fld-u">{rateUnit}</span>
-                    </div>
-                  </div>
-                  <div className="fld">
-                    <div className="fld-l"><IconBolt size={12} />Експлуатаційні</div>
-                    <div className="fld-v">
-                      <input
-                        aria-label="Ставка експлуатаційних"
-                        type="text"
-                        inputMode="decimal"
-                        placeholder="0"
-                        value={rentUtilitiesRate}
-                        onChange={e => setRentUtilitiesRate(sanitizeDecimal(e.target.value))}
-                      />
-                      <span className="fld-u">{utilUnit}</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="fld-row">
-                  <div className="fld">
-                    <div className="fld-l"><IconKey size={12} />Договір з</div>
-                    <input
-                      aria-label="Договір від"
-                      type="date"
-                      value={rentLeaseStart}
-                      onChange={e => setRentLeaseStart(e.target.value)}
-                      style={{ colorScheme: 'dark' }}
-                    />
-                  </div>
-                  <div className="fld">
-                    <div className="fld-l"><IconKey size={12} />Договір до</div>
-                    <input
-                      aria-label="Договір до"
-                      type="date"
-                      value={rentLeaseEnd}
-                      onChange={e => setRentLeaseEnd(e.target.value)}
-                      style={{ colorScheme: 'dark' }}
-                    />
-                  </div>
-                </div>
-                {previewTotal > 0 && (
-                  <div style={{
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-                    padding: '2px 4px 0', fontSize: 'var(--fs-foot)', color: 'var(--t3)',
-                  }}>
-                    <span>Разом на місяць</span>
-                    <span style={{ fontSize: 'var(--fs-head)', fontWeight: 'var(--fw-bold)', color: 'var(--ok-fg)' }}>
-                      {formatPrice(previewTotal, user?.currency)}
-                    </span>
-                  </div>
-                )}
-              </div>
-            )
-          })()}
-        </Modal>
-      )}
     </div>
   )
 }

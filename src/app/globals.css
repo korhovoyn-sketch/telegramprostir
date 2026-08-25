@@ -545,6 +545,18 @@ body{
   background:none;border:none;color:var(--ok);cursor:pointer;border-radius:var(--r-sm)}
 .fr-add:disabled{color:var(--t4);cursor:default}
 .fr-add:active:not(:disabled){background:var(--glass-2)}
+
+/* Підсумок місячної суми у формі оренди (колишній інлайновий блок шита). */
+.rent-sum{display:flex;justify-content:space-between;align-items:baseline;
+  padding:2px 4px 0;font-size:var(--fs-foot);color:var(--t3)}
+.rent-sum-v{font-size:var(--fs-head);font-weight:var(--fw-bold);color:var(--ok-fg)}
+
+/* Попередження перед незворотним видаленням акаунта. Іконка + текст у рядок:
+   на екрані є місце, якого не було в підзаголовку шита. */
+.del-warn{display:flex;gap:10px;align-items:flex-start;margin:0 12px 12px;
+  padding:var(--pad-card);border-radius:var(--r-md);border:1px solid var(--err-bd)}
+.del-warn p{margin:0;font-size:var(--fs-sub);color:var(--t2);line-height:var(--lh-body)}
+.del-warn b{color:var(--err-fg)}
 .fr-i::-webkit-outer-spin-button,.fr-i::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .fr-i::placeholder{color:var(--t4)}
 /* Unit label — Caption 1 */

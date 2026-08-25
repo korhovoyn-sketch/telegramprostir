@@ -8,14 +8,13 @@ import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
 import TabBar from '@/components/ui/TabBar'
 import Toggle from '@/components/ui/Toggle'
-import Modal from '@/components/ui/Modal'
 import { IconMail, IconPhone, IconLanguage, IconCurrencyDollar, IconLogout, IconTrash, GlassCrown, IconBell, IconBellRing, IconChartLine, IconEye, IconMessage, IconAdjustments } from '@/components/Icons'
-import { TG_BOT , hapticSelection, hapticNotify } from '@/lib/telegram'
+import { TG_BOT , hapticSelection } from '@/lib/telegram'
 import { getInitials, scrollFocusedIntoView } from '@/lib/utils'
 
 export default function ProfileScreen() {
-  const { user, databases, setUser } = useAppStore()
-  const { logout, deleteAccount, updateProfile } = useAuth()
+  const { user, databases, setUser, navigate } = useAppStore()
+  const { logout, updateProfile } = useAuth()
 
   const [pushEnabled, setPushEnabled] = useState(user?.notification_push ?? true)
   const [weeklyReport, setWeeklyReport] = useState(user?.notification_weekly ?? true)
@@ -29,8 +28,6 @@ export default function ProfileScreen() {
   // питає її окремо і толерує відсутність — той самий патерн, що `useFolders`
   // для 42P01 і `AccessList` для 42703: фіча просто не зʼявляється.
   const [phoneOptAvailable, setPhoneOptAvailable] = useState(false)
-  const [showDeleteModal, setShowDeleteModal] = useState(false)
-  const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [savingLang, setSavingLang] = useState(false)
   const [savingCur, setSavingCur] = useState(false)
   const emailRef = useRef<HTMLInputElement>(null)
@@ -284,9 +281,10 @@ export default function ProfileScreen() {
 
         {/* Право на стирання (Політика конфіденційності §5). Незворотно, тому
             підтвердження вимагає вписати слово — випадковий тап не спрацює, і
-            саме тому воно лишається власною модалкою: нативний попап має лише
-            кнопки, без поля вводу. */}
-        <button type="button" className="del-acc" onClick={() => { setDeleteConfirmText(''); setShowDeleteModal(true) }}>
+            саме тому воно лишається типізованим підтвердженням, а не нативним
+            попапом: той має лише кнопки, без поля вводу. Сам крок — окремий
+            екран (фаза 5), бо це форма з полем. */}
+        <button type="button" className="del-acc" onClick={() => navigate('delete-account')}>
           <IconTrash size={14} />
           {' '}Видалити акаунт
         </button>
@@ -305,41 +303,6 @@ export default function ProfileScreen() {
 
       <TabBar />
 
-      {showDeleteModal && (
-        <Modal
-          title="Видалити акаунт?"
-          subtitle="Буде НАЗАВЖДИ видалено: усі бази та об'єкти, фото й документи, платежі, підбірки й доступи. Відновити неможливо."
-          onClose={() => setShowDeleteModal(false)}
-          actions={[
-            {
-              label: 'Видалити',
-              variant: 'danger',
-              disabled: deleteConfirmText.trim().toUpperCase() !== 'ВИДАЛИТИ',
-              onClick: async () => {
-                if (offlineGuard()) return
-                hapticNotify('warning')
-                const ok = await deleteAccount()
-                if (ok) setShowDeleteModal(false)
-              },
-            },
-            { label: 'Скасувати', variant: 'secondary', onClick: () => setShowDeleteModal(false) },
-          ]}
-        >
-          <div className="fg glass-s" style={{ margin: '0 0 4px' }}>
-            <div className="fr">
-              <span className="fr-l">Впишіть <b style={{ color: 'var(--t1)' }}>ВИДАЛИТИ</b></span>
-              <input
-                className="fr-i"
-                value={deleteConfirmText}
-                onChange={(e) => setDeleteConfirmText(e.target.value)}
-                placeholder="ВИДАЛИТИ"
-                autoCapitalize="characters"
-                aria-label="Підтвердження видалення"
-              />
-            </div>
-          </div>
-        </Modal>
-      )}
     </div>
   )
 }
