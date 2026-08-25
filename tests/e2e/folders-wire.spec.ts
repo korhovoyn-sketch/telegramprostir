@@ -112,7 +112,7 @@ async function openFolderManager(page: Page) {
   await page.getByText('Папки', { exact: true }).click()
   // Керування папками — ПОВНОЕКРАННИЙ маршрут (фаза 4), а не шит: чекаємо на
   // заголовок екрана, а не на появу `.modal`.
-  await expect(page.getByText('Групуйте об\'єкти всередині бази')).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText(/Групуйте об.єкти бази/)).toBeVisible({ timeout: 15_000 })
 }
 
 test('перейменування летить PATCH-ом із новою назвою', async ({ page }) => {

@@ -127,7 +127,7 @@ for (const d of DEVICES) {
       // ── Folder manage modal (new UI) — no h-scroll, fields fit ───────────────
       await page.getByLabel('Меню бази').click()
       await page.getByText('Папки', { exact: true }).click()
-      await expect(page.getByText('Групуйте об\'єкти всередині бази')).toBeVisible()
+      await expect(page.getByText(/Групуйте об.єкти бази/)).toBeVisible()
       await expectNoHScroll(page, `${d.id} folder-modal`)
       await page.screenshot({ path: `screenshots/resp-${d.id}-folder-modal.png` })
       await page.keyboard.press('Escape')

@@ -1298,10 +1298,10 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
 .fold-mng-cnt{font-size:var(--fs-cap2);color:var(--t3);font-variant-numeric:tabular-nums}
 .fold-mng-input{flex:1;min-width:0;background:transparent;border:none;outline:none;font-size:var(--fs-call);color:var(--t1);font-family:inherit}
 .fold-mng-input::placeholder{color:var(--t4)}
-.fold-mng-act{display:flex;align-items:center;gap:2px;flex-shrink:0}
-.fold-mng-act button{width:34px;height:34px;display:flex;align-items:center;justify-content:center;background:none;border:none;color:var(--t2);cursor:pointer;border-radius:var(--r-xs);transition:background .14s}
+.fold-mng-act{display:flex;align-items:center;gap:0;flex-shrink:0}
+.fold-mng-act button{width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:none;border:none;color:var(--t2);cursor:pointer;border-radius:var(--r-xs);transition:background .14s}
 .fold-mng-act button:active{background:var(--glass-2)}
-.fold-mng-act button:disabled{color:var(--t4);opacity:.5;cursor:default}
+.fold-mng-act button:disabled{color:var(--t4);cursor:default}
 .fold-mng-act button.danger{color:var(--err-fg)}
 .fold-mng-add{flex-shrink:0;padding:6px 12px;border-radius:var(--r-xs);background:var(--ok-bg);border:none;color:var(--ok-fg);font-size:var(--fs-cap1);font-weight:var(--fw-semi);cursor:pointer}
 .fold-mng-add:disabled{background:var(--glass-2);color:var(--t4);cursor:default}

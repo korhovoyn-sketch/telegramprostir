@@ -176,7 +176,7 @@ test('форма розкладу платежів: поле не ховаєть
   expect(await findObstructed(page), 'розклад платежів').toEqual([])
 })
 
-test('модалка папок: поле нової папки лишається видимим', async ({ page }) => {
+test('екран папок: поле нової папки лишається видимим', async ({ page }) => {
   await setup(page)
   await page.goto('/')
   await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
@@ -184,8 +184,10 @@ test('модалка папок: поле нової папки лишаєтьс
   await expect(page.getByText('Всі (1)')).toBeVisible({ timeout: 15_000 })
   await page.getByLabel('Меню бази').click()
   await page.getByText('Папки', { exact: true }).click()
-  await expect(page.locator('.fold-mng-input')).toBeVisible()
+  // Керування папками — повноекранний маршрут (фаза 4): скоупитись у `.modal`
+  // більше нікуди, поле живе прямо на екрані.
+  await expect(page.getByLabel('Назва нової папки')).toBeVisible({ timeout: 15_000 })
 
   await keyboardShrink(page, 300)
-  expect(await findObstructed(page, '.modal')).toEqual([])
+  expect(await findObstructed(page)).toEqual([])
 })

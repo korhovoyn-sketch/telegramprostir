@@ -105,7 +105,7 @@ test('folders: manage screen creates a folder', async ({ page }) => {
 
   await page.getByLabel('Меню бази').click()
   await page.getByText('Папки', { exact: true }).click()
-  await expect(page.getByText('Групуйте об\'єкти всередині бази')).toBeVisible()
+  await expect(page.getByText(/Групуйте об.єкти бази/)).toBeVisible()
 
   const postReq = page.waitForRequest(r => r.url().includes('/rest/v1/property_folders') && r.method() === 'POST')
   await page.getByLabel('Назва нової папки').fill('Підвал')

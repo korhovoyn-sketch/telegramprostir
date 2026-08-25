@@ -82,7 +82,7 @@ export default function FolderManageScreen() {
 
   return (
     <div className="scr bg-blue">
-      <Header title="Папки" subtitle="Групуйте об&apos;єкти всередині бази" onBack={back} />
+      <Header title="Папки" subtitle="Групуйте об&apos;єкти бази" onBack={back} />
 
       <div className="body has-flow-cta" onFocusCapture={scrollFocusedIntoView}>
         <div className="fg glass-s">

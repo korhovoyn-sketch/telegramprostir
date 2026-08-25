@@ -142,7 +142,7 @@ test('поля модалок теж названі (оренда, папки)',
   await page.getByLabel('Меню бази').click()
   await page.waitForTimeout(420)
   await page.getByText('Папки', { exact: true }).click()
-  await expect(page.getByText(/Групуйте об.єкти всередині бази/)).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText(/Групуйте об.єкти бази/)).toBeVisible({ timeout: 15_000 })
   await auditScreen(page, 'folder-manage')
 })
 

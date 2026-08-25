@@ -245,7 +245,10 @@ test('nested modal fills the viewport, not the parent sheet', async ({ page }) =
   await expect(page.locator('.modal')).toBeVisible()
   await page.waitForTimeout(420)
   await page.getByRole('button', { name: /Відкликати/ }).first().click()
-  await expect(page.getByText(/Відкликати доступ|Відкликати посилання/)).toBeVisible({ timeout: 10_000 })
+  // Саме ЗАГОЛОВОК підтвердження (`.modal-h`), а не будь-який текст: підпис
+  // рядка шита під ним збігається з тим самим регексом — strict mode violation.
+  await expect(page.locator('.modal-h').filter({ hasText: /Відкликати/ }))
+    .toBeVisible({ timeout: 10_000 })
   // Чекаємо, доки slide-up ЗАВЕРШИТЬСЯ, а не фіксовану паузу: під паралельним
   // навантаженням 500мс іноді не вистачало і замір ловив кадр анімації.
   await page.waitForFunction(() => {

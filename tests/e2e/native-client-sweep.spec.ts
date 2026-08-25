@@ -230,7 +230,7 @@ test('нативний клієнт: усі екрани власника жив
   await toObjects(page)
   await page.getByLabel('Меню бази').click()
   await page.getByText('Папки', { exact: true }).click()
-  await expect(page.getByText(/Групуйте об.єкти всередині бази/)).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText(/Групуйте об.єкти бази/)).toBeVisible({ timeout: 15_000 })
   await alive(page, 'folder-manage')
   await expect(cta).toHaveText('Додати папку')
   expect((await bar(page)).main.isVisible, 'folder-manage — нативна смуга вимкнена').toBe(false)
