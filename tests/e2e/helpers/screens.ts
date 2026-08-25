@@ -319,6 +319,18 @@ export const OWNER_SCREENS: ScreenStep[] = [
       await expect(page.getByText('Налаштування')).toBeVisible({ timeout: 15_000 })
     },
   },
+  {
+    // Видалення акаунта — фаза 5, останній шит, що став екраном. Вхід лише з
+    // Профілю, тож крок повторює його шлях і йде на крок глибше.
+    label: 'delete-account',
+    go: async (page) => {
+      await atDbList(page)
+      await page.locator('.tabbar [aria-label="Профіль"]').click()
+      await expect(page.getByText('Налаштування')).toBeVisible({ timeout: 15_000 })
+      await page.locator('.del-acc').click()
+      await expect(page.getByLabel('Підтвердження видалення')).toBeVisible({ timeout: 15_000 })
+    },
+  },
 ]
 
 // ── Рієлтор ───────────────────────────────────────────────────────────────────

@@ -176,6 +176,16 @@ test('screens · owner journey', async ({ page }) => {
   await page.goto('/'); await page.getByText('Мої бази').waitFor()
   await page.getByText('БЦ Рубін').first().click(); await page.getByText('Всі (3)').waitFor()
 
+  // Оренда — фаза 5. Вхід лише з картки ВІЛЬНОГО обʼєкта (у зайнятого те саме
+  // місце займає «Звільнити обʼєкт»), тож крок іде саме на «Офіс 103».
+  await snap(page, 'rent-property', async () => {
+    await page.locator('.obj-card', { hasText: 'Офіс 103' }).click()
+    await page.getByRole('button', { name: 'Здати в оренду' }).first().click()
+    await page.getByLabel('Орендар').waitFor()
+  })
+  await page.goto('/'); await page.getByText('Мої бази').waitFor()
+  await page.getByText('БЦ Рубін').first().click(); await page.getByText('Всі (3)').waitFor()
+
   await snap(page, 'property-form-new', async () => {
     await page.getByLabel("Додати об'єкт").click()
     await page.getByText("Новий об'єкт").waitFor()
@@ -293,6 +303,13 @@ test('screens · owner journey', async ({ page }) => {
   await snap(page, 'profile', async () => {
     await page.locator('.tabbar [aria-label="Профіль"]').click()
     await page.getByText('Налаштування').waitFor()
+  })
+  // Видалення акаунта — фаза 5. Незворотна дія з набором слова, тобто єдиний
+  // екран, чия кнопка СВІДОМО лишається неактивною на кадрі: саме так його й
+  // бачить користувач, доки не вписав підтвердження.
+  await snap(page, 'delete-account', async () => {
+    await page.locator('.del-acc').click()
+    await page.getByLabel('Підтвердження видалення').waitFor()
   })
 
   // Підтвердження платежу — СВІДОМО останнім кадром власника. Екран досяжний

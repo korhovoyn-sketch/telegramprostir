@@ -274,6 +274,15 @@ test('нативний клієнт: усі екрани власника жив
   await expect(cta).toHaveText('Зберегти зміни')
   expect((await bar(page)).main.isVisible, 'нативна смуга не вмикається').toBe(false)
 
+  // ── Оренда: первинна дія форми, що прийшла з шита у фазі 5
+  await toObjects(page)
+  await page.locator('.obj-t').filter({ hasText: 'Офіс 102' }).first().click()
+  await page.getByRole('button', { name: 'Здати в оренду' }).first().click()
+  await expect(page.getByLabel('Орендар')).toBeVisible({ timeout: 15_000 })
+  await alive(page, 'rent-property')
+  await expect(cta).toHaveText('Здати в оренду')
+  expect((await bar(page)).main.isVisible, 'rent-property — нативна смуга вимкнена').toBe(false)
+
   // ── Таби
   await page.goto('/')
   await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
@@ -283,6 +292,15 @@ test('нативний клієнт: усі екрани власника жив
     await alive(page, `tab:${tab}`)
     expect((await bar(page)).main.isVisible, `tab:${tab} — чужа кнопка`).toBe(false)
   }
+
+  // ── Видалення акаунта: єдиний екран, чия первинна дія СВІДОМО неактивна,
+  // доки не вписано підтвердження. Тому перевіряється підпис і сам факт, що
+  // вона наша (`.mbtn`), а не нативна смуга.
+  await page.locator('.del-acc').click()
+  await expect(page.getByLabel('Підтвердження видалення')).toBeVisible({ timeout: 15_000 })
+  await alive(page, 'delete-account')
+  await expect(cta).toHaveText('Видалити акаунт')
+  expect((await bar(page)).main.isVisible, 'delete-account — нативна смуга вимкнена').toBe(false)
 })
 
 test('нативний клієнт: екрани рієлтора і підбірки живі', async ({ page }) => {

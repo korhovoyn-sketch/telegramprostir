@@ -121,6 +121,7 @@ const FROZEN: Record<string, number> = {
   'guest-property': 0,
   'role-select': 0,
   'profile-setup': 1,
+  'delete-account': 0,
 }
 
 /**
