@@ -117,7 +117,7 @@ const FROZEN: Record<string, number> = {
   'realtor-database': 5,
   'qr-scanner': 1,
   collections: 0,
-  'collection-analytics': 0,
+  'collection-analytics': 1,
   'guest-home': 0,
   'guest-property': 0,
   'role-select': 0,
