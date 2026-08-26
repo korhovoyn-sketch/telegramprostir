@@ -339,4 +339,13 @@ test('нативний клієнт: екрани рієлтора і підбі
   await page.locator('.tabbar [aria-label="Підбірки"]').click()
   await expect(page.getByText(/Підбірки|Немає підбірок/).first()).toBeVisible({ timeout: 15_000 })
   await alive(page, 'collections')
+
+  // Аналітика підбірки: первинної дії на екрані немає, тож перевіряється рівно
+  // те, заради чого крок і потрібен — екран не в ErrorBoundary й нативна смуга
+  // не вмикається навіть на клієнті, що її пропонує.
+  await page.getByText('Для клієнта А').first().click()
+  await page.getByText('Аналітика підбірки').click()
+  await expect(page.locator('.hdr-t')).toHaveText('Аналітика підбірки', { timeout: 15_000 })
+  await alive(page, 'collection-analytics')
+  expect((await bar(page)).main.isVisible, 'на аналітиці підбірки нативної кнопки нема').toBe(false)
 })

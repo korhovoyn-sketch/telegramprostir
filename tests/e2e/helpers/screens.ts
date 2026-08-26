@@ -339,6 +339,7 @@ export const OWNER_SCREENS: ScreenStep[] = [
 // ── Рієлтор ───────────────────────────────────────────────────────────────────
 
 export const REALTOR: HarnessUser = { ...DEFAULT_USER, role: 'realtor', first_name: 'Олена' }
+const COL_ID = '70000000-0000-0000-0000-000000000001'
 
 export async function realtorFixtures(page: Page) {
   const RDB = { ...DB, owner_id: OTHER_OWNER }
@@ -388,6 +389,33 @@ export const REALTOR_SCREENS: ScreenStep[] = [
       await atRealtorHome(page)
       await page.locator('.tabbar [aria-label="Підбірки"]').click()
       await expect(page.getByText(/Підбірки|Немає підбірок/).first()).toBeVisible({ timeout: 15_000 })
+    },
+  },
+  {
+    // Аналітика ПІДБІРКИ — той самий екран, що `sharing-analytics` власника,
+    // але інший стан рендера (інша роль, інше джерело даних, інші підписи), а
+    // отже окремий крок: розходження між двома станами одного екрана — рівно
+    // той дрейф, заради якого обхід і заведено.
+    //
+    // Крок ОСТАННІЙ у групі свідомо: він підміняє `collections` локально, а
+    // роути живуть на сторінці до кінця прогону — стоячи вище, він забрав би
+    // у кроку `collections` його порожній стан.
+    label: 'collection-analytics',
+    go: async (page) => {
+      await page.route('**/rest/v1/collections**', (r) => json(r, [{
+        id: COL_ID, realtor_id: REALTOR.id, name: 'Для клієнта А', is_draft: false,
+        share_token: 'ff00112233445566778899aa', share_expires_at: null,
+        created_at: NOW, updated_at: NOW,
+      }]))
+      await page.route('**/rest/v1/property_views**', (r) => json(r, [
+        { id: 'cv1', property_id: null, viewer_id: null, viewer_name: 'Веб-перегляд підбірки', action: 'view', created_at: NOW },
+        { id: 'cv2', property_id: null, viewer_id: null, viewer_name: 'Веб-перегляд підбірки', action: 'view', created_at: NOW },
+      ]))
+      await atRealtorHome(page)
+      await page.locator('.tabbar [aria-label="Підбірки"]').click()
+      await page.getByText('Для клієнта А').first().click()
+      await page.getByText('Аналітика підбірки').click()
+      await expect(page.locator('.hdr-t')).toHaveText('Аналітика підбірки', { timeout: 15_000 })
     },
   },
 ]

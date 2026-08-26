@@ -373,6 +373,24 @@ test('screens · realtor', async ({ page }) => {
     await page.locator('.tabbar [aria-label="Підбірки"]').click()
     await page.getByText(/Підбірки|Немає підбірок/).first().waitFor()
   })
+  // Кадр ОСТАННІЙ: підміна `collections` живе на сторінці до кінця прогону, а
+  // кадр `collections` вище знімає саме порожній стан.
+  await page.route('**/rest/v1/collections**', (r) => json(r, [{
+    id: '70000000-0000-0000-0000-000000000001', realtor_id: REALTOR.id,
+    name: 'Для клієнта А', is_draft: false, share_token: 'ff00112233445566778899aa',
+    share_expires_at: null, created_at: NOW, updated_at: NOW,
+  }]))
+  await page.route('**/rest/v1/property_views**', (r) => json(r, [
+    { id: 'cv1', property_id: null, viewer_id: null, viewer_name: 'Веб-перегляд підбірки', action: 'view', created_at: NOW },
+    { id: 'cv2', property_id: null, viewer_id: null, viewer_name: 'Веб-перегляд підбірки', action: 'view', created_at: NOW },
+  ]))
+  await snap(page, 'collection-analytics', async () => {
+    await page.goto('/'); await page.getByText('Робочі бази').waitFor()
+    await page.locator('.tabbar [aria-label="Підбірки"]').click()
+    await page.getByText('Для клієнта А').first().click()
+    await page.getByText('Аналітика підбірки').click()
+    await page.locator('.hdr-t').getByText('Аналітика підбірки').waitFor()
+  })
 })
 
 // ── Guest ─────────────────────────────────────────────────────────────────────

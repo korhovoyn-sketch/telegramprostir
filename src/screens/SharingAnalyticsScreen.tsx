@@ -39,7 +39,7 @@ export default function SharingAnalyticsScreen() {
     // let the earlier (slower) request overwrite the newer screen's data.
     let cancelled = false
     async function load() {
-      if (!screenParams.propertyId && !screenParams.dbId) return
+      if (!screenParams.propertyId && !screenParams.dbId && !screenParams.collectionId) return
       setLoading(true)
       try {
         // Use a 30-day window for the viewer list; chart is last 7 days
@@ -93,6 +93,22 @@ export default function SharingAnalyticsScreen() {
               .sort((a, b) => b.created_at.localeCompare(a.created_at))
               .slice(0, 200)
           }
+        } else if (screenParams.collectionId) {
+          // Відкриття підбірки (/v?col=…) пишуться рядком із `collection_id`
+          // (міграція 040), і рієлтор має на них SELECT-політику
+          // `views_col_realtor_select`. Доти ці рядки НІХТО не читав: екран
+          // відкривався лише з `propertyId` або `dbId`, тож дані збирались і
+          // не показувались — рієлтор не міг дізнатись, чи клієнт відкрив
+          // надіслану підбірку.
+          const { data, error } = await supabase
+            .from('property_views')
+            .select('id,property_id,viewer_id,viewer_name,action,created_at')
+            .eq('collection_id', screenParams.collectionId)
+            .gte('created_at', thirtyDaysAgo)
+            .order('created_at', { ascending: false })
+            .limit(200)
+          if (error) throw error
+          viewData = (data ?? []) as PropertyView[]
         }
 
         if (cancelled) return
@@ -114,7 +130,7 @@ export default function SharingAnalyticsScreen() {
     }
     load()
     return () => { cancelled = true }
-  }, [screenParams.propertyId, screenParams.dbId, reloadKey])
+  }, [screenParams.propertyId, screenParams.dbId, screenParams.collectionId, reloadKey])
 
   const maxVal = Math.max(...chartData, 1)
 
@@ -122,12 +138,21 @@ export default function SharingAnalyticsScreen() {
   const last7Views = views.filter((v) => daysSince(v.created_at) < 7)
   const todayViews = views.filter((v) => daysSince(v.created_at) === 0)
 
-  const isPropertyShare = Boolean(screenParams.propertyId)
-  const shareTargetId = (isPropertyShare ? screenParams.propertyId : screenParams.dbId) as string
+  const kind: 'prop' | 'db' | 'col' = screenParams.propertyId ? 'prop'
+    : screenParams.collectionId ? 'col' : 'db'
+  const shareTargetId = (screenParams.propertyId ?? screenParams.collectionId ?? screenParams.dbId) as string
+  const COPY = {
+    prop: { title: 'Поділитись обʼєктом', name: 'Обʼєкт', text: 'Перегляньте цей обʼєкт нерухомості',
+            empty: 'Поділись посиланням, щоб рієлтори побачили обʼєкти' },
+    db:   { title: 'Аналітика бази', name: 'База', text: 'Перегляньте базу нерухомості',
+            empty: 'Поділись посиланням, щоб рієлтори побачили обʼєкти' },
+    col:  { title: 'Аналітика підбірки', name: 'Підбірка', text: 'Перегляньте підбірку обʼєктів',
+            empty: 'Надішли підбірку клієнту — тут буде видно, коли він її відкрив' },
+  }[kind]
 
   return (
     <div className="scr bg-pink">
-      <Header title={isPropertyShare ? 'Поділитись обʼєктом' : 'Аналітика бази'} backLabel="Назад" />
+      <Header title={COPY.title} backLabel="Назад" />
 
       <div className="body">
         {/* Views count */}
@@ -221,7 +246,7 @@ export default function SharingAnalyticsScreen() {
           <div className="empty-state" style={{ paddingTop: 24 }}>
             <div className="empty-ic">👁️</div>
             <div className="empty-h">Немає переглядів</div>
-            <div className="empty-s">Поділись посиланням, щоб ріелтори побачили обʼєкти</div>
+            <div className="empty-s">{COPY.empty}</div>
           </div>
         ) : (
           <div className="view-l glass-s" style={{ margin: '0 12px 16px' }}>
@@ -265,10 +290,10 @@ export default function SharingAnalyticsScreen() {
 
       <ShareSheet
         open={showShare}
-        kind={isPropertyShare ? 'prop' : 'db'}
+        kind={kind}
         id={shareTargetId}
-        name={isPropertyShare ? 'Обʼєкт' : 'База'}
-        shareText={isPropertyShare ? 'Перегляньте цей обʼєкт нерухомості' : 'Перегляньте базу нерухомості'}
+        name={COPY.name}
+        shareText={COPY.text}
         onClose={() => setShowShare(false)}
       />
     </div>
