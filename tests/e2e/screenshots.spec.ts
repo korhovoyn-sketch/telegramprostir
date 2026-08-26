@@ -381,8 +381,8 @@ test('screens · realtor', async ({ page }) => {
     share_expires_at: null, created_at: NOW, updated_at: NOW,
   }]))
   await page.route('**/rest/v1/property_views**', (r) => json(r, [
-    { id: 'cv1', property_id: null, viewer_id: null, viewer_name: 'Веб-перегляд підбірки', action: 'view', created_at: NOW },
-    { id: 'cv2', property_id: null, viewer_id: null, viewer_name: 'Веб-перегляд підбірки', action: 'view', created_at: NOW },
+    { id: 'cv1', property_id: null, viewer_id: null, viewer_name: 'Веб-перегляд підбірки', action: 'view', created_at: '2025-09-14T10:00:00.000Z' },
+    { id: 'cv2', property_id: null, viewer_id: null, viewer_name: 'Веб-перегляд підбірки', action: 'view', created_at: '2025-09-12T18:30:00.000Z' },
   ]))
   await snap(page, 'collection-analytics', async () => {
     await page.goto('/'); await page.getByText('Робочі бази').waitFor()
