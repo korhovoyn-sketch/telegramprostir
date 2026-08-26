@@ -626,7 +626,7 @@ function PaymentItemCard({ item, statusColor, label, onMarkPaid, onEdit, onDelet
               style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: '50%', background: 'var(--err-bg)', border: '.5px solid rgba(255,59,48,.25)', color: 'var(--err)', fontSize: 'var(--fs-note)', cursor: 'pointer', flexShrink: 0 }}
               title="Скасувати платіж"
               // Явна назва, а не лише `title`: після переходу з «×» на іконку
-              // текстового вузла в кнопки немає, тож ім'я бралося б із `title`
+              // текстового вузла в кнопки немає, тож імʼя бралося б із `title`
               // і збігалося б із підписом кнопки ПІДТВЕРДЖЕННЯ того самого
               // рішення — дві різні дії з однаковим імʼям для читалки.
               aria-label="Скасувати цей платіж"
