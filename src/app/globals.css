@@ -528,6 +528,14 @@ body{
 .fr:last-child{border:none}
 /* Form row label — Subhead Regular (readable but not competing with value) */
 .fr-l{font-size:var(--fs-sub);color:var(--t1);flex:0 0 auto;min-width:82px;line-height:var(--lh-snug)}
+/* Рядок, у якому підпис стоїть НАД контролом, а не поруч. Потрібен там, де
+   контрол не влазить у залишок ширини: у рядку 349px підпис зʼїдає 120, і
+   сегмент «Корисної / Розрахункової» діставав 191 — тобто 84px на підпис, що
+   потребує 93, і ellipsis різав саме те слово, яким користувач обирає базу
+   розрахунку. Той самий прийом уже застосований до довгого підпису поля
+   інвайта: якщо контрол не вміщається ПОРУЧ, він отримує повну ширину. */
+.fr-stack{flex-direction:column;align-items:stretch;gap:8px}
+.fr-stack>.fr-l{min-width:0}
 /* Input value — Callout (16px, prevents iOS zoom) */
 .fr-i{flex:1;background:transparent;border:none;outline:none;font-size:var(--fs-call);color:var(--t1);text-align:right;font-family:inherit;min-width:0;-moz-appearance:textfield;line-height:var(--lh-snug)}
 /* Рядок форми, який САМ є контролом (розгортає список, обирає значення).

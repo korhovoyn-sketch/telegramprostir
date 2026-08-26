@@ -757,11 +757,16 @@ export default function PropertyFormScreen() {
               <span className="fr-u">м²</span>
             </div>
           )}
-          {/* Which area the per-m² rate (rent AND expenses) multiplies by. */}
+          {/* Which area the per-m² rate (rent AND expenses) multiplies by.
+              `fr-stack` — підпис НАД сегментом, не поруч. Заміряно: у рядку
+              349px підпис зʼїдає 120, сегменту лишається 191, тобто 84px на
+              підпис, який потребує 93 — і ellipsis різав саме те слово, яким
+              обирають базу розрахунку («Розрахунково…»). `maxWidth` тут не
+              допомагає в принципі: він обмежує згори, а не додає ширини. */}
           {!isParking && (
-            <div className="fr">
-              <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconRuler size={14} color="var(--t3)" />Рахувати від</span>
-              <div className="fr-seg" style={{ maxWidth: 220 }}>
+            <div className="fr fr-stack">
+              <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}><IconRuler size={14} color="var(--t3)" />Рахувати від</span>
+              <div className="fr-seg">
                 <button type="button" className={`fr-seg-b ${areaBasis === 'useful' ? 'on' : ''}`} onClick={() => { hapticSelection(); setAreaBasis('useful') }}>Корисної</button>
                 <button type="button" className={`fr-seg-b ${areaBasis === 'total' ? 'on' : ''}`} onClick={() => { hapticSelection(); setAreaBasis('total') }}>Розрахункової</button>
               </div>
