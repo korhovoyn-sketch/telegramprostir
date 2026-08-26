@@ -7,7 +7,7 @@ import Header from '@/components/ui/Header'
 import RetryState from '@/components/ui/RetryState'
 import { offlineGuard } from '@/lib/offline'
 import { supabase } from '@/lib/supabase'
-import { sanitizeDecimal, scrollFocusedIntoView, humanizeDbError } from '@/lib/utils'
+import { sanitizeDecimal, scrollFocusedIntoView, humanizeDbError, currencySymbol } from '@/lib/utils'
 import { RENT_PAYMENT_RECORD_COLUMNS, expectedRent, fmtDueDate } from '@/lib/rentPayments'
 import type { RentPaymentRecord } from '@/types'
 
@@ -161,13 +161,20 @@ export default function PaymentConfirmScreen() {
         <div style={{ margin: '0 12px 16px' }}>
           <div className="fld">
             <div className="fld-l">Сума отриманого платежу</div>
-            <input
-              aria-label="Сума отриманого платежу"
-              type="text" inputMode="decimal"
-              placeholder="Введіть суму..."
-              value={amount}
-              onChange={e => setAmount(sanitizeDecimal(e.target.value))}
-            />
+            {/* Позначка валюти обовʼязкова: це єдине грошове поле застосунку,
+                і без неї воно показувало голе число там, де решта поверхонь
+                пише «$2 498». Символ — із профілю (`currencySymbol`), а не
+                літерал: власник може вести ціни в ₴ або €. */}
+            <div className="fld-v">
+              <input
+                aria-label="Сума отриманого платежу"
+                type="text" inputMode="decimal"
+                placeholder="Введіть суму..."
+                value={amount}
+                onChange={e => setAmount(sanitizeDecimal(e.target.value))}
+              />
+              <span className="fld-u">{currencySymbol(user?.currency)}</span>
+            </div>
           </div>
           <div className="fld" style={{ marginTop: 10 }}>
             <div className="fld-l">Нотатка (необов&apos;язково)</div>

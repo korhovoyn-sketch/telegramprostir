@@ -65,6 +65,9 @@ const TEMPLATES: PdfTheme[] = [
   },
 ]
 
+/** RGB-триплет шаблона → CSS. Один опис шаблона живить і PDF, і його превʼю. */
+const rgbCss = (c: readonly number[]) => `rgb(${c[0]},${c[1]},${c[2]})`
+
 // ── save / share generated file on mobile ────────────────────────────────────
 
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -1106,13 +1109,18 @@ export default function ExportScreen() {
                   className={`tmpl ${template === t.id ? 'sel' : ''}`}
                   onClick={() => setTemplate(t.id)}
                 >
-                  <div className="tmpl-ph">
+                  {/* Кольори превʼю беруться з ТОГО САМОГО опису шаблона, що
+                      малює сам PDF. Доти вони були захардкоджені в CSS —
+                      білий аркуш для всіх трьох, — тож «Нічний» показував
+                      світлу сторінку: превʼю стверджувало протилежне тому, що
+                      користувач отримає. */}
+                  <div className="tmpl-ph" style={{ background: rgbCss(t.bg) }}>
                     <div style={{ height: 10, borderRadius: 3, background: t.accent, marginBottom: 5 }} />
-                    <div className="tmpl-bar" style={{ width: '80%' }} />
-                    <div className="tmpl-bar" style={{ width: '60%' }} />
-                    <div className="tmpl-block" />
-                    <div className="tmpl-bar" style={{ width: '70%', marginTop: 4 }} />
-                    <div className="tmpl-bar" style={{ width: '45%' }} />
+                    <div className="tmpl-bar" style={{ width: '80%', background: rgbCss(t.tx3) }} />
+                    <div className="tmpl-bar" style={{ width: '60%', background: rgbCss(t.tx3) }} />
+                    <div className="tmpl-block" style={{ background: rgbCss(t.card), border: `.5px solid ${rgbCss(t.border)}` }} />
+                    <div className="tmpl-bar" style={{ width: '70%', marginTop: 4, background: rgbCss(t.tx3) }} />
+                    <div className="tmpl-bar" style={{ width: '45%', background: rgbCss(t.tx3) }} />
                   </div>
                   <div className="tmpl-l">{t.label}</div>
                 </div>
