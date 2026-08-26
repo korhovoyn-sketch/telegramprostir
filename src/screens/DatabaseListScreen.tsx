@@ -32,10 +32,23 @@ export default function DatabaseListScreen() {
   const { user, navigate } = useAppStore()
   const { databases, loading, error, loadDatabases } = useDatabases()
   useSlowLoadingToast(loading)
+  // Саме перехід true→false, а не «зараз не вантажимо»: на першому кадрі
+  // `loading` ще false, тож проста перевірка спрацювала б ДО запиту.
+  const sawLoading = useRef(false)
+  const [loadedOnce, setLoadedOnce] = useState(false)
+  useEffect(() => {
+    if (loading) sawLoading.current = true
+    else if (sawLoading.current) setLoadedOnce(true)
+  }, [loading])
   /** Порожній стан має ВЛАСНУ первинну дію («Створити першу базу»), тож
       плаваюча ховається: дві кнопки того самого призначення на екрані, де
-      прокручувати нема чого, лише сперечаються за увагу. */
-  const showEmptyCta = !loading && !error && databases.length === 0
+      прокручувати нема чого, лише сперечаються за увагу.
+      `loadedOnce` обовʼязковий: `useDatabases` стартує з `loading:false`, тож
+      на ПЕРШОМУ кадрі список порожній ще до запиту — без цієї умови FAB
+      встигав блимнути схованим і поїхати назад. Спіймав це не огляд, а
+      `design-system-runtime`: він заміряв кнопку в `fab-off`, тобто 43px
+      (46 × scale .94) замість 46. */
+  const showEmptyCta = loadedOnce && !loading && !error && databases.length === 0
   const [search, setSearch] = useState('')
 
   // Cross-database property search

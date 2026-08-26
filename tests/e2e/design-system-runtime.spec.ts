@@ -291,8 +291,13 @@ test('первинна дія — ОДИН розмір на всіх екран
       const out: { sig: string; text: string }[] = []
       document.querySelectorAll('.mbtn,.fbtn').forEach((el) => {
         const r = el.getBoundingClientRect()
-        if (r.height === 0) return // прихована (fab-off) — не в рахунок
         const cs = getComputedStyle(el)
+        // Схована кнопка — не варіант розміру. `fab-off` ховає НЕ нульовою
+        // висотою (як припускав попередній коментар тут), а `opacity` +
+        // `translate` + `scale(.94)`: тобто прихований FAB віддавав 43px замість
+        // 46 і читався як другий габарит родини. Проявилось це лише тоді, коли
+        // порожній екран уперше почав ховати свою плаваючу дію.
+        if (r.height === 0 || Number(cs.opacity) < 0.01 || cs.pointerEvents === 'none') return
         out.push({
           sig: `${Math.round(r.height)}px/${cs.fontSize}/${cs.borderRadius}`,
           text: (el.textContent || '').trim().slice(0, 24),
