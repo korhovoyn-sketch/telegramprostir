@@ -1,5 +1,5 @@
 import { expect, type Page, type Route } from '@playwright/test'
-import { setupApp, seedSession, DEFAULT_USER, type HarnessUser } from './harness'
+import { setupApp, seedSession, DEFAULT_USER, jsonRoute, type HarnessUser } from './harness'
 
 /**
  * ЄДИНИЙ обхід усіх досяжних екранів — для гардів, які міряють РЕНДЕР.
@@ -26,8 +26,11 @@ export interface ScreenStep {
 }
 
 const NOW = '2025-09-01T09:00:00.000Z'
-const json = (r: Route, body: unknown) =>
-  r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+// Через `jsonRoute`, а не власний fulfill: він проєктує відповідь по `select=`
+// і віддає `Content-Range` для запитів із `count`. Обидва — саме те, чого
+// власна копія не вміла, а обхід годує ПʼЯТЬ гардів, тож фікстура тут мусить
+// бути найближчою до проду з усіх.
+const json = (r: Route, body: unknown) => jsonRoute(r, body)
 
 export const OWNER: HarnessUser = {
   ...DEFAULT_USER, role: 'owner', first_name: 'Микола', last_name: 'К.',

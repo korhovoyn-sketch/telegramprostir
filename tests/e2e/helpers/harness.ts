@@ -271,7 +271,36 @@ export const jsonRoute = (route: Route, body: unknown, status = 200) => {
   } catch {
     // Невідома форма URL — краще віддати фікстуру цілком, ніж завалити спек.
   }
-  return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(out) })
+  return route.fulfill({ status, headers: countHeaders(route, out), body: JSON.stringify(out) })
+}
+
+/**
+ * `Content-Range` для запитів із `count`, І ЦЕ ДРУГА ПОЛОВИНА ТІЄЇ САМОЇ
+ * СЛІПОТИ, ЩО Й `select=`.
+ *
+ * `supabase.select('id', { count: 'exact', head: true })` бере число НЕ з тіла,
+ * а з заголовка `Content-Range`. Харнес його не віддавав ніколи, тож
+ * `count` приходив `null` — і КОЖЕН такий лічильник читався як 0 у ВСІХ
+ * тестах. Три місця, і два з них не косметика:
+ *
+ *   `usePropertyFiles`      ліміт 10 файлів (рятує фолбек на локальний стан)
+ *   `PhotoUploadScreen`     база `sort_order` — фолбек рівно 0, тобто фікс
+ *                           колізії обкладинки не перевіряв ЖОДЕН тест
+ *   `RealtorDashboardScreen` лічильник обʼєктів
+ *
+ * `access-control-expose-headers` обовʼязковий: запит крос-оріджинний
+ * (сторінка на :3000, «Supabase» на :9999), а `Content-Range` не входить у
+ * CORS-safelist — без цього рядка JS прочитав би заголовок як відсутній, тобто
+ * фікс виглядав би зробленим і не працював.
+ */
+function countHeaders(route: Route, out: unknown): Record<string, string> {
+  const h: Record<string, string> = { 'content-type': 'application/json' }
+  const prefer = route.request().headers()['prefer'] ?? ''
+  if (!/count=(exact|planned|estimated)/.test(prefer)) return h
+  const total = Array.isArray(out) ? out.length : out == null ? 0 : 1
+  h['content-range'] = `${total > 0 ? `0-${total - 1}` : '*'}/${total}`
+  h['access-control-expose-headers'] = 'content-range'
+  return h
 }
 
 /** Every onboarding coachmark pre-dismissed — one source for the id list so a

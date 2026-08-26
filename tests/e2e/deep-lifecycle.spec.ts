@@ -259,3 +259,52 @@ test('photo upload: file → storage POST + property_photos INSERT → success t
   expect(photoRows[0]).toMatchObject({ property_id: PROP.id })
   expect((photoRows[0] as { storage_path: string }).storage_path).toMatch(new RegExp(`^${PROP.id}/`))
 })
+
+/**
+ * `sort_order` НОВОГО фото продовжує наявні, а не стартує з нуля — інакше друга
+ * партія дає знімок із `sort_order = 0`, тобто нічию з чинною обкладинкою.
+ *
+ * ЦЕЙ ГАРД БУВ НЕМОЖЛИВИЙ ДО `Content-Range` В ХАРНЕСІ. `PhotoUploadScreen`
+ * бере кількість наявних через `count: 'exact', head: true`, тобто із
+ * ЗАГОЛОВКА, а не з тіла; харнес його не віддавав, `count` приходив `null`, і
+ * фолбек ставив рівно 0. Тобто фікс колізії обкладинки виглядав зробленим, а
+ * перевірити його не міг ЖОДЕН із 317 тестів.
+ *
+ * Заголовок додає сам `jsonRoute` (у цьому файлі імпортований як `json`) —
+ * рівно там же, де вже живе проєкція через `select=`.
+ */
+test('photo upload: sort_order продовжує наявні фото, а не стартує з нуля', async ({ page }) => {
+  await fixtures(page)
+
+  const EXISTING = [
+    { id: '80000000-0000-0000-0000-0000000000a1', property_id: PROP.id, storage_path: `${PROP.id}/a.jpg`, sort_order: 0, created_at: NOW },
+    { id: '80000000-0000-0000-0000-0000000000a2', property_id: PROP.id, storage_path: `${PROP.id}/b.jpg`, sort_order: 1, created_at: NOW },
+  ]
+  const inserted: Record<string, unknown>[] = []
+  await page.route('**/storage/v1/object/photos/**', (route) => json(route, { Key: 'photos/x' }))
+  await page.route('**/rest/v1/property_photos**', (route) => {
+    const req = route.request()
+    if (req.method() === 'POST') {
+      const body = JSON.parse(req.postData() ?? '{}')
+      inserted.push(body)
+          return json(route, [{ id: '80000000-0000-0000-0000-0000000000b1', ...body }], 201)
+    }
+    return json(route, EXISTING)
+  })
+
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+  await page.getByText('БЦ Рубін').first().click()
+  await page.locator('.obj-card .obj-t', { hasText: 'Офіс 101' }).click()
+  await expect(page.getByText('Фотографії')).toBeVisible()
+
+  const png = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+    'base64',
+  )
+  await page.locator('input[type="file"][accept="image/*"]').setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: png })
+  await expect(page.getByText('Завантажено!')).toBeVisible({ timeout: 15_000 })
+
+  expect(inserted.length).toBe(1)
+  expect(inserted[0], 'нове фото стало другою обкладинкою').toMatchObject({ sort_order: 2 })
+})
