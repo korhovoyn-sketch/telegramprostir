@@ -688,8 +688,7 @@ export default function DatabaseObjectsScreen() {
             <div className="empty-s">{isOwner ? 'Натисни + щоб додати перший об\'єкт' : 'У цій базі поки немає об\'єктів'}</div>
             {isOwner && (
               <button
-                className="mbtn success"
-                style={{ position: 'relative', bottom: 'auto', left: 'auto', right: 'auto', marginTop: 24, width: 'auto', minWidth: 200 }}
+                className="mbtn success mbtn-flow"
                 onClick={() => navigate('property-form', { dbId: screenParams.dbId })}
               >
                 Додати перший об&apos;єкт

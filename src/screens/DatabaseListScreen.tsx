@@ -32,6 +32,10 @@ export default function DatabaseListScreen() {
   const { user, navigate } = useAppStore()
   const { databases, loading, error, loadDatabases } = useDatabases()
   useSlowLoadingToast(loading)
+  /** Порожній стан має ВЛАСНУ первинну дію («Створити першу базу»), тож
+      плаваюча ховається: дві кнопки того самого призначення на екрані, де
+      прокручувати нема чого, лише сперечаються за увагу. */
+  const showEmptyCta = !loading && !error && databases.length === 0
   const [search, setSearch] = useState('')
 
   // Cross-database property search
@@ -216,8 +220,7 @@ export default function DatabaseListScreen() {
             <div className="empty-h">Немає баз</div>
             <div className="empty-s">Створи першу базу об&apos;єктів</div>
             <button
-              className="mbtn success"
-              style={{ position: 'relative', bottom: 'auto', left: 'auto', right: 'auto', marginTop: 24, width: 'auto', minWidth: 200 }}
+              className="mbtn success mbtn-flow"
               onClick={() => { hapticImpact('light'); navigate('create-db') }}
             >
               Створити першу базу
@@ -265,7 +268,7 @@ export default function DatabaseListScreen() {
         variant="create"
         compact
         raised
-        hidden={fabHidden}
+        hidden={fabHidden || showEmptyCta}
         icon={<IconPlus size={14} />}
         label="Створити базу"
         onClick={() => { hapticImpact('light'); navigate('create-db') }}

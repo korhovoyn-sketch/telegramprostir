@@ -489,6 +489,8 @@ export default function CollectionsScreen() {
   const { user, showToast, screenParams } = useAppStore()
   const [collections, setCollections] = useState<CollectionWithCount[]>([])
   const [loading, setLoading] = useState(true)
+  /** Порожній стан малює власну CTA — плаваюча дублювала б її підпис. */
+  const showEmptyCta = !loading && collections.length === 0
   const [loadError, setLoadError] = useState<string | null>(null)
   const [selectedCollection, setSelectedCollection] = useState<CollectionWithCount | null>(null)
   const [shareTarget, setShareTarget] = useState<CollectionWithCount | null>(null)
@@ -633,6 +635,10 @@ export default function CollectionsScreen() {
         <div className="greet">Мої підбірки</div>
         <div className="display">Для клієнтів</div>
 
+        {/* Порожній стан має ВЛАСНУ первинну дію, тож FAB із тим самим підписом
+            ховається: інакше на екрані одночасно дві однакові кнопки
+            «Створити підбірку» — а порожній стан на те й порожній, що
+            прокручувати нема чого, і плаваюча дія там нічого не додає. */}
         {loading ? (
           <SkeletonList count={4} />
         ) : loadError && collections.length === 0 ? (
@@ -643,8 +649,7 @@ export default function CollectionsScreen() {
             <div className="empty-h">Немає підбірок</div>
             <div className="empty-s">Створи першу підбірку об&apos;єктів для клієнта</div>
             <button
-              className="mbtn success"
-              style={{ position: 'relative', bottom: 'auto', left: 'auto', right: 'auto', marginTop: 24, width: 'auto', minWidth: 200 }}
+              className="mbtn success mbtn-flow"
               onClick={createCollection}
             >
               Створити підбірку
@@ -670,7 +675,7 @@ export default function CollectionsScreen() {
         variant="create"
         compact
         raised
-        hidden={fabHidden}
+        hidden={fabHidden || showEmptyCta}
         icon={<IconPlus size={14} />}
         label="Створити підбірку"
         onClick={createCollection}

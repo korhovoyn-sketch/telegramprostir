@@ -26,7 +26,7 @@ export default function EmptyStateScreen() {
               Відскануй QR-код від власника,<br />щоб отримати доступ до бази
             </div>
 
-            <button className="mbtn" onClick={() => navigate('qr-scanner')} style={{ position: 'relative', bottom: 'auto', left: 'auto', right: 'auto', width: '80%', marginTop: 8 }}>
+            <button className="mbtn mbtn-flow" onClick={() => navigate('qr-scanner')} style={{ width: '80%' }}>
               Сканувати QR
             </button>
           </div>
