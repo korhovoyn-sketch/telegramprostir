@@ -72,10 +72,10 @@ export default function PropertyDetailScreen() {
 
   if (!property && error) return (
     <div className="scr bg-blue">
-      <Header title="Об'єкт" backLabel="Назад" />
+      <Header title="Обʼєкт" backLabel="Назад" />
       <RetryState
         icon="🏚️"
-        title="Об'єкт не знайдено"
+        title="Обʼєкт не знайдено"
         subtitle={<>Можливо, його видалили. {error}</>}
         onRetry={() => screenParams.propertyId && loadSingleProperty(screenParams.propertyId)}
       />
@@ -84,7 +84,7 @@ export default function PropertyDetailScreen() {
 
   if (!property || loading) return (
     <div className="scr bg-blue">
-      <Header title="Об'єкт" backLabel="Назад" />
+      <Header title="Обʼєкт" backLabel="Назад" />
       <div className="loader-wrap">
         <div className="loader" />
       </div>
@@ -123,7 +123,7 @@ export default function PropertyDetailScreen() {
     hapticNotify('success')
     showToast({
       type: 'success',
-      title: 'Об\'єкт звільнено',
+      title: 'Обʼєкт звільнено',
       actionLabel: 'Скасувати',
       onAction: () => {
         updateProperty(property.id, prev, { optimistic: true, silent: true })
@@ -162,7 +162,7 @@ export default function PropertyDetailScreen() {
         right={isOwner ? (
           <button
             className="hdr-a"
-            aria-label="Редагувати об'єкт"
+            aria-label="Редагувати обʼєкт"
             onClick={() => { hapticImpact('light'); navigate('property-form', { propertyId: property.id, dbId: screenParams.dbId, editMode: true }) }}
             style={{ background: 'none', border: 'var(--bd)' }}
           >
@@ -197,12 +197,12 @@ export default function PropertyDetailScreen() {
           </div>
 
           {/* For for_sale the bottom CTA is the share entry point — avoid a second one in the hero.
-              Шаринг-аналітика керує токенами — лише справжній власник об'єкта. */}
+              Шаринг-аналітика керує токенами — лише справжній власник обʼєкта. */}
           {property.owner_id === user?.id && property.status !== 'for_sale' && (
             <div className="obj-hero-r">
               <button
                 className="obj-hero-a"
-                aria-label="Поділитись об'єктом"
+                aria-label="Поділитись обʼєктом"
                 onClick={(e) => { e.stopPropagation(); hapticImpact('light'); navigate('sharing-analytics', { propertyId: property.id, dbId: screenParams.dbId }) }}
               >
                 <IconShare size={14} />
@@ -570,7 +570,7 @@ export default function PropertyDetailScreen() {
         <FloatingButton
           variant="danger"
           icon={<IconCircleCheck size={16} />}
-          label="Звільнити об'єкт"
+          label="Звільнити обʼєкт"
           onClick={() => { hapticImpact('light'); handleFreeProperty() }}
         />
       )}

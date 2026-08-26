@@ -81,7 +81,7 @@ test('optimistic free: instant status flip, undo restores the tenant', async ({ 
   })
 
   await openDetail(page)
-  await page.getByRole('button', { name: "Звільнити об'єкт" }).click()
+  await page.getByRole('button', { name: "Звільнити обʼєкт" }).click()
 
   // Instant optimistic flip: the CTA becomes «Здати в оренду» without waiting
   await expect(page.getByRole('button', { name: 'Здати в оренду' })).toBeVisible()
@@ -91,7 +91,7 @@ test('optimistic free: instant status flip, undo restores the tenant', async ({ 
 
   // Undo from the toast restores the previous tenant + lease fields
   await page.locator('.toast-act', { hasText: 'Скасувати' }).click()
-  await expect(page.getByRole('button', { name: "Звільнити об'єкт" })).toBeVisible()
+  await expect(page.getByRole('button', { name: "Звільнити обʼєкт" })).toBeVisible()
   await expect.poll(() => patches.length).toBe(2)
   expect(patches[1].status).toBe('occupied')
   expect(patches[1].tenant_name).toBe('ТОВ «Ромашка»')
@@ -109,12 +109,12 @@ test('optimistic free: server failure rolls the status back with an error toast'
   })
 
   await openDetail(page)
-  await page.getByRole('button', { name: "Звільнити об'єкт" }).click()
+  await page.getByRole('button', { name: "Звільнити обʼєкт" }).click()
   // Optimistic flip happens first…
   await expect(page.getByRole('button', { name: 'Здати в оренду' })).toBeVisible()
   // …then the failed PATCH rolls it back and explains itself
   await expect(page.getByText('Не збереглося — повернуто як було')).toBeVisible({ timeout: 10_000 })
-  await expect(page.getByRole('button', { name: "Звільнити об'єкт" })).toBeVisible()
+  await expect(page.getByRole('button', { name: "Звільнити обʼєкт" })).toBeVisible()
 })
 
 test('draft: typed input survives leaving the form and can be discarded', async ({ page }) => {
@@ -122,8 +122,8 @@ test('draft: typed input survives leaving the form and can be discarded', async 
   await page.goto('/')
   await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
   await page.getByText('БЦ Рубін').first().click()
-  await page.getByLabel("Додати об'єкт").click()
-  await expect(page.getByText("Новий об'єкт")).toBeVisible()
+  await page.getByLabel("Додати обʼєкт").click()
+  await expect(page.getByText("Новий обʼєкт")).toBeVisible()
 
   await page.getByPlaceholder('Офіс 101').fill('Недописаний офіс')
   await page.waitForTimeout(900) // debounce 600ms
@@ -132,7 +132,7 @@ test('draft: typed input survives leaving the form and can be discarded', async 
   await page.goto('/')
   await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
   await page.getByText('БЦ Рубін').first().click()
-  await page.getByLabel("Додати об'єкт").click()
+  await page.getByLabel("Додати обʼєкт").click()
 
   await expect(page.getByText('Чернетку відновлено')).toBeVisible()
   await expect(page.getByPlaceholder('Офіс 101')).toHaveValue('Недописаний офіс')
@@ -153,7 +153,7 @@ test('duplicate: opens the form prefilled with the next free name, tenant not co
     .locator('.obj-more').click()
   await page.waitForTimeout(420)
   await page.locator('.sheet-row').filter({ hasText: 'Дублювати' }).click()
-  await expect(page.getByText("Новий об'єкт")).toBeVisible()
+  await expect(page.getByText("Новий обʼєкт")).toBeVisible()
 
   // 101..103 taken → the copy becomes 104; fields copied, tenant NOT
   await expect(page.getByPlaceholder('Офіс 101')).toHaveValue('Офіс 104')
@@ -196,8 +196,8 @@ test('наша CTA надсилає форму навіть коли Telegram п
   await page.goto('/')
   await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
   await page.getByText('БЦ Рубін').first().click()
-  await page.getByLabel("Додати об'єкт").click()
-  await expect(page.getByText("Новий об'єкт")).toBeVisible()
+  await page.getByLabel("Додати обʼєкт").click()
+  await expect(page.getByText("Новий обʼєкт")).toBeVisible()
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   expect(await page.evaluate(() => (window as any).__tgMain.isVisible),
@@ -214,13 +214,13 @@ test('bulk: name run skips names that already exist in the database', async ({ p
   await page.goto('/')
   await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
   await page.getByText('БЦ Рубін').first().click()
-  await page.getByLabel("Додати об'єкт").click()
-  await expect(page.getByText("Новий об'єкт")).toBeVisible()
+  await page.getByLabel("Додати обʼєкт").click()
+  await expect(page.getByText("Новий обʼєкт")).toBeVisible()
 
   // 101, 102, 103 exist → the run must jump to 104
   await page.getByPlaceholder('Офіс 101').fill('Офіс 101')
-  await page.getByLabel("Більше об'єктів").click()
-  await page.getByLabel("Більше об'єктів").click()
+  await page.getByLabel("Більше обʼєктів").click()
+  await page.getByLabel("Більше обʼєктів").click()
   await expect(page.getByText('Буде створено')).toBeVisible()
   for (const n of ['Офіс 104', 'Офіс 105', 'Офіс 106']) {
     await expect(page.getByPlaceholder(n, { exact: true })).toBeVisible()
@@ -240,23 +240,23 @@ test('bulk: per-row areas and a name override land in the INSERT; empty rows fal
   await page.goto('/')
   await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
   await page.getByText('БЦ Рубін').first().click()
-  await page.getByLabel("Додати об'єкт").click()
-  await expect(page.getByText("Новий об'єкт")).toBeVisible()
+  await page.getByLabel("Додати обʼєкт").click()
+  await expect(page.getByText("Новий обʼєкт")).toBeVisible()
 
   await page.getByPlaceholder('Офіс 101', { exact: true }).fill('Офіс 201')
-  await page.getByLabel("Більше об'єктів").click()
-  await page.getByLabel("Більше об'єктів").click() // count = 3
+  await page.getByLabel("Більше обʼєктів").click()
+  await page.getByLabel("Більше обʼєктів").click() // count = 3
 
   // Shared «Площа» acts as the fallback for rows that leave theirs empty
   await page.getByPlaceholder('47', { exact: true }).fill('40')
 
   // Row 1: own areas; row 2: name override + own useful area; row 3: untouched
-  await page.getByLabel("Корисна площа об'єкта 1").fill('45')
-  await page.getByLabel("Розрахункова площа об'єкта 1").fill('52')
-  await page.getByLabel("Назва об'єкта 2").fill('Кабінет 5')
-  await page.getByLabel("Корисна площа об'єкта 2").fill('62')
+  await page.getByLabel("Корисна площа обʼєкта 1").fill('45')
+  await page.getByLabel("Розрахункова площа обʼєкта 1").fill('52')
+  await page.getByLabel("Назва обʼєкта 2").fill('Кабінет 5')
+  await page.getByLabel("Корисна площа обʼєкта 2").fill('62')
 
-  await page.getByRole('button', { name: "Додати 3 об'єкти" }).click()
+  await page.getByRole('button', { name: "Додати 3 обʼєкти" }).click()
   await expect.poll(() => postBody, { timeout: 10_000 }).not.toBeNull()
 
   const rows = postBody!
@@ -272,16 +272,16 @@ test('bulk: a duplicated manual name is rejected with a clear toast', async ({ p
   await page.goto('/')
   await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
   await page.getByText('БЦ Рубін').first().click()
-  await page.getByLabel("Додати об'єкт").click()
-  await expect(page.getByText("Новий об'єкт")).toBeVisible()
+  await page.getByLabel("Додати обʼєкт").click()
+  await expect(page.getByText("Новий обʼєкт")).toBeVisible()
 
   await page.getByPlaceholder('Офіс 101', { exact: true }).fill('Офіс 201')
-  await page.getByLabel("Більше об'єктів").click()
+  await page.getByLabel("Більше обʼєктів").click()
   // Manual override collides with the existing «Офіс 102»
-  await page.getByLabel("Назва об'єкта 2").fill('Офіс 102')
+  await page.getByLabel("Назва обʼєкта 2").fill('Офіс 102')
 
-  await page.getByRole('button', { name: "Додати 2 об'єкти" }).click()
-  await expect(page.getByText('Ім\'я повторюється')).toBeVisible()
+  await page.getByRole('button', { name: "Додати 2 обʼєкти" }).click()
+  await expect(page.getByText('Імʼя повторюється')).toBeVisible()
 })
 
 test('area basis: form toggle drives the preview and lands in the create INSERT', async ({ page }) => {
@@ -296,8 +296,8 @@ test('area basis: form toggle drives the preview and lands in the create INSERT'
   await page.goto('/')
   await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
   await page.getByText('БЦ Рубін').first().click()
-  await page.getByLabel("Додати об'єкт").click()
-  await expect(page.getByText("Новий об'єкт")).toBeVisible()
+  await page.getByLabel("Додати обʼєкт").click()
+  await expect(page.getByText("Новий обʼєкт")).toBeVisible()
 
   await page.getByPlaceholder('Офіс 101', { exact: true }).fill('Офіс 301')
   await page.getByPlaceholder('47', { exact: true }).fill('40')  // корисна

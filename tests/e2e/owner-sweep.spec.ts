@@ -101,7 +101,7 @@ test.describe('owner sweep: uncovered screens', () => {
     // Deep link skips db-list entirely and auto-navigates straight into the
     // owner's own collection (detail view) — no "Мої бази" is ever shown.
     await expect(page.getByText('Підбірка для клієнта')).toBeVisible({ timeout: 20_000 })
-    await expect(page.getByText('Немає об\'єктів')).toBeVisible()
+    await expect(page.getByText('Немає обʼєктів')).toBeVisible()
   })
 
   test('CollectionsScreen (list view) creates a collection card when empty', async ({ page }) => {
@@ -132,7 +132,7 @@ test.describe('owner sweep: uncovered screens', () => {
 
     await expect(page.getByText('Немає підбірок')).toBeVisible({ timeout: 20_000 })
     // FAB і нативна MainButton (DOM-фолбек .mbtn) тепер несуть той самий
-    // підпис на ОДНОМУ екрані (на відміну від «Додати об'єкт»/«Створити
+    // підпис на ОДНОМУ екрані (на відміну від «Додати обʼєкт»/«Створити
     // базу», де FAB веде на ІНШИЙ екран і колізії немає) — звужуємо до FAB.
     await page.locator('.fbtn').click()
     await expect(page.getByText('Підбірка 1')).toBeVisible()

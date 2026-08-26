@@ -105,7 +105,7 @@ test('payment lifecycle: schedule → due item → mark paid → stats → unpay
 
   await openCalendar(page)
 
-  // 1. Об'єкт без розкладу → «Налаштувати»
+  // 1. Обʼєкт без розкладу → «Налаштувати»
   await expect(page.getByText('Немає розкладу')).toBeVisible()
   await page.getByRole('button', { name: /Налаштувати/ }).first().click()
   await expect(page.getByText('Налаштувати розклад')).toBeVisible()
@@ -115,7 +115,7 @@ test('payment lifecycle: schedule → due item → mark paid → stats → unpay
   expect(schedules[0]).toMatchObject({ property_id: PROP.id, owner_id: USER.id, due_day: 1, is_active: true })
   await expect(page.getByText(/Календар платежів|Платежі — /)).toBeVisible({ timeout: 15_000 })
 
-  // 2. З розкладом з'являється платіжний item поточного місяця з CTA «Отримано»
+  // 2. З розкладом зʼявляється платіжний item поточного місяця з CTA «Отримано»
   await expect(page.getByText('Немає розкладу')).toHaveCount(0)
   const receiveBtn = page.getByRole('button', { name: /Отримано/ }).first()
   await expect(receiveBtn).toBeVisible()
@@ -208,7 +208,7 @@ test('offline: mutations are blocked with the offline toast, restore announces i
 
   // Відновлення: тост і мутації знову проходять
   await page.evaluate(() => window.dispatchEvent(new Event('online')))
-  await expect(page.getByText("З'єднання відновлено")).toBeVisible()
+  await expect(page.getByText("Зʼєднання відновлено")).toBeVisible()
 })
 
 // ─── Фото: аплоуд через PhotoUploadScreen ──────────────────────────────────────

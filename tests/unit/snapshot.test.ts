@@ -31,9 +31,9 @@ describe('snapshot', () => {
 
   it('кеш ізольований по імені списку', () => {
     writeSnapshot('dbs', A, ['бази'])
-    writeSnapshot('props:db1', A, ['об\'єкти'])
+    writeSnapshot('props:db1', A, ['обʼєкти'])
     expect(readSnapshot('dbs', A)).toEqual(['бази'])
-    expect(readSnapshot('props:db1', A)).toEqual(['об\'єкти'])
+    expect(readSnapshot('props:db1', A)).toEqual(['обʼєкти'])
   })
 
   it('старіше за добу НЕ віддається — денний знімок гірший за скелетон', () => {

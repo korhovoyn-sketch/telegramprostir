@@ -90,7 +90,7 @@ export default function CoachMark({ title, body, targetRef, placement = 'auto', 
         <div className="cmark-bdy">{body}</div>
         <div className="cmark-acts">
           <button className="cmark-skip" onClick={skipAll}>Пропустити все</button>
-          <button className="cmark-ok" onClick={dismiss}>Зрозуміло 👍</button>
+          <button className="cmark-ok" onClick={dismiss}>Зрозуміло</button>
         </div>
         {above && <div className="cmark-arr cmark-arr-dn" style={{ left: arrowX }} />}
       </div>

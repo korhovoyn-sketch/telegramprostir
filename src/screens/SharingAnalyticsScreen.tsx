@@ -127,7 +127,7 @@ export default function SharingAnalyticsScreen() {
 
   return (
     <div className="scr bg-pink">
-      <Header title={isPropertyShare ? 'Поділитись об\'єктом' : 'Аналітика бази'} backLabel="Назад" />
+      <Header title={isPropertyShare ? 'Поділитись обʼєктом' : 'Аналітика бази'} backLabel="Назад" />
 
       <div className="body">
         {/* Views count */}
@@ -221,7 +221,7 @@ export default function SharingAnalyticsScreen() {
           <div className="empty-state" style={{ paddingTop: 24 }}>
             <div className="empty-ic">👁️</div>
             <div className="empty-h">Немає переглядів</div>
-            <div className="empty-s">Поділись посиланням, щоб ріелтори побачили об&apos;єкти</div>
+            <div className="empty-s">Поділись посиланням, щоб ріелтори побачили обʼєкти</div>
           </div>
         ) : (
           <div className="view-l glass-s" style={{ margin: '0 12px 16px' }}>
@@ -267,8 +267,8 @@ export default function SharingAnalyticsScreen() {
         open={showShare}
         kind={isPropertyShare ? 'prop' : 'db'}
         id={shareTargetId}
-        name={isPropertyShare ? 'Об\'єкт' : 'База'}
-        shareText={isPropertyShare ? 'Перегляньте цей об\'єкт нерухомості' : 'Перегляньте базу нерухомості'}
+        name={isPropertyShare ? 'Обʼєкт' : 'База'}
+        shareText={isPropertyShare ? 'Перегляньте цей обʼєкт нерухомості' : 'Перегляньте базу нерухомості'}
         onClose={() => setShowShare(false)}
       />
     </div>

@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useAppStore } from '@/store/appStore'
 import { useAuth } from '@/hooks/useAuth'
 import { DB_TYPE_LABELS, rentUnitLabel, objectsWord, DB_COLORS, STATUS_BADGE_CLS } from '@/lib/utils'
-import { IconBuilding, IconRuler, IconCurrencyDollar } from '@/components/Icons'
+import { IconBuilding, IconRuler, IconCurrencyDollar, IconX } from '@/components/Icons'
 
 // Public DB preview (realtor flow)
 interface PreviewRow {
@@ -155,7 +155,7 @@ export default function GuestDatabaseScreen() {
     return (
       <div className="scr bg-purple">
         <div className="hdr">
-          <button className="hdr-back" onClick={handleClose}>✕ Закрити</button>
+          <button className="hdr-back" onClick={handleClose}><IconX size={18} /> Закрити</button>
           <div className="hdr-t">{guestMode ? 'Запрошення' : 'Перегляд бази'}</div>
         </div>
         <div className="empty-state" style={{ paddingTop: 60 }}>
@@ -187,7 +187,7 @@ export default function GuestDatabaseScreen() {
     return (
       <div className="scr bg-teal">
         <div className="hdr">
-          <button className="hdr-back" onClick={handleClose}>✕ Закрити</button>
+          <button className="hdr-back" onClick={handleClose}><IconX size={18} /> Закрити</button>
           <div className="hdr-t">Запрошення</div>
         </div>
 
@@ -248,9 +248,9 @@ export default function GuestDatabaseScreen() {
           <div style={{ margin: '0 12px 12px', padding: '14px 16px', background: 'var(--glass-1)', borderRadius: 'var(--r-md)', border: 'var(--bd)' }}>
             <div style={{ fontSize: 'var(--fs-foot)', fontWeight: 'var(--fw-semi)', color: 'var(--t1)', marginBottom: 8 }}>Що ви отримаєте:</div>
             {[
-              '👁 Перегляд усієї інформації про об\'єкт',
-              '📄 Доступ до документів та файлів',
-              '💸 Нагадування про строки оплати',
+              'Перегляд усієї інформації про обʼєкт',
+              'Доступ до документів та файлів',
+              'Нагадування про строки оплати',
             ].map((item) => (
               <div key={item} style={{ fontSize: 'var(--fs-foot)', color: 'var(--t2)', marginBottom: 6 }}>{item}</div>
             ))}
@@ -260,7 +260,7 @@ export default function GuestDatabaseScreen() {
           {!isProperty && guestPreview.properties && guestPreview.properties.length > 0 && (
             <>
               <div style={{ padding: '0 16px 8px', fontSize: 'var(--fs-cap1)', color: 'var(--t3)' }}>
-                {guestPreview.properties.length} об&apos;єктів у базі
+                {guestPreview.properties.length} обʼєктів у базі
               </div>
               <div className="list">
                 {guestPreview.properties.map((prop) => (
@@ -307,7 +307,7 @@ export default function GuestDatabaseScreen() {
   return (
     <div className="scr bg-purple">
       <div className="hdr">
-        <button className="hdr-back" onClick={handleClose}>✕ Закрити</button>
+        <button className="hdr-back" onClick={handleClose}><IconX size={18} /> Закрити</button>
         <div className="hdr-t">{dbInfo?.db_name ?? 'База'}</div>
       </div>
 
@@ -337,7 +337,7 @@ export default function GuestDatabaseScreen() {
 
         <div style={{ padding: '0 16px 8px', fontSize: 'var(--fs-cap1)', color: 'var(--t3)' }}>
           {properties.length === 0
-            ? 'Об\'єктів поки немає'
+            ? 'Обʼєктів поки немає'
             : `${properties.length} ${objectsWord(properties.length)}`}
         </div>
 

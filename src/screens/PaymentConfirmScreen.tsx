@@ -100,7 +100,7 @@ export default function PaymentConfirmScreen() {
         )
         .select(RENT_PAYMENT_RECORD_COLUMNS).single()
       if (error) throw error
-      showToast({ type: 'success', title: 'Платіж підтверджено ✓' })
+      showToast({ type: 'success', title: 'Платіж підтверджено' })
       back()
     } catch (e) {
       showToast({ type: 'error', title: 'Платіж не зберігся', subtitle: humanizeDbError(e) })
@@ -114,7 +114,7 @@ export default function PaymentConfirmScreen() {
       <Header title="Платіж" backLabel="Назад" />
       <RetryState
         icon="🏚️"
-        title="Об'єкт не знайдено"
+        title="Обʼєкт не знайдено"
         subtitle={propError}
         onRetry={() => propertyId && loadSingleProperty(propertyId)}
       />
@@ -177,7 +177,7 @@ export default function PaymentConfirmScreen() {
             </div>
           </div>
           <div className="fld" style={{ marginTop: 10 }}>
-            <div className="fld-l">Нотатка (необов&apos;язково)</div>
+            <div className="fld-l">Нотатка (необовʼязково)</div>
             <input
               aria-label="Нотатка до платежу"
               type="text"

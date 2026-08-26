@@ -8,7 +8,7 @@ import TabBar from '@/components/ui/TabBar'
 import SearchBar from '@/components/ui/SearchBar'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import { IconChevronRight, GlassDbIcon } from '@/components/Icons'
-import { DB_TYPE_LABELS, greeting, humanizeDbError, matchesQuery } from '@/lib/utils'
+import { DB_TYPE_LABELS, greeting, humanizeDbError, matchesQuery, pluralUk, objectsWord } from '@/lib/utils'
 import type { Database, DbMember, RealtorSubscription } from '@/types'
 import CoachMark from '@/components/ui/CoachMark'
 import { useOnboarding } from '@/hooks/useOnboarding'
@@ -130,11 +130,11 @@ export default function RealtorDashboardScreen() {
         <div className="stat-g" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
           <div className="stat glass-s">
             <div className="stat-n">{subscriptions.length + memberDatabases.length}</div>
-            <div className="stat-l">Баз</div>
+            <div className="stat-l">{pluralUk(subscriptions.length + memberDatabases.length, 'База', 'Бази', 'Баз')}</div>
           </div>
           <div className="stat glass-s">
             <div className="stat-n">{propertyCount}</div>
-            <div className="stat-l">Об&apos;єктів</div>
+            <div className="stat-l">{objectsWord(propertyCount)}</div>
           </div>
         </div>
 

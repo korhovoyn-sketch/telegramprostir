@@ -147,7 +147,7 @@ test('folders: bulk move sends a folder_id PATCH', async ({ page }) => {
   await openObjects(page)
 
   await page.getByLabel('Меню бази').click()
-  await page.getByText("Виділити об'єкти").click()
+  await page.getByText("Виділити обʼєкти").click()
   await page.locator('.obj-card', { hasText: 'Офіс 103' }).click()
   await expect(page.getByText('1 обрано')).toBeVisible()
 
@@ -162,8 +162,8 @@ test('folders: form folder selector picks a folder', async ({ page }) => {
   await setupFixtures(page)
   await openObjects(page)
 
-  await page.getByLabel("Додати об'єкт").click()
-  await expect(page.getByText("Новий об'єкт")).toBeVisible()
+  await page.getByLabel("Додати обʼєкт").click()
+  await expect(page.getByText("Новий обʼєкт")).toBeVisible()
 
   // Вибір папки у формі — ІНЛАЙНОВИЙ (фаза 4): рядок розгортає список прямо
   // тут, бо перехід на окремий екран розмонтував би незбережену форму.

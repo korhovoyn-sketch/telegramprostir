@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { useAuth } from '@/hooks/useAuth'
-import { IconMail, IconPhone, IconTelegram } from '@/components/Icons'
+import { IconMail, IconPhone, IconTelegram, IconLock } from '@/components/Icons'
 import { scrollFocusedIntoView } from '@/lib/utils'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
@@ -58,7 +58,7 @@ export default function ProfileSetupScreen() {
           </div>
           <div className="display" style={{ textAlign: 'center' }}>Контакти</div>
           <div className="subt" style={{ textAlign: 'center', marginBottom: 24 }}>
-            Необов&apos;язково — для сповіщень і звітів
+            Необовʼязково — для сповіщень і звітів
           </div>
         </div>
 
@@ -67,11 +67,11 @@ export default function ProfileSetupScreen() {
           <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconTelegram size={14} color="var(--info)" />Дані Telegram</span></div>
           <div className="fg glass-s">
             <div className="fr">
-              <span className="fr-l">Ім&apos;я</span>
+              <span className="fr-l">Імʼя</span>
               <span style={{ flex: 1, textAlign: 'right', color: 'var(--t3)', fontSize: 'var(--fs-note)' }}>
                 {user?.first_name} {user?.last_name}
               </span>
-              <span style={{ fontSize: 'var(--fs-cap2)', color: 'var(--t4)', marginLeft: 6 }}>🔒</span>
+              <IconLock size={12} color="var(--t4)" />
             </div>
             {user?.tg_username && (
               <div className="fr">

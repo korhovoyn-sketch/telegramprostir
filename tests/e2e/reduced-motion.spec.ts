@@ -144,7 +144,7 @@ test('жодна анімація на екрані не переживає ка
       await expect(page.locator('.modal')).toBeVisible()
     }],
     ['режим вибору', async () => {
-      await page.getByText('Виділити об\'єкти', { exact: true }).click()
+      await page.getByText('Виділити обʼєкти', { exact: true }).click()
       await page.locator('.obj-card').first().click()
       await expect(page.locator('.batchbar')).toBeVisible()
     }],

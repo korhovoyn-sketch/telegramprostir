@@ -187,8 +187,8 @@ test('screens · owner journey', async ({ page }) => {
   await page.getByText('БЦ Рубін').first().click(); await page.getByText('Всі (3)').waitFor()
 
   await snap(page, 'property-form-new', async () => {
-    await page.getByLabel("Додати об'єкт").click()
-    await page.getByText("Новий об'єкт").waitFor()
+    await page.getByLabel("Додати обʼєкт").click()
+    await page.getByText("Новий обʼєкт").waitFor()
   })
   await page.goto('/'); await page.getByText('Мої бази').waitFor()
   await page.getByText('БЦ Рубін').first().click(); await page.getByText('Всі (3)').waitFor()
@@ -201,7 +201,7 @@ test('screens · owner journey', async ({ page }) => {
   await snap(page, 'share-sheet', async () => {
     await page.getByRole('button', { name: /Поділитися/ }).click()
     await page.getByText('Поділитися').first().waitFor()
-    // QR приходить ПІСЛЯ підпису шита і змінює його висоту (шит прив'язаний до
+    // QR приходить ПІСЛЯ підпису шита і змінює його висоту (шит привʼязаний до
     // низу екрана, тож увесь вміст їде вгору). Без цього очікування кадр залежав
     // від того, чи встиг намалюватись код — саме тут dev і прод-білд дали різні
     // бейслайни на ~8px.
@@ -242,7 +242,7 @@ test('screens · owner journey', async ({ page }) => {
 
   await snap(page, 'folder-picker', async () => {
     await page.getByLabel('Меню бази').click()
-    await page.getByText("Виділити об'єкти", { exact: true }).click()
+    await page.getByText("Виділити обʼєкти", { exact: true }).click()
     await page.locator('.obj-card').first().click()
     await page.getByRole('button', { name: /У папку/ }).click()
     await page.getByRole('button', { name: 'Створити й перемістити' }).waitFor()
@@ -252,7 +252,7 @@ test('screens · owner journey', async ({ page }) => {
 
   await snap(page, 'db-picker', async () => {
     await page.getByLabel('Меню бази').click()
-    await page.getByText("Виділити об'єкти", { exact: true }).click()
+    await page.getByText("Виділити обʼєкти", { exact: true }).click()
     await page.locator('.obj-card').first().click()
     await page.getByRole('button', { name: /В базу/ }).click()
     await page.getByRole('button', { name: 'Створити й перенести' }).waitFor()
@@ -389,13 +389,13 @@ test('screens · guest', async ({ page }) => {
     created_at: NOW, property: PROPERTY, database: null,
   }]))
   await page.route('**/rest/v1/properties**', (r) => {
-    // .single() детальної чекає ОБ'ЄКТ — масив у відповідь лишає екран на спінері
+    // .single() детальної чекає ОБʼЄКТ — масив у відповідь лишає екран на спінері
     const accept = r.request().headers()['accept'] ?? ''
     return json(r, accept.includes('object') ? PROPERTY : [PROPERTY])
   })
 
   await snap(page, 'guest-home', async () => {
-    await page.goto('/'); await page.getByText("Мої об'єкти").waitFor({ timeout: 20_000 })
+    await page.goto('/'); await page.getByText("Мої обʼєкти").waitFor({ timeout: 20_000 })
   })
   await snap(page, 'guest-property', async () => {
     await page.getByText('Офіс 101').first().click()

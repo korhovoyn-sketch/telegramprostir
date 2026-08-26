@@ -94,7 +94,7 @@ test('замір: холодний старт до списку баз', async (
   if (marks.length) { console.log('\n─── ВІХИ ЗАСТОСУНКУ ───'); for (const m of marks) console.log('  ' + m) }
 })
 
-test('замір: перехід у базу з 25 об\'єктами', async ({ page }) => {
+test('замір: перехід у базу з 25 обʼєктами', async ({ page }) => {
   const hits = await slowSetup(page)
   await page.goto('/')
   await page.getByText('БЦ Рубін').first().waitFor({ timeout: 30_000 })
@@ -218,7 +218,7 @@ test('замір: ЩО САМЕ вантажиться на теплому ст�
   console.log(`  ${String(Math.round(total * 10) / 10).padStart(6)} kB  усього JS+CSS`)
 })
 
-test('замір: МЕЖА — 200 об\'єктів у базі', async ({ page }) => {
+test('замір: МЕЖА — 200 обʼєктів у базі', async ({ page }) => {
   test.setTimeout(120_000)
   const BIG = Array.from({ length: 200 }, (_, i) => ({
     ...PROPS[0], id: `20000000-0000-0000-0000-${String(100000 + i)}`,

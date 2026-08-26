@@ -3,7 +3,7 @@ import { setupApp, DEFAULT_USER, seedSession, jsonRoute as json } from './helper
 
 // ─── Вхідні воркфлоу ролей через deep links ────────────────────────────────────
 // guest_ → claim_guest_link; db_ → subscribe_to_shared_db; prop_/col_ — лукапи
-// шерених об'єктів/підбірок. (team_ покритий у team.spec.ts.)
+// шерених обʼєктів/підбірок. (team_ покритий у team.spec.ts.)
 
 const NOW = new Date().toISOString()
 const FOREIGN_OWNER = '00000000-0000-0000-0000-000000000099'
@@ -57,7 +57,7 @@ test('guest deep link: claim lands on the shared property with a success toast',
 
   await page.goto('/')
   await expect(page.getByText('Доступ отримано! 🎉')).toBeVisible({ timeout: 20_000 })
-  // Лендинг: детальна розшареного об'єкта
+  // Лендинг: детальна розшареного обʼєкта
   await expect(page.getByText('Квартира 12').first()).toBeVisible()
   expect(claimed).toBe('gg000000000000000000001')
 })
@@ -97,7 +97,7 @@ test('db share deep link: realtor subscribes and lands inside the database', asy
 
   await page.goto('/')
   await expect(page.getByText('Базу підключено! 🎉')).toBeVisible({ timeout: 20_000 })
-  // Лендинг: екран підключеної бази з її назвою і об'єктами
+  // Лендинг: екран підключеної бази з її назвою і обʼєктами
   await expect(page.getByText('ЖК Світанок').first()).toBeVisible()
   await expect(page.getByText('Квартира 12').first()).toBeVisible()
   expect(subscribedToken).toBe(DB.share_token)
@@ -133,7 +133,7 @@ test('db share deep link: owner tapping their own link opens the db directly (no
   await page.route('**/rest/v1/properties**', (route) => json(route, [{ ...PROP, owner_id: DEFAULT_USER.id, name: 'Офіс 1' }]))
 
   await page.goto('/')
-  // Без тосту підписки — одразу власні об'єкти бази
+  // Без тосту підписки — одразу власні обʼєкти бази
   await expect(page.getByText('Всі (1)')).toBeVisible({ timeout: 20_000 })
   await expect(page.getByText('Офіс 1').first()).toBeVisible()
 })
@@ -190,7 +190,7 @@ test('col share deep link: foreign collection opens the read-only shared view', 
   await page.goto('/')
   // Чужа підбірка → read-only SharedCollectionScreen з її назвою
   await expect(page.getByText('Топ офіси')).toBeVisible({ timeout: 20_000 })
-  await expect(page.getByText("0 об'єктів")).toBeVisible()
+  await expect(page.getByText("0 обʼєктів")).toBeVisible()
   expect(sawToken, 'перегляд пішов не по токену — авторизацію можна обминути')
     .toBe('cc00112233445566778899dd')
 })

@@ -38,7 +38,7 @@ describe('humanizeDbError', () => {
     expect(humanizeDbError(new Error('duplicate key value violates unique constraint'))).toContain('існує')
   })
   it('maps network failures to a connectivity message', () => {
-    expect(humanizeDbError(new Error('TypeError: Failed to fetch'))).toContain('з\'єднання')
+    expect(humanizeDbError(new Error('TypeError: Failed to fetch'))).toContain('зʼєднання')
   })
   it('returns the fallback for unknown errors and never the raw text', () => {
     const raw = 'column "secret_internal_col" does not exist in relation xyz'
@@ -142,22 +142,22 @@ describe('computedRentUnit', () => {
 
 describe('objectsWord (Ukrainian plural)', () => {
   it('one form for 1, 21, 101 (but not 11)', () => {
-    expect(objectsWord(1)).toBe('об\'єкт')
-    expect(objectsWord(21)).toBe('об\'єкт')
-    expect(objectsWord(101)).toBe('об\'єкт')
+    expect(objectsWord(1)).toBe('обʼєкт')
+    expect(objectsWord(21)).toBe('обʼєкт')
+    expect(objectsWord(101)).toBe('обʼєкт')
   })
   it('few form for 2-4, 22-24 (but not 12-14)', () => {
-    expect(objectsWord(2)).toBe('об\'єкти')
-    expect(objectsWord(3)).toBe('об\'єкти')
-    expect(objectsWord(24)).toBe('об\'єкти')
+    expect(objectsWord(2)).toBe('обʼєкти')
+    expect(objectsWord(3)).toBe('обʼєкти')
+    expect(objectsWord(24)).toBe('обʼєкти')
   })
   it('many form for 0, 5-20, 11-14, 25', () => {
-    expect(objectsWord(0)).toBe('об\'єктів')
-    expect(objectsWord(5)).toBe('об\'єктів')
-    expect(objectsWord(11)).toBe('об\'єктів')
-    expect(objectsWord(12)).toBe('об\'єктів')
-    expect(objectsWord(14)).toBe('об\'єктів')
-    expect(objectsWord(25)).toBe('об\'єктів')
+    expect(objectsWord(0)).toBe('обʼєктів')
+    expect(objectsWord(5)).toBe('обʼєктів')
+    expect(objectsWord(11)).toBe('обʼєктів')
+    expect(objectsWord(12)).toBe('обʼєктів')
+    expect(objectsWord(14)).toBe('обʼєктів')
+    expect(objectsWord(25)).toBe('обʼєктів')
   })
   it('pluralUk picks the passed forms', () =>
     expect(pluralUk(3, 'база', 'бази', 'баз')).toBe('бази'))

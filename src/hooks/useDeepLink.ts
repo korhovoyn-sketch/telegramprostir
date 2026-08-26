@@ -129,7 +129,7 @@ export function useDeepLink() {
           const prop = (Array.isArray(rows) && rows[0] && typeof rows[0] === 'object' && 'id' in rows[0]) ? rows[0] as { id: string; db_id: string } : null
 
           if (!prop) {
-            showToast({ type: 'error', title: 'Об\'єкт не знайдено', subtitle: 'Посилання недійсне або об\'єкт видалено' })
+            showToast({ type: 'error', title: 'Обʼєкт не знайдено', subtitle: 'Посилання недійсне або обʼєкт видалено' })
             navigateFallback()
             return
           }

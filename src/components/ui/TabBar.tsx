@@ -25,7 +25,7 @@ const OWNER_TABS: Tab[] = [
 ]
 
 const GUEST_TABS: Tab[] = [
-  { id: 'guest-home', label: 'Об\'єкти', screen: 'guest-home', icon: (a) => <IconTabHome size={26} active={a} /> },
+  { id: 'guest-home', label: 'Обʼєкти', screen: 'guest-home', icon: (a) => <IconTabHome size={26} active={a} /> },
   { id: 'notifications', label: 'Сповіщення', screen: 'notifications', icon: (a) => <IconTabBell size={26} active={a} /> },
   { id: 'profile', label: 'Профіль', screen: 'profile', icon: (a) => <IconTabUser size={26} active={a} /> },
 ]

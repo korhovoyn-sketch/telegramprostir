@@ -156,7 +156,7 @@ export async function installTelegram(page: Page, opts: HarnessOptions = {}) {
           // Стаб ВАЛІДУЄ як справжній клієнт: порожній/пробільний підпис Telegram
           // відкидає, кидаючи WebAppBottomButtonParamInvalid СИНХРОННО. Без цієї
           // строгості стаб пропускав `text: ' '` — і падіння форми створення
-          // об'єкта не було видно в тестах узагалі.
+          // обʼєкта не було видно в тестах узагалі.
           const badText = (t: unknown) => typeof t !== 'string' || t.trim() === ''
           return {
             setText(t: string) {

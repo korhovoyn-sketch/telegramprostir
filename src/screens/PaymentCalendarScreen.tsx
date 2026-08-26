@@ -9,7 +9,7 @@ import { supabase } from '@/lib/supabase'
 import { assertAffected } from '@/lib/dbWrite'
 import Header from '@/components/ui/Header'
 import { SkeletonList } from '@/components/ui/SkeletonLoader'
-import { IconCalendar, IconClock, IconPlus, IconTrash, IconFile, IconCheckCircle } from '@/components/Icons'
+import { IconCalendar, IconClock, IconPlus, IconTrash, IconFile, IconCheckCircle, IconArchive, IconLayers, IconCheck, IconX, IconEdit } from '@/components/Icons'
 import { formatPrice, humanizeDbError, objectsWord } from '@/lib/utils'
 import { RENT_PAYMENT_COLUMNS, RENT_PAYMENT_RECORD_COLUMNS, expectedRent, fmtDueDate } from '@/lib/rentPayments'
 import type { Property, RentPayment, RentPaymentRecord } from '@/types'
@@ -315,7 +315,7 @@ export default function PaymentCalendarScreen() {
           </div>
         </div>
 
-        {/* П'ятий інстанс сегментного перемикача, написаний тут інлайном: свій
+        {/* Пʼятий інстанс сегментного перемикача, написаний тут інлайном: свій
             радіус (12/10 при падінгу 3 — не концентрика, а майже-концентрика),
             свій розмір шрифту, свій `transition:all`. Тепер це та сама родина
             `.seg`/`.seg-b`, що й фільтр обʼєктів — включно з концентричним
@@ -328,7 +328,9 @@ export default function PaymentCalendarScreen() {
               className={`seg-b${activeTab === tab ? ' on' : ''}`}
               onClick={() => setActiveTab(tab)}
             >
-              {tab === 'current' ? '📅 Поточні' : '🗂 Архів'}
+              {tab === 'current'
+                ? <><IconCalendar size={14} />Поточні</>
+                : <><IconArchive size={14} />Архів</>}
             </button>
           ))}
         </div>
@@ -340,7 +342,7 @@ export default function PaymentCalendarScreen() {
         ) : properties.length === 0 ? (
           <div className="empty-state" style={{ paddingTop: 32 }}>
             <div className="empty-ic">📅</div>
-            <div className="empty-h">Немає орендованих об&apos;єктів</div>
+            <div className="empty-h">Немає орендованих обʼєктів</div>
             <div className="empty-s">Встановіть орендарів для відстеження платежів</div>
           </div>
 
@@ -374,7 +376,9 @@ export default function PaymentCalendarScreen() {
                   fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', cursor: 'pointer', whiteSpace: 'nowrap',
                 }}
               >
-                {showOnlyUnpaid ? '⏳ Очікуються' : '📋 Всі'}
+                {showOnlyUnpaid
+                  ? <><IconClock size={14} />Очікуються</>
+                  : <><IconLayers size={14} />Всі</>}
               </button>
             </div>
 
@@ -420,7 +424,7 @@ export default function PaymentCalendarScreen() {
                     ))}
                     {section.items.length === 0 && section.paidCount === section.totalCount && section.totalCount > 0 && (
                       <div style={{ padding: '12px 14px', textAlign: 'center', fontSize: 'var(--fs-foot)', color: 'var(--ok)', fontWeight: 'var(--fw-semi)' }}>
-                        ✓ Всі платежі за цей місяць підтверджено
+                        <IconCheck size={14} /> Всі платежі за цей місяць підтверджено
                       </div>
                     )}
                   </div>
@@ -462,7 +466,7 @@ export default function PaymentCalendarScreen() {
               <div className="empty-state" style={{ paddingTop: 24 }}>
                 <div className="empty-ic">📅</div>
                 <div className="empty-h">Платежів немає</div>
-                <div className="empty-s">Всі розклади налаштовано — тут з&apos;являться майбутні платежі</div>
+                <div className="empty-s">Всі розклади налаштовано — тут зʼявляться майбутні платежі</div>
               </div>
             )}
           </div>
@@ -476,7 +480,7 @@ export default function PaymentCalendarScreen() {
               <div className="empty-state" style={{ paddingTop: 32 }}>
                 <div className="empty-ic">🗂</div>
                 <div className="empty-h">Архів порожній</div>
-                <div className="empty-s">Підтверджені платежі з&apos;являться тут</div>
+                <div className="empty-s">Підтверджені платежі зʼявляться тут</div>
               </div>
             ) : (
               <>
@@ -615,14 +619,14 @@ function PaymentItemCard({ item, statusColor, label, onMarkPaid, onEdit, onDelet
               onClick={onEditPaid}
               style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '6px 10px', borderRadius: 'var(--r-pill)', background: 'var(--ok-bg)', border: '.5px solid var(--ok-bd)', color: 'var(--ok-fg)', fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', cursor: 'pointer', whiteSpace: 'nowrap' }}
             >
-              ✓ Сплачено
+              <IconCheck size={14} /> Сплачено
             </button>
             <button
               onClick={onUnpay}
               style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: '50%', background: 'var(--err-bg)', border: '.5px solid rgba(255,59,48,.25)', color: 'var(--err)', fontSize: 'var(--fs-note)', cursor: 'pointer', flexShrink: 0 }}
               title="Скасувати платіж"
             >
-              ×
+              <IconX size={14} />
             </button>
           </div>
         )}
@@ -634,7 +638,7 @@ function PaymentItemCard({ item, statusColor, label, onMarkPaid, onEdit, onDelet
           onClick={onEdit}
           style={{ fontSize: 'var(--fs-cap2)', color: 'var(--t3)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0' }}
         >
-          ✏️ Редагувати розклад
+          <IconEdit size={14} /> Редагувати розклад
         </button>
         <button
           onClick={onDeleteSchedule}

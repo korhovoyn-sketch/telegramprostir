@@ -20,7 +20,7 @@ export default function PrivacyPage() {
       <H>1. Які дані ми отримуємо</H>
       <P><b>З Telegram (автоматично, під час входу):</b></P>
       <UL items={[
-        'ваш Telegram ID, ім\'я, прізвище та @username (якщо він у вас є);',
+        'ваш Telegram ID, імʼя, прізвище та @username (якщо він у вас є);',
         'код мови інтерфейсу.',
       ]} />
       <P>

@@ -29,7 +29,7 @@ export function confirmAction(opts: ConfirmOptions): Promise<boolean> {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const tg = (typeof window === 'undefined' ? undefined : window.Telegram?.WebApp) as any
-  // initData непорожній лише в реальному контейнері Telegram: у браузері об'єкт
+  // initData непорожній лише в реальному контейнері Telegram: у браузері обʼєкт
   // SDK може існувати, але попап не відкриється — і колбек не прийде ніколи.
   const native = typeof tg?.showPopup === 'function' && !!tg?.initData
 

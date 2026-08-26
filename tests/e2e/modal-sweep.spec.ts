@@ -84,7 +84,7 @@ async function ownerRoutes(page: Page) {
     { id: FOLDER_ID, db_id: DB_ID, owner_id: OWNER.id, name: 'Орендарі', sort_order: 1, created_at: NOW, updated_at: NOW },
   ]))
   await page.route('**/rest/v1/rent_payments**', (r) => json(r, SCHEDULE))
-  // INSERT іде через `.single()`, тож відповідь мусить бути ОБ'ЄКТОМ: на масиві
+  // INSERT іде через `.single()`, тож відповідь мусить бути ОБʼЄКТОМ: на масиві
   // токен вийшов би undefined і шит «посилання створено» показав би сміття.
   await page.route('**/rest/v1/guest_links**', (r) => {
     if (r.request().method() === 'POST') return json(r, { invite_token: 'ee00112233445566778899bb' })
@@ -243,7 +243,7 @@ async function checkModal(page: Page, where: string, expectTitle?: string): Prom
       .toBeLessThanOrEqual(0)
     if (a.disabled) {
       // Правило проєкту: неактивна дія — нейтральне скло, а не привид. Над темним
-      // шитом opacity:.45 з'їдала кнопку до невидимості.
+      // шитом opacity:.45 зʼїдала кнопку до невидимості.
       expect(a.opacity, `${where} «${res.title}» → «${a.label}»: неактивна через прозорість`)
         .toBeGreaterThanOrEqual(0.9)
     }
@@ -332,7 +332,7 @@ test('шит профілю: вихід з акаунту', async ({ page }) => 
   // виклик, збій не викидає з акаунта).
 })
 
-test('шити рієлтора: підбірка і додавання об\'єкта', async ({ page }) => {
+test('шити рієлтора: підбірка і додавання обʼєкта', async ({ page }) => {
   test.setTimeout(180_000)
   await setupApp(page, { user: REALTOR })
   await page.route('**/rest/v1/realtor_subscriptions**', (r) => json(r, [
@@ -362,11 +362,11 @@ test('шити рієлтора: підбірка і додавання об\'є
 
   // 14. ShareSheet зі списку підбірок.
   await page.locator('.collection-c').filter({ hasText: 'Для клієнта А' }).first().click()
-  await expect(page.getByLabel('Додати об\'єкт')).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByLabel('Додати обʼєкт')).toBeVisible({ timeout: 15_000 })
 
-  // 15. «Додати об'єкт» у деталях підбірки.
-  await page.getByLabel('Додати об\'єкт').click()
-  expect(await sweep(page, 'collection-add')).toBe('Додати об\'єкт')
+  // 15. «Додати обʼєкт» у деталях підбірки.
+  await page.getByLabel('Додати обʼєкт').click()
+  expect(await sweep(page, 'collection-add')).toBe('Додати обʼєкт')
 })
 
 test('Escape закриває ЛИШЕ верхню модалку стеку', async ({ page }) => {

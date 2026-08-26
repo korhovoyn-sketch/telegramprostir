@@ -8,7 +8,7 @@ import { useLeaseAlerts, type LeaseAlert } from '@/hooks/useLeaseAlerts'
 import { useUpcomingPayments, type PaymentAlert } from '@/hooks/useUpcomingPayments'
 import TabBar from '@/components/ui/TabBar'
 import { SkeletonList } from '@/components/ui/SkeletonLoader'
-import { IconX } from '@/components/Icons'
+import { IconX, IconBell, IconEye, IconMessage, IconHeartFilled, IconAdjustments, IconFile, IconCurrencyDollar, IconBan, IconClock, IconCalendar } from '@/components/Icons'
 import { formatDate, daysSince, pluralUk, formatLeaseDate, formatPrice } from '@/lib/utils'
 import type { Notification } from '@/types'
 
@@ -104,13 +104,13 @@ export default function NotificationsScreen() {
   // `rent_reminder` — єдиний тип, який реально створюється (send-reminders).
   // Решта лишається на випадок, якщо зʼявиться виробник: рядок із незнайомим
   // типом і далі малюється з дефолтним 🔔, а не ламає екран.
-  const NOTIF_ICON: Record<string, string> = {
-    rent_reminder: '💸',
-    view: '👁️',
-    chat: '💬',
-    favorite: '❤️',
-    system: '⚙️',
-    export: '📄',
+  const NOTIF_ICON: Record<string, React.ReactNode> = {
+    rent_reminder: <IconCurrencyDollar size={18} color="var(--ok-fg)" />,
+    view: <IconEye size={18} color="var(--info)" />,
+    chat: <IconMessage size={18} color="var(--info)" />,
+    favorite: <IconHeartFilled size={18} color="var(--pink)" />,
+    system: <IconAdjustments size={18} color="var(--t3)" />,
+    export: <IconFile size={18} color="var(--t3)" />,
   }
 
   return (
@@ -170,7 +170,11 @@ export default function NotificationsScreen() {
                   className={`notif-i unread lvl-${a.level}`}
                   onClick={() => { hapticImpact('light'); navigate('payment-calendar', { propertyId: a.propertyId, dbId: a.dbId }) }}
                 >
-                  <div className="notif-ic glass-s">{a.level === 'overdue' ? '⛔' : a.level === 'critical' ? '⏰' : '💸'}</div>
+                  <div className="notif-ic glass-s">{a.level === 'overdue'
+                      ? <IconBan size={18} color="var(--err)" />
+                      : a.level === 'critical'
+                        ? <IconClock size={18} color="var(--warn)" />
+                        : <IconCurrencyDollar size={18} color="var(--ok-fg)" />}</div>
                   <div className="notif-mn">
                     <div className="notif-n">{a.name}</div>
                     <div className="notif-s">
@@ -200,7 +204,11 @@ export default function NotificationsScreen() {
                   className={`notif-i unread lvl-${a.level}`}
                   onClick={() => { hapticImpact('light'); navigate('property-detail', { propertyId: a.propertyId, dbId: a.dbId }) }}
                 >
-                  <div className="notif-ic glass-s">{a.level === 'overdue' ? '⛔' : a.level === 'critical' ? '⏰' : '📅'}</div>
+                  <div className="notif-ic glass-s">{a.level === 'overdue'
+                      ? <IconBan size={18} color="var(--err)" />
+                      : a.level === 'critical'
+                        ? <IconClock size={18} color="var(--warn)" />
+                        : <IconCalendar size={18} color="var(--t3)" />}</div>
                   <div className="notif-mn">
                     <div className="notif-n">{a.name}</div>
                     <div className="notif-s">
@@ -222,7 +230,7 @@ export default function NotificationsScreen() {
           <div className="empty-state" style={{ paddingTop: 32 }}>
             <div className="empty-ic">🔔</div>
             <div className="empty-h">Немає сповіщень</div>
-            <div className="empty-s">Тут з&apos;являться перегляди, події та попередження про кінець договору</div>
+            <div className="empty-s">Тут зʼявляться перегляди, події та попередження про кінець договору</div>
           </div>
         ) : (
           Object.entries(groupedByDate).map(([group, items]) => (
@@ -237,7 +245,7 @@ export default function NotificationsScreen() {
                     onClick={() => handleNotifTap(n)}
                   >
                     <div className="notif-ic glass-s">
-                      {NOTIF_ICON[n.type] ?? '🔔'}
+                      {NOTIF_ICON[n.type] ?? <IconBell size={18} color="var(--t3)" />}
                     </div>
                     <div className="notif-mn">
                       <div className="notif-n">{n.title}</div>

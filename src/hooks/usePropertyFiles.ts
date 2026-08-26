@@ -71,7 +71,7 @@ export function usePropertyFiles(propertyId: string | undefined) {
       .single()
 
     if (propErr || !propRow?.owner_id) {
-      onError('Не вдалося підтвердити право власності на об\'єкт')
+      onError('Не вдалося підтвердити право власності на обʼєкт')
       return
     }
 
@@ -89,7 +89,7 @@ export function usePropertyFiles(propertyId: string | undefined) {
       for (let i = 0; i < valid.length; i++) {
         const file = valid[i]
         if (currentCount >= MAX_FILES) {
-          onError(`Максимум ${MAX_FILES} файлів на об'єкт`)
+          onError(`Максимум ${MAX_FILES} файлів на обʼєкт`)
           break
         }
 
@@ -216,7 +216,7 @@ export function usePropertyFiles(propertyId: string | undefined) {
     // помилки. Раніше тут стояв `.catch(() => {})` — два сусідні шляхи з
     // однаковою семантикою поводились протилежно, і жоден не доводив, що файл
     // зник. Бакет `property-files` ПРИВАТНИЙ, тож осиротілий файл не читається
-    // ззовні — звідси м'якший тон, ніж у фото, але мовчати однаково не можна.
+    // ззовні — звідси мʼякший тон, ніж у фото, але мовчати однаково не можна.
     const { data: removed, error: rmErr } = await supabase.storage
       .from(BUCKET).remove([storagePath])
     if (rmErr || (removed?.length ?? 0) !== 1) {

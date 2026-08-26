@@ -100,7 +100,7 @@ export default function PaymentScheduleScreen() {
       <Header title="Розклад платежів" backLabel="Назад" />
       <RetryState
         icon="🏚️"
-        title="Об'єкт не знайдено"
+        title="Обʼєкт не знайдено"
         subtitle={propError}
         onRetry={() => propertyId && loadSingleProperty(propertyId)}
       />

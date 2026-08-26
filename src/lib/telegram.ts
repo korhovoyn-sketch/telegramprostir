@@ -157,7 +157,7 @@ export function openTelegramShare(url: string, text?: string): void {
     tg.openTelegramLink(shareUrl)
     return
   }
-  // Поза Telegram (веб-прев'ю, десктоп-браузер) кнопка інакше мовчки не робила
+  // Поза Telegram (веб-превʼю, десктоп-браузер) кнопка інакше мовчки не робила
   // б нічого — відкриваємо t.me/share у новій вкладці.
   window.open(shareUrl, '_blank', 'noopener')
 }

@@ -1,8 +1,8 @@
 import { test, expect, type Page } from '@playwright/test'
 import { setupApp, DEFAULT_USER, jsonRoute, skipCoachmarks } from './helpers/harness'
 
-// Пошук по об'єктах: репорт «вводиш ключову фразу — не підтягує нічого».
-// Дані відтворюють реальну базу: об'єкти розкладені по папках (акордеон), у
+// Пошук по обʼєктах: репорт «вводиш ключову фразу — не підтягує нічого».
+// Дані відтворюють реальну базу: обʼєкти розкладені по папках (акордеон), у
 // назвах довгі фрази з дужками, є орендарі й поверхи.
 
 const USER = { ...DEFAULT_USER, role: 'owner' as const, first_name: 'Микола' }
@@ -78,7 +78,7 @@ test('пошук по назві звужує список, знахідка в�
   await setup(page)
   await openObjects(page)
 
-  await page.getByPlaceholder('Пошук об\'єкту...').fill('мале')
+  await page.getByPlaceholder('Пошук обʼєкту...').fill('мале')
   await page.waitForTimeout(500)
 
   expect(await visibleCards(page)).toEqual(['Офіс 10 поверху ( мале крило )'])
@@ -93,29 +93,29 @@ test('пошук працює у ЗГОРНУТІЙ папці — знахід�
   await page.waitForTimeout(500)
   expect(await visibleCards(page)).toEqual(['Склад цокольний'])
 
-  await page.getByPlaceholder('Пошук об\'єкту...').fill('велике')
+  await page.getByPlaceholder('Пошук обʼєкту...').fill('велике')
   await page.waitForTimeout(600)
 
   expect(await visibleCards(page), 'знахідка в згорнутій папці мусить проявитись').toEqual(['Офіс 11 поверху ( велике крило )'])
 })
 
-test('пошук по орендарю знаходить об\'єкт', async ({ page }) => {
+test('пошук по орендарю знаходить обʼєкт', async ({ page }) => {
   await setup(page)
   await openObjects(page)
 
-  await page.getByPlaceholder('Пошук об\'єкту...').fill('плотко')
+  await page.getByPlaceholder('Пошук обʼєкту...').fill('плотко')
   await page.waitForTimeout(500)
 
   expect(await visibleCards(page)).toHaveLength(3)
 })
 
-test('пошук по поверху знаходить об\'єкт', async ({ page }) => {
+test('пошук по поверху знаходить обʼєкт', async ({ page }) => {
   await setup(page)
   await openObjects(page)
 
   // Поверх «3» має лише «Склад цокольний» — тобто збіг саме по полю floor,
   // у назві цифри немає.
-  await page.getByPlaceholder('Пошук об\'єкту...').fill('3')
+  await page.getByPlaceholder('Пошук обʼєкту...').fill('3')
   await page.waitForTimeout(500)
 
   expect(await visibleCards(page)).toEqual(['Склад цокольний'])
@@ -125,7 +125,7 @@ test('ключова ФРАЗА: слова з різних місць назв�
   await setup(page)
   await openObjects(page)
 
-  const input = page.getByPlaceholder('Пошук об\'єкту...')
+  const input = page.getByPlaceholder('Пошук обʼєкту...')
 
   // Точного підрядка «офіс мале» в назві НЕМА — між словами ще «10 поверху (».
   await input.fill('офіс мале')

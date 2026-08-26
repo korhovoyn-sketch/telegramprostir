@@ -8,7 +8,7 @@ import { setupApp, DEFAULT_USER, objectAction } from './helpers/harness'
  * НАВІЩО окремий прохід. Решта спеків ганяє слабший клієнт — стаб без цих API,
  * тобто DOM-фолбеки. Прод же працює саме з ними, і одного невалідного параметра
  * смуги досить, щоб екран пішов у ErrorBoundary: так `text: ' '` для схованої
- * другорядної кнопки завалив створення об'єкта, і жоден із 150 тестів цього не
+ * другорядної кнопки завалив створення обʼєкта, і жоден із 150 тестів цього не
  * бачив. Тут перевіряється, що ЖОДЕН екран не падає на нативному клієнті і що
  * кнопка не «протікає» на наступний екран.
  */
@@ -142,22 +142,22 @@ test('нативний клієнт: усі екрани власника жив
   await expect(cta, 'без назви кнопка неактивна').toBeDisabled()
   expect((await bar(page)).main.isVisible, 'нативна смуга не вмикається').toBe(false)
 
-  // ── Об'єкти бази
+  // ── Обʼєкти бази
   await toObjects(page)
   await alive(page, 'db-objects')
   await expect(cta, 'CTA форми не протекла на список').toHaveCount(0)
 
-  // ── Створення об'єкта (той самий екран, що падав у проді)
+  // ── Створення обʼєкта (той самий екран, що падав у проді)
   await page.locator('.fbtn').click()
-  await expect(page.getByText('Новий об\'єкт')).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText('Новий обʼєкт')).toBeVisible({ timeout: 15_000 })
   await alive(page, 'property-form-create')
-  await expect(cta).toHaveText('Додати об\'єкт')
+  await expect(cta).toHaveText('Додати обʼєкт')
   await expect(cta).toBeDisabled()
   await page.getByLabel('Назва обʼєкта').fill('Офіс 202')
   await expect(cta, 'назва введена — кнопка активна').toBeEnabled()
   await alive(page, 'property-form-create+input')
 
-  // ── Редагування об'єкта: збереження + видалення в хедері
+  // ── Редагування обʼєкта: збереження + видалення в хедері
   await toObjects(page)
   await objectAction(page, 'Редагувати')
   await expect(page.getByText('Редагування')).toBeVisible()
@@ -165,7 +165,7 @@ test('нативний клієнт: усі екрани власника жив
   await expect(cta).toHaveText('Зберегти зміни')
   // Пари на нативній смузі більше немає, тож видалення мусить бути досяжним —
   // інакше незворотна дія просто зникла б з екрана.
-  await expect(page.getByRole('button', { name: "Видалити об'єкт" })).toBeVisible()
+  await expect(page.getByRole('button', { name: "Видалити обʼєкт" })).toBeVisible()
 
   // Вихід із форми мусить прибрати CTA.
   await toObjects(page)
@@ -237,7 +237,7 @@ test('нативний клієнт: усі екрани власника жив
 
   await toObjects(page)
   await page.getByLabel('Меню бази').click()
-  await page.getByText('Виділити об\'єкти', { exact: true }).click()
+  await page.getByText('Виділити обʼєкти', { exact: true }).click()
   await page.locator('.obj-card').first().click()
   await expect(page.locator('.batchbar')).toBeVisible()
   await alive(page, 'select-mode')
@@ -250,7 +250,7 @@ test('нативний клієнт: усі екрани власника жив
 
   await toObjects(page)
   await page.getByLabel('Меню бази').click()
-  await page.getByText('Виділити об\'єкти', { exact: true }).click()
+  await page.getByText('Виділити обʼєкти', { exact: true }).click()
   await page.locator('.obj-card').first().click()
   await page.getByRole('button', { name: /В базу/ }).click()
   await expect(page.getByText(/буде переміщено/)).toBeVisible({ timeout: 15_000 })

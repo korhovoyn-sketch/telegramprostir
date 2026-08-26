@@ -49,7 +49,7 @@ export default function EmptyStateScreen() {
 
         <div className="heading">Немає жодної бази</div>
         <div className="subtext">
-          Створи першу базу об&apos;єктів нерухомості — це займе менше хвилини
+          Створи першу базу обʼєктів нерухомості — це займе менше хвилини
         </div>
 
         {/* Tips */}
@@ -64,7 +64,7 @@ export default function EmptyStateScreen() {
           <div className="feature">
             <GlassPhoto size={32} />
             <div>
-              <div className="feature-t">2. Додай об&apos;єкти</div>
+              <div className="feature-t">2. Додай обʼєкти</div>
               <div className="feature-s">Офіси, квартири, магазини з фото і ціною</div>
             </div>
           </div>

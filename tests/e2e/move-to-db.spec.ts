@@ -106,7 +106,7 @@ async function selectTwo(page: Page) {
   await expect(page.getByText('Всі (3)')).toBeVisible({ timeout: 15_000 })
 
   await page.getByLabel('Меню бази').click()
-  await page.getByText('Виділити об\'єкти').click()
+  await page.getByText('Виділити обʼєкти').click()
   await page.locator('.obj-card', { hasText: 'Офіс 101' }).locator('.obj-t').click()
   await page.locator('.obj-card', { hasText: 'Офіс 102' }).locator('.obj-t').click()
   await expect(page.getByText('2 обрано')).toBeVisible()

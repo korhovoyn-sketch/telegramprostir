@@ -145,8 +145,8 @@ test('drive-through: home → objects → compact → action sheet → form → 
 
   // ── 5. Property form: CTA is in-flow at the end of the fields ──────────────
   await page.getByText('Всі (4)').click()
-  await page.getByLabel("Додати об'єкт").click()
-  await expect(page.getByText("Новий об'єкт")).toBeVisible()
+  await page.getByLabel("Додати обʼєкт").click()
+  await expect(page.getByText("Новий обʼєкт")).toBeVisible()
   const cta = page.locator('button.mbtn')
   await expect(cta).toHaveCount(1)
   await cta.scrollIntoViewIfNeeded()

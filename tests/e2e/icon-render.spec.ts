@@ -103,7 +103,7 @@ async function walk(page: Page, visit: (label: string) => Promise<void>) {
   await page.locator('.hdr-back').click()
   await expect(page.getByText('Всі (2)')).toBeVisible({ timeout: 15_000 })
   await page.locator('.fbtn').click()
-  await expect(page.getByText('Новий об\'єкт')).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText('Новий обʼєкт')).toBeVisible({ timeout: 15_000 })
   await visit('property-form')
 
   await page.goto('/')

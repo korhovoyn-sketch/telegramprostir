@@ -13,7 +13,7 @@ export function useSlowLoadingToast(loading: boolean, delayMs = 4000): void {
     const t = setTimeout(() => {
       showToast({
         type: 'info',
-        title: 'Повільне з\'єднання',
+        title: 'Повільне зʼєднання',
         subtitle: 'Завантаження триває довше, ніж зазвичай...',
       })
     }, delayMs)
