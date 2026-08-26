@@ -281,3 +281,36 @@ if echo "$vr" | grep -qi MISSING; then
   echo "✗ легасі-стенд: лишились MISSING після накату"; echo "$vr" | grep -i MISSING; exit 1
 fi
 echo "✓ легасі-стенд: пермісивні політики й відкритий грант знято, фікс 045 на місці"
+
+# ── Колонки, які ЧИТАЄ застосунок, існують у справжній схемі ──────────────────
+#
+# Невідома колонка в `select()` — це не порожнє поле, а PostgREST 400 на ВЕСЬ
+# запит. Для `USER_COLUMNS` це означає, що ламається ВХІД: `refreshSessionSilently`
+# і `loginViaTelegram` читають профіль саме ним. Урок уже коштував раунду (042:
+# `area_basis` довелось накочувати ПЕРЕД деплоєм фронта), і CLAUDE.md прямо
+# застерігає не додавати `public_phone` в цей список.
+#
+# Списки беруться З КОДУ, а не дублюються тут: копія розійшлася б за раунд.
+col_check() {  # $1 = таблиця, $2 = кома-список колонок
+  local missing
+  missing=$($PSQL -d shadow -t -A -c "
+    SELECT string_agg(c, ', ') FROM unnest(string_to_array('$2', ',')) AS c
+     WHERE c NOT IN (SELECT column_name FROM information_schema.columns
+                      WHERE table_schema='public' AND table_name='$1')")
+  if [ -n "$missing" ]; then
+    echo "✗ $1: застосунок читає неіснуючі колонки → PostgREST 400 на весь запит: $missing"
+    exit 1
+  fi
+}
+extract() {  # витягти рядок-константу з коду (лише літерал, без бектик-шаблонів)
+  grep -oP "(?<=$2 = ')[a-z_,0-9]+(?=')" "$1" | head -1
+}
+USER_COLS=$(extract src/lib/supabase.ts 'USER_COLUMNS')
+DB_COLS=$(extract src/hooks/useDatabases.ts 'DB_COLUMNS')
+RP_COLS=$(grep -A2 "RENT_PAYMENT_COLUMNS =" src/lib/rentPayments.ts | grep -oP "'\K[a-z_,0-9]+(?=')" | head -1)
+[ -z "$USER_COLS" ] && { echo "✗ не вдалось витягти USER_COLUMNS — формат константи змінився"; exit 1; }
+[ -z "$DB_COLS" ]   && { echo "✗ не вдалось витягти DB_COLUMNS — формат константи змінився"; exit 1; }
+col_check users "$USER_COLS"
+col_check databases "$DB_COLS"
+[ -n "$RP_COLS" ] && col_check rent_payments "$RP_COLS"
+echo "✓ колонки USER_COLUMNS/DB_COLUMNS існують у схемі (вхід не впаде на PostgREST 400)"
