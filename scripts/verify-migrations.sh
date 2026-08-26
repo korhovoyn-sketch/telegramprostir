@@ -314,3 +314,25 @@ col_check users "$USER_COLS"
 col_check databases "$DB_COLS"
 [ -n "$RP_COLS" ] && col_check rent_payments "$RP_COLS"
 echo "✓ колонки USER_COLUMNS/DB_COLUMNS існують у схемі (вхід не впаде на PostgREST 400)"
+
+# ── Реєстрація НОВОГО користувача сумісна зі схемою ───────────────────────────
+#
+# `telegram-auth` вставляє рядок у `public.users` рівно з полів `userPayload`
+# (+ `role`). Якщо в таблиці зʼявиться NOT NULL колонка без DEFAULT, якої там
+# немає, INSERT падатиме — але ЛИШЕ для нових акаунтів: наявні користувачі йдуть
+# гілкою UPDATE і нічого не помітять. Тобто реєстрація ламається тихо й
+# вибірково, і жоден e2e цього не побачить (вони мокають edge-функцію).
+EDGE=supabase/functions/telegram-auth/index.ts
+ins_cols=$(sed -n '/const userPayload = {/,/^    }/p' "$EDGE" | grep -oP '^\s+\K[a-z_]+(?=:)' | tr '\n' ',')ROLE
+ins_cols="${ins_cols%ROLE}role"
+[ "$(echo "$ins_cols" | tr -cd ',' | wc -c)" -lt 4 ] && { echo "✗ не вдалось витягти userPayload з $EDGE"; exit 1; }
+req_missing=$($PSQL -d shadow -t -A -c "
+  SELECT string_agg(column_name, ', ') FROM information_schema.columns
+   WHERE table_schema='public' AND table_name='users'
+     AND is_nullable='NO' AND column_default IS NULL
+     AND column_name <> ALL (string_to_array('$ins_cols', ','))")
+if [ -n "$req_missing" ]; then
+  echo "✗ реєстрація нового користувача впаде: users має обовʼязкові колонки без DEFAULT, яких telegram-auth не пише: $req_missing"
+  exit 1
+fi
+echo "✓ INSERT нового користувача покриває всі обовʼязкові колонки users"
