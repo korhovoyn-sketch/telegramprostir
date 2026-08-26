@@ -993,7 +993,7 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 .view-a{font-size:var(--fs-cap1);color:var(--t2);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .view-r{display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0}
 .view-dot{width:7px;height:7px;border-radius:50%;box-shadow:0 0 8px currentColor}
-.view-t{font-size:var(--fs-cap2);color:var(--t3)}
+.view-t{font-size:var(--fs-cap2);color:var(--t2)}
 
 /* ── PROFILE ── */
 .profile-c{margin:0 var(--g3) 14px;padding:16px;border-radius:var(--r-md);display:flex;align-items:center;gap:14px}
