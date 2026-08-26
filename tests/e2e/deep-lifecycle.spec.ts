@@ -129,14 +129,14 @@ test('payment lifecycle: schedule → due item → mark paid → stats → unpay
   await receiveBtn.click()
   await expect(page.getByText('Підтвердити платіж')).toBeVisible()
   await page.getByRole('button', { name: 'Підтвердити' }).click()
-  await expect(page.getByText('Платіж підтверджено ✓')).toBeVisible()
+  await expect(page.getByText('Платіж підтверджено')).toBeVisible()
   await expect.poll(() => records.length).toBe(1)
   expect(records[0]).toMatchObject({ property_id: PROP.id, owner_id: USER.id, status: 'paid', amount: 1800 })
   await expect(page.getByText(/Календар платежів|Платежі — /)).toBeVisible({ timeout: 15_000 })
 
   // 3b. Валідація суми — перенесено з modal-sweep.spec.ts: порожнє поле лишається
   // легальним (береться очікувана сума), а введене мусить бути додатним числом.
-  await page.getByText('✓ Сплачено').click()
+  await page.getByText('Сплачено', { exact: true }).click()
   await expect(page.getByText('Редагувати платіж')).toBeVisible()
   const amountInput = page.getByLabel('Сума отриманого платежу')
   const saveBtn = page.getByRole('button', { name: 'Зберегти зміни' })
@@ -150,13 +150,13 @@ test('payment lifecycle: schedule → due item → mark paid → stats → unpay
   await expect(page.getByText(/Календар платежів|Платежі — /)).toBeVisible({ timeout: 15_000 })
 
   // 4. Рядок стає «Сплачено», стата «Отримано» показує суму
-  await expect(page.getByText('✓ Сплачено')).toBeVisible()
+  await expect(page.getByText('Сплачено', { exact: true })).toBeVisible()
   await expect(page.locator('.stat-n', { hasText: '1 800' })).toBeVisible()
 
   // 5. Скасування платежу (×) — ЗАВЖДИ через confirm-модалку
-  await page.getByTitle('Скасувати платіж').click()
+  await page.getByLabel('Скасувати цей платіж').click()
   await expect(page.getByText('Скасувати платіж?')).toBeVisible()
-  await page.getByRole('button', { name: 'Скасувати платіж', exact: true }).click()
+  await page.locator('.modal').getByRole('button', { name: 'Скасувати платіж', exact: true }).click()
   await expect(page.getByText('Платіж скасовано')).toBeVisible({ timeout: 10_000 })
   await expect(page.getByRole('button', { name: /Отримано/ }).first()).toBeVisible()
 })

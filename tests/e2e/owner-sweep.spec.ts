@@ -131,10 +131,11 @@ test.describe('owner sweep: uncovered screens', () => {
     await page.goto('/')
 
     await expect(page.getByText('Немає підбірок')).toBeVisible({ timeout: 20_000 })
-    // FAB і нативна MainButton (DOM-фолбек .mbtn) тепер несуть той самий
-    // підпис на ОДНОМУ екрані (на відміну від «Додати обʼєкт»/«Створити
-    // базу», де FAB веде на ІНШИЙ екран і колізії немає) — звужуємо до FAB.
-    await page.locator('.fbtn').click()
+    // На ПОРОЖНЬОМУ екрані первинна дія тепер РІВНО одна: FAB ховається, бо
+    // порожній стан має власну кнопку з тим самим підписом (гард —
+    // `empty-cta.spec.ts`). Раніше тут стояв `.fbtn`, і саме через дублікат:
+    // обидві кнопки несли однаковий підпис і `getByText` був неоднозначний.
+    await page.locator('.mbtn').click()
     await expect(page.getByText('Підбірка 1')).toBeVisible()
   })
 })
