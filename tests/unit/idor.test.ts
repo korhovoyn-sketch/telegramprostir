@@ -143,3 +143,48 @@ describe('хелпер ідентичності не переозначуєть�
     }
   })
 })
+
+describe('релізна звірка знає кожен клієнтський RPC', () => {
+  /**
+   * КОЖЕН RPC, ЯКИЙ МОЖЕ ПОКЛИКАТИ КЛІЄНТ, МУСИТЬ БУТИ В `verify_release.sql`.
+   *
+   * Прогалини всередині 001–047 ДОВЕДЕНІ, а не гіпотетичні: накат `RELEASE.sql`
+   * упав у проді на `mark_overdue_payments() does not exist`, бо 024 ніколи не
+   * застосовували. Тобто «функція є в міграції» не означає «функція є в базі» —
+   * присутність треба ПИТАТИ.
+   *
+   * Аудит знайшов пʼять RPC поза звіркою, і найгірший — `lookup_shared_collection`:
+   * визначена ЛИШЕ в 020/023, у `RELEASE.sql` її немає, тож накат 048–062 її не
+   * створює. Якби її в проді не було, deep link `col_<token>` (вхід за посиланням
+   * на підбірку) падав би, і жоден файл репозиторію про це не сказав би.
+   *
+   * Джерельний гард, бо рантаймом це не закрити чесно: e2e мокають RPC через
+   * `page.route`, тобто там існує будь-яка функція, яку назвеш.
+   */
+  it('жоден клієнтський RPC не лишився поза verify_release.sql', () => {
+    const texts: string[] = []
+    const collect = (dir: string) => {
+      for (const e of readdirSync(dir, { withFileTypes: true })) {
+        const f = resolve(dir, e.name)
+        if (e.isDirectory()) collect(f)
+        // `types/supabase.ts` — згенерований опис СХЕМИ, а не виклики.
+        else if (/\.tsx?$/.test(e.name) && !/supabase\.ts$/.test(e.name)) texts.push(readFileSync(f, 'utf8'))
+      }
+    }
+    collect(resolve(process.cwd(), 'src'))
+    const called = [...new Set([...texts.join('\n').matchAll(/\.rpc\('([a-z_]+)'/g)].map((m) => m[1]))]
+    // Антивакуум: якщо регекс перестане знаходити виклики, гард мовчатиме.
+    expect(called.length, 'жодного .rpc() не знайдено — регекс застарів').toBeGreaterThan(8)
+
+    // Імена беруться з ТОГО, ПРО ЩО ЗАПИТ ПИТАЄ (`proname='…'`), а не з тексту
+    // файлу. Перша версія робила `verify.includes(fn)` — і фальсифікація
+    // показала, що гард вакуумний: назву далі «покривав» коментар, який я сам
+    // же й написав поруч. Підрядковий пошук по файлу з прозою не доводить
+    // нічого.
+    const verify = readFileSync(resolve(process.cwd(), 'supabase/verify_release.sql'), 'utf8')
+    const asked = new Set([...verify.matchAll(/proname\s*=\s*'([a-z_]+)'/g)].map((m) => m[1]))
+    expect(asked.size, 'у verify_release не знайдено жодного proname — формат змінився').toBeGreaterThan(5)
+    const missing = called.filter((fn) => !asked.has(fn))
+    expect(missing, 'RPC є в клієнті, але релізна звірка про нього не питає').toEqual([])
+  })
+})
