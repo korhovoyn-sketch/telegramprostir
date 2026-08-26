@@ -6,14 +6,14 @@ import { offlineGuard } from '@/lib/offline'
 import { supabase } from '@/lib/supabase'
 import Header from '@/components/ui/Header'
 import Toggle from '@/components/ui/Toggle'
-import { IconFileExport, IconFile, IconAdjustments } from '@/components/Icons'
+import { IconFileExport, IconFile, IconAdjustments, IconChartBar, IconCheck } from '@/components/Icons'
 import { withSortedPhotos, calcRentUtils, currencySymbol, rentUnitLabel, objectsWord, DB_TYPE_LABELS, STATUS_LABELS, formatLeaseDate, humanizeDbError, safeFileName, photoUrl } from '@/lib/utils'
 import { UTILITY_META } from '@/lib/utilityMeta'
 import type { Property, Database } from '@/types'
 
 const FORMATS = [
-  { id: 'pdf',   label: 'PDF Документ',   desc: 'Брендований PDF — зберігається та шериться', emoji: '📄' },
-  { id: 'excel', label: 'Excel таблиця',   desc: 'Аналітика, розрахунки — .xlsx',               emoji: '📊' },
+  { id: 'pdf',   label: 'PDF Документ',   desc: 'Брендований PDF — зберігається та шериться', icon: <IconFile size={20} color="var(--info)" /> },
+  { id: 'excel', label: 'Excel таблиця',   desc: 'Аналітика, розрахунки — .xlsx',               icon: <IconChartBar size={20} color="var(--ok-fg)" /> },
 ]
 
 type Rgb = [number, number, number]
@@ -64,6 +64,9 @@ const TEMPLATES: PdfTheme[] = [
     tx1: [232, 232, 248], tx2: [140, 140, 180], tx3: [110, 110, 150], onAccent: [255, 255, 255],
   },
 ]
+
+/** RGB-триплет шаблона → CSS. Один опис шаблона живить і PDF, і його превʼю. */
+const rgbCss = (c: readonly number[]) => `rgb(${c[0]},${c[1]},${c[2]})`
 
 // ── save / share generated file on mobile ────────────────────────────────────
 
@@ -344,7 +347,7 @@ async function generatePDF(
   const occupiedCount = rows.filter(p => p.status === 'occupied').length
   const saleCount     = rows.filter(p => p.status === 'for_sale').length
   // total (нормалізований до місяця) мінус utils, НЕ сире .rent — інакше
-  // per_day-об'єкт додав би сюди добову ставку, а не місячний еквівалент.
+  // per_day-обʼєкт додав би сюди добову ставку, а не місячний еквівалент.
   const totalRent     = rows.reduce((s, p) => {
     const { total, utils } = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate, p.area_basis)
     return s + (total - utils)
@@ -819,7 +822,7 @@ async function generateExcel(
   sheetData.push([`База: ${db.name}`])
   sheetData.push([`Тип: ${DB_TYPE_LABELS[db.type] ?? db.type}`])
   sheetData.push([`Дата: ${new Date().toLocaleDateString('uk-UA')}`])
-  sheetData.push([`Об'єктів: ${rows.length}`])
+  sheetData.push([`Обʼєктів: ${rows.length}`])
   sheetData.push([]) // blank
 
   // Header
@@ -976,7 +979,7 @@ async function generateExcel(
   wsSummary['!cols'] = [{ wch: 14 }, { wch: 12 }, { wch: 22 }, { wch: 22 }]
 
   const wb = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(wb, ws, 'Об\'єкти')
+  XLSX.utils.book_append_sheet(wb, ws, 'Обʼєкти')
   XLSX.utils.book_append_sheet(wb, wsSummary, 'Зведена')
 
   // НЕ `XLSX.writeFile()`: він усередині клацає `<a download>`, а webview
@@ -1031,7 +1034,7 @@ export default function ExportScreen() {
       // instead of downloading an empty PDF/Excel.
       const exportable = onlyFree ? properties.filter(p => p.status === 'free') : properties
       if (exportable.length === 0) {
-        showToast({ type: 'error', title: 'Немає об\'єктів для експорту', subtitle: onlyFree ? 'У базі немає вільних об\'єктів' : 'Спершу додайте об\'єкти до бази' })
+        showToast({ type: 'error', title: 'Немає обʼєктів для експорту', subtitle: onlyFree ? 'У базі немає вільних обʼєктів' : 'Спершу додайте обʼєкти до бази' })
         return
       }
 
@@ -1049,10 +1052,10 @@ export default function ExportScreen() {
           user?.email ?? '',
           currencySymbol(user?.currency),
         )
-        showToast({ type: 'success', title: 'PDF збережено ✓' })
+        showToast({ type: 'success', title: 'PDF збережено' })
       } else {
         await generateExcel(dbRecord, properties, onlyFree, currencySymbol(user?.currency))
-        showToast({ type: 'success', title: 'Excel збережено ✓' })
+        showToast({ type: 'success', title: 'Excel збережено' })
       }
     } catch (e) {
       showToast({ type: 'error', title: 'Помилка експорту', subtitle: humanizeDbError(e) })
@@ -1080,13 +1083,13 @@ export default function ExportScreen() {
               onClick={() => setFormat(f.id)}
             >
               <div className="format-ic glass-s">
-                <span style={{ fontSize: 'var(--fs-lead)' }}>{f.emoji}</span>
+                {f.icon}
               </div>
               <div className="format-mn">
                 <div className="format-n">{f.label}</div>
                 <div className="format-s">{f.desc}</div>
               </div>
-              {format === f.id && <div className="format-r">✓</div>}
+              {format === f.id && <div className="format-r"><IconCheck size={16} /></div>}
             </div>
           ))}
         </div>
@@ -1106,13 +1109,18 @@ export default function ExportScreen() {
                   className={`tmpl ${template === t.id ? 'sel' : ''}`}
                   onClick={() => setTemplate(t.id)}
                 >
-                  <div className="tmpl-ph">
+                  {/* Кольори превʼю беруться з ТОГО САМОГО опису шаблона, що
+                      малює сам PDF. Доти вони були захардкоджені в CSS —
+                      білий аркуш для всіх трьох, — тож «Нічний» показував
+                      світлу сторінку: превʼю стверджувало протилежне тому, що
+                      користувач отримає. */}
+                  <div className="tmpl-ph" style={{ background: rgbCss(t.bg) }}>
                     <div style={{ height: 10, borderRadius: 3, background: t.accent, marginBottom: 5 }} />
-                    <div className="tmpl-bar" style={{ width: '80%' }} />
-                    <div className="tmpl-bar" style={{ width: '60%' }} />
-                    <div className="tmpl-block" />
-                    <div className="tmpl-bar" style={{ width: '70%', marginTop: 4 }} />
-                    <div className="tmpl-bar" style={{ width: '45%' }} />
+                    <div className="tmpl-bar" style={{ width: '80%', background: rgbCss(t.tx3) }} />
+                    <div className="tmpl-bar" style={{ width: '60%', background: rgbCss(t.tx3) }} />
+                    <div className="tmpl-block" style={{ background: rgbCss(t.card), border: `.5px solid ${rgbCss(t.border)}` }} />
+                    <div className="tmpl-bar" style={{ width: '70%', marginTop: 4, background: rgbCss(t.tx3) }} />
+                    <div className="tmpl-bar" style={{ width: '45%', background: rgbCss(t.tx3) }} />
                   </div>
                   <div className="tmpl-l">{t.label}</div>
                 </div>
@@ -1129,7 +1137,7 @@ export default function ExportScreen() {
         </div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div className="fr">
-            <span className="fr-l">Тільки вільні об&apos;єкти</span>
+            <span className="fr-l">Тільки вільні обʼєкти</span>
             <Toggle value={onlyFree} onChange={setOnlyFree} />
           </div>
           {format === 'pdf' && (
@@ -1152,8 +1160,8 @@ export default function ExportScreen() {
           lineHeight: 1.5,
         }}>
           {format === 'pdf'
-            ? '📄 PDF містить шапку з назвою бази, зведену статистику по статусах, таблицю об\'єктів з кольоровими статусами та підвал з контактами.'
-            : '📊 Excel містить два аркуші: повний список об\'єктів з формулами підсумків та зведена таблиця по статусах.'
+            ? 'PDF містить шапку з назвою бази, зведену статистику по статусах, таблицю обʼєктів з кольоровими статусами та підвал з контактами.'
+            : 'Excel містить два аркуші: повний список обʼєктів з формулами підсумків та зведена таблиця по статусах.'
           }
         </div>
 

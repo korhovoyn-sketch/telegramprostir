@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { useAppStore } from '@/store/appStore'
 import { offlineGuard } from '@/lib/offline'
 import { supabase, USER_COLUMNS } from '@/lib/supabase'
+import { IconCamera } from '@/components/Icons'
 import Header from '@/components/ui/Header'
 import { hapticNotify } from '@/lib/telegram'
 import { scrollFocusedIntoView } from '@/lib/utils'
@@ -89,7 +90,7 @@ export default function QRScannerScreen() {
       if (freshUser) useAppStore.getState().setUser(freshUser as User)
     } catch { /* role refresh is best-effort */ }
     hapticNotify('success')
-    showToast({ type: 'success', title: 'Базу підключено! 🎉' })
+    showToast({ type: 'success', title: 'Базу підключено!' })
     navigate('realtor-database', { dbId: row.db_id })
   }
 
@@ -141,7 +142,7 @@ export default function QRScannerScreen() {
             background: 'rgba(255,255,255,.05)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <div style={{ fontSize: 48, opacity: 0.4 }}>📷</div>
+            <IconCamera size={40} color="var(--t3)" />
           </div>
           {/* Corner brackets */}
           {(['tl', 'tr', 'bl', 'br'] as const).map((pos) => (

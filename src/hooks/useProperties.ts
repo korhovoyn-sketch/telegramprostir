@@ -185,7 +185,7 @@ export function useProperties(dbId?: string) {
     try {
       // Дані належать власнику БАЗИ: коли створює член команди, owner_id має
       // бути власників, інакше RLS-власницькі перевірки далі по системі
-      // почнуть «губити» об'єкт (і WITH CHECK редакторської політики це
+      // почнуть «губити» обʼєкт (і WITH CHECK редакторської політики це
       // однаково вимагає).
       const dbOwner = useAppStore.getState().databases.find(d => d.id === payload.db_id)?.owner_id
       const row = { ...payload, owner_id: dbOwner ?? user.id }
@@ -210,7 +210,7 @@ export function useProperties(dbId?: string) {
       }
       if (err) throw err
       setProperties((prev) => [created as Property, ...prev])
-      showToast({ type: 'success', title: 'Об\'єкт додано' })
+      showToast({ type: 'success', title: 'Обʼєкт додано' })
       backThenReplace('db-objects', { dbId: payload.db_id })
       return true
     } catch (e) {
@@ -346,10 +346,10 @@ export function useProperties(dbId?: string) {
       }
 
       setProperties((prev) => prev.filter((p) => p.id !== id))
-      showToast({ type: 'success', title: 'Об\'єкт видалено' })
+      showToast({ type: 'success', title: 'Обʼєкт видалено' })
       // backThenReplace, не navigate: видалення відкривається ЛИШЕ з форми
-      // редагування, куди заходять з property-detail того ж об'єкта — просте
-      // navigate лишило б і деталі, і форму цього вже неіснуючого об'єкта в
+      // редагування, куди заходять з property-detail того ж обʼєкта — просте
+      // navigate лишило б і деталі, і форму цього вже неіснуючого обʼєкта в
       // history, і Back після видалення повертав би на мертвий екран.
       backThenReplace('db-objects', { dbId })
     } catch (e) {

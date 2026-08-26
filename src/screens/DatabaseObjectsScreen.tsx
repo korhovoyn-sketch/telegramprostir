@@ -141,7 +141,7 @@ export default function DatabaseObjectsScreen() {
     const n = selectedIds.size
     const ok = await confirmAction({
       title: `Видалити ${n} ${objectsWord(n)}?`,
-      message: 'Всі вибрані об\'єкти і їхні фото будуть видалені. Це незворотно.',
+      message: 'Всі вибрані обʼєкти і їхні фото будуть видалені. Це незворотно.',
       confirmLabel: `Видалити (${n})`,
       destructive: true,
     })
@@ -496,7 +496,7 @@ export default function DatabaseObjectsScreen() {
               </div>
             </div>
 
-            {/* Зайнятий об'єкт: хто орендує і до якого терміну — ключова інформація картки */}
+            {/* Зайнятий обʼєкт: хто орендує і до якого терміну — ключова інформація картки */}
             {p.status === 'occupied' && (p.tenant_name?.trim() || formatLeasePeriod(p.lease_start_date, p.lease_end_date)) && (
               <div className="obj-ten">
                 {p.tenant_name?.trim() && (
@@ -601,7 +601,7 @@ export default function DatabaseObjectsScreen() {
 
         {/* Search — hidden while reordering */}
         {!reorderMode && (
-          <SearchBar value={search} onChange={setSearch} placeholder="Пошук об'єкту..." />
+          <SearchBar value={search} onChange={setSearch} placeholder="Пошук обʼєкту..." />
         )}
 
         {/* Sort + view toggle — one row: chips scroll left, toggle pinned right */}
@@ -647,7 +647,7 @@ export default function DatabaseObjectsScreen() {
         )}
 
         {/* Stats dashboard — у компакті ховаємо: користувач попросив щільності,
-            а панель з'їдала пів першого екрана списку */}
+            а панель зʼїдала пів першого екрана списку */}
         {!reorderMode && !selectMode && !compactView && (
           <DatabaseStatsPanel properties={properties} currency={user?.currency} />
         )}
@@ -655,12 +655,12 @@ export default function DatabaseObjectsScreen() {
         {/* Mode hints */}
         {reorderMode && (
           <div style={{ padding: '8px 16px', fontSize: 'var(--fs-cap1)', color: 'var(--t3)', textAlign: 'center' }}>
-            Натисніть ↑ або ↓ щоб змінити позицію об&apos;єкта
+            Натисніть ↑ або ↓ щоб змінити позицію обʼєкта
           </div>
         )}
         {selectMode && (
           <div style={{ padding: '6px 16px', fontSize: 'var(--fs-cap1)', color: 'var(--t3)', textAlign: 'center', display: 'flex', justifyContent: 'center', gap: 12 }}>
-            <span>Оберіть об&apos;єкти для дії</span>
+            <span>Оберіть обʼєкти для дії</span>
             {filtered.length > 0 && (
               <button
                 onClick={() => {
@@ -684,15 +684,14 @@ export default function DatabaseObjectsScreen() {
         ) : filtered.length === 0 && properties.length === 0 ? (
           <div className="empty-state" style={{ paddingTop: 24 }}>
             <div className="empty-ic">🏢</div>
-            <div className="empty-h">Немає об&apos;єктів</div>
-            <div className="empty-s">{isOwner ? 'Натисни + щоб додати перший об\'єкт' : 'У цій базі поки немає об\'єктів'}</div>
+            <div className="empty-h">Немає обʼєктів</div>
+            <div className="empty-s">{isOwner ? 'Натисни + щоб додати перший обʼєкт' : 'У цій базі поки немає обʼєктів'}</div>
             {isOwner && (
               <button
-                className="mbtn success"
-                style={{ position: 'relative', bottom: 'auto', left: 'auto', right: 'auto', marginTop: 24, width: 'auto', minWidth: 200 }}
+                className="mbtn success mbtn-flow"
                 onClick={() => navigate('property-form', { dbId: screenParams.dbId })}
               >
-                Додати перший об&apos;єкт
+                Додати перший обʼєкт
               </button>
             )}
           </div>
@@ -714,7 +713,7 @@ export default function DatabaseObjectsScreen() {
           <div className="empty-state" style={{ paddingTop: 24 }}>
             <div className="empty-ic">{tab === 'free' ? '🟢' : tab === 'occupied' ? '🔑' : '🏷️'}</div>
             <div className="empty-h">
-              {tab === 'free' ? 'Немає вільних об\'єктів' : tab === 'occupied' ? 'Немає зайнятих об\'єктів' : 'Немає об\'єктів на продаж'}
+              {tab === 'free' ? 'Немає вільних обʼєктів' : tab === 'occupied' ? 'Немає зайнятих обʼєктів' : 'Немає обʼєктів на продаж'}
             </div>
             <div className="empty-s">Усього в базі — {properties.length} {objectsWord(properties.length)}</div>
             <button
@@ -761,14 +760,14 @@ export default function DatabaseObjectsScreen() {
           raised
           hidden={fabHidden}
           icon={<IconPlus size={14} />}
-          label="Додати об'єкт"
+          label="Додати обʼєкт"
           onClick={() => navigate('property-form', { dbId: db.id })}
         />
       )}
 
       {isOwner && !fabSeen && !reorderMode && !selectMode && !loading && (
         <CoachMark
-          title="Додайте перший об'єкт"
+          title="Додайте перший обʼєкт"
           body="Натисніть +, щоб внести квартиру, офіс або приміщення з площею, статусом та орендою."
           targetRef={fabRef}
           placement="above"
@@ -835,10 +834,10 @@ export default function DatabaseObjectsScreen() {
               ...(!foldersUnavailable ? [
                 { Icon: IconFolder,    label: 'Папки',                 nav: false, danger: false, action: () => { setShowMenu(false); navigate('folder-manage', { dbId: screenParams.dbId }) } },
               ] : []),
-              { Icon: IconCircleCheck, label: 'Виділити об\'єкти',      nav: false, danger: false, action: enterSelectMode },
+              { Icon: IconCircleCheck, label: 'Виділити обʼєкти',      nav: false, danger: false, action: enterSelectMode },
               { Icon: IconAdjustments, label: 'Змінити порядок',       nav: false, danger: false, action: enterReorderMode },
               // Редагування й видалення САМОЇ бази — теж owner-only (як шаринг/гості/команда
-              // вище): редактор команди має лише CRUD об'єктів/фото/файлів/платежів
+              // вище): редактор команди має лише CRUD обʼєктів/фото/файлів/платежів
               // (041), а не право стерти чи перейменувати чужу базу. Без цього гейту
               // RLS мовчки блокує сам DELETE рядка databases (0 рядків, без помилки),
               // але storage-політика редактора ВСЕ ОДНО дозволяє видалити всі фото

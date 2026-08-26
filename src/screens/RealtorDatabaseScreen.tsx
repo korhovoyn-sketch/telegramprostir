@@ -134,7 +134,7 @@ export default function RealtorDatabaseScreen() {
           ))}
         </div>
 
-        <SearchBar value={search} onChange={setSearch} placeholder="Пошук об&apos;єкту..." />
+        <SearchBar value={search} onChange={setSearch} placeholder="Пошук обʼєкту..." />
 
         {loading ? (
           <SkeletonLoader rowHeight={200} />

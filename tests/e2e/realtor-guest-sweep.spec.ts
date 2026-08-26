@@ -88,8 +88,8 @@ test.describe('realtor + guest sweep', () => {
 
     await page.goto('/')
 
-    await expect(page.getByText("Мої об'єкти")).toBeVisible({ timeout: 20_000 })
-    await expect(page.getByText("Немає доступних об'єктів")).toBeVisible()
+    await expect(page.getByText("Мої обʼєкти")).toBeVisible({ timeout: 20_000 })
+    await expect(page.getByText("Немає доступних обʼєктів")).toBeVisible()
     await expect(page.getByText("Власник надішле вам запрошення-посилання")).toBeVisible()
     await expect(page.getByText('Помилка')).toHaveCount(0)
     await expect(page.getByText(/Не вдалося завантажити/)).toHaveCount(0)
@@ -101,10 +101,10 @@ test.describe('realtor + guest sweep', () => {
 
     await page.goto('/')
 
-    await expect(page.getByText("Мої об'єкти")).toBeVisible({ timeout: 20_000 })
+    await expect(page.getByText("Мої обʼєкти")).toBeVisible({ timeout: 20_000 })
     await expect(page.getByText('Квартира 12')).toBeVisible()
     await expect(page.getByText('Мій орендар')).toBeVisible()
-    await expect(page.getByText("Немає доступних об'єктів")).toHaveCount(0)
+    await expect(page.getByText("Немає доступних обʼєктів")).toHaveCount(0)
     await expect(page.getByText('Помилка')).toHaveCount(0)
   })
 })

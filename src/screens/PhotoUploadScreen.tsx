@@ -252,9 +252,8 @@ export default function PhotoUploadScreen() {
 
         {done && (
           <button
-            className="mbtn"
+            className="mbtn mbtn-flow"
             onClick={back}
-            style={{ position: 'relative', bottom: 'auto', left: 'auto', right: 'auto', width: 'auto', minWidth: 200 }}
           >
             Готово
           </button>

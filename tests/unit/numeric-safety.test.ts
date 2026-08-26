@@ -75,7 +75,7 @@ describe('дати і плюрали на ворожому вводі', () => {
   })
 
   it('плюрали не ламаються на NaN', () => {
-    expect(pluralUk(NaN, 'об\'єкт', 'об\'єкти', 'об\'єктів')).not.toMatch(GARBAGE)
+    expect(pluralUk(NaN, 'обʼєкт', 'обʼєкти', 'обʼєктів')).not.toMatch(GARBAGE)
     expect(objectsWord(NaN)).not.toMatch(GARBAGE)
   })
 

@@ -174,7 +174,7 @@ test('пакетне «Вільно» знімає орендаря і дати 
   })
   await openDb(page)
   await openMenu(page)
-  await page.getByText('Виділити об\'єкти', { exact: true }).click()
+  await page.getByText('Виділити обʼєкти', { exact: true }).click()
   await page.waitForTimeout(400)
 
   await page.locator('.obj-card, .row').first().click()
@@ -193,7 +193,7 @@ test('пакетне видалення: заблокований RLS DELETE н�
   await setup(page, wire, { deleteBlocked: true })
   await openDb(page)
   await openMenu(page)
-  await page.getByText('Виділити об\'єкти', { exact: true }).click()
+  await page.getByText('Виділити обʼєкти', { exact: true }).click()
   await page.waitForTimeout(400)
 
   await page.locator('.obj-card, .row').first().click()
@@ -206,6 +206,6 @@ test('пакетне видалення: заблокований RLS DELETE н�
 
   expect(wire.storageRemoves, 'фото не можна знищити, коли рядки не видалились').toBe(0)
   await expect(page.locator('.toast')).toContainText(/Помилка|доступ/i)
-  // Картки лишились на місці — оптимістика не «з'їла» їх назавжди.
+  // Картки лишились на місці — оптимістика не «зʼїла» їх назавжди.
   await expect(page.getByText('Офіс 101').first()).toBeVisible()
 })

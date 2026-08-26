@@ -3,7 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { IconX, IconDownload, IconExternalLink } from '@/components/Icons'
+import { IconX, IconDownload, IconExternalLink, IconFile } from '@/components/Icons'
 
 interface FilePreviewModalProps {
   url: string
@@ -169,7 +169,7 @@ export default function FilePreviewModal({ url, mime, name, onClose }: FilePrevi
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 'var(--fs-t1)',
             }}>
-              {isPdf ? '📄' : '📝'}
+              <IconFile size={32} color={isPdf ? 'var(--err)' : 'var(--info)'} />
             </div>
             <div style={{ textAlign: 'center' }}>
               <div style={{

@@ -139,7 +139,7 @@ describe('useDeepLink — prop_ property share links', () => {
 
     renderHook(() => useDeepLink())
 
-    await waitFor(() => expect(useAppStore.getState().toast?.title).toBe('Об\'єкт не знайдено'))
+    await waitFor(() => expect(useAppStore.getState().toast?.title).toBe('Обʼєкт не знайдено'))
   })
 })
 

@@ -35,7 +35,7 @@ export default function PropertyFormScreen() {
   const dupSource = properties.find(p => p.id === duplicateId)
   const dupFilledRef = useRef(false)
   const dupFilledStaleRef = useRef(false)
-  // id об'єкта, яким уже заповнено форму (щоб не префілити повторно)
+  // id обʼєкта, яким уже заповнено форму (щоб не префілити повторно)
   const prefilledRef = useRef<string | null>(null)
   // Префіл зроблено з кеш-рядка (`_stale`) — його треба переграти РІВНО ОДИН
   // раз, коли мережа підтвердить свіжий рядок.
@@ -157,7 +157,7 @@ export default function PropertyFormScreen() {
       showToast({
         type: 'info',
         title: 'Чернетку відновлено',
-        subtitle: 'Незбережений об\'єкт з минулого разу',
+        subtitle: 'Незбережений обʼєкт з минулого разу',
         actionLabel: 'Очистити',
         onAction: () => {
           localStorage.removeItem(draftKey)
@@ -193,8 +193,8 @@ export default function PropertyFormScreen() {
       description, salePrice, tenantName, leaseStartDate, leaseEndDate, address, utilities, folderId])
 
   useEffect(() => {
-    // Префіл РІВНО ОДИН раз на об'єкт. Ефект залежить від `existing`, а це
-    // об'єкт зі списку properties — будь-яке фонове оновлення списку давало
+    // Префіл РІВНО ОДИН раз на обʼєкт. Ефект залежить від `existing`, а це
+    // обʼєкт зі списку properties — будь-яке фонове оновлення списку давало
     // нову ідентичність, ефект перезапускався і ЗАТИРАВ уже введений текст
     // значеннями з БД (користувач бачив «зміни не зберігаються»).
     //
@@ -310,7 +310,7 @@ export default function PropertyFormScreen() {
   )
   const saveLabel = isEdit
     ? 'Зберегти зміни'
-    : count > 1 ? `Додати ${count} ${objectsWord(count)}` : 'Додати об\'єкт'
+    : count > 1 ? `Додати ${count} ${objectsWord(count)}` : 'Додати обʼєкт'
 
   // Returns the numeric value, or undefined if string is empty/invalid.
   // Avoids the `parseFloat('0') || undefined` pitfall where 0 is silently dropped.
@@ -323,8 +323,8 @@ export default function PropertyFormScreen() {
   async function handleDeleteProperty() {
     if (!editId) return
     const ok = await confirmAction({
-      title: 'Видалити об\'єкт?',
-      message: `Об'єкт "${name}" буде видалено. Це незворотно.`,
+      title: 'Видалити обʼєкт?',
+      message: `Обʼєкт "${name}" буде видалено. Це незворотно.`,
       confirmLabel: 'Видалити',
       destructive: true,
     })
@@ -361,7 +361,7 @@ export default function PropertyFormScreen() {
     const ur = numOrUndef(utilitiesRate) ?? 0
     const sp = numOrUndef(salePrice) ?? 0
     if (au < 0 || at < 0 || rr < 0 || ur < 0 || sp < 0) {
-      showToast({ type: 'error', title: 'Значення не може бути від\'ємним' })
+      showToast({ type: 'error', title: 'Значення не може бути відʼємним' })
       return
     }
     if (au > 0 && at > 0 && au > at) {
@@ -415,9 +415,9 @@ export default function PropertyFormScreen() {
     if (isEdit && editId) {
       await updateProperty(editId, payload)
       // Повертаємось РІВНО туди, звідки відкрили форму.
-      // • з екрана об'єкта → backThenReplace: знімає попередній (той самий)
+      // • з екрана обʼєкта → backThenReplace: знімає попередній (той самий)
       //   екран деталей і ставить свіжий, щоб у history не було дубля;
-      // • зі списку об'єктів (кнопка «Редагувати» на картці) → просто back:
+      // • зі списку обʼєктів (кнопка «Редагувати» на картці) → просто back:
       //   раніше тут теж стояв backThenReplace('property-detail') і він ЗʼЇДАВ
       //   зі стека сам список — Back з деталей стрибав аж у список баз.
       if (useAppStore.getState().history.at(-1)?.screen === 'property-detail') {
@@ -433,7 +433,7 @@ export default function PropertyFormScreen() {
       const seen = new Set<string>()
       for (const n of finalNames) {
         if (seen.has(n) || existingNames.has(n)) {
-          showToast({ type: 'error', title: 'Ім\'я повторюється', subtitle: `«${n}» вже існує або вжито двічі` })
+          showToast({ type: 'error', title: 'Імʼя повторюється', subtitle: `«${n}» вже існує або вжито двічі` })
           return
         }
         seen.add(n)
@@ -452,7 +452,7 @@ export default function PropertyFormScreen() {
         const rowAu = numOrUndef(rawAu) ?? numOrUndef(areaUseful)
         const rowAt = isParking ? undefined : (numOrUndef(rawAt) ?? numOrUndef(areaTotal))
         if ((rowAu ?? 0) < 0 || (rowAt ?? 0) < 0) {
-          showToast({ type: 'error', title: 'Значення не може бути від\'ємним', subtitle: finalNames[i] }); return
+          showToast({ type: 'error', title: 'Значення не може бути відʼємним', subtitle: finalNames[i] }); return
         }
         if (rowAu && rowAt && rowAu > rowAt) {
           showToast({ type: 'error', title: 'Корисна площа більша за розрахункову', subtitle: finalNames[i] }); return
@@ -480,13 +480,13 @@ export default function PropertyFormScreen() {
   return (
     <div className="scr bg-blue">
       <Header
-        title={isEdit ? 'Редагування' : 'Новий об\'єкт'}
+        title={isEdit ? 'Редагування' : 'Новий обʼєкт'}
         backLabel={isEdit ? 'Назад' : 'База'}
         right={
           isEdit ? (
             <button
               className="hdr-a"
-              aria-label="Видалити об'єкт"
+              aria-label="Видалити обʼєкт"
               onClick={handleDeleteProperty}
               style={{ background: 'none', border: 'var(--bd)', color: 'var(--err)' }}
             >
@@ -516,7 +516,7 @@ export default function PropertyFormScreen() {
               {/* marginLeft:auto — контрол праворуч, як інпути/сегменти сусідніх рядків */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto' }}>
                 <button
-                  aria-label="Менше об'єктів"
+                  aria-label="Менше обʼєктів"
                   onClick={() => { hapticSelection(); setCount(c => Math.max(1, c - 1)) }}
                   disabled={count <= 1}
                   style={{
@@ -529,7 +529,7 @@ export default function PropertyFormScreen() {
                 >−</button>
                 <span className="num" style={{ minWidth: 28, textAlign: 'center', fontSize: 'var(--fs-call)', fontWeight: 'var(--fw-semi)', color: 'var(--t1)' }}>{count}</span>
                 <button
-                  aria-label="Більше об'єктів"
+                  aria-label="Більше обʼєктів"
                   onClick={() => { hapticSelection(); setCount(c => Math.min(BULK_MAX, c + 1)) }}
                   disabled={count >= BULK_MAX}
                   style={{
@@ -667,7 +667,7 @@ export default function PropertyFormScreen() {
                 return (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 12px' }}>
                     <input
-                      aria-label={`Назва об'єкта ${i + 1}`}
+                      aria-label={`Назва обʼєкта ${i + 1}`}
                       style={{ ...inputStyle, flex: 1, width: 'auto', minWidth: 0, textAlign: 'left' }}
                       placeholder={auto}
                       maxLength={100}
@@ -675,7 +675,7 @@ export default function PropertyFormScreen() {
                       onChange={e => setRow({ name: e.target.value })}
                     />
                     <input
-                      aria-label={`Корисна площа об'єкта ${i + 1}`}
+                      aria-label={`Корисна площа обʼєкта ${i + 1}`}
                       className="num"
                       style={inputStyle}
                       type="text" inputMode="decimal"
@@ -687,7 +687,7 @@ export default function PropertyFormScreen() {
                       <>
                         <span style={{ color: 'var(--t4)', fontSize: 'var(--fs-cap1)' }}>/</span>
                         <input
-                          aria-label={`Розрахункова площа об'єкта ${i + 1}`}
+                          aria-label={`Розрахункова площа обʼєкта ${i + 1}`}
                           className="num"
                           style={inputStyle}
                           type="text" inputMode="decimal"
@@ -757,11 +757,16 @@ export default function PropertyFormScreen() {
               <span className="fr-u">м²</span>
             </div>
           )}
-          {/* Which area the per-m² rate (rent AND expenses) multiplies by. */}
+          {/* Which area the per-m² rate (rent AND expenses) multiplies by.
+              `fr-stack` — підпис НАД сегментом, не поруч. Заміряно: у рядку
+              349px підпис зʼїдає 120, сегменту лишається 191, тобто 84px на
+              підпис, який потребує 93 — і ellipsis різав саме те слово, яким
+              обирають базу розрахунку («Розрахунково…»). `maxWidth` тут не
+              допомагає в принципі: він обмежує згори, а не додає ширини. */}
           {!isParking && (
-            <div className="fr">
-              <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconRuler size={14} color="var(--t3)" />Рахувати від</span>
-              <div className="fr-seg" style={{ maxWidth: 220 }}>
+            <div className="fr fr-stack">
+              <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0 }}><IconRuler size={14} color="var(--t3)" />Рахувати від</span>
+              <div className="fr-seg">
                 <button type="button" className={`fr-seg-b ${areaBasis === 'useful' ? 'on' : ''}`} onClick={() => { hapticSelection(); setAreaBasis('useful') }}>Корисної</button>
                 <button type="button" className={`fr-seg-b ${areaBasis === 'total' ? 'on' : ''}`} onClick={() => { hapticSelection(); setAreaBasis('total') }}>Розрахункової</button>
               </div>
@@ -888,7 +893,7 @@ export default function PropertyFormScreen() {
           <textarea
             aria-label="Опис обʼєкта"
             className="fr-textarea"
-            placeholder="Додатковий опис об'єкту..."
+            placeholder="Додатковий опис обʼєкту..."
             value={description}
             onChange={e => setDescription(e.target.value)}
             rows={4}

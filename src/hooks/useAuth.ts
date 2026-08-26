@@ -222,7 +222,7 @@ export function useAuth() {
             await new Promise(r => setTimeout(r, 1500 * attempt))
             continue
           }
-          throw new Error('Немає з\'єднання з сервером. Перевірте інтернет.')
+          throw new Error('Немає зʼєднання з сервером. Перевірте інтернет.')
         } finally {
           clearTimeout(timeoutId)
         }

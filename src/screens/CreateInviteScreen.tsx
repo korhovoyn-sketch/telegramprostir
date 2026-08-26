@@ -24,7 +24,7 @@ interface KindCopy {
 const KIND_COPY: Record<'team' | 'guest', KindCopy> = {
   team: {
     formTitle: 'Запросити в команду',
-    formSubtitle: "Людина отримає право редагувати об'єкти цієї бази",
+    formSubtitle: "Людина отримає право редагувати обʼєкти цієї бази",
     fieldLabel: 'Підпис інвайта',
     placeholder: 'напр. Менеджер Оля',
     successTitle: 'Запрошення створено!',
@@ -128,7 +128,7 @@ export default function CreateInviteScreen() {
           </div>
           <div style={{ margin: '0 12px 16px' }}>
             <div className="fld">
-              <div className="fld-l">Підпис (необов&apos;язково)</div>
+              <div className="fld-l">Підпис (необовʼязково)</div>
               <input
                 aria-label={copy.fieldLabel}
                 type="text"

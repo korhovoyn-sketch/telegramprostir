@@ -6,7 +6,7 @@ import { useAppStore } from '@/store/appStore'
 import { useTelegram } from '@/hooks/useTelegram'
 import { isDeepLinkStartParam } from '@/lib/telegram'
 import ProxMascot from '@/components/ProxMascot'
-import { IconTelegram, GlassTelegram, GlassShield, GlassBolt } from '@/components/Icons'
+import { IconTelegram, GlassTelegram, GlassShield, GlassBolt, IconAdjustments } from '@/components/Icons'
 
 const AUTH_STEPS = [
   'Підключаємось до Telegram...',
@@ -56,7 +56,7 @@ export default function WelcomeScreen() {
   }, [user, navigateRoot])
 
   // Silent auto-login: 200 ms grace so an in-flight restore can finish first.
-  // Deps МУСЯТЬ бути стабільними значеннями (рядок initData, не об'єкт tg, і
+  // Deps МУСЯТЬ бути стабільними значеннями (рядок initData, не обʼєкт tg, і
   // колбек через ref): attempted-гард ставиться ДО таймера, тож будь-який
   // повторний запуск ефекту в 200мс-вікні (нова ідентичність tg/loginViaTelegram
   // від паралельного ре-рендеру) скасовував таймер у cleanup і впирався в гард —
@@ -101,7 +101,7 @@ export default function WelcomeScreen() {
       })
       const data = await res.json()
       if (data.ok) {
-        showToast({ type: 'success', title: '✓ Конфігурація OK', subtitle: 'Змінні та БД налаштовані. Якщо вхід не працює — перевірте правильність TELEGRAM_BOT_TOKEN.' })
+        showToast({ type: 'success', title: 'Конфігурація OK', subtitle: 'Змінні та БД налаштовані. Якщо вхід не працює — перевірте правильність TELEGRAM_BOT_TOKEN.' })
       } else {
         const ENV_VAR_NAMES: Record<string, string> = {
           allowed_origin: 'ALLOWED_ORIGIN',
@@ -109,7 +109,7 @@ export default function WelcomeScreen() {
           supabase_url: 'SUPABASE_URL',
           service_key: 'SUPABASE_SERVICE_ROLE_KEY',
           anon_key: 'SUPABASE_ANON_KEY',
-          db: 'з\'єднання з БД',
+          db: 'зʼєднання з БД',
         }
         const checks = data.checks ?? {}
         const bad = (Object.entries(checks) as [string, boolean][])
@@ -210,7 +210,7 @@ export default function WelcomeScreen() {
         <div className="heading" style={{ textAlign: 'center' }}>{greeting}<br />Я — Прокс</div>
         <div className="subtext" style={{ textAlign: 'center' }}>
           Твій AI-асистент для <b>управління нерухомістю</b> у Telegram.
-          Бази, об&apos;єкти, аналітика — все в одному місці.
+          Бази, обʼєкти, аналітика — все в одному місці.
         </div>
 
         {/* Feature cards */}
@@ -253,7 +253,7 @@ export default function WelcomeScreen() {
             opacity: diagLoading ? 0.5 : 1,
           }}
         >
-          {diagLoading ? 'Перевірка...' : '⚙ Діагностика підключення'}
+          {diagLoading ? 'Перевірка...' : <><IconAdjustments size={14} /> Діагностика підключення</>}
         </button>
       </div>
 

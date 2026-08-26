@@ -24,9 +24,8 @@ export default function ErrorScreen() {
           </div>
 
           <button
-            className="mbtn"
+            className="mbtn mbtn-flow"
             onClick={back}
-            style={{ position: 'relative', bottom: 'auto', left: 'auto', right: 'auto', width: 'auto', marginTop: 40, minWidth: 200 }}
           >
             Спробувати ще раз
           </button>

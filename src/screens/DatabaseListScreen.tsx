@@ -15,7 +15,7 @@ import FloatingButton from '@/components/ui/FloatingButton'
 import { useOnboarding } from '@/hooks/useOnboarding'
 import { useHideOnScrollDown } from '@/hooks/useHideOnScrollDown'
 import { IconChevronRight, IconPlus, GlassDbIcon } from '@/components/Icons'
-import { DB_TYPE_LABELS, formatPrice, STATUS_COLORS, STATUS_LABELS, greeting, matchesQuery, searchPattern } from '@/lib/utils'
+import { DB_TYPE_LABELS, formatPrice, STATUS_COLORS, STATUS_LABELS, greeting, matchesQuery, searchPattern, pluralUk, objectsWord } from '@/lib/utils'
 import type { PropertyStatus } from '@/types'
 
 interface PropSearchResult {
@@ -32,6 +32,23 @@ export default function DatabaseListScreen() {
   const { user, navigate } = useAppStore()
   const { databases, loading, error, loadDatabases } = useDatabases()
   useSlowLoadingToast(loading)
+  // Саме перехід true→false, а не «зараз не вантажимо»: на першому кадрі
+  // `loading` ще false, тож проста перевірка спрацювала б ДО запиту.
+  const sawLoading = useRef(false)
+  const [loadedOnce, setLoadedOnce] = useState(false)
+  useEffect(() => {
+    if (loading) sawLoading.current = true
+    else if (sawLoading.current) setLoadedOnce(true)
+  }, [loading])
+  /** Порожній стан має ВЛАСНУ первинну дію («Створити першу базу»), тож
+      плаваюча ховається: дві кнопки того самого призначення на екрані, де
+      прокручувати нема чого, лише сперечаються за увагу.
+      `loadedOnce` обовʼязковий: `useDatabases` стартує з `loading:false`, тож
+      на ПЕРШОМУ кадрі список порожній ще до запиту — без цієї умови FAB
+      встигав блимнути схованим і поїхати назад. Спіймав це не огляд, а
+      `design-system-runtime`: він заміряв кнопку в `fab-off`, тобто 43px
+      (46 × scale .94) замість 46. */
+  const showEmptyCta = loadedOnce && !loading && !error && databases.length === 0
   const [search, setSearch] = useState('')
 
   // Cross-database property search
@@ -52,7 +69,7 @@ export default function DatabaseListScreen() {
         // багатослівний збіг доганяємо matchesQuery уже тут: порядок слів у
         // запиті не мусить впливати на результат.
         //
-        // owner_id НЕ фільтруємо: у члена команди об'єкти належать власнику
+        // owner_id НЕ фільтруємо: у члена команди обʼєкти належать власнику
         // бази, тож звуження «свій owner_id» віддавало йому порожньо. Видимість
         // вирішує RLS — вона знає і власника, і membership.
         const like = `%${pattern}%`
@@ -127,11 +144,11 @@ export default function DatabaseListScreen() {
         <div className="stat-g">
           <div className="stat glass-s">
             <div className="stat-n">{totals.dbs}</div>
-            <div className="stat-l">Баз</div>
+            <div className="stat-l">{pluralUk(totals.dbs, 'База', 'Бази', 'Баз')}</div>
           </div>
           <div className="stat glass-s">
             <div className="stat-n">{totals.props}</div>
-            <div className="stat-l">Об&apos;єктів</div>
+            <div className="stat-l">{objectsWord(totals.props)}</div>
           </div>
           <div className="stat glass-s" style={{ background: 'var(--ok-bg)', border: '.5px solid var(--ok-bd)' }}>
             <div className="stat-n" style={{ color: 'var(--ok-fg)' }}>{totals.free}</div>
@@ -148,13 +165,13 @@ export default function DatabaseListScreen() {
         </div>
 
         {/* Search */}
-        <SearchBar value={search} onChange={setSearch} placeholder="Пошук бази або об'єкту..." />
+        <SearchBar value={search} onChange={setSearch} placeholder="Пошук бази або обʼєкту..." />
 
         {/* Cross-database property search results */}
         {showPropResults && (
           <div style={{ marginBottom: 8 }}>
             <div className="over">
-              <span>Об&apos;єкти по всіх базах</span>
+              <span>Обʼєкти по всіх базах</span>
               {propSearching
                 ? <span className="over-a">…</span>
                 : <span className="over-a">{propResults.length} знайдено</span>
@@ -214,10 +231,9 @@ export default function DatabaseListScreen() {
           <div className="empty-state" style={{ paddingTop: 32 }}>
             <div className="empty-ic">🏢</div>
             <div className="empty-h">Немає баз</div>
-            <div className="empty-s">Створи першу базу об&apos;єктів</div>
+            <div className="empty-s">Створи першу базу обʼєктів</div>
             <button
-              className="mbtn success"
-              style={{ position: 'relative', bottom: 'auto', left: 'auto', right: 'auto', marginTop: 24, width: 'auto', minWidth: 200 }}
+              className="mbtn success mbtn-flow"
               onClick={() => { hapticImpact('light'); navigate('create-db') }}
             >
               Створити першу базу
@@ -265,7 +281,7 @@ export default function DatabaseListScreen() {
         variant="create"
         compact
         raised
-        hidden={fabHidden}
+        hidden={fabHidden || showEmptyCta}
         icon={<IconPlus size={14} />}
         label="Створити базу"
         onClick={() => { hapticImpact('light'); navigate('create-db') }}

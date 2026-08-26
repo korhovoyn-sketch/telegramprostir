@@ -110,14 +110,14 @@ test('owner: objects — sort, search, select & reorder modes', async ({ page })
   await page.getByText('За порядком').click()
 
   // Search filters the list
-  await page.getByPlaceholder("Пошук об'єкту...").fill('103')
+  await page.getByPlaceholder("Пошук обʼєкту...").fill('103')
   await expect(page.locator('.obj-card')).toHaveCount(1)
-  await page.getByPlaceholder("Пошук об'єкту...").fill('')
+  await page.getByPlaceholder("Пошук обʼєкту...").fill('')
 
   // Select mode via the action sheet; "Вибрати все"/"Зняти все" toggle
   await page.getByLabel('Меню бази').click()
-  await page.getByText("Виділити об'єкти").click()
-  await expect(page.getByText("Оберіть об'єкти для дії")).toBeVisible()
+  await page.getByText("Виділити обʼєкти").click()
+  await expect(page.getByText("Оберіть обʼєкти для дії")).toBeVisible()
   await page.getByText('Вибрати все').click()
   await expect(page.getByText('Зняти все')).toBeVisible()
   await page.getByText('Зняти все').click()
@@ -145,13 +145,13 @@ test('owner: property detail and form validation logic', async ({ page }) => {
   // Back to objects, then new-property form validation
   await page.getByText('Назад', { exact: true }).first().click()
   await expect(page.getByText('Всі (3)')).toBeVisible()
-  await page.getByLabel("Додати об'єкт").click()
-  await expect(page.getByText("Новий об'єкт")).toBeVisible()
+  await page.getByLabel("Додати обʼєкт").click()
+  await expect(page.getByText("Новий обʼєкт")).toBeVisible()
 
-  await page.getByPlaceholder('Офіс 101').fill('Тест-об\'єкт')
+  await page.getByPlaceholder('Офіс 101').fill('Тест-обʼєкт')
   await page.getByPlaceholder('47').fill('100')  // useful
   await page.getByPlaceholder('52').fill('50')   // total < useful → error
-  await page.getByRole('button', { name: "Додати об'єкт" }).click()
+  await page.getByRole('button', { name: "Додати обʼєкт" }).click()
   await expect(page.getByText('Корисна площа більша за розрахункову')).toBeVisible()
 
   // negative/garbage input can't even be typed — the sanitizer strips it at
@@ -177,7 +177,7 @@ test('owner: empty status tab shows a status message, not a search dead-end', as
   await page.getByText(/Продаж \(0\)/).click()
   // Status-specific empty state + a way back to all — NOT the search "Нічого
   // не знайдено" with an empty query and a useless "Очистити пошук".
-  await expect(page.getByText('Немає об\'єктів на продаж')).toBeVisible()
+  await expect(page.getByText('Немає обʼєктів на продаж')).toBeVisible()
   await expect(page.getByText(/Нічого не знайдено/)).toHaveCount(0)
   await page.getByRole('button', { name: 'Показати всі' }).click()
   await expect(page.getByText('Всі (3)')).toBeVisible()
@@ -239,20 +239,20 @@ test('owner: bulk create sends one INSERT with auto-numbered names', async ({ pa
   await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
   await page.getByText('БЦ Рубін').first().click()
   await expect(page.getByText('Всі (3)')).toBeVisible()
-  await page.getByLabel("Додати об'єкт").click()
-  await expect(page.getByText("Новий об'єкт")).toBeVisible()
+  await page.getByLabel("Додати обʼєкт").click()
+  await expect(page.getByText("Новий обʼєкт")).toBeVisible()
 
   await page.getByPlaceholder('Офіс 101').fill('Офіс 201')
-  await page.getByLabel("Більше об'єктів").click()
-  await page.getByLabel("Більше об'єктів").click() // count = 3
+  await page.getByLabel("Більше обʼєктів").click()
+  await page.getByLabel("Більше обʼєктів").click() // count = 3
   await expect(page.getByText('Буде створено')).toBeVisible()
   for (const n of ['Офіс 201', 'Офіс 202', 'Офіс 203']) {
     await expect(page.getByPlaceholder(n, { exact: true })).toBeVisible()
   }
 
-  await page.getByRole('button', { name: "Додати 3 об'єкти" }).click()
+  await page.getByRole('button', { name: "Додати 3 обʼєкти" }).click()
   await expect.poll(() => postBody, { timeout: 10_000 }).not.toBeNull()
   expect(postBody!.map(b => b.name)).toEqual(['Офіс 201', 'Офіс 202', 'Офіс 203'])
   // Success lands back on the objects list
-  await expect(page.getByPlaceholder("Пошук об'єкту...")).toBeVisible()
+  await expect(page.getByPlaceholder("Пошук обʼєкту...")).toBeVisible()
 })

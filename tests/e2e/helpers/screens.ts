@@ -1,5 +1,5 @@
 import { expect, type Page, type Route } from '@playwright/test'
-import { setupApp, seedSession, DEFAULT_USER, type HarnessUser } from './harness'
+import { setupApp, seedSession, DEFAULT_USER, jsonRoute, type HarnessUser } from './harness'
 
 /**
  * ЄДИНИЙ обхід усіх досяжних екранів — для гардів, які міряють РЕНДЕР.
@@ -26,8 +26,11 @@ export interface ScreenStep {
 }
 
 const NOW = '2025-09-01T09:00:00.000Z'
-const json = (r: Route, body: unknown) =>
-  r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+// Через `jsonRoute`, а не власний fulfill: він проєктує відповідь по `select=`
+// і віддає `Content-Range` для запитів із `count`. Обидва — саме те, чого
+// власна копія не вміла, а обхід годує ПʼЯТЬ гардів, тож фікстура тут мусить
+// бути найближчою до проду з усіх.
+const json = (r: Route, body: unknown) => jsonRoute(r, body)
 
 export const OWNER: HarnessUser = {
   ...DEFAULT_USER, role: 'owner', first_name: 'Микола', last_name: 'К.',
@@ -165,7 +168,7 @@ async function viaBatch(page: Page, pill: string, done: RegExp) {
   await page.getByLabel('Меню бази').click()
   await expect(page.locator('.modal')).toBeVisible()
   await page.waitForTimeout(420)
-  await page.getByText("Виділити об'єкти", { exact: true }).click()
+  await page.getByText("Виділити обʼєкти", { exact: true }).click()
   await page.waitForTimeout(400)
   await page.locator('.obj-card, .row').first().click()
   await page.getByRole('button', { name: new RegExp(pill) }).click()
@@ -195,8 +198,8 @@ export const OWNER_SCREENS: ScreenStep[] = [
     label: 'property-form-new',
     go: async (page) => {
       await atDbObjects(page)
-      await page.getByLabel("Додати об'єкт").click()
-      await expect(page.getByText("Новий об'єкт")).toBeVisible({ timeout: 15_000 })
+      await page.getByLabel("Додати обʼєкт").click()
+      await expect(page.getByText("Новий обʼєкт")).toBeVisible({ timeout: 15_000 })
     },
   },
   {
@@ -415,14 +418,14 @@ export const GUEST_SCREENS: ScreenStep[] = [
     label: 'guest-home',
     go: async (page) => {
       await page.goto('/')
-      await expect(page.getByText("Мої об'єкти")).toBeVisible({ timeout: 20_000 })
+      await expect(page.getByText("Мої обʼєкти")).toBeVisible({ timeout: 20_000 })
     },
   },
   {
     label: 'guest-property',
     go: async (page) => {
       await page.goto('/')
-      await expect(page.getByText("Мої об'єкти")).toBeVisible({ timeout: 20_000 })
+      await expect(page.getByText("Мої обʼєкти")).toBeVisible({ timeout: 20_000 })
       await page.getByText('Офіс 101').first().click()
       await expect(page.getByText('Корисна площа')).toBeVisible({ timeout: 15_000 })
     },

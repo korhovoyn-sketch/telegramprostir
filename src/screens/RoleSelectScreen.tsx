@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { useAuth } from '@/hooks/useAuth'
-import { IconBuildingSkyscraper, IconUser } from '@/components/Icons'
+import { IconBuildingSkyscraper, IconUser, IconCheck } from '@/components/Icons'
 import type { UserRole } from '@/types'
 
 export default function RoleSelectScreen() {
@@ -88,14 +88,14 @@ export default function RoleSelectScreen() {
             </div>
             {role === 'owner' && (
               <div style={{ marginLeft: 'auto', width: 24, height: 24, borderRadius: '50%', background: 'var(--info)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontSize: 'var(--fs-note)', color: 'var(--t1)' }}>✓</span>
+                <IconCheck size={16} color="var(--t1)" />
               </div>
             )}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {['Створюй бази і об\'єкти', 'Ділись QR з ріелторами', 'Переглядай аналітику'].map((f) => (
+            {['Створюй бази і обʼєкти', 'Ділись QR з ріелторами', 'Переглядай аналітику'].map((f) => (
               <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--fs-foot)', color: 'var(--t2)' }}>
-                <span style={{ color: 'var(--ok)', fontSize: 'var(--fs-cap1)' }}>✓</span>
+                <IconCheck size={14} color="var(--ok)" />
                 {f}
               </div>
             ))}
@@ -139,14 +139,14 @@ export default function RoleSelectScreen() {
             </div>
             {role === 'realtor' && (
               <div style={{ marginLeft: 'auto', width: 24, height: 24, borderRadius: '50%', background: 'var(--pink)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontSize: 'var(--fs-note)', color: 'var(--t1)' }}>✓</span>
+                <IconCheck size={16} color="var(--t1)" />
               </div>
             )}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {['Підписуйся на бази власників', 'Створюй підбірки для клієнтів', 'Зберігай обрані об\'єкти'].map((f) => (
+            {['Підписуйся на бази власників', 'Створюй підбірки для клієнтів', 'Зберігай обрані обʼєкти'].map((f) => (
               <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--fs-foot)', color: 'var(--t2)' }}>
-                <span style={{ color: 'var(--pink)', fontSize: 'var(--fs-cap1)' }}>✓</span>
+                <IconCheck size={14} color="var(--pink)" />
                 {f}
               </div>
             ))}

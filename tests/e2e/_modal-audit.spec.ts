@@ -259,7 +259,7 @@ test('база: меню, папки, пікер папок, пікер баз',
   await closeByBackdrop(page, '02-folders (backdrop)')
 
   // 3. Пікер папок (bulk) + 4. пікер баз.
-  await menu(page, 'Виділити об\'єкти')
+  await menu(page, 'Виділити обʼєкти')
   await page.locator('.obj-card').first().click()
   await expect(page.locator('.batchbar')).toBeVisible()
   await page.locator('.batch-pill', { hasText: 'У папку' }).click()
@@ -391,7 +391,7 @@ test('рієлтор: підбірка — додати обʼєкт і поши
   if (await addBtn.count()) {
     await addBtn.click()
     if (await page.locator('.modal').count()) {
-      expect(await shoot(page, '17-collection-add')).toBe('Додати об\'єкт')
+      expect(await shoot(page, '17-collection-add')).toBe('Додати обʼєкт')
       await closeByCancel(page, '17-collection-add')
     }
   }

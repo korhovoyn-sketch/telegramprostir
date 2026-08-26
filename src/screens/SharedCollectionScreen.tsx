@@ -127,14 +127,14 @@ export default function SharedCollectionScreen() {
 
   return (
     <div className="scr bg-violet">
-      <Header title={data.name} subtitle={`${data.properties.length} об'єктів`} backLabel="Назад" />
+      <Header title={data.name} subtitle={`${data.properties.length} обʼєктів`} backLabel="Назад" />
 
       <div className="body">
         {data.properties.length === 0 ? (
           <div className="empty-state" style={{ paddingTop: 32 }}>
             <div className="empty-ic">🏢</div>
             <div className="empty-h">Підбірка порожня</div>
-            <div className="empty-s">Ріелтор ще не додав об&apos;єктів</div>
+            <div className="empty-s">Ріелтор ще не додав обʼєктів</div>
           </div>
         ) : (
           <div className="list">

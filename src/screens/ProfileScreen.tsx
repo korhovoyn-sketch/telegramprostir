@@ -149,10 +149,10 @@ export default function ProfileScreen() {
             </div>
             <div className="pstat glass-s">
               <div className="pstat-n">{totalProps}</div>
-              <div className="pstat-l">Об&apos;єктів</div>
+              <div className="pstat-l">Обʼєктів</div>
             </div>
             <div className="pstat glass-s">
-              <div className="pstat-n">{user.plan === 'pro' ? '♾' : 'Free'}</div>
+              <div className="pstat-n">{user.plan === 'pro' ? 'Pro' : 'Free'}</div>
               <div className="pstat-l">Тариф</div>
             </div>
           </div>
@@ -252,7 +252,7 @@ export default function ProfileScreen() {
             <Toggle value={publicPhone} onChange={handlePublicPhoneToggle} />
           </div>
           <div style={{ padding: '0 var(--pad-card) var(--pad-card)', fontSize: 'var(--fs-cap1)', color: 'var(--t4)' }}>
-            Вимкнено — глядач бачить ваше ім’я та Telegram, але не номер. Посилання
+            Вимкнено — глядач бачить ваше імʼя та Telegram, але не номер. Посилання
             діють, доки ви їх не відкличете, тож номер, показаний раз, лишається
             видимим усім, хто зберіг лінк.
           </div>

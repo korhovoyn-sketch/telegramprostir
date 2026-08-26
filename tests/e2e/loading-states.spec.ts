@@ -171,7 +171,7 @@ test('прихід даних не зрушує хром екрана (замі�
   await expect(page.locator('.skel')).toHaveCount(0)
 
   // КРОК 2 — тепер вхід у базу: хром уже осів, тож ЄДИНА змінна тут — прихід
-  // списку об'єктів. Саме це гард і мусить перевіряти.
+  // списку обʼєктів. Саме це гард і мусить перевіряти.
   await page.getByText('БЦ Рубін').first().click()
   await expect(page.locator('.skel').first()).toBeVisible({ timeout: 15_000 })
   const before = await anchors(page)
@@ -311,7 +311,7 @@ test('стан ПОМИЛКА: панель повтору з робочою к�
   await expect(page.locator('.retry-wrap')).toHaveCount(0)
 })
 
-test('стан ПОМИЛКА в об\'єктах бази: повтор повертає список', async ({ page }) => {
+test('стан ПОМИЛКА в обʼєктах бази: повтор повертає список', async ({ page }) => {
   let failing = true
   await setupApp(page, { user: USER })
   await seedSession(page, USER as unknown as Record<string, unknown>)

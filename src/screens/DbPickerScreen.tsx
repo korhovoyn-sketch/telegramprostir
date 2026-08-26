@@ -103,7 +103,7 @@ export default function DbPickerScreen() {
           />
         ) : targets.length === 0 ? (
           <div className="sheet-empty">
-            Інших баз ще немає. Введіть назву вгорі — обрані об&apos;єкти переїдуть у нову.
+            Інших баз ще немає. Введіть назву вгорі — обрані обʼєкти переїдуть у нову.
           </div>
         ) : (
           <div className="sheet-group">

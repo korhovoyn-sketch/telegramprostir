@@ -43,7 +43,7 @@ export function humanizeDbError(e: unknown, fallback = 'Спробуйте ще 
   const m = raw.toLowerCase()
   // Network / connectivity (PostgREST resolves fetch failures as status 0)
   if (m.includes('fetch') || m.includes('network') || m.includes('failed to fetch')) {
-    return 'Немає з\'єднання. Перевірте інтернет і спробуйте ще раз.'
+    return 'Немає зʼєднання. Перевірте інтернет і спробуйте ще раз.'
   }
   // RLS / permission denied — the user can't touch this row
   if (m.includes('row-level security') || m.includes('permission denied') || m.includes('not authorized')) {
@@ -214,8 +214,8 @@ export function monthlyRent(areaUseful: number, rentRate: number, rentType: stri
 }
 
 // Ukrainian plural picker: 1 → one, 2-4 → few, else → many (with the 11-14
-// exception). Replaces the hardcoded "об'єктів" that read wrong for 1 ("1
-// об'єктів") and 2-4 ("2 об'єктів") across cards, counts and delete dialogs.
+// exception). Replaces the hardcoded "обʼєктів" that read wrong for 1 ("1
+// обʼєктів") and 2-4 ("2 обʼєктів") across cards, counts and delete dialogs.
 export function pluralUk(n: number, one: string, few: string, many: string): string {
   const mod10 = Math.abs(n) % 10
   const mod100 = Math.abs(n) % 100
@@ -224,9 +224,9 @@ export function pluralUk(n: number, one: string, few: string, many: string): str
   return many
 }
 
-// "об'єкт" / "об'єкти" / "об'єктів" — the app's most common counted noun.
+// "обʼєкт" / "обʼєкти" / "обʼєктів" — the app's most common counted noun.
 export function objectsWord(n: number): string {
-  return pluralUk(n, 'об\'єкт', 'об\'єкти', 'об\'єктів')
+  return pluralUk(n, 'обʼєкт', 'обʼєкти', 'обʼєктів')
 }
 
 // Unit suffix for a rent RATE (the raw rent_rate value): per_m2 → /м²,
@@ -460,7 +460,7 @@ export function scrollFocusedIntoView(e: import('react').FocusEvent<HTMLElement>
  * Дві причини, чому підрядка мало (обидві — з реальної бази користувача):
  *  • назви довгі й зі службовими вставками — «Офіс 10 поверху ( мале крило )».
  *    Запит «офіс мале» як підрядок не збігається НІ з чим, хоч людина ввела
- *    дві правильні ознаки того самого об'єкта;
+ *    дві правильні ознаки того самого обʼєкта;
  *  • шукають не лише за назвою — за орендарем, адресою, поверхом.
  *
  * Тому: запит ріжеться на токени по пробілах, і КОЖЕН мусить зустрітись у

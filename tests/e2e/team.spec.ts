@@ -217,7 +217,7 @@ test('editor: member db shows «Команда» badge and full edit surface', a
   await expect(page.getByText('Всі (1)')).toBeVisible()
 
   // Edit-поверхня редактора: FAB додавання і меню бази є…
-  await expect(page.getByRole('button', { name: "Додати об'єкт" })).toBeVisible()
+  await expect(page.getByRole('button', { name: "Додати обʼєкт" })).toBeVisible()
   await page.getByRole('button', { name: 'Меню бази' }).click()
   await expect(page.getByText('Календар платежів')).toBeVisible()
   // …а owner-only пункти шарингу/гостей/команди — ні
@@ -225,7 +225,7 @@ test('editor: member db shows «Команда» badge and full edit surface', a
   await expect(page.getByText('Управління гостями')).toHaveCount(0)
   await expect(page.getByText('Команда', { exact: true })).toHaveCount(0)
   // …і адміністрування САМОЇ бази — теж ні: 041 дає редактору лише CRUD
-  // об'єктів/фото/файлів/платежів, а не право стерти чи перейменувати чужу
+  // обʼєктів/фото/файлів/платежів, а не право стерти чи перейменувати чужу
   // базу (RLS це заборонить, але клієнт не мав би навіть пропонувати).
   await expect(page.getByText('Редагувати базу')).toHaveCount(0)
   await expect(page.getByText('Видалити базу')).toHaveCount(0)
@@ -271,7 +271,7 @@ test('realtor-редактор: бачить member-базу на своєму �
   // Клік веде в ПОВНИЙ db-objects (CRUD), не в read-only realtor-database.
   await row.click()
   await expect(page.getByText('Всі (1)')).toBeVisible()
-  await expect(page.getByRole('button', { name: "Додати об'єкт" })).toBeVisible()
+  await expect(page.getByRole('button', { name: "Додати обʼєкт" })).toBeVisible()
   await page.getByRole('button', { name: 'Меню бази' }).click()
   await expect(page.getByText('Календар платежів')).toBeVisible()
 })
@@ -285,10 +285,10 @@ test('editor: property detail hides share entry, keeps edit + status CTA', async
   await page.locator('.obj-card .obj-t', { hasText: 'Офіс 101' }).click()
 
   // Редагування і статусна CTA доступні редактору
-  await expect(page.getByRole('button', { name: "Редагувати об'єкт" })).toBeVisible()
+  await expect(page.getByRole('button', { name: "Редагувати обʼєкт" })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Здати в оренду' })).toBeVisible()
   // Шаринг-аналітика (токени) — тільки для справжнього власника
-  await expect(page.getByRole('button', { name: "Поділитись об'єктом" })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: "Поділитись обʼєктом" })).toHaveCount(0)
 })
 
 // ─── Deep link team_<token> ─────────────────────────────────────────────────────

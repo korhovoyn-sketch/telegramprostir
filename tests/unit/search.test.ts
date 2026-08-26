@@ -19,7 +19,7 @@ describe('matchesQuery', () => {
     expect(matchesQuery('крило 10', name)).toBe(true)
   })
 
-  it('КОЖЕН токен обов\'язковий — один зайвий убиває збіг', () => {
+  it('КОЖЕН токен обовʼязковий — один зайвий убиває збіг', () => {
     expect(matchesQuery('офіс горище', 'Офіс 10 поверху')).toBe(false)
   })
 

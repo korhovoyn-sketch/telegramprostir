@@ -146,8 +146,8 @@ test('створення обʼєкта редактором несе owner_id �
   await editorInMemberDb(page, sent)
   await openMemberDb(page)
 
-  await page.getByLabel("Додати об'єкт").click()
-  await expect(page.getByText("Новий об'єкт")).toBeVisible({ timeout: 15_000 })
+  await page.getByLabel("Додати обʼєкт").click()
+  await expect(page.getByText("Новий обʼєкт")).toBeVisible({ timeout: 15_000 })
   await page.getByLabel(/Назва об/).fill('Офіс 202')
   await page.locator('.mbtn').click()
 
@@ -165,8 +165,8 @@ test('пакетне створення — окремий шлях, той са
   await editorInMemberDb(page, sent)
   await openMemberDb(page)
 
-  await page.getByLabel("Додати об'єкт").click()
-  await expect(page.getByText("Новий об'єкт")).toBeVisible({ timeout: 15_000 })
+  await page.getByLabel("Додати обʼєкт").click()
+  await expect(page.getByText("Новий обʼєкт")).toBeVisible({ timeout: 15_000 })
   await page.getByLabel(/Назва об/).fill('Офіс 301')
   await page.getByLabel(/Більше об/).click()
   await page.locator('.mbtn').click()
@@ -216,15 +216,15 @@ test('холодний вхід без списку баз не збиває own
 
   // Якщо навігація через sessionStorage не підтримується — доходимо звичайним
   // шляхом; сенс тесту в порожньому СПИСКОВОМУ запиті, а не в способі входу.
-  if (await page.getByLabel("Додати об'єкт").count() === 0) {
+  if (await page.getByLabel("Додати обʼєкт").count() === 0) {
     await page.goto('/')
     await expect(page.getByText('БЦ Рубін').first()).toBeVisible({ timeout: 20_000 })
     await page.getByText('БЦ Рубін').first().click()
     await expect(page.getByText(/Всі \(/)).toBeVisible({ timeout: 15_000 })
   }
 
-  await page.getByLabel("Додати об'єкт").click()
-  await expect(page.getByText("Новий об'єкт")).toBeVisible({ timeout: 15_000 })
+  await page.getByLabel("Додати обʼєкт").click()
+  await expect(page.getByText("Новий обʼєкт")).toBeVisible({ timeout: 15_000 })
   await page.getByLabel(/Назва об/).fill('Офіс 404')
   await page.locator('.mbtn').click()
 

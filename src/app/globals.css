@@ -120,8 +120,8 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
   /* Категорійні акценти дашборда. Це НЕ статуси: панель показує шість різних
      метрик поруч, тож їм потрібні різні відтінки, а не один семантичний.
      Три перші свідомо збігаються з семантичними (синій=info, зелений=ok,
-     бурштиновий=warn) — щоб у палітрі не з'явилось других «майже таких самих».
-     Альфи м'якші за статусні (.13/.26 проти .18/.28): ціла панель тонованих
+     бурштиновий=warn) — щоб у палітрі не зʼявилось других «майже таких самих».
+     Альфи мʼякші за статусні (.13/.26 проти .18/.28): ціла панель тонованих
      карток поруч інакше кричить. Раніше всі дванадцять значень жили літералами
      всередині компонента. */
   --dv-blue:#7AB3FF;--dv-blue-bg:rgba(122,179,255,.13);--dv-blue-bd:rgba(122,179,255,.26);
@@ -147,7 +147,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
   --ease:cubic-bezier(.32,.72,.26,1);
   --ease-spr:cubic-bezier(.22,.68,.28,1);
   --ease-out:cubic-bezier(.16,1,.3,1);
-  /* М'який старт — для ЗНИКАННЯ. --ease-out експоненційний: він проходить
+  /* Мʼякий старт — для ЗНИКАННЯ. --ease-out експоненційний: він проходить
      майже весь шлях за перші ~15% часу, що для появи добре, а для зникання
      читається як ривок. */
   --ease-soft:cubic-bezier(.4,0,.2,1);
@@ -210,7 +210,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
      вигадуванням системи там, де її нема. А от рецепт, написаний утретє, — це
      вже родина, і саме там дрейф непомітний: `.view-seg-b.on` мав
      `rgba(255,255,255,.28)` там, де три його брати-сегменти мали `.3`. Різниця
-     в 0.02 альфи на одній inset-волосинці не видна ні в рев'ю, ні в кадрі.
+     в 0.02 альфи на одній inset-волосинці не видна ні в ревʼю, ні в кадрі.
      Гард `design-tokens.test.ts` падає на будь-якому рецепті, вжитому ≥3 разів
      повз токен. */
   --shadow-glass-btn:inset 0 1px 0 rgba(255,255,255,.30),inset 0 -1px 0 rgba(0,0,0,.20);
@@ -414,7 +414,7 @@ body{
    кожен у себе), тож розійтись вони могли будь-якої миті — той самий клас
    дрейфу, що вже ловили на тінях сегментів.
    Асиметричні тривалості — це і є «жива» кнопка: втискається ШВИДКО (палець уже
-   на склі, відгук має бути миттєвий), відпускається М'ЯКШЕ. Раніше обидва боки
+   на склі, відгук має бути миттєвий), відпускається МʼЯКШЕ. Раніше обидва боки
    були .12s, і відпускання читалось як клац.
    `brightness(1.1)` на натиску прибрано СВІДОМО: фільтр діє й на результат
    backdrop-filter, тобто ОСВІТЛЮЄ ґрунт під білим підписом — рівно той важіль,
@@ -528,6 +528,14 @@ body{
 .fr:last-child{border:none}
 /* Form row label — Subhead Regular (readable but not competing with value) */
 .fr-l{font-size:var(--fs-sub);color:var(--t1);flex:0 0 auto;min-width:82px;line-height:var(--lh-snug)}
+/* Рядок, у якому підпис стоїть НАД контролом, а не поруч. Потрібен там, де
+   контрол не влазить у залишок ширини: у рядку 349px підпис зʼїдає 120, і
+   сегмент «Корисної / Розрахункової» діставав 191 — тобто 84px на підпис, що
+   потребує 93, і ellipsis різав саме те слово, яким користувач обирає базу
+   розрахунку. Той самий прийом уже застосований до довгого підпису поля
+   інвайта: якщо контрол не вміщається ПОРУЧ, він отримує повну ширину. */
+.fr-stack{flex-direction:column;align-items:stretch;gap:8px}
+.fr-stack>.fr-l{min-width:0}
 /* Input value — Callout (16px, prevents iOS zoom) */
 .fr-i{flex:1;background:transparent;border:none;outline:none;font-size:var(--fs-call);color:var(--t1);text-align:right;font-family:inherit;min-width:0;-moz-appearance:textfield;line-height:var(--lh-snug)}
 /* Рядок форми, який САМ є контролом (розгортає список, обирає значення).
@@ -694,7 +702,7 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 /* Card subtitle / floor — Caption 1 */
 .obj-s{font-size:var(--fs-cap1);color:var(--t3);margin-top:5px;display:flex;align-items:center;gap:5px;line-height:var(--lh-snug);flex-wrap:wrap}
 .obj-s-sep{color:var(--t4)}
-/* Tenant block — «хто орендує» на картці зайнятого об'єкта */
+/* Tenant block — «хто орендує» на картці зайнятого обʼєкта */
 .obj-ten{padding:2px var(--pad-card) 12px;display:flex;flex-direction:column;gap:4px}
 .obj-ten-name{font-size:var(--fs-foot);font-weight:var(--fw-semi);color:var(--t1);display:flex;align-items:center;gap:6px;line-height:var(--lh-snug);min-width:0}
 .obj-ten-lease{font-size:var(--fs-cap1);color:var(--t3);display:flex;align-items:center;gap:6px;line-height:var(--lh-snug)}
@@ -816,7 +824,7 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
   display:flex;align-items:center;justify-content:center;
   animation:orbFloat 4.6s ease-in-out infinite;
   /* Прозорість — головна вимога: це БУЛЬБАШКА, крізь яку видно градієнт
-     екрана. Тому всі стопи тіла в rgba, а не суцільні кольори; об'єм тримають
+     екрана. Тому всі стопи тіла в rgba, а не суцільні кольори; обʼєм тримають
      відблиск згори-зліва, відбите світло знизу і обід. */
   background:
     radial-gradient(58% 50% at 32% 20%,rgba(255,255,255,.22) 0%,transparent 60%),
@@ -959,10 +967,12 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 .tmpl-row{display:flex;gap:7px;padding:0 var(--g3) var(--g3);overflow-x:auto;scrollbar-width:none}
 .tmpl-row::-webkit-scrollbar{display:none}
 .tmpl{flex-shrink:0;width:96px;cursor:pointer}
-.tmpl-ph{height:110px;border-radius:var(--r-sm);background:rgba(255,255,255,.96);padding:8px;display:flex;flex-direction:column;gap:3px;border:.5px solid rgba(255,255,255,.16);overflow:hidden}
+.tmpl-ph{height:110px;border-radius:var(--r-sm);padding:8px;display:flex;flex-direction:column;gap:3px;border:.5px solid rgba(255,255,255,.16);overflow:hidden}
 .tmpl.sel .tmpl-ph{border-color:#7AB3FF;box-shadow:0 0 0 2px rgba(122,179,255,.4)}
-.tmpl-bar{height:3px;border-radius:1px;background:#cdd5e0}
-.tmpl-block{flex:1;background:#f0f0f0;border-radius:3px;margin-top:4px;min-height:20px}
+/* Колір смуг і блока — з опису шаблона (інлайном), а не тут: інакше
+   «Нічний» превʼю лишався б білим. Тут — лише геометрія. */
+.tmpl-bar{height:3px;border-radius:1px}
+.tmpl-block{flex:1;border-radius:3px;margin-top:4px;min-height:20px}
 .tmpl-l{font-size:var(--fs-cap2);color:var(--t1);margin-top:6px;text-align:center;font-weight:500}
 
 /* ── CHART ── */
@@ -1123,7 +1133,7 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
 .modal-btn{height:var(--btn-h);border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;font-size:var(--fs-sub);font-weight:600;cursor:pointer;gap:7px;border:none;width:100%;transition:opacity .15s,transform .12s}
 .modal-btn:active{transform:scale(.97)}
 /* Неактивна дія — приглушений підпис на нейтральному склі, а не привид: те саме
-   правило, що для .btn-glass. Над темним шитом opacity:.45 з'їдала кнопку так,
+   правило, що для .btn-glass. Над темним шитом opacity:.45 зʼїдала кнопку так,
    що «Скасувати» під час збереження просто зникала. */
 .modal-btn:disabled{opacity:1;color:var(--t3);cursor:default}
 .modal-btn.primary{color:var(--t1)}
@@ -1133,7 +1143,7 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
 .modal-btn.sm{height:44px;font-size:var(--fs-note)}
 
 /* ── Liquid Glass action buttons ─────────────────────────────────────────────
-   Дії («Здати в оренду», «Звільнити об'єкт», «Підтвердити») були суцільними
+   Дії («Здати в оренду», «Звільнити обʼєкт», «Підтвердити») були суцільними
    заливками — єдині непрозорі плями в інтерфейсі, збудованому на склі. Тепер
    той самий рецепт, що в шита й панелі обраних: напівпрозорий тонований шар,
    важкий блюр, верхній внутрішній відблиск, нижня тінь-підкладка і кольорове
@@ -1153,7 +1163,7 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
    CTA (.cta-scrim), який раніше сидів під кнопкою. Спершу тут було кольорове
    світіння на 26px — ореол ширший за саму кнопку, на .bg-blue ще й рожева
    пляма; потім щільна нейтральна — і та додавала шум там, де вже все
-   читається. Об'єм тримають ЛИШЕ внутрішні відблиски: вони й роблять скло
+   читається. Обʼєм тримають ЛИШЕ внутрішні відблиски: вони й роблять скло
    склом. */
 .btn-glass.ok{
   background:radial-gradient(128% 176% at 50% 44%,rgba(52,199,89,.44) 0%,rgba(52,199,89,.20) 68%,rgba(52,199,89,.10) 100%);
@@ -1170,7 +1180,7 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
   background:radial-gradient(112% 150% at 50% 46%,rgba(22,113,158,.74) 0%,rgba(22,113,158,.34) 66%,rgba(22,113,158,.16) 100%);
   border-color:rgba(42,171,238,.46);
   box-shadow:var(--shadow-glass-btn)}
-/* Тон «створити нове» (додати об'єкт, база, підбірка) — той самий рожевий,
+/* Тон «створити нове» (додати обʼєкт, база, підбірка) — той самий рожевий,
    що раніше носив окремий суцільний .fab. ОДИН відтінок (--pink-deep) на
    обидва stop-и, як і решта тонів — --pink (світліший) тут піднімав
    композитну яскравість над низом .bg-*, де градієн екрана вже світлішає,
@@ -1187,8 +1197,8 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
   opacity:1;cursor:default;pointer-events:none}
 
 /* Плаваюча дія над списком — єдина форма для «Здати в оренду»/«Звільнити
-   об'єкт»/«Поділитись» (без таббара, тому стандартний відступ від низу) і
-   «Додати об'єкт»/«Створити базу»/«Створити підбірку» (.raised — з таббаром,
+   обʼєкт»/«Поділитись» (без таббара, тому стандартний відступ від низу) і
+   «Додати обʼєкт»/«Створити базу»/«Створити підбірку» (.raised — з таббаром,
    щоб не лягати під нього). Раніше другі три були окремим суцільним .fab
    (кругла кнопка) — двома різними стилями FAB в одному застосунку. */
 /* ОДИН розмір на всю родину первинних дій — рішення власника («всі повинні бути
@@ -1220,7 +1230,7 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
    потім повзе. Для ПОЯВИ це те, що треба (кнопка «вистрибує» до пальця), для
    ЗНИКАННЯ — це і є те саме «улітає дуже швидко»: очей ловить лише ривок на
    старті. Timing-function, оголошена на цільовому стані, діє на перехід У цей
-   стан, тож поява лишається чіткою, а зникання стартує м'яко. */
+   стан, тож поява лишається чіткою, а зникання стартує мʼяко. */
 .fbtn.fab-off{translate:-50% calc(100% + 20px);opacity:0;scale:.94;pointer-events:none;
   transition-timing-function:var(--ease-soft)}
 
@@ -1261,7 +1271,7 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
 .sheet-row.danger{color:var(--err-fg)}
 .sheet-row.danger .sheet-ic{background:var(--err-bg);color:var(--err-fg)}
 /* Неактивний рядок — приглушений КОЛІР, не opacity (правило проєкту: над темним
-   шитом прозорість з'їдає елемент). Стоїть після .danger, бо мусить перебивати
+   шитом прозорість зʼїдає елемент). Стоїть після .danger, бо мусить перебивати
    і його заливку за однакової специфічності. UA сам блокує події на
    disabled-кнопці, тож зникає й «підсвітився під пальцем і не зробив нічого». */
 .sheet-row:disabled{cursor:default;color:var(--t4)}
@@ -1983,13 +1993,13 @@ svg.ico{overflow:visible}
   mask-image:linear-gradient(90deg,#000 calc(100% - 26px),transparent)}
 .sort-scroll::-webkit-scrollbar{display:none}
 
-/* Панель дій над обраними об'єктами — плаваюча скляна плитка тієї ж мови, що
+/* Панель дій над обраними обʼєктами — плаваюча скляна плитка тієї ж мови, що
    модальний шит: напівпрозорий фон, важкий блюр, hairline-рамка і верхній
    внутрішній відблиск. `brightness(.62)` притемнює те, що просвічує знизу, —
    без нього 50%-прозорість над яскравою карткою вбиває контраст підписів.
    (Колись тут стояв background:var(--bg2) — неоголошений токен, тобто взагалі
    без фону: пілюлі накладались на картку і читались як каша.)
-   Рендериться порталом у #app-root — інакше анімована обгортка екрана з'їдає
+   Рендериться порталом у #app-root — інакше анімована обгортка екрана зʼїдає
    backdrop-filter. Тому `absolute`, а не `fixed`: у #app-root висота
    застосунку, і панель стає над таббаром, а не над краєм вікна. */
 /* Скрим під панеллю: список розчиняється в темряві, і панель читається як
@@ -2037,7 +2047,7 @@ svg.ico{overflow:visible}
 
 /* Сповіщення про кінець договору: ліва смужка кодує терміновість */
 /* Смуга терміновості — СПІЛЬНА для закріплених блоків сповіщень (договори,
-   платежі). Назва була `lease-*`, тобто прив'язана до одного з двох джерел; коли
+   платежі). Назва була `lease-*`, тобто привʼязана до одного з двох джерел; коли
    поруч став другий блок із тими самими трьома рівнями, копіювати рецепт було б
    рівно тим дрейфом, через який заведено `--shadow-seg-on`. */
 .notif-i.lvl-soon{box-shadow:inset 3px 0 0 var(--info)}

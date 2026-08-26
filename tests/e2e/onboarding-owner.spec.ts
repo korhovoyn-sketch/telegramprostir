@@ -34,5 +34,5 @@ test('owner onboarding reaches the empty-state with a working CTA', async ({ pag
   await expect(page.getByText(/Немає жодної бази/i)).toBeVisible()
   await testInfo.attach('3-empty-state', { body: await page.screenshot(), contentType: 'image/png' })
   await expect(page.getByRole('button', { name: /Створити першу базу/i })).toBeVisible()
-  expect(await backButtonVisible(page), 'empty-state: глухий кут — нативна «Назад» не має з’являтись').toBe(false)
+  expect(await backButtonVisible(page), 'empty-state: глухий кут — нативна «Назад» не має зʼявлятись').toBe(false)
 })

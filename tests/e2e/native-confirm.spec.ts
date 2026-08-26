@@ -50,7 +50,7 @@ async function setup(page: Page): Promise<{ deletes: string[] }> {
   return { deletes }
 }
 
-/** Відкриває форму редагування об'єкта. */
+/** Відкриває форму редагування обʼєкта. */
 async function openEditForm(page: Page) {
   await page.goto('/')
   await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
@@ -60,18 +60,18 @@ async function openEditForm(page: Page) {
   await expect(page.getByText('Редагування')).toBeVisible()
 }
 
-test('видалення об\'єкта підтверджується нативним попапом Telegram', async ({ page }) => {
+test('видалення обʼєкта підтверджується нативним попапом Telegram', async ({ page }) => {
   const { deletes } = await setup(page)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await page.addInitScript(() => { (window as any).__tgEnablePopups?.('ok') })
   await openEditForm(page)
 
-  await page.getByRole('button', { name: 'Видалити об\'єкт' }).click()
+  await page.getByRole('button', { name: 'Видалити обʼєкт' }).click()
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const popups = await page.evaluate(() => (window as any).__tgPopups)
   expect(popups).toHaveLength(1)
-  expect(popups[0].title).toBe('Видалити об\'єкт?')
+  expect(popups[0].title).toBe('Видалити обʼєкт?')
   expect(popups[0].message).toContain('Офіс 101')
   expect(popups[0].buttons[0]).toMatchObject({ id: 'ok', type: 'destructive', text: 'Видалити' })
   expect(popups[0].buttons[1]).toMatchObject({ id: 'cancel' })
@@ -82,21 +82,21 @@ test('видалення об\'єкта підтверджується нати�
   expect(deletes[0]).toContain(PROP_ID)
 })
 
-test('видалення об\'єкта: Back після видалення НЕ повертає на мертву форму редагування', async ({ page }) => {
+test('видалення обʼєкта: Back після видалення НЕ повертає на мертву форму редагування', async ({ page }) => {
   const { deletes } = await setup(page)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await page.addInitScript(() => { (window as any).__tgEnablePopups?.('ok') })
   await openEditForm(page)
 
-  await page.getByRole('button', { name: 'Видалити об\'єкт' }).click()
+  await page.getByRole('button', { name: 'Видалити обʼєкт' }).click()
   await expect.poll(() => deletes.length, { timeout: 10_000 }).toBe(1)
 
-  // Приземлились на список об'єктів бази (єдиний живий екран після видалення).
+  // Приземлились на список обʼєктів бази (єдиний живий екран після видалення).
   await expect(page.getByText('Всі (1)')).toBeVisible()
 
   // deleteProperty мусить popати з history і форму, і деталі видаленого
-  // об'єкта (backThenReplace), а не лишати їх там (navigate) — інакше ОДИН
-  // тап «Назад» повертає на форму редагування об'єкта, якого вже нема.
+  // обʼєкта (backThenReplace), а не лишати їх там (navigate) — інакше ОДИН
+  // тап «Назад» повертає на форму редагування обʼєкта, якого вже нема.
   await page.locator('.hdr-back').click()
   await expect(page.getByText('Мої бази')).toBeVisible()
   await expect(page.getByText('Редагування')).toHaveCount(0)
@@ -109,7 +109,7 @@ test('закриття нативного попапу свайпом = відм
   await page.addInitScript(() => { (window as any).__tgEnablePopups?.(null) })
   await openEditForm(page)
 
-  await page.getByRole('button', { name: 'Видалити об\'єкт' }).click()
+  await page.getByRole('button', { name: 'Видалити обʼєкт' }).click()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await expect.poll(() => page.evaluate(() => (window as any).__tgPopups.length)).toBe(1)
 
@@ -121,16 +121,16 @@ test('без showPopup лишається фолбек-модалка з тим 
   const { deletes } = await setup(page)
   await openEditForm(page)
 
-  await page.getByRole('button', { name: 'Видалити об\'єкт' }).click()
+  await page.getByRole('button', { name: 'Видалити обʼєкт' }).click()
   await expect(page.locator('.modal')).toBeVisible()
-  await expect(page.getByText('Видалити об\'єкт?', { exact: true })).toBeVisible()
-  await expect(page.getByText(/Об'єкт "Офіс 101" буде видалено/)).toBeVisible()
+  await expect(page.getByText('Видалити обʼєкт?', { exact: true })).toBeVisible()
+  await expect(page.getByText(/Обʼєкт "Офіс 101" буде видалено/)).toBeVisible()
 
   await page.locator('.modal').getByRole('button', { name: 'Скасувати' }).click()
   await expect(page.locator('.modal')).toHaveCount(0)
   expect(deletes).toEqual([])
 
-  await page.getByRole('button', { name: 'Видалити об\'єкт' }).click()
+  await page.getByRole('button', { name: 'Видалити обʼєкт' }).click()
   await page.locator('.modal').getByRole('button', { name: 'Видалити' }).click()
   await expect.poll(() => deletes.length, { timeout: 10_000 }).toBe(1)
 })
@@ -156,7 +156,7 @@ test('редагування: видалення живе в хедері — є
   await expect(page.locator('button.mbtn')).toHaveText('Зберегти зміни')
   // …а незворотне видалення мусить лишатись досяжним, інакше воно просто
   // зникло б разом із нативною парою.
-  await page.getByRole('button', { name: 'Видалити об\'єкт' }).click()
+  await page.getByRole('button', { name: 'Видалити обʼєкт' }).click()
   await expect.poll(() => deletes.length, { timeout: 10_000 }).toBe(1)
 })
 
@@ -172,11 +172,11 @@ test('форма СТВОРЕННЯ жива на нативному клієн�
   await expect(page.getByText('Всі (1)')).toBeVisible({ timeout: 15_000 })
 
   await page.locator('.fbtn').click()
-  await expect(page.getByText('Новий об\'єкт')).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText('Новий обʼєкт')).toBeVisible({ timeout: 15_000 })
   await expect(page.getByText('Щось пішло не так')).toHaveCount(0)
 
   const cta = page.locator('button.mbtn')
-  await expect(cta).toHaveText('Додати об\'єкт')
+  await expect(cta).toHaveText('Додати обʼєкт')
   await expect(cta, 'без назви — неактивна').toBeDisabled()
   await page.getByLabel('Назва обʼєкта').fill('Офіс 202')
   await expect(cta, 'назва введена — активна').toBeEnabled()

@@ -92,8 +92,8 @@ for (const vp of VIEWPORTS) {
     await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
     await page.getByText('БЦ Рубін').first().click()
     await expect(page.getByText(/Всі \(\d\)/)).toBeVisible()
-    await page.getByLabel("Додати об'єкт").click()
-    await expect(page.getByText("Новий об'єкт")).toBeVisible()
+    await page.getByLabel("Додати обʼєкт").click()
+    await expect(page.getByText("Новий обʼєкт")).toBeVisible()
     await assertNoZoomInputs(page, `${vp.name} · property-form`)
 
     // Fill numeric fields and confirm the derived rent preview reacts (заповненість)
@@ -153,11 +153,11 @@ async function walkForms(page: Page, visit: (label: string) => Promise<void>) {
   await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
   await page.getByText('БЦ Рубін').first().click()
   await expect(page.getByText(/Всі \(\d\)/)).toBeVisible({ timeout: 15_000 })
-  await page.getByLabel("Додати об'єкт").click()
-  await expect(page.getByText("Новий об'єкт")).toBeVisible({ timeout: 15_000 })
+  await page.getByLabel("Додати обʼєкт").click()
+  await expect(page.getByText("Новий обʼєкт")).toBeVisible({ timeout: 15_000 })
   await visit('property-form')
 
-  // Частина полів існує лише в певному СТАНІ форми — «Ціна продажу» з'являється
+  // Частина полів існує лише в певному СТАНІ форми — «Ціна продажу» зʼявляється
   // тільки для статусу «Продаж». Без цього кроку гард до неї не дотягується:
   // навмисно зламане там `type="number"` не валило прогін.
   await page.locator('.fr-seg-b', { hasText: 'Продаж' }).click()

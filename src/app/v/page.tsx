@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { TG_BOT, buildDeepLink } from '@/lib/telegram'
-import { IconBuilding, IconRuler, IconMapPin } from '@/components/Icons'
+import { IconBuilding, IconRuler, IconMapPin, IconBolt } from '@/components/Icons'
 import { photoUrl, calcRentUtils, basisArea, rentUnitLabel, parkingTypeLabel, formatPrice, objectsWord, pluralUk, DB_COLORS } from '@/lib/utils'
 
 // ── data types returned by the RPCs ──────────────────────────────────────────
@@ -109,7 +109,7 @@ const DB_TYPE_LABEL: Record<string, string> = {
   residential: 'Житловий комплекс',
   retail: 'Торговий центр',
   warehouse: 'Склад',
-  individual: 'Індивідуальний об\'єкт',
+  individual: 'Індивідуальний обʼєкт',
   parking: 'Паркінг',
 }
 
@@ -590,7 +590,7 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
             )}
             {data.property_ev_charger && (
               <span style={{ fontSize: 'var(--fs-foot)', fontWeight: 600, padding: '5px 11px', borderRadius: 9, background: 'rgba(74,222,128,.15)', color: '#4ade80' }}>
-                ⚡ Зарядка EV
+                <IconBolt size={14} /> Зарядка EV
               </span>
             )}
           </div>
@@ -737,7 +737,7 @@ function DatabaseView({ rows, token }: { rows: DbRow[]; token: string }) {
       ) : (
         <div className="v-rise" style={{ ...s.card, ...s.pad, textAlign: 'center', animationDelay: '60ms' }}>
           <div className="v-float" style={{ fontSize: 'var(--fs-t1)', marginBottom: 8 }}>🏢</div>
-          <div style={{ fontSize: 'var(--fs-note)', color: 'rgba(255,255,255,.6)' }}>У базі поки немає об&apos;єктів</div>
+          <div style={{ fontSize: 'var(--fs-note)', color: 'rgba(255,255,255,.6)' }}>У базі поки немає обʼєктів</div>
         </div>
       )}
 
@@ -843,7 +843,7 @@ function CollectionView({ rows, token }: { rows: ColRow[]; token: string }) {
       ) : (
         <div className="v-rise" style={{ ...s.card, ...s.pad, textAlign: 'center', animationDelay: '60ms' }}>
           <div className="v-float" style={{ fontSize: 'var(--fs-t1)', marginBottom: 8 }}>🔖</div>
-          <div style={{ fontSize: 'var(--fs-note)', color: 'rgba(255,255,255,.6)' }}>У підбірці поки немає об&apos;єктів</div>
+          <div style={{ fontSize: 'var(--fs-note)', color: 'rgba(255,255,255,.6)' }}>У підбірці поки немає обʼєктів</div>
         </div>
       )}
 
@@ -938,8 +938,8 @@ export default function ViewerPage() {
         status: 'error',
         retry: true,
         msg: typeof navigator !== 'undefined' && !navigator.onLine
-          ? 'Немає з\'єднання з інтернетом. Перевір мережу і спробуй ще раз.'
-          : 'Не вдалося завантажити. Перевір з\'єднання та спробуй ще раз.',
+          ? 'Немає зʼєднання з інтернетом. Перевір мережу і спробуй ще раз.'
+          : 'Не вдалося завантажити. Перевір зʼєднання та спробуй ще раз.',
       }
     }
 
@@ -948,7 +948,7 @@ export default function ViewerPage() {
         const { data, error, status } = await supabase.rpc('get_public_property_preview', { p_token: prop })
         if (status === 0) { setState(networkErrorState()); return }
         if (error || !data?.length) {
-          setState({ status: 'error', msg: 'Об\'єкт не знайдено або посилання застаріло.' })
+          setState({ status: 'error', msg: 'Обʼєкт не знайдено або посилання застаріло.' })
           return
         }
         setState({ status: 'prop', data: (data as PropertyPreview[])[0], token: prop })

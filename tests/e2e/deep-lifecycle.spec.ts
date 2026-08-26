@@ -105,7 +105,7 @@ test('payment lifecycle: schedule → due item → mark paid → stats → unpay
 
   await openCalendar(page)
 
-  // 1. Об'єкт без розкладу → «Налаштувати»
+  // 1. Обʼєкт без розкладу → «Налаштувати»
   await expect(page.getByText('Немає розкладу')).toBeVisible()
   await page.getByRole('button', { name: /Налаштувати/ }).first().click()
   await expect(page.getByText('Налаштувати розклад')).toBeVisible()
@@ -115,7 +115,7 @@ test('payment lifecycle: schedule → due item → mark paid → stats → unpay
   expect(schedules[0]).toMatchObject({ property_id: PROP.id, owner_id: USER.id, due_day: 1, is_active: true })
   await expect(page.getByText(/Календар платежів|Платежі — /)).toBeVisible({ timeout: 15_000 })
 
-  // 2. З розкладом з'являється платіжний item поточного місяця з CTA «Отримано»
+  // 2. З розкладом зʼявляється платіжний item поточного місяця з CTA «Отримано»
   await expect(page.getByText('Немає розкладу')).toHaveCount(0)
   const receiveBtn = page.getByRole('button', { name: /Отримано/ }).first()
   await expect(receiveBtn).toBeVisible()
@@ -129,14 +129,14 @@ test('payment lifecycle: schedule → due item → mark paid → stats → unpay
   await receiveBtn.click()
   await expect(page.getByText('Підтвердити платіж')).toBeVisible()
   await page.getByRole('button', { name: 'Підтвердити' }).click()
-  await expect(page.getByText('Платіж підтверджено ✓')).toBeVisible()
+  await expect(page.getByText('Платіж підтверджено')).toBeVisible()
   await expect.poll(() => records.length).toBe(1)
   expect(records[0]).toMatchObject({ property_id: PROP.id, owner_id: USER.id, status: 'paid', amount: 1800 })
   await expect(page.getByText(/Календар платежів|Платежі — /)).toBeVisible({ timeout: 15_000 })
 
   // 3b. Валідація суми — перенесено з modal-sweep.spec.ts: порожнє поле лишається
   // легальним (береться очікувана сума), а введене мусить бути додатним числом.
-  await page.getByText('✓ Сплачено').click()
+  await page.getByText('Сплачено', { exact: true }).click()
   await expect(page.getByText('Редагувати платіж')).toBeVisible()
   const amountInput = page.getByLabel('Сума отриманого платежу')
   const saveBtn = page.getByRole('button', { name: 'Зберегти зміни' })
@@ -150,13 +150,13 @@ test('payment lifecycle: schedule → due item → mark paid → stats → unpay
   await expect(page.getByText(/Календар платежів|Платежі — /)).toBeVisible({ timeout: 15_000 })
 
   // 4. Рядок стає «Сплачено», стата «Отримано» показує суму
-  await expect(page.getByText('✓ Сплачено')).toBeVisible()
+  await expect(page.getByText('Сплачено', { exact: true })).toBeVisible()
   await expect(page.locator('.stat-n', { hasText: '1 800' })).toBeVisible()
 
   // 5. Скасування платежу (×) — ЗАВЖДИ через confirm-модалку
-  await page.getByTitle('Скасувати платіж').click()
+  await page.getByLabel('Скасувати цей платіж').click()
   await expect(page.getByText('Скасувати платіж?')).toBeVisible()
-  await page.getByRole('button', { name: 'Скасувати платіж', exact: true }).click()
+  await page.locator('.modal').getByRole('button', { name: 'Скасувати платіж', exact: true }).click()
   await expect(page.getByText('Платіж скасовано')).toBeVisible({ timeout: 10_000 })
   await expect(page.getByRole('button', { name: /Отримано/ }).first()).toBeVisible()
 })
@@ -208,7 +208,7 @@ test('offline: mutations are blocked with the offline toast, restore announces i
 
   // Відновлення: тост і мутації знову проходять
   await page.evaluate(() => window.dispatchEvent(new Event('online')))
-  await expect(page.getByText("З'єднання відновлено")).toBeVisible()
+  await expect(page.getByText("Зʼєднання відновлено")).toBeVisible()
 })
 
 // ─── Фото: аплоуд через PhotoUploadScreen ──────────────────────────────────────
@@ -258,4 +258,53 @@ test('photo upload: file → storage POST + property_photos INSERT → success t
   expect(storagePosts[0]).toMatch(new RegExp(`/photos/${PROP.id}/\\d+_[a-z0-9]+\\.png$`))
   expect(photoRows[0]).toMatchObject({ property_id: PROP.id })
   expect((photoRows[0] as { storage_path: string }).storage_path).toMatch(new RegExp(`^${PROP.id}/`))
+})
+
+/**
+ * `sort_order` НОВОГО фото продовжує наявні, а не стартує з нуля — інакше друга
+ * партія дає знімок із `sort_order = 0`, тобто нічию з чинною обкладинкою.
+ *
+ * ЦЕЙ ГАРД БУВ НЕМОЖЛИВИЙ ДО `Content-Range` В ХАРНЕСІ. `PhotoUploadScreen`
+ * бере кількість наявних через `count: 'exact', head: true`, тобто із
+ * ЗАГОЛОВКА, а не з тіла; харнес його не віддавав, `count` приходив `null`, і
+ * фолбек ставив рівно 0. Тобто фікс колізії обкладинки виглядав зробленим, а
+ * перевірити його не міг ЖОДЕН із 317 тестів.
+ *
+ * Заголовок додає сам `jsonRoute` (у цьому файлі імпортований як `json`) —
+ * рівно там же, де вже живе проєкція через `select=`.
+ */
+test('photo upload: sort_order продовжує наявні фото, а не стартує з нуля', async ({ page }) => {
+  await fixtures(page)
+
+  const EXISTING = [
+    { id: '80000000-0000-0000-0000-0000000000a1', property_id: PROP.id, storage_path: `${PROP.id}/a.jpg`, sort_order: 0, created_at: NOW },
+    { id: '80000000-0000-0000-0000-0000000000a2', property_id: PROP.id, storage_path: `${PROP.id}/b.jpg`, sort_order: 1, created_at: NOW },
+  ]
+  const inserted: Record<string, unknown>[] = []
+  await page.route('**/storage/v1/object/photos/**', (route) => json(route, { Key: 'photos/x' }))
+  await page.route('**/rest/v1/property_photos**', (route) => {
+    const req = route.request()
+    if (req.method() === 'POST') {
+      const body = JSON.parse(req.postData() ?? '{}')
+      inserted.push(body)
+          return json(route, [{ id: '80000000-0000-0000-0000-0000000000b1', ...body }], 201)
+    }
+    return json(route, EXISTING)
+  })
+
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+  await page.getByText('БЦ Рубін').first().click()
+  await page.locator('.obj-card .obj-t', { hasText: 'Офіс 101' }).click()
+  await expect(page.getByText('Фотографії')).toBeVisible()
+
+  const png = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+    'base64',
+  )
+  await page.locator('input[type="file"][accept="image/*"]').setInputFiles({ name: 'photo.png', mimeType: 'image/png', buffer: png })
+  await expect(page.getByText('Завантажено!')).toBeVisible({ timeout: 15_000 })
+
+  expect(inserted.length).toBe(1)
+  expect(inserted[0], 'нове фото стало другою обкладинкою').toMatchObject({ sort_order: 2 })
 })

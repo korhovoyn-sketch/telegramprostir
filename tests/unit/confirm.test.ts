@@ -25,8 +25,8 @@ function installTg(opts: { popup?: 'ok' | 'cancel' | null | 'throw'; initData?: 
 }
 
 const OPTS = {
-  title: 'Видалити об\'єкт?',
-  message: 'Об\'єкт "Офіс 101" буде видалено. Це незворотно.',
+  title: 'Видалити обʼєкт?',
+  message: 'Обʼєкт "Офіс 101" буде видалено. Це незворотно.',
   confirmLabel: 'Видалити',
   destructive: true,
 }
@@ -99,7 +99,7 @@ describe('confirmAction — фолбек-модалка', () => {
   })
 
   it('поза Telegram (порожній initData) нативний шлях НЕ вибирається', async () => {
-    // Об'єкт SDK може існувати в браузері, але попап не відкриється — і колбек
+    // Обʼєкт SDK може існувати в браузері, але попап не відкриється — і колбек
     // не прийде НІКОЛИ, тобто проміс завис би назавжди.
     const calls = installTg({ popup: 'ok', initData: '' })
     const promise = confirmAction(OPTS)

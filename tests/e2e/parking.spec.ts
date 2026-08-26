@@ -59,8 +59,8 @@ async function openNewObjectForm(page: Page) {
   await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
   await page.getByText('Паркінг Центр').first().click()
   await expect(page.getByText(/Всі \(\d\)/)).toBeVisible()
-  await page.getByLabel("Додати об'єкт").click()
-  await expect(page.getByText("Новий об'єкт")).toBeVisible()
+  await page.getByLabel("Додати обʼєкт").click()
+  await expect(page.getByText("Новий обʼєкт")).toBeVisible()
 }
 
 test('parking DB shows a spot-oriented form, not the office layout', async ({ page }) => {
@@ -93,11 +93,11 @@ test('parking property submits with per_day rate, parking_type and ev_charger', 
   await page.getByText('Підземний').click()                 // spot type
   await page.locator('[role="switch"]').first().click()     // EV charger toggle
 
-  await page.getByRole('button', { name: "Додати об'єкт" }).click()
+  await page.getByRole('button', { name: "Додати обʼєкт" }).click()
   // Wait for the success toast: it fires only after the POST round-trips, which
   // guarantees the route handler already recorded the payload (avoids racing
   // waitForRequest, which resolves before the handler runs).
-  await expect(page.getByText("Об'єкт додано")).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText("Обʼєкт додано")).toBeVisible({ timeout: 15_000 })
 
   expect(created).toMatchObject({
     rent_type: 'per_day',

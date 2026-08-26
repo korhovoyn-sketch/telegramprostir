@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useDeepLink } from '@/hooks/useDeepLink'
 import { useNotifications } from '@/hooks/useNotifications'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { IconWifiOff } from '@/components/Icons'
 import SplashScreen from '@/screens/SplashScreen'
 
 /** Мусить дорівнювати --bg у globals.css (нативний хром Telegram — не CSS). */
@@ -128,7 +129,7 @@ export default function Page() {
       const stable = tgAny.viewportStableHeight ?? tgAny.viewportHeight ?? 0
       const current = tgAny.viewportHeight ?? stable
       const reported = Math.max(0, Math.round(stable - current))
-      // Клавіатура «з'їдає» екран двома різними способами, і плутати їх не можна:
+      // Клавіатура «зʼїдає» екран двома різними способами, і плутати їх не можна:
       //  • ПЕРЕКРИВАЄ (iOS): лейаут лишається на всю висоту, і відступ знизу
       //    мусимо додати ми;
       //  • СТИСКАЄ webview (Android, новий Telegram iOS): лейаут УЖЕ без
@@ -144,7 +145,7 @@ export default function Page() {
       // домалює повернення висоти, тож `innerHeight` у цю мить лишається
       // урізаним — і `min()` фіксував ту урізану висоту НАЗАВЖДИ (події більше
       // не буде). Саме так під екраном оселялась чорна смуга після закриття
-      // клавіатури у формі об'єкта.
+      // клавіатури у формі обʼєкта.
       const vh = reported > 0 ? Math.min(stable, innerH) : (stable > 0 ? stable : innerH)
       if (vh > 0) document.documentElement.style.setProperty('--tg-vh', `${vh}px`)
       tgKbH = layoutShrunk ? 0 : reported
@@ -412,7 +413,7 @@ export default function Page() {
     }
     const handleOnline = () => {
       setOnline(true)
-      showToast({ type: 'success', title: 'З\'єднання відновлено' })
+      showToast({ type: 'success', title: 'Зʼєднання відновлено' })
     }
     window.addEventListener('offline', handleOffline)
     window.addEventListener('online', handleOnline)
@@ -469,7 +470,7 @@ export default function Page() {
     <ErrorBoundary>
       {!isOnline && (
         <div className="offline-banner">
-          <span>📡</span>
+          <IconWifiOff size={14} />
           Немає інтернету — дані можуть бути застарілими
         </div>
       )}

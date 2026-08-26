@@ -206,7 +206,7 @@ function CollectionDetail({
 
       // Update count in parent
       onUpdate({ ...collection, property_count: collection.property_count + 1 })
-      showToast({ type: 'success', title: 'Об\'єкт додано' })
+      showToast({ type: 'success', title: 'Обʼєкт додано' })
     } catch (e) {
       showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
     }
@@ -226,7 +226,7 @@ function CollectionDetail({
 
       setCollectionProps((prev) => prev.filter((cp) => cp.property_id !== propertyId))
       onUpdate({ ...collection, property_count: Math.max(0, collection.property_count - 1) })
-      showToast({ type: 'success', title: 'Об\'єкт видалено' })
+      showToast({ type: 'success', title: 'Обʼєкт видалено' })
     } catch (e) {
       showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
     }
@@ -234,7 +234,7 @@ function CollectionDetail({
 
   async function shareCollection() {
     if (collection.property_count === 0) {
-      showToast({ type: 'error', title: 'Підбірка порожня', subtitle: 'Додайте об\'єкти перед тим як ділитися' })
+      showToast({ type: 'error', title: 'Підбірка порожня', subtitle: 'Додайте обʼєкти перед тим як ділитися' })
       return
     }
     if (!isOnline && collection.is_draft) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
@@ -339,8 +339,8 @@ function CollectionDetail({
         ) : collectionProps.length === 0 ? (
           <div className="empty-state" style={{ paddingTop: 32 }}>
             <div className="empty-ic">🏢</div>
-            <div className="empty-h">Немає об&apos;єктів</div>
-            <div className="empty-s">Додай перший об&apos;єкт до підбірки</div>
+            <div className="empty-h">Немає обʼєктів</div>
+            <div className="empty-s">Додай перший обʼєкт до підбірки</div>
           </div>
         ) : (
           <div className="list">
@@ -402,15 +402,15 @@ function CollectionDetail({
         compact
         hidden={fabHidden}
         icon={<IconPlus size={14} />}
-        label="Додати об'єкт"
+        label="Додати обʼєкт"
         onClick={openAddModal}
       />
 
       {/* Add property modal */}
       <ActionSheet
         open={showAddModal}
-        title="Додати об'єкт"
-        subtitle="Оберіть об'єкт із підписаних баз"
+        title="Додати обʼєкт"
+        subtitle="Оберіть обʼєкт із підписаних баз"
         onClose={() => setShowAddModal(false)}
         actions={[
           { label: 'Закрити', variant: 'secondary', onClick: () => setShowAddModal(false) },
@@ -423,7 +423,7 @@ function CollectionDetail({
               </div>
             ) : availableProps.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--t3)', fontSize: 'var(--fs-foot)' }}>
-                Немає доступних об&apos;єктів
+                Немає доступних обʼєктів
               </div>
             ) : (
               <div className="list" style={{ gap: 6 }}>
@@ -489,6 +489,8 @@ export default function CollectionsScreen() {
   const { user, showToast, screenParams } = useAppStore()
   const [collections, setCollections] = useState<CollectionWithCount[]>([])
   const [loading, setLoading] = useState(true)
+  /** Порожній стан малює власну CTA — плаваюча дублювала б її підпис. */
+  const showEmptyCta = !loading && collections.length === 0
   const [loadError, setLoadError] = useState<string | null>(null)
   const [selectedCollection, setSelectedCollection] = useState<CollectionWithCount | null>(null)
   const [shareTarget, setShareTarget] = useState<CollectionWithCount | null>(null)
@@ -590,7 +592,7 @@ export default function CollectionsScreen() {
   function handleShare(e: React.MouseEvent, col: CollectionWithCount) {
     e.stopPropagation()
     if (col.property_count === 0) {
-      useAppStore.getState().showToast({ type: 'error', title: 'Підбірка порожня', subtitle: 'Додайте об\'єкти перед тим як ділитися' })
+      useAppStore.getState().showToast({ type: 'error', title: 'Підбірка порожня', subtitle: 'Додайте обʼєкти перед тим як ділитися' })
       return
     }
     setShareTarget(col)
@@ -633,6 +635,10 @@ export default function CollectionsScreen() {
         <div className="greet">Мої підбірки</div>
         <div className="display">Для клієнтів</div>
 
+        {/* Порожній стан має ВЛАСНУ первинну дію, тож FAB із тим самим підписом
+            ховається: інакше на екрані одночасно дві однакові кнопки
+            «Створити підбірку» — а порожній стан на те й порожній, що
+            прокручувати нема чого, і плаваюча дія там нічого не додає. */}
         {loading ? (
           <SkeletonList count={4} />
         ) : loadError && collections.length === 0 ? (
@@ -641,10 +647,9 @@ export default function CollectionsScreen() {
           <div className="empty-state" style={{ paddingTop: 32 }}>
             <div className="empty-ic">📋</div>
             <div className="empty-h">Немає підбірок</div>
-            <div className="empty-s">Створи першу підбірку об&apos;єктів для клієнта</div>
+            <div className="empty-s">Створи першу підбірку обʼєктів для клієнта</div>
             <button
-              className="mbtn success"
-              style={{ position: 'relative', bottom: 'auto', left: 'auto', right: 'auto', marginTop: 24, width: 'auto', minWidth: 200 }}
+              className="mbtn success mbtn-flow"
               onClick={createCollection}
             >
               Створити підбірку
@@ -670,7 +675,7 @@ export default function CollectionsScreen() {
         variant="create"
         compact
         raised
-        hidden={fabHidden}
+        hidden={fabHidden || showEmptyCta}
         icon={<IconPlus size={14} />}
         label="Створити підбірку"
         onClick={createCollection}
@@ -679,7 +684,7 @@ export default function CollectionsScreen() {
       {!fabSeen && !loading && (
         <CoachMark
           title="Створіть підбірку"
-          body="Натисніть +, щоб зібрати підбірку об'єктів для клієнта та поділитися посиланням."
+          body="Натисніть +, щоб зібрати підбірку обʼєктів для клієнта та поділитися посиланням."
           targetRef={fabRef}
           placement="above"
           onDone={markFabSeen}

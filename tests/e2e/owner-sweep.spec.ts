@@ -101,7 +101,7 @@ test.describe('owner sweep: uncovered screens', () => {
     // Deep link skips db-list entirely and auto-navigates straight into the
     // owner's own collection (detail view) — no "Мої бази" is ever shown.
     await expect(page.getByText('Підбірка для клієнта')).toBeVisible({ timeout: 20_000 })
-    await expect(page.getByText('Немає об\'єктів')).toBeVisible()
+    await expect(page.getByText('Немає обʼєктів')).toBeVisible()
   })
 
   test('CollectionsScreen (list view) creates a collection card when empty', async ({ page }) => {
@@ -131,10 +131,11 @@ test.describe('owner sweep: uncovered screens', () => {
     await page.goto('/')
 
     await expect(page.getByText('Немає підбірок')).toBeVisible({ timeout: 20_000 })
-    // FAB і нативна MainButton (DOM-фолбек .mbtn) тепер несуть той самий
-    // підпис на ОДНОМУ екрані (на відміну від «Додати об'єкт»/«Створити
-    // базу», де FAB веде на ІНШИЙ екран і колізії немає) — звужуємо до FAB.
-    await page.locator('.fbtn').click()
+    // На ПОРОЖНЬОМУ екрані первинна дія тепер РІВНО одна: FAB ховається, бо
+    // порожній стан має власну кнопку з тим самим підписом (гард —
+    // `empty-cta.spec.ts`). Раніше тут стояв `.fbtn`, і саме через дублікат:
+    // обидві кнопки несли однаковий підпис і `getByText` був неоднозначний.
+    await page.locator('.mbtn').click()
     await expect(page.getByText('Підбірка 1')).toBeVisible()
   })
 })

@@ -24,7 +24,7 @@ const DB = {
 function notif(n: number, over: Record<string, unknown> = {}) {
   return {
     id: `90000000-0000-0000-0000-00000000000${n}`, user_id: USER.id,
-    type: 'view', title: `Перегляд об'єкта ${n}`, body: 'Гість відкрив картку',
+    type: 'view', title: `Перегляд обʼєкта ${n}`, body: 'Гість відкрив картку',
     is_read: false, data: {}, created_at: iso(n), ...over,
   }
 }
@@ -114,13 +114,13 @@ test('видалення сповіщення прибирає рядок і н�
   const wire = await setup(page, [notif(1), notif(2)])
   await openApp(page)
   await page.locator('.tabbar [aria-label="Сповіщення"]').click()
-  await expect(page.getByText('Перегляд об\'єкта 1')).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText('Перегляд обʼєкта 1')).toBeVisible({ timeout: 15_000 })
 
   await page.locator('.notif-del').first().click()
 
   await expect.poll(() => wire.deletes.length, { timeout: 10_000 }).toBe(1)
-  await expect(page.getByText('Перегляд об\'єкта 1')).toHaveCount(0)
-  // stopPropagation: тап по хрестику не мусить навігувати на об'єкт.
+  await expect(page.getByText('Перегляд обʼєкта 1')).toHaveCount(0)
+  // stopPropagation: тап по хрестику не мусить навігувати на обʼєкт.
   await expect(page.getByText('Сповіщення').first()).toBeVisible()
 })
 
@@ -131,7 +131,7 @@ test('видалення сповіщення прибирає рядок і н�
 test('вкладка «Платежі» лишає лише нагадування про оплату', async ({ page }) => {
   await setup(page, [
     notif(1, { type: 'rent_reminder', title: 'Платіж за Офіс 101' }),
-    notif(2, { type: 'view', title: 'Перегляд об\'єкта 2' }),
+    notif(2, { type: 'view', title: 'Перегляд обʼєкта 2' }),
   ])
   await openApp(page)
   await page.locator('.tabbar [aria-label="Сповіщення"]').click()
@@ -139,7 +139,7 @@ test('вкладка «Платежі» лишає лише нагадуванн
 
   await page.locator('.notif-tab', { hasText: 'Платежі' }).click()
   await expect(page.getByText('Платіж за Офіс 101')).toBeVisible()
-  await expect(page.getByText('Перегляд об\'єкта 2'), 'чужий тип у «Платежах» не місце').toHaveCount(0)
+  await expect(page.getByText('Перегляд обʼєкта 2'), 'чужий тип у «Платежах» не місце').toHaveCount(0)
 })
 
 test('вкладка «Договори» НЕ показує звичайні сповіщення', async ({ page }) => {
@@ -148,7 +148,7 @@ test('вкладка «Договори» НЕ показує звичайні �
   // поспіль, тобто не фільтрувала нічого.
   await setup(page, [
     notif(1, { type: 'rent_reminder', title: 'Платіж за Офіс 101' }),
-    notif(2, { type: 'view', title: 'Перегляд об\'єкта 2' }),
+    notif(2, { type: 'view', title: 'Перегляд обʼєкта 2' }),
   ])
   await openApp(page)
   await page.locator('.tabbar [aria-label="Сповіщення"]').click()
@@ -156,7 +156,7 @@ test('вкладка «Договори» НЕ показує звичайні �
 
   await page.locator('.notif-tab', { hasText: 'Договори' }).click()
   await expect(page.getByText('Платіж за Офіс 101')).toHaveCount(0)
-  await expect(page.getByText('Перегляд об\'єкта 2')).toHaveCount(0)
+  await expect(page.getByText('Перегляд обʼєкта 2')).toHaveCount(0)
 })
 
 test('порожній стан замість пустого екрана', async ({ page }) => {
@@ -166,7 +166,7 @@ test('порожній стан замість пустого екрана', asy
 
   await page.locator('.tabbar [aria-label="Сповіщення"]').click()
   await expect(page.getByText('Немає сповіщень')).toBeVisible({ timeout: 15_000 })
-  await expect(page.getByText(/З'являться|з'являться/)).toBeVisible()
+  await expect(page.getByText(/Зʼявляться|зʼявляться/)).toBeVisible()
 })
 
 test('падіння запиту сповіщень не валить екран', async ({ page }) => {
@@ -212,7 +212,7 @@ test('повільний GET не оживляє бейдж після позн�
 
   await openApp(page)
   await page.locator('.tabbar [aria-label="Сповіщення"]').click()
-  await expect(page.getByText('Перегляд об\'єкта 1')).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText('Перегляд обʼєкта 1')).toBeVisible({ timeout: 15_000 })
   await expect.poll(() => wire.patches.length, { timeout: 10_000 }).toBeGreaterThan(0)
 
   // Даємо будь-якій запізнілій відповіді час перетерти стан.
@@ -352,7 +352,7 @@ test('ГЛОБАЛЬНИЙ лічильник, випущений РАНІШЕ, 
   }).toBeGreaterThan(0)
 
   await page.locator('.tabbar [aria-label="Сповіщення"]').click()
-  await expect(page.getByText('Перегляд об\'єкта 1')).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText('Перегляд обʼєкта 1')).toBeVisible({ timeout: 15_000 })
   await expect.poll(() => wire.patches.length, { timeout: 15_000 }).toBeGreaterThan(0)
 
   // Аж ТЕПЕР віддаємо стару відповідь — ту, що везе `is_read:false`.

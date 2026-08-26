@@ -62,7 +62,7 @@ export function useFolders(dbId?: string) {
       return null
     }
     try {
-      // Дані належать власнику БАЗИ (як і об'єкти): editor-політика це форсить
+      // Дані належать власнику БАЗИ (як і обʼєкти): editor-політика це форсить
       // через WITH CHECK, тож owner_id має бути власників, не творця.
       const dbOwner = useAppStore.getState().databases.find(d => d.id === targetDbId)?.owner_id
       const maxOrder = foldersRef.current.reduce((m, f) => Math.max(m, f.sort_order), 0)

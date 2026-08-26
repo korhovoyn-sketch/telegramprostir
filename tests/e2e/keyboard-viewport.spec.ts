@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test'
 import { setupApp, DEFAULT_USER, jsonRoute } from './helpers/harness'
 
-// Клавіатура «з'їдає» екран двома різними способами:
+// Клавіатура «зʼїдає» екран двома різними способами:
 //  • ПЕРЕКРИВАЄ (iOS): лейаут на всю висоту → відступ знизу додаємо ми;
 //  • СТИСКАЄ webview (Android, новий Telegram iOS): лейаут уже без клавіатури →
 //    наш відступ відняв би її ВДРУГЕ.

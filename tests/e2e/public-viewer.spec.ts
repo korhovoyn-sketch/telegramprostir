@@ -135,7 +135,7 @@ test('/v?db — renders a shared database preview with its objects', async ({ pa
   // 040: a for-sale object shows its sale price in the list
   await expect(page.getByText(/₴85/)).toBeVisible()
   // Correct Ukrainian plural for 2
-  await expect(page.getByText(/2 об'єкти/)).toBeVisible()
+  await expect(page.getByText(/2 обʼєкти/)).toBeVisible()
   // Card description (clamped) renders
   await expect(page.getByText(/панорамні вікна/)).toBeVisible()
   // 040: the db open is recorded with p_kind='db'
@@ -150,7 +150,7 @@ test('/v?db — empty database shows an explanatory empty state', async ({ page 
   await page.goto('/v/?db=aabbccddeeff001122334455')
 
   await expect(page.getByText('БЦ Рубін')).toBeVisible({ timeout: 20_000 })
-  await expect(page.getByText('У базі поки немає об\'єктів')).toBeVisible()
+  await expect(page.getByText('У базі поки немає обʼєктів')).toBeVisible()
 })
 
 test('/v?col — renders a shared collection preview', async ({ page }) => {
@@ -169,7 +169,7 @@ test('/v?col — renders a shared collection preview', async ({ page }) => {
   await expect(page.getByText('Олена Р.', { exact: true })).toBeVisible() // realtor name
   // 040: property owner's currency (EUR), 1-object plural
   await expect(page.getByText(/€15\/м²/)).toBeVisible()
-  await expect(page.getByText(/1 об'єкт(?!и|ів)/)).toBeVisible()
+  await expect(page.getByText(/1 обʼєкт(?!и|ів)/)).toBeVisible()
   await expect.poll(() => recordedKind, { timeout: 10_000 }).toBe('col')
 })
 
@@ -214,7 +214,7 @@ test('/v?db network failure shows a retryable error, then succeeds on retry', as
   // The retry button is the unambiguous signal it's the retryable branch.
   const retryBtn = page.getByRole('button', { name: /Спробувати ще раз/i })
   await expect(retryBtn).toBeVisible({ timeout: 20_000 })
-  await expect(page.getByText(/Перевір з'єднання та спробуй ще раз/)).toBeVisible()
+  await expect(page.getByText(/Перевір зʼєднання та спробуй ще раз/)).toBeVisible()
 
   await retryBtn.click()
   await expect(page.getByText('БЦ Рубін')).toBeVisible({ timeout: 20_000 })
