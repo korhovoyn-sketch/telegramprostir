@@ -313,7 +313,7 @@ export default function DatabaseObjectsScreen() {
   // idx матеріальний лише в reorder-режимі (межі ↑/↓); у групованому/плоскому
   // списку передаємо 0 — там кнопок реордера немає.
   const renderCard = (p: Property, idx: number) => {
-    const { rent, utils, total } = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate, p.area_basis)
+    const { rent, utils, total } = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate, p.area_basis, db?.type === 'parking')
     // A daily rate can't be summed with monthly utilities — show the raw
     // daily rate (/добу); everything else shows the monthly total (/міс).
     const isDaily = p.rent_type === 'per_day'

@@ -142,7 +142,28 @@ WITH checks(ord, item, migration, ok) AS (VALUES
                   WHERE n.nspname='auth' AND c.relname='users' AND tg.tgname LIKE '%handle_new_user%')),
   (17, 'current_app_user_id парсить email-claim', '002_rls/003_reconcile.sql',
       EXISTS (SELECT 1 FROM pg_proc WHERE proname='current_app_user_id'
-              AND prosrc LIKE '%email%'))
+              AND prosrc LIKE '%email%')),
+
+  -- Решта КЛІЄНТСЬКИХ RPC. Їх не було тут, і це прогалина саме того класу, що
+  -- вже коштувала накату: файл спирався на `mark_overdue_payments`, якої в
+  -- проді не існувало, бо 024 ніколи не застосовували. Тобто прогалини всередині
+  -- 001–047 ДОВЕДЕНІ, а не гіпотетичні — отже присутність будь-якої функції з
+  -- того діапазону треба ПИТАТИ, а не припускати.
+  --
+  -- `lookup_shared_collection` — найгірший випадок: визначена ЛИШЕ в 020/023,
+  -- у RELEASE.sql її немає, тож накат 048–062 її не створює. Якщо в проді її
+  -- немає, deep link `col_<token>` (вхід за посиланням на підбірку) падає, і
+  -- жоден файл репозиторію про це не скаже.
+  (34, 'RPC lookup_shared_collection', '020/023_public_share_tokens.sql',
+      EXISTS (SELECT 1 FROM pg_proc WHERE proname='lookup_shared_collection')),
+  (35, 'RPC lookup_shared_property', '020/023, оновлює 059',
+      EXISTS (SELECT 1 FROM pg_proc WHERE proname='lookup_shared_property')),
+  (36, 'RPC claim_guest_link', '027_guest_role.sql, оновлює 048',
+      EXISTS (SELECT 1 FROM pg_proc WHERE proname='claim_guest_link')),
+  (37, 'RPC get_guest_property_preview', '027_guest_role.sql, оновлює 050',
+      EXISTS (SELECT 1 FROM pg_proc WHERE proname='get_guest_property_preview')),
+  (38, 'RPC delete_my_account', '051_delete_account_storage.sql',
+      EXISTS (SELECT 1 FROM pg_proc WHERE proname='delete_my_account'))
 )
 SELECT
   CASE WHEN ok THEN '✅ OK     ' ELSE '❌ MISSING' END AS status,

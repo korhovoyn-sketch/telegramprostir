@@ -152,7 +152,7 @@ export default function RealtorDatabaseScreen() {
         ) : (
           <div className="list" style={{ marginBottom: 80 }}>
             {filtered.map((p) => {
-              const { rent, total } = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate, p.area_basis)
+              const { rent, total } = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate, p.area_basis, db?.type === 'parking')
               // A daily rate isn't a monthly total — show it as-is (/добу).
               const isDaily = p.rent_type === 'per_day'
               const dispVal = isDaily ? rent : total

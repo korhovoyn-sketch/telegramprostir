@@ -42,7 +42,7 @@ describe('formatPrice не кидає і не друкує сміття', () => 
 describe('розрахунки оренди на ворожому вводі', () => {
   it('нулі та NaN не дають сміття в підсумках', () => {
     for (const args of [[0, 0], [NaN, NaN]] as const) {
-      const r = calcRentUtils(args[0], args[0], args[1], 'per_m2', args[1], 'total')
+      const r = calcRentUtils(args[0], args[0], args[1], 'per_m2', args[1], 'total', false)
       const line = `${formatPrice(r.rent)} ${formatPrice(r.utils)} ${formatPrice(r.total)}`
       expect(line, `calcRentUtils(${args.join(',')}) → ${line}`).not.toMatch(GARBAGE)
     }

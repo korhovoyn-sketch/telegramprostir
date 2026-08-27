@@ -36,8 +36,6 @@ const RealtorDatabaseScreen = dynamic(() => import('@/screens/RealtorDatabaseScr
 const CollectionsScreen = dynamic(() => import('@/screens/CollectionsScreen'), { loading: () => screenFallback })
 const ProfileScreen = dynamic(() => import('@/screens/ProfileScreen'), { loading: () => screenFallback })
 const NotificationsScreen = dynamic(() => import('@/screens/NotificationsScreen'), { loading: () => screenFallback })
-const ErrorScreen = dynamic(() => import('@/screens/ErrorScreen'), { loading: () => screenFallback })
-const SuccessScreen = dynamic(() => import('@/screens/SuccessScreen'), { loading: () => screenFallback })
 const PhotoUploadScreen = dynamic(() => import('@/screens/PhotoUploadScreen'), { loading: () => screenFallback })
 const PhotoGalleryScreen = dynamic(() => import('@/screens/PhotoGalleryScreen'), { loading: () => screenFallback })
 const QRScannerScreen = dynamic(() => import('@/screens/QRScannerScreen'), { loading: () => screenFallback })
@@ -443,8 +441,6 @@ export default function Page() {
       case 'collections': return <CollectionsScreen />
       case 'profile': return <ProfileScreen />
       case 'notifications': return <NotificationsScreen />
-      case 'error': return <ErrorScreen />
-      case 'success': return <SuccessScreen />
       case 'photo-upload': return <PhotoUploadScreen />
       case 'photo-gallery': return <PhotoGalleryScreen />
       case 'qr-scanner': return <QRScannerScreen />

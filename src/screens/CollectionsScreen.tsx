@@ -16,7 +16,7 @@ import { PROPERTY_WITH_PHOTOS } from '@/hooks/useProperties'
 import TabBar from '@/components/ui/TabBar'
 import { StatusBadge } from '@/components/ui/Badge'
 import ActionSheet from '@/components/ui/ActionSheet'
-import { IconPlus, IconShare, IconX, IconChevronLeft, IconTrash, IconBuilding } from '@/components/Icons'
+import { IconPlus, IconShare, IconX, IconChevronLeft, IconTrash, IconBuilding, IconChartBar, IconChevronRight } from '@/components/Icons'
 import { formatPrice, calcRent, basisArea, computedRentUnit, objectsWord, formatDate, photoUrl, humanizeDbError, withSortedPhotos } from '@/lib/utils'
 import ShareSheet from '@/components/ui/ShareSheet'
 import type { Property, Collection } from '@/types'
@@ -118,7 +118,7 @@ function CollectionDetail({
   onUpdate: (updated: CollectionWithCount) => void
   onDelete: (id: string) => void
 }) {
-  const { user, showToast, isOnline } = useAppStore()
+  const { user, showToast, isOnline, navigate } = useAppStore()
   const fabHidden = useHideOnScrollDown()
 
   const [collectionProps, setCollectionProps] = useState<CollectionProperty[]>([])
@@ -334,6 +334,26 @@ function CollectionDetail({
 
       {/* Body */}
       <div className="body has-fab">
+        {/* Відкриття підбірки клієнтом уже писались (`record_public_view`
+            з `p_kind='col'`) і мали RLS-політику для рієлтора — але їх не
+            читав ЖОДЕН екран: аналітика відкривалась лише з `propertyId` або
+            `dbId`. Тобто на питання «чи відкрив клієнт те, що я надіслав»
+            відповідь була в базі й недосяжна. */}
+        <button
+          className="row glass-s"
+          onClick={() => { navigate('sharing-analytics', { collectionId: collection.id }) }}
+          style={{ width: 'calc(100% - 24px)', margin: '0 12px 12px', textAlign: 'left' }}
+        >
+          <div className="row-ic" style={{ background: 'var(--info-bg)', flexShrink: 0 }}>
+            <IconChartBar size={18} color="var(--info-fg)" />
+          </div>
+          <div className="row-mn" style={{ flex: 1, minWidth: 0 }}>
+            <div className="row-t">Аналітика підбірки</div>
+            <div className="row-s">Хто і коли відкривав посилання</div>
+          </div>
+          <IconChevronRight size={16} color="var(--t3)" />
+        </button>
+
         {loadingProps ? (
           <SkeletonList count={4} />
         ) : collectionProps.length === 0 ? (

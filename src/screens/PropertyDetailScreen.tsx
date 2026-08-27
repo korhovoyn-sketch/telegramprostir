@@ -1,7 +1,7 @@
 'use client'
 
 /* eslint-disable @next/next/no-img-element */
-import { useEffect, useRef, } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '@/store/appStore'
 import RetryState from '@/components/ui/RetryState'
 import { hapticImpact, hapticNotify } from '@/lib/telegram'
@@ -40,6 +40,25 @@ export default function PropertyDetailScreen() {
     if (screenParams.propertyId) loadSingleProperty(screenParams.propertyId)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [screenParams.propertyId])
+
+  // Тип бази беремо зі стору, АЛЕ його наповнює лише `DatabaseListScreen` —
+  // на холодному вході по deep-лінку (`prop_`, гість, редактор) стор порожній,
+  // і `isParking` мовчки ставав false. Доти це псувало лише підписи; відколи
+  // від нього залежить ГЕЙТ ЕКСПЛУАТАЦІЙНИХ, той самий промах дає паркінгу
+  // ставку × площу замість пласкої суми — тобто хибну ЦИФРУ в картці.
+  // Тягнемо один рядок за id: RLS сам вирішує видимість для будь-якої ролі
+  // (той самий прийом, що self-heal у `DatabaseObjectsScreen`).
+  const dbId = property?.db_id
+  const storedType = databases.find(d => d.id === dbId)?.type
+  const [fetchedType, setFetchedType] = useState<string | null>(null)
+  useEffect(() => {
+    if (!dbId || storedType) return
+    let stale = false
+    supabase.from('databases').select('id,type').eq('id', dbId).maybeSingle()
+      .then(({ data }) => { if (!stale && data) setFetchedType((data as { type: string }).type) })
+    return () => { stale = true }
+  }, [dbId, storedType])
+  const dbType = storedType ?? fetchedType
 
   // АВТОФОКУСА НЕМА — рішення власника (див. той самий коментар у InviteSheet).
   // Затримка 400мс тут була правильна, але не усувала причини: фокус сам
@@ -91,8 +110,8 @@ export default function PropertyDetailScreen() {
     </div>
   )
 
-  const { rent, utils, total } = calcRentUtils(property.area_useful, property.area_total, property.rent_rate, property.rent_type, property.utilities_rate, property.area_basis)
-  const isParking = databases.find(d => d.id === property.db_id)?.type === 'parking'
+  const isParking = dbType === 'parking'
+  const { rent, utils, total } = calcRentUtils(property.area_useful, property.area_total, property.rent_rate, property.rent_type, property.utilities_rate, property.area_basis, isParking)
   // A daily rate can't be summed with a monthly utilities charge into a monthly
   // total — for per_day we show the line items but no combined "Разом на місяць".
   const isDaily = property.rent_type === 'per_day'

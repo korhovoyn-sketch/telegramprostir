@@ -269,7 +269,12 @@ export function useProperties(dbId?: string) {
     // roll back on failure. Used for one-tap status changes (free/rent) so
     // the UI never blocks on the network.
     if (opts?.optimistic) {
-      const prevList = propertiesRef.current
+      // Відкат ЛИШЕ свого рядка, а не знімок УСЬОГО списку. Зі знімком два
+      // паралельні мутейти затирали одне одного: B стартує вже після
+      // оптимістичної правки A, тож `prevList` у B її містить — і невдача A
+      // повертала список у стан, де змін B немає, включно з тими, що вже
+      // ЗАКОМІЧЕНІ на сервері. На LTE це досяжно двома тапами поспіль.
+      const prevItem = propertiesRef.current.find((p) => p.id === id)
       setProperties((prev) => prev.map((p) => (p.id === id ? ({ ...p, ...payload } as Property) : p)))
       try {
         const { data, error } = await supabase
@@ -292,7 +297,7 @@ export function useProperties(dbId?: string) {
         if (!opts.silent) showToast({ type: 'success', title: 'Збережено' })
         return true
       } catch (e) {
-        setProperties(prevList)
+        if (prevItem) setProperties((prev) => prev.map((p) => (p.id === id ? prevItem : p)))
         showToast({ type: 'error', title: 'Не збереглося — повернуто як було', subtitle: humanizeDbError(e) })
         return false
       }
@@ -421,7 +426,9 @@ export function useProperties(dbId?: string) {
   // Move one or more objects into a folder (folderId = null → ungroup).
   const moveToFolder = useCallback(async (ids: string[], folderId: string | null) => {
     if (ids.length === 0) return
-    const prevList = propertiesRef.current
+    // Той самий per-item відкат, що в `updateProperty`: повертаємо `folder_id`
+    // лише зачепленим рядкам, не чіпаючи сусідні оптимістичні правки.
+    const prevFolders = new Map(propertiesRef.current.map((p) => [p.id, p.folder_id]))
     setProperties(prev => prev.map(p => ids.includes(p.id) ? { ...p, folder_id: folderId } : p))
     try {
       const { data: moved, error } = await supabase
@@ -438,7 +445,9 @@ export function useProperties(dbId?: string) {
           : `${ids.length} ${objectsWord(ids.length)} без папки`,
       })
     } catch (e) {
-      setProperties(prevList)
+      setProperties(prev => prev.map(p => (
+        ids.includes(p.id) ? { ...p, folder_id: prevFolders.get(p.id) ?? null } : p
+      )))
       showToast({ type: 'error', title: 'Не вдалося перемістити', subtitle: humanizeDbError(e) })
     }
   }, [showToast])

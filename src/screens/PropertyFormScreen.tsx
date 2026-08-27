@@ -283,11 +283,15 @@ export default function PropertyFormScreen() {
   const rentCalc = parseFloat(rentRate) && (rentType !== 'per_m2' || previewArea)
     ? calcRent(previewArea, parseFloat(rentRate), rentType)
     : 0
-  // Parking expenses are a flat monthly charge (no $/m²); offices multiply the
-  // rate by the chosen basis area.
+  // Превʼю гейтилось на `areaTotal` — тобто на площі, якої обʼєкт із базою
+  // «корисна» може не мати взагалі, і тоді форма показувала 0, картка $3, а
+  // правильна відповідь була $125. ТРИ різні числа за той самий рядок.
+  // Тепер обидві поверхні рахують ОДНИМ виразом: пласко для паркінга,
+  // ставка × базова площа для решти.
+  const utilsRateNum = parseFloat(utilitiesRate) || 0
   const utilsCalc = isParking
-    ? (parseFloat(utilitiesRate) || 0)
-    : (parseFloat(areaTotal) && parseFloat(utilitiesRate) ? calcUtilities(previewArea, parseFloat(utilitiesRate)) : 0)
+    ? utilsRateNum
+    : (previewArea && utilsRateNum ? calcUtilities(previewArea, utilsRateNum) : 0)
   // A daily rate and a monthly utilities charge aren't the same unit — only sum
   // them into a monthly total when the rent itself is monthly.
   const total = rentType === 'per_day' ? 0 : rentCalc + utilsCalc

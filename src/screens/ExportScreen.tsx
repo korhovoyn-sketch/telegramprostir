@@ -182,6 +182,10 @@ async function loadPhotos(paths: string[]): Promise<LoadedPhoto[]> {
 
 // ── PDF generation ────────────────────────────────────────────────────────────
 
+/** Паркінг тримає `utilities_rate` як ПЛАСКУ СУМУ, решта — як ставку $/м².
+ *  Рядок обʼєкта цього не розрізняє, тож одиницю задає тип бази. */
+const isFlat = (db: Database) => db.type === 'parking'
+
 async function generatePDF(
   db: Database,
   properties: Property[],
@@ -196,6 +200,7 @@ async function generatePDF(
   // що вже ловили на публічній /v (правило проєкту: ніколи literal '$').
   cur: string,
 ) {
+  const isFlatUtils = isFlat(db)
   const { jsPDF, GState } = await import('jspdf')
   const { applyPlugin } = await import('jspdf-autotable')
   applyPlugin(jsPDF)
@@ -349,7 +354,7 @@ async function generatePDF(
   // total (нормалізований до місяця) мінус utils, НЕ сире .rent — інакше
   // per_day-обʼєкт додав би сюди добову ставку, а не місячний еквівалент.
   const totalRent     = rows.reduce((s, p) => {
-    const { total, utils } = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate, p.area_basis)
+    const { total, utils } = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate, p.area_basis, isFlatUtils)
     return s + (total - utils)
   }, 0)
 
@@ -382,7 +387,7 @@ async function generatePDF(
   const tableY = cardY + 24
 
   const tableRows = rows.map(p => {
-    const { utils, total } = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate, p.area_basis)
+    const { utils, total } = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate, p.area_basis, isFlatUtils)
     return [
       p.name,
       p.floor ?? '—',
@@ -451,7 +456,7 @@ async function generatePDF(
     doc.addPage()
     fillBg()
 
-    const { utils, total } = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate, p.area_basis)
+    const { utils, total } = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate, p.area_basis, isFlatUtils)
     const st    = STATUS_STYLE[p.status] ?? STATUS_STYLE.free
 
     // Slim top bar
@@ -812,6 +817,7 @@ async function generateExcel(
   onlyFree: boolean,
   cur: string,
 ) {
+  const isFlatUtils = isFlat(db)
   const XLSX = await import('xlsx')
   const rows = onlyFree ? properties.filter(p => p.status === 'free') : properties
 
@@ -862,7 +868,7 @@ async function generateExcel(
 
   // Data rows
   rows.forEach((p, idx) => {
-    const { utils, total } = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate, p.area_basis)
+    const { utils, total } = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate, p.area_basis, isFlatUtils)
     sheetData.push([
       idx + 1,
       p.name,
@@ -956,7 +962,7 @@ async function generateExcel(
   // ДОБОВОЮ ставкою (навмисно, для показу поряд із «/добу»), і підсумовування
   // її напряму в колонку «Сума оренди ($/міс)» рахувало б $150/добу як $150/міс.
   const monthlyRentOnly = (p: Property) => {
-    const { total, utils } = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate, p.area_basis)
+    const { total, utils } = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate, p.area_basis, isFlatUtils)
     return total - utils
   }
   statuses.forEach(({ key, label }) => {
