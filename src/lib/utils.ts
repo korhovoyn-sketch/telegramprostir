@@ -327,7 +327,13 @@ export function calcRentUtils(
   rentRate: number | null | undefined,
   rentType: string | null | undefined,
   utilitiesRate: number | null | undefined,
-  areaBasis?: string | null,
+  areaBasis: string | null | undefined,
+  // ОБОВʼЯЗКОВИЙ, і саме тому позиційний булеан тут виправданий: `utilities_rate`
+  // — колонка З ДВОМА ОДИНИЦЯМИ (для паркінга це пласка СУМА, для решти —
+  // ставка $/м²), а розрізнити їх по самому рядку обʼєкта НЕМОЖЛИВО. Без
+  // дефолта компілятор змушує кожен сайт виклику вирішити явно; з дефолтом
+  // наступний виклик мовчки взяв би чужу одиницю.
+  flatUtilities: boolean,
 ): { rent: number; utils: number; total: number } {
   // per_m2 multiplies rate × the chosen basis area (корисна/розрахункова);
   // fixed/per_day carry the rate itself, so they must NOT be gated on area (a
@@ -335,10 +341,15 @@ export function calcRentUtils(
   const rt = rentType ?? 'per_m2'
   const area = basisArea(areaUseful, areaTotal, areaBasis)
   const rent = rentRate ? calcRent(area, rentRate, rt) : 0
-  // Expenses (експлуатаційні) are $/m² × the basis area for objects that carry a
-  // розрахункова (total) area; a flat monthly charge otherwise — parking has a
-  // single area and no total, so its expenses stay flat.
-  const utils = utilitiesRate ? (areaTotal ? calcUtilities(area, utilitiesRate) : Math.round(utilitiesRate)) : 0
+  // Гейт по `areaTotal` був ХИБНОЮ ЗМІННОЮ: обʼєкт із базою «корисна» і
+  // порожньою розрахунковою площею діставав ПЛАСКІ Math.round(rate) — $3
+  // замість 50 м² × 2.5 = $125. Превʼю самої форми при цьому давало 0, тобто
+  // форма й решта застосунку показували РІЗНІ гроші за той самий рядок.
+  // Паркінг ловиться не площею, а типом бази (`flatUtilities`) — інакше
+  // 15 м² × 30 дало б $450 замість пласких $30.
+  const utils = utilitiesRate
+    ? (flatUtilities ? Math.round(utilitiesRate) : (area ? calcUtilities(area, utilitiesRate) : 0))
+    : 0
   // total МУСИТЬ бути місячним. `rent` для per_day — сира ДОБОВА ставка
   // (calcRent навмисно лишає її сирою, щоб показати поряд із «/добу»), а
   // `utils` завжди місячна сума — `rent + utils` для per_day змішував добове

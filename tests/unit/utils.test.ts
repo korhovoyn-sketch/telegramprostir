@@ -278,35 +278,48 @@ describe('basisArea', () => {
 
 describe('calcRentUtils', () => {
   it('default basis is total (розрахункова): rent & expenses use area_total', () => {
-    const r = calcRentUtils(50, 100, 20, 'per_m2', 5) // no basis → total
+    const r = calcRentUtils(50, 100, 20, 'per_m2', 5, undefined, false) // no basis → total
     expect(r.rent).toBe(2000)   // 100 × 20
     expect(r.utils).toBe(500)   // 100 × 5
     expect(r.total).toBe(2500)
   })
   it("basis 'useful' multiplies both by area_useful", () => {
-    const r = calcRentUtils(50, 100, 20, 'per_m2', 5, 'useful')
+    const r = calcRentUtils(50, 100, 20, 'per_m2', 5, 'useful', false)
     expect(r.rent).toBe(1000)   // 50 × 20
     expect(r.utils).toBe(250)   // 50 × 5
   })
   it("basis 'total' multiplies both by area_total", () =>
-    expect(calcRentUtils(50, 100, 20, 'per_m2', 5, 'total').total).toBe(2000 + 500))
+    expect(calcRentUtils(50, 100, 20, 'per_m2', 5, 'total', false).total).toBe(2000 + 500))
   it('flat rent (fixed) ignores area; expenses still scale on the basis area', () =>
-    expect(calcRentUtils(50, 100, 800, 'fixed', 5, 'total').total).toBe(800 + 500))
+    expect(calcRentUtils(50, 100, 800, 'fixed', 5, 'total', false).total).toBe(800 + 500))
   it('per_day rent carries the daily rate, not gated on area', () =>
-    expect(calcRentUtils(0, null, 150, 'per_day', null).rent).toBe(150))
+    expect(calcRentUtils(0, null, 150, 'per_day', null, undefined, false).rent).toBe(150))
   it('rent is 0 when the rate is missing', () =>
-    expect(calcRentUtils(50, 100, null, 'per_m2', 5).rent).toBe(0))
+    expect(calcRentUtils(50, 100, null, 'per_m2', 5, undefined, false).rent).toBe(0))
   it('expenses are flat (no total area) for parking, $/m² otherwise', () => {
     // parking: single area, no total → flat charge regardless of basis
-    expect(calcRentUtils(13, null, 0, 'fixed', 30, 'useful').utils).toBe(30)
-    expect(calcRentUtils(50, 100, 20, 'per_m2', 5).utils).toBe(500)
-    expect(calcRentUtils(50, 100, 20, 'per_m2', null).utils).toBe(0)
+    expect(calcRentUtils(13, null, 0, 'fixed', 30, 'useful', true).utils).toBe(30)
+    expect(calcRentUtils(50, 100, 20, 'per_m2', 5, undefined, false).utils).toBe(500)
+    expect(calcRentUtils(50, 100, 20, 'per_m2', null, undefined, false).utils).toBe(0)
+  })
+  it('база «корисна» без розрахункової площі: експлуатаційні по КОРИСНІЙ, а не пласкі', () => {
+    // Гейт стояв на `areaTotal`, тобто на ХИБНІЙ ЗМІННІЙ: обʼєкт із базою
+    // «корисна» і порожньою розрахунковою діставав Math.round(2.5) = $3
+    // замість 50 × 2.5 = $125. Превʼю форми показувало для цього ж рядка 0 —
+    // тобто дві поверхні застосунку рахували треті гроші.
+    expect(calcRentUtils(50, null, 20, 'per_m2', 2.5, 'useful', false).utils).toBe(125)
+    // Другий бік, у ТОМУ САМОМУ тесті: гейт по площі (пропозиція рев'ю)
+    // зламав би паркінг — 15 × 30 = $450 замість пласких $30. Розділивши їх
+    // на два тести, фікс одного ховав би злам другого.
+    expect(calcRentUtils(15, null, 0, 'fixed', 30, 'useful', true).utils).toBe(30)
+    // Немає площі взагалі — рахувати $/м² нема з чого; 0, як і в превʼю форми.
+    expect(calcRentUtils(null, null, 800, 'fixed', 2.5, 'useful', false).utils).toBe(0)
   })
   it('total for per_day is MONTHLY-normalized, not raw-daily + monthly-utils', () => {
     // Реальний баг: total раніше рахував rent(добова ставка) + utils(місячна
     // сума) — ExportScreen (PDF/XLSX) друкував цю суміш як «Разом на місяць».
     // $150/добу паркомісце + $30/міс експлуатаційні → $4500 + $30, НЕ $150 + $30.
-    const r = calcRentUtils(0, null, 150, 'per_day', 30)
+    const r = calcRentUtils(0, null, 150, 'per_day', 30, 'useful', true)
     expect(r.rent).toBe(150)   // сира добова ставка — так і мусить лишитись (показ поряд із «/добу»)
     expect(r.utils).toBe(30)
     expect(r.total).toBe(4530) // 150×30 + 30, НЕ 150+30=180

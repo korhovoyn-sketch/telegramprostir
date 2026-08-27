@@ -470,6 +470,7 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
     data.property_rent_type,
     data.property_utilities_rate,
     data.property_area_basis,
+    data.db_type === 'parking',
   )
   const basisAreaVal = basisArea(data.property_area_useful, data.property_area_total, data.property_area_basis)
 

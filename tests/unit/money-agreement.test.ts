@@ -43,7 +43,7 @@ function prop(over: Partial<Property> = {}): Property {
 /** Те, що показує картка обʼєкта (`DatabaseObjectsScreen.renderCard`). */
 function cardShows(p: Property): number {
   const { rent, total } = calcRentUtils(
-    p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate, p.area_basis)
+    p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate, p.area_basis, false)
   // Добова ставка не додається до місячних експлуатаційних — картка показує
   // сиру ставку з підписом «/добу».
   return p.rent_type === 'per_day' ? rent : total

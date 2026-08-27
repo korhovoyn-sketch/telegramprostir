@@ -248,8 +248,6 @@ export type ScreenName =
   | 'manage-guests'
   | 'team'
   | 'shared-collection'
-  | 'success'
-  | 'error'
   | 'payment-calendar'
   | 'payment-schedule'
   | 'payment-confirm'
