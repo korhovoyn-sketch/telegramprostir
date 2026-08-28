@@ -163,7 +163,27 @@ WITH checks(ord, item, migration, ok) AS (VALUES
   (37, 'RPC get_guest_property_preview', '027_guest_role.sql, оновлює 050',
       EXISTS (SELECT 1 FROM pg_proc WHERE proname='get_guest_property_preview')),
   (38, 'RPC delete_my_account', '051_delete_account_storage.sql',
-      EXISTS (SELECT 1 FROM pg_proc WHERE proname='delete_my_account'))
+      EXISTS (SELECT 1 FROM pg_proc WHERE proname='delete_my_account')),
+
+  -- 063: сліди переглядів. ДВІ окремі перевірки, бо політика має дві гілки і
+  -- кожна лікує свій випадок: без першої редактор команди не пише слід на
+  -- картці, без другої перегляд БАЗИ не пише НІХТО (рядок бази має
+  -- `property_id = NULL`, а `NULL IN (...)` дає NULL, не FALSE — предикат не
+  -- виконувався в принципі й при цьому мовчав).
+  (39, 'views_insert_auth: гілка РЕДАКТОРА команди', '063_view_insert_editors_and_dbs.sql',
+      EXISTS (SELECT 1 FROM pg_policies
+               WHERE tablename='property_views' AND policyname='views_insert_auth'
+                 AND with_check LIKE '%get_editor_property_ids%')),
+  (40, 'views_insert_auth: гілка рядка БАЗИ (property_id IS NULL)', '063_view_insert_editors_and_dbs.sql',
+      EXISTS (SELECT 1 FROM pg_policies
+               WHERE tablename='property_views' AND policyname='views_insert_auth'
+                 AND with_check LIKE '%get_editor_db_ids%')),
+  -- Урок 062: «строга політика існує» НЕ означає, що вона діє — пермісивна
+  -- поруч робить її безглуздою, бо правила обʼєднуються через OR. Тому
+  -- окремо перевіряємо, що INSERT-політика на цій таблиці РІВНО ОДНА.
+  (41, 'property_views: INSERT-політика рівно одна', '063_view_insert_editors_and_dbs.sql',
+      (SELECT count(*) FROM pg_policies
+        WHERE tablename='property_views' AND cmd='INSERT') = 1)
 )
 SELECT
   CASE WHEN ok THEN '✅ OK     ' ELSE '❌ MISSING' END AS status,
