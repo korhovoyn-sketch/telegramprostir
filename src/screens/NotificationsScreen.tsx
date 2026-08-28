@@ -21,7 +21,7 @@ import type { Notification } from '@/types'
 // клієнтський INSERT заборонений RLS після міграції 035). Тобто три вкладки
 // були назавжди порожні, а e2e цього не бачив, бо мок-фікстури підсовували
 // `type:'view'` вручну.
-type NotifTab = 'all' | 'lease' | 'payments' | 'views'
+type NotifTab = 'all' | 'lease' | 'payments'
 
 export default function NotificationsScreen() {
   const unreadCount = useAppStore((s) => s.unreadCount)
@@ -53,10 +53,16 @@ export default function NotificationsScreen() {
   // Те саме для платежів: найближчі — це СТАН розкладу, а не рядок у
   // `notifications`, тож блок закріплений, як і лізинговий.
   const showPay = tab === 'all' || tab === 'payments'
-  // Прапорець профілю — єдиний вимикач цього блока. `!== false`, а не
-  // `=== true`: колонка може прийти undefined на старому бекенді, і тоді
-  // розділ мусить бути УВІМКНЕНИЙ, а не тихо зниклий.
-  const showViews = user?.notification_views !== false && (tab === 'all' || tab === 'views')
+  // ВЛАСНОЇ ВКЛАДКИ В БЛОКА НЕМА, і це замір, а не смак: четверта вкладка при
+  // 375px обрізала підпис «Перегляди» на 7px (спіймав `control-text-fit`).
+  // Розтягнути смугу чи зменшити шрифт означало б відкотити вже ухвалене
+  // рішення про таби — 44px і `flex:1` на всю ширину. Блок і так закріплений
+  // НАД датованими групами, тож окрема вкладка додала б небагато.
+  //
+  // Прапорець профілю — єдиний вимикач. `!== false`, а не `=== true`: колонка
+  // може прийти undefined на старому бекенді, і тоді розділ мусить бути
+  // УВІМКНЕНИЙ, а не тихо зниклим.
+  const showViews = user?.notification_views !== false && tab === 'all'
 
   function leaseText(a: LeaseAlert): string {
     if (a.days < 0) {
@@ -83,10 +89,6 @@ export default function NotificationsScreen() {
     // взагалі, тож фільтр падав у фінальний `return true` і вкладка показувала
     // ВСІ сповіщення поспіль — тобто не фільтрувала нічого.
     if (tab === 'lease') return false
-    // Те саме для «Переглядів»: це теж ЛИШЕ похідний блок. Без цієї гілки
-    // фільтр падав би у фінальний `return true` і вкладка показувала б усі
-    // рядки сповіщень під блоком — той самий дефект, що колись мала 'lease'.
-    if (tab === 'views') return false
     if (tab === 'payments') return n.type === 'rent_reminder'
     return true
   })
@@ -154,7 +156,6 @@ export default function NotificationsScreen() {
             { id: 'all', label: `Всі${unreadCount > 0 ? ` (${unreadCount})` : ''}` },
             { id: 'lease', label: `Договори${leaseAlerts.length > 0 ? ` (${leaseAlerts.length})` : ''}` },
             { id: 'payments', label: `Платежі${payAlerts.length > 0 ? ` (${payAlerts.length})` : ''}` },
-            { id: 'views', label: `Перегляди${viewers.length > 0 ? ` (${viewers.length})` : ''}` },
           ] as { id: NotifTab; label: string }[]).map((t) => (
             <div
               key={t.id}
