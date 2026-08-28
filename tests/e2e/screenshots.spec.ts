@@ -312,6 +312,20 @@ test('screens · owner journey', async ({ page }) => {
     await page.getByLabel('Підтвердження видалення').waitFor()
   })
 
+  // Блок «Хто переглядав» — другий СТАН екрана сповіщень. Підміна
+  // `property_views` іде ПІСЛЯ кадру `notifications`, інакше той втратив би
+  // свій порожній стан; сам блок малюється лише за іменованих глядачів.
+  await page.route('**/rest/v1/property_views**', (r) => json(r, [
+    { property_id: PROPERTIES[0].id, db_id: null, viewer_id: 'v-realtor', viewer_name: 'Олена Ріелтор', created_at: '2025-09-14T10:00:00.000Z' },
+    { property_id: PROPERTIES[1].id, db_id: null, viewer_id: 'v-realtor', viewer_name: 'Олена Ріелтор', created_at: '2025-09-14T09:00:00.000Z' },
+    { property_id: null, db_id: DB_ID, viewer_id: 'v-editor', viewer_name: 'Оля Редактор', created_at: '2025-09-12T18:30:00.000Z' },
+  ]))
+  await snap(page, 'notifications-viewers', async () => {
+    await page.goto('/'); await page.getByText('Мої бази').waitFor()
+    await page.locator('.tabbar [aria-label="Сповіщення"]').click()
+    await page.getByText('Хто переглядав').waitFor()
+  })
+
   // Підтвердження платежу — СВІДОМО останнім кадром власника. Екран досяжний
   // лише коли розклад уже є, а підміна `rent_payments` живого розкладу зачепила
   // б і «Сповіщення» (useUpcomingPayments рахує найближчий платіж саме звідти),

@@ -6,10 +6,11 @@ import { hapticSelection, hapticImpact, hapticNotify } from '@/lib/telegram'
 import { useNotifications } from '@/hooks/useNotifications'
 import { useLeaseAlerts, type LeaseAlert } from '@/hooks/useLeaseAlerts'
 import { useUpcomingPayments, type PaymentAlert } from '@/hooks/useUpcomingPayments'
+import { useViewerActivity } from '@/hooks/useViewerActivity'
 import TabBar from '@/components/ui/TabBar'
 import { SkeletonList } from '@/components/ui/SkeletonLoader'
 import { IconX, IconBell, IconEye, IconMessage, IconHeartFilled, IconAdjustments, IconFile, IconCurrencyDollar, IconBan, IconClock, IconCalendar } from '@/components/Icons'
-import { formatDate, daysSince, pluralUk, formatLeaseDate, formatPrice } from '@/lib/utils'
+import { formatDate, daysSince, pluralUk, objectsWord, formatLeaseDate, formatPrice } from '@/lib/utils'
 import type { Notification } from '@/types'
 
 // Вкладки описують ЛИШЕ те, що застосунок реально вміє створювати.
@@ -20,7 +21,7 @@ import type { Notification } from '@/types'
 // клієнтський INSERT заборонений RLS після міграції 035). Тобто три вкладки
 // були назавжди порожні, а e2e цього не бачив, бо мок-фікстури підсовували
 // `type:'view'` вручну.
-type NotifTab = 'all' | 'lease' | 'payments'
+type NotifTab = 'all' | 'lease' | 'payments' | 'views'
 
 export default function NotificationsScreen() {
   const unreadCount = useAppStore((s) => s.unreadCount)
@@ -28,6 +29,7 @@ export default function NotificationsScreen() {
   const { notifications, loading, loadNotifications, markRead, markAllAsRead, deleteNotification, subscribeToNotifications } = useNotifications()
   const { alerts: leaseAlerts, loadLeaseAlerts } = useLeaseAlerts()
   const { alerts: payAlerts, loadUpcomingPayments } = useUpcomingPayments()
+  const { viewers, loadViewerActivity } = useViewerActivity()
   const user = useAppStore((s) => s.user)
   const [tab, setTab] = useState<NotifTab>('all')
 
@@ -43,6 +45,7 @@ export default function NotificationsScreen() {
   }, [loadNotifications, subscribeToNotifications, markAllAsRead])
 
   useEffect(() => { loadLeaseAlerts() }, [loadLeaseAlerts])
+  useEffect(() => { loadViewerActivity() }, [loadViewerActivity])
   useEffect(() => { loadUpcomingPayments() }, [loadUpcomingPayments])
 
   // Показуємо у «Всі» і в окремій вкладці «Договори».
@@ -50,6 +53,10 @@ export default function NotificationsScreen() {
   // Те саме для платежів: найближчі — це СТАН розкладу, а не рядок у
   // `notifications`, тож блок закріплений, як і лізинговий.
   const showPay = tab === 'all' || tab === 'payments'
+  // Прапорець профілю — єдиний вимикач цього блока. `!== false`, а не
+  // `=== true`: колонка може прийти undefined на старому бекенді, і тоді
+  // розділ мусить бути УВІМКНЕНИЙ, а не тихо зниклий.
+  const showViews = user?.notification_views !== false && (tab === 'all' || tab === 'views')
 
   function leaseText(a: LeaseAlert): string {
     if (a.days < 0) {
@@ -76,6 +83,10 @@ export default function NotificationsScreen() {
     // взагалі, тож фільтр падав у фінальний `return true` і вкладка показувала
     // ВСІ сповіщення поспіль — тобто не фільтрувала нічого.
     if (tab === 'lease') return false
+    // Те саме для «Переглядів»: це теж ЛИШЕ похідний блок. Без цієї гілки
+    // фільтр падав би у фінальний `return true` і вкладка показувала б усі
+    // рядки сповіщень під блоком — той самий дефект, що колись мала 'lease'.
+    if (tab === 'views') return false
     if (tab === 'payments') return n.type === 'rent_reminder'
     return true
   })
@@ -143,6 +154,7 @@ export default function NotificationsScreen() {
             { id: 'all', label: `Всі${unreadCount > 0 ? ` (${unreadCount})` : ''}` },
             { id: 'lease', label: `Договори${leaseAlerts.length > 0 ? ` (${leaseAlerts.length})` : ''}` },
             { id: 'payments', label: `Платежі${payAlerts.length > 0 ? ` (${payAlerts.length})` : ''}` },
+            { id: 'views', label: `Перегляди${viewers.length > 0 ? ` (${viewers.length})` : ''}` },
           ] as { id: NotifTab; label: string }[]).map((t) => (
             <div
               key={t.id}
@@ -190,6 +202,36 @@ export default function NotificationsScreen() {
           </>
         )}
 
+        {/* Хто переглядав — теж СТАН періоду, а не подія, і теж похідний блок.
+            Рядок НЕ клікабельний свідомо: глядач не є ціллю навігації (аналітика
+            в застосунку — по базі/обʼєкту/підбірці, не по людині), а кнопка, що
+            нікуди не веде, гірша за звичайний рядок. Тому `<div>`, а не
+            `<button>`: правило про кнопки стосується КЛІКАБЕЛЬНИХ елементів. */}
+        {showViews && viewers.length > 0 && (
+          <>
+            <div className="over">Хто переглядав</div>
+            <div className="notif-l glass-s" style={{ margin: '0 12px 12px' }}>
+              {viewers.map((v) => (
+                <div key={v.viewerId} className="notif-i">
+                  <div className="notif-ic glass-s"><IconEye size={18} color="var(--info-fg)" /></div>
+                  <div className="notif-mn">
+                    <div className="notif-n">{v.viewerName}</div>
+                    <div className="notif-s">
+                      {[
+                        v.properties > 0 ? `${v.properties} ${objectsWord(v.properties)}` : null,
+                        v.databases > 0
+                          ? `${v.databases} ${pluralUk(v.databases, 'відкриття', 'відкриття', 'відкриттів')} бази`
+                          : null,
+                      ].filter(Boolean).join(' · ')}
+                    </div>
+                  </div>
+                  <span className="notif-t">{formatDate(v.lastAt)}</span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
         {/* Кінець договору — стан, а не подія, тож окремим закріпленим блоком
             НАД датованими групами, і без кнопки видалення: поки термін
             наближається, сповіщення мусить лишатись на екрані. */}
@@ -226,7 +268,8 @@ export default function NotificationsScreen() {
           <SkeletonList count={5} />
         ) : filtered.length === 0
             && !(showLease && leaseAlerts.length > 0)
-            && !(showPay && payAlerts.length > 0) ? (
+            && !(showPay && payAlerts.length > 0)
+            && !(showViews && viewers.length > 0) ? (
           <div className="empty-state" style={{ paddingTop: 32 }}>
             <div className="empty-ic">🔔</div>
             <div className="empty-h">Немає сповіщень</div>

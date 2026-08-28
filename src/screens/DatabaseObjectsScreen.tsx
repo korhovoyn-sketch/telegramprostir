@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo, useRef } from 'react'
 import { useAppStore } from '@/store/appStore'
+import { recordDbView } from '@/lib/viewTracking'
 import RetryState from '@/components/ui/RetryState'
 import { hapticSelection } from '@/lib/telegram'
 import { offlineGuard } from '@/lib/offline'
@@ -190,6 +191,13 @@ export default function DatabaseObjectsScreen() {
   useEffect(() => {
     if (screenParams.dbId) loadFolders(screenParams.dbId)
   }, [screenParams.dbId, loadFolders])
+
+  // Той самий слід для РЕДАКТОРА команди: він заходить сюди, а не на екран
+  // рієлтора. Власні відкриття `recordDbView` відсіює сам (див. модуль).
+  useEffect(() => {
+    if (db) recordDbView(db.id, db.owner_id, user ?? null)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [db?.id])
 
   // Deep link (own_db / team_ / db-гість) веде сюди повз db-list на холодному
   // старті — стор порожній, і без власного довантаження екран висів би на

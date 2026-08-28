@@ -38,6 +38,12 @@ CREATE OR REPLACE FUNCTION pg_temp.login(p_email TEXT) RETURNS VOID
 LANGUAGE plpgsql AS $$ BEGIN
   PERFORM set_config('request.jwt.claims', json_build_object('email',p_email)::TEXT, false);
   PERFORM set_config('request.jwt.claim.sub', '', false);
+  -- `auth.role()` у шимі читає ОКРЕМИЙ клейм, і доти його не виставляв ніхто.
+  -- Наслідок був тихий і небезпечний: політика з кон'юнктом
+  -- `auth.role() = 'authenticated'` отримувала NULL і ЗАВЖДИ відмовляла, тож
+  -- будь-яка перевірка на неї «доводила» відмову з хибної причини. Спіймано
+  -- на 063: позитивний контроль падав при цілком коректній політиці.
+  PERFORM set_config('request.jwt.claim.role', 'authenticated', false);
 END $$;
 
 DO $$
@@ -751,4 +757,71 @@ BEGIN
   RESET ROLE;
 
   RAISE NOTICE '  ✓ 061: номер лише за згодою; решта контактів лишається';
+END $$;
+
+-- ── 063: перегляди редакторів і перегляди БАЗ ────────────────────────────────
+-- Політика з 036 вимагала `property_id IN (owner ∪ realtor)`. Тобто редактор
+-- команди не міг лишити слід перегляду взагалі, а рядок БАЗИ (`property_id`
+-- NULL) не міг записати НІХТО: `NULL IN (...)` дає NULL, не TRUE.
+--
+-- Кожна перевірка тут ПАРНА. «Редактор не пише в чужу базу» саме по собі
+-- однаково пояснюється і правильною політикою, і політикою, що не пускає
+-- нікуди — рівно та пастка, на якій свого часу спалився storage-гард.
+INSERT INTO auth.users (id,email) VALUES
+  ('e0000000-0000-0000-0000-0000000630ed','963001@telegram.propspace.app');
+INSERT INTO users (id,tg_id,first_name,role) VALUES
+  ('a0000000-0000-0000-0000-0000000630ed',963001,'Едіт-редактор','owner');
+INSERT INTO db_members (db_id,user_id,status,member_name) VALUES
+  ('d0000000-0000-0000-0000-00000000000a','a0000000-0000-0000-0000-0000000630ed','active','Едіт');
+
+DO $$
+DECLARE n INT;
+BEGIN
+  PERFORM pg_temp.login('963001@telegram.propspace.app');
+  SET LOCAL ROLE authenticated;
+
+  -- ПОЗИТИВ 1: редактор лишає слід на КАРТЦІ бази, яку редагує.
+  INSERT INTO property_views (property_id,viewer_id,viewer_name,action)
+  VALUES ('f0000000-0000-0000-0000-00000000000a','a0000000-0000-0000-0000-0000000630ed','Едіт','view');
+
+  -- ПОЗИТИВ 2: і на самій БАЗІ (рядок без обʼєкта) — те, чого не міг ніхто.
+  INSERT INTO property_views (property_id,db_id,viewer_id,viewer_name,action)
+  VALUES (NULL,'d0000000-0000-0000-0000-00000000000a','a0000000-0000-0000-0000-0000000630ed','Едіт','view');
+
+  -- НЕГАТИВ 1: чужа картка (база Богдана) — не можна.
+  BEGIN
+    INSERT INTO property_views (property_id,viewer_id,viewer_name,action)
+    VALUES ('f0000000-0000-0000-0000-00000000000b','a0000000-0000-0000-0000-0000000630ed','Едіт','view');
+    RAISE EXCEPTION '063: редактор записав перегляд ЧУЖОЇ картки';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+
+  -- НЕГАТИВ 2: чужа база.
+  BEGIN
+    INSERT INTO property_views (property_id,db_id,viewer_id,viewer_name,action)
+    VALUES (NULL,'d0000000-0000-0000-0000-00000000000b','a0000000-0000-0000-0000-0000000630ed','Едіт','view');
+    RAISE EXCEPTION '063: редактор записав перегляд ЧУЖОЇ бази';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+
+  -- НЕГАТИВ 3: підставити ЧУЖУ особу (інваріант із 036 мусить вижити).
+  BEGIN
+    INSERT INTO property_views (property_id,viewer_id,viewer_name,action)
+    VALUES ('f0000000-0000-0000-0000-00000000000a','a0000000-0000-0000-0000-00000000000a','Аліса','view');
+    RAISE EXCEPTION '063: вдалось записати перегляд від ЧУЖОГО імені';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  RESET ROLE;
+
+  -- Власник БАЧИТЬ обидва сліди редактора — інакше фіча запису безглузда.
+  PERFORM pg_temp.login('900001@telegram.propspace.app');
+  SET LOCAL ROLE authenticated;
+  SELECT count(*) INTO n FROM property_views
+   WHERE viewer_id = 'a0000000-0000-0000-0000-0000000630ed';
+  IF n <> 2 THEN
+    RAISE EXCEPTION '063: власник бачить % слідів редактора замість 2', n;
+  END IF;
+  RESET ROLE;
+
+  RAISE NOTICE '  ✓ 063: редактор пише сліди на своїй базі й картці, не пише на чужих';
 END $$;
