@@ -112,6 +112,7 @@ const FROZEN: Record<string, number> = {
   team: 0,
   export: 1,
   notifications: 0,
+  'notifications-viewers': 0,
   profile: 7,
   'realtor-dashboard': 0,
   'realtor-database': 5,

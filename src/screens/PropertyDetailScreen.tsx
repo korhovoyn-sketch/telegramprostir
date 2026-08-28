@@ -17,6 +17,7 @@ import SpaceOrb, { type OrbStatus } from '@/components/ui/SpaceOrb'
 import { formatPrice, calcRentUtils, computedRentUnit, parkingTypeLabel, STATUS_LABELS, STATUS_COLORS, formatLeasePeriod, photoUrl, daysUntil } from '@/lib/utils'
 import { UTILITY_META } from '@/lib/utilityMeta'
 import { supabase } from '@/lib/supabase'
+import { recordPropertyView } from '@/lib/viewTracking'
 
 
 export default function PropertyDetailScreen() {
@@ -75,17 +76,11 @@ export default function PropertyDetailScreen() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [property?.id])
 
-  // Record a view exactly once per session mount
-  const viewRecorded = useRef(false)
+  // Слід перегляду. Дедуп переїхав у `lib/viewTracking` — `useRef` тут ловив
+  // лише повторний ефект ОДНОГО монтажу, тож десять відкриттів картки давали
+  // десять рядків, і стрічка «хто переглядав» тонула б у них.
   useEffect(() => {
-    if (!property || viewRecorded.current) return
-    viewRecorded.current = true
-    supabase.from('property_views').insert({
-      property_id: property.id,
-      viewer_id: user?.id ?? null,
-      viewer_name: user ? `${user.first_name}${user.last_name ? ' ' + user.last_name : ''}` : null,
-      action: 'view',
-    }).then(() => {})
+    if (property) recordPropertyView(property.id, user ?? null)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [property?.id])
 

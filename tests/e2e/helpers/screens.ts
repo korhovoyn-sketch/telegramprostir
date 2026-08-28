@@ -315,6 +315,27 @@ export const OWNER_SCREENS: ScreenStep[] = [
     },
   },
   {
+    // Другий СТАН того самого екрана: блок «Хто переглядав» малюється лише за
+    // наявності іменованих глядачів, тож у спільній фікстурі (нуль переглядів)
+    // його не міряв би ніхто — рівно та прогалина, через яку список переглядів
+    // в аналітиці роками лишався поза WCAG-заміром.
+    //
+    // Крок ОСТАННІЙ у групі: підміна `property_views` живе на сторінці до
+    // кінця прогону, тож вище вона забрала б у кроку `notifications` його
+    // порожній стан.
+    label: 'notifications-viewers',
+    go: async (page) => {
+      await page.route('**/rest/v1/property_views**', (r) => json(r, [
+        { property_id: PROPERTIES[0].id, db_id: null, viewer_id: 'v-realtor', viewer_name: 'Олена Ріелтор', created_at: NOW },
+        { property_id: PROPERTIES[1].id, db_id: null, viewer_id: 'v-realtor', viewer_name: 'Олена Ріелтор', created_at: NOW },
+        { property_id: null, db_id: DB_ID, viewer_id: 'v-editor', viewer_name: 'Оля Редактор', created_at: NOW },
+      ]))
+      await atDbList(page)
+      await page.locator('.tabbar [aria-label="Сповіщення"]').click()
+      await expect(page.getByText('Хто переглядав')).toBeVisible({ timeout: 15_000 })
+    },
+  },
+  {
     label: 'profile',
     go: async (page) => {
       await atDbList(page)

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import { useAppStore } from '@/store/appStore'
+import { recordDbView } from '@/lib/viewTracking'
 import RetryState from '@/components/ui/RetryState'
 import { supabase } from '@/lib/supabase'
 // Явні колонки, а не `*`: `properties.share_token` — це ПУБЛІЧНИЙ /v-лінк, і
@@ -61,6 +62,13 @@ export default function RealtorDatabaseScreen() {
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load() }, [screenParams.dbId])
+
+  // Слід перегляду БАЗИ: власник має бачити, хто з рієлторів реально працює
+  // його базу, а не лише скільки анонімів відкрили публічний лінк.
+  useEffect(() => {
+    if (db) recordDbView(db.id, db.owner_id, user ?? null)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [db?.id])
 
   const filtered = useMemo(() =>
     properties.filter((p) => {
