@@ -648,6 +648,42 @@ export default function PropertyFormScreen() {
               )}
             </>
           )}
+          {/* ОРЕНДОДАВЕЦЬ — той, хто ЗДАЄ. Свідомо ПОЗА гілкою
+              `status === 'occupied'`: це властивість самого простору, а не
+              орендних відносин, тож він лишається й на вільному обʼєкті, і на
+              виставленому на продаж. З тієї ж причини його НЕ нулює збереження
+              поза статусом «Зайнято» (на відміну від орендаря нижче).
+
+              Порожнє поле означає «як у базі» — плейсхолдер показує успадковане
+              значення, тож стан читається без окремого підпису.
+
+              Підпис саме «Орендодавець», а не «Найменування»: рядок орендаря
+              нижче вже так називається, і два ВІЗУАЛЬНО ІДЕНТИЧНІ підписи в
+              одній формі розрізнялись би лише оверлайном секції. Заодно рядок
+              живе тут, а не власною секцією: та зсувала весь блок площі нижче в
+              градієнті, який світлішає донизу, — і «м²» падало під WCAG AA.
+
+              А ОСТАННІМ рядком секції він стоїть з тієї ж причини, заміряної
+              вдруге: поставлений вище (одразу після Адреси) він зсував пікер
+              папок на 48px, і «Без папки» падало на 4.22:1. Тобто місце рядка
+              у формі — це не смак, а бюджет контрасту для всього, що НИЖЧЕ. */}
+          <div className="fr">
+            <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconUser size={14} color="var(--t3)" />Орендодавець</span>
+            <input
+              aria-label="Орендодавець"
+              className="fr-i"
+              placeholder={dbLandlord || 'ТОВ «Назва» або ФОП'}
+              maxLength={200}
+              value={landlordName}
+              onChange={e => setLandlordName(e.target.value)}
+              list={landlordSuggestions.length > 0 ? 'landlord-options' : undefined}
+            />
+            {landlordSuggestions.length > 0 && (
+              <datalist id="landlord-options">
+                {landlordSuggestions.map((l) => <option key={l} value={l} />)}
+              </datalist>
+            )}
+          </div>
         </div>
 
         {/* Bulk rows: per-object name + areas; everything else is shared.
@@ -733,35 +769,6 @@ export default function PropertyFormScreen() {
             </div>
           </>
         )}
-
-        {/* ОРЕНДОДАВЕЦЬ — той, хто ЗДАЄ. Свідомо ПОЗА гілкою
-            `status === 'occupied'`: це властивість самого простору, а не
-            орендних відносин, тож він лишається й на вільному обʼєкті, і на
-            виставленому на продаж. З тієї ж причини його НЕ нулює збереження
-            поза статусом «Зайнято» (на відміну від орендаря нижче).
-
-            Порожнє поле означає «як у базі» — плейсхолдер показує успадковане
-            значення, тож стан читається без окремого підпису. */}
-        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconUser size={14} color="var(--ok-fg)" />Орендодавець</span></div>
-        <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
-          <div className="fr">
-            <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconUser size={14} color="var(--t3)" />Найменування</span>
-            <input
-              aria-label="Орендодавець"
-              className="fr-i"
-              placeholder={dbLandlord || 'ТОВ «Назва» або ФОП'}
-              maxLength={200}
-              value={landlordName}
-              onChange={e => setLandlordName(e.target.value)}
-              list={landlordSuggestions.length > 0 ? 'landlord-options' : undefined}
-            />
-            {landlordSuggestions.length > 0 && (
-              <datalist id="landlord-options">
-                {landlordSuggestions.map((l) => <option key={l} value={l} />)}
-              </datalist>
-            )}
-          </div>
-        </div>
 
         {/* Tenant info — shown only when occupied */}
         {status === 'occupied' && (

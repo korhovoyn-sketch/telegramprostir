@@ -933,7 +933,12 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 
 /* ── TYPE GRID ── */
 .type-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;padding:0 var(--g3) var(--g3)}
-.type-card{padding:14px;border-radius:var(--r-md);display:flex;flex-direction:column;gap:7px;cursor:pointer;background:var(--glass-1);border:var(--bd);transition:all .18s var(--ease),transform 0.12s ease,filter 0.12s ease,opacity 0.12s ease;position:relative;overflow:hidden}
+/* Ґрунт картки типу — ТЕМНИЙ (--glass-card), а не біла плівка --glass-1:
+   градієнт екрана світлішає донизу, тож нижні ряди сітки лежать на найсвітлішому,
+   і назва типу («Приватне») падала на 4.39:1. Текст тут уже --t1, тобто чисто
+   білий — підняти його нікуди, лікується лише ґрунт. Той самий прийом, що вже
+   підняв .obj-tot-l/v/sub. */
+.type-card{padding:14px;border-radius:var(--r-md);display:flex;flex-direction:column;gap:7px;cursor:pointer;background:var(--glass-card);border:var(--bd);transition:all .18s var(--ease),transform 0.12s ease,filter 0.12s ease,opacity 0.12s ease;position:relative;overflow:hidden}
 .type-card.sel{border:.5px solid rgba(120,180,255,.55);background:rgba(34,158,217,.18);box-shadow:0 0 0 2px rgba(34,158,217,.18) inset}
 @media (hover: hover){.type-card:hover:not(.sel){background:var(--glass-2);transform:translateY(-1px)}}
 .type-card:active{transform:scale(.97)}
