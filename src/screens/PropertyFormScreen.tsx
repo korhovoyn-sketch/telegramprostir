@@ -784,7 +784,7 @@ export default function PropertyFormScreen() {
             <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
               <div className="fr">
                 <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconUser size={14} color="var(--t3)" />Найменування</span>
-                <input aria-label="Орендар" className="fr-i" placeholder="ТОВ «Назва» або ФОП Іванов" maxLength={200} value={tenantName} onChange={e => setTenantName(e.target.value)} />
+                <input aria-label="Орендар" className="fr-i" placeholder="ТОВ або ФОП" maxLength={200} value={tenantName} onChange={e => setTenantName(e.target.value)} />
               </div>
               <div className="fr">
                 <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconKey size={14} color="var(--t3)" />Договір з</span>

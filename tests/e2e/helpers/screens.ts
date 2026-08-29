@@ -203,6 +203,21 @@ export const OWNER_SCREENS: ScreenStep[] = [
     },
   },
   {
+    // РЕЖИМ РЕДАГУВАННЯ — окремий крок, бо це інший СТАН рендера, а не той
+    // самий екран: тут є секція орендаря з власними полями й датами договору,
+    // яких у режимі створення немає в DOM узагалі. Доти жоден гард якості
+    // (contrast, devices, screen-text-fit, design-system-runtime) сюди не
+    // заходив — кадр у screenshots був, а замірів не робив НІХТО.
+    label: 'property-form-edit',
+    go: async (page) => {
+      await atDbObjects(page)
+      await page.locator('.obj-card').first().locator('.obj-more').click()
+      await expect(page.locator('.modal')).toBeVisible({ timeout: 15_000 })
+      await page.getByText('Редагувати', { exact: true }).click()
+      await expect(page.getByText('Редагування')).toBeVisible({ timeout: 15_000 })
+    },
+  },
+  {
     label: 'create-db',
     go: async (page) => {
       await atDbList(page)
