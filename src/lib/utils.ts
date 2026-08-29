@@ -225,6 +225,35 @@ export function pluralUk(n: number, one: string, few: string, many: string): str
 }
 
 // "обʼєкт" / "обʼєкти" / "обʼєктів" — the app's most common counted noun.
+/**
+ * Орендодавець обʼєкта з урахуванням УСПАДКУВАННЯ від бази (міграція 064).
+ *
+ * `properties.landlord_name IS NULL` означає «як у базі», а не «немає»: стан
+ * «у цього простору орендодавця немає, хоч у бази є» для назви беззмістовний,
+ * і моделювати його довелось би sentinel-значенням або окремим булеаном.
+ *
+ * Порожній рядок трактується як NULL — інакше випадковий пробіл у полі тихо
+ * ВИМКНУВ би успадкування, і обʼєкт лишився б без орендодавця, хоч у базі він
+ * заданий.
+ */
+export function effectiveLandlord(
+  propertyLandlord?: string | null,
+  dbLandlord?: string | null,
+): string | null {
+  return propertyLandlord?.trim() || dbLandlord?.trim() || null
+}
+
+/** Чи обʼєкт ПЕРЕВИЗНАЧАЄ орендодавця бази — тобто чи його варто показувати
+ *  на картці списку. Якщо орендодавець на всю базу один, той самий рядок на
+ *  кожній картці лише шумить. */
+export function overridesLandlord(
+  propertyLandlord?: string | null,
+  dbLandlord?: string | null,
+): boolean {
+  const own = propertyLandlord?.trim()
+  return !!own && own !== (dbLandlord?.trim() || '')
+}
+
 export function objectsWord(n: number): string {
   return pluralUk(n, 'обʼєкт', 'обʼєкти', 'обʼєктів')
 }

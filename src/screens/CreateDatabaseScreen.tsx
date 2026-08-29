@@ -6,7 +6,7 @@ import { hapticSelection, hapticNotify } from '@/lib/telegram'
 import { offlineGuard } from '@/lib/offline'
 import { useDatabases } from '@/hooks/useDatabases'
 import Header from '@/components/ui/Header'
-import { IconCheck, IconMapPin, IconBuilding, IconLayoutGrid, IconAdjustments, IconEye, IconEdit, GlassDbIcon } from '@/components/Icons'
+import { IconCheck, IconMapPin, IconBuilding, IconLayoutGrid, IconAdjustments, IconEye, IconEdit, IconUser, GlassDbIcon } from '@/components/Icons'
 import { DB_COLORS, scrollFocusedIntoView } from '@/lib/utils'
 import type { DatabaseType } from '@/types'
 
@@ -43,6 +43,7 @@ export default function CreateDatabaseScreen() {
   const [address, setAddress] = useState('')
   const [type, setType] = useState<DatabaseType | null>(null)
   const [color, setColor] = useState('purple')
+  const [landlord, setLandlord] = useState('')
 
   useEffect(() => {
     if (isEdit && existing) {
@@ -50,6 +51,7 @@ export default function CreateDatabaseScreen() {
       setAddress(existing.address ?? '')
       setType(existing.type)
       setColor(existing.color)
+      setLandlord(existing.landlord_name ?? '')
     }
   }, [isEdit, existing])
 
@@ -60,10 +62,10 @@ export default function CreateDatabaseScreen() {
     if (offlineGuard()) return
     hapticNotify('success')
     if (isEdit && editId) {
-      await updateDatabase(editId, { name: name.trim(), address: address.trim() || undefined, type, color })
+      await updateDatabase(editId, { name: name.trim(), address: address.trim() || undefined, type, color, landlord_name: landlord.trim() || null })
       backThenReplace('db-objects', { dbId: editId })
     } else {
-      await createDatabase({ name: name.trim(), address: address.trim() || undefined, type, color })
+      await createDatabase({ name: name.trim(), address: address.trim() || undefined, type, color, landlord_name: landlord.trim() || null })
     }
   }
 
@@ -95,6 +97,19 @@ export default function CreateDatabaseScreen() {
               placeholder="Хрещатик 22"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
+              maxLength={200}
+            />
+          </div>
+          {/* Орендодавець БАЗИ — дефолт на всі її обʼєкти; кожен може
+              перевизначити своїм значенням (064). */}
+          <div className="fr">
+            <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconUser size={14} color="var(--t3)" />Орендодавець</span>
+            <input
+              aria-label="Орендодавець бази"
+              className="fr-i"
+              placeholder="ТОВ «Назва» або ФОП"
+              value={landlord}
+              onChange={(e) => setLandlord(e.target.value)}
               maxLength={200}
             />
           </div>

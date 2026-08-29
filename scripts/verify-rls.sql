@@ -825,3 +825,70 @@ BEGIN
 
   RAISE NOTICE '  ✓ 063: редактор пише сліди на своїй базі й картці, не пише на чужих';
 END $$;
+
+-- ── 064: орендодавець, успадкування база → обʼєкт ───────────────────────────
+-- Дві половини, і друга важливіша. «Нова колонка віддається» саме по собі
+-- НЕ ловить того, що коштувало гостьового екрана в 050: перевизначаючи
+-- функцію, легко зсунути або втратити наявну колонку, і клієнт почне читати
+-- сусіднє значення. Тому окремо звіряється ПОВНИЙ список колонок кожного
+-- превʼю — імена й порядок.
+INSERT INTO users (id,tg_id,first_name,role,public_phone) VALUES
+  ('a0000000-0000-0000-0000-0000000640ed',964001,'Ліда-власниця','owner',false);
+INSERT INTO databases (id,owner_id,name,type,share_token,landlord_name) VALUES
+  ('d0000000-0000-0000-0000-0000000640ed','a0000000-0000-0000-0000-0000000640ed',
+   'База Ліди','business_center','tok_ll_db','ТОВ «Дефолт-Інвест»');
+INSERT INTO properties (id,db_id,owner_id,name,status,share_token,landlord_name) VALUES
+  -- успадковує з бази
+  ('f0000000-0000-0000-0000-0000006401aa','d0000000-0000-0000-0000-0000000640ed',
+   'a0000000-0000-0000-0000-0000000640ed','Успадкований','free','tok_ll_inherit',NULL),
+  -- перевизначає
+  ('f0000000-0000-0000-0000-0000006402bb','d0000000-0000-0000-0000-0000000640ed',
+   'a0000000-0000-0000-0000-0000000640ed','Перевизначений','free','tok_ll_own','ФОП Кравець');
+
+DO $$
+DECLARE v TEXT; cols TEXT;
+BEGIN
+  SET LOCAL ROLE anon;
+
+  -- ПОЗИТИВ 1: обʼєкт без власного значення успадковує базу.
+  SELECT property_landlord_name INTO v
+    FROM get_public_property_preview('tok_ll_inherit');
+  IF v IS DISTINCT FROM 'ТОВ «Дефолт-Інвест»' THEN
+    RAISE EXCEPTION '064: успадкування з бази не працює (%)', COALESCE(v,'NULL');
+  END IF;
+
+  -- ПОЗИТИВ 2: власне значення ПЕРЕВАЖАЄ базу. Без цієї пари перша перевірка
+  -- однаково проходила б і на функції, що завжди віддає значення бази.
+  SELECT property_landlord_name INTO v
+    FROM get_public_property_preview('tok_ll_own');
+  IF v IS DISTINCT FROM 'ФОП Кравець' THEN
+    RAISE EXCEPTION '064: перевизначення на обʼєкті не діє (%)', COALESCE(v,'NULL');
+  END IF;
+
+  -- Те саме для превʼю БАЗИ: обидва рядки в одній вибірці.
+  SELECT string_agg(COALESCE(property_landlord_name,'∅'), '|' ORDER BY property_name)
+    INTO v FROM get_public_db_preview('tok_ll_db');
+  IF v IS DISTINCT FROM 'ФОП Кравець|ТОВ «Дефолт-Інвест»' THEN
+    RAISE EXCEPTION '064: превʼю бази віддає хибне злиття (%)', COALESCE(v,'NULL');
+  END IF;
+  RESET ROLE;
+
+  -- КОНТРАКТ: жодна наявна колонка не зникла і не зсунулась. Список — повний
+  -- і в порядку; нова стоїть ОСТАННЬОЮ.
+  SELECT string_agg(a.attname, ',' ORDER BY a.attnum) INTO cols
+    FROM pg_proc p
+    JOIN LATERAL unnest(p.proallargtypes, p.proargnames, p.proargmodes)
+                 WITH ORDINALITY AS a(atttypid, attname, attmode, attnum) ON TRUE
+   WHERE p.proname = 'get_public_property_preview' AND a.attmode = 't';
+  IF cols IS DISTINCT FROM
+     'property_id,property_name,property_status,property_floor,property_area_useful,'
+     'property_area_total,property_area_basis,property_rent_type,property_rent_rate,'
+     'property_utilities_rate,property_description,property_address,property_has_parking,'
+     'property_parking_spaces,property_parking_type,property_ev_charger,property_sale_price,'
+     'share_expires_at,db_id,db_name,db_type,db_color,owner_first_name,owner_last_name,'
+     'owner_tg_username,owner_phone,owner_currency,photos,property_landlord_name' THEN
+    RAISE EXCEPTION '064: контракт get_public_property_preview зламано — %', cols;
+  END IF;
+
+  RAISE NOTICE '  ✓ 064: орендодавець успадковується й перевизначається; контракт превʼю цілий';
+END $$;

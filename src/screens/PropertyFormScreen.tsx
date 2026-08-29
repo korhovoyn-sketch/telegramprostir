@@ -6,6 +6,7 @@ import { hapticSelection, hapticNotify } from '@/lib/telegram'
 import { offlineGuard } from '@/lib/offline'
 import { confirmAction } from '@/lib/confirm'
 import { useProperties } from '@/hooks/useProperties'
+import { useLandlords } from '@/hooks/useLandlords'
 import { useFolders } from '@/hooks/useFolders'
 import Header from '@/components/ui/Header'
 import Toggle from '@/components/ui/Toggle'
@@ -47,6 +48,10 @@ export default function PropertyFormScreen() {
   // Parking DBs get a spot-oriented field set (number/area/level/type/EV, flat
   // utilities, monthly-or-daily rate) instead of the office/apartment layout.
   const isParking = databases.find(d => d.id === screenParams.dbId)?.type === 'parking'
+  // Дефолт бази — для плейсхолдера: порожнє поле має читатись як «успадковано»,
+  // а не як «нікого». Пропозиції збираються з уже введених значень власника.
+  const dbLandlord = databases.find(d => d.id === screenParams.dbId)?.landlord_name ?? ''
+  const { landlords: landlordSuggestions } = useLandlords()
 
   const [name, setName] = useState('')
   const [floor, setFloor] = useState('')
@@ -65,6 +70,7 @@ export default function PropertyFormScreen() {
   const [description, setDescription] = useState('')
   const [salePrice, setSalePrice] = useState('')
   const [tenantName, setTenantName] = useState('')
+  const [landlordName, setLandlordName] = useState('')
   const [leaseStartDate, setLeaseStartDate] = useState('')
   const [leaseEndDate, setLeaseEndDate] = useState('')
   const [address, setAddress] = useState('')
@@ -225,6 +231,7 @@ export default function PropertyFormScreen() {
       setUtilities(existing.utilities ?? [])
       setSalePrice(String(existing.sale_price ?? ''))
       setTenantName(existing.tenant_name ?? '')
+      setLandlordName(existing.landlord_name ?? '')
       setLeaseStartDate(existing.lease_start_date ?? '')
       setLeaseEndDate(existing.lease_end_date ?? '')
       setFolderId(existing.folder_id ?? null)
@@ -412,6 +419,10 @@ export default function PropertyFormScreen() {
       description: blank(description.trim() || undefined),
       sale_price: status === 'for_sale' ? blank(numOrUndef(salePrice)) : null,
       tenant_name: status === 'occupied' ? blank(tenantName.trim() || undefined) : null,
+      // БЕЗ статусного гейта і БЕЗ нулювання: орендодавець переживає і зміну
+      // орендаря, і звільнення обʼєкта. Порожнє поле = «як у базі» (успадкування),
+      // тож пишемо undefined→null через `blank`, а не порожній рядок.
+      landlord_name: blank(landlordName.trim() || undefined),
       lease_start_date: status === 'occupied' ? blank(leaseStartDate || undefined) : null,
       lease_end_date: status === 'occupied' ? blank(leaseEndDate || undefined) : null,
     }
@@ -722,6 +733,35 @@ export default function PropertyFormScreen() {
             </div>
           </>
         )}
+
+        {/* ОРЕНДОДАВЕЦЬ — той, хто ЗДАЄ. Свідомо ПОЗА гілкою
+            `status === 'occupied'`: це властивість самого простору, а не
+            орендних відносин, тож він лишається й на вільному обʼєкті, і на
+            виставленому на продаж. З тієї ж причини його НЕ нулює збереження
+            поза статусом «Зайнято» (на відміну від орендаря нижче).
+
+            Порожнє поле означає «як у базі» — плейсхолдер показує успадковане
+            значення, тож стан читається без окремого підпису. */}
+        <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconUser size={14} color="var(--ok-fg)" />Орендодавець</span></div>
+        <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
+          <div className="fr">
+            <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconUser size={14} color="var(--t3)" />Найменування</span>
+            <input
+              aria-label="Орендодавець"
+              className="fr-i"
+              placeholder={dbLandlord || 'ТОВ «Назва» або ФОП'}
+              maxLength={200}
+              value={landlordName}
+              onChange={e => setLandlordName(e.target.value)}
+              list={landlordSuggestions.length > 0 ? 'landlord-options' : undefined}
+            />
+            {landlordSuggestions.length > 0 && (
+              <datalist id="landlord-options">
+                {landlordSuggestions.map((l) => <option key={l} value={l} />)}
+              </datalist>
+            )}
+          </div>
+        </div>
 
         {/* Tenant info — shown only when occupied */}
         {status === 'occupied' && (

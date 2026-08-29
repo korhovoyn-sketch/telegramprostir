@@ -10,11 +10,11 @@ import { confirmAction } from '@/lib/confirm'
 import { useProperties } from '@/hooks/useProperties'
 import Header from '@/components/ui/Header'
 import { StatusBadge } from '@/components/ui/Badge'
-import { IconEdit, IconShare, IconMapPin, IconPhoto, IconX, IconCamera, IconRuler, IconBuildingSkyscraper, IconCircleCheck, IconCurrencyDollar, IconCarGarage, IconUser, IconKey, IconBolt, IconCalendar, IconFile, IconChevronRight } from '@/components/Icons'
+import { IconEdit, IconShare, IconMapPin, IconPhoto, IconX, IconCamera, IconRuler, IconBuildingSkyscraper, IconCircleCheck, IconCurrencyDollar, IconCarGarage, IconUser, IconKey, IconBolt, IconCalendar, IconFile, IconChevronRight, IconBuilding } from '@/components/Icons'
 import FilesList from '@/components/ui/FilesList'
 import FloatingButton from '@/components/ui/FloatingButton'
 import SpaceOrb, { type OrbStatus } from '@/components/ui/SpaceOrb'
-import { formatPrice, calcRentUtils, computedRentUnit, parkingTypeLabel, STATUS_LABELS, STATUS_COLORS, formatLeasePeriod, photoUrl, daysUntil } from '@/lib/utils'
+import { effectiveLandlord, formatPrice, calcRentUtils, computedRentUnit, parkingTypeLabel, STATUS_LABELS, STATUS_COLORS, formatLeasePeriod, photoUrl, daysUntil } from '@/lib/utils'
 import { UTILITY_META } from '@/lib/utilityMeta'
 import { supabase } from '@/lib/supabase'
 import { recordPropertyView } from '@/lib/viewTracking'
@@ -50,16 +50,30 @@ export default function PropertyDetailScreen() {
   // Тягнемо один рядок за id: RLS сам вирішує видимість для будь-якої ролі
   // (той самий прийом, що self-heal у `DatabaseObjectsScreen`).
   const dbId = property?.db_id
-  const storedType = databases.find(d => d.id === dbId)?.type
-  const [fetchedType, setFetchedType] = useState<string | null>(null)
+  const storedRow = databases.find(d => d.id === dbId)
+  const storedType = storedRow?.type
+  const [fetchedDb, setFetchedDb] = useState<{ type: string; landlord_name?: string | null } | null>(null)
   useEffect(() => {
     if (!dbId || storedType) return
     let stale = false
-    supabase.from('databases').select('id,type').eq('id', dbId).maybeSingle()
-      .then(({ data }) => { if (!stale && data) setFetchedType((data as { type: string }).type) })
+    const apply = (data: { type: string; landlord_name?: string | null } | null) => {
+      if (!stale && data) setFetchedDb(data)
+    }
+    supabase.from('databases').select('id,type,landlord_name').eq('id', dbId).maybeSingle()
+      .then(async ({ data, error }) => {
+        // Без міграції 064 PostgREST віддає 400 на ВЕСЬ запит — тобто впав би
+        // і тип бази, від якого залежить гейт експлуатаційних.
+        if (error) {
+          const { data: pre } = await supabase.from('databases').select('id,type').eq('id', dbId).maybeSingle()
+          apply(pre as { type: string } | null)
+          return
+        }
+        apply(data as { type: string; landlord_name?: string | null } | null)
+      })
     return () => { stale = true }
   }, [dbId, storedType])
-  const dbType = storedType ?? fetchedType
+  const dbType = storedType ?? fetchedDb?.type
+  const dbLandlord = storedType ? (storedRow?.landlord_name ?? null) : (fetchedDb?.landlord_name ?? null)
 
   // АВТОФОКУСА НЕМА — рішення власника (див. той самий коментар у InviteSheet).
   // Затримка 400мс тут була правильна, але не усувала причини: фокус сам
@@ -106,6 +120,7 @@ export default function PropertyDetailScreen() {
   )
 
   const isParking = dbType === 'parking'
+  const landlord = effectiveLandlord(property.landlord_name, dbLandlord)
   const { rent, utils, total } = calcRentUtils(property.area_useful, property.area_total, property.rent_rate, property.rent_type, property.utilities_rate, property.area_basis, isParking)
   // A daily rate can't be summed with a monthly utilities charge into a monthly
   // total — for per_day we show the line items but no combined "Разом на місяць".
@@ -320,6 +335,14 @@ export default function PropertyDetailScreen() {
                   <IconUser size={14} color="var(--violet)" />Орендар
                 </div>
                 <div className="obj-fv">{property.tenant_name}</div>
+              </div>
+            )}
+            {landlord && (
+              <div className="obj-f" style={{ gridColumn: '1 / -1' }}>
+                <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <IconBuilding size={14} color="var(--violet)" />Орендодавець
+                </div>
+                <div className="obj-fv">{landlord}</div>
               </div>
             )}
             {(property.lease_start_date || property.lease_end_date) && (

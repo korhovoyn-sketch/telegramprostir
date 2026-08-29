@@ -35,6 +35,9 @@ export interface Database {
   address?: string
   type: DatabaseType
   color: string
+  /** Орендодавець за замовчуванням для всіх обʼєктів бази (064). Обʼєкт може
+   *  перевизначити своїм `landlord_name`. */
+  landlord_name?: string | null
   share_token: string
   share_expires_at?: string
   created_at: string
@@ -74,6 +77,10 @@ export interface Property {
   utilities?: string[] | null
   sale_price?: number | null
   tenant_name?: string | null
+  /** Орендодавець — ТОЙ, ХТО ЗДАЄ. NULL означає «як у базі», не «немає»
+   *  (успадкування, міграція 064). Не плутати з `tenant_name` (орендар)
+   *  і з `owner_id` (акаунт у застосунку). */
+  landlord_name?: string | null
   lease_start_date?: string | null
   lease_end_date?: string | null
   sort_order?: number

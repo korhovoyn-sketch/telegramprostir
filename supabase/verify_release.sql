@@ -183,7 +183,22 @@ WITH checks(ord, item, migration, ok) AS (VALUES
   -- окремо перевіряємо, що INSERT-політика на цій таблиці РІВНО ОДНА.
   (41, 'property_views: INSERT-політика рівно одна', '063_view_insert_editors_and_dbs.sql',
       (SELECT count(*) FROM pg_policies
-        WHERE tablename='property_views' AND cmd='INSERT') = 1)
+        WHERE tablename='property_views' AND cmd='INSERT') = 1),
+
+  -- 064: орендодавець. Колонки — на ОБИДВОХ таблицях: без бази немає дефолта,
+  -- без обʼєкта немає перевизначення, і кожна половина окремо безглузда.
+  -- Третій рядок — про ПРЕВʼЮ: колонки можуть бути на місці, а публічна /v
+  -- усе одно нічого не показує, бо функція їх не віддає.
+  (42, 'databases.landlord_name', '064_landlord_name.sql',
+      EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_schema='public' AND table_name='databases' AND column_name='landlord_name')),
+  (43, 'properties.landlord_name', '064_landlord_name.sql',
+      EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_schema='public' AND table_name='properties' AND column_name='landlord_name')),
+  (44, 'усі три публічні превʼю віддають property_landlord_name', '064_landlord_name.sql',
+      (SELECT count(*) FROM pg_proc
+        WHERE proname IN ('get_public_property_preview','get_public_db_preview','get_public_collection_preview')
+          AND pg_get_function_result(oid) LIKE '%property_landlord_name%') = 3)
 )
 SELECT
   CASE WHEN ok THEN '✅ OK     ' ELSE '❌ MISSING' END AS status,

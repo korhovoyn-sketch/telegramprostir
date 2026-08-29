@@ -21,7 +21,7 @@ import Collapsible from '@/components/ui/Collapsible'
 import { IconCheck, IconPlus, IconDots, IconPhoto, IconChevronUp, IconChevronDown, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconCopy, IconUser, IconUsers, IconFile, IconLayers, IconLayoutGrid, IconChartBar, IconKey, IconFileExport, IconCircleCheck, IconAdjustments, IconTrash, IconChevronRight, IconFolder, IconInbox } from '@/components/Icons'
 import DatabaseStatsPanel from '@/components/ui/DatabaseStatsPanel'
 import FloatingButton from '@/components/ui/FloatingButton'
-import { formatPrice, calcRent, calcRentUtils, basisArea, floorSortKey, computedRentUnit, rentUnitLabel, objectsWord, DB_TYPE_LABELS, formatLeasePeriod, STATUS_COLORS, matchesQuery } from '@/lib/utils'
+import { overridesLandlord, formatPrice, calcRent, calcRentUtils, basisArea, floorSortKey, computedRentUnit, rentUnitLabel, objectsWord, DB_TYPE_LABELS, formatLeasePeriod, STATUS_COLORS, matchesQuery } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import type { Database, Property, PropertyStatus } from '@/types'
 import CoachMark from '@/components/ui/CoachMark'
@@ -322,6 +322,7 @@ export default function DatabaseObjectsScreen() {
   // списку передаємо 0 — там кнопок реордера немає.
   const renderCard = (p: Property, idx: number) => {
     const { rent, utils, total } = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate, p.area_basis, db?.type === 'parking')
+    const ownLandlord = overridesLandlord(p.landlord_name, db?.landlord_name) ? p.landlord_name!.trim() : null
     // A daily rate can't be summed with monthly utilities — show the raw
     // daily rate (/добу); everything else shows the monthly total (/міс).
     const isDaily = p.rent_type === 'per_day'
@@ -523,8 +524,17 @@ export default function DatabaseObjectsScreen() {
             )}
 
             {/* Другорядні позначки — лише коли є що показати */}
-            {(p.has_parking || (p.photos?.length ?? 0) > 0) && (
+            {(p.has_parking || (p.photos?.length ?? 0) > 0 || ownLandlord) && (
               <div className="obj-met">
+                {/* Орендодавець на картці — ЛИШЕ коли обʼєкт перевизначає базу.
+                    Спільний на всю базу дав би той самий рядок на кожній
+                    картці, яку щойно спеціально схудли на 56px. */}
+                {ownLandlord && (
+                  <div className="obj-mt" style={{ minWidth: 0 }}>
+                    <IconBuilding size={14} color="var(--t3)" />
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ownLandlord}</span>
+                  </div>
+                )}
                 {p.has_parking && (
                   <div className="obj-mt">
                     <IconParking size={14} color="var(--t3)" />
