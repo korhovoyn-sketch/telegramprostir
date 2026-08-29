@@ -263,3 +263,91 @@ BEGIN
 
   RAISE NOTICE '  ✓ 052/058: нагадування повертають рядки; без tg_id — ні; anon не має службових функцій';
 END $$;
+
+-- ── 065: нагадування про КІНЕЦЬ ДОГОВОРУ ────────────────────────────────────
+-- Три властивості, і кожна ламається окремо:
+--   • ПОРІГ — рядок віддається рівно на {30,7,1,0} днях, а не щодня все вікно
+--     (щоденна розсилка 30 днів поспіль — це шум, після якого нагадування
+--     вимикають);
+--   • ДЕДУП — після успішної відправки той самий поріг більше не повертається;
+--   • ПРОДОВЖЕННЯ — зміна `lease_end_date` відкриває НОВУ серію, бо ключ дедупу
+--     містить саму дату. Без цього продовжений договір не нагадав би про себе
+--     ніколи: старий рядок `notifications` лишається назавжди.
+--
+-- Позитивний контроль тут не додатковий, а несучий: перевірка «на 14-й день
+-- нічого не приходить» проходить і на функції, яка не віддає НІЧОГО взагалі —
+-- рівно те, чим 052 була зламана роками (тип результату не збігався, і жоден
+-- рядок не міг зʼявитись).
+DO $$
+DECLARE n INT;
+BEGIN
+  INSERT INTO auth.users (id,email) VALUES ('aaaaaaaa-0000-0000-0000-000000000065','777065@telegram.propspace.app');
+  INSERT INTO users (id,tg_id,first_name,role) VALUES ('bbbbbbbb-0000-0000-0000-000000000065',777065,'Лізинг','owner');
+  INSERT INTO databases (id,owner_id,name,type) VALUES
+    ('cccccccc-0000-0000-0000-000000000065','bbbbbbbb-0000-0000-0000-000000000065','База 065','business_center');
+
+  -- Рівно на порозі 7 днів.
+  INSERT INTO properties (id,db_id,owner_id,name,status,tenant_name,lease_end_date) VALUES
+    ('dddddddd-0000-0000-0000-000000000065','cccccccc-0000-0000-0000-000000000065',
+     'bbbbbbbb-0000-0000-0000-000000000065','Офіс 065','occupied','Орендар 065', current_date + 7);
+  -- Всередині вікна, але НЕ на порозі.
+  INSERT INTO properties (id,db_id,owner_id,name,status,lease_end_date) VALUES
+    ('dddddddd-0000-0000-0000-000000000066','cccccccc-0000-0000-0000-000000000065',
+     'bbbbbbbb-0000-0000-0000-000000000065','Офіс 066','occupied', current_date + 14);
+  -- Вільний обʼєкт із датою — договору немає, нагадувати нема про що.
+  INSERT INTO properties (id,db_id,owner_id,name,status,lease_end_date) VALUES
+    ('dddddddd-0000-0000-0000-000000000067','cccccccc-0000-0000-0000-000000000065',
+     'bbbbbbbb-0000-0000-0000-000000000065','Офіс 067','free', current_date + 7);
+
+  SELECT count(*) INTO n FROM get_due_lease_reminders()
+   WHERE property_id='dddddddd-0000-0000-0000-000000000065';
+  IF n <> 1 THEN
+    RAISE EXCEPTION '065: поріг 7 днів не спрацював (% рядків) — нагадувань про договори не буде', n;
+  END IF;
+
+  SELECT count(*) INTO n FROM get_due_lease_reminders()
+   WHERE property_id IN ('dddddddd-0000-0000-0000-000000000066','dddddddd-0000-0000-0000-000000000067');
+  IF n <> 0 THEN
+    RAISE EXCEPTION '065: розсилка пішла поза порогом або на вільний обʼєкт (% рядків)', n;
+  END IF;
+
+  -- Маркер дедупу — саме той рядок, який пише edge-функція на `res.ok`.
+  INSERT INTO notifications (user_id,type,title,body,is_read,data) VALUES (
+    'bbbbbbbb-0000-0000-0000-000000000065','lease_reminder','Договір','Закінчується',false,
+    jsonb_build_object(
+      'property_id','dddddddd-0000-0000-0000-000000000065',
+      'lease_end_date',(current_date + 7)::TEXT,
+      'days_left',7));
+
+  SELECT count(*) INTO n FROM get_due_lease_reminders()
+   WHERE property_id='dddddddd-0000-0000-0000-000000000065';
+  IF n <> 0 THEN
+    RAISE EXCEPTION '065: дедуп не тримає — той самий поріг піде ЩОДНЯ (% рядків)', n;
+  END IF;
+
+  -- ПРОДОВЖЕННЯ ДОГОВОРУ. Перша редакція цієї перевірки була ВАКУУМНОЮ, і це
+  -- спіймала власна фальсифікація: вона просто змінювала дату на +30, тобто
+  -- разом із датою мінявся й `days_left` (7 → 30), і рядок повертався навіть
+  -- без дати в ключі дедупу. Причина глибша за недогляд: у МЕЖАХ ОДНОГО ДНЯ
+  -- дата й `days_left` — та сама інформація (`days_left = дата - сьогодні`),
+  -- тож на одноденному стенді дату перевірити НЕМОЖЛИВО, змінюючи дату.
+  --
+  -- Дата несе сенс МІЖ днями: договір закінчився, обʼєкт здали знову, і новий
+  -- договір теж підходить до порога 7 днів — але вже іншою датою. Відтворюємо
+  -- саме це: маркер дедупу з тим самим `days_left`, але від ІНШОГО договору.
+  DELETE FROM notifications WHERE user_id='bbbbbbbb-0000-0000-0000-000000000065';
+  INSERT INTO notifications (user_id,type,title,body,is_read,data) VALUES (
+    'bbbbbbbb-0000-0000-0000-000000000065','lease_reminder','Договір','Закінчується',false,
+    jsonb_build_object(
+      'property_id','dddddddd-0000-0000-0000-000000000065',
+      'lease_end_date',(current_date + 100)::TEXT,   -- ПОПЕРЕДНІЙ договір
+      'days_left',7));                               -- той самий поріг
+
+  SELECT count(*) INTO n FROM get_due_lease_reminders()
+   WHERE property_id='dddddddd-0000-0000-0000-000000000065';
+  IF n <> 1 THEN
+    RAISE EXCEPTION '065: НОВИЙ договір задушено маркером СТАРОГО (% рядків) — про продовжений договір не нагадає ніхто', n;
+  END IF;
+
+  RAISE NOTICE '  ✓ 065: пороги тримаються, дедуп працює, продовження відкриває нову серію';
+END $$;

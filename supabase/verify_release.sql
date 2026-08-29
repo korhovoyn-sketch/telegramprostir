@@ -198,7 +198,13 @@ WITH checks(ord, item, migration, ok) AS (VALUES
   (44, 'усі три публічні превʼю віддають property_landlord_name', '064_landlord_name.sql',
       (SELECT count(*) FROM pg_proc
         WHERE proname IN ('get_public_property_preview','get_public_db_preview','get_public_collection_preview')
-          AND pg_get_function_result(oid) LIKE '%property_landlord_name%') = 3)
+          AND pg_get_function_result(oid) LIKE '%property_landlord_name%') = 3),
+
+  -- 065: нагадування про кінець договору. Перевіряємо ІСНУВАННЯ функції — те,
+  -- що вона невидима для `anon`, тримає окремий гард (scripts/verify-behaviour),
+  -- бо в тексті GRANT цього не видно (правило 12).
+  (45, 'RPC get_due_lease_reminders', '065_lease_reminders.sql',
+      EXISTS (SELECT 1 FROM pg_proc WHERE proname='get_due_lease_reminders'))
 )
 SELECT
   CASE WHEN ok THEN '✅ OK     ' ELSE '❌ MISSING' END AS status,
