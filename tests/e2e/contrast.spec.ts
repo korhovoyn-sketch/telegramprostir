@@ -119,6 +119,7 @@ const FROZEN: Record<string, number> = {
   'db-picker': 0,
   team: 0,
   export: 1,
+  'import-objects': 0,
   notifications: 0,
   'notifications-viewers': 0,
   profile: 7,

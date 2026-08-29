@@ -321,6 +321,10 @@ export const OWNER_SCREENS: ScreenStep[] = [
   },
   { label: 'team', go: (page) => viaDbMenu(page, 'Команда', /Команда|Запросити/) },
   { label: 'export', go: (page) => viaDbMenu(page, 'Експорт', /Формат файлу|Завантажити/) },
+  // Імпорт має ДВА стани, але в обхід іде перший (вибір файлу): другий
+  // потребує реального файлу, тобто це вже сценарій, а не прохід екранами —
+  // він покритий `import-csv.spec.ts`.
+  { label: 'import-objects', go: (page) => viaDbMenu(page, 'Імпорт із CSV', 'Обрати файл') },
   {
     label: 'notifications',
     go: async (page) => {

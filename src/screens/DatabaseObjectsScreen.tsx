@@ -906,6 +906,7 @@ export default function DatabaseObjectsScreen() {
                 { Icon: IconUsers,     label: 'Команда',               nav: true,  danger: false, action: () => { setShowMenu(false); navigate('team', { dbId: db.id }) } },
               ] : []),
               { Icon: IconFileExport,  label: 'Експорт',               nav: true,  danger: false, action: () => { setShowMenu(false); navigate('export', { dbId: db.id }) } },
+              { Icon: IconFileExport,  label: 'Імпорт із CSV',         nav: true,  danger: false, action: () => { setShowMenu(false); navigate('import-objects', { dbId: db.id }) } },
               ...(!foldersUnavailable ? [
                 { Icon: IconFolder,    label: 'Папки',                 nav: false, danger: false, action: () => { setShowMenu(false); navigate('folder-manage', { dbId: screenParams.dbId }) } },
               ] : []),

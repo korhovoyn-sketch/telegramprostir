@@ -290,6 +290,13 @@ test('screens · owner journey', async ({ page }) => {
     await page.getByText('Експорт').click()
     await page.getByText(/Формат файлу|Завантажити/).first().waitFor()
   })
+  await snap(page, 'import-objects', async () => {
+    await page.goto('/'); await page.getByText('Мої бази').waitFor()
+    await page.getByText('БЦ Рубін').first().click(); await page.getByText('Всі (3)').waitFor()
+    await page.getByLabel('Меню бази').click()
+    await page.getByText('Імпорт із CSV').click()
+    await page.getByText('Обрати файл').waitFor()
+  })
   await snap(page, 'create-db', async () => {
     await page.goto('/'); await page.getByText('Мої бази').waitFor()
     await page.getByLabel('Створити базу').click()

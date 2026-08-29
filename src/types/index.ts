@@ -242,6 +242,7 @@ export type ScreenName =
   | 'property-detail'
   | 'sharing-analytics'
   | 'export'
+  | 'import-objects'
   | 'realtor-dashboard'
   | 'realtor-database'
   | 'collections'
