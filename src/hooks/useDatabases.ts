@@ -10,7 +10,7 @@ import type { Database } from '@/types'
 
 // Single source of truth for the databases column list — keeps loadDatabases,
 // createDatabase and updateDatabase from drifting apart.
-const DB_COLUMNS = 'id,owner_id,name,address,type,color,share_token,share_expires_at,created_at,updated_at'
+const DB_COLUMNS = 'id,owner_id,name,address,type,color,landlord_name,share_token,share_expires_at,created_at,updated_at'
 /**
  * Те саме БЕЗ токена шарингу — для баз, де користувач лише РЕДАКТОР.
  *
@@ -20,7 +20,23 @@ const DB_COLUMNS = 'id,owner_id,name,address,type,color,share_token,share_expire
  * ротації токенів при цьому ніхто не робить. Гірше — `writeSnapshot` кладе
  * рядок у localStorage редактора, де він переживає відкликання геть.
  */
-const DB_COLUMNS_MEMBER = 'id,owner_id,name,address,type,color,created_at,updated_at'
+const DB_COLUMNS_MEMBER = 'id,owner_id,name,address,type,color,landlord_name,created_at,updated_at'
+
+/**
+ * Deploy-order safety для `landlord_name` (064).
+ *
+ * ЦЕ НАЙРИЗИКОВАНІШЕ МІСЦЕ такої колонки в усьому застосунку: PostgREST на
+ * невідому колонку віддає 400 на ВЕСЬ запит, а цей запит малює домашній
+ * екран. Тобто фронт, задеплоєний раніше за міграцію, показав би не «без
+ * орендодавця», а порожній застосунок.
+ */
+const DB_COLUMNS_PRE064 = 'id,owner_id,name,address,type,color,share_token,share_expires_at,created_at,updated_at'
+const DB_COLUMNS_MEMBER_PRE064 = 'id,owner_id,name,address,type,color,created_at,updated_at'
+const DB_REL = 'properties(status, rent_rate, area_useful, area_total, area_basis, rent_type)'
+const isMissingLandlordColumn = (e: unknown): boolean => {
+  const err = e as { code?: string; message?: string } | null
+  return err?.code === '42703' || /landlord_name/i.test(err?.message ?? '')
+}
 
 export function useDatabases() {
   const [loading, setLoading] = useState(false)
@@ -49,10 +65,10 @@ export function useDatabases() {
       // Власні бази + бази, де користувач — член команди (editor).
       // Двома запитами: PostgREST не вміє OR із підзапитом, а окремий запит
       // по membership-ах дає ще й ids для canEdit-шлюзів у сторі.
-      const [{ data, error }, memberRes] = await Promise.all([
+      const [own, memberRes] = await Promise.all([
         supabase
           .from('databases')
-          .select(`${DB_COLUMNS}, properties(status, rent_rate, area_useful, area_total, area_basis, rent_type)`)
+          .select(`${DB_COLUMNS}, ${DB_REL}`)
           .eq('owner_id', user.id)
           .order('created_at', { ascending: false }),
         supabase
@@ -61,6 +77,21 @@ export function useDatabases() {
           .eq('user_id', user.id)
           .eq('status', 'active'),
       ])
+
+      let data = own.data
+      let error = own.error
+      if (error && isMissingLandlordColumn(error)) {
+        const fb = await supabase
+          .from('databases')
+          .select(`${DB_COLUMNS_PRE064}, ${DB_REL}`)
+          .eq('owner_id', user.id)
+          .order('created_at', { ascending: false })
+        // Рядок фолбека не має `landlord_name` — і це коректно: у типі
+        // `Database` колонка ОПЦІЙНА, тож споживач нижче з нею й так працює
+        // через `?? null`. Каст лише узгоджує два різні набори колонок.
+        data = fb.data as typeof own.data
+        error = fb.error
+      }
 
       if (error) throw error
 
@@ -73,11 +104,20 @@ export function useDatabases() {
 
       let memberRows: typeof data = []
       if (memberIds.length > 0) {
-        const { data: mData, error: mErr } = await supabase
+        const mPrimary = await supabase
           .from('databases')
-          .select(`${DB_COLUMNS_MEMBER}, properties(status, rent_rate, area_useful, area_total, area_basis, rent_type)`)
+          .select(`${DB_COLUMNS_MEMBER}, ${DB_REL}`)
           .in('id', memberIds)
           .order('created_at', { ascending: false })
+        const mFallback = mPrimary.error && isMissingLandlordColumn(mPrimary.error)
+          ? await supabase
+              .from('databases')
+              .select(`${DB_COLUMNS_MEMBER_PRE064}, ${DB_REL}`)
+              .in('id', memberIds)
+              .order('created_at', { ascending: false })
+          : null
+        const { data: mData, error: mErr } =
+          (mFallback ?? mPrimary) as typeof mPrimary
         // Тихо ковтати цю помилку не можна: членство Є, але самі рядки баз не
         // прийшли — користувач побачив би, що бази команди просто зникли, без
         // жодного пояснення. Власні бази при цьому валити не варто, тож

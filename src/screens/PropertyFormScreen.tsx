@@ -6,6 +6,7 @@ import { hapticSelection, hapticNotify } from '@/lib/telegram'
 import { offlineGuard } from '@/lib/offline'
 import { confirmAction } from '@/lib/confirm'
 import { useProperties } from '@/hooks/useProperties'
+import { useLandlords } from '@/hooks/useLandlords'
 import { useFolders } from '@/hooks/useFolders'
 import Header from '@/components/ui/Header'
 import Toggle from '@/components/ui/Toggle'
@@ -47,6 +48,10 @@ export default function PropertyFormScreen() {
   // Parking DBs get a spot-oriented field set (number/area/level/type/EV, flat
   // utilities, monthly-or-daily rate) instead of the office/apartment layout.
   const isParking = databases.find(d => d.id === screenParams.dbId)?.type === 'parking'
+  // Дефолт бази — для плейсхолдера: порожнє поле має читатись як «успадковано»,
+  // а не як «нікого». Пропозиції збираються з уже введених значень власника.
+  const dbLandlord = databases.find(d => d.id === screenParams.dbId)?.landlord_name ?? ''
+  const { landlords: landlordSuggestions } = useLandlords()
 
   const [name, setName] = useState('')
   const [floor, setFloor] = useState('')
@@ -65,6 +70,7 @@ export default function PropertyFormScreen() {
   const [description, setDescription] = useState('')
   const [salePrice, setSalePrice] = useState('')
   const [tenantName, setTenantName] = useState('')
+  const [landlordName, setLandlordName] = useState('')
   const [leaseStartDate, setLeaseStartDate] = useState('')
   const [leaseEndDate, setLeaseEndDate] = useState('')
   const [address, setAddress] = useState('')
@@ -225,6 +231,7 @@ export default function PropertyFormScreen() {
       setUtilities(existing.utilities ?? [])
       setSalePrice(String(existing.sale_price ?? ''))
       setTenantName(existing.tenant_name ?? '')
+      setLandlordName(existing.landlord_name ?? '')
       setLeaseStartDate(existing.lease_start_date ?? '')
       setLeaseEndDate(existing.lease_end_date ?? '')
       setFolderId(existing.folder_id ?? null)
@@ -412,6 +419,10 @@ export default function PropertyFormScreen() {
       description: blank(description.trim() || undefined),
       sale_price: status === 'for_sale' ? blank(numOrUndef(salePrice)) : null,
       tenant_name: status === 'occupied' ? blank(tenantName.trim() || undefined) : null,
+      // БЕЗ статусного гейта і БЕЗ нулювання: орендодавець переживає і зміну
+      // орендаря, і звільнення обʼєкта. Порожнє поле = «як у базі» (успадкування),
+      // тож пишемо undefined→null через `blank`, а не порожній рядок.
+      landlord_name: blank(landlordName.trim() || undefined),
       lease_start_date: status === 'occupied' ? blank(leaseStartDate || undefined) : null,
       lease_end_date: status === 'occupied' ? blank(leaseEndDate || undefined) : null,
     }
@@ -637,6 +648,49 @@ export default function PropertyFormScreen() {
               )}
             </>
           )}
+          {/* ОРЕНДОДАВЕЦЬ — той, хто ЗДАЄ. Свідомо ПОЗА гілкою
+              `status === 'occupied'`: це властивість самого простору, а не
+              орендних відносин, тож він лишається й на вільному обʼєкті, і на
+              виставленому на продаж. З тієї ж причини його НЕ нулює збереження
+              поза статусом «Зайнято» (на відміну від орендаря нижче).
+
+              Порожнє поле означає «як у базі» — плейсхолдер показує успадковане
+              значення, тож стан читається без окремого підпису.
+
+              Підпис саме «Орендодавець», а не «Найменування»: рядок орендаря
+              нижче вже так називається, і два ВІЗУАЛЬНО ІДЕНТИЧНІ підписи в
+              одній формі розрізнялись би лише оверлайном секції. Заодно рядок
+              живе тут, а не власною секцією: та зсувала весь блок площі нижче в
+              градієнті, який світлішає донизу, — і «м²» падало під WCAG AA.
+
+              Плейсхолдер КОРОТКИЙ («ТОВ або ФОП», не «ТОВ «Назва» або ФОП»)
+              через довгий підпис: `.fr-l` має `flex:0 0 auto`, тож бере скільки
+              треба, і полю лишалось 175px при потребі 174 — ОДИН піксель. У
+              Chromium раннера (148 проти 141 тут) метрики шрифту інші, і той
+              піксель зникав: кадр показував «…або ФО». Гард не бреше — він
+              міряє те, що є, — просто 1px запасу не переживає зміну збірки.
+
+              А ОСТАННІМ рядком секції він стоїть з тієї ж причини, заміряної
+              вдруге: поставлений вище (одразу після Адреси) він зсував пікер
+              папок на 48px, і «Без папки» падало на 4.22:1. Тобто місце рядка
+              у формі — це не смак, а бюджет контрасту для всього, що НИЖЧЕ. */}
+          <div className="fr">
+            <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconUser size={14} color="var(--t3)" />Орендодавець</span>
+            <input
+              aria-label="Орендодавець"
+              className="fr-i"
+              placeholder={dbLandlord || 'ТОВ або ФОП'}
+              maxLength={200}
+              value={landlordName}
+              onChange={e => setLandlordName(e.target.value)}
+              list={landlordSuggestions.length > 0 ? 'landlord-options' : undefined}
+            />
+            {landlordSuggestions.length > 0 && (
+              <datalist id="landlord-options">
+                {landlordSuggestions.map((l) => <option key={l} value={l} />)}
+              </datalist>
+            )}
+          </div>
         </div>
 
         {/* Bulk rows: per-object name + areas; everything else is shared.
@@ -730,7 +784,7 @@ export default function PropertyFormScreen() {
             <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
               <div className="fr">
                 <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconUser size={14} color="var(--t3)" />Найменування</span>
-                <input aria-label="Орендар" className="fr-i" placeholder="ТОВ «Назва» або ФОП Іванов" maxLength={200} value={tenantName} onChange={e => setTenantName(e.target.value)} />
+                <input aria-label="Орендар" className="fr-i" placeholder="ТОВ або ФОП" maxLength={200} value={tenantName} onChange={e => setTenantName(e.target.value)} />
               </div>
               <div className="fr">
                 <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconKey size={14} color="var(--t3)" />Договір з</span>

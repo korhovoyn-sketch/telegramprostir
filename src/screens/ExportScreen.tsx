@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase'
 import Header from '@/components/ui/Header'
 import Toggle from '@/components/ui/Toggle'
 import { IconFileExport, IconFile, IconAdjustments, IconChartBar, IconCheck } from '@/components/Icons'
-import { withSortedPhotos, calcRentUtils, currencySymbol, rentUnitLabel, objectsWord, DB_TYPE_LABELS, STATUS_LABELS, formatLeaseDate, humanizeDbError, safeFileName, photoUrl } from '@/lib/utils'
+import { effectiveLandlord, withSortedPhotos, calcRentUtils, currencySymbol, rentUnitLabel, objectsWord, DB_TYPE_LABELS, STATUS_LABELS, formatLeaseDate, humanizeDbError, safeFileName, photoUrl } from '@/lib/utils'
 import { UTILITY_META } from '@/lib/utilityMeta'
 import type { Property, Database } from '@/types'
 
@@ -296,7 +296,11 @@ async function generatePDF(
   // Смуга росте під адресу: тримати адресу ПІД смугою означало лишити її
   // самотнім рядком на білому між шапкою і плитками — вона читалась як
   // відірваний підпис, а не як частина шапки.
-  const bandH = db.address ? 52 : 44
+  // Орендодавець бази — рядок шапки поруч із адресою: смуга росте під КОЖЕН
+  // такий рядок, інакше другий ліг би на плитки статистики під нею.
+  const bandMeta = [db.address, db.landlord_name?.trim() ? `Орендодавець: ${db.landlord_name.trim()}` : null]
+    .filter(Boolean) as string[]
+  const bandH = 44 + bandMeta.length * 8
 
   // Header gradient band
   doc.setFillColor(...ACD)
@@ -337,15 +341,15 @@ async function generatePDF(
   doc.text(`${typeLabel}  ·  ${rows.length} ${objectsWord(rows.length)}  ·  ${dateStr}`, M, 38)
   doc.setGState(new GState({ opacity: 1 }))
 
-  // Address (if any) — без емодзі: у вбудованому Roboto гліфа «📍» немає,
+  // Address / орендодавець — без емодзі: у вбудованому Roboto гліфа «📍» немає,
   // тож він друкувався порожнечею, і рядок починався з видимого відступу.
-  if (db.address) {
+  bandMeta.forEach((line, i) => {
     doc.setFontSize(7.5)
     doc.setTextColor(...tpl.onAccent)
     doc.setGState(new GState({ opacity: 0.62 }))
-    doc.text(doc.splitTextToSize(db.address, W - M * 2)[0] as string, M, 47)
+    doc.text(doc.splitTextToSize(line, W - M * 2)[0] as string, M, 47 + i * 7.5)
     doc.setGState(new GState({ opacity: 1 }))
-  }
+  })
 
   // ── Summary stat cards ─────────────────────────────────────────────────
   const freeCount     = rows.filter(p => p.status === 'free').length
@@ -570,7 +574,13 @@ async function generatePDF(
     y = Math.max(yL1, yR1) + ROW
     const yL2 = drawField('Поверх', p.floor ? `${p.floor} поверх` : '—', CL, y, CW)
     const yR2 = p.address ? drawField('Адреса', p.address, CR, y, CW) : y
-    y = Math.max(yL2, yR2) + SEC
+    y = Math.max(yL2, yR2)
+    // Орендодавець — властивість ПРОСТОРУ, а не орендних відносин, тож рядок
+    // стоїть тут, а не в секції «ОРЕНДАР»: у обʼєкта на продаж тієї секції
+    // немає взагалі, а хто здає — питання, що лишається.
+    const landlord = effectiveLandlord(p.landlord_name, db.landlord_name)
+    if (landlord) y = drawField('Орендодавець', landlord, CL, y + ROW, CW)
+    y += SEC
 
     // ── ОРЕНДАР І ДОГОВІР ─────────────────────────────────────────────
     // Обʼєкт із орендарем без ІМЕНІ орендаря — це half-документ: у застосунку
@@ -837,7 +847,7 @@ async function generateExcel(
     // Орендар і договір були відсутні: на картці обʼєкта в застосунку вони є,
     // а в таблиці — ні, тож зведення «хто де сидить і до якого числа» з
     // експорту зробити було неможливо.
-    'Орендар', 'Договір з', 'Договір до',
+    'Орендар', 'Орендодавець', 'Договір з', 'Договір до',
     'Площа корисна (м²)', 'Площа розрахункова (м²)', 'База розрахунку',
     'Ставка оренди', 'Тип ставки',
     `Оренда на місяць (${cur})`, `Експлуатаційні на місяць (${cur})`,
@@ -875,6 +885,7 @@ async function generateExcel(
       p.floor ?? '',
       STATUS_LABELS[p.status] ?? p.status,
       p.tenant_name ?? '',
+      effectiveLandlord(p.landlord_name, db.landlord_name) ?? '',
       p.lease_start_date ? formatLeaseDate(p.lease_start_date) : '',
       p.lease_end_date ? formatLeaseDate(p.lease_end_date) : '',
       p.area_useful ?? '',
@@ -930,7 +941,7 @@ async function generateExcel(
   // Ширини — за НАЗВОЮ колонки, щоб додана колонка не зсувала всі решта.
   const COL_W: Record<string, number> = {
     '№': 4, 'Назва': 30, 'Поверх': 8, 'Статус': 12,
-    'Орендар': 24, 'Договір з': 13, 'Договір до': 13,
+    'Орендар': 24, 'Орендодавець': 24, 'Договір з': 13, 'Договір до': 13,
     'Площа корисна (м²)': 18, 'Площа розрахункова (м²)': 20, 'База розрахунку': 16,
     'Ставка оренди': 14, 'Тип ставки': 18,
     [`Оренда на місяць (${cur})`]: 18,
@@ -1024,7 +1035,7 @@ export default function ExportScreen() {
         // документі по іншій площі, ніж у застосунку. На 100/120 м² і $18/м²
         // це $1 800 на екрані проти $2 160 у PDF — 20% розбіжності у файлі,
         // який власник надсилає клієнту, без жодного натяку.
-        .select('id,db_id,owner_id,name,floor,status,area_useful,area_total,area_basis,rent_type,rent_rate,utilities_rate,has_parking,parking_spaces,description,address,utilities,sale_price,tenant_name,lease_start_date,lease_end_date,sort_order,created_at,updated_at,photos:property_photos(id,property_id,storage_path,sort_order,created_at)')
+        .select('id,db_id,owner_id,name,floor,status,area_useful,area_total,area_basis,rent_type,rent_rate,utilities_rate,has_parking,parking_spaces,description,address,utilities,sale_price,tenant_name,landlord_name,lease_start_date,lease_end_date,sort_order,created_at,updated_at,photos:property_photos(id,property_id,storage_path,sort_order,created_at)')
         .eq('db_id', dbId)
         // Порядок мусить збігатися з застосунком (`useProperties` — sort_order),
         // інакше ручний «Змінити порядок» на документ не впливає ВЗАГАЛІ, а

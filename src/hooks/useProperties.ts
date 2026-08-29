@@ -21,7 +21,7 @@ const PROPERTY_COLUMNS = `
   area_useful, area_total, area_basis, folder_id, rent_type, rent_rate, utilities_rate,
   has_parking, parking_spaces, parking_type, ev_charger, description,
   address, utilities,
-  sale_price, tenant_name, lease_start_date, lease_end_date,
+  sale_price, tenant_name, landlord_name, lease_start_date, lease_end_date,
   sort_order, created_at, updated_at
 `
 export const PROPERTY_WITH_PHOTOS = `${PROPERTY_COLUMNS}, photos:property_photos(id, storage_path, sort_order)`
@@ -30,11 +30,20 @@ export const PROPERTY_WITH_PHOTOS = `${PROPERTY_COLUMNS}, photos:property_photos
 // card can show a view count; create/update don't need it (a fresh row has none).
 const PROPERTY_SELECT = `${PROPERTY_WITH_PHOTOS}, views:property_views(id)`
 
-// Deploy-order safety: folder_id lives in the main SELECT, but migration 043
-// may not be applied yet. On a "column does not exist" error we retry with
-// folder_id stripped out, so the object list never breaks pre-migration.
-const PROPERTY_SELECT_PRE043 = PROPERTY_SELECT.replace('folder_id, ', '')
-const PROPERTY_WITH_PHOTOS_PRE043 = PROPERTY_WITH_PHOTOS.replace('folder_id, ', '')
+// Deploy-order safety: колонки, яких може ще не бути в базі, бо їхня міграція
+// не накочена. PostgREST на невідому колонку віддає 400 на ВЕСЬ запит, тож без
+// ретраю список обʼєктів просто не завантажився б.
+//
+// СПИСОК, а не пара констант на кожну колонку: `folder_id` (043) отримав свою
+// пару, і повторювати той самий рецепт для `landlord_name` (064) означало б
+// завести четверту й пʼяту константу, а далі шосту. Ретрай усе одно один —
+// він знімає ВСІ необовʼязкові колонки одразу, бо розрізняти, якої саме
+// бракує, ні до чого: обидві опційні й обидві зайві на старому бекенді.
+const OPTIONAL_COLUMNS = ['folder_id', 'landlord_name'] as const
+const stripOptional = (sel: string) =>
+  OPTIONAL_COLUMNS.reduce((acc, c) => acc.replace(`${c}, `, ''), sel)
+const PROPERTY_SELECT_PRE043 = stripOptional(PROPERTY_SELECT)
+const PROPERTY_WITH_PHOTOS_PRE043 = stripOptional(PROPERTY_WITH_PHOTOS)
 // `.select().single()` мусить повернути обʼєкт, але проксі/мок може віддати
 // масив. Без розгортання рядок у списку став би масивом — і екран падав із
 // «Cannot read properties of undefined» замість того, щоб просто оновитись.
@@ -44,7 +53,8 @@ function one<T>(data: unknown): T {
 
 const isMissingFolderColumn = (e: unknown): boolean => {
   const err = e as { code?: string; message?: string } | null
-  return err?.code === '42703' || /folder_id/i.test(err?.message ?? '')
+  return err?.code === '42703'
+    || OPTIONAL_COLUMNS.some((c) => new RegExp(c, 'i').test(err?.message ?? ''))
 }
 
 export function useProperties(dbId?: string) {
@@ -199,7 +209,11 @@ export function useProperties(dbId?: string) {
       let err = primary.error
       if (err && isMissingFolderColumn(err)) {
         const pre043 = { ...row }
+        // Знімаємо ВСІ необовʼязкові колонки, а не лише ту, на яку впав запит:
+        // на бекенді без 043 і без 064 бракує обох, і зняття однієї дало б
+        // другий 400 — цього разу вже без ретраю.
         delete pre043.folder_id
+        delete pre043.landlord_name
         const fb = await supabase
           .from('properties')
           .insert(pre043)

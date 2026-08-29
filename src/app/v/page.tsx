@@ -38,6 +38,8 @@ interface PropertyPreview {
   owner_phone: string | null
   // Optional until migration 040 is applied — the client must not assume them.
   owner_currency?: string | null
+  // Optional until 064; уже злите COALESCE(обʼєкт, база) на боці превʼю.
+  property_landlord_name?: string | null
   photos: string[]
 }
 
@@ -62,6 +64,7 @@ interface DbRow {
   owner_tg_username: string | null
   owner_phone: string | null
   owner_currency?: string | null
+  property_landlord_name?: string | null
   first_photo: string | null
 }
 
@@ -510,6 +513,14 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
         {data.property_address && (
           <div style={{ fontSize: 'var(--fs-foot)', color: 'rgba(255,255,255,.5)', marginTop: 4 }}>
             {data.property_address}
+          </div>
+        )}
+        {data.property_landlord_name && (
+          <div style={{ fontSize: 'var(--fs-foot)', color: 'rgba(255,255,255,.5)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <IconBuilding size={14} color="rgba(255,255,255,.5)" />
+            <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              Орендодавець: {data.property_landlord_name}
+            </span>
           </div>
         )}
       </div>

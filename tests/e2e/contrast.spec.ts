@@ -97,6 +97,10 @@ const FROZEN: Record<string, number> = {
   'db-objects-compact': 0,
   'property-detail': 0,
   'property-form-new': 4,
+  // Оверлайн секції «Площа» (11px/600 uppercase) — той самий вже прийнятий
+  // клас `over>span`, заміряно 2.93. Режим редагування довший за створення,
+  // тож секція лежить нижче в градієнті, який світлішає донизу.
+  'property-form-edit': 1,
   'create-db': 3,
   'sharing-analytics': 2,
   'payment-calendar': 3,

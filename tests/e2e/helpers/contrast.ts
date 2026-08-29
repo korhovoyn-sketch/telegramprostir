@@ -137,7 +137,17 @@ export const smallTargets = (page: Page, min: number) => page.evaluate<SmallTarg
   const bar = document.querySelector('.tabbar') as HTMLElement | null
   // Міряти від верху таббару, а не від `innerHeight`: оболонка (--tg-vh) нижча
   // за вікно, тож усе під нею просто нижче фолду, а не «вкрадене».
-  const fold = bar ? bar.getBoundingClientRect().top : window.innerHeight
+  //
+  // А там, де таббару НЕМА (форми, повноекранні маршрути), фолдом мусить бути
+  // низ САМОЇ оболонки, і це не дрібниця: `#app-root` має `overflow:hidden`,
+  // тож усе під ним КЛIПАЄТЬСЯ, `elementFromPoint` віддає BODY, і зонд читає
+  // ефективну висоту 1px. Заміряно на iPad mini 744×1133: оболонка кінчається
+  // на 1032, сегмент ставки стоїть на 1015 — тобто 27px його справді за краєм,
+  // але це «ще не доскролено», а не вкрадений тап. Той самий клас, що вже
+  // описаний для таббару, просто фолбек лишався на `innerHeight`.
+  const root = document.querySelector('#app-root') as HTMLElement | null
+  const shell = root ? root.getBoundingClientRect().bottom : window.innerHeight
+  const fold = bar ? bar.getBoundingClientRect().top : Math.min(shell, window.innerHeight)
   document.querySelectorAll('button,[role="button"],a,input[type="checkbox"],.sheet-row,.notif-tab,.seg-b,.view-seg-b,.fr-seg-b,.tab,.obj-more,.hdr-back').forEach((el) => {
     const e = el as HTMLElement
     const r = e.getBoundingClientRect()
