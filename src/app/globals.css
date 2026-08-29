@@ -981,7 +981,13 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 /* ── TEMPLATE ROW ── */
 .tmpl-row{display:flex;gap:7px;padding:0 var(--g3) var(--g3);overflow-x:auto;scrollbar-width:none}
 .tmpl-row::-webkit-scrollbar{display:none}
-.tmpl{flex-shrink:0;width:96px;cursor:pointer}
+/* Ґрунт під варіантом шаблона — той самий прийом, що вже застосований до
+   `.type-card` і `.obj-card`, і третій його випадок за день. Причина щоразу
+   одна: градієнт екрана світлішає донизу, тож будь-що, зсунуте нижче, втрачає
+   контраст. Тут зсув дав третій формат експорту (CSV), і назви шаблонів
+   («Класик», «Модерн», «Нічний») пішли на 3.14–4.23:1 при порозі 4.5.
+   Альфою це не лікується: `.tmpl-l` уже `--t1`, чисто білий. */
+.tmpl{flex-shrink:0;width:96px;cursor:pointer;background:rgba(6,5,14,.52);border-radius:var(--r-sm);padding:6px 6px 4px}
 .tmpl-ph{height:110px;border-radius:var(--r-sm);padding:8px;display:flex;flex-direction:column;gap:3px;border:.5px solid rgba(255,255,255,.16);overflow:hidden}
 .tmpl.sel .tmpl-ph{border-color:#7AB3FF;box-shadow:0 0 0 2px rgba(122,179,255,.4)}
 /* Колір смуг і блока — з опису шаблона (інлайном), а не тут: інакше
