@@ -107,7 +107,7 @@ export default function CreateDatabaseScreen() {
             <input
               aria-label="Орендодавець бази"
               className="fr-i"
-              placeholder="ТОВ «Назва» або ФОП"
+              placeholder="ТОВ або ФОП"
               value={landlord}
               onChange={(e) => setLandlord(e.target.value)}
               maxLength={200}
