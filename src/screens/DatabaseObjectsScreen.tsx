@@ -156,7 +156,13 @@ export default function DatabaseObjectsScreen() {
     if (!db) return
     const ok = await confirmAction({
       title: 'Видалити базу?',
-      message: `База "${db.name}" і всі ${properties.length} ${objectsWord(properties.length)} будуть видалені. Це незворотно.`,
+      // Число узгоджується з дієсловом, а не приклеюється до сталого «будуть»:
+      // «і всі 1 обʼєкт будуть видалені» — саме те, що показував кадр
+      // підтвердження НАЙДЕСТРУКТИВНІШОЇ дії застосунку. Лапки — «ялинки», як
+      // у решті текстів.
+      message: `Базу «${db.name}» і ${properties.length === 1
+        ? '1 обʼєкт буде видалено'
+        : `всі ${properties.length} ${objectsWord(properties.length)} буде видалено`}. Це незворотно.`,
       confirmLabel: 'Видалити',
       destructive: true,
     })
