@@ -34,12 +34,13 @@ import { ALL_GROUPS, ownerFixtures, OWNER_SCREENS } from './helpers/screens'
  *
  * Рішення власника проєкту: правити ДАНІ, підписи лишити.
  *
- * ⚠️ ОДИН КЛАС ТУТ — НЕ ПІДПИСИ, і чекає на окреме рішення:
- * `obj-t` / `obj-s` / `obj-mt>span` — назва обʼєкта і його метадані в списку
- * РІЄЛТОРА (4:1 і нижче). Ті самі класи в базі власника поріг проходять:
- * різниця в тому, що екран рієлтора коротший і картки лягають нижче в
- * градієнті, який світлішає донизу. Той самий механізм, що вже задокументований
- * для `.obj-tot-sub`, і лікується він переверсткою картки, а не кольором.
+ * `obj-t` / `obj-s` / `obj-mt>span` звідси ПРИБРАНО — назва обʼєкта і його
+ * метадані в списку РІЄЛТОРА трималися тут «до дизайн-рішення» (4:1 і нижче).
+ * Рішення ухвалене й заміряне: щільніший ґрунт самої картки (`.obj-card`,
+ * rgba(6,5,14,.52) замість спільного `--glass-card`). Альфою тексту це не
+ * лікувалось у принципі — `obj-t` уже `--t1`, тобто чисто білий; лікується
+ * тільки ґрунт, як уже було для `.obj-tot-*`. Заміряно на екрані рієлтора:
+ * 5 блоків нижче AA → 0.
  *
  * `mbtn` звідси ПРИБРАНО: первинну кнопку виправлено насправді (`--blue-deep` +
  * затемнений backdrop), і тепер вона тримає 4.81–8.02:1 замість 2.35–4.09.
@@ -77,8 +78,6 @@ const CONTRAST_DEBT: ReadonlySet<string> = new Set([
   // сканері, «Налаштувати» в календарі. Приглушеність — навмисна ієрархія
   // поряд із первинною дією.
   'body>button', '?>button', 'glass-s>button',
-  // ── клас, що чекає на дизайн-рішення (див. блок вище) ──
-  'obj-t', 'obj-s', 'obj-mt>span',
 ])
 
 /**
@@ -90,18 +89,23 @@ const CONTRAST_DEBT: ReadonlySet<string> = new Set([
  * Пʼять екранів опустились після виправлення первинної кнопки:
  * realtor-dashboard 1→0, realtor-database 6→5, sharing-analytics 3→2,
  * export 2→1, role-select 1→0.
+ *
+ * Ще чотири — після щільнішого ґрунту картки: realtor-database 5→0,
+ * db-objects 6→2, create-db 3→2, property-form-new 4→3. Числа тут ЗНЯТІ
+ * ЗАМІРОМ після зміни, а не лишені зі старим запасом: заморозка, щедріша за
+ * факт, дозволяє боргу тихо повернутись усередині дозволеного.
  */
 const FROZEN: Record<string, number> = {
   'db-list': 0,
-  'db-objects': 6,
+  'db-objects': 2,
   'db-objects-compact': 0,
   'property-detail': 0,
-  'property-form-new': 4,
+  'property-form-new': 3,
   // Оверлайн секції «Площа» (11px/600 uppercase) — той самий вже прийнятий
   // клас `over>span`, заміряно 2.93. Режим редагування довший за створення,
   // тож секція лежить нижче в градієнті, який світлішає донизу.
   'property-form-edit': 1,
-  'create-db': 3,
+  'create-db': 2,
   'sharing-analytics': 2,
   'payment-calendar': 3,
   'payment-schedule': 0,
@@ -119,7 +123,7 @@ const FROZEN: Record<string, number> = {
   'notifications-viewers': 0,
   profile: 7,
   'realtor-dashboard': 0,
-  'realtor-database': 5,
+  'realtor-database': 0,
   'qr-scanner': 1,
   collections: 0,
   'collection-analytics': 1,
