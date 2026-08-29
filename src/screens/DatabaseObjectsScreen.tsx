@@ -28,6 +28,12 @@ import CoachMark from '@/components/ui/CoachMark'
 import { useOnboarding } from '@/hooks/useOnboarding'
 import { useHideOnScrollDown } from '@/hooks/useHideOnScrollDown'
 
+/**
+ * Порція рендера списку. На модульному рівні, а не в тілі компонента: значення
+ * стале, і в тілі воно лише перестворювалось би щорендера.
+ */
+const PAGE = 40
+
 export default function DatabaseObjectsScreen() {
   const fabHidden = useHideOnScrollDown()
   const { screenParams, navigate, databases, user } = useAppStore()
@@ -281,7 +287,6 @@ export default function DatabaseObjectsScreen() {
   // Ліміт стосується ЛИШЕ рендера. Усі операції над списком («Вибрати все»,
   // порядок, пакетні дії) і далі беруть `filtered` — інакше «Вибрати все»
   // вибирало б тільки видиме, тобто мовчки робило б не те, що каже.
-  const PAGE = 40
   const [limit, setLimit] = useState(PAGE)
   const sentinelRef = useRef<HTMLDivElement>(null)
 
@@ -332,6 +337,11 @@ export default function DatabaseObjectsScreen() {
     // не діяв би там, де карток найбільше. Лічильник у хедері секції окремо
     // рахує ПОВНУ кількість: «3» на папці, у якій видно 3 з 40, — це неправда
     // про дані, а не про рендер.
+    //
+    // Прийнятий наслідок: папка, чиї обʼєкти цілком лежать у хвості `filtered`,
+    // покаже свій лічильник і ПОРОЖНЄ тіло, доки прокрутка не дотягне порцію.
+    // Лікувати це квотою на секцію не варто — вікно перестало б бути вікном, а
+    // sentinel і так стоїть нижче за всі секції, тобто досяжний одразу.
     const total = new Map<string, number>()
     for (const p of filtered) {
       const key = p.folder_id && foldersById.has(p.folder_id) ? p.folder_id : '__none__'

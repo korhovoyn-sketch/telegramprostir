@@ -24,6 +24,18 @@ const PROPERTY_COLUMNS = `
   sale_price, tenant_name, landlord_name, lease_start_date, lease_end_date,
   sort_order, created_at, updated_at
 `
+/**
+ * Наступний `sort_order` — від МАКСИМУМУ наявних, а не від їхньої кількості.
+ *
+ * Третє входження цього рецепта (форма обʼєкта, перенос у базу, імпорт), тож
+ * він тут, а не скопійований учетверте. Довжина списку годиться лише поки
+ * порядок ніхто не міняв: після ручного «Змінити порядок» значення стають
+ * 100, 500, 9000 — і нові рядки, пораховані від `length`, ВКЛИНЮЮТЬСЯ в
+ * середину, а то й колідують із наявними.
+ */
+export const nextSortBase = (properties: { sort_order?: number | null }[]): number =>
+  Math.max(0, ...properties.map((p) => p.sort_order ?? 0))
+
 export const PROPERTY_WITH_PHOTOS = `${PROPERTY_COLUMNS}, photos:property_photos(id, storage_path, sort_order)`
 
 // loadProperties/loadSingleProperty additionally pull the view relation so the

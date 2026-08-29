@@ -32,11 +32,14 @@ const EXISTING = {
 
 interface Wire { inserts: Record<string, unknown>[][] }
 
-async function openImport(page: Page, wire: Wire) {
+interface Opts { dbType?: string; existingSortOrder?: number }
+
+async function openImport(page: Page, wire: Wire, opts: Opts = {}) {
   await setupApp(page, { user: USER })
   await skipCoachmarks(page)
+  const db = { ...DB, type: opts.dbType ?? DB.type }
   await page.route('**/rest/v1/databases**', (r) =>
-    jsonRoute(r, (r.request().headers()['accept'] ?? '').includes('object') ? DB : [DB]))
+    jsonRoute(r, (r.request().headers()['accept'] ?? '').includes('object') ? db : [db]))
   await page.route('**/rest/v1/properties**', (r) => {
     const rq = r.request()
     if (rq.method() === 'POST') {
@@ -44,7 +47,7 @@ async function openImport(page: Page, wire: Wire) {
       wire.inserts.push(Array.isArray(body) ? body : [body])
       return jsonRoute(r, Array.isArray(body) ? body : [body])
     }
-    return jsonRoute(r, [EXISTING])
+    return jsonRoute(r, [{ ...EXISTING, sort_order: opts.existingSortOrder ?? EXISTING.sort_order }])
   })
   for (const t of ['db_members', 'rent_payments', 'rent_payment_records', 'property_views',
                    'property_folders', 'guest_links', 'notifications', 'property_photos', 'property_files']) {
@@ -150,4 +153,71 @@ test('без колонки «Назва» імпорт заблокований
   await expect(page.getByText('Вкажіть, яка колонка містить назву')).toBeVisible({ timeout: 10_000 })
   await expect(page.getByRole('button', { name: 'Імпортувати' })).toBeDisabled()
   expect(wire.inserts).toHaveLength(0)
+})
+
+
+/**
+ * КРУГОВИЙ РЕЙС — головний гард розділу.
+ *
+ * Обіцянка «вивантажив із застосунку → завантажив назад» коштує рівно стільки,
+ * скільки полів переживає дорогу. Перша редакція імпорту форсила
+ * `area_basis:'total'` і `rent_type:'per_m2'` — тобто обʼєкт повертався з
+ * ІНШОЮ базою розрахунку, а отже з іншою сумою на кожній поверхні (той самий
+ * клас, що вже дав $1 800 на екрані проти $2 160 у PDF).
+ */
+test('експортовані база розрахунку, тип ставки й дати повертаються без змін', async ({ page }) => {
+  const wire: Wire = { inserts: [] }
+  await openImport(page, wire)
+
+  // Рядок у ТОЧНО тому вигляді, який пише `propertyRow` в ExportScreen.
+  await upload(page, 'export.csv',
+    '№,Назва,Поверх,Статус,Орендар,Орендодавець,Договір з,Договір до,' +
+    'Площа корисна (м²),Площа розрахункова (м²),База розрахунку,Ставка оренди,Тип ставки,Місць паркінгу\n' +
+    '1,Офіс 501,7,Зайнято,ТОВ «Ромашка»,ФОП Кравець,01.02.2025,31.01.2026,50,100,корисна,18,$/м²/міс,3\n')
+
+  await expect(page.getByText(/1 обʼєкт/)).toBeVisible({ timeout: 10_000 })
+  await page.getByRole('button', { name: 'Імпортувати' }).click()
+  await expect.poll(() => wire.inserts.length, { timeout: 15_000 }).toBe(1)
+
+  const r = wire.inserts[0][0]
+  expect(r.area_basis, 'база розрахунку — це ГРОШІ: інша база = інша сума').toBe('useful')
+  expect(r.rent_type).toBe('per_m2')
+  expect(r.lease_start_date).toBe('2025-02-01')
+  expect(r.lease_end_date).toBe('2026-01-31')
+  expect(r.landlord_name).toBe('ФОП Кравець')
+  expect(r.parking_spaces).toBe(3)
+  expect(r.has_parking).toBe(true)
+})
+
+/**
+ * У паркінг-базі ставка ПЛАСКА. Порожня колонка «Тип ставки» не сміє мовчки
+ * стати $/м²: 15 м² × 30 дало б $450 замість $30 — той самий клас, що вже
+ * лікували гейтом `flatUtilities` у calcRentUtils.
+ */
+test('порожній тип ставки в паркінг-базі НЕ стає $/м²', async ({ page }) => {
+  const wire: Wire = { inserts: [] }
+  await openImport(page, wire, { dbType: 'parking' })
+  await upload(page, 'p.csv', 'Назва,Ставка оренди\nМісце 12,30\n')
+
+  await expect(page.getByText(/1 обʼєкт/)).toBeVisible({ timeout: 10_000 })
+  await page.getByRole('button', { name: 'Імпортувати' }).click()
+  await expect.poll(() => wire.inserts.length, { timeout: 15_000 }).toBe(1)
+  expect(wire.inserts[0][0].rent_type).toBe('fixed')
+})
+
+/**
+ * `sort_order` рахується від МАКСИМУМУ наявних, а не від їхньої кількості:
+ * після ручного «Змінити порядок» довжина списку не має спільного з
+ * значеннями, і рахунок від неї вклинив би імпортовані в середину.
+ */
+test('імпортовані стають ПІСЛЯ наявних, навіть коли порядок розріджений', async ({ page }) => {
+  const wire: Wire = { inserts: [] }
+  await openImport(page, wire, { existingSortOrder: 9000 })
+  await upload(page, 'obj.csv', 'Назва\nОфіс 601\n')
+
+  await expect(page.getByText(/1 обʼєкт/)).toBeVisible({ timeout: 10_000 })
+  await page.getByRole('button', { name: 'Імпортувати' }).click()
+  await expect.poll(() => wire.inserts.length, { timeout: 15_000 }).toBe(1)
+  expect(Number(wire.inserts[0][0].sort_order),
+    'новий рядок мусить лягти ЗА наявним 9000, а не між ним і 100').toBeGreaterThan(9000)
 })

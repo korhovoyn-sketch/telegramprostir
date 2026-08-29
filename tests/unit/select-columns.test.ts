@@ -36,7 +36,7 @@ function walk(dir: string, acc: string[] = []): string[] {
 
 
 /** Колонки, які `PropertyFormScreen` кладе в payload. */
-function writtenColumns(): string[] {
+function formColumns(): string[] {
   const src = read('screens/PropertyFormScreen.tsx')
   const start = src.indexOf('const payload = {')
   expect(start, 'payload форми не знайдено — тест застарів').toBeGreaterThan(-1)
@@ -44,13 +44,38 @@ function writtenColumns(): string[] {
   return [...body.matchAll(/^\s{6}([a-z_]+):/gm)].map((m) => m[1])
 }
 
+/**
+ * Колонки, які кладе ІМПОРТ.
+ *
+ * Форма — не єдиний письменник `properties`, і поки цей гард читав лише її,
+ * новий письменник був поза ним ЦІЛКОМ. Це той самий клас, що вже коштував
+ * `parking_type`/`ev_charger`: колонка, якої немає в SELECT, — це колонка, яку
+ * запис стирає при наступному читанні.
+ */
+function importColumns(): string[] {
+  const src = read('screens/ImportObjectsScreen.tsx')
+  const start = src.indexOf('ok.push({')
+  expect(start, 'payload імпорту не знайдено — тест застарів').toBeGreaterThan(-1)
+  const body = src.slice(start, src.indexOf('\n      })', start))
+  return [...body.matchAll(/^\s{8}([a-z_]+):/gm)].map((m) => m[1])
+}
+
 describe('SELECT покриває все, що пише форма', () => {
-  const written = writtenColumns()
+  const written = [...new Set([...formColumns(), ...importColumns()])]
 
   it('payload форми розібрано', () => {
-    expect(written.length, 'колонок у payload підозріло мало').toBeGreaterThan(15)
+    expect(formColumns().length, 'колонок у payload підозріло мало').toBeGreaterThan(15)
     expect(written).toContain('parking_type')
     expect(written).toContain('ev_charger')
+  })
+
+  it('payload імпорту розібрано і несе грошові поля', () => {
+    const imported = importColumns()
+    expect(imported.length, 'колонок в імпорті підозріло мало').toBeGreaterThan(10)
+    // Обидві грошові: без них імпорт форсив би базу й тип ставки, тобто
+    // повертав би обʼєкт з ІНШОЮ сумою, ніж він мав до експорту.
+    expect(imported).toContain('area_basis')
+    expect(imported).toContain('rent_type')
   })
 
   it('кожна записувана колонка є у PROPERTY_COLUMNS', () => {

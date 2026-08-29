@@ -2,14 +2,22 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAppStore } from '@/store/appStore'
-import { useProperties } from '@/hooks/useProperties'
+import { useProperties, nextSortBase } from '@/hooks/useProperties'
 import { offlineGuard } from '@/lib/offline'
 import { hapticSelection, hapticNotify } from '@/lib/telegram'
 import Header from '@/components/ui/Header'
 import { parseCsv } from '@/lib/csv'
+import { supabase } from '@/lib/supabase'
 import { sanitizeDecimal, objectsWord, STATUS_LABELS } from '@/lib/utils'
 import { IconFile, IconCheck, IconBan, IconLayoutGrid } from '@/components/Icons'
 import type { Property, PropertyStatus } from '@/types'
+
+/**
+ * Рівно те, що приймає `createProperties`. Тип названий, а не приліплений
+ * подвійним кастом `as unknown as`: каст вимикав перевірку саме на межі
+ * «клієнт → БД», тобто там, де вона єдина, що ловить хибну назву колонки.
+ */
+type NewProperty = Omit<Property, 'id' | 'owner_id' | 'created_at' | 'updated_at' | 'photos'>
 
 /**
  * ІМПОРТ ОБʼЄКТІВ ІЗ CSV.
@@ -26,8 +34,9 @@ import type { Property, PropertyStatus } from '@/types'
 
 type Field =
   | 'name' | 'floor' | 'status' | 'tenant_name' | 'landlord_name'
-  | 'area_useful' | 'area_total' | 'rent_rate' | 'utilities_rate'
-  | 'sale_price' | 'address' | 'description'
+  | 'area_useful' | 'area_total' | 'area_basis' | 'rent_rate' | 'rent_type'
+  | 'utilities_rate' | 'sale_price' | 'address' | 'description'
+  | 'lease_start_date' | 'lease_end_date' | 'parking_spaces'
 
 const FIELDS: { id: Field; label: string; aliases: string[] }[] = [
   { id: 'name',           label: 'Назва',                 aliases: ['назва', 'name', 'обʼєкт', 'обєкт', 'объект', 'номер місця'] },
@@ -37,12 +46,43 @@ const FIELDS: { id: Field; label: string; aliases: string[] }[] = [
   { id: 'landlord_name',  label: 'Орендодавець',          aliases: ['орендодавець', 'landlord'] },
   { id: 'area_useful',    label: 'Площа корисна',         aliases: ['площа корисна (м²)', 'площа корисна', 'корисна площа', 'корисна'] },
   { id: 'area_total',     label: 'Площа розрахункова',    aliases: ['площа розрахункова (м²)', 'площа розрахункова', 'розрахункова площа', 'загальна площа', 'розрахункова'] },
+  { id: 'area_basis',     label: 'База розрахунку',       aliases: ['база розрахунку', 'база'] },
   { id: 'rent_rate',      label: 'Ставка оренди',         aliases: ['ставка оренди', 'ставка', 'оренда'] },
+  { id: 'rent_type',      label: 'Тип ставки',            aliases: ['тип ставки', 'тип оренди'] },
   { id: 'utilities_rate', label: 'Ставка експлуатаційних', aliases: ['ставка експлуатаційних', 'експлуатаційні', 'комунальні'] },
   { id: 'sale_price',     label: 'Ціна продажу',          aliases: ['ціна продажу', 'ціна'] },
+  { id: 'lease_start_date', label: 'Договір з',           aliases: ['договір з', 'початок договору'] },
+  { id: 'lease_end_date',   label: 'Договір до',          aliases: ['договір до', 'кінець договору'] },
+  { id: 'parking_spaces', label: 'Місць паркінгу',        aliases: ['місць паркінгу', 'паркомісць'] },
   { id: 'address',        label: 'Адреса',                aliases: ['адреса', 'address'] },
   { id: 'description',    label: 'Опис',                  aliases: ['опис', 'description', 'примітка'] },
 ]
+
+/**
+ * База розрахунку і тип ставки — ГРОШОВІ поля, і саме тому вони тут, а не
+ * хардкодом.
+ *
+ * Перша редакція форсила `area_basis:'total'` і `rent_type:'per_m2'`, тобто:
+ *   • обʼєкт із базою «корисна» повертався з ІНШОЮ сумою на всіх поверхнях
+ *     (той самий клас, що вже дав $1 800 на екрані проти $2 160 у PDF);
+ *   • ПАРКІНГ із пласкою ставкою ставав $/м² — 15 м² × 30 = $450 замість $30.
+ *
+ * Значення розпізнаються рівно ті, які пише `propertyRow` в ExportScreen.
+ */
+const BASIS_ALIAS: Record<string, 'useful' | 'total'> = {
+  'корисна': 'useful', 'useful': 'useful',
+  'розрахункова': 'total', 'загальна': 'total', 'total': 'total',
+}
+
+function parseRentType(raw: string, dbType?: string): 'per_m2' | 'fixed' | 'per_day' {
+  const v = raw.toLowerCase()
+  if (v.includes('добу') || v.includes('day')) return 'per_day'
+  if (v.includes('фіксован') || v.includes('fixed') || v.includes('сума')) return 'fixed'
+  if (v.includes('м²') || v.includes('m2') || v.includes('per_m2')) return 'per_m2'
+  // Порожня колонка: паркінг НЕ отримує $/м² за замовчуванням — там ставка
+  // пласка, і мовчазний per_m2 помножив би її на площу місця.
+  return dbType === 'parking' ? 'fixed' : 'per_m2'
+}
 
 const STATUS_ALIAS: Record<string, PropertyStatus> = {
   'вільно': 'free', 'вільний': 'free', 'free': 'free', 'вакантно': 'free',
@@ -62,6 +102,17 @@ function autoMap(headers: string[]): (Field | null)[] {
   })
 }
 
+/**
+ * Дата з експорту — `formatLeaseDate`, тобто «ДД.ММ.РРРР». ISO теж приймаємо:
+ * таблицю могли заповнити руками або віддати з іншої системи.
+ */
+const parseDate = (v: string): string | null => {
+  if (!v) return null
+  const dot = v.match(/^(\d{2})\.(\d{2})\.(\d{4})$/)
+  if (dot) return `${dot[3]}-${dot[2]}-${dot[1]}`
+  return /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null
+}
+
 const num = (v: string | undefined): number | null => {
   if (!v) return null
   const clean = sanitizeDecimal(v.replace(/\s/g, ''))
@@ -73,6 +124,21 @@ export default function ImportObjectsScreen() {
   const { screenParams, databases, showToast } = useAppStore()
   const dbId = screenParams.dbId as string
   const db = databases.find((d) => d.id === dbId)
+
+  // Тип бази тут ГРОШОВИЙ: від нього залежить, чи стане порожня «Тип ставки»
+  // пласкою сумою (паркінг) чи $/м². `databases` наповнює лише
+  // `DatabaseListScreen`, тож на холодному вході стор може бути порожній — той
+  // самий промах, що вже давав паркінгу ставку × площу на `PropertyDetailScreen`.
+  // Тягнемо один рядок за id; RLS сама вирішує видимість.
+  const [fetchedType, setFetchedType] = useState<string | null>(null)
+  useEffect(() => {
+    if (!dbId || db) return
+    let stale = false
+    supabase.from('databases').select('id,type').eq('id', dbId).maybeSingle()
+      .then(({ data }) => { if (!stale && data) setFetchedType((data as { type: string }).type) })
+    return () => { stale = true }
+  }, [dbId, db])
+  const dbType = db?.type ?? fetchedType ?? undefined
   const { properties, createProperties, loadProperties, loading } = useProperties(dbId)
 
   // Без цього список наявних імен ПОРОЖНІЙ, і перевірка дублікатів мовчки не
@@ -99,8 +165,8 @@ export default function ImportObjectsScreen() {
   )
 
   const parsed = useMemo(() => {
-    if (nameCol < 0) return { ok: [] as Record<string, unknown>[], skipped: [] as string[], noName: 0 }
-    const ok: Record<string, unknown>[] = []
+    if (nameCol < 0) return { ok: [] as NewProperty[], skipped: [] as string[], noName: 0 }
+    const ok: NewProperty[] = []
     const skipped: string[] = []
     const seen = new Set<string>()
     let noName = 0
@@ -124,8 +190,8 @@ export default function ImportObjectsScreen() {
         status,
         area_useful: num(val('area_useful')),
         area_total: num(val('area_total')),
-        area_basis: 'total',
-        rent_type: 'per_m2',
+        area_basis: BASIS_ALIAS[val('area_basis').toLowerCase()] ?? 'total',
+        rent_type: parseRentType(val('rent_type'), dbType),
         rent_rate: num(val('rent_rate')),
         utilities_rate: num(val('utilities_rate')),
         sale_price: num(val('sale_price')),
@@ -135,17 +201,18 @@ export default function ImportObjectsScreen() {
         landlord_name: val('landlord_name') || null,
         address: val('address') || null,
         description: val('description') || null,
-        has_parking: false,
-        parking_spaces: 0,
+        has_parking: num(val('parking_spaces')) != null && num(val('parking_spaces'))! > 0,
+        parking_spaces: Math.round(num(val('parking_spaces')) ?? 0),
         folder_id: null,
         utilities: null,
-        lease_start_date: null,
-        lease_end_date: null,
+        // Дати договору — лише в зайнятого, з тієї ж причини, що й орендар.
+        lease_start_date: status === 'occupied' ? (parseDate(val('lease_start_date'))) : null,
+        lease_end_date: status === 'occupied' ? (parseDate(val('lease_end_date'))) : null,
         sort_order: 0,
       })
     }
     return { ok, skipped, noName }
-  }, [body, mapping, nameCol, dbId, existing])
+  }, [body, mapping, nameCol, dbId, existing, dbType])
 
   async function handleFile(file: File) {
     const text = await file.text()
@@ -162,10 +229,11 @@ export default function ImportObjectsScreen() {
 
   async function handleImport() {
     if (parsed.ok.length === 0 || offlineGuard()) return
-    const base = properties.length
-    const payloads = parsed.ok.map((p, i) => ({
-      ...p, sort_order: (base + i + 1) * 100,
-    })) as unknown as Omit<Property, 'id' | 'owner_id' | 'created_at' | 'updated_at' | 'photos'>[]
+    // Від МАКСИМУМУ, не від довжини: після ручного «Змінити порядок» довжина
+    // не має нічого спільного з наявними значеннями, і імпортовані обʼєкти
+    // вклинювались би в середину списку.
+    const base = nextSortBase(properties)
+    const payloads = parsed.ok.map((p, i) => ({ ...p, sort_order: (base + i + 1) * 100 }))
     hapticNotify('success')
     await createProperties(payloads)
   }
@@ -254,9 +322,9 @@ export default function ImportObjectsScreen() {
                   )}
                   {parsed.ok.length > 0 && (
                     <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 8 }}>
-                      Перший: {String(parsed.ok[0].name)}
-                      {parsed.ok[0].floor ? ` · ${String(parsed.ok[0].floor)} поверх` : ''}
-                      {` · ${STATUS_LABELS[parsed.ok[0].status as PropertyStatus]}`}
+                      Перший: {parsed.ok[0].name}
+                      {parsed.ok[0].floor ? ` · ${parsed.ok[0].floor} поверх` : ''}
+                      {` · ${STATUS_LABELS[parsed.ok[0].status]}`}
                     </div>
                   )}
                 </>

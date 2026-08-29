@@ -148,7 +148,11 @@ export const smallTargets = (page: Page, min: number) => page.evaluate<SmallTarg
   const root = document.querySelector('#app-root') as HTMLElement | null
   const shell = root ? root.getBoundingClientRect().bottom : window.innerHeight
   const fold = bar ? bar.getBoundingClientRect().top : Math.min(shell, window.innerHeight)
-  document.querySelectorAll('button,[role="button"],a,input[type="checkbox"],.sheet-row,.notif-tab,.seg-b,.view-seg-b,.fr-seg-b,.tab,.obj-more,.hdr-back').forEach((el) => {
+  // `select` тут з тієї ж причини, що й решта: це КОНТРОЛ, у який цілять
+  // пальцем. Доданий, коли в застосунку зʼявився перший (зіставлення колонок
+  // імпорту) — саме тоді, коли розширення селектора ще не може створити боргу,
+  // бо інших селектів немає.
+  document.querySelectorAll('button,[role="button"],a,select,input[type="checkbox"],.sheet-row,.notif-tab,.seg-b,.view-seg-b,.fr-seg-b,.tab,.obj-more,.hdr-back').forEach((el) => {
     const e = el as HTMLElement
     const r = e.getBoundingClientRect()
     if (r.width < 4 || r.height < 4) return

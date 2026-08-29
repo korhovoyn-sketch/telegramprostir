@@ -5,7 +5,7 @@ import { useAppStore } from '@/store/appStore'
 import { hapticSelection, hapticNotify } from '@/lib/telegram'
 import { offlineGuard } from '@/lib/offline'
 import { confirmAction } from '@/lib/confirm'
-import { useProperties } from '@/hooks/useProperties'
+import { useProperties, nextSortBase } from '@/hooks/useProperties'
 import { useLandlords } from '@/hooks/useLandlords'
 import { useFolders } from '@/hooks/useFolders'
 import Header from '@/components/ui/Header'
@@ -477,7 +477,7 @@ export default function PropertyFormScreen() {
 
       // The whole batch shares one created_at (single INSERT), so give rows
       // explicit sort_order — otherwise their list order is arbitrary.
-      const sortBase = Math.max(0, ...properties.map(p => p.sort_order ?? 0))
+      const sortBase = nextSortBase(properties)
       const ok = await createProperties(finalNames.map((n, i) => ({
         ...payload,
         name: n,

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseCsv, detectDelimiter } from '@/lib/csv'
+import { parseCsv, detectDelimiter, toCsv, CSV_BOM } from '@/lib/csv'
 
 describe('parseCsv', () => {
   it('розбирає простий файл', () => {
@@ -64,5 +64,39 @@ describe('detectDelimiter', () => {
 
   it('один стовпець — дефолтна кома, а не випадковий символ', () => {
     expect(detectDelimiter('Назва\nОфіс')).toBe(',')
+  })
+})
+
+describe('toCsv — друга половина того самого контракту', () => {
+  it('поле з роздільником огортається лапками', () => {
+    expect(toCsv([['Офіс', 'вул. Хрещатик, 1']])).toBe('Офіс,"вул. Хрещатик, 1"')
+  })
+
+  it('лапка всередині подвоюється', () => {
+    expect(toCsv([['ТОВ "Ромашка"']])).toBe('"ТОВ ""Ромашка"""')
+  })
+
+  it('перенос рядка огортається, а не рве запис', () => {
+    expect(toCsv([['a\nb']])).toBe('"a\nb"')
+  })
+
+  it('null і undefined стають порожнім полем, а не «null»', () => {
+    expect(toCsv([['a', null, undefined, 0]])).toBe('a,,,0')
+  })
+
+  // Круговий рейс — єдине, що доводить узгодженість двох половин. Саме тому
+  // серіалізатор живе поруч із парсером: у різних файлах вони розійшлись би.
+  it('parseCsv(toCsv(x)) повертає x', () => {
+    const x = [
+      ['Назва', 'Адреса', 'Опис'],
+      ['Офіс "А"', 'вул. Хрещатик, 1', 'два\nрядки'],
+      ['Офіс Б', '', 'кома, крапка'],
+    ]
+    expect(parseCsv(toCsv(x))).toEqual(x)
+  })
+
+  it('BOM не всередині серіалізатора — інакше рейс був би несиметричним', () => {
+    expect(toCsv([['Назва']]).startsWith(CSV_BOM)).toBe(false)
+    expect(parseCsv(CSV_BOM + toCsv([['Назва']]))).toEqual([['Назва']])
   })
 })

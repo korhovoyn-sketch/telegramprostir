@@ -90,3 +90,31 @@ export function parseCsv(input: string, delimiter?: string): string[][] {
     .map((r) => r.map((c) => c.trim()))
     .filter((r) => r.some((c) => c !== ''))
 }
+
+/**
+ * Матриця → текст CSV.
+ *
+ * Живе поруч із парсером НАВМИСНО: це дві половини одного контракту, і
+ * розкидані по різних файлах вони розходяться першими. Юніт-тести ганяють їх
+ * круговим рейсом (`parseCsv(toCsv(x)) === x`), що можливо лише поки вони
+ * разом.
+ *
+ * Роздільник — кома, а не `;`: файл читає і наш парсер (він визначає
+ * роздільник сам), і будь-який інструмент. BOM додає ВИКЛИКАЧ, коли файл іде
+ * в Excel, — у сам рядок його класти не можна, бо тоді круговий рейс мусив би
+ * його зрізати, і тест перестав би бути симетричним.
+ */
+export function toCsv(rows: (string | number | null | undefined)[][], delimiter = ','): string {
+  const cell = (v: string | number | null | undefined): string => {
+    const s = v == null ? '' : String(v)
+    // Лапки, роздільник і будь-який перенос — три випадки, що вимагають
+    // огорнути поле; подвоєна лапка всередині — єдиний спосіб її внести.
+    return /["\r\n]/.test(s) || s.includes(delimiter)
+      ? `"${s.replace(/"/g, '""')}"`
+      : s
+  }
+  return rows.map((r) => r.map(cell).join(delimiter)).join('\r\n')
+}
+
+/** Excel відкриє UTF-8 як UTF-8 лише з BOM — інакше кирилиця стає «Ð.Ð°Ð·Ð²Ð°». */
+export const CSV_BOM = '﻿'
