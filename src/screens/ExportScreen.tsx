@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase'
 import Header from '@/components/ui/Header'
 import Toggle from '@/components/ui/Toggle'
 import { IconFileExport, IconFile, IconAdjustments, IconChartBar, IconCheck } from '@/components/Icons'
+import { toCsv, CSV_BOM } from '@/lib/csv'
 import { effectiveLandlord, withSortedPhotos, calcRentUtils, currencySymbol, rentUnitLabel, objectsWord, DB_TYPE_LABELS, STATUS_LABELS, formatLeaseDate, humanizeDbError, safeFileName, photoUrl } from '@/lib/utils'
 import { UTILITY_META } from '@/lib/utilityMeta'
 import type { Property, Database } from '@/types'
@@ -14,6 +15,11 @@ import type { Property, Database } from '@/types'
 const FORMATS = [
   { id: 'pdf',   label: 'PDF Документ',   desc: 'Брендований PDF — зберігається та шериться', icon: <IconFile size={20} color="var(--info)" /> },
   { id: 'excel', label: 'Excel таблиця',   desc: 'Аналітика, розрахунки — .xlsx',               icon: <IconChartBar size={20} color="var(--ok-fg)" /> },
+  // CSV існує не «для повноти», а щоб круговий рейс був справжнім: імпорт
+  // читає CSV (парсинг XLSX у проєкті заборонений — див. `lib/csv.ts`), і поки
+  // застосунок віддавав лише .xlsx, обіцянка «вивантажив → завантажив назад»
+  // вимагала від користувача перезберегти файл в Excel.
+  { id: 'csv',   label: 'CSV таблиця',     desc: 'Для імпорту назад у застосунок',              icon: <IconFileExport size={20} color="var(--violet)" /> },
 ]
 
 type Rgb = [number, number, number]
@@ -71,6 +77,7 @@ const rgbCss = (c: readonly number[]) => `rgb(${c[0]},${c[1]},${c[2]})`
 // ── save / share generated file on mobile ────────────────────────────────────
 
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+const CSV_MIME = 'text/csv;charset=utf-8'
 
 /**
  * ЄДИНИЙ шлях віддачі згенерованого файлу — і він мусить бути єдиним.
@@ -821,6 +828,77 @@ async function generatePDF(
 }
 // ── Excel generation ──────────────────────────────────────────────────────────
 
+/**
+ * Заголовки таблиці — ОДИН список на XLSX і CSV.
+ *
+ * Розділяти їх не можна: імпорт (`ImportObjectsScreen`) зіставляє колонки саме
+ * за цими рядками, тож розбіжність між двома експортами тихо зламала б
+ * круговий рейс «вивантажив → завантажив назад».
+ */
+function tableHeaders(cur: string): string[] {
+  return [
+    '№', 'Назва', 'Поверх', 'Статус',
+    // Орендар і договір були відсутні: на картці обʼєкта в застосунку вони є,
+    // а в таблиці — ні, тож зведення «хто де сидить і до якого числа» з
+    // експорту зробити було неможливо.
+    'Орендар', 'Орендодавець', 'Договір з', 'Договір до',
+    'Площа корисна (м²)', 'Площа розрахункова (м²)', 'База розрахунку',
+    'Ставка оренди', 'Тип ставки',
+    `Оренда на місяць (${cur})`, `Експлуатаційні на місяць (${cur})`,
+    `Разом на місяць (${cur})`,
+    // Ціна продажу не потрапляла нікуди — обʼєкт на продаж їхав у файл із
+    // порожніми орендними колонками і без жодної цифри.
+    `Ціна продажу (${cur})`,
+    'Паркінг', 'Місць паркінгу',
+    'Адреса', 'Експлуатаційні послуги',
+    'Опис', 'Додано',
+  ]
+}
+
+/**
+ * Один рядок таблиці — теж спільний для обох форматів, і теж не копіюється:
+ * тут живуть три грошові рішення (нормалізований місяць, база розрахунку,
+ * тип ставки), і друга копія розійшлася б із першою за один раунд.
+ */
+function propertyRow(
+  p: Property, idx: number, db: Database, cur: string, isFlatUtils: boolean,
+): (string | number)[] {
+  const { utils, total } = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate, p.area_basis, isFlatUtils)
+  return [
+    idx + 1,
+    p.name,
+    p.floor ?? '',
+    STATUS_LABELS[p.status] ?? p.status,
+    p.tenant_name ?? '',
+    effectiveLandlord(p.landlord_name, db.landlord_name) ?? '',
+    p.lease_start_date ? formatLeaseDate(p.lease_start_date) : '',
+    p.lease_end_date ? formatLeaseDate(p.lease_end_date) : '',
+    p.area_useful ?? '',
+    p.area_total  ?? '',
+    (p.area_basis ?? 'total') === 'useful' ? 'корисна' : 'розрахункова',
+    p.rent_rate   ?? '',
+    p.rent_type === 'per_m2' ? `${cur}/м²/міс` : p.rent_type === 'per_day' ? `${cur}/добу` : `фіксована ${cur}/міс`,
+    // «Оренда на місяць» — заголовок каже «на місяць», тож потрібен
+    // нормалізований еквівалент (total - utils), НЕ сире rent (для per_day
+    // це добова ставка — вона вже показана в «Ставка оренди»/«Тип ставки»).
+    (total - utils) || '',
+    utils || '',
+    // total — нормалізований до місяця в calcRentUtils; rent+utils тут
+    // самостійно знову змішав би добову ставку per_day з місячними
+    // експлуатаційними в колонці, підписаній «Разом на місяць».
+    total || '',
+    p.sale_price || '',
+    p.has_parking ? 'Так' : 'Ні',
+    p.parking_spaces || '',
+    p.address ?? '',
+    (p.utilities ?? [])
+      .map((uid) => UTILITY_META.find((m) => m.id === uid)?.label)
+      .filter(Boolean).join(', '),
+    p.description ?? '',
+    formatLeaseDate(p.created_at),
+  ]
+}
+
 async function generateExcel(
   db: Database,
   properties: Property[],
@@ -841,24 +919,7 @@ async function generateExcel(
   sheetData.push([`Обʼєктів: ${rows.length}`])
   sheetData.push([]) // blank
 
-  // Header
-  const headers = [
-    '№', 'Назва', 'Поверх', 'Статус',
-    // Орендар і договір були відсутні: на картці обʼєкта в застосунку вони є,
-    // а в таблиці — ні, тож зведення «хто де сидить і до якого числа» з
-    // експорту зробити було неможливо.
-    'Орендар', 'Орендодавець', 'Договір з', 'Договір до',
-    'Площа корисна (м²)', 'Площа розрахункова (м²)', 'База розрахунку',
-    'Ставка оренди', 'Тип ставки',
-    `Оренда на місяць (${cur})`, `Експлуатаційні на місяць (${cur})`,
-    `Разом на місяць (${cur})`,
-    // Ціна продажу не потрапляла нікуди — обʼєкт на продаж їхав у файл із
-    // порожніми орендними колонками і без жодної цифри.
-    `Ціна продажу (${cur})`,
-    'Паркінг', 'Місць паркінгу',
-    'Адреса', 'Експлуатаційні послуги',
-    'Опис', 'Додано',
-  ]
+  const headers = tableHeaders(cur)
 
   /**
    * Літера колонки за НАЗВОЮ заголовка, а не жорстким «E»/«I».
@@ -878,40 +939,7 @@ async function generateExcel(
 
   // Data rows
   rows.forEach((p, idx) => {
-    const { utils, total } = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate, p.area_basis, isFlatUtils)
-    sheetData.push([
-      idx + 1,
-      p.name,
-      p.floor ?? '',
-      STATUS_LABELS[p.status] ?? p.status,
-      p.tenant_name ?? '',
-      effectiveLandlord(p.landlord_name, db.landlord_name) ?? '',
-      p.lease_start_date ? formatLeaseDate(p.lease_start_date) : '',
-      p.lease_end_date ? formatLeaseDate(p.lease_end_date) : '',
-      p.area_useful ?? '',
-      p.area_total  ?? '',
-      (p.area_basis ?? 'total') === 'useful' ? 'корисна' : 'розрахункова',
-      p.rent_rate   ?? '',
-      p.rent_type === 'per_m2' ? `${cur}/м²/міс` : p.rent_type === 'per_day' ? `${cur}/добу` : `фіксована ${cur}/міс`,
-      // «Оренда на місяць» — заголовок каже "на місяць", тож потрібен
-      // нормалізований еквівалент (total - utils), НЕ сире rent (для per_day
-      // це добова ставка — вона вже показана в «Ставка оренди»/«Тип ставки»).
-      (total - utils) || '',
-      utils || '',
-      // total — нормалізований до місяця в calcRentUtils; rent+utils тут
-      // самостійно знову змішав би добову ставку per_day з місячними
-      // експлуатаційними в колонці, підписаній «Разом на місяць».
-      total || '',
-      p.sale_price || '',
-      p.has_parking ? 'Так' : 'Ні',
-      p.parking_spaces || '',
-      p.address ?? '',
-      (p.utilities ?? [])
-        .map((uid) => UTILITY_META.find((m) => m.id === uid)?.label)
-        .filter(Boolean).join(', '),
-      p.description ?? '',
-      formatLeaseDate(p.created_at),
-    ])
+    sheetData.push(propertyRow(p, idx, db, cur, isFlatUtils))
   })
 
   // Totals row
@@ -1006,6 +1034,30 @@ async function generateExcel(
   await shareFile(new Blob([out], { type: XLSX_MIME }), safeFileName(db.name, 'xlsx'), XLSX_MIME)
 }
 
+/**
+ * CSV — той самий набір колонок, але БЕЗ титульного блоку XLSX.
+ *
+ * Це не спрощення, а вимога круговості: імпорт читає ПЕРШИЙ рядок як
+ * заголовки, тож чотири рядки «База / Тип / Дата / Обʼєктів» зверху зробили б
+ * власний експорт незавантажуваним. Підсумкового рядка теж немає — у XLSX це
+ * формула SUM, у плоскому тексті вона стала б числом, яке імпорт спробував би
+ * прочитати як обʼєкт.
+ */
+async function generateCsv(
+  db: Database,
+  properties: Property[],
+  onlyFree: boolean,
+  cur: string,
+) {
+  const isFlatUtils = isFlat(db)
+  const rows = onlyFree ? properties.filter(p => p.status === 'free') : properties
+  const text = CSV_BOM + toCsv([
+    tableHeaders(cur),
+    ...rows.map((p, i) => propertyRow(p, i, db, cur, isFlatUtils)),
+  ])
+  await shareFile(new Blob([text], { type: CSV_MIME }), safeFileName(db.name, 'csv'), CSV_MIME)
+}
+
 // ── Screen component ──────────────────────────────────────────────────────────
 
 export default function ExportScreen() {
@@ -1070,6 +1122,9 @@ export default function ExportScreen() {
           currencySymbol(user?.currency),
         )
         showToast({ type: 'success', title: 'PDF збережено' })
+      } else if (format === 'csv') {
+        await generateCsv(dbRecord, properties, onlyFree, currencySymbol(user?.currency))
+        showToast({ type: 'success', title: 'CSV збережено' })
       } else {
         await generateExcel(dbRecord, properties, onlyFree, currencySymbol(user?.currency))
         showToast({ type: 'success', title: 'Excel збережено' })
@@ -1195,7 +1250,7 @@ export default function ExportScreen() {
             її невидимою під `is-loading`), а ПІДПИС лишається: інакше кнопка
             втрачає доступну назву саме тоді, коли щось відбувається. */}
         {!loading && <IconFileExport size={18} />}
-        {format === 'pdf' ? 'Завантажити PDF' : 'Завантажити Excel'}
+        {format === 'pdf' ? 'Завантажити PDF' : format === 'csv' ? 'Завантажити CSV' : 'Завантажити Excel'}
       </button>
     </div>
   )

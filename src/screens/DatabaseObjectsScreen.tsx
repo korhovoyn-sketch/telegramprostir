@@ -28,6 +28,12 @@ import CoachMark from '@/components/ui/CoachMark'
 import { useOnboarding } from '@/hooks/useOnboarding'
 import { useHideOnScrollDown } from '@/hooks/useHideOnScrollDown'
 
+/**
+ * Порція рендера списку. На модульному рівні, а не в тілі компонента: значення
+ * стале, і в тілі воно лише перестворювалось би щорендера.
+ */
+const PAGE = 40
+
 export default function DatabaseObjectsScreen() {
   const fabHidden = useHideOnScrollDown()
   const { screenParams, navigate, databases, user } = useAppStore()
@@ -156,7 +162,13 @@ export default function DatabaseObjectsScreen() {
     if (!db) return
     const ok = await confirmAction({
       title: 'Видалити базу?',
-      message: `База "${db.name}" і всі ${properties.length} ${objectsWord(properties.length)} будуть видалені. Це незворотно.`,
+      // Число узгоджується з дієсловом, а не приклеюється до сталого «будуть»:
+      // «і всі 1 обʼєкт будуть видалені» — саме те, що показував кадр
+      // підтвердження НАЙДЕСТРУКТИВНІШОЇ дії застосунку. Лапки — «ялинки», як
+      // у решті текстів.
+      message: `Базу «${db.name}» і ${properties.length === 1
+        ? '1 обʼєкт буде видалено'
+        : `всі ${properties.length} ${objectsWord(properties.length)} буде видалено`}. Це незворотно.`,
       confirmLabel: 'Видалити',
       destructive: true,
     })
@@ -260,12 +272,54 @@ export default function DatabaseObjectsScreen() {
     }
   }, [properties, search, tab, sortBy])
 
+  // ── ВІКНО РЕНДЕРА ───────────────────────────────────────────────────────────
+  // Заміряно (`_perf`): 25 обʼєктів ≈ 870мс, 200 ≈ 1750мс, 8200 вузлів DOM і
+  // 200 шарів `backdrop-filter`. `content-visibility:auto` пробували — виграшу
+  // не дав, бо вузьке місце НЕ в палітрі, а в тому, що React створює всі 200
+  // компонентів.
+  //
+  // Тому обмежується саме СТВОРЕННЯ: рендериться перша порція, решта
+  // додається, коли sentinel унизу входить у вʼюпорт. Повну віконну
+  // віртуалізацію (абсолютне позиціонування) сюди брати НЕ можна — картки
+  // живуть усередині `Collapsible`, що анімує ВИСОТУ піддерева, і в
+  // reorder/select-режимах список має бути цілим.
+  //
+  // Ліміт стосується ЛИШЕ рендера. Усі операції над списком («Вибрати все»,
+  // порядок, пакетні дії) і далі беруть `filtered` — інакше «Вибрати все»
+  // вибирало б тільки видиме, тобто мовчки робило б не те, що каже.
+  const [limit, setLimit] = useState(PAGE)
+  const sentinelRef = useRef<HTMLDivElement>(null)
+
+  // Скидання на КОЖНУ зміну вибірки: інакше після пошуку, що звузив список до
+  // трьох, ліміт лишався б розкритим на 200 з попереднього перегляду.
+  useEffect(() => { setLimit(PAGE) }, [search, tab, sortBy, screenParams.dbId])
+
   const counts = useMemo(() => ({
     all: properties.length,
     free: properties.filter(p => p.status === 'free').length,
     occupied: properties.filter(p => p.status === 'occupied').length,
     for_sale: properties.filter(p => p.status === 'for_sale').length,
   }), [properties])
+
+  // Скільки з `filtered` реально малюємо. У reorder-режимі — усе: там ходять
+  // стрілками вгору-вниз по глобальному `sort_order`, і сусід, якого немає в
+  // DOM, зробив би перестановку наосліп.
+  const visible = useMemo(
+    () => (reorderMode ? filtered : filtered.slice(0, limit)),
+    [filtered, limit, reorderMode],
+  )
+  const hasMore = visible.length < filtered.length
+
+  useEffect(() => {
+    if (!hasMore) return
+    const el = sentinelRef.current
+    if (!el) return
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) setLimit((n) => n + PAGE)
+    }, { rootMargin: '400px' })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [hasMore, visible.length])
 
   const compactView = statusCompact && !reorderMode && !selectMode
 
@@ -279,7 +333,21 @@ export default function DatabaseObjectsScreen() {
     if (!foldersEnabled || reorderMode) return null
     const byFolder = new Map<string, Property[]>()
     const none: Property[] = []
+    // Групується ВИДИМЕ (вікно рендера), а не весь `filtered` — інакше ліміт
+    // не діяв би там, де карток найбільше. Лічильник у хедері секції окремо
+    // рахує ПОВНУ кількість: «3» на папці, у якій видно 3 з 40, — це неправда
+    // про дані, а не про рендер.
+    //
+    // Прийнятий наслідок: папка, чиї обʼєкти цілком лежать у хвості `filtered`,
+    // покаже свій лічильник і ПОРОЖНЄ тіло, доки прокрутка не дотягне порцію.
+    // Лікувати це квотою на секцію не варто — вікно перестало б бути вікном, а
+    // sentinel і так стоїть нижче за всі секції, тобто досяжний одразу.
+    const total = new Map<string, number>()
     for (const p of filtered) {
+      const key = p.folder_id && foldersById.has(p.folder_id) ? p.folder_id : '__none__'
+      total.set(key, (total.get(key) ?? 0) + 1)
+    }
+    for (const p of visible) {
       if (p.folder_id && foldersById.has(p.folder_id)) {
         const arr = byFolder.get(p.folder_id) ?? []
         arr.push(p)
@@ -287,15 +355,17 @@ export default function DatabaseObjectsScreen() {
       } else none.push(p)
     }
     const isFiltering = search.trim() !== '' || tab !== 'all'
-    const out: { key: string; id: string | null; name: string; items: Property[] }[] = []
+    const out: { key: string; id: string | null; name: string; items: Property[]; count: number }[] = []
     for (const f of folders) {
       const items = byFolder.get(f.id) ?? []
-      if (items.length === 0 && isFiltering) continue
-      out.push({ key: f.id, id: f.id, name: f.name, items })
+      const count = total.get(f.id) ?? 0
+      if (count === 0 && isFiltering) continue
+      out.push({ key: f.id, id: f.id, name: f.name, items, count })
     }
-    if (none.length > 0) out.push({ key: '__none__', id: null, name: 'Без папки', items: none })
+    const noneCount = total.get('__none__') ?? 0
+    if (noneCount > 0) out.push({ key: '__none__', id: null, name: 'Без папки', items: none, count: noneCount })
     return out
-  }, [foldersEnabled, reorderMode, filtered, folders, foldersById, search, tab])
+  }, [foldersEnabled, reorderMode, filtered, visible, folders, foldersById, search, tab])
 
   // Під час пошуку розгортаємо всі секції, щоб знахідки не ховались у згорнутій папці.
   const forceExpand = search.trim() !== ''
@@ -753,7 +823,7 @@ export default function DatabaseObjectsScreen() {
                     <span className={`fold-hd-chev ${open ? 'open' : ''}`}><IconChevronRight size={16} /></span>
                     <span className="fold-hd-ic">{sec.id ? <IconFolder size={16} /> : <IconInbox size={16} />}</span>
                     <span className="fold-hd-name">{sec.name}</span>
-                    <span className="fold-hd-cnt">{sec.items.length}</span>
+                    <span className="fold-hd-cnt">{sec.count}</span>
                   </div>
                   <Collapsible open={open} className="fold-wrap-inner">
                     {sec.items.map((p) => renderCard(p, 0))}
@@ -764,9 +834,12 @@ export default function DatabaseObjectsScreen() {
           </div>
         ) : (
           <div className="list">
-            {filtered.map((p, idx) => renderCard(p, idx))}
+            {visible.map((p, idx) => renderCard(p, idx))}
           </div>
         )}
+        {/* Sentinel довантаження. `rootMargin` 400px — щоб порція приїжджала до
+            того, як користувач дійде до краю, і прокрутка не спотикалась. */}
+        {hasMore && <div ref={sentinelRef} style={{ height: 1 }} aria-hidden />}
       </div>
 
       {/* FAB — owner only, hidden while reordering or selecting */}
@@ -849,6 +922,7 @@ export default function DatabaseObjectsScreen() {
                 { Icon: IconUsers,     label: 'Команда',               nav: true,  danger: false, action: () => { setShowMenu(false); navigate('team', { dbId: db.id }) } },
               ] : []),
               { Icon: IconFileExport,  label: 'Експорт',               nav: true,  danger: false, action: () => { setShowMenu(false); navigate('export', { dbId: db.id }) } },
+              { Icon: IconFileExport,  label: 'Імпорт із CSV',         nav: true,  danger: false, action: () => { setShowMenu(false); navigate('import-objects', { dbId: db.id }) } },
               ...(!foldersUnavailable ? [
                 { Icon: IconFolder,    label: 'Папки',                 nav: false, danger: false, action: () => { setShowMenu(false); navigate('folder-manage', { dbId: screenParams.dbId }) } },
               ] : []),

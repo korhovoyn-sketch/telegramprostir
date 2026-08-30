@@ -9,7 +9,7 @@ import { useUpcomingPayments, type PaymentAlert } from '@/hooks/useUpcomingPayme
 import { useViewerActivity } from '@/hooks/useViewerActivity'
 import TabBar from '@/components/ui/TabBar'
 import { SkeletonList } from '@/components/ui/SkeletonLoader'
-import { IconX, IconBell, IconEye, IconMessage, IconHeartFilled, IconAdjustments, IconFile, IconCurrencyDollar, IconBan, IconClock, IconCalendar } from '@/components/Icons'
+import { IconX, IconBell, IconEye, IconMessage, IconHeartFilled, IconAdjustments, IconFile, IconCurrencyDollar, IconBan, IconClock, IconCalendar, IconKey } from '@/components/Icons'
 import { formatDate, daysSince, pluralUk, objectsWord, formatLeaseDate, formatPrice } from '@/lib/utils'
 import type { Notification } from '@/types'
 
@@ -17,10 +17,12 @@ import type { Notification } from '@/types'
 //
 // Раніше тут були ще 'views' | 'chats' | 'system' — і жоден із цих типів не мав
 // у проді виробника: рядки в `notifications` пише ВИКЛЮЧНО edge-функція
-// `send-reminders`, і лише з `type='rent_reminder'` (тригерів у БД немає,
-// клієнтський INSERT заборонений RLS після міграції 035). Тобто три вкладки
-// були назавжди порожні, а e2e цього не бачив, бо мок-фікстури підсовували
-// `type:'view'` вручну.
+// `send-reminders` (тригерів у БД немає, клієнтський INSERT заборонений RLS
+// після міграції 035). Тобто три вкладки були назавжди порожні, а e2e цього не
+// бачив, бо мок-фікстури підсовували `type:'view'` вручну.
+//
+// Виробників тепер ДВА, обидва в тій самій функції: `rent_reminder` (розклад
+// платежів) і `lease_reminder` (кінець договору, міграція 065).
 type NotifTab = 'all' | 'lease' | 'payments'
 
 export default function NotificationsScreen() {
@@ -84,11 +86,12 @@ export default function NotificationsScreen() {
 
   const filtered = notifications.filter((n) => {
     if (tab === 'all') return true
-    // «Договори» — це САМЕ блок лізингових алертів (він малюється окремо через
-    // `showLease`), а не рядки сповіщень. Раніше гілки для 'lease' не було
-    // взагалі, тож фільтр падав у фінальний `return true` і вкладка показувала
-    // ВСІ сповіщення поспіль — тобто не фільтрувала нічого.
-    if (tab === 'lease') return false
+    // «Договори» має ДВА джерела, і вони про різне: похідний блок лізингових
+    // алертів (СТАН — малюється окремо через `showLease`, зникає сам, щойно
+    // договір продовжили) і рядки `lease_reminder` (ПОДІЯ — разове
+    // повідомлення на кожному порозі, надіслане в Telegram, 065). До 065
+    // рядків не існувало взагалі, і тут стояв голий `false`.
+    if (tab === 'lease') return n.type === 'lease_reminder'
     if (tab === 'payments') return n.type === 'rent_reminder'
     return true
   })
@@ -108,17 +111,23 @@ export default function NotificationsScreen() {
     if (n.type === 'rent_reminder' && propertyId) {
       hapticImpact('light')
       navigate('payment-calendar', { propertyId })
+    } else if (n.type === 'lease_reminder' && propertyId) {
+      // Нагадування про договір веде на сам обʼєкт: продовжити чи звільнити —
+      // рішення там, а не в календарі платежів.
+      hapticImpact('light')
+      navigate('property-detail', { propertyId })
     } else if ((n.type === 'view' || n.type === 'favorite') && propertyId) {
       hapticImpact('light')
       navigate('sharing-analytics', { propertyId })
     }
   }
 
-  // `rent_reminder` — єдиний тип, який реально створюється (send-reminders).
-  // Решта лишається на випадок, якщо зʼявиться виробник: рядок із незнайомим
-  // типом і далі малюється з дефолтним 🔔, а не ламає екран.
+  // Реально створюються два типи — `rent_reminder` і `lease_reminder`, обидва
+  // з `send-reminders`. Решта лишається на випадок, якщо зʼявиться виробник:
+  // рядок із незнайомим типом і далі малюється з дефолтним 🔔, а не ламає екран.
   const NOTIF_ICON: Record<string, React.ReactNode> = {
     rent_reminder: <IconCurrencyDollar size={18} color="var(--ok-fg)" />,
+    lease_reminder: <IconKey size={18} color="var(--violet)" />,
     view: <IconEye size={18} color="var(--info)" />,
     chat: <IconMessage size={18} color="var(--info)" />,
     favorite: <IconHeartFilled size={18} color="var(--pink)" />,
@@ -285,7 +294,7 @@ export default function NotificationsScreen() {
                   <div
                     key={n.id}
                     className={`notif-i ${!n.is_read ? 'unread' : ''}`}
-                    style={{ cursor: (n.type === 'rent_reminder' || n.type === 'view' || n.type === 'favorite') && (n.data as Record<string, string> | null)?.property_id ? 'pointer' : undefined }}
+                    style={{ cursor: (n.type === 'rent_reminder' || n.type === 'lease_reminder' || n.type === 'view' || n.type === 'favorite') && (n.data as Record<string, string> | null)?.property_id ? 'pointer' : undefined }}
                     onClick={() => handleNotifTap(n)}
                   >
                     <div className="notif-ic glass-s">

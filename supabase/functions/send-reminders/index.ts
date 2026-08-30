@@ -73,6 +73,16 @@ Deno.serve(async (req) => {
     due_date: string
   }
 
+  type LeaseReminderRow = {
+    owner_id: string
+    tg_id: number
+    property_id: string
+    property_name: string
+    tenant_name: string | null
+    lease_end_date: string
+    days_left: number
+  }
+
   type GuestReminderRow = {
     guest_id: string
     tg_id: number
@@ -87,6 +97,7 @@ Deno.serve(async (req) => {
   // and records its own error so the response reflects partial success.
   let sent = 0
   let sentGuests = 0
+  let sentLease = 0
   const errors: string[] = []
 
   // ── Owner reminders ─────────────────────────────────────────────────────────
@@ -165,7 +176,57 @@ Deno.serve(async (req) => {
     errors.push('guest')
   }
 
-  return new Response(JSON.stringify({ ok: errors.length === 0, sent, sentGuests, failed: errors }), {
+  // ── Кінець договору ─────────────────────────────────────────────────────────
+  // Той самий незалежний блок, що й два вище: збій RPC чи одного одержувача не
+  // має гасити решту. Пороги {30, 7, 1, 0} задає сама функція; дедуп ключується
+  // датою договору, тож продовження відкриває нову серію нагадувань.
+  try {
+    const { data: leaseRows, error: leaseError } = await admin.rpc('get_due_lease_reminders')
+    if (leaseError) throw leaseError
+
+    for (const row of (leaseRows ?? []) as LeaseReminderRow[]) {
+      const when = row.days_left === 0 ? 'сьогодні'
+        : row.days_left === 1 ? 'завтра'
+        : `через ${row.days_left} ${row.days_left >= 5 ? 'днів' : 'дні'}`
+      const text = [
+        '📄 <b>Договір добігає кінця</b>',
+        '',
+        `🏢 <b>${escapeHtml(row.property_name)}</b>`,
+        row.tenant_name ? `👤 Орендар: ${escapeHtml(row.tenant_name)}` : '',
+        `📅 Закінчується ${when} (${row.lease_end_date})`,
+        '',
+        'Відкрийте PropSpace, щоб продовжити або звільнити обʼєкт.',
+      ].filter(Boolean).join('\n')
+
+      const res = await sendTelegramMessage(row.tg_id, text)
+      if (res?.ok) {
+        sentLease++
+        // Рядок пишеться ЛИШЕ на успішній відправці — він і є маркером дедупу
+        // для наступного прогону (див. NOT EXISTS у 065).
+        const { error: notifError } = await admin.from('notifications').insert({
+          user_id: row.owner_id,
+          type: 'lease_reminder',
+          title: `Договір: ${row.property_name}`,
+          body: `Закінчується ${when}${row.tenant_name ? ` · ${row.tenant_name}` : ''}`,
+          is_read: false,
+          data: {
+            property_id: row.property_id,
+            lease_end_date: row.lease_end_date,
+            days_left: row.days_left,
+          },
+        })
+        if (notifError) console.error('[send-reminders] lease notification insert failed', row.property_id, notifError.message)
+      } else if (res) {
+        const body = await res.text()
+        console.error('[send-reminders] TG lease error for tg_id', row.tg_id, body)
+      }
+    }
+  } catch (err) {
+    console.error('[send-reminders] lease block failed', err instanceof Error ? err.message : String(err))
+    errors.push('lease')
+  }
+
+  return new Response(JSON.stringify({ ok: errors.length === 0, sent, sentGuests, sentLease, failed: errors }), {
     headers: { 'Content-Type': 'application/json' },
   })
 })

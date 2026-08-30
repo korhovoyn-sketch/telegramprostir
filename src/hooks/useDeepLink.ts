@@ -107,7 +107,15 @@ export function useDeepLink() {
           }
 
           hapticNotify('success')
-          showToast({ type: 'success', title: 'Ви в команді! 🎉', subtitle: 'База доступна для редагування' })
+          // Прозорість саме ТУТ, а не на екрані команди: той екран owner-only
+          // (`db.owner_id === user?.id`), тобто редактор його не бачить ніколи.
+          // Момент клейму — єдина точка, де людина читає повідомлення саме про
+          // своє членство, і єдина, де це ще її вибір.
+          showToast({
+            type: 'success',
+            title: 'Ви в команді! 🎉',
+            subtitle: 'Редагування доступне. Власник бачить, які обʼєкти ви відкривали.',
+          })
           // db-list підтягне member-бази через useDatabases (roles не змінюються)
           useAppStore.getState().navigateRoot('db-list')
           if (result.db_id) {

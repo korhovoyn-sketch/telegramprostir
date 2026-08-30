@@ -10,7 +10,7 @@ import { humanizeDbError, pluralUk } from '@/lib/utils'
 import Header from '@/components/ui/Header'
 import { SkeletonList } from '@/components/ui/SkeletonLoader'
 import RetryState from '@/components/ui/RetryState'
-import { IconPlus, IconLink, IconBan, IconUser, IconUsers, IconCopy, IconChevronRight } from '@/components/Icons'
+import { IconPlus, IconLink, IconBan, IconUser, IconUsers, IconCopy, IconChevronRight, IconTrash } from '@/components/Icons'
 import { copyLink } from '@/lib/share'
 import { buildDeepLink, openTelegramShare, hapticNotify } from '@/lib/telegram'
 
@@ -90,7 +90,7 @@ const COPY: Record<AccessKind, KindCopy> = {
     shareText: () => 'Запрошення до команди бази нерухомості',
     revokeMessage: (n) => `«${n}» втратить право редагувати базу.`,
     statusLabel: { pending: 'Очікує', active: 'В команді', revoked: 'Відкликано' },
-    note: 'Члени команди можуть створювати і редагувати обʼєкти, фото, файли та платежі цієї бази. Поділитися базою, керувати гостями і командою може лише власник.',
+    note: 'Члени команди можуть створювати і редагувати обʼєкти, фото, файли та платежі цієї бази. Поділитися базою, керувати гостями і командою може лише власник. Власник бачить, які обʼєкти учасник відкривав — про це варто сказати людині, коли запрошуєте.',
     // Прийнятий інвайт ділити нема сенсу — токен уже спожитий.
     canShare: (s) => s === 'pending',
   },
@@ -204,6 +204,41 @@ export default function AccessList({ kind }: { kind: AccessKind }) {
     }
   }
 
+  // Відкликані рядки накопичуються НАЗАВЖДИ: відкликання лише міняє статус, а
+  // видалення доти не було взагалі. За рік активного користування база збирає
+  // десятки мертвих доступів — згорнута секція ховає їх з очей, але не з
+  // даних. Прибирати можна ЛИШЕ відкликані: живий доступ зникає через
+  // `handleRevoke`, інакше кнопка «прибрати» тихо ставала б другим шляхом
+  // позбавлення доступу — без підтвердження про наслідки.
+  async function handleDelete(r: AccessRow) {
+    const ok = await confirmAction({
+      title: 'Прибрати запис?',
+      message: `Запис про «${nameOf(r)}» зникне зі списку. Доступ уже відкликано, тож на права це не впливає.`,
+      confirmLabel: 'Прибрати',
+      destructive: true,
+    })
+    if (!ok || offlineGuard()) return
+    setRevoking(r.id)
+    try {
+      // Той самий доказ, що й у відкликанні (правило 8): під RLS заблокований
+      // DELETE віддає порожній набір і NULL у `error`, тобто «зробив» і «не мав
+      // права» на дроті нерозрізненні.
+      const { data, error } = await supabase
+        .from(c.table)
+        .delete()
+        .eq('id', r.id)
+        .select('id')
+      if (error) throw error
+      assertAffected(data, 1, 'видалення запису доступу')
+      setRows(prev => prev.filter(x => x.id !== r.id))
+      hapticNotify('success')
+    } catch (e) {
+      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
+    } finally {
+      setRevoking(null)
+    }
+  }
+
   async function handleCopy(url: string) {
     const ok = await copyLink(url)
     showToast(ok
@@ -243,6 +278,13 @@ export default function AccessList({ kind }: { kind: AccessKind }) {
                 ? `Прийнято ${new Date(r.claimed_at).toLocaleDateString('uk-UA')}`
                 : `Створено ${new Date(r.created_at).toLocaleDateString('uk-UA')}`}
             </div>
+            {r.status === 'revoked' && (
+              <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                <button className="acc-act revoke" disabled={revoking === r.id} onClick={() => handleDelete(r)}>
+                  <IconTrash size={14} />Прибрати
+                </button>
+              </div>
+            )}
             {r.status !== 'revoked' && (
               <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
                 {/* Дії з лінком — ІКОНКОВІ, і це вимушено, а не стилістично:

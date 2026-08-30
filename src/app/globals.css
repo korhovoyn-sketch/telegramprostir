@@ -694,7 +694,17 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
    довгому списку (24+ карток з backdrop-filter) тап у select-режимі не змушує
    браузер перескладати весь список. Висоту в потік вона й далі віддає, тож
    вимірювання scrollHeight в акордеоні лишається коректним. */
-.obj-card{border-radius:var(--r-md);overflow:hidden;cursor:pointer;-webkit-tap-highlight-color:transparent;contain:layout paint;transition:transform 0.12s ease,filter 0.12s ease,opacity 0.12s ease}
+/* Ґрунт картки ЩІЛЬНІШИЙ за спільний --glass-card, і це не смак.
+   Градієнт екрана світлішає донизу, тож на екрані РІЄЛТОРА (він коротший,
+   картки лягають нижче) назва обʼєкта й метадані трималися на 2.75–4.15:1 —
+   нижче AA на головному робочому екрані агента. Альфою тексту це не
+   лікується: `.obj-t` уже `--t1`, тобто чисто білий, стеля. Лікується лише
+   ґрунт — той самий прийом, що вже підняв `.obj-tot-*`.
+   Заміряно: рієлтор 5 блоків нижче AA → 0, власник 6 → 2 (лишились дві
+   плитки статистики, це інший клас). Скло збережене — 52% лишають градієнт
+   видимим крізь картку, і це видно на кадрі: верхня картка синя, нижня вже
+   бірюзова. */
+.obj-card{background:rgba(6,5,14,.52);border-radius:var(--r-md);overflow:hidden;cursor:pointer;-webkit-tap-highlight-color:transparent;contain:layout paint;transition:transform 0.12s ease,filter 0.12s ease,opacity 0.12s ease}
 .obj-card:active{transform:scale(.985)}
 .obj-hd{padding:13px var(--pad-card) 12px;display:flex;justify-content:space-between;align-items:flex-start;gap:var(--g2)}
 /* Card title — Subhead Semibold (same tier as row-t for visual consistency) */
@@ -971,7 +981,13 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 /* ── TEMPLATE ROW ── */
 .tmpl-row{display:flex;gap:7px;padding:0 var(--g3) var(--g3);overflow-x:auto;scrollbar-width:none}
 .tmpl-row::-webkit-scrollbar{display:none}
-.tmpl{flex-shrink:0;width:96px;cursor:pointer}
+/* Ґрунт під варіантом шаблона — той самий прийом, що вже застосований до
+   `.type-card` і `.obj-card`, і третій його випадок за день. Причина щоразу
+   одна: градієнт екрана світлішає донизу, тож будь-що, зсунуте нижче, втрачає
+   контраст. Тут зсув дав третій формат експорту (CSV), і назви шаблонів
+   («Класик», «Модерн», «Нічний») пішли на 3.14–4.23:1 при порозі 4.5.
+   Альфою це не лікується: `.tmpl-l` уже `--t1`, чисто білий. */
+.tmpl{flex-shrink:0;width:96px;cursor:pointer;background:rgba(6,5,14,.52);border-radius:var(--r-sm);padding:6px 6px 4px}
 .tmpl-ph{height:110px;border-radius:var(--r-sm);padding:8px;display:flex;flex-direction:column;gap:3px;border:.5px solid rgba(255,255,255,.16);overflow:hidden}
 .tmpl.sel .tmpl-ph{border-color:#7AB3FF;box-shadow:0 0 0 2px rgba(122,179,255,.4)}
 /* Колір смуг і блока — з опису шаблона (інлайном), а не тут: інакше

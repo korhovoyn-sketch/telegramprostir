@@ -37,9 +37,11 @@ interface Opts {
   patchBlocked?: boolean
   /** GET падає — мережа/політика лягли. */
   loadFails?: boolean
+  /** DELETE віддає 0 рядків — та сама мовчазна відмова RLS, але на видаленні. */
+  deleteBlocked?: boolean
 }
 
-interface Wire { patches: number }
+interface Wire { patches: number; deletes: number }
 
 async function openGuests(page: Page, wire: Wire, opts: Opts = {}) {
   await setupApp(page, { user: OWNER })
@@ -58,6 +60,10 @@ async function openGuests(page: Page, wire: Wire, opts: Opts = {}) {
     if (r.request().method() === 'PATCH') {
       wire.patches++
       return jsonRoute(r, opts.patchBlocked ? [] : [{ id: 'x' }])
+    }
+    if (r.request().method() === 'DELETE') {
+      wire.deletes++
+      return jsonRoute(r, opts.deleteBlocked ? [] : [{ id: 'x' }])
     }
     if (opts.loadFails) {
       return r.fulfill({ status: 500, contentType: 'application/json',
@@ -87,7 +93,7 @@ async function confirmRevoke(page: Page) {
 }
 
 test('відкликання гостя доходить до сервера і підтверджується', async ({ page }) => {
-  const wire: Wire = { patches: 0 }
+  const wire: Wire = { patches: 0, deletes: 0 }
   await openGuests(page, wire)
   await expect(page.getByText('Орендар 1')).toBeVisible()
 
@@ -108,7 +114,7 @@ test('відкликання гостя доходить до сервера і 
  * що наступна правка знову розійдеться.
  */
 test('заблокований RLS: гість НЕ позначається відкликаним', async ({ page }) => {
-  const wire: Wire = { patches: 0 }
+  const wire: Wire = { patches: 0, deletes: 0 }
   await openGuests(page, wire, { patchBlocked: true })
 
   await confirmRevoke(page)
@@ -128,7 +134,7 @@ test('заблокований RLS: гість НЕ позначається в�
  * бачив упевнену відповідь «доступів немає» на питання «які доступи я роздав».
  */
 test('помилка завантаження показує повтор, а не «Немає запрошень»', async ({ page }) => {
-  const wire: Wire = { patches: 0 }
+  const wire: Wire = { patches: 0, deletes: 0 }
   await openGuests(page, wire, { loadFails: true })
 
   await expect(page.getByText('Не вдалося завантажити')).toBeVisible({ timeout: 15_000 })
@@ -145,7 +151,7 @@ test('помилка завантаження показує повтор, а н
  * Той самий клас уже давав прод-інцидент із `TELEGRAM_APP_NAME`.
  */
 test('без юзернейма бота обидві дії з лінком неактивні', async ({ page }) => {
-  const wire: Wire = { patches: 0 }
+  const wire: Wire = { patches: 0, deletes: 0 }
   await openGuests(page, wire)
 
   await expect(page.getByRole('button', { name: 'Копіювати' })).toBeDisabled()
@@ -164,7 +170,7 @@ test('без юзернейма бота обидві дії з лінком н�
  * друге. Підпис лишається ПОРЯД: він каже, за що доступ.
  */
 test('прийнятий лінк показує імʼя гостя, а підпис лишається поряд', async ({ page }) => {
-  const wire: Wire = { patches: 0 }
+  const wire: Wire = { patches: 0, deletes: 0 }
   await openGuests(page, wire, {
     guests: [guest(1, {
       status: 'active', claimed_at: NOW,
@@ -185,7 +191,7 @@ test('прийнятий лінк показує імʼя гостя, а під�
  * `useProperties` тримає для `folder_id`.
  */
 test('без міграції 048 екран працює — просто без імен', async ({ page }) => {
-  const wire: Wire = { patches: 0 }
+  const wire: Wire = { patches: 0, deletes: 0 }
   await openGuests(page, wire, { noNameColumn: true })
 
   await expect(page.getByText('Орендар 1')).toBeVisible()
@@ -203,7 +209,7 @@ test('без міграції 048 екран працює — просто бе�
  * замовчуванням.
  */
 test('відкликані згорнуті, живі — зверху', async ({ page }) => {
-  const wire: Wire = { patches: 0 }
+  const wire: Wire = { patches: 0, deletes: 0 }
   await openGuests(page, wire, {
     guests: [
       guest(1, { status: 'revoked', label: 'Старий орендар' }),
@@ -223,10 +229,72 @@ test('відкликані згорнуті, живі — зверху', async (
  * завантажилось»: активна секція порожня, але список НЕ порожній.
  */
 test('усі відкликані: сказано прямо, а не порожній екран', async ({ page }) => {
-  const wire: Wire = { patches: 0 }
+  const wire: Wire = { patches: 0, deletes: 0 }
   await openGuests(page, wire, { guests: [guest(1, { status: 'revoked' })] })
 
   await expect(page.getByText('Активних доступів немає')).toBeVisible()
   await expect(page.getByText('Немає запрошень'), 'це не порожній список').toHaveCount(0)
   await expect(page.getByRole('button', { name: /Відкликані \(1/ })).toBeVisible()
+})
+
+
+/**
+ * Відкликані рядки накопичувались НАЗАВЖДИ: відкликання лише міняє статус, а
+ * видалення не було взагалі. Згорнута секція ховає їх з очей, але не з даних —
+ * за рік користування база збирає десятки мертвих доступів.
+ */
+test('відкликаний запис можна прибрати, і це доходить до сервера', async ({ page }) => {
+  const wire: Wire = { patches: 0, deletes: 0 }
+  await openGuests(page, wire, { guests: [guest(1, { status: 'revoked', label: 'Старий орендар' })] })
+
+  await page.getByRole('button', { name: /Відкликані \(1/ }).click()
+  await expect(page.getByText('Старий орендар')).toBeVisible()
+
+  await page.getByRole('button', { name: 'Прибрати' }).first().click()
+  await expect(page.getByText('Прибрати запис?')).toBeVisible()
+  await page.locator('.modal-actions, [class*=modal]')
+    .getByRole('button', { name: 'Прибрати' }).last().click()
+
+  await expect.poll(() => wire.deletes, { timeout: 10_000 }).toBe(1)
+  // Саме `.acc-name`, а не `getByText`: текст імені є ще й у тілі шита
+  // підтвердження, який виїжджає ~320мс — інакше замір ловить його, а не рядок.
+  await expect(page.locator('.acc-name', { hasText: 'Старий орендар' })).toHaveCount(0)
+})
+
+/**
+ * Дзеркало гарда відкликання, і воно потрібне саме тут: під RLS заблокований
+ * DELETE віддає ПОРОЖНІЙ набір і NULL у `error` — тобто «прибрав» і «не мав
+ * права» на дроті нерозрізненні. Без `assertAffected` рядок зникав би з екрана,
+ * а в базі лишався: наступне відкриття показало б його знову, і це читалось би
+ * як «застосунок не памʼятає дій».
+ */
+test('заблокований RLS: запис НЕ зникає зі списку', async ({ page }) => {
+  const wire: Wire = { patches: 0, deletes: 0 }
+  await openGuests(page, wire, {
+    guests: [guest(1, { status: 'revoked', label: 'Старий орендар' })],
+    deleteBlocked: true,
+  })
+
+  await page.getByRole('button', { name: /Відкликані \(1/ }).click()
+  await page.getByRole('button', { name: 'Прибрати' }).first().click()
+  await expect(page.getByText('Прибрати запис?')).toBeVisible()
+  await page.locator('.modal-actions, [class*=modal]')
+    .getByRole('button', { name: 'Прибрати' }).last().click()
+
+  await expect.poll(() => wire.deletes, { timeout: 10_000 }).toBe(1)
+  await expect(page.getByText('Помилка')).toBeVisible({ timeout: 10_000 })
+  await expect(page.locator('.acc-name', { hasText: 'Старий орендар' }),
+    'рядок мусить лишитись — сервер його не видалив').toBeVisible()
+})
+
+/**
+ * Живий доступ прибрати НЕ можна: інакше кнопка стала б другим шляхом
+ * позбавлення доступу — без підтвердження про наслідки для людини.
+ */
+test('у живого доступу кнопки «Прибрати» немає', async ({ page }) => {
+  const wire: Wire = { patches: 0, deletes: 0 }
+  await openGuests(page, wire, { guests: [guest(1, { status: 'active', claimed_at: NOW })] })
+
+  await expect(page.getByRole('button', { name: 'Відкликати' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Прибрати' })).toHaveCount(0)
 })

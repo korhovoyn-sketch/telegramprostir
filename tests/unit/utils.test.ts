@@ -1,3 +1,4 @@
+import { nextSortBase } from '@/hooks/useProperties'
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import {
   formatPrice, formatLeaseDate, formatLeasePeriod, formatDate,
@@ -375,5 +376,22 @@ describe('withRetry', () => {
     const r = await withRetry(fn, 3)
     expect(r.data).toBe('recovered')
     expect(fn).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('nextSortBase — від максимуму, не від довжини', () => {
+  it('порожній список дає нуль', () => {
+    expect(nextSortBase([])).toBe(0)
+  })
+
+  // Головний випадок: після ручного «Змінити порядок» значення розріджені, і
+  // довжина списку не має з ними нічого спільного. Рахунок від `length` дав би
+  // 3 → нові рядки 400/500/600, тобто ВКЛИНИЛИСЬ би між 100 і 9000.
+  it('розріджені значення після ручного порядку', () => {
+    expect(nextSortBase([{ sort_order: 100 }, { sort_order: 500 }, { sort_order: 9000 }])).toBe(9000)
+  })
+
+  it('рядки без порядку не збивають максимум', () => {
+    expect(nextSortBase([{ sort_order: null }, { sort_order: 300 }, {}])).toBe(300)
   })
 })

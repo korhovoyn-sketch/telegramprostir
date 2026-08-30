@@ -31,6 +31,7 @@ const PropertyFormScreen = dynamic(() => import('@/screens/PropertyFormScreen'),
 const PropertyDetailScreen = dynamic(() => import('@/screens/PropertyDetailScreen'), { loading: () => screenFallback })
 const SharingAnalyticsScreen = dynamic(() => import('@/screens/SharingAnalyticsScreen'), { loading: () => screenFallback })
 const ExportScreen = dynamic(() => import('@/screens/ExportScreen'), { loading: () => screenFallback })
+const ImportObjectsScreen = dynamic(() => import('@/screens/ImportObjectsScreen'), { loading: () => screenFallback })
 const RealtorDashboardScreen = dynamic(() => import('@/screens/RealtorDashboardScreen'), { loading: () => screenFallback })
 const RealtorDatabaseScreen = dynamic(() => import('@/screens/RealtorDatabaseScreen'), { loading: () => screenFallback })
 const CollectionsScreen = dynamic(() => import('@/screens/CollectionsScreen'), { loading: () => screenFallback })
@@ -436,6 +437,7 @@ export default function Page() {
       case 'property-detail': return <PropertyDetailScreen />
       case 'sharing-analytics': return <SharingAnalyticsScreen />
       case 'export': return <ExportScreen />
+      case 'import-objects': return <ImportObjectsScreen />
       case 'realtor-dashboard': return <RealtorDashboardScreen />
       case 'realtor-database': return <RealtorDatabaseScreen />
       case 'collections': return <CollectionsScreen />

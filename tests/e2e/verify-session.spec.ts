@@ -136,9 +136,11 @@ test('drive-through: home → objects → compact → action sheet → form → 
   // ── 4. Apple action sheet ───────────────────────────────────────────────────
   await page.getByLabel('Меню бази').click()
   await expect(page.getByText('Дії з базою')).toBeVisible()
-  // 10 пунктів для власника: аналітика, календар, гості, команда (041),
-  // експорт, папки (043), виділити, порядок, редагувати, видалити
-  await expect(page.locator('.sheet-row')).toHaveCount(10)
+  // 11 пунктів для власника: аналітика, календар, гості, команда (041),
+  // експорт, ІМПОРТ, папки (043), виділити, порядок, редагувати, видалити.
+  // Точне число тут навмисне: воно ловить пункт, що ТИХО ЗНИК — а це рівно те,
+  // як роль-шлюз ламається непомітно (див. правило 10 про власність vs роль).
+  await expect(page.locator('.sheet-row')).toHaveCount(11)
   await expect(page.locator('.sheet-row.danger')).toHaveCount(1)
   await page.screenshot({ path: testInfo.outputPath('04-action-sheet.png') })
   await page.getByText('Скасувати').click()
