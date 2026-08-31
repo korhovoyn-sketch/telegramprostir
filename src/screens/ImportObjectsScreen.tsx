@@ -90,16 +90,38 @@ const STATUS_ALIAS: Record<string, PropertyStatus> = {
   'продаж': 'for_sale', 'на продаж': 'for_sale', 'for_sale': 'for_sale', 'продається': 'for_sale',
 }
 
-/** Заголовок → поле. Порівняння без регістру й зайвих пробілів. */
+/**
+ * Заголовок → поле. Порівняння без регістру й зайвих пробілів, ДВА проходи.
+ *
+ * Другий прохід знімає хвостову дужку — і це не «про всяк випадок». Грошові
+ * заголовки експорту параметризовані валютою (`Ціна продажу ($)`), тож
+ * точного збігу з аліасом `ціна продажу` не було НІ ДЛЯ ОДНІЄЇ з трьох валют:
+ * ціна продажу не зіставлялась автоматично взагалі, хоч уся суть однакових
+ * заголовків саме в цьому. Площі свій `(м²)`-варіант в аліасах мали, гроші —
+ * ні, тобто список аліасів уже був способом, який не масштабується.
+ *
+ * Порядок проходів принциповий: точний збіг лишається головним, а послаблення
+ * застосовується ЛИШЕ до колонок, які інакше пропали б. Тому «Оренда на
+ * місяць ($)» і «Разом на місяць ($)» так і лишаються незіставленими — вони
+ * ПОРАХОВАНІ, і зіставляти їх нема з чим.
+ */
 function autoMap(headers: string[]): (Field | null)[] {
   const norm = (v: string) => v.toLowerCase().replace(/\s+/g, ' ').trim()
+  const bare = (v: string) => norm(v.replace(/\s*\([^()]*\)\s*$/, ''))
   const used = new Set<Field>()
-  return headers.map((h) => {
-    const n = norm(h)
-    const hit = FIELDS.find((f) => !used.has(f.id) && f.aliases.some((a) => norm(a) === n))
-    if (hit) { used.add(hit.id); return hit.id }
-    return null
-  })
+  const out: (Field | null)[] = headers.map(() => null)
+
+  const pass = (key: (h: string) => string) => {
+    headers.forEach((h, i) => {
+      if (out[i]) return
+      const n = key(h)
+      const hit = FIELDS.find((f) => !used.has(f.id) && f.aliases.some((a) => norm(a) === n))
+      if (hit) { used.add(hit.id); out[i] = hit.id }
+    })
+  }
+  pass(norm)
+  pass(bare)
+  return out
 }
 
 /**

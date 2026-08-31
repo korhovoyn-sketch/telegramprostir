@@ -132,8 +132,22 @@ export function formatPrice(amount: number, currency = 'USD'): string {
   return `${currencySymbol(currency)}${amount.toLocaleString('uk-UA')}`
 }
 
+// Дата БЕЗ часу («2026-08-01» — саме такі `lease_start_date`/`lease_end_date`)
+// парситься як UTC-північ, а `toLocaleDateString` малює її в ЛОКАЛЬНОМУ поясі:
+// у будь-якому відʼємному зміщенні виходить попередній день (заміряно —
+// America/New_York і America/Los_Angeles дають «31.07.2026»). Той самий клас,
+// що вже виправлено в `daysUntil`, але у форматері його не застосували.
+//
+// Це НЕ косметика: через `formatLeaseDate` іде і експорт (PDF/XLSX/CSV), а
+// імпорт читає той самий формат — тобто зсунута дата повертається в БД і
+// осідає там назавжди.
+//
+// Повний timestamp (`created_at` у колонці «Додано») зсуву не має і не
+// потребує суфікса — його зона вже в рядку.
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/
+
 export function formatLeaseDate(d: string): string {
-  const dt = new Date(d)
+  const dt = new Date(DATE_ONLY.test(d) ? `${d}T00:00:00` : d)
   // Нерозпізнаний рядок давав літеральне «Invalid Date» просто в картку.
   if (Number.isNaN(dt.getTime())) return '—'
   return dt.toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric' })

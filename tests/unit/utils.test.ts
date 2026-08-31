@@ -76,8 +76,38 @@ describe('formatLeasePeriod', () => {
 })
 
 describe('formatLeaseDate', () => {
+  const origTZ = process.env.TZ
+  afterEach(() => { process.env.TZ = origTZ })
+
   it('formats as dd.mm.yyyy', () =>
     expect(formatLeaseDate('2026-03-09')).toMatch(/\d{2}\.\d{2}\.\d{4}/))
+
+  /**
+   * Дата БЕЗ часу не сміє зсуватись поясом.
+   *
+   * `new Date('2026-08-01')` — це UTC-північ, а `toLocaleDateString` малює
+   * локально, тож у будь-якому ВІДʼЄМНОМУ зміщенні виходив попередній день.
+   * Київ цього не бачив (UTC+2/+3), тому клас і прожив непоміченим.
+   *
+   * Гард навмисно перевіряє ДВА пояси: тільки Київ проходив би і зі зламаним
+   * кодом, тобто був би вакуумним. `America/Los_Angeles` (UTC−7/−8) — найбільше
+   * зміщення серед поширених, тобто найжорсткіший випадок.
+   */
+  it.each(['Europe/Kyiv', 'America/New_York', 'America/Los_Angeles'])(
+    'дата без часу лишається собою в поясі %s',
+    (tz) => {
+      process.env.TZ = tz
+      expect(formatLeaseDate('2026-08-01')).toBe('01.08.2026')
+    },
+  )
+
+  // Повний timestamp суфікса не потребує і не отримує: його зона вже в рядку.
+  // Без цієї половини фікс можна було б «спростити» до безумовного
+  // `+ 'T00:00:00'`, що зламало б колонку «Додано» в експорті.
+  it('повний timestamp читається як є, а не як локальна північ', () => {
+    process.env.TZ = 'Europe/Kyiv'
+    expect(formatLeaseDate('2026-08-01T21:30:00.000Z')).toBe('02.08.2026')
+  })
 })
 
 describe('formatDate', () => {

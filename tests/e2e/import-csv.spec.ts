@@ -32,7 +32,7 @@ const EXISTING = {
 
 interface Wire { inserts: Record<string, unknown>[][] }
 
-interface Opts { dbType?: string; existingSortOrder?: number }
+interface Opts { dbType?: string; existingSortOrder?: number; seed?: Record<string, unknown>[] }
 
 async function openImport(page: Page, wire: Wire, opts: Opts = {}) {
   await setupApp(page, { user: USER })
@@ -47,7 +47,8 @@ async function openImport(page: Page, wire: Wire, opts: Opts = {}) {
       wire.inserts.push(Array.isArray(body) ? body : [body])
       return jsonRoute(r, Array.isArray(body) ? body : [body])
     }
-    return jsonRoute(r, [{ ...EXISTING, sort_order: opts.existingSortOrder ?? EXISTING.sort_order }])
+    return jsonRoute(r, opts.seed
+      ?? [{ ...EXISTING, sort_order: opts.existingSortOrder ?? EXISTING.sort_order }])
   })
   for (const t of ['db_members', 'rent_payments', 'rent_payment_records', 'property_views',
                    'property_folders', 'guest_links', 'notifications', 'property_photos', 'property_files']) {
@@ -220,4 +221,82 @@ test('імпортовані стають ПІСЛЯ наявних, навіт�
   await expect.poll(() => wire.inserts.length, { timeout: 15_000 }).toBe(1)
   expect(Number(wire.inserts[0][0].sort_order),
     'новий рядок мусить лягти ЗА наявним 9000, а не між ним і 100').toBeGreaterThan(9000)
+})
+
+/**
+ * СПРАВЖНІЙ КРУГОВИЙ РЕЙС: байти, які віддав ЕКСПОРТ, заходять в ІМПОРТ.
+ *
+ * Тест «повний рядок експорту» вище (і саме він робив цю обіцянку) пише
+ * список заголовків РУКАМИ — і грошові колонки з нього просто випустив. Через
+ * це він лишався зеленим, поки `Ціна продажу ($)` не зіставлялась ЖОДНОЮ з
+ * трьох валют: заголовок експорту параметризований валютою, а `autoMap`
+ * порівнював точно. Рукописний список за побудовою не може впіймати
+ * розходження з реальним експортером.
+ *
+ * Тому тут не переказ заголовків, а самі байти: беремо файл через той самий
+ * `navigator.share`, яким його отримує користувач, і подаємо в імпорт.
+ */
+test('круговий рейс: байти експорту заходять назад, гроші не губляться', async ({ page }) => {
+  const wire: Wire = { inserts: [] }
+
+  // Стаб share ЧИТАЄ ВМІСТ, а не лише імʼя й MIME (як у export-run): саме
+  // вміст тут і є предметом перевірки.
+  await page.addInitScript(() => {
+    const w = window as unknown as { __csv: string[] }
+    w.__csv = []
+    Object.defineProperty(navigator, 'canShare', { value: () => true, configurable: true })
+    Object.defineProperty(navigator, 'share', {
+      configurable: true,
+      value: async (data: { files?: File[] }) => {
+        for (const f of data.files ?? []) w.__csv.push(await f.text())
+      },
+    })
+  })
+
+  // Обʼєкт із ЦІНОЮ ПРОДАЖУ і ставкою експлуатаційних — саме ті два поля, що
+  // круговий рейс губив.
+  const SRC = { ...EXISTING, sale_price: 250000, utilities_rate: 2.5, rent_rate: 18 }
+  await openImport(page, wire, { seed: [SRC] })
+
+  // ── Експорт ──────────────────────────────────────────────────────────────
+  await page.locator('.hdr-back').click()
+  await expect(page.getByText(/Всі \(/)).toBeVisible({ timeout: 15_000 })
+  await page.getByLabel('Меню бази').click()
+  await expect(page.locator('.modal')).toBeVisible()
+  await page.waitForTimeout(420)
+  await page.getByText('Експорт', { exact: true }).click()
+  await page.getByText('CSV таблиця').click()
+  await page.getByRole('button', { name: /Завантажити CSV/ }).click()
+  await expect.poll(
+    async () => (await page.evaluate(() => (window as unknown as { __csv: string[] }).__csv)).length,
+    { timeout: 20_000 },
+  ).toBe(1)
+  const [csv] = await page.evaluate(() => (window as unknown as { __csv: string[] }).__csv)
+
+  // Імʼя міняємо, і лише його: інакше імпорт СПРАВЕДЛИВО пропустить рядок як
+  // уже наявний. Решта байтів — рівно те, що віддав експортер.
+  const reimport = csv.replace('Офіс 101', 'Офіс 777')
+
+  // ── Імпорт тих самих байтів ──────────────────────────────────────────────
+  await page.locator('.hdr-back').click()
+  await expect(page.getByText(/Всі \(/)).toBeVisible({ timeout: 15_000 })
+  await page.getByLabel('Меню бази').click()
+  await expect(page.locator('.modal')).toBeVisible()
+  await page.waitForTimeout(420)
+  await page.getByText('Імпорт із CSV', { exact: true }).click()
+  await expect(page.getByText('Обрати файл')).toBeVisible({ timeout: 15_000 })
+  await upload(page, 'roundtrip.csv', reimport)
+
+  await page.getByRole('button', { name: /Імпортувати/ }).click()
+  await expect.poll(() => wire.inserts.length, { timeout: 15_000 }).toBeGreaterThan(0)
+
+  const row = wire.inserts.flat()[0] as Record<string, unknown>
+  expect(row.name).toBe('Офіс 777')
+  // Ті самі два поля, що губились. `sale_price` — через хвостову дужку у
+  // заголовку, `utilities_rate` — бо його взагалі не було в експорті.
+  expect(row.sale_price, 'ціна продажу мусить пережити круговий рейс').toBe(250000)
+  expect(row.utilities_rate, 'ставка експлуатаційних мусить пережити круговий рейс').toBe(2.5)
+  // Антивакуум: рейс справді ніс дані, а не порожній шаблон.
+  expect(row.rent_rate).toBe(18)
+  expect(row.area_useful).toBe(45)
 })
