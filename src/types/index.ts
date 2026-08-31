@@ -32,7 +32,10 @@ export interface Database {
   id: string
   owner_id: string
   name: string
-  address?: string
+  /** Колонка в БД NULLABLE, тож тип мусить пускати `null` — інакше «очистити
+   *  адресу» неможливо виразити, і поле тихо лишалось незмінним (той самий
+   *  клас, що вже полагоджено для `Property`). */
+  address?: string | null
   type: DatabaseType
   color: string
   /** Орендодавець за замовчуванням для всіх обʼєктів бази (064). Обʼєкт може

@@ -61,11 +61,23 @@ export default function CreateDatabaseScreen() {
     if (!canCreate || !type) return
     if (offlineGuard()) return
     hapticNotify('success')
+    // Порожнє поле — це `null`, а НЕ `undefined`: `JSON.stringify` викидає
+    // ключі з `undefined`, тож очищена адреса просто не доїжджала до PATCH —
+    // колонка лишалась старою, а тост казав «Базу оновлено». Сусідній
+    // `landlord_name` уже писався правильно, тобто правило знали й застосували
+    // лише до нової колонки. Той самий клас лікує `blank()` у формі обʼєкта.
+    const payload = {
+      name: name.trim(),
+      address: address.trim() || null,
+      type,
+      color,
+      landlord_name: landlord.trim() || null,
+    }
     if (isEdit && editId) {
-      await updateDatabase(editId, { name: name.trim(), address: address.trim() || undefined, type, color, landlord_name: landlord.trim() || null })
+      await updateDatabase(editId, payload)
       backThenReplace('db-objects', { dbId: editId })
     } else {
-      await createDatabase({ name: name.trim(), address: address.trim() || undefined, type, color, landlord_name: landlord.trim() || null })
+      await createDatabase(payload)
     }
   }
 

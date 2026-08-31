@@ -131,6 +131,47 @@ test('редагування БАЗИ: зміни долітають у PATCH', 
   expect(d.address, 'адреса бази в PATCH').toBe('вул. Січових Стрільців, 5')
 })
 
+/**
+ * ДЗЕРКАЛО тесту про очищене поле ОБʼЄКТА (нижче). Клас той самий —
+ * `JSON.stringify` викидає ключі з `undefined`, тож очищене поле не доїжджає
+ * до PATCH, колонка лишається старою, а тост каже «Базу оновлено», — але для
+ * БАЗИ гарда не було, і саме там він і вижив: `address` писався через
+ * `|| undefined`, тоді як сусідній `landlord_name` уже через `|| null`.
+ *
+ * Тримати обидві половини поруч обовʼязково: без цієї наступна правка знову
+ * розведе форму бази з формою обʼєкта.
+ */
+test('редагування БАЗИ: очищена адреса долітає як null, а не зникає з PATCH', async ({ page }) => {
+  const state = makeState()
+  const captured: { dbPatch?: Record<string, unknown> } = {}
+  await setup(page, state, captured)
+
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+  await page.getByText('БЦ Рубін').first().click()
+  await expect(page.getByText('Всі (1)')).toBeVisible()
+
+  await page.getByLabel('Меню бази').click()
+  await page.getByText('Редагувати базу').click()
+  await expect(page.getByPlaceholder('БЦ Олімп')).toBeVisible()
+
+  // Фікстура має непорожню адресу — саме тому очищення тут щось означає.
+  await page.getByPlaceholder(/Хрещатик/).fill('')
+
+  const patchReq = page.waitForRequest(r => r.url().includes('/rest/v1/databases') && r.method() === 'PATCH')
+  await page.getByRole('button', { name: /Зберегти/ }).click()
+  await patchReq
+
+  await expect.poll(() => captured.dbPatch, { timeout: 10_000 }).toBeTruthy()
+  const d = captured.dbPatch!
+
+  // `toBeNull()` тут замало: відсутній ключ теж дає `undefined == null` при
+  // нестрогому порівнянні, а саме ВІДСУТНІСТЬ ключа і була дефектом.
+  expect(Object.prototype.hasOwnProperty.call(d, 'address'),
+    'address: ключ ВІДСУТНІЙ у PATCH — адреса лишиться старою, а тост скаже «Базу оновлено»').toBe(true)
+  expect(d.address, 'очищена адреса мусить бути null').toBeNull()
+})
+
 test('редагування ОБʼЄКТА зі статусом «зайнято»: ставка експлуатації зберігається', async ({ page }) => {
   // Саме цей кейс користувач ловив як «не зберігається» (area_basis-регресія).
   const state = makeState()
