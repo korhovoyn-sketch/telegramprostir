@@ -106,10 +106,15 @@ test('плавність: анімації екранів, шитів і жес�
   await report(page, 'перехід екрана (nav-forward)')
 
   // 2. Відкриття шита (modalSlideUp, .38s + backdrop-filter 48px)
-  await page.locator('.obj-card', { hasText: 'Офіс 102' }).locator('.obj-t').click()
-  await expect(page.getByRole('button', { name: /Здати в оренду/ })).toBeVisible({ timeout: 15_000 })
+  //
+  // Шитом тут ВЖЕ НЕ «Здати в оренду»: фаза 5 переробки модалок перевела ту
+  // дію на повноекранний маршрут, і цей крок мовчки чекав на `.modal`, якого
+  // більше не буває. Оскільки `_`-інструменти в CI не біжать, плавність шитів
+  // не мірялась ВІД ТІЄЇ ПЕРЕРОБКИ. Тепер міряємо живий `ActionSheet` — дії
+  // обʼєкта за «⋯», той самий носій, що вибрав `modal-a11y`.
+  const sheetOpener = page.locator('.obj-card').first().locator('.obj-more')
   await startFrames(page)
-  await page.getByRole('button', { name: /Здати в оренду/ }).click()
+  await sheetOpener.click()
   await expect(page.locator('.modal')).toBeVisible()
   await page.waitForTimeout(500)
   await report(page, 'відкриття шита (modalSlideUp)')
@@ -123,7 +128,7 @@ test('плавність: анімації екранів, шитів і жес�
 
   // 4. Свайп шита за пальцем — кадри під САМИМ жестом, найгірший випадок:
   //    кожен кадр рухає transform і перемальовує блюр.
-  await page.getByRole('button', { name: /Здати в оренду/ }).click()
+  await sheetOpener.click()
   await expect(page.locator('.modal')).toBeVisible()
   await page.waitForTimeout(450)
   await startFrames(page)
@@ -147,11 +152,9 @@ test('плавність: анімації екранів, шитів і жес�
   await page.keyboard.press('Escape').catch(() => {})
   await page.waitForTimeout(400)
 
-  // Повертаємось у базу: далі міряємо те, що живе САМЕ там (плаваюча кнопка,
-  // сегменти). Без цього кроку крок 6 шукав сегмент на детальній обʼєкта.
-  await page.getByText('Назад', { exact: true }).first().click()
+  // Повертатись у базу більше не треба: шит відкривається З НЕЇ, тож кроки 5-6
+  // вже стоять на потрібному екрані.
   await expect(page.getByText(/Всі \(/)).toBeVisible({ timeout: 15_000 })
-  await page.waitForTimeout(400)
 
   // 5. Ховання плаваючої кнопки на скролі (.fbtn transition)
   await startFrames(page)
