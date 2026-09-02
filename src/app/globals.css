@@ -1516,7 +1516,7 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
 .gallery-nav.next{right:12px}
 .gallery-thumbs{padding:var(--g2) var(--g3) calc(var(--g2) + var(--safe-bottom));display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;flex-shrink:0}
 .gallery-thumbs::-webkit-scrollbar{display:none}
-.gallery-thumb{width:56px;height:56px;border-radius:var(--r-sm);flex-shrink:0;border:2px solid transparent;cursor:pointer;overflow:hidden;background:var(--glass-2);display:flex;align-items:center;justify-content:center;font-size:var(--fs-lead);transition:border-color .2s}
+.gallery-thumb{width:56px;height:56px;border-radius:var(--r-sm);flex-shrink:0;border:2px solid transparent;cursor:pointer;overflow:hidden;background:var(--glass-2);display:flex;align-items:center;justify-content:center;font-size:var(--fs-lead)}
 .gallery-thumb.active{border-color:#fff}
 .gallery-info{position:absolute;bottom:var(--g3);left:50%;transform:translateX(-50%);font-size:var(--fs-cap2);color:rgba(255,255,255,.8);background:rgba(0,0,0,.5);backdrop-filter:blur(10px);padding:4px 10px;border-radius:var(--r-sm);white-space:nowrap}
 
@@ -1595,6 +1595,56 @@ svg.ico{overflow:visible}
 .scr{animation:screenEnter .34s var(--ease-out) backwards}
 
 /* ── Active / press states (feel native on mobile) ── */
+
+/* ── Тактильний відгук там, де його не було ЗОВСІМ ────────────────────────────
+   Аудит мікроанімацій знайшов 17 клікабельних класів без `:active`. Частину
+   свідомо лишено: у `.tgl`, `.fr-seg-b`, `.exp-b` відгуком є ВЛАСНА зміна
+   стану, вона миттєва. Решта не давала НІЧОГО до приходу результату — а на
+   тачі `:active` це єдиний сигнал, що тап зареєстровано (hover немає за
+   визначенням). Найдорожчий випадок — `.file-r`: тап відкриває файл із
+   мережевим запитом, тобто мовчання тривало стільки, скільки летить запит.
+
+   ЖОДНОГО НОВОГО РЕЦЕПТА: кожен рядок бере вже наявний у файлі, за типом
+   контрола — інакше це був би рівно той дрейф, через який заведено
+   `--shadow-seg-on`. Прецеденти: `.hdr-a` (кругла іконка), `.photo-t`
+   (мініатюра), `.sheet-row` (рядок), `.batch-pill` (пігулка), `.retry-btn`
+   (гола текстова кнопка).
+
+   `:active` СВІДОМО поза `@media (hover: hover)` — це тач-фідбек, а не hover
+   (див. Form & input rules). */
+
+/* Круглі іконкові кнопки 36-44px — рецепт `.hdr-a` */
+.obj-hero-a,.gallery-nav,.profile-edit,.info-act{transition:transform var(--dur-xs) ease}
+.obj-hero-a:active,.gallery-nav:active,.profile-edit:active,.info-act:active{transform:scale(.92)}
+
+/* Мініатюра й плитка — рецепт `.photo-t`. У `.gallery-thumb` уже є власний
+   `transition`, тож він РОЗШИРЮЄТЬСЯ, а не переписується. */
+.gallery-thumb{transition:border-color .2s,transform var(--dur-xs) ease}
+.media-i{transition:transform var(--dur-xs) ease}
+.gallery-thumb:active,.media-i:active{transform:scale(.93)}
+
+/* Рядки — рецепт `.sheet-row` */
+.file-r,.logout{transition:background .14s var(--ease)}
+.file-r:active,.logout:active{background:var(--glass-2)}
+
+/* Пігулка з власною заливкою — рецепт `.batch-pill` */
+.fold-mng-add{transition:transform var(--dur-xs) ease}
+.fold-mng-add:active{transform:scale(.94)}
+
+/* Клікабельна скляна картка-перехід (адреса → карти, гості, календар на
+   детальній обʼєкта). Ці рядки зібрані ІНЛАЙНОВИМИ стилями й класу не мали
+   зовсім — тобто статичний аудит CSS їх не бачив у принципі, знайшов лише
+   зонд по рендеру. Рецепт узято в `.obj-card`, бо це той самий жест: тап по
+   картці, що веде далі. */
+.tap-card{transition:transform var(--dur-xs) ease}
+.tap-card:active{transform:scale(.985)}
+
+/* Голі текстові кнопки — рецепт `.retry-btn`. Тут `opacity` доречна: це
+   МИТТЄВИЙ стан натиску, а не «неактивність» (для якої правило вимагає
+   колір), і scale на самому тексті читався б як дефект. */
+.qr-retry,.over-a,.cmark-skip,.toast-close{transition:opacity .15s ease}
+.qr-retry:active,.over-a:active,.cmark-skip:active,.toast-close:active{opacity:.7}
+
 .mbtn:active{animation:btnPress .28s var(--ease-spr) both;filter:brightness(0.92);box-shadow:0 4px 14px rgba(34,158,217,.5)}
 .seg-b:active{transform:scale(.95)}
 /* Sort filter chips — tap feedback to match cards/segments (were "dead" on tap).
