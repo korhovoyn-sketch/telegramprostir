@@ -15,7 +15,6 @@ const SIZE_SCALE = new Set([12, 14, 16, 18, 20, 24, 26, 32, 34, 40])
 const VECTOR_ALLOWED = [
   'src/components/Icons.tsx',
   'src/components/ProxMascot.tsx',
-  'src/components/Confetti.tsx',
   'src/app/v/page.tsx',
   'src/screens/SharingAnalyticsScreen.tsx',  // графік переглядів
   'src/screens/PhotoUploadScreen.tsx',       // кільце прогресу

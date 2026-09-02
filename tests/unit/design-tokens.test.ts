@@ -96,7 +96,6 @@ const OWN_PALETTE = [
   'src/app/page.tsx',
   'src/app/v/page.tsx',
   'src/components/Icons.tsx',
-  'src/components/Confetti.tsx',
   'src/components/ProxMascot.tsx',
   'src/screens/ExportScreen.tsx',
 ]

@@ -365,7 +365,7 @@ export default function PropertyDetailScreen() {
         {/* Address — tap opens Google Maps */}
         {property.address && (
           <div
-            className="glass-s"
+            className="glass-s tap-card"
             style={{ margin: '0 12px 12px', borderRadius: 'var(--r-md)', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
             onClick={() => {
               const url = `https://maps.google.com/?q=${encodeURIComponent(property.address!)}`
@@ -457,7 +457,7 @@ export default function PropertyDetailScreen() {
             DB-рівневий пункт «Управління гостями» від нього ховали. */}
         {property.owner_id === user?.id && (
           <div
-            className="glass-s"
+            className="glass-s tap-card"
             style={{ margin: '0 12px 12px', borderRadius: 'var(--r-md)', padding: '11px 14px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}
             onClick={() => { hapticImpact('light'); navigate('manage-guests', { propertyId: property.id }) }}
           >
@@ -473,7 +473,7 @@ export default function PropertyDetailScreen() {
         {/* Payment calendar shortcut — owner and guest, occupied property */}
         {(isOwner || isGuest) && property.status === 'occupied' && (
           <div
-            className="glass-s"
+            className="glass-s tap-card"
             style={{ margin: '0 12px 12px', borderRadius: 'var(--r-md)', padding: '11px 14px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}
             onClick={() => { hapticImpact('light'); navigate('payment-calendar', { propertyId: property.id, dbId: screenParams.dbId }) }}
           >
