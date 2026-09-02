@@ -344,7 +344,7 @@ body{
 .hdr{padding:calc(10px + var(--safe-top)) var(--g3) 8px;display:flex;align-items:center;gap:var(--g2);flex-shrink:0;position:relative;z-index:var(--z-header);min-height:44px}
 .hdr::before{content:'';position:absolute;left:0;right:0;top:0;bottom:-18px;background:linear-gradient(180deg,rgba(6,5,18,.38) 0%,rgba(6,5,18,.16) 60%,transparent 100%);pointer-events:none;z-index:var(--z-under)}
 .hdr::after{content:'';position:absolute;left:0;right:0;top:0;height:1.5px;background:linear-gradient(90deg,transparent 6%,rgba(255,255,255,.30) 50%,transparent 94%);pointer-events:none;z-index:var(--z-under)}
-.hdr-back{display:flex;align-items:center;gap:4px;padding:7px var(--g3) 7px 10px;color:var(--t1);font-size:var(--fs-note);font-weight:500;background:none;border:none;cursor:pointer;transition:transform .12s,filter .18s,opacity .15s}
+.hdr-back{display:flex;align-items:center;gap:4px;padding:7px var(--g3) 7px 10px;color:var(--t1);font-size:var(--fs-note);font-weight:500;background:none;border:none;cursor:pointer;transition:transform var(--dur-xs),filter var(--dur-sm),opacity .15s}
 .hdr-back:active{transform:scale(.92)}
 /* Header title — Subhead Semibold (Apple navigation bar title tier) */
 .hdr-t{flex:1;text-align:center;font-size:var(--fs-sub);font-weight:var(--fw-semi);color:var(--t1);letter-spacing:-.015em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-shadow:0 1px 8px rgba(0,0,0,.35);line-height:var(--lh-snug)}
@@ -475,7 +475,7 @@ body{
 
 /* ── LIST ROW ── */
 .list{display:flex;flex-direction:column;gap:10px;padding:0 var(--g3)}
-.row{border-radius:var(--r-md);padding:var(--pad-card);display:flex;align-items:center;gap:11px;min-height:var(--row-h);cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform 0.12s ease,filter 0.12s ease,opacity 0.12s ease,background .18s}
+.row{border-radius:var(--r-md);padding:var(--pad-card);display:flex;align-items:center;gap:11px;min-height:var(--row-h);cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform var(--dur-xs) ease,filter var(--dur-xs) ease,opacity var(--dur-xs) ease,background var(--dur-sm)}
 @media (hover: hover){.row:hover{background:var(--glass-2)}}
 .row:active{transform:scale(.985)}
 .row-ic{width:40px;height:40px;border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;font-size:var(--fs-lead);flex-shrink:0;border:var(--bd);color:#fff}
@@ -506,7 +506,7 @@ body{
 .chev{font-size:var(--fs-note);color:var(--t4)}
 
 /* ── CTA ── */
-.cta{margin:10px var(--g3) 4px;border-radius:var(--r-md);padding:14px;display:flex;align-items:center;justify-content:center;gap:7px;color:var(--t1);font-size:var(--fs-sub);font-weight:var(--fw-semi);background:var(--glass-2);border:.5px dashed rgba(255,255,255,.32);cursor:pointer;transition:background .18s,border-color .18s}
+.cta{margin:10px var(--g3) 4px;border-radius:var(--r-md);padding:14px;display:flex;align-items:center;justify-content:center;gap:7px;color:var(--t1);font-size:var(--fs-sub);font-weight:var(--fw-semi);background:var(--glass-2);border:.5px dashed rgba(255,255,255,.32);cursor:pointer;transition:background var(--dur-sm),border-color var(--dur-sm)}
 @media (hover: hover){.cta:hover{background:var(--glass-3);border-color:rgba(255,255,255,.45)}}
 
 /* ── SEGMENT CONTROL ── */
@@ -643,9 +643,9 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 .fr:focus-within .fr-l{color:var(--info-fg)}
 
 /* ── TOGGLE ── */
-.tgl{width:46px;height:28px;border-radius:var(--r-pill);background:rgba(120,120,128,.32);position:relative;flex-shrink:0;border:.5px solid rgba(255,255,255,.16);cursor:pointer;transition:background .26s}
+.tgl{width:46px;height:28px;border-radius:var(--r-pill);background:rgba(120,120,128,.32);position:relative;flex-shrink:0;border:.5px solid rgba(255,255,255,.16);cursor:pointer;transition:background var(--dur-md)}
 .tgl.on{background:var(--ok)}
-.tgl-th{width:24px;height:24px;border-radius:50%;background:#fff;position:absolute;top:1.5px;left:1.5px;box-shadow:0 1.5px 5px rgba(0,0,0,.36);transition:transform .26s var(--ease-spr)}
+.tgl-th{width:24px;height:24px;border-radius:50%;background:#fff;position:absolute;top:1.5px;left:1.5px;box-shadow:0 1.5px 5px rgba(0,0,0,.36);transition:transform var(--dur-md) var(--ease-spr)}
 .tgl.on .tgl-th{transform:translateX(18px)}
 
 /* ── SUM BAR ── */
@@ -704,7 +704,7 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
    плитки статистики, це інший клас). Скло збережене — 52% лишають градієнт
    видимим крізь картку, і це видно на кадрі: верхня картка синя, нижня вже
    бірюзова. */
-.obj-card{background:rgba(6,5,14,.52);border-radius:var(--r-md);overflow:hidden;cursor:pointer;-webkit-tap-highlight-color:transparent;contain:layout paint;transition:transform 0.12s ease,filter 0.12s ease,opacity 0.12s ease}
+.obj-card{background:rgba(6,5,14,.52);border-radius:var(--r-md);overflow:hidden;cursor:pointer;-webkit-tap-highlight-color:transparent;contain:layout paint;transition:transform var(--dur-xs) ease,filter var(--dur-xs) ease,opacity var(--dur-xs) ease}
 .obj-card:active{transform:scale(.985)}
 .obj-hd{padding:13px var(--pad-card) 12px;display:flex;justify-content:space-between;align-items:flex-start;gap:var(--g2)}
 /* Card title — Subhead Semibold (same tier as row-t for visual consistency) */
@@ -817,7 +817,7 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 .orb-live .orb-tilt{will-change:transform}
 .orb-tilt{position:relative;transform-style:preserve-3d;
   transform:rotateX(calc(var(--ny) * -1 * var(--orb-tx))) rotateY(calc(var(--nx) * var(--orb-ty)));
-  transition:transform .5s var(--ease-out)}
+  transition:transform var(--dur-xl) var(--ease-out)}
 /* Поки палець веде — без переходу, інакше сцена тягнеться із запізненням і
    жест читається як «залипає». Плавність потрібна лише на ПОВЕРНЕННЯ. */
 .orb-live .orb-tilt{transition:none}
@@ -883,7 +883,7 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
    позиція кожної порошинки задається інлайном, бо в кожної свій шлях. */
 .orb-dust{position:absolute;left:50%;top:50%;pointer-events:none;
   transform:translateZ(40px) translate3d(calc(var(--nx) * -12px),calc(var(--ny) * -8px),0);
-  transition:transform .5s var(--ease-out)}
+  transition:transform var(--dur-xl) var(--ease-out)}
 .orb-live .orb-dust{transition:none}
 .orb-dust i{position:absolute;width:5px;height:5px;margin:-2.5px 0 0 -2.5px;border-radius:var(--r-pill);
   background:var(--orb-a);opacity:0;
@@ -948,7 +948,7 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
    і назва типу («Приватне») падала на 4.39:1. Текст тут уже --t1, тобто чисто
    білий — підняти його нікуди, лікується лише ґрунт. Той самий прийом, що вже
    підняв .obj-tot-l/v/sub. */
-.type-card{padding:14px;border-radius:var(--r-md);display:flex;flex-direction:column;gap:7px;cursor:pointer;background:var(--glass-card);border:var(--bd);transition:all .18s var(--ease),transform 0.12s ease,filter 0.12s ease,opacity 0.12s ease;position:relative;overflow:hidden}
+.type-card{padding:14px;border-radius:var(--r-md);display:flex;flex-direction:column;gap:7px;cursor:pointer;background:var(--glass-card);border:var(--bd);transition:all var(--dur-sm) var(--ease),transform var(--dur-xs) ease,filter var(--dur-xs) ease,opacity var(--dur-xs) ease;position:relative;overflow:hidden}
 .type-card.sel{border:.5px solid rgba(120,180,255,.55);background:rgba(34,158,217,.18);box-shadow:0 0 0 2px rgba(34,158,217,.18) inset}
 @media (hover: hover){.type-card:hover:not(.sel){background:var(--glass-2);transform:translateY(-1px)}}
 .type-card:active{transform:scale(.97)}
@@ -967,7 +967,7 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 
 /* ── FORMAT LIST ── */
 .format-list{padding:0 var(--g3) var(--g3);display:flex;flex-direction:column;gap:7px}
-.format-card{padding:13px;border-radius:var(--r-md);display:flex;align-items:center;gap:12px;cursor:pointer;background:var(--glass-1);border:var(--bd);transition:all .18s var(--ease),transform 0.12s ease,filter 0.12s ease,opacity 0.12s ease;position:relative;overflow:hidden}
+.format-card{padding:13px;border-radius:var(--r-md);display:flex;align-items:center;gap:12px;cursor:pointer;background:var(--glass-1);border:var(--bd);transition:all var(--dur-sm) var(--ease),transform var(--dur-xs) ease,filter var(--dur-xs) ease,opacity var(--dur-xs) ease;position:relative;overflow:hidden}
 .format-card.sel{border:.5px solid rgba(120,180,255,.55);background:rgba(34,158,217,.16);box-shadow:0 0 0 2px rgba(34,158,217,.16) inset}
 @media (hover: hover){.format-card:hover:not(.sel){background:var(--glass-2)}}
 .format-ic{width:44px;height:44px;border-radius:var(--r-icon);display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;border:var(--bd)}
@@ -1062,7 +1062,7 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 .notif-tab.on{background:var(--glass-3);color:var(--t1);box-shadow:var(--shadow-seg-on)}
 /* Date group header — Caption 2 Semibold */
 .notif-l{margin:0 var(--g3) var(--g3);border-radius:var(--r-md);overflow:hidden}
-.notif-i{display:flex;align-items:flex-start;gap:11px;padding:12px var(--pad-card);border-bottom:.5px solid rgba(255,255,255,.08);position:relative;cursor:pointer;transition:background .18s}
+.notif-i{display:flex;align-items:flex-start;gap:11px;padding:12px var(--pad-card);border-bottom:.5px solid rgba(255,255,255,.08);position:relative;cursor:pointer;transition:background var(--dur-sm)}
 .notif-i:last-child{border:none}
 /* Рядок закріпленого блоку — СПРАВЖНЯ <button>: клікабельний <div> недосяжний з
    клавіатури і не оголошується читалкою. Скидаємо UA-стилі кнопки, щоб рядок
@@ -1082,7 +1082,7 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
 .notif-del:active{background:var(--glass-2);color:var(--err)}
 
 /* ── MODAL ── */
-.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:var(--z-overlay);display:flex;flex-direction:column;align-items:stretch;justify-content:flex-end;padding-bottom:min(var(--keyboard-h,0px),55vh);transition:padding-bottom .25s ease-out;animation:overlayFade .26s ease both}
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:var(--z-overlay);display:flex;flex-direction:column;align-items:stretch;justify-content:flex-end;padding-bottom:min(var(--keyboard-h,0px),55vh);transition:padding-bottom .25s ease-out;animation:overlayFade var(--dur-md) ease both}
 /* Зняття ХИБНОГО ліфта не анімується — інакше шит «пригає».
    Фолбек `KB_FALLBACK_PX` вмикається, коли платформа мовчить довше за пробу; якщо
    вона потім таки стискає webview, ліфт знімається — але той самий .25s, що його
@@ -1136,7 +1136,7 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
 
 /* ── COMPACT FIELD (modal forms) — label above, input below, pairs in .fld-row ── */
 .fld-row{display:flex;gap:8px;margin-bottom:8px}
-.fld{flex:1;min-width:0;background:var(--glass-1);border:var(--bd);border-radius:var(--r-sm);padding:8px 12px 9px;transition:border-color .18s,background .18s}
+.fld{flex:1;min-width:0;background:var(--glass-1);border:var(--bd);border-radius:var(--r-sm);padding:8px 12px 9px;transition:border-color var(--dur-sm),background var(--dur-sm)}
 .fld-l{font-size:var(--fs-cap2);color:var(--t3);font-weight:600;letter-spacing:.02em;margin-bottom:3px;display:flex;align-items:center;gap:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fld input{width:100%;background:transparent;border:none;outline:none;font-size:var(--fs-call);color:var(--t1);font-family:inherit;text-align:left;-moz-appearance:textfield;padding:0;min-height:24px}
 /* Значення + одиниця в один рядок. Одиниця живе тут, а не в `.fld-l`: у підписі
@@ -1151,7 +1151,7 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
 .fld input::placeholder{color:var(--t4)}
 .fld:focus-within{border-color:rgba(122,179,255,.45);background:rgba(34,158,217,.07)}
 .fld:focus-within .fld-l{color:var(--info-fg)}
-.modal-btn{height:var(--btn-h);border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;font-size:var(--fs-sub);font-weight:600;cursor:pointer;gap:7px;border:none;width:100%;transition:opacity .15s,transform .12s}
+.modal-btn{height:var(--btn-h);border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;font-size:var(--fs-sub);font-weight:600;cursor:pointer;gap:7px;border:none;width:100%;transition:opacity .15s,transform var(--dur-xs)}
 .modal-btn:active{transform:scale(.97)}
 /* Неактивна дія — приглушений підпис на нейтральному склі, а не привид: те саме
    правило, що для .btn-glass. Над темним шитом opacity:.45 зʼїдала кнопку так,
@@ -1310,7 +1310,7 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
    the list gap + a small top margin give groups a touch more air than cards. */
 .fold-sec{display:flex;flex-direction:column}
 .fold-sec:not(:first-child){margin-top:6px}
-.fold-hd{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:var(--r-md);background:var(--glass-1);border:var(--bd);cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .14s var(--ease),transform .12s ease}
+.fold-hd{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:var(--r-md);background:var(--glass-1);border:var(--bd);cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .14s var(--ease),transform var(--dur-xs) ease}
 .fold-hd:active{background:var(--glass-2);transform:scale(.99)}
 /* Тіло акордеона (`Collapsible.tsx` міряє висоту і жене її Web Animations API).
    Без `will-change`: `height` не композитна властивість, тож підказка нічого не
@@ -1325,7 +1325,7 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
 
 /* Icon-only view switch (cards / compact) — compact segmented pill, no labels */
 .view-seg{display:flex;gap:2px;flex-shrink:0;background:var(--glass-2);border:var(--bd);border-radius:var(--rc-out);padding:var(--rc-pad);backdrop-filter:blur(20px) saturate(170%);-webkit-backdrop-filter:blur(20px) saturate(170%)}
-.view-seg-b{width:38px;height:34px;display:flex;align-items:center;justify-content:center;background:none;border:none;border-radius:var(--rc-in);color:var(--t3);cursor:pointer;transition:background .18s var(--ease),color .18s,transform .12s ease}
+.view-seg-b{width:38px;height:34px;display:flex;align-items:center;justify-content:center;background:none;border:none;border-radius:var(--rc-in);color:var(--t3);cursor:pointer;transition:background var(--dur-sm) var(--ease),color var(--dur-sm),transform var(--dur-xs) ease}
 .view-seg-b.on{background:var(--glass-3);color:var(--t1);box-shadow:var(--shadow-seg-on)}
 .view-seg-b:active{transform:scale(.9)}
 .fold-hd-ic{color:var(--t2);flex-shrink:0;display:flex}
@@ -1385,7 +1385,7 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
 .feature-s{font-size:var(--fs-cap1);color:var(--t3);margin-top:3px;line-height:var(--lh-norm)}
 
 /* ── COLLECTION ── */
-.collection-c{border-radius:var(--r-md);padding:14px;background:var(--glass-1);border:var(--bd);cursor:pointer;transition:background .18s}
+.collection-c{border-radius:var(--r-md);padding:14px;background:var(--glass-1);border:var(--bd);cursor:pointer;transition:background var(--dur-sm)}
 @media (hover: hover){.collection-c:hover{background:var(--glass-2)}}
 .collection-c:active{transform:scale(.985)}
 .collection-h{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:11px}
@@ -1402,7 +1402,7 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
    No container: just the four tappable icons floating above the content.
    A soft bottom fade (not a visible element) keeps them legible when bright
    content (photos, cards) scrolls underneath. */
-.tabbar{position:absolute;left:0;right:0;bottom:0;height:calc(56px + var(--safe-bottom));padding:0 10px var(--safe-bottom);display:flex;align-items:stretch;gap:2px;z-index:var(--z-tabbar);animation:tabbarIn .5s var(--ease-spr) both}
+.tabbar{position:absolute;left:0;right:0;bottom:0;height:calc(56px + var(--safe-bottom));padding:0 10px var(--safe-bottom);display:flex;align-items:stretch;gap:2px;z-index:var(--z-tabbar);animation:tabbarIn var(--dur-xl) var(--ease-spr) both}
 .tabbar::before{display:none}
 .tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:rgba(255,255,255,.45);cursor:pointer;position:relative;z-index:var(--z-raised);transition:color .25s var(--ease),transform .15s var(--ease)}
 /* Icon hit zone — sizing only, no visual container */
@@ -1448,7 +1448,7 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
 
 /* ── SHARE GRID ── */
 .share-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--g2);padding:0 var(--g3);margin-bottom:var(--g3)}
-.share-i{display:flex;flex-direction:column;align-items:center;gap:6px;padding:11px 4px 9px;border-radius:var(--r-sm);background:var(--glass-1);backdrop-filter:blur(20px) saturate(170%);-webkit-backdrop-filter:blur(20px) saturate(170%);border:var(--bd);min-width:0;cursor:pointer;transition:transform .15s var(--ease),background .18s}
+.share-i{display:flex;flex-direction:column;align-items:center;gap:6px;padding:11px 4px 9px;border-radius:var(--r-sm);background:var(--glass-1);backdrop-filter:blur(20px) saturate(170%);-webkit-backdrop-filter:blur(20px) saturate(170%);border:var(--bd);min-width:0;cursor:pointer;transition:transform .15s var(--ease),background var(--dur-sm)}
 @media (hover: hover){.share-i:hover{background:var(--glass-2);transform:translateY(-1px)}}
 .share-i:active{transform:scale(.92)}
 .share-i-img{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:var(--fs-lead);border:var(--bd)}
@@ -1457,7 +1457,7 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
 /* ── QR ── */
 .qr-hero{margin:6px var(--g3) var(--g3);border-radius:var(--r-lg);padding:18px;display:flex;flex-direction:column;align-items:center;position:relative;overflow:hidden}
 .qr-hero::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 50% 0%,rgba(255,255,255,.16),transparent 60%);pointer-events:none}
-.qr-wrap{width:140px;height:140px;background:#fff;border-radius:var(--r-md);padding:8px;box-shadow:0 12px 36px rgba(0,0,0,.36);position:relative;z-index:var(--z-content);animation:qrPop .5s var(--ease-spr) .2s both}
+.qr-wrap{width:140px;height:140px;background:#fff;border-radius:var(--r-md);padding:8px;box-shadow:0 12px 36px rgba(0,0,0,.36);position:relative;z-index:var(--z-content);animation:qrPop var(--dur-xl) var(--ease-spr) .2s both}
 .qr-meta{margin-top:12px;text-align:center;position:relative;z-index:var(--z-content)}
 .qr-name{font-size:var(--fs-note);font-weight:var(--fw-semi);color:var(--t1);letter-spacing:-.005em}
 .qr-link{font-size:var(--fs-cap2);color:rgba(180,210,255,.9);margin-top:3px;font-family:ui-monospace,'SF Mono',monospace}
@@ -1649,7 +1649,7 @@ svg.ico{overflow:visible}
 .seg-b:active{transform:scale(.95)}
 /* Sort filter chips — tap feedback to match cards/segments (were "dead" on tap).
    min-height keeps the tap target comfortable (was 27px). */
-.sort-chip{display:inline-flex;align-items:center;min-height:32px;transition:transform .12s ease,background .18s,color .18s,border-color .18s}
+.sort-chip{display:inline-flex;align-items:center;min-height:32px;transition:transform var(--dur-xs) ease,background var(--dur-sm),color var(--dur-sm),border-color var(--dur-sm)}
 .sort-chip:active{transform:scale(.95)}
 .type-card:active{transform:scale(.97)}
 .format-card:active{transform:scale(.97)}
@@ -1683,7 +1683,7 @@ svg.ico{overflow:visible}
 .fr-i:focus,.fr-textarea:focus{animation:inputRing .42s ease-out;outline:none}
 
 /* ── Tab content fade-in on switch ── */
-.tab-content-anim{animation:cascadeIn .18s ease both}
+.tab-content-anim{animation:cascadeIn var(--dur-sm) ease both}
 
 /* ── Stat card entrance ── */
 .stat-pop-anim{animation:statPop .3s var(--ease-spr) both}
@@ -1742,23 +1742,23 @@ svg.ico{overflow:visible}
 .cmark-arr-dn{border-left:7px solid transparent;border-right:7px solid transparent;border-top:7px solid rgba(16,12,34,.95);bottom:-7px}
 
 /* ── Stat cards individual stagger ── */
-.stat-g .stat:nth-child(1){animation:statPop .38s var(--ease-spr) .04s both}
-.stat-g .stat:nth-child(2){animation:statPop .38s var(--ease-spr) .11s both}
-.stat-g .stat:nth-child(3){animation:statPop .38s var(--ease-spr) .18s both}
-.profile-stats .pstat:nth-child(1){animation:statPop .38s var(--ease-spr) .06s both}
-.profile-stats .pstat:nth-child(2){animation:statPop .38s var(--ease-spr) .13s both}
-.profile-stats .pstat:nth-child(3){animation:statPop .38s var(--ease-spr) .20s both}
+.stat-g .stat:nth-child(1){animation:statPop var(--dur-lg) var(--ease-spr) .04s both}
+.stat-g .stat:nth-child(2){animation:statPop var(--dur-lg) var(--ease-spr) .11s both}
+.stat-g .stat:nth-child(3){animation:statPop var(--dur-lg) var(--ease-spr) var(--dur-sm) both}
+.profile-stats .pstat:nth-child(1){animation:statPop var(--dur-lg) var(--ease-spr) .06s both}
+.profile-stats .pstat:nth-child(2){animation:statPop var(--dur-lg) var(--ease-spr) .13s both}
+.profile-stats .pstat:nth-child(3){animation:statPop var(--dur-lg) var(--ease-spr) .20s both}
 
 /* ── Extended list cascades ── */
 /* Row (already exists — keep for rows, extend to 8) */
-.scr .list .row:nth-child(1){animation:cascadeIn .38s var(--ease) .04s both}
-.scr .list .row:nth-child(2){animation:cascadeIn .38s var(--ease) .09s both}
-.scr .list .row:nth-child(3){animation:cascadeIn .38s var(--ease) .14s both}
-.scr .list .row:nth-child(4){animation:cascadeIn .38s var(--ease) .19s both}
-.scr .list .row:nth-child(5){animation:cascadeIn .38s var(--ease) .24s both}
-.scr .list .row:nth-child(6){animation:cascadeIn .38s var(--ease) .28s both}
-.scr .list .row:nth-child(7){animation:cascadeIn .38s var(--ease) .31s both}
-.scr .list .row:nth-child(n+8){animation:cascadeIn .38s var(--ease) .33s both}
+.scr .list .row:nth-child(1){animation:cascadeIn var(--dur-lg) var(--ease) .04s both}
+.scr .list .row:nth-child(2){animation:cascadeIn var(--dur-lg) var(--ease) .09s both}
+.scr .list .row:nth-child(3){animation:cascadeIn var(--dur-lg) var(--ease) .14s both}
+.scr .list .row:nth-child(4){animation:cascadeIn var(--dur-lg) var(--ease) .19s both}
+.scr .list .row:nth-child(5){animation:cascadeIn var(--dur-lg) var(--ease) .24s both}
+.scr .list .row:nth-child(6){animation:cascadeIn var(--dur-lg) var(--ease) .28s both}
+.scr .list .row:nth-child(7){animation:cascadeIn var(--dur-lg) var(--ease) .31s both}
+.scr .list .row:nth-child(n+8){animation:cascadeIn var(--dur-lg) var(--ease) .33s both}
 /* Obj-cards */
 /* Flat list only (no folders) — accordion cards reveal via .fold-wrap instead. */
 .list > .obj-card:nth-child(1){animation:cascadeIn .36s var(--ease) .04s both}
@@ -1776,7 +1776,7 @@ svg.ico{overflow:visible}
 .format-list .format-card:nth-child(1){animation:cascadeIn .34s var(--ease) .03s both}
 .format-list .format-card:nth-child(2){animation:cascadeIn .34s var(--ease) .08s both}
 .format-list .format-card:nth-child(3){animation:cascadeIn .34s var(--ease) .13s both}
-.format-list .format-card:nth-child(4){animation:cascadeIn .34s var(--ease) .18s both}
+.format-list .format-card:nth-child(4){animation:cascadeIn .34s var(--ease) var(--dur-sm) both}
 
 /* ── Stat-g block entrance (overridden by child statPop) ── */
 .scr .stat-g{animation:none}
@@ -1800,10 +1800,10 @@ svg.ico{overflow:visible}
 .body > .over:nth-child(1) + .glass-s,.body > .over:nth-child(1) + .fg{animation:cascadeIn .32s var(--ease-out) .08s both}
 .body > .over:nth-child(3) + .glass-s,.body > .over:nth-child(3) + .fg{animation:cascadeIn .32s var(--ease-out) .14s both}
 .body > .over:nth-child(5) + .glass-s,.body > .over:nth-child(5) + .fg{animation:cascadeIn .32s var(--ease-out) .20s both}
-.body > .over:nth-child(7) + .glass-s,.body > .over:nth-child(7) + .fg{animation:cascadeIn .32s var(--ease-out) .26s both}
+.body > .over:nth-child(7) + .glass-s,.body > .over:nth-child(7) + .fg{animation:cascadeIn .32s var(--ease-out) var(--dur-md) both}
 
 /* ── Success flash on mbtn ── */
-.mbtn.flash-success{animation:btnSuccess 0.5s ease-out}
+.mbtn.flash-success{animation:btnSuccess var(--dur-xl) ease-out}
 
 /* ── Loading pulse on mbtn ── */
 .mbtn.is-loading{animation:btnPulse 1.2s ease-in-out infinite}
@@ -1915,7 +1915,7 @@ svg.ico{overflow:visible}
 .ant-light{animation:antBlink 2.5s ease-in-out infinite}
 
 /* ── PING ANIMATION ── */
-.ping{animation:pingFx .38s var(--ease-spr)}
+.ping{animation:pingFx var(--dur-lg) var(--ease-spr)}
 
 /* ── LIGHT MODE (disabled — app is dark-only) ── */
 
