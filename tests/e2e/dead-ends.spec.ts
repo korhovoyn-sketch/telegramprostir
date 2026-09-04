@@ -24,6 +24,12 @@ import { setupApp, DEFAULT_USER, jsonRoute, seedSession, skipCoachmarks } from '
  */
 
 const OWNER = { ...DEFAULT_USER, role: 'owner' as const }
+const DB = {
+  id: '10000000-0000-0000-0000-000000000001', owner_id: OWNER.id, name: 'БЦ Рубін',
+  address: null, type: 'business_center', color: 'pink',
+  share_token: 'aabbccddeeff001122334455', share_expires_at: null,
+  created_at: '2025-09-01T09:00:00.000Z', updated_at: '2025-09-01T09:00:00.000Z',
+}
 
 
 test('обрив звʼязку на публічній підбірці — це НЕ «посилання недійсне»', async ({ page }) => {
@@ -158,5 +164,66 @@ test('порожня відповідь лишається «Немає спов
   // би, а користувач бачив би панель повтору там, де просто немає подій.
   await notifApp(page, (r) => jsonRoute(r, []))
   await expect(page.getByText('Немає сповіщень')).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByRole('button', { name: /Спробувати ще раз/ })).toHaveCount(0)
+})
+
+/**
+ * ПАПКИ: збій завантаження ≠ «папок немає».
+ *
+ * `unavailable` (42P01, міграція 043 не накочена) — стан ПОСТІЙНИЙ, і ховати
+ * розділ там правильно. Обрив звʼязку тимчасовий, а наслідок доти був той
+ * самий: порожній список. На екрані керування це найгірша з можливих неправд —
+ * користувач створює папку, яка вже існує; у пікері обʼєкт їде в «Без папки»
+ * тому, що список не доїхав.
+ */
+test('керування папками: збій завантаження дає повтор, а не «Ще немає папок»', async ({ page }) => {
+  test.setTimeout(90_000)
+  let fail = true
+  await setupApp(page, { user: OWNER })
+  await skipCoachmarks(page)
+  await page.route('**/rest/v1/property_folders**', (r: Route) => {
+    if (fail && r.request().method() === 'GET') return r.abort('failed')
+    return jsonRoute(r, [])
+  })
+  await page.route('**/rest/v1/databases**', (r: Route) =>
+    jsonRoute(r, (r.request().headers()['accept'] ?? '').includes('object') ? DB : [DB]))
+  for (const t of ['properties', 'rent_payments', 'rent_payment_records', 'property_views',
+                   'db_members', 'notifications', 'collections']) {
+    await page.route(`**/rest/v1/${t}**`, (r: Route) => jsonRoute(r, []))
+  }
+
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+  await page.getByText('БЦ Рубін').first().click()
+  await expect(page.getByText(/Всі \(/)).toBeVisible({ timeout: 15_000 })
+  await page.getByLabel('Меню бази').click()
+  await page.waitForTimeout(420)
+  await page.getByText('Папки', { exact: true }).click()
+
+  await expect(page.getByRole('button', { name: /Спробувати ще раз/ })).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByText(/Ще немає папок/)).toHaveCount(0)
+})
+
+test('порожня база папок лишається «Ще немає папок» — розподіл не зламано', async ({ page }) => {
+  // АНТИВАКУУМ: інакше «повтор показується» проходило б і на коді, що звів
+  // обидва стани в помилку, і порожній розділ лякав би панеллю збою.
+  await setupApp(page, { user: OWNER })
+  await skipCoachmarks(page)
+  await page.route('**/rest/v1/databases**', (r: Route) =>
+    jsonRoute(r, (r.request().headers()['accept'] ?? '').includes('object') ? DB : [DB]))
+  for (const t of ['property_folders', 'properties', 'rent_payments', 'rent_payment_records',
+                   'property_views', 'db_members', 'notifications', 'collections']) {
+    await page.route(`**/rest/v1/${t}**`, (r: Route) => jsonRoute(r, []))
+  }
+
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+  await page.getByText('БЦ Рубін').first().click()
+  await expect(page.getByText(/Всі \(/)).toBeVisible({ timeout: 15_000 })
+  await page.getByLabel('Меню бази').click()
+  await page.waitForTimeout(420)
+  await page.getByText('Папки', { exact: true }).click()
+
+  await expect(page.getByText(/Ще немає папок/)).toBeVisible({ timeout: 20_000 })
   await expect(page.getByRole('button', { name: /Спробувати ще раз/ })).toHaveCount(0)
 })

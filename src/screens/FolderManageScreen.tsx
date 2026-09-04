@@ -5,6 +5,7 @@ import { useAppStore } from '@/store/appStore'
 import { useFolders } from '@/hooks/useFolders'
 import { useProperties } from '@/hooks/useProperties'
 import Header from '@/components/ui/Header'
+import RetryState from '@/components/ui/RetryState'
 import { IconFolder, IconEdit, IconTrash, IconChevronUp, IconChevronDown, IconCheck, IconX, IconPlus } from '@/components/Icons'
 import { hapticSelection, hapticNotify } from '@/lib/telegram'
 import { objectsWord, scrollFocusedIntoView } from '@/lib/utils'
@@ -24,7 +25,7 @@ export default function FolderManageScreen() {
   const { screenParams, back } = useAppStore()
   const dbId = screenParams.dbId as string | undefined
 
-  const { folders, loadFolders, createFolder, renameFolder, deleteFolder, reorderFolder } = useFolders(dbId)
+  const { folders, error: loadErr, loadFolders, createFolder, renameFolder, deleteFolder, reorderFolder } = useFolders(dbId)
   const { properties, loadProperties } = useProperties(dbId)
 
   useEffect(() => {
@@ -103,7 +104,12 @@ export default function FolderManageScreen() {
         </div>
 
         <div className="fold-mng">
-          {folders.length === 0 && (
+          {/* Збій ЗАВАНТАЖЕННЯ ≠ «папок немає». Наслідок був однаковий —
+              порожній список, — а на екрані керування папками це найгірша з
+              можливих неправд: користувач створює папку, яка вже існує. */}
+          {loadErr && folders.length === 0 ? (
+            <RetryState subtitle={loadErr} onRetry={() => loadFolders(dbId)} />
+          ) : folders.length === 0 && (
             <div className="sheet-empty">
               Ще немає папок. Введіть назву вгорі й натисніть «Додати папку».
             </div>

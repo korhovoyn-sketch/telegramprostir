@@ -22,6 +22,16 @@ export function useFolders(dbId?: string) {
   const [loading, setLoading] = useState(false)
   // true once we know the backing table is absent → screens hide folder UI.
   const [unavailable, setUnavailable] = useState(false)
+  /**
+   * Збій ЗАВАНТАЖЕННЯ — не те саме, що `unavailable`.
+   *
+   * `unavailable` означає «таблиці немає» (42P01, міграція 043 не накочена) —
+   * стан постійний, і ховати розділ там правильно. Обрив звʼязку ж тимчасовий,
+   * а наслідок доти був однаковий: порожній список, тобто «папок немає». На
+   * екрані керування папками це найгірша з можливих неправд — користувач
+   * створює папку, яка вже існує.
+   */
+  const [error, setError] = useState<string | null>(null)
   const { user, showToast } = useAppStore()
 
   const foldersRef = useRef(folders)
@@ -31,6 +41,7 @@ export function useFolders(dbId?: string) {
     const targetDbId = id || dbId
     if (!targetDbId) return
     setLoading(true)
+    setError(null)
     try {
       const { data, error } = await supabase
         .from('property_folders')
@@ -45,6 +56,7 @@ export function useFolders(dbId?: string) {
       }
       setFolders((data ?? []) as PropertyFolder[])
     } catch (e) {
+      setError(humanizeDbError(e))
       showToast({ type: 'error', title: 'Помилка завантаження папок', subtitle: humanizeDbError(e) })
     } finally {
       setLoading(false)
@@ -156,5 +168,5 @@ export function useFolders(dbId?: string) {
     }
   }, [showToast])
 
-  return { folders, loading, unavailable, loadFolders, createFolder, renameFolder, deleteFolder, reorderFolder }
+  return { folders, loading, unavailable, error, loadFolders, createFolder, renameFolder, deleteFolder, reorderFolder }
 }

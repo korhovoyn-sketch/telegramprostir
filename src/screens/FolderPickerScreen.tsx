@@ -5,6 +5,7 @@ import { useAppStore } from '@/store/appStore'
 import { useFolders } from '@/hooks/useFolders'
 import { useProperties } from '@/hooks/useProperties'
 import Header from '@/components/ui/Header'
+import RetryState from '@/components/ui/RetryState'
 import { IconFolder, IconInbox, IconPlus } from '@/components/Icons'
 import { objectsWord, scrollFocusedIntoView } from '@/lib/utils'
 import { offlineGuard } from '@/lib/offline'
@@ -24,7 +25,7 @@ export default function FolderPickerScreen() {
   const dbId = screenParams.dbId as string | undefined
   const ids = (screenParams.propertyIds as string[] | undefined) ?? []
 
-  const { folders, loadFolders, createFolder } = useFolders(dbId)
+  const { folders, error: loadErr, loadFolders, createFolder } = useFolders(dbId)
   const { moveToFolder } = useProperties(dbId)
 
   useEffect(() => {
@@ -86,6 +87,12 @@ export default function FolderPickerScreen() {
             <span className="sheet-ic"><IconInbox size={16} /></span>
             <span className="sheet-lbl">Без папки</span>
           </button>
+          {/* Той самий розподіл, що в керуванні папками: збій завантаження не
+              сміє виглядати як «папок немає» — інакше обʼєкт їде в «Без
+              папки» тому, що список не доїхав. */}
+          {loadErr && folders.length === 0 && (
+            <RetryState subtitle={loadErr} onRetry={() => loadFolders(dbId)} />
+          )}
           {folders.map((f) => (
             <button key={f.id} type="button" className="sheet-row" disabled={busy} onClick={() => void pick(f.id)}>
               <span className="sheet-ic"><IconFolder size={16} /></span>
