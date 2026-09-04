@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { dbMonthlyUtils, type DbPropRow } from '@/hooks/useDatabases'
 import { expectedRent } from '../../src/lib/rentPayments'
 import { calcRentUtils, basisArea, monthlyRent } from '../../src/lib/utils'
 import type { Property } from '../../src/types'
@@ -111,5 +112,53 @@ describe('узгодженість грошей між поверхнями', ()
   it('monthlyRent і basisArea узгоджені для per_day', () => {
     const p = prop({ rent_type: 'per_day', rent_rate: 900, area_basis: 'total' })
     expect(expectedRent(p)).toBe(monthlyRent(basisArea(p.area_useful, p.area_total, p.area_basis), 900, 'per_day'))
+  })
+})
+
+/**
+ * АГРЕГАТ ЕКСПЛУАТАЦІЙНИХ НА ЕКРАНІ «МОЇ БАЗИ».
+ *
+ * `utilities_rate` — колонка з ДВОМА ОДИНИЦЯМИ: для паркінга це пласка СУМА,
+ * для решти ставка $/м². Розрізнити їх по самому рядку обʼєкта неможливо, тож
+ * агрегат мусить брати тип БАЗИ. Той самий клас уже давав паркінгу
+ * 15 м² × 30 = $450 замість $30 — тому тут закріплено ЧИСЛОМ, а не рівністю
+ * двох виразів: цей файл одного разу вже проходив тавтологію, де обидві
+ * сторони скорочувались до одного виразу.
+ */
+describe('_monthly_utils: агрегат експлуатаційних по базі', () => {
+  const occ = (over: Partial<DbPropRow> = {}): DbPropRow => ({
+    status: 'occupied', area_useful: 50, area_total: 100, area_basis: 'total',
+    rent_type: 'per_m2', rent_rate: 18, utilities_rate: 2.5, ...over,
+  })
+
+  it('звичайна база: ставка × розрахункова площа', () => {
+    // 100 м² × 2.5 = 250, двічі = 500
+    expect(dbMonthlyUtils([occ(), occ()], 'business_center')).toBe(500)
+  })
+
+  it('база «корисна»: множиться саме корисна, а не розрахункова', () => {
+    // 50 × 2.5 = 125 — не 250
+    expect(dbMonthlyUtils([occ({ area_basis: 'useful' })], 'business_center')).toBe(125)
+  })
+
+  it('ПАРКІНГ: пласка сума, а не ×площа', () => {
+    // Найдорожчий випадок: 100 м² × 30 дало б 3000 замість 30.
+    expect(dbMonthlyUtils([occ({ utilities_rate: 30 })], 'parking')).toBe(30)
+  })
+
+  it('вільні обʼєкти в агрегат не входять', () => {
+    expect(dbMonthlyUtils([occ(), occ({ status: 'free' })], 'business_center')).toBe(250)
+  })
+
+  it('без ставки — нуль, а не NaN', () => {
+    expect(dbMonthlyUtils([occ({ utilities_rate: undefined })], 'business_center')).toBe(0)
+    expect(dbMonthlyUtils([], 'business_center')).toBe(0)
+  })
+
+  // АНТИВАКУУМ: якби тип бази не впливав, усі кейси вище проходили б і з
+  // жорстко зашитим `flat=false`.
+  it('тип бази РЕАЛЬНО впливає на результат', () => {
+    const rows = [occ({ utilities_rate: 30 })]
+    expect(dbMonthlyUtils(rows, 'parking')).not.toBe(dbMonthlyUtils(rows, 'business_center'))
   })
 })

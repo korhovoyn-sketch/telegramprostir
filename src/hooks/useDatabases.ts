@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAppStore } from '@/store/appStore'
-import { monthlyRent, basisArea, humanizeDbError } from '@/lib/utils'
+import { monthlyRent, basisArea, calcRentUtils, humanizeDbError } from '@/lib/utils'
 import { assertAffected } from '@/lib/dbWrite'
 import { readSnapshot, writeSnapshot } from '@/lib/snapshot'
 import type { Database } from '@/types'
@@ -32,10 +32,50 @@ const DB_COLUMNS_MEMBER = 'id,owner_id,name,address,type,color,landlord_name,cre
  */
 const DB_COLUMNS_PRE064 = 'id,owner_id,name,address,type,color,share_token,share_expires_at,created_at,updated_at'
 const DB_COLUMNS_MEMBER_PRE064 = 'id,owner_id,name,address,type,color,created_at,updated_at'
-const DB_REL = 'properties(status, rent_rate, area_useful, area_total, area_basis, rent_type)'
+// `utilities_rate` тут потрібен для другої грошової цифри на екрані списку.
+// Колонка з `001_schema.sql`, тобто є в КОЖНІЙ розгорнутій базі — ризику 400 на
+// невідому колонку (урок 042/064) немає. Константа одна на всі чотири гілки
+// селекта, включно з pre-064 фолбеками, тож правка тут покриває їх усі.
+const DB_REL = 'properties(status, rent_rate, area_useful, area_total, area_basis, rent_type, utilities_rate)'
 const isMissingLandlordColumn = (e: unknown): boolean => {
   const err = e as { code?: string; message?: string } | null
   return err?.code === '42703' || /landlord_name/i.test(err?.message ?? '')
+}
+
+/** Рядок обʼєкта в тому вигляді, в якому його віддає вкладений select `DB_REL`. */
+export type DbPropRow = {
+  status: string
+  rent_rate?: number
+  area_useful?: number
+  area_total?: number
+  area_basis?: string
+  rent_type?: string
+  utilities_rate?: number
+}
+
+/**
+ * Експлуатаційні за місяць по ЗАЙНЯТИХ обʼєктах бази.
+ *
+ * Винесено з тіла хука навмисно — щоб це можна було закріпити ЧИСЛОМ у юніті:
+ * `utilities_rate` — колонка з ДВОМА одиницями (для паркінга пласка СУМА, для
+ * решти ставка $/м²), і розрізнити їх по самому рядку обʼєкта НЕМОЖЛИВО. Той
+ * самий клас уже давав паркінгу 15 м² × 30 = $450 замість $30.
+ *
+ * Тип бази тут надійний, бо ітеруються рядки САМИХ БАЗ, а не читається тип зі
+ * стору — саме той промах двічі давав хибну цифру на детальній обʼєкта.
+ *
+ * Береться `.utils`, і це не байдуже: він завжди МІСЯЧНИЙ, тоді як `.rent` для
+ * `per_day` — сира ДОБОВА ставка. Підміняти ним `_monthly_income` (який іде
+ * через `monthlyRent` із нормалізацією ×30) не можна.
+ */
+export function dbMonthlyUtils(props: DbPropRow[], dbType: string | undefined): number {
+  const flat = dbType === 'parking'
+  return props
+    .filter((p) => p.status === 'occupied' && p.utilities_rate)
+    .reduce((sum, p) => sum + calcRentUtils(
+      p.area_useful, p.area_total, p.rent_rate, p.rent_type,
+      p.utilities_rate, p.area_basis, flat,
+    ).utils, 0)
 }
 
 export function useDatabases() {
@@ -140,14 +180,14 @@ export function useDatabases() {
         ...(memberRows || []).map((d) => ({ ...(d as Record<string, unknown>), _member: true })),
       ].map((d) => {
         const row = d as Record<string, unknown>
-        type PropRow = { status: string; rent_rate?: number; area_useful?: number; area_total?: number; area_basis?: string; rent_type?: string }
-        const props = (row.properties as PropRow[]) ?? []
+        const props = (row.properties as DbPropRow[]) ?? []
         const monthlyIncome = props
           .filter(p => p.status === 'occupied' && p.rent_rate)
           .reduce((sum, p) => {
             if (!p.rent_rate) return sum
             return sum + monthlyRent(basisArea(p.area_useful, p.area_total, p.area_basis), p.rent_rate, p.rent_type ?? 'per_m2')
           }, 0)
+        const monthlyUtils = dbMonthlyUtils(props, row.type as string | undefined)
         return {
           ...row,
           properties: undefined,
@@ -155,6 +195,7 @@ export function useDatabases() {
           _free_count:      props.filter(p => p.status === 'free').length,
           _occupied_count:  props.filter(p => p.status === 'occupied').length,
           _monthly_income:  monthlyIncome,
+          _monthly_utils:   monthlyUtils,
         }
       })
 
