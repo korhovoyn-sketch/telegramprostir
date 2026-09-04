@@ -140,19 +140,26 @@ test('експорт сортує за sort_order, як застосунок, а
  */
 async function stubShare(page: Page) {
   await page.addInitScript(() => {
-    const w = window as unknown as { __shared: { name: string; type: string }[] }
+    const w = window as unknown as { __shared: { name: string; type: string; b64: string }[] }
     w.__shared = []
     Object.defineProperty(navigator, 'canShare', { value: () => true, configurable: true })
     Object.defineProperty(navigator, 'share', {
       configurable: true,
       value: async (data: { files?: File[] }) => {
-        for (const f of data.files ?? []) w.__shared.push({ name: f.name, type: f.type })
+        for (const f of data.files ?? []) {
+          // БАЙТИ, а не лише імʼя: інакше «файл пішов у share» доводить доставку
+          // і нічого не каже про ВМІСТ — колонка могла б поїхати порожньою.
+          const b = new Uint8Array(await f.arrayBuffer())
+          let bin = ''
+          for (let i = 0; i < b.length; i++) bin += String.fromCharCode(b[i])
+          w.__shared.push({ name: f.name, type: f.type, b64: btoa(bin) })
+        }
       },
     })
   })
 }
 const sharedFiles = (page: Page) =>
-  page.evaluate(() => (window as unknown as { __shared: { name: string; type: string }[] }).__shared)
+  page.evaluate(() => (window as unknown as { __shared: { name: string; type: string; b64: string }[] }).__shared)
 
 test('Excel віддається через share, а не мертвим <a download>', async ({ page }) => {
   const wire: Wire = { selects: [] }
@@ -294,4 +301,82 @@ test('офлайн: експорт не стартує і каже про це',
 
   expect(wire.selects.length, 'офлайн не має ходити в мережу').toBe(before)
   await expect(page.locator('.toast')).toContainText(/офлайн|Немає інтернету/i)
+})
+
+/**
+ * ФОТО В ТАБЛИЦІ — ПОСИЛАННЯМИ, бо вбудувати їх неможливо.
+ *
+ * `xlsx` у клієнтській редакції не має жодного API для зображень (перевірено на
+ * самому пакеті), тож єдиний спосіб дістати знімки з таблиці — URL. Бакет
+ * `photos` публічний, той самий шлях, яким малює застосунок і публічна /v.
+ *
+ * Колонка спільна для XLSX і CSV (`tableHeaders`/`propertyRow`), тому текстовий
+ * бік перевіряється на CSV — там вміст читається без парсера.
+ */
+const photoOf = (n: number, i: number) => ({
+  id: `ph${n}${i}`, property_id: `20000000-0000-0000-0000-00000000000${n}`,
+  storage_path: `p${n}/${i}.jpg`, sort_order: i, created_at: NOW,
+})
+
+test('CSV несе колонку «Фото» з URL кожного знімка', async ({ page }) => {
+  const wire: Wire = { selects: [] }
+  await stubShare(page)
+  await setup(page, wire, [
+    { ...prop(1, 'free'), photos: [photoOf(1, 0)] },
+    { ...prop(2, 'occupied'), photos: [photoOf(2, 1), photoOf(2, 0)] },
+  ])
+  await openExport(page)
+  await page.getByText('CSV таблиця').click()
+  await page.getByRole('button', { name: /Завантажити CSV/ }).click()
+  await expect(page.getByText(/CSV збережено/)).toBeVisible({ timeout: 20_000 })
+
+  const files = await sharedFiles(page)
+  const text = Buffer.from(files[0].b64, 'base64').toString('utf8')
+
+  expect(text, 'колонки «Фото» немає в заголовках').toContain('Фото')
+  expect(text, 'URL знімка не доїхав у файл').toContain('/storage/v1/object/public/photos/p1/0.jpg')
+  // ПОРЯДОК той самий, що в картці: фікстура навмисно віддає знімки
+  // несортованими (sort_order 1, потім 0), тож без `withSortedPhotos` першим
+  // у клітинці був би НЕ той, що на обкладинці.
+  const cell = text.split('\n').find((l) => l.includes('p2/'))!
+  expect(cell.indexOf('p2/0.jpg'), 'фото в клітинці не відсортовані за sort_order')
+    .toBeLessThan(cell.indexOf('p2/1.jpg'))
+})
+
+test('в Excel клікабельне лише ОДНОЗНАЧНЕ посилання — коли знімок один', async ({ page }) => {
+  const wire: Wire = { selects: [] }
+  await stubShare(page)
+  await setup(page, wire, [
+    { ...prop(1, 'free'), photos: [photoOf(1, 0)] },
+    { ...prop(2, 'occupied'), photos: [photoOf(2, 0), photoOf(2, 1)] },
+  ])
+  await openExport(page)
+  await page.getByText('Excel таблиця').click()
+  await page.getByRole('button', { name: /Завантажити Excel/ }).click()
+  await expect(page.getByText(/Excel збережено/)).toBeVisible({ timeout: 20_000 })
+
+  const files = await sharedFiles(page)
+  // Читання ВЛАСНОГО щойно згенерованого файлу, а не чужого: поверхня
+  // Prototype Pollution — це парсинг НЕДОВІРЕНОГО вводу, і гард
+  // `dependency-surface` тому й сканує лише `src/`.
+  const XLSX = await import('xlsx')
+  const wb = XLSX.read(Buffer.from(files[0].b64, 'base64'), { type: 'buffer' })
+  const ws = wb.Sheets['Обʼєкти']
+  const rows = XLSX.utils.sheet_to_json<string[]>(ws, { header: 1, blankrows: true })
+  const head = rows.findIndex((r) => Array.isArray(r) && r.includes('Фото'))
+  expect(head, 'рядок заголовків із колонкою «Фото» не знайдено').toBeGreaterThanOrEqual(0)
+  const col = rows[head].indexOf('Фото')
+
+  const cellAt = (dataRow: number) =>
+    ws[XLSX.utils.encode_cell({ r: head + dataRow, c: col })] as
+      { v?: string; l?: { Target: string } } | undefined
+
+  const one = cellAt(1)
+  const many = cellAt(2)
+  expect(one?.l?.Target, 'єдиний знімок мусить бути клікабельним')
+    .toContain('/photos/p1/0.jpg')
+  // АНТИВАКУУМ: без цієї половини гард проходив би й на коді, що вішає лінк
+  // ЗАВЖДИ — тобто клік по клітинці з двома URL мовчки відкривав би перший.
+  expect(many?.v, 'у клітинці мусять бути обидва URL').toMatch(/p2\/0\.jpg.+p2\/1\.jpg/)
+  expect(many?.l, 'посилання на кілька знімків не може вести лише в один').toBeUndefined()
 })
