@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { humanizeDbError } from '@/lib/utils'
+import { assertAffected } from '@/lib/dbWrite'
 import { useAppStore } from '@/store/appStore'
 import type { Notification } from '@/types'
 
@@ -103,6 +104,40 @@ export function useNotifications() {
     }
   }, [setNotifications, showToast])
 
+  /**
+   * Прибрати ВСІ сповіщення.
+   *
+   * Раніше список чистився лише по одному хрестику, а `rent_reminder` і
+   * `lease_reminder` капають щомісяця — через рік це сорок тапів.
+   *
+   * UNDO ТУТ НЕМОЖЛИВИЙ, і це не лінощі: міграція 035 дає клієнту SELECT,
+   * UPDATE і DELETE, але INSERT-політики на `notifications` НЕМАЄ взагалі
+   * (таблицю наповнює виключно `send-reminders` під service-role). Повернути
+   * видалений рядок RLS просто не дасть, тож єдиний чесний захист — питати
+   * ДО, а не пропонувати відкат ПІСЛЯ. Питає викликач через `confirmAction`.
+   *
+   * Видаляємо за СПИСКОМ ID, а не `.eq('user_id', …)`: інакше під ніж
+   * потрапили б і рядки, що приїхали realtime-пушем уже після того, як
+   * користувач подивився на список і вирішив його очистити.
+   */
+  const deleteAllNotifications = useCallback(async () => {
+    const snapshot = useAppStore.getState().notifications
+    if (snapshot.length === 0) return
+    const ids = snapshot.map((n) => n.id)
+    loadTicket++
+    setNotifications([])
+    try {
+      const { data, error } = await supabase
+        .from('notifications').delete().in('id', ids).select('id')
+      if (error) throw error
+      assertAffected(data, ids.length, 'очищення сповіщень')
+      showToast({ type: 'success', title: 'Сповіщення очищено' })
+    } catch (e) {
+      setNotifications(snapshot)
+      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
+    }
+  }, [setNotifications, showToast])
+
   const subscribeToNotifications = useCallback(() => {
     if (!user) return () => {}
     const channel = supabase
@@ -144,5 +179,5 @@ export function useNotifications() {
     }
   }, [user, loadNotifications])
 
-  return { loading, notifications, loadNotifications, markRead, markAllAsRead, deleteNotification, subscribeToNotifications }
+  return { loading, notifications, loadNotifications, markRead, markAllAsRead, deleteNotification, deleteAllNotifications, subscribeToNotifications }
 }

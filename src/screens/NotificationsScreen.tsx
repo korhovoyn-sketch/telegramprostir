@@ -9,7 +9,9 @@ import { useUpcomingPayments, type PaymentAlert } from '@/hooks/useUpcomingPayme
 import { useViewerActivity } from '@/hooks/useViewerActivity'
 import TabBar from '@/components/ui/TabBar'
 import { SkeletonList } from '@/components/ui/SkeletonLoader'
-import { IconX, IconBell, IconEye, IconMessage, IconHeartFilled, IconAdjustments, IconFile, IconCurrencyDollar, IconBan, IconClock, IconCalendar, IconKey } from '@/components/Icons'
+import { IconX, IconTrash, IconBell, IconEye, IconMessage, IconHeartFilled, IconAdjustments, IconFile, IconCurrencyDollar, IconBan, IconClock, IconCalendar, IconKey } from '@/components/Icons'
+import { confirmAction } from '@/lib/confirm'
+import { offlineGuard } from '@/lib/offline'
 import { formatDate, daysSince, pluralUk, objectsWord, formatLeaseDate, formatPrice } from '@/lib/utils'
 import type { Notification } from '@/types'
 
@@ -28,7 +30,7 @@ type NotifTab = 'all' | 'lease' | 'payments'
 export default function NotificationsScreen() {
   const unreadCount = useAppStore((s) => s.unreadCount)
   const navigate = useAppStore((s) => s.navigate)
-  const { notifications, loading, loadNotifications, markRead, markAllAsRead, deleteNotification, subscribeToNotifications } = useNotifications()
+  const { notifications, loading, loadNotifications, markRead, markAllAsRead, deleteNotification, deleteAllNotifications, subscribeToNotifications } = useNotifications()
   const { alerts: leaseAlerts, loadLeaseAlerts } = useLeaseAlerts()
   const { alerts: payAlerts, loadUpcomingPayments } = useUpcomingPayments()
   const { viewers, loadViewerActivity } = useViewerActivity()
@@ -317,6 +319,38 @@ export default function NotificationsScreen() {
               </div>
             </div>
           ))
+        )}
+
+        {/* ОЧИСТИТИ ВСІ. Раніше список чистився лише по одному хрестику, а
+            `rent_reminder`/`lease_reminder` капають щомісяця — через рік це
+            сорок тапів.
+
+            Підтвердження обовʼязкове саме тут: undo неможливий у принципі —
+            міграція 035 дає клієнту SELECT/UPDATE/DELETE, але INSERT-політики
+            на `notifications` немає взагалі, тож повернути видалене RLS не
+            дасть. Питаємо ДО, бо відкотити ПІСЛЯ нічим.
+
+            Кнопка стоїть під списком, а не в хедері: там уже живе «Прочитано»,
+            і дві дії поруч при 375px не вміщуються без обрізання. */}
+        {notifications.length > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '4px 12px 8px' }}>
+            <button
+              className="acc-act revoke"
+              onClick={async () => {
+                const ok = await confirmAction({
+                  title: 'Очистити сповіщення?',
+                  message: `${notifications.length} ${pluralUk(notifications.length, 'сповіщення', 'сповіщення', 'сповіщень')} буде видалено назавжди — повернути їх неможливо.`,
+                  confirmLabel: 'Очистити',
+                  destructive: true,
+                })
+                if (!ok || offlineGuard()) return
+                hapticNotify('warning')
+                void deleteAllNotifications()
+              }}
+            >
+              <IconTrash size={14} />Очистити всі
+            </button>
+          </div>
         )}
 
         <div style={{ height: 80 }} />
