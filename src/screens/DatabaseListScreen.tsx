@@ -14,7 +14,7 @@ import CoachMark from '@/components/ui/CoachMark'
 import FloatingButton from '@/components/ui/FloatingButton'
 import { useOnboarding } from '@/hooks/useOnboarding'
 import { useHideOnScrollDown } from '@/hooks/useHideOnScrollDown'
-import { IconChevronRight, IconPlus, GlassDbIcon } from '@/components/Icons'
+import { IconChevronRight, IconPlus, IconDatabase, IconBuilding, IconCircleCheck, IconCurrencyDollar, IconBolt, GlassDbIcon } from '@/components/Icons'
 import { DB_TYPE_LABELS, formatPrice, STATUS_COLORS, STATUS_LABELS, greeting, matchesQuery, searchPattern, pluralUk, objectsWord } from '@/lib/utils'
 import type { PropertyStatus } from '@/types'
 
@@ -116,6 +116,9 @@ export default function DatabaseListScreen() {
     free:     databases.reduce((s, d) => s + (d._free_count      ?? 0), 0),
     occupied: databases.reduce((s, d) => s + (d._occupied_count  ?? 0), 0),
     income:   databases.reduce((s, d) => s + (d._monthly_income  ?? 0), 0),
+    // Знімок SWR зі старою формою поля не має — половина експлуатаційних
+    // просто не малюється, як і при нулі. Окремої міграції кешу не треба.
+    utils:    databases.reduce((s, d) => s + (d._monthly_utils   ?? 0), 0),
   }), [databases])
 
   const greet = greeting()
@@ -142,24 +145,46 @@ export default function DatabaseListScreen() {
 
         {/* Stats */}
         <div className="stat-g">
-          <div className="stat glass-s">
+          <div className="stat glass-s" style={{ background: 'var(--dv-blue-bg)', border: '.5px solid var(--dv-blue-bd)' }}>
+            <div className="stat-ic"><IconDatabase size={16} color="var(--dv-blue)" /></div>
             <div className="stat-n">{totals.dbs}</div>
             <div className="stat-l">{pluralUk(totals.dbs, 'База', 'Бази', 'Баз')}</div>
           </div>
-          <div className="stat glass-s">
+          <div className="stat glass-s" style={{ background: 'var(--dv-purple-bg)', border: '.5px solid var(--dv-purple-bd)' }}>
+            <div className="stat-ic"><IconBuilding size={16} color="var(--violet)" /></div>
             <div className="stat-n">{totals.props}</div>
             <div className="stat-l">{objectsWord(totals.props)}</div>
           </div>
           <div className="stat glass-s" style={{ background: 'var(--ok-bg)', border: '.5px solid var(--ok-bd)' }}>
+            <div className="stat-ic"><IconCircleCheck size={16} color="var(--ok-fg)" /></div>
             <div className="stat-n" style={{ color: 'var(--ok-fg)' }}>{totals.free}</div>
             <div className="stat-l" style={{ color: 'var(--ok-fg)' }}>Вільно</div>
           </div>
           {totals.income > 0 && (
-            <div className="stat glass-s" style={{ gridColumn: '1 / -1', background: 'var(--ok-bg)', border: '.5px solid var(--ok-bd)' }}>
-              <div className="stat-n" style={{ color: 'var(--ok-fg)', fontSize: 'var(--fs-lead)' }}>
-                {formatPrice(totals.income, user?.currency)}
+            /* Дві грошові цифри в ОДНІЙ плитці, а не двома — рішення власника:
+               окремий ряд коштував би ~70px висоти, а кожні додані пікселі
+               зсувають список нижче в градієнт, який світлішає донизу, і
+               забирають контраст у карток під блоком. */
+            <div
+              className={`stat glass-s stat-split${totals.utils > 0 ? '' : ' one'}`}
+              style={{ gridColumn: '1 / -1', background: 'var(--ok-bg)', border: '.5px solid var(--ok-bd)' }}
+            >
+              <div className="stat-half">
+                <div className="stat-ic"><IconCurrencyDollar size={16} color="var(--ok-fg)" /></div>
+                <div className="stat-n" style={{ color: 'var(--ok-fg)', fontSize: 'var(--fs-lead)' }}>
+                  {formatPrice(totals.income, user?.currency)}
+                </div>
+                <div className="stat-l">Оренда · зайнято {totals.occupied}</div>
               </div>
-              <div className="stat-l">на місяць (зайнято {totals.occupied})</div>
+              {totals.utils > 0 && (
+                <div className="stat-half">
+                  <div className="stat-ic"><IconBolt size={16} color="var(--warn-fg)" /></div>
+                  <div className="stat-n" style={{ color: 'var(--warn-fg)', fontSize: 'var(--fs-lead)' }}>
+                    {formatPrice(totals.utils, user?.currency)}
+                  </div>
+                  <div className="stat-l">Експлуатаційні</div>
+                </div>
+              )}
             </div>
           )}
         </div>

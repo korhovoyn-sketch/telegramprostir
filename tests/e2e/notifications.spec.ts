@@ -66,7 +66,16 @@ async function setup(page: Page, notifications: unknown[], opts: { schedules?: u
   await page.route('**/rest/v1/notifications**', (r) => {
     const m = r.request().method()
     if (m === 'PATCH') { wire.patches.push(r.request().url()); return json(r, []) }
-    if (m === 'DELETE') { wire.deletes.push(r.request().url()); return json(r, []) }
+    if (m === 'DELETE') {
+      wire.deletes.push(r.request().url())
+      // Віддаємо ВИДАЛЕНІ рядки, а не порожній масив. Порожній — це рівно та
+      // форма, якою PostgREST під RLS повідомляє про ВІДМОВУ, і `assertAffected`
+      // у масовому видаленні законно вважав би її провалом. Мок, що моделює
+      // успіх формою відмови, робить зелений тест доказом нічого.
+      const ids = decodeURIComponent(r.request().url()).match(/id=in\.\(([^)]*)\)/)?.[1]
+      if (ids) return json(r, ids.split(',').map((id) => ({ id: id.replace(/"/g, '') })))
+      return json(r, [])
+    }
     return json(r, notifications)
   })
   await page.route('**/rest/v1/rent_payments**', (r) => json(r, opts.schedules ?? []))
@@ -129,6 +138,51 @@ test('видалення сповіщення прибирає рядок і н�
 // (розклад платежів) і `lease_reminder` (кінець договору, міграція 065).
 // Вкладки «Перегляди»/«Повідомлення»/«Система» прибрані: у проді вони були
 // назавжди порожні, а старий тест цього не бачив, бо сам підсовував `type:'view'`.
+/**
+ * ОЧИСТИТИ ВСІ — і чому саме з підтвердженням.
+ *
+ * Раніше список чистився лише по одному хрестику, а `rent_reminder` і
+ * `lease_reminder` капають щомісяця. Undo тут НЕМОЖЛИВИЙ у принципі: міграція
+ * 035 дає клієнту SELECT/UPDATE/DELETE, але INSERT-політики на `notifications`
+ * немає взагалі — повернути видалене RLS не дасть. Тому питаємо ДО.
+ */
+test('«Очистити всі» питає підтвердження і видаляє весь список', async ({ page }) => {
+  const wire = await setup(page, [notif(1), notif(2), notif(3)])
+  await openApp(page)
+  await page.locator('.tabbar [aria-label="Сповіщення"]').click()
+  await expect(page.getByText('Перегляд обʼєкта 1')).toBeVisible({ timeout: 15_000 })
+
+  await page.getByRole('button', { name: /Очистити всі/ }).click()
+
+  // Підтвердження обовʼязкове: дія незворотна, і саме це має бути в тексті.
+  const confirm = page.locator('.modal', { hasText: 'Очистити сповіщення' })
+  await expect(confirm).toBeVisible({ timeout: 10_000 })
+  await expect(confirm).toContainText(/неможливо/)
+  await confirm.getByRole('button', { name: /^Очистити$/ }).click()
+
+  await expect.poll(() => wire.deletes.length, { timeout: 10_000 }).toBe(1)
+  // Видаляємо ЗА СПИСКОМ ID, а не по user_id: інакше під ніж потрапили б рядки,
+  // що приїхали realtime-пушем уже після того, як користувач глянув на список.
+  expect(decodeURIComponent(wire.deletes[0])).toContain('id=in.')
+  await expect(page.getByText('Перегляд обʼєкта 1')).toHaveCount(0)
+})
+
+test('відмова в підтвердженні НЕ видаляє нічого', async ({ page }) => {
+  const wire = await setup(page, [notif(1), notif(2)])
+  await openApp(page)
+  await page.locator('.tabbar [aria-label="Сповіщення"]').click()
+  await expect(page.getByText('Перегляд обʼєкта 1')).toBeVisible({ timeout: 15_000 })
+
+  await page.getByRole('button', { name: /Очистити всі/ }).click()
+  const confirm = page.locator('.modal', { hasText: 'Очистити сповіщення' })
+  await expect(confirm).toBeVisible({ timeout: 10_000 })
+  await confirm.getByRole('button', { name: /Скасувати/ }).click()
+
+  await page.waitForTimeout(600)
+  expect(wire.deletes, 'скасоване підтвердження не сміє нічого видаляти').toHaveLength(0)
+  await expect(page.getByText('Перегляд обʼєкта 1')).toBeVisible()
+})
+
 test('вкладка «Платежі» лишає лише нагадування про оплату', async ({ page }) => {
   await setup(page, [
     notif(1, { type: 'rent_reminder', title: 'Платіж за Офіс 101' }),

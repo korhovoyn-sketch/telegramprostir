@@ -471,6 +471,25 @@ body{
 /* Stat number — Title 2 Bold, tight leading */
 .stat-n{font-size:var(--fs-t2);font-weight:var(--fw-bold);color:var(--t1);line-height:1;letter-spacing:-.03em}
 /* Stat label — Caption 2 Semibold uppercase */
+/* ── Плитки статистики: іконка, акцент, розділена грошова ────────────────────
+   Стиль НЕ вигаданий тут: це мова карток `.dash-card` із панелі всередині бази,
+   перенесена на екран списку. Головне, що з неї НЕ переноситься — колір числа.
+   У `.dash-*` підписи `dash-l`/`dash-sub` лежать у `CONTRAST_DEBT` (нижче AA над
+   світлим тонованим фоном), а `db-list` заморожений на НУЛІ боргу. Тому число
+   лишається білим (`.dash-n` робить так само), а колір несуть ІКОНКА, ФОН і
+   РАМКА. Виняток один — «Вільно», де зелене число вже є і поріг проходить. */
+.stat-ic{display:flex;margin-bottom:8px;line-height:1}
+/* Грошова плитка на дві половини. Роздільник — `border-left` на другій
+   половині, а не окремий елемент: зайвий вузол нічого не додає, а на 360px
+   кожен піксель ширини рахується. */
+.stat-split{display:grid;grid-template-columns:1fr 1fr;gap:0;padding:12px 0}
+.stat-split.one{grid-template-columns:1fr}
+.stat-half{padding:0 var(--g3);min-width:0}
+.stat-half+.stat-half{border-left:.5px solid rgba(255,255,255,.14)}
+/* `min-width:0` + ellipsis обовʼязкові: половина при 360px це ~154px, а
+   «$1 234 567» туди не влазить — той самий клас, що вже тричі рвав флекс-рядки
+   (`.row-t`, `.link-mono`, інпут сканера). */
+.stat-half .stat-n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .stat-l{font-size:var(--fs-cap2);color:var(--t3);margin-top:5px;font-weight:var(--fw-semi);text-transform:uppercase;letter-spacing:.05em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* ── LIST ROW ── */

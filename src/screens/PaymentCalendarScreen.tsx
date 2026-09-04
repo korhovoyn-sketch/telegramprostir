@@ -540,6 +540,37 @@ export default function PaymentCalendarScreen() {
                                 </div>
                               )}
                             </div>
+
+                            {/* ДІЇ В АРХІВІ — інакше це тупик.
+                                Ті самі `onEditPaid`/`onUnpay` доступні на вкладці
+                                «Поточні», але зникали, щойно платіж випадав із
+                                горизонту 2-3 місяці — а випадає він САМ, із
+                                переходом місяця. Запис при цьому не ставав
+                                незмінним: UI просто переставав пропонувати дії,
+                                тож помилкову суму можна було виправити лише до
+                                кінця місяця. `handleUnpay` уже вміє оновлювати
+                                `archiveRecords`, тобто його писали з розрахунку
+                                на виклик звідси.
+
+                                Дії гейтяться наявністю `prop`: обʼєкт міг бути
+                                видалений, і тоді «Редагувати» вело б в екран без
+                                даних. */}
+                            {prop && (
+                              <div style={{ marginTop: 10, paddingTop: 8, display: 'flex', gap: 8, borderTop: '.5px solid rgba(255,255,255,.06)' }}>
+                                <button
+                                  onClick={() => navigate('payment-confirm', { propertyId: prop.id, dbId: prop.db_id, dueDate: rec.due_date })}
+                                  style={{ fontSize: 'var(--fs-cap2)', color: 'var(--t3)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0', display: 'flex', alignItems: 'center', gap: 4 }}
+                                >
+                                  <IconEdit size={14} /> Редагувати
+                                </button>
+                                <button
+                                  onClick={() => handleUnpay(rec, prop.name)}
+                                  style={{ fontSize: 'var(--fs-cap2)', color: 'var(--err)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0', marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}
+                                >
+                                  <IconX size={12} /> Скасувати платіж
+                                </button>
+                              </div>
+                            )}
                           </div>
                         )
                       })}

@@ -280,3 +280,23 @@ describe('порядок фото на кожному шляху в стор', (
       'жодного входження не знайдено: назва хелпера змінилась').toBeGreaterThan(1)
   })
 })
+
+/**
+ * `utilities_rate` мусить приходити у вкладеному селекті баз.
+ *
+ * Друга грошова цифра на екрані «Мої бази» рахується з нього. Без колонки
+ * агрегат тихо стає НУЛЕМ — половина плитки просто не малюється, помилки
+ * немає, і причину не видно ніде. Рантаймом це не ловиться: мок-харнес віддає
+ * фікстуру цілком, ігноруючи `select=` у вкладеному запиті.
+ */
+describe('вкладений select баз несе все, з чого рахуються гроші', () => {
+  const src = readFileSync(resolve(__dirname, '../../src/hooks/useDatabases.ts'), 'utf8')
+  const rel = src.match(/const DB_REL = '([^']+)'/)?.[1] ?? ''
+
+  it('DB_REL знайдено', () => expect(rel).toContain('properties('))
+
+  it.each(['status', 'rent_rate', 'area_useful', 'area_total', 'area_basis', 'rent_type', 'utilities_rate'])(
+    'колонка %s у DB_REL',
+    (col) => expect(rel).toContain(col),
+  )
+})

@@ -51,6 +51,8 @@ export interface Database {
   _member?: boolean
   _occupied_count?: number
   _monthly_income?: number
+  /** Експлуатаційні за місяць по зайнятих обʼєктах бази (див. `useDatabases`). */
+  _monthly_utils?: number
 }
 
 export interface Property {

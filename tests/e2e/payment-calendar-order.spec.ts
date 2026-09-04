@@ -43,7 +43,9 @@ function prop(n: number, name: string) {
 const WITH_SCHEDULE = prop(1, 'Офіс 101')
 const NO_SCHEDULE   = prop(2, 'Офіс 202')
 
-async function openCalendar(page: Page) {
+interface Wire { deletes: string[] }
+
+async function openCalendar(page: Page, opts: { records?: unknown[]; wire?: Wire } = {}) {
   await setupApp(page, { user: USER })
   await skipCoachmarks(page)
   await page.route('**/rest/v1/databases**', (r) =>
@@ -59,7 +61,17 @@ async function openCalendar(page: Page) {
     owner_id: USER.id, due_day: 1, notify_days_before: 3, is_active: true,
     created_at: NOW, updated_at: NOW,
   }]))
-  await page.route('**/rest/v1/rent_payment_records**', (r) => json(r, []))
+  await page.route('**/rest/v1/rent_payment_records**', (r) => {
+    if (r.request().method() === 'DELETE') {
+      opts.wire?.deletes.push(decodeURIComponent(r.request().url()))
+      // Віддаємо ВИДАЛЕНИЙ рядок: порожній масив — це форма, якою PostgREST під
+      // RLS повідомляє про ВІДМОВУ, і `assertAffected` у скасуванні платежу
+      // законно вважав би її провалом (це ГРОШОВИЙ запис).
+      const id = decodeURIComponent(r.request().url()).match(/id=eq\.([^&]+)/)?.[1]
+      return json(r, id ? [{ id }] : [])
+    }
+    return json(r, opts.records ?? [])
+  })
   for (const t of ['property_folders', 'property_files', 'property_views', 'db_members']) {
     await page.route(`**/rest/v1/${t}**`, (r) => json(r, []))
   }
@@ -72,6 +84,56 @@ async function openCalendar(page: Page) {
   await page.getByText('Календар платежів').click()
   await expect(page.getByText(/Календар платежів|Платежі — /)).toBeVisible({ timeout: 15_000 })
 }
+
+/**
+ * АРХІВ НЕ Є ТУПИКОМ.
+ *
+ * Ті самі дії («Редагувати», «Скасувати платіж») були доступні на вкладці
+ * «Поточні», але зникали, щойно платіж випадав із горизонту 2-3 місяці — а
+ * випадає він САМ, із переходом місяця. Запис при цьому не ставав незмінним:
+ * UI просто переставав пропонувати дії, тож помилкову суму можна було
+ * виправити лише до кінця місяця.
+ *
+ * Дата запису — фіксовано минулий рік, щоб він гарантовано лежав ПОЗА
+ * горизонтом незалежно від дати прогону, тобто був досяжний ЛИШЕ з архіву.
+ */
+const ARCHIVED = {
+  id: '70000000-0000-0000-0000-000000000001',
+  property_id: WITH_SCHEDULE.id, owner_id: USER.id,
+  due_date: '2024-03-01', status: 'paid', amount: 1800,
+  paid_at: '2024-03-02T10:00:00.000Z', notes: null,
+  created_at: NOW, updated_at: NOW,
+}
+
+test('архівний платіж можна скасувати — інакше це тупик', async ({ page }) => {
+  const wire: Wire = { deletes: [] }
+  await openCalendar(page, { records: [ARCHIVED], wire })
+
+  await page.getByRole('button', { name: /Архів/ }).click()
+  await expect(page.getByText('Офіс 101').first()).toBeVisible({ timeout: 15_000 })
+
+  await page.getByRole('button', { name: /Скасувати платіж/ }).first().click()
+  const confirm = page.locator('.modal', { hasText: 'Скасувати платіж' })
+  await expect(confirm).toBeVisible({ timeout: 10_000 })
+  await confirm.getByRole('button', { name: /^Скасувати платіж$/ }).click()
+
+  await expect.poll(() => wire.deletes.length, { timeout: 10_000 }).toBe(1)
+  expect(wire.deletes[0], 'скасування мусить бити саме в цей запис').toContain(ARCHIVED.id)
+})
+
+test('архівний платіж можна відкрити на редагування', async ({ page }) => {
+  // Друга половина: скасувати — не єдиний вихід. Помилкову СУМУ треба вміти
+  // виправити, не знищуючи запис.
+  await openCalendar(page, { records: [ARCHIVED] })
+  await page.getByRole('button', { name: /Архів/ }).click()
+  await expect(page.getByText('Офіс 101').first()).toBeVisible({ timeout: 15_000 })
+
+  await page.getByRole('button', { name: /Редагувати/ }).first().click()
+  await expect(page.getByText(/Редагувати платіж/)).toBeVisible({ timeout: 15_000 })
+  // Сильніша перевірка за сам факт переходу: у поле підтягнулась сума САМЕ
+  // архівного запису, тобто екран отримав правильний `dueDate` і знайшов рядок.
+  await expect(page.getByLabel(/Сума отриманого платежу/)).toHaveValue('1800')
+})
 
 test('спершу платежі, і лише ПОТІМ обʼєкти без розкладу', async ({ page }) => {
   await openCalendar(page)
