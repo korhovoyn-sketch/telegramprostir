@@ -26,12 +26,14 @@ let loadTicket = 0
 
 export function useNotifications() {
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const { user, setNotifications, notifications, markAllRead, showToast } = useAppStore()
 
   const loadNotifications = useCallback(async () => {
     if (!user) return
     const ticket = ++loadTicket
     setLoading(true)
+    setError(null)
     try {
       const { data, error } = await supabase
         .from('notifications')
@@ -46,6 +48,15 @@ export function useNotifications() {
       if (ticket !== loadTicket) return
       setNotifications((data || []) as Notification[])
     } catch (e) {
+      // Тост живе кілька секунд, а порожній список лишається на екрані — і
+      // читається як ВПЕВНЕНА відповідь «сповіщень немає». Тому збій мусить
+      // мати СТАН, а не лише повідомлення: той самий клас уже виправляли для
+      // списку доступів і аналітики шарингу.
+      // БЕЗ тікет-гарда, і це свідомо: `loadTicket` модульний, тож глобальний
+      // лічильник бейджа з page.tsx зсуває його між випуском запиту екрана і
+      // його провалом — і помилка тихо не виставлялась. Застарілу помилку
+      // виправляє наступний успіх: кожне завантаження стартує з setError(null).
+      setError(humanizeDbError(e))
       showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
     } finally {
       setLoading(false)
@@ -170,6 +181,15 @@ export function useNotifications() {
           console.warn('[notifications] realtime-канал відпав:', status)
           // Рефетч замість мовчазної втрати: рядки, вставлені поки сокет був
           // мертвий, realtime уже не догнати — їх дістане звичайний запит.
+          //
+          // РИЗИК, НАЗВАНИЙ І НЕ ЗАКРИТИЙ: supabase-js перепідключає канал сам
+          // і без кінця, тож клієнт, у якого сокет не встає, може крутити
+          // «падіння → запит → падіння». Обмежити це легко (рефетч лише після
+          // втрати ЖИВОГО каналу + підлога по часу), але звідси цикл ПЕРЕВІРИТИ
+          // НЕМОЖЛИВО: у харнесі вебсокета немає, і гілка не виконується
+          // жодного разу. Спроба «полагодити наосліп» тут уже відкочена — ціна
+          // в неї реальна (пропущені рядки у вікні підлоги), а доказ
+          // відсутній. Рішення — за заміром на живому клієнті.
           void loadNotifications()
         }
       })
@@ -179,5 +199,5 @@ export function useNotifications() {
     }
   }, [user, loadNotifications])
 
-  return { loading, notifications, loadNotifications, markRead, markAllAsRead, deleteNotification, deleteAllNotifications, subscribeToNotifications }
+  return { loading, error, notifications, loadNotifications, markRead, markAllAsRead, deleteNotification, deleteAllNotifications, subscribeToNotifications }
 }

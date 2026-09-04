@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Route } from '@playwright/test'
-import { setupApp, DEFAULT_USER, jsonRoute, seedSession } from './helpers/harness'
+import { setupApp, DEFAULT_USER, jsonRoute, seedSession, skipCoachmarks } from './helpers/harness'
 
 /**
  * ТУПИКИ: екран, з якого стан не має виходу.
@@ -101,5 +101,62 @@ test('недійсне запрошення повтору НЕ пропонує
 
   await page.goto('/')
   await expect(page.getByText('Посилання недійсне')).toBeVisible({ timeout: 25_000 })
+  await expect(page.getByRole('button', { name: /Спробувати ще раз/ })).toHaveCount(0)
+})
+
+/**
+ * СПОВІЩЕННЯ: збій завантаження ≠ «сповіщень немає».
+ *
+ * Третій інстанс уже двічі виправленого класу (список доступів, аналітика
+ * шарингу) — і вперше на ВКЛАДЦІ ТАББАРУ, тобто на щоденній поверхні. Екран мав
+ * рівно дві гілки: скелетон і порожній стан. Тост про причину зникав за кілька
+ * секунд, а «Немає сповіщень» лишалось на екрані як впевнена відповідь.
+ *
+ * Мій попередній скан цього НЕ побачив: він шукав екрани з прямим `supabase`, а
+ * цей ходить через хук. Записано, бо помилка була в самому способі шукати.
+ */
+async function notifApp(page: Page, notifRoute: (r: Route) => unknown) {
+  await setupApp(page, { user: OWNER })
+  await skipCoachmarks(page)
+  await page.route('**/rest/v1/notifications**', (r: Route) => notifRoute(r))
+  for (const t of ['databases', 'properties', 'property_folders', 'rent_payments',
+                   'rent_payment_records', 'property_views', 'db_members', 'collections']) {
+    await page.route(`**/rest/v1/${t}**`, (r: Route) => jsonRoute(r, []))
+  }
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+  await page.locator('.tabbar [aria-label="Сповіщення"]').click()
+}
+
+test('сповіщення: збій завантаження дає повтор, а не «Немає сповіщень»', async ({ page }) => {
+  test.setTimeout(90_000)
+  let fail = true
+  let calls = 0
+  await notifApp(page, (r) => {
+    calls++
+    if (fail && r.request().method() === 'GET') return r.abort('failed')
+    return jsonRoute(r, [])
+  })
+
+  // Чекаємо ЩЕДРО: supabase-js сам ретраїть обірваний запит, тож відмова
+  // доходить до катча за 6-8с, а не миттєво. Замір на 4с показував скелетон і
+  // виглядав як зламаний фікс — насправді був зроблений зарано.
+  const retry = page.getByRole('button', { name: /Спробувати ще раз/ })
+  await expect(retry).toBeVisible({ timeout: 30_000 })
+  // Головне тут — ЧОГО немає: впевненого «Немає сповіщень» на місці збою.
+  await expect(page.getByText('Немає сповіщень')).toHaveCount(0)
+
+  const before = calls
+  fail = false
+  await retry.click()
+  await expect(page.getByText('Немає сповіщень')).toBeVisible({ timeout: 30_000 })
+  expect(calls, 'повтор не зробив нового запиту').toBeGreaterThan(before)
+})
+
+test('порожня відповідь лишається «Немає сповіщень» — розподіл не зламано', async ({ page }) => {
+  // АНТИВАКУУМ: якби обидві гілки звели до помилки, тест вище так само проходив
+  // би, а користувач бачив би панель повтору там, де просто немає подій.
+  await notifApp(page, (r) => jsonRoute(r, []))
+  await expect(page.getByText('Немає сповіщень')).toBeVisible({ timeout: 20_000 })
   await expect(page.getByRole('button', { name: /Спробувати ще раз/ })).toHaveCount(0)
 })

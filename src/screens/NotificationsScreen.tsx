@@ -8,6 +8,7 @@ import { useLeaseAlerts, type LeaseAlert } from '@/hooks/useLeaseAlerts'
 import { useUpcomingPayments, type PaymentAlert } from '@/hooks/useUpcomingPayments'
 import { useViewerActivity } from '@/hooks/useViewerActivity'
 import TabBar from '@/components/ui/TabBar'
+import RetryState from '@/components/ui/RetryState'
 import { SkeletonList } from '@/components/ui/SkeletonLoader'
 import { IconX, IconTrash, IconBell, IconEye, IconMessage, IconHeartFilled, IconAdjustments, IconFile, IconCurrencyDollar, IconBan, IconClock, IconCalendar, IconKey } from '@/components/Icons'
 import { confirmAction } from '@/lib/confirm'
@@ -30,7 +31,7 @@ type NotifTab = 'all' | 'lease' | 'payments'
 export default function NotificationsScreen() {
   const unreadCount = useAppStore((s) => s.unreadCount)
   const navigate = useAppStore((s) => s.navigate)
-  const { notifications, loading, loadNotifications, markRead, markAllAsRead, deleteNotification, deleteAllNotifications, subscribeToNotifications } = useNotifications()
+  const { notifications, loading, error: loadError, loadNotifications, markRead, markAllAsRead, deleteNotification, deleteAllNotifications, subscribeToNotifications } = useNotifications()
   const { alerts: leaseAlerts, loadLeaseAlerts } = useLeaseAlerts()
   const { alerts: payAlerts, loadUpcomingPayments } = useUpcomingPayments()
   const { viewers, loadViewerActivity } = useViewerActivity()
@@ -276,8 +277,20 @@ export default function NotificationsScreen() {
           </>
         )}
 
-        {loading ? (
+        {loading && notifications.length === 0 ? (
+          /* Скелетон ЛИШЕ коли малювати нічого. Фонове перезавантаження
+             (напр. після відновлення realtime-каналу) інакше підміняло вже
+             показаний список заглушками — той самий принцип, що в решті
+             списків: гілка стану дивиться і на дані теж. */
           <SkeletonList count={5} />
+        ) : loadError && notifications.length === 0 ? (
+          /* Збій ЗАВАНТАЖЕННЯ ≠ «сповіщень немає». Доти екран мав лише дві
+             гілки — скелетон і порожній стан, — тож обрив звʼязку показував
+             впевнене «Немає сповіщень», а тост про причину зникав за кілька
+             секунд. Третій інстанс класу, і вперше на вкладці таббару.
+             Похідні блоки (договори, платежі, глядачі) рахуються з ІНШИХ
+             джерел і малюються вище — панель повтору стосується лише списку. */
+          <RetryState subtitle={loadError} onRetry={loadNotifications} />
         ) : filtered.length === 0
             && !(showLease && leaseAlerts.length > 0)
             && !(showPay && payAlerts.length > 0)
