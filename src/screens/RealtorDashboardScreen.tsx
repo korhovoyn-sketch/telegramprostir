@@ -127,7 +127,7 @@ export default function RealtorDashboardScreen() {
         <div className="greet">{greet}, {user?.first_name}</div>
         <div className="display">Робочі бази</div>
 
-        <div className="stat-g" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
+        <div className="stat-g cols-2">
           <div className="stat glass-s">
             <div className="stat-n">{subscriptions.length + memberDatabases.length}</div>
             <div className="stat-l">{pluralUk(subscriptions.length + memberDatabases.length, 'База', 'Бази', 'Баз')}</div>

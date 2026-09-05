@@ -180,3 +180,64 @@ test('товщина обведення виводиться з розміру, 
   const odd = [...sizes].filter((s) => s % 2 !== 0)
   expect(odd, `непарні розміри іконок у рендері: ${odd.join(',')}`).toEqual([])
 })
+
+/**
+ * ЗАЛИТИЙ ГЛІФ МУСИТЬ СЛУХАТИСЬ ПРОПА `color`.
+ *
+ * `Icon` ставив лише `stroke={color}` — а `IconCircleCheck`, `IconFlag` і
+ * `IconHeartFilled` малюються `fill="currentColor"` при `strokeWidth="0"`, тобто
+ * беруть УСПАДКОВАНИЙ колір тексту. Проп для них був мертвий: галочка «Вільно»
+ * на екрані баз малювалась білою замість `--ok-fg`, «Статус» на картці обʼєкта —
+ * замість `#4ade80`, а серце в сповіщеннях — замість `--pink`.
+ *
+ * Джерельний гард цього не бачить у принципі: у TSX написано `color="…"`, і воно
+ * там є. Видно лише в РЕНДЕРІ — і то не оком на зменшеному кадрі, а пробою
+ * пікселя (саме так дефект і знайшовся, на перезнятому бейслайні).
+ *
+ * Міряється збіг ОБЧИСЛЕНОЇ заливки з обчисленим обведенням: обидва походять від
+ * одного пропа, тож розбіжність означає рівно те, що заливка взялась не звідти.
+ */
+test('залитий гліф малюється кольором пропа, а не успадкованим', async ({ page }) => {
+  test.setTimeout(150_000)
+  await setup(page)
+
+  const wrong: string[] = []
+  let checked = 0
+
+  await walk(page, async (label) => {
+    const rows = await page.evaluate(() =>
+      [...document.querySelectorAll('svg.ico')]
+        .map((el) => {
+          const svg = el as SVGSVGElement
+          // Залитість оголошена на ДОЧІРНЬОМУ вузлі (`fill="currentColor"`), а не
+          // на `<svg>`: там `stroke-width` завжди `strokeFor(size)`. Перша версія
+          // зонда фільтрувала по `<svg>` і не знаходила НІЧОГО — спіймано
+          // антивакуумною перевіркою нижче, не уважністю.
+          const kid = svg.querySelector('[fill="currentColor"]')
+          return {
+            cls: svg.getAttribute('class') ?? '',
+            // Сирий атрибут: `currentColor` означає «пропа не передавали».
+            declared: svg.getAttribute('stroke') ?? '',
+            stroke: getComputedStyle(svg).stroke,
+            fill: kid ? getComputedStyle(kid).fill : '',
+          }
+        })
+        .filter((r) => r.fill !== ''))
+
+    for (const r of rows) {
+      // Без явного пропа обидва значення успадковані й збігаються за побудовою —
+      // такий випадок нічого не доводить, тож у лічильник не йде.
+      if (r.declared === 'currentColor' || !r.declared) continue
+      checked++
+      if (r.fill !== r.stroke) {
+        wrong.push(`${label}: .${r.cls} заливка ${r.fill} ≠ заданий колір ${r.stroke}`)
+      }
+    }
+  })
+
+  // АНТИВАКУУМ: без цього «розбіжностей немає» означало б «залитих гліфів із
+  // явним кольором на маршруті не трапилось», тобто тест не перевіряв нічого.
+  expect(checked, 'жодного залитого гліфа з явним кольором не знайдено — '
+    + 'обхід не доходить до db-list/property-detail?').toBeGreaterThan(1)
+  expect([...new Set(wrong)]).toEqual([])
+})

@@ -296,7 +296,7 @@ export default function PaymentCalendarScreen() {
 
       <div className="body">
         {/* Stats row */}
-        <div className="stat-g" style={{ gridTemplateColumns: 'repeat(3,1fr)' }}>
+        <div className="stat-g">
           {/* cap3 на всіх трьох лейблах: «ПРОСТРОЧЕНО» на cap2 не влазить у
               третину 375px-екрана і обрізався б трикрапкою */}
           <div className="stat glass-s stat-pop-anim" style={{ animationDelay: '0s' }}>

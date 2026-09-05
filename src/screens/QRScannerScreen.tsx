@@ -132,7 +132,7 @@ export default function QRScannerScreen() {
     <div className="scr" style={{ background: '#000' }}>
       <Header title="Сканер QR" backLabel="Назад" />
 
-      <div onFocusCapture={scrollFocusedIntoView} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 32px', gap: 24 }}>
+      <div className="col-read" onFocusCapture={scrollFocusedIntoView} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 32px', gap: 24 }}>
         {/* Scanner frame */}
         <div style={{ position: 'relative', width: 240, height: 240 }}>
           <div style={{

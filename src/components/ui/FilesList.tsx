@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useFileDrop } from '@/hooks/useFileDrop'
 import { usePropertyFiles } from '@/hooks/usePropertyFiles'
 import { useAppStore } from '@/store/appStore'
 import { confirmAction } from '@/lib/confirm'
@@ -51,15 +52,20 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
 
   useEffect(() => { fetchFiles() }, [fetchFiles])
 
-  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const picked = Array.from(e.target.files ?? [])
-    e.target.value = ''
+  async function runUpload(picked: File[]) {
     if (!picked.length) return
     await uploadFiles(picked, msg =>
       showToast({ type: 'error', title: 'Помилка завантаження', subtitle: msg })
     )
     showToast({ type: 'success', title: 'Файл(и) завантажено' })
   }
+
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const picked = Array.from(e.target.files ?? [])
+    e.target.value = ''
+    await runUpload(picked)
+  }
+
 
   async function handlePreview(file: PropertyFile) {
     setOpeningId(file.id)
@@ -87,6 +93,19 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
   }
 
   const canUpload = isOwner && files.length < maxFiles && !uploading
+
+  // Перетягування документів. Фільтр по РОЗШИРЕННЮ, а не лише по MIME: Windows
+  // віддає порожній `type` для .docx, тобто перевірка тільки типу відкидала б
+  // саме той формат, заради якого зону й роблять.
+  const docDrop = useFileDrop({
+    disabled: !canUpload,
+    accept: (f) => /\.(pdf|docx?)$/i.test(f.name)
+      || f.type === 'application/pdf'
+      || f.type.startsWith('application/msword')
+      || f.type.startsWith('application/vnd.openxmlformats-officedocument.wordprocessingml'),
+    onFiles: (files) => { void runUpload(files) },
+    onRejected: () => showToast({ type: 'error', title: 'Формат не підтримується', subtitle: 'Перетягніть PDF або Word' }),
+  })
 
   return (
     <>
@@ -123,16 +142,20 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
 
       {/* ── Empty state ── */}
       {!loading && files.length === 0 && !uploading && (
-        <div style={{
-          margin: '0 12px 16px',
-          border: '.5px dashed rgba(255,255,255,.18)',
-          borderRadius: 'var(--r-md)', padding: '18px 16px',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
-        }}>
+        <div
+          className={`drop-zone${docDrop.dropping ? ' dropping' : ''}`}
+          {...docDrop.dropProps}
+          style={{
+            margin: '0 12px 16px',
+            border: '.5px dashed rgba(255,255,255,.18)',
+            borderRadius: 'var(--r-md)', padding: '18px 16px',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+          }}
+        >
           <IconCloudUpload size={26} color="var(--t4)" />
           <div style={{ fontSize: 'var(--fs-foot)', color: 'var(--t3)', textAlign: 'center', lineHeight: 1.4 }}>
             {isOwner
-              ? `Додайте PDF або Word файли (до ${maxFiles} шт., макс. 20 МБ)`
+              ? `Додайте PDF або Word файли (до ${maxFiles} шт., макс. 20 МБ) — або перетягніть їх сюди`
               : 'Файли ще не додані'}
           </div>
           {isOwner && (
@@ -162,7 +185,11 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
 
       {/* ── File rows ── */}
       {!loading && (files.length > 0 || uploading) && (
-        <div style={{ margin: '0 12px 16px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div
+          className={`drop-zone${docDrop.dropping ? ' dropping' : ''}`}
+          {...docDrop.dropProps}
+          style={{ margin: '0 12px 16px', display: 'flex', flexDirection: 'column', gap: 6 }}
+        >
           {files.map(file => (
             <div key={file.id} style={{
               display: 'flex', alignItems: 'center', gap: 10,

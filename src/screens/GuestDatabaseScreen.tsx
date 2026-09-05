@@ -76,6 +76,10 @@ export default function GuestDatabaseScreen() {
   const [loading, setLoading] = useState(true)
   const [ctaLoading, setCtaLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  /** Повтор для ВІДНОВЛЮВАНОЇ гілки: екран казав «перевірте підключення» і не
+   *  давав чим повторити — єдиною дією лишалось «Закрити», тобто вийти з
+   *  запрошення і шукати лінк назад у чаті. */
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
     if (!token) {
@@ -118,7 +122,7 @@ export default function GuestDatabaseScreen() {
     }
 
     load()
-  }, [token, guestMode])
+  }, [token, guestMode, reloadKey])
 
   function handleClose() {
     const tg = window.Telegram?.WebApp
@@ -166,12 +170,23 @@ export default function GuestDatabaseScreen() {
               ? 'Посилання застаріло, видалено або відкликано. Зверніться до власника.'
               : 'Не вдалося завантажити дані. Перевірте підключення.'}
           </div>
-          <button
-            style={{ marginTop: 20, padding: '10px 24px', borderRadius: 'var(--r-pill)', background: 'var(--glass-2)', border: 'var(--bd)', color: 'var(--t2)', fontSize: 'var(--fs-note)', cursor: 'pointer' }}
-            onClick={handleClose}
-          >
-            Закрити
-          </button>
+          <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
+            {!isLinkProblem && (
+              <button
+                className="mbtn-flow mbtn"
+                style={{ position: 'static', margin: 0 }}
+                onClick={() => setReloadKey((k) => k + 1)}
+              >
+                Спробувати ще раз
+              </button>
+            )}
+            <button
+              style={{ padding: '10px 24px', borderRadius: 'var(--r-pill)', background: 'var(--glass-2)', border: 'var(--bd)', color: 'var(--t2)', fontSize: 'var(--fs-note)', cursor: 'pointer' }}
+              onClick={handleClose}
+            >
+              Закрити
+            </button>
+          </div>
         </div>
       </div>
     )
@@ -262,7 +277,7 @@ export default function GuestDatabaseScreen() {
               <div style={{ padding: '0 16px 8px', fontSize: 'var(--fs-cap1)', color: 'var(--t3)' }}>
                 {guestPreview.properties.length} обʼєктів у базі
               </div>
-              <div className="list">
+              <div className="list cards">
                 {guestPreview.properties.map((prop) => (
                   <div key={prop.id} className="obj-card glass-s">
                     <div className="obj-hd">
@@ -342,7 +357,7 @@ export default function GuestDatabaseScreen() {
         </div>
 
         {properties.length > 0 && (
-          <div className="list">
+          <div className="list cards">
             {properties.map((p) => (
               <div key={p.property_id} className="obj-card glass-s">
                 <div className="obj-hd">

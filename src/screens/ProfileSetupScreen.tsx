@@ -122,15 +122,7 @@ export default function ProfileSetupScreen() {
         >
           Почати роботу →
         </button>
-        <button
-          onClick={() => navigateRoot(dest)}
-          disabled={loading}
-          style={{
-            background: 'none', border: 'none', cursor: 'pointer',
-            color: 'var(--t4)', fontSize: 'var(--fs-foot)', padding: '0 16px 12px',
-            minHeight: 44, width: '100%', textAlign: 'center',
-          }}
-        >
+        <button className="skip-btn" onClick={() => navigateRoot(dest)} disabled={loading}>
           Пропустити →
         </button>
       </div>

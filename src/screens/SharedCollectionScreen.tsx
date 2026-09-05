@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useAppStore } from '@/store/appStore'
 import { StatusBadge } from '@/components/ui/Badge'
 import Header from '@/components/ui/Header'
+import RetryState from '@/components/ui/RetryState'
 import { IconBuilding } from '@/components/Icons'
 import { formatPrice, calcRent, basisArea, computedRentUnit, photoUrl } from '@/lib/utils'
 import type { PropertyStatus, RentType } from '@/types'
@@ -55,6 +56,16 @@ export default function SharedCollectionScreen() {
   const [data, setData] = useState<SharedCollectionData | null>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
+  /**
+   * Збій ЗВʼЯЗКУ — окремий стан, а не той самий «не знайдено».
+   *
+   * Зливати їх не можна: обрив мережі казав людині, якій рієлтор щойно надіслав
+   * лінк, впевнене «посилання недійсне», і повторити не було чим. Рієлтор
+   * дізнавався про це як «твоє посилання не працює». Публічна /v цей розподіл
+   * робить від початку (`networkErrorState`), тут його просто не було.
+   */
+  const [netErr, setNetErr] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
     // Авторизує ТОКЕН, а не `collectionId`. Попередній шлях
@@ -64,6 +75,9 @@ export default function SharedCollectionScreen() {
     // дослівно обіцяє протилежне. Без токена екран нічого не показує.
     if (!colToken) { setNotFound(true); setLoading(false); return }
     let cancelled = false
+    setNetErr(false)
+    setNotFound(false)
+    setLoading(true)
 
     async function load() {
       try {
@@ -71,7 +85,10 @@ export default function SharedCollectionScreen() {
           .rpc('get_public_collection_preview', { p_token: colToken })
         if (cancelled) return
         const list = (rows ?? []) as PreviewRow[]
-        if (error || list.length === 0) { setNotFound(true); return }
+        // Помилка транспорту ≠ порожня відповідь: перша означає «не доїхало»,
+        // друга — «такого нема». Однакова реакція на них і була дефектом.
+        if (error) { setNetErr(true); return }
+        if (list.length === 0) { setNotFound(true); return }
         setData({
           name: list[0].collection_name,
           // Валюта ВЛАСНИКА, не глядача: раніше екран брав `user.currency`, тож
@@ -94,7 +111,7 @@ export default function SharedCollectionScreen() {
             })),
         })
       } catch {
-        if (!cancelled) setNotFound(true)
+        if (!cancelled) setNetErr(true)
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -102,12 +119,28 @@ export default function SharedCollectionScreen() {
 
     load()
     return () => { cancelled = true }
-  }, [colToken, collectionId])
+  }, [colToken, collectionId, reloadKey])
 
   if (loading) {
     return (
       <div className="scr bg-violet" style={{ alignItems: 'center', justifyContent: 'center' }}>
         <div className="loader" />
+      </div>
+    )
+  }
+
+  if (netErr) {
+    return (
+      <div className="scr bg-violet">
+        <Header title="Підбірка" backLabel="Назад" />
+        <RetryState
+          icon="📡"
+          title="Не вдалося завантажити"
+          subtitle={typeof navigator !== 'undefined' && !navigator.onLine
+            ? 'Немає зʼєднання з інтернетом. Перевірте мережу і спробуйте ще раз.'
+            : 'Перевірте зʼєднання та спробуйте ще раз.'}
+          onRetry={() => setReloadKey((k) => k + 1)}
+        />
       </div>
     )
   }

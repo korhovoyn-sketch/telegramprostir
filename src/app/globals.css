@@ -403,6 +403,10 @@ body{
    Used by data-entry forms so the button never covers the focused field and
    never bounces with the keyboard. */
 .mbtn.mbtn-flow{position:static;left:auto;right:auto;bottom:auto;width:fit-content;max-width:calc(100% - 24px);margin:18px auto calc(8px + var(--safe-bottom));transition:transform var(--dur-sm) var(--ease-out),box-shadow var(--dur-xs) var(--ease),opacity var(--dur-xs),filter var(--dur-xs) ease;will-change:auto}
+/* Другорядна текстова дія під первинною («Пропустити →»). Клас, а не інлайн:
+   інлайновий `width:'100%'` не давав десктопній колонці стиснути кнопку, і її
+   зона дотику 44px розтягувалась на всю рамку — 1100px «пропустити». */
+.skip-btn{background:none;border:none;cursor:pointer;color:var(--t2);font-size:var(--fs-foot);padding:0 16px 12px;min-height:44px;width:100%;text-align:center}
 .body.has-flow-cta{padding-bottom:calc(16px + var(--safe-bottom) + var(--keyboard-h,0px))}
 /* Форми з ПЛАВАЮЧОЮ CTA: 14 (відступ від низу) + 46 (кнопка) + 16 (повітря).
    Без цього остання група полів лягала б під кнопку — саме це стереже
@@ -456,7 +460,11 @@ body{
 .over{padding:10px var(--g3) 7px;font-size:var(--fs-cap2);color:var(--t3);font-weight:var(--fw-semi);text-transform:uppercase;letter-spacing:.07em;display:flex;justify-content:space-between;align-items:center;line-height:1}
 
 /* Linked action in over-line — Caption 1 */
-.over-a{color:var(--info-fg);cursor:pointer;font-size:var(--fs-cap1);text-transform:none;letter-spacing:0;font-weight:var(--fw-semi)}
+/* БЕЗ cursor:pointer: це ЛІЧИЛЬНИК («3 обʼєкти», «5 знайдено», «2 за 7 днів»)
+   у пʼятьох місцях, простий <span> без жодного обробника. Курсор тут стояв
+   давно, а `:active{opacity:.7}` йому додав раунд тактильного відгуку —
+   тобто фальшиву афорданс не спитали, а підсилили. */
+.over-a{color:var(--info-fg);font-size:var(--fs-cap1);text-transform:none;letter-spacing:0;font-weight:var(--fw-semi)}
 
 /* Modal/welcome heading — Title 3 Bold */
 .heading{font-size:clamp(20px,5.5vw,24px);font-weight:var(--fw-bold);color:var(--t1);text-align:center;margin:0 24px 10px;letter-spacing:-.025em;line-height:var(--lh-tight);position:relative;z-index:var(--z-above)}
@@ -467,7 +475,16 @@ body{
 
 /* ── STATS ── */
 .stat-g{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--g2);padding:0 var(--g3);margin-bottom:var(--g3)}
-.stat{border-radius:var(--r-md);padding:12px var(--g2);min-width:0;cursor:pointer}
+/* Дві плитки замість трьох — там, де метрик рівно дві (гість, дашборд
+   рієлтора). Клас, а не інлайн: правило дизайн-системи («інлайн лише для
+   динамічних значень»), і заодно інлайн тут неможливо було б перекрити з CSS. */
+.stat-g.cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+/* БЕЗ cursor:pointer і БЕЗ :active — плитка нічого не відкриває. Вона мала
+   і те, і те на пʼятьох екранах (бази, дашборд рієлтора, гостьовий дім,
+   календар, аналітика шарингу), а onClick — на жодному: втискалась під пальцем
+   і не робила НІЧОГО. Той самий клас фальшивої афордансу, через який рядок
+   шита став <button>. Зʼявиться дія — повернуться обидва рядки разом із нею. */
+.stat{border-radius:var(--r-md);padding:12px var(--g2);min-width:0}
 /* Stat number — Title 2 Bold, tight leading */
 .stat-n{font-size:var(--fs-t2);font-weight:var(--fw-bold);color:var(--t1);line-height:1;letter-spacing:-.03em}
 /* Stat label — Caption 2 Semibold uppercase */
@@ -1458,6 +1475,15 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
 /* ── PHOTOS ── */
 .photos-strip{padding:0 var(--g3) var(--g3);display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
 .photos-strip::-webkit-scrollbar{display:none}
+/* ── ПЕРЕТЯГУВАННЯ ФАЙЛІВ ─────────────────────────────────────────────────
+   Стан «над зоною». Змінюється ЛИШЕ рамка й фон — не геометрія: зона стрибала
+   б під курсором, і дроп потрапляв би повз. З тієї ж причини немає ані
+   `transform`, ані зміни `padding`.
+   `outline`, а не `border`: рамка входить у розмір лише в `border-box`, а тут
+   є носії з інлайновим `border` (порожній стан файлів), тож зміна товщини
+   зсунула б вміст на 1px. */
+.drop-zone,.photos-strip{transition:background var(--dur-xs) var(--ease),outline-color var(--dur-xs) var(--ease);outline:2px solid transparent;outline-offset:2px;border-radius:var(--r-md)}
+.drop-zone.dropping,.photos-strip.dropping{background:var(--info-bg);outline-color:var(--info)}
 .photo-t{flex-shrink:0;width:80px;height:80px;border-radius:var(--r-sm);position:relative;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.45);font-size:var(--fs-t2);border:var(--bd);cursor:pointer;overflow:hidden;background:var(--glass-2);transition:border-radius 0.2s ease,filter 0.2s ease}
 .photo-t img{object-fit:cover;width:100%;height:100%}
 @media (hover: hover){.photo-t:hover{filter:brightness(1.12)}}
@@ -1661,8 +1687,8 @@ svg.ico{overflow:visible}
 /* Голі текстові кнопки — рецепт `.retry-btn`. Тут `opacity` доречна: це
    МИТТЄВИЙ стан натиску, а не «неактивність» (для якої правило вимагає
    колір), і scale на самому тексті читався б як дефект. */
-.qr-retry,.over-a,.cmark-skip,.toast-close{transition:opacity .15s ease}
-.qr-retry:active,.over-a:active,.cmark-skip:active,.toast-close:active{opacity:.7}
+.qr-retry,.cmark-skip,.toast-close{transition:opacity .15s ease}
+.qr-retry:active,.cmark-skip:active,.toast-close:active{opacity:.7}
 
 .mbtn:active{animation:btnPress .28s var(--ease-spr) both;filter:brightness(0.92);box-shadow:0 4px 14px rgba(34,158,217,.5)}
 .seg-b:active{transform:scale(.95)}
@@ -1683,7 +1709,6 @@ svg.ico{overflow:visible}
 .cta:active{transform:scale(.968)}
 .owner-act:active{transform:scale(.92)}
 .notif-tab:active{transform:scale(.93)}
-.stat:active{transform:scale(.94)}
 .pstat:active{transform:scale(.94)}
 .pro-card:active{transform:scale(.978)}
 .profile-c:active{transform:scale(.982)}
@@ -1947,6 +1972,24 @@ svg.ico{overflow:visible}
    bleeding out to the full viewport.
    ── */
 @media (min-width: 680px) {
+  /* ГЕОМЕТРІЯ РАМКИ — ЗМІННИМИ, і це не педантизм: її мусять знати ДВА
+     незалежні елементи — сама оболонка і портал шита, який живе в <body>,
+     тобто ПОЗА нею. Поки числа стояли лише в `#app-root`, шит на десктопі
+     розтягувався на весь екран (заміряно на 1440px: рядки й кнопка
+     «Скасувати» завширшки 1400px, нижні пункти обрізані краєм вікна). */
+  /* ШИРИНА РОСТЕ З ВІКНОМ, але з МЕЖЕЮ — рішення власника. Без стелі рядок на
+     27" став би нечитним; без росту застосунок займав би 30% монітора, як і
+     займав (430 з 1440). Підлога 430 — щоб на 680-700px нічого не стиснулось. */
+  :root {
+    --frame-w: max(430px, min(1100px, 100vw - 80px));
+    --frame-h: min(100vh - 48px, 1000px);
+    --frame-r: 44px;
+    /* КОЛОНКА ЧИТАННЯ. Усе, що читається згори вниз одним потоком — форма,
+       деталь, порожній стан — обмежується цим і центрується. Поле вводу на
+       1100px не звʼязує підпис зі значенням, а рядок довший за ~70 символів
+       око не тримає. */
+    --measure: 620px;
+  }
   html { height: 100%; }
 
   body {
@@ -1967,10 +2010,10 @@ svg.ico{overflow:visible}
     /* override position:fixed;inset:0 → centred relative container */
     position: relative;
     inset: unset;
-    width: 430px;
-    height: min(100vh, 930px);
+    width: var(--frame-w);
+    height: var(--frame-h);
     overflow: hidden;
-    border-radius: 44px;
+    border-radius: var(--frame-r);
     flex-shrink: 0;
     /* transform creates a containing block for position:fixed children */
     transform: translateZ(0);
@@ -1984,8 +2027,175 @@ svg.ico{overflow:visible}
   }
 }
 
+/* ── ДЕСКТОП: КОЛОНКА ЧИТАННЯ ЗА ЗАМОВЧУВАННЯМ, КОЛЕКЦІЯ — ЯВНИЙ ОПТ-АУТ ──
+   Широка рамка САМА ПО СОБІ робить гірше: усі носії фліодні, тож картка
+   обʼєкта стала б завширшки 1100 з назвою ліворуч, ціною праворуч і
+   порожнечею посередині, а поле вводу перестало б звʼязувати підпис зі
+   значенням.
+
+   ПЕРША РЕДАКЦІЯ ЦЬОГО БЛОКА ПЕРЕЛІЧУВАЛА КЛАСИ, ЯКІ ТРЕБА ОБМЕЖИТИ, І ЦЕ
+   БУЛО ХИБНО — з двох причин, обидві заміряні на 34 кадрах 1440×900:
+
+   1. Перелік не буває повним. На кожному екрані лишався блок поза ним, і
+      наслідок — не «трохи ширше», а ТРИ РІЗНІ ЛІВІ КРАЇ на одному екрані:
+      привітання й `.display` (db-list), чіпи сортування (db-objects),
+      оверлайни `.over` і чіпи послуг (property-detail), `.notif-tabs`
+      (notifications), картки формату й мініатюри шаблонів (export), плитки
+      (profile) стояли на 182px, а форми й пошук — на 410px.
+   2. `max-width` + `margin:auto` тут не діяли взагалі: ці носії несуть
+      СТАТИЧНИЙ інлайновий `margin: '0 12px 16px'` (19 місць лише на `.fg`), а
+      інлайн бʼє будь-яку специфічність. Межа застосовувалась, центрування —
+      ні. Лікувалось `!important`, тобто симптом, а не причина.
+
+   Тому механізм один: `.body` стає ФЛЕКС-КОЛОНКОЮ, і КОЖНА його пряма дитина
+   отримує ширину колонки читання. Ширина не залежить від маргінів, тож
+   інлайнові `0 12px` перестають бути дефектом.
+
+   ГРИД ТУТ ПРОБУВАВСЯ ПЕРШИМ І ВІДКИНУТИЙ ЗА ЗАМІРОМ, не за смаком. Він
+   виглядав природніше (`[full-start] … [col-start]`, іменовані треки), але
+   ГОРИЗОНТАЛЬНИЙ СКРОЛЕР ЯК GRID-ITEM СТИСКАЄТЬСЯ ПО ВЕРТИКАЛІ: `.tmpl-row`
+   (вибір стилю PDF, `overflow-x:auto`) дав 102px замість 155 — підписи
+   «Класик/Модерн/Нічний» просто зникли під обрізанням. `min-height:max-content`
+   НЕ лікує: для скрол-контейнера max-content не враховує вміст, що
+   прокручується. У флекс-колонці це знімається одним `flex-shrink: 0`.
+   Той самий клас зачепив би `.chips` і `.notif-tabs` — усі скролери екрана.
+   Побічно грид давав ще й РВАНИЙ край: `.fg` виходив 596px проти 620 у
+   сусідів, бо його інлайновий маргін віднімався всередині треку.
+
+   Ширшим стає те, що явно про це просить, і список опт-ауту рівно один:
+   `.list` — колекція карток, яка використовує ширину КІЛЬКІСТЮ карток (грид
+   нижче), а не розтягуванням кожної. Секції папок успадковують ширину від
+   нього, тож `.fold-wrap-inner` теж отримує грид. `.list` у календарі платежів
+   лежить усередині місячних секцій, тобто прямою дитиною `.body` не є —
+   рядки платежів лишаються однією колонкою самі собою.
+
+   ЩО СВІДОМО В КОЛОНЦІ, хоч виглядає як колекція:
+   • `.stat-g` — `auto-fit` тут не працює В ПРИНЦИПІ: плитка доходу в db-list
+     має `grid-column: 1/-1`, тобто займає ВСІ треки, і згортати порожні нема
+     чого (заміряно: шість треків по 172.66px, три плитки на ліву половину
+     рамки). Там, де спанної дитини немає, `auto-fit` дає протилежну ваду —
+     три плитки профілю РОЗТЯГЛИСЬ до 353px кожна.
+   • `.obj-hero` — бейдж статусу й кнопка шарингу позиціонуються від його
+     країв, тож на всю рамку вони відлітали в протилежні кути монітора. ── */
+@media (min-width: 680px) {
+  /* `#app-root` У СЕЛЕКТОРІ — не окраса, а незалежність від ПОРЯДКУ В ФАЙЛІ.
+     Без нього правило має ту саму специфічність (0,1,0), що й будь-який клас
+     носія, тож його бив кожен, оголошений НИЖЧЕ: `.del-acc` (рядок ~2270)
+     має власну `width: calc(100% - …)` і розтягував кнопку видалення акаунта
+     на всю рамку — 1076px замість 620. Оболонка і є десктопною рамкою, тож
+     привʼязка до неї ще й семантично правильна. Портали (`.modal`) свідомо
+     БЕЗ префікса: вони живуть у `<body>`, поза `#app-root`. */
+  #app-root .body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  /* `width`, а не `max-width`+`margin:auto`: другий варіант глушить інлайновий
+     `margin` (див. вище), а перший від маргінів не залежить узагалі — і дає
+     ОДНАКОВУ ширину всім носіям, тобто справді один край, а не «десь 596,
+     десь 620».
+     `flex-shrink: 0` тут НЕ про запас: `.body` прокручується, і без нього
+     флекс стискав би вміст замість того, щоб дати прокрутку. */
+  #app-root .body > * {
+    width: min(var(--measure), 100% - 2 * var(--g3));
+    flex-shrink: 0;
+  }
+  /* ОПТ-АУТ — ЯВНИЙ І ЗА КАРТКАМИ, а не за самим `.list`. Більшість
+     верхньорівневих списків застосунку — це РЯДКИ (`.row`): бази, підбірки,
+     дашборд рієлтора. Рядок на 1076px читається як таблиця, якою він не є, а
+     два рядки поруч — тим паче. Ширину бере лише те, що складається з
+     КАРТОК, і каже про це класом. */
+  /* КОЛОНКА ДЛЯ ЕКРАНІВ БЕЗ `.body`. Правило вище бачить лише прямих дітей
+     флекс-колонки, а `RoleSelectScreen` і `QRScannerScreen` будують свій
+     лейаут просто в `.scr`. Наслідок було видно на кадрі: картки «Власник» /
+     «Ріелтор» — перший екран нового користувача — розтягувались на всю рамку
+     з текстом, збитим до лівого краю. Тут `margin-inline` безпечний: ці
+     обгортки тримають відступи `padding`-ом, а не інлайновим `margin`. */
+  #app-root .col-read { max-width: min(var(--measure), 100% - 2 * var(--g3)); margin-inline: auto; }
+
+  #app-root .body > .list.cards { width: 100%; }
+
+  /* Смуга метрик бази — теж колекція, і на рамці 1100 всі шість плиток
+     влазять без прокрутки (6 × 146–240 + гапи ≈ 1036). У колонці 620 вони
+     лишались би скролером, у якому видно чотири, а четверта обрізана краєм —
+     на телефоні це підказка «гортай», на моніторі з вільним місцем читається
+     як обрізана верстка.
+     `safe center` центрує, ПОКИ вміст влазить, і сам вимикається, коли ні —
+     інакше центрування скролера робить перші плитки недосяжними. Якщо
+     браузер не знає `safe`, декларація відкидається ЦІЛКОМ (а не стає
+     звичайним `center`), тобто деградує в ліве вирівнювання, а не в дефект. */
+  #app-root .body > .dash-panel { width: 100%; justify-content: safe center; }
+
+  /* Хром центрується на ширину читання: три іконки таббару, розтягнуті на
+     1100px, читаються як три окремі кнопки, а не як одна смуга. Те саме з
+     хедером — «Назад» і дія в протилежних кутах монітора. */
+  .tabbar > * { max-width: none; }
+  .tabbar { padding-inline: max(10px, calc((100% - var(--measure)) / 2)); }
+  .hdr { padding-inline: max(var(--g3), calc((100% - var(--measure)) / 2)); }
+
+  /* Керування над колекцією не розтягується: сегмент на 1100px дає чотири
+     кнопки по 275px із велетенськими зазорами, а поле пошуку такої ширини
+     перестає читатись як поле. Сегмент тулиться до вмісту, пошук — до
+     колонки читання; обидва по центру. */
+  /* МЕЖА, а не `fit-content`: сегменти всередині мають `flex:1`, тож у
+     контейнері, що стискається до вмісту, вони починають конкурувати і підписи
+     злипаються («Вільно (1)Зайнято (1)» — видно на кадрі). */
+  .seg { max-width: var(--measure); margin-inline: auto; }
+  .search-inline, .search { max-width: var(--measure); margin-inline: auto; }
+
+  /* Шит лишається шитом, а не смугою на всю рамку. */
+  .modal { max-width: 520px; margin-inline: auto; border-radius: var(--r-sheet); }
+}
+
+/* СПИСОК КАРТОК СТАЄ ГРИДОМ, коли рамка справді широка. Поріг саме 820:
+   рамка тоді ≈740px, тобто дві колонки по 340 з гапом лягають без стиснення.
+   Нижче — одна колонка, як на телефоні. */
+@media (min-width: 820px) {
+  /* ТРЕК ФІКСОВАНИЙ, а не `1fr`, і це відповідь на «адаптувати, а не
+     розтягувати»: 340px — та сама ширина, під яку картку й малювали (375 −
+     2×12 на телефоні = 351), тож її внутрішня верстка лишається рідною на
+     будь-якій рамці. `1fr` натомість тягнув би картку за шириною рамки.
+     `auto-fit` + `justify-content:center` дає друге: коли карток менше, ніж
+     влазить у ряд, порожні треки згортаються і ряд СТАЄ ПО ЦЕНТРУ. Інакше
+     єдиний обʼєкт лежав би на лівому краю рамки, поки все інше на екрані
+     центроване — на кадрі це читалось як загублена картка. */
+  /* `.body >`, а не просто `.list.cards`: клас лишається доступним будь-де, а
+     грид застосовується тільки до верхньорівневої колекції. Без цієї межі
+     список у шиті (`ActionSheet` завширшки 520) теж став би гридом із треком
+     340 і стиснув би свої рядки. */
+  #app-root .body > .list.cards { display: grid; grid-template-columns: repeat(auto-fit, 340px); justify-content: center; align-items: start; }
+  /* Секції папок самі НЕ гридяться — грид поставив би поруч САМІ СЕКЦІЇ, а не
+     картки в них. Мусить іти ПІСЛЯ рядка вище: специфічність однакова. */
+  #app-root .body > .list.fold-list { display: flex; flex-direction: column; align-items: stretch; }
+  /* Гридяться картки ВСЕРЕДИНІ папки — і лише коли режим справді картковий.
+     Без цієї привʼязки компактні РЯДКИ всередині папки ставали в три колонки
+     (видно на кадрі `db-objects-compact`), тобто `cards`-опт-ин обходився
+     папками стороною. */
+  #app-root .body > .list.cards .fold-wrap-inner { display: grid; grid-template-columns: repeat(auto-fit, 340px); justify-content: center; gap: 10px; align-items: start; }
+}
+
+/* ПОРТАЛ ШИТА — В РАМКУ, а не на весь екран.
+   `ActionSheet` монтується в <body> (це навмисно: усередині оболонки він не
+   зміг би накрити її власні фіксовані елементи), тож на десктопі оверлей за
+   замовчуванням розпливається на весь монітор. Заганяємо його рівно в ту саму
+   геометрію, що й оболонка — звідси й змінні вище.
+   `FilePreviewModal` цього не потребує: він уже монтується в `#app-root`. */
+@media (min-width: 680px) {
+  .modal-overlay {
+    inset: auto;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: var(--frame-w);
+    height: var(--frame-h);
+    border-radius: var(--frame-r);
+    overflow: hidden;
+  }
+}
+
 /* landscape / short screens — fill height, drop rounded corners */
 @media (min-width: 680px) and (max-height: 700px) {
+  :root { --frame-r: 0px; }
   #app-root { border-radius: 0; height: 100vh; }
 }
 
@@ -2021,8 +2231,12 @@ svg.ico{overflow:visible}
   body::after { content: none; }
 }
 
-/* wide screens — subtle branding below the frame */
-@media (min-width: 900px) {
+/* wide screens — subtle branding below the frame.
+   ВИСОТА В УМОВІ ОБОВʼЯЗКОВА: підпис стоїть `fixed; bottom:22px`, тобто від
+   низу ВІКНА, а рамка має `min(100vh,930px)` — на екрані, нижчому за ~1010px,
+   вона займає всю висоту, місця «під рамкою» немає взагалі, і підпис лягав
+   просто на таббар, поверх іконок (заміряно на 1440×900). */
+@media (min-width: 900px) and (min-height: 1010px) {
   body::after {
     content: 'PropSpace · Telegram Mini App';
     position: fixed;

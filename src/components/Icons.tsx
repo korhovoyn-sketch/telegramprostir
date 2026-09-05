@@ -138,6 +138,11 @@ function strokeFor(size: number): number {
   return size >= 24 ? 1.7 : 2
 }
 
+// `color` НА SVG обовʼязковий поруч зі `stroke`: залиті гліфи
+// (`fill="currentColor"` + `strokeWidth="0"` — IconCircleCheck, IconFlag,
+// IconHeartFilled) беруть колір із `currentColor`, тобто з УСПАДКОВАНОГО кольору
+// тексту, і проп `color` для них був мертвий. Дефолт `currentColor` робить це
+// правило no-op, тож обведені гліфи не зачеплені.
 function Icon({ className = '', size = 16, color = 'currentColor', children, viewBox = '0 0 24 24' }: IconProps & { children?: React.ReactNode; viewBox?: string }) {
   return (
     <svg
@@ -147,6 +152,7 @@ function Icon({ className = '', size = 16, color = 'currentColor', children, vie
       viewBox={viewBox}
       fill="none"
       stroke={color}
+      color={color}
       strokeWidth={strokeFor(size)}
       strokeLinecap="round"
       strokeLinejoin="round"

@@ -855,7 +855,13 @@ function tableHeaders(cur: string): string[] {
     `Ціна продажу (${cur})`,
     'Паркінг', 'Місць паркінгу',
     'Адреса', 'Експлуатаційні послуги',
-    'Опис', 'Додано',
+    'Опис',
+    // Фото в таблицю вбудувати неможливо: `xlsx` у клієнтській редакції не має
+    // ЖОДНОГО API для зображень (перевірено на самому пакеті, а не з памʼяті).
+    // Тому колонка несе ПОСИЛАННЯ — бакет `photos` публічний, той самий URL,
+    // яким малює застосунок і публічна /v.
+    'Фото',
+    'Додано',
   ]
 }
 
@@ -900,6 +906,10 @@ function propertyRow(
       .map((uid) => UTILITY_META.find((m) => m.id === uid)?.label)
       .filter(Boolean).join(', '),
     p.description ?? '',
+    // Порядок той самий, що в картці й у PDF: вбудоване відношення приходить
+    // несортованим, тож без `withSortedPhotos` першим був би довільний знімок,
+    // а не обкладинка.
+    (withSortedPhotos(p).photos ?? []).map((ph) => photoUrl(ph.storage_path)).join(' '),
     formatLeaseDate(p.created_at),
   ]
 }
@@ -975,6 +985,25 @@ async function generateExcel(
 
   const ws = XLSX.utils.aoa_to_sheet(sheetData)
 
+  /**
+   * Клікабельне посилання — ЛИШЕ коли знімок один.
+   *
+   * Комірка може нести рівно одне гіперпосилання, а обʼєкт — кілька фото. Клік
+   * по комірці з трьома URL, що мовчки відкриває перший, — це та сама фальшива
+   * афорданс, через яку в цьому проєкті рядок дій став `<button>`, а не `<div>`:
+   * контрол обіцяє одне, робить інше. Тому лінк ставиться там, де він
+   * однозначний, а список лишається текстом, який копіюється.
+   */
+  const photoCol = headers.indexOf('Фото')
+  if (photoCol >= 0) {
+    for (let r = dataStart; r <= dataEnd; r++) {
+      const addr = XLSX.utils.encode_cell({ r: r - 1, c: photoCol })
+      const cell = ws[addr] as { v?: unknown; l?: { Target: string } } | undefined
+      const val = typeof cell?.v === 'string' ? cell.v : ''
+      if (val && !val.includes(' ')) cell!.l = { Target: val }
+    }
+  }
+
   // Column widths
   // Ширини — за НАЗВОЮ колонки, щоб додана колонка не зсувала всі решта.
   const COL_W: Record<string, number> = {
@@ -988,7 +1017,7 @@ async function generateExcel(
     [`Ціна продажу (${cur})`]: 18,
     'Паркінг': 10, 'Місць паркінгу': 12,
     'Адреса': 30, 'Експлуатаційні послуги': 32,
-    'Опис': 35, 'Додано': 12,
+    'Опис': 35, 'Фото': 60, 'Додано': 12,
   }
   ws['!cols'] = headers.map((h) => ({ wch: COL_W[h] ?? 14 }))
 
