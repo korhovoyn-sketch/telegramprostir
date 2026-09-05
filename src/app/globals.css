@@ -1955,6 +1955,12 @@ svg.ico{overflow:visible}
    bleeding out to the full viewport.
    ── */
 @media (min-width: 680px) {
+  /* ГЕОМЕТРІЯ РАМКИ — ЗМІННИМИ, і це не педантизм: її мусять знати ДВА
+     незалежні елементи — сама оболонка і портал шита, який живе в <body>,
+     тобто ПОЗА нею. Поки числа стояли лише в `#app-root`, шит на десктопі
+     розтягувався на весь екран (заміряно на 1440px: рядки й кнопка
+     «Скасувати» завширшки 1400px, нижні пункти обрізані краєм вікна). */
+  :root { --frame-w: 430px; --frame-h: min(100vh, 930px); --frame-r: 44px; }
   html { height: 100%; }
 
   body {
@@ -1975,10 +1981,10 @@ svg.ico{overflow:visible}
     /* override position:fixed;inset:0 → centred relative container */
     position: relative;
     inset: unset;
-    width: 430px;
-    height: min(100vh, 930px);
+    width: var(--frame-w);
+    height: var(--frame-h);
     overflow: hidden;
-    border-radius: 44px;
+    border-radius: var(--frame-r);
     flex-shrink: 0;
     /* transform creates a containing block for position:fixed children */
     transform: translateZ(0);
@@ -1992,8 +1998,28 @@ svg.ico{overflow:visible}
   }
 }
 
+/* ПОРТАЛ ШИТА — В РАМКУ, а не на весь екран.
+   `ActionSheet` монтується в <body> (це навмисно: усередині оболонки він не
+   зміг би накрити її власні фіксовані елементи), тож на десктопі оверлей за
+   замовчуванням розпливається на весь монітор. Заганяємо його рівно в ту саму
+   геометрію, що й оболонка — звідси й змінні вище.
+   `FilePreviewModal` цього не потребує: він уже монтується в `#app-root`. */
+@media (min-width: 680px) {
+  .modal-overlay {
+    inset: auto;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: var(--frame-w);
+    height: var(--frame-h);
+    border-radius: var(--frame-r);
+    overflow: hidden;
+  }
+}
+
 /* landscape / short screens — fill height, drop rounded corners */
 @media (min-width: 680px) and (max-height: 700px) {
+  :root { --frame-r: 0px; }
   #app-root { border-radius: 0; height: 100vh; }
 }
 
@@ -2029,8 +2055,12 @@ svg.ico{overflow:visible}
   body::after { content: none; }
 }
 
-/* wide screens — subtle branding below the frame */
-@media (min-width: 900px) {
+/* wide screens — subtle branding below the frame.
+   ВИСОТА В УМОВІ ОБОВʼЯЗКОВА: підпис стоїть `fixed; bottom:22px`, тобто від
+   низу ВІКНА, а рамка має `min(100vh,930px)` — на екрані, нижчому за ~1010px,
+   вона займає всю висоту, місця «під рамкою» немає взагалі, і підпис лягав
+   просто на таббар, поверх іконок (заміряно на 1440×900). */
+@media (min-width: 900px) and (min-height: 1010px) {
   body::after {
     content: 'PropSpace · Telegram Mini App';
     position: fixed;

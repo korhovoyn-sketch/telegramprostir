@@ -93,3 +93,103 @@ test('desktop · public /v is width-capped and centered, not full-bleed', async 
     await ctx.close()
   }
 })
+
+/**
+ * ШИТ НЕ СМІЄ ВИХОДИТИ ЗА РАМКУ ЗАСТОСУНКУ.
+ *
+ * `ActionSheet` монтується в `<body>` навмисно — усередині оболонки він не зміг
+ * би накрити її власні фіксовані елементи. Наслідок на десктопі був видимий
+ * одразу: заміряно на 1440×900 — рядки меню й кнопка «Скасувати» завширшки
+ * ~1400px при рамці 430px, а нижні пункти обрізані краєм ВІКНА, а не рамки.
+ * Тобто шит виглядав частиною монітора, а не застосунку.
+ *
+ * Лікується CSS-ом у десктопному медіа-блоці: оверлей бере ту саму геометрію,
+ * що й оболонка (спільні `--frame-*`). `FilePreviewModal` цього не потребує —
+ * він уже монтується в `#app-root`.
+ */
+test('desktop · шит лишається в межах рамки, а не на весь монітор', async ({ browser }) => {
+  const { ctx, page } = await desktopPage(browser)
+  try {
+    await setupApp(page, { user: OWNER })
+    await ownerRoutes(page)
+    await page.route('**/rest/v1/properties**', (r) => json(r, []))
+    for (const t of ['property_folders', 'property_views', 'notifications',
+                     'rent_payments', 'rent_payment_records', 'collections', 'guest_links']) {
+      await page.route(`**/rest/v1/${t}**`, (r) => json(r, []))
+    }
+    await page.goto('/')
+    await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 25_000 })
+    await page.getByText('БЦ Рубін').first().click()
+    await expect(page.getByText(/Всі \(/)).toBeVisible({ timeout: 15_000 })
+    await page.getByLabel('Меню бази').click()
+    await page.waitForTimeout(500)
+
+    const geo = await page.evaluate(() => {
+      const root = document.getElementById('app-root')!.getBoundingClientRect()
+      const ov = document.querySelector<HTMLElement>('.modal-overlay')!.getBoundingClientRect()
+      const sheet = document.querySelector<HTMLElement>('.modal')!.getBoundingClientRect()
+      return {
+        root: { l: Math.round(root.left), r: Math.round(root.right), w: Math.round(root.width) },
+        ov: { l: Math.round(ov.left), r: Math.round(ov.right) },
+        sheet: { l: Math.round(sheet.left), r: Math.round(sheet.right), w: Math.round(sheet.width) },
+        winW: window.innerWidth,
+      }
+    })
+
+    // АНТИВАКУУМ: рамка мусить бути ВУЖЧОЮ за вікно, інакше «шит у межах рамки»
+    // виконувалось би тривіально — на телефоні вони збігаються.
+    expect(geo.root.w, 'десктопна рамка не зʼявилась — далі перевіряти нічого')
+      .toBeLessThan(geo.winW - 100)
+
+    expect(geo.ov.l, 'оверлей вилазить за ліву межу рамки').toBeGreaterThanOrEqual(geo.root.l - 1)
+    expect(geo.ov.r, 'оверлей вилазить за праву межу рамки').toBeLessThanOrEqual(geo.root.r + 1)
+    expect(geo.sheet.w, `шит ${geo.sheet.w}px при рамці ${geo.root.w}px`)
+      .toBeLessThanOrEqual(geo.root.w + 1)
+  } finally {
+    await ctx.close()
+  }
+})
+
+/**
+ * ПІДПИС ПІД РАМКОЮ — лише коли під нею СПРАВДІ є місце.
+ *
+ * `body::after` стоїть `fixed; bottom:22px`, тобто від низу ВІКНА, а рамка має
+ * `min(100vh,930px)`. На екрані, нижчому за ~1010px, вона займає всю висоту —
+ * місця «під рамкою» немає, і підпис лягав просто на таббар, поверх іконок
+ * (заміряно на 1440×900).
+ */
+test('desktop · підпис не лягає на таббар, коли рамка займає всю висоту', async ({ browser }) => {
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 })
+  const page = await ctx.newPage()
+  try {
+    await setupApp(page, { user: OWNER })
+    await ownerRoutes(page)
+    await page.route('**/rest/v1/properties**', (r) => json(r, []))
+    for (const t of ['property_folders', 'property_views', 'notifications',
+                     'rent_payments', 'rent_payment_records', 'collections', 'guest_links']) {
+      await page.route(`**/rest/v1/${t}**`, (r) => json(r, []))
+    }
+    await page.goto('/')
+    await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 25_000 })
+
+    const hit = await page.evaluate(() => {
+      const mark = getComputedStyle(document.body, '::after')
+      const tab = document.querySelector<HTMLElement>('.tabbar')?.getBoundingClientRect()
+      return {
+        content: mark.content,
+        tabTop: tab ? Math.round(tab.top) : -1,
+        winH: window.innerHeight,
+      }
+    })
+
+    // АНТИВАКУУМ: таббар мусить бути на екрані — інакше перевірка про
+    // накладання нічого не означає.
+    expect(hit.tabTop, 'таббар не знайдено').toBeGreaterThan(0)
+    // Підпис або відсутній, або стоїть НИЖЧЕ за таббар. На 900px висоти рамка
+    // займає весь екран, тож єдина правильна відповідь — його немає.
+    expect(hit.content, `підпис малюється при висоті ${hit.winH}px, де під рамкою немає місця`)
+      .toMatch(/^(none|normal|"")$/)
+  } finally {
+    await ctx.close()
+  }
+})
