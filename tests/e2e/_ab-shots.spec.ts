@@ -24,14 +24,25 @@ import { ALL_GROUPS } from './helpers/screens'
  * не робив. Значення те саме, що в бейслайнах (`screenshots.spec.ts`), щоб
  * кадри двох інструментів були зіставні.
  *
+ * ШИРИНА ЗАДАЄТЬСЯ, бо десктоп інакше не оглянути. Проєкт один (`iphone-se`,
+ * 375×667), а десктопний блок починається з 680px — тобто без `SHOT_W`
+ * інструмент фізично не міг показати те, заради чого його кличуть при
+ * десктопній роботі. Раніше під це завівся другий, майже такий самий спек;
+ * друга копія розійшлася б за два раунди (той самий урок, що вже оплачений
+ * `helpers/devices.ts`), тож ширина — параметр, а не новий файл.
+ *
  * Вживання:
  *   SHOTS_DIR=/tmp/before CI=1 npx playwright test _ab-shots
  *   (перемкнути гілку, перезібрати)
  *   SHOTS_DIR=/tmp/after  CI=1 npx playwright test _ab-shots
  *   python3 scripts/compare-shots.py /tmp/before /tmp/after
+ *
+ *   SHOT_W=1440 SHOT_H=900 SHOTS_DIR=/tmp/wide CI=1 npx playwright test _ab-shots
  */
 const FROZEN = new Date('2025-09-15T09:00:00.000Z')
 const DIR = process.env.SHOTS_DIR
+const W = Number(process.env.SHOT_W ?? 0)
+const H = Number(process.env.SHOT_H ?? 0)
 test.skip(!DIR, 'вкажи SHOTS_DIR')
 
 for (const group of ALL_GROUPS) {
@@ -39,6 +50,7 @@ for (const group of ALL_GROUPS) {
     test.setTimeout(300_000)
     page.setDefaultTimeout(20_000)
     mkdirSync(DIR!, { recursive: true })
+    if (W && H) await page.setViewportSize({ width: W, height: H })
     await page.clock.setFixedTime(FROZEN)
     await group.fixtures(page)
     for (const s of group.screens) {

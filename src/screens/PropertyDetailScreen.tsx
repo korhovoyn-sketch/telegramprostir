@@ -551,13 +551,23 @@ export default function PropertyDetailScreen() {
             </div>
           ))}
           {isOwner && (
-            <div
+            // `<button>`, а не `<div>`: на компʼютері клавіатура — основний
+            // ввід, а клікабельний `<div>` до неї недосяжний і читалці не
+            // оголошується. Підпис тут — гліф «+», тому потрібен `aria-label`.
+            // Скидання UA-стилів явне, щоб вигляд плитки не змінився.
+            <button
+              type="button"
+              aria-label="Додати фото"
               className="photo-t"
               onClick={() => fileInputRef.current?.click()}
-              style={{ border: '.5px dashed rgba(255,255,255,.28)', fontSize: 'var(--fs-t1)', color: 'var(--t4)', cursor: 'pointer' }}
+              style={{
+                border: '.5px dashed rgba(255,255,255,.28)', fontSize: 'var(--fs-t1)',
+                color: 'var(--t4)', cursor: 'pointer', font: 'inherit', padding: 0,
+                fontFamily: 'inherit', lineHeight: 1,
+              }}
             >
               +
-            </div>
+            </button>
           )}
         </div>
 

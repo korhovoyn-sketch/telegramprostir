@@ -814,7 +814,14 @@ export default function DatabaseObjectsScreen() {
         ) : sections ? (
           // Секція = хедер + Collapsible (JS-анімація висоти). Картки лишаються
           // змонтованими, щоб плавно анімувалась висота, а не миготів mount.
-          <div className="list">
+          // Папки — завжди в одну колонку: грид тут поставив би поруч САМІ
+          // СЕКЦІЇ, а не картки в них. Гридяться картки всередині
+          // (`.fold-wrap-inner` у globals.css).
+          // `fold-list` каже «секції стосом», `cards` — «вміст секцій гридом».
+          // Обидва потрібні: без першого грид поставив би поруч САМІ СЕКЦІЇ, а
+          // без другого компактні РЯДКИ всередині папки ставали б у три
+          // колонки. Тому `cards` тут за тією ж умовою, що й у пласкому списку.
+          <div className={`list fold-list ${reorderMode || compactView ? '' : 'cards'}`}>
             {sections.map((sec) => {
               const open = forceExpand || !collapsed.has(sec.key)
               return (
@@ -833,7 +840,13 @@ export default function DatabaseObjectsScreen() {
             })}
           </div>
         ) : (
-          <div className="list">
+          // `cards` — опт-ин у десктопний грид, і його СВІДОМО немає в двох
+          // режимах, бо там грид ламає СЕНС ДІЇ, а не лише вигляд: у режимі
+          // порядку стрілки ↑/↓ переставляють сусіда по `sort_order`, і в
+          // гриді «вгору» перестало б означати те, що показує око; компактний
+          // рядок за побудовою широкий — дві колонки рядків читались би як
+          // таблиця, якою вони не є.
+          <div className={`list ${reorderMode || compactView ? '' : 'cards'}`}>
             {visible.map((p, idx) => renderCard(p, idx))}
           </div>
         )}

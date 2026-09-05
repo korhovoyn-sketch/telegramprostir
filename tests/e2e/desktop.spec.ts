@@ -53,12 +53,17 @@ test('desktop · Mini App renders as a centered phone frame, not full-width', as
     await page.goto('/')
     await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
 
-    // #app-root must be constrained to the phone frame (~430px), centered — not
-    // stretched across the 1280px viewport.
+    // #app-root РОСТЕ ДО МЕЖІ, але лишається ПАНЕЛЛЮ.
+    // Спершу тут стояло «≈430px телефонна рамка»: застосунок на моніторі
+    // показував колонку в 30% ширини, і решта була фоном. Для перегляду це
+    // прийнятно, для РОБОТИ — ні (рішення власника: рости до ~1100). Але
+    // «ширше» не означає «на весь монітор»: поля обабіч і є те, що робить
+    // Mini App застосунком, а не сторінкою.
     const root = page.locator('#app-root')
     const box = await root.boundingBox()
     expect(box, 'app-root has a box').not.toBeNull()
-    expect(box!.width, 'app-root width ≈ 430px phone frame').toBeLessThanOrEqual(460)
+    expect(box!.width, 'рамка ширша за власну межу 1100').toBeLessThanOrEqual(1100)
+    expect(box!.width, 'рамка на всю ширину вікна — це вже не панель').toBeLessThan(1280)
     const centerX = box!.x + box!.width / 2
     expect(Math.abs(centerX - 640), 'app-root horizontally centered in 1280px').toBeLessThan(40)
 

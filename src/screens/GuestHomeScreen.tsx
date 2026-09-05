@@ -66,7 +66,7 @@ export default function GuestHomeScreen() {
         <div className="greet">{greet}, {user?.first_name}</div>
         <div className="display">Мої обʼєкти</div>
 
-        <div className="stat-g" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
+        <div className="stat-g cols-2">
           <div className="stat glass-s">
             <div className="stat-n">{links.length}</div>
             <div className="stat-l">{pluralUk(links.length, 'Доступ', 'Доступи', 'Доступів')}</div>

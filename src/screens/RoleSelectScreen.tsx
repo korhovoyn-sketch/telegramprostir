@@ -27,7 +27,7 @@ export default function RoleSelectScreen() {
 
   return (
     <div className="scr bg-purple">
-      <div style={{ padding: 'calc(24px + var(--safe-top)) 0 0', textAlign: 'center' }}>
+      <div className="col-read" style={{ padding: 'calc(24px + var(--safe-top)) 0 0', textAlign: 'center' }}>
         <div style={{
           display: 'inline-block',
           padding: '5px 14px',
@@ -49,7 +49,7 @@ export default function RoleSelectScreen() {
         </div>
       </div>
 
-      <div style={{ padding: '16px var(--g3) 0' }}>
+      <div className="col-read" style={{ padding: '16px var(--g3) 0' }}>
         {/* Owner card */}
         <div
           className={`glass${role === 'owner' ? '-d' : '-s'}`}

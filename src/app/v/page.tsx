@@ -233,6 +233,14 @@ const s = {
 function GlobalStyles() {
   return (
     <style>{`
+      /* ПУБЛІЧНА /v ЛИШАЄТЬСЯ ТЕЛЕФОННОЮ РАМКОЮ, хоч живе всередині того самого
+         #app-root, що й застосунок. Причина: це не Mini App, а сторінка, яку
+         сторонній відкриває у звичайному браузері — оголошення обʼєкта на
+         1100px читалось би як розтягнута верстка, а не як картка. Змінна, а не
+         правило з !important: перевизначається лише вхід у формулу ширини.
+         Інлайновий <style> (а не клас через ефект) — щоб не було кадру з
+         широкою рамкою до гідратації. */
+      #app-root { --frame-w: 430px; }
       .v-btn { transition: transform .18s cubic-bezier(.2,.8,.3,1), filter .18s ease, box-shadow .18s ease; -webkit-tap-highlight-color: transparent; }
       .v-btn:active { transform: scale(.96); filter: brightness(.92); }
       @media (hover: hover) {

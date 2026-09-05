@@ -158,7 +158,7 @@ export default function RealtorDatabaseScreen() {
             </button>
           </div>
         ) : (
-          <div className="list" style={{ marginBottom: 80 }}>
+          <div className="list cards" style={{ marginBottom: 80 }}>
             {filtered.map((p) => {
               const { rent, total } = calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate, p.area_basis, db?.type === 'parking')
               // A daily rate isn't a monthly total — show it as-is (/добу).

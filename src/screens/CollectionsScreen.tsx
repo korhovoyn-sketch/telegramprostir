@@ -676,7 +676,7 @@ export default function CollectionsScreen() {
             </button>
           </div>
         ) : (
-          <div className="list">
+          <div className="list cards">
             {collections.map((col) => (
               <CollectionCard
                 key={col.id}

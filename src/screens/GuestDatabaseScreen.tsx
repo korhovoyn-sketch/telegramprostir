@@ -277,7 +277,7 @@ export default function GuestDatabaseScreen() {
               <div style={{ padding: '0 16px 8px', fontSize: 'var(--fs-cap1)', color: 'var(--t3)' }}>
                 {guestPreview.properties.length} обʼєктів у базі
               </div>
-              <div className="list">
+              <div className="list cards">
                 {guestPreview.properties.map((prop) => (
                   <div key={prop.id} className="obj-card glass-s">
                     <div className="obj-hd">
@@ -357,7 +357,7 @@ export default function GuestDatabaseScreen() {
         </div>
 
         {properties.length > 0 && (
-          <div className="list">
+          <div className="list cards">
             {properties.map((p) => (
               <div key={p.property_id} className="obj-card glass-s">
                 <div className="obj-hd">
