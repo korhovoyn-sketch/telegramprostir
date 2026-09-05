@@ -406,7 +406,7 @@ body{
 /* Другорядна текстова дія під первинною («Пропустити →»). Клас, а не інлайн:
    інлайновий `width:'100%'` не давав десктопній колонці стиснути кнопку, і її
    зона дотику 44px розтягувалась на всю рамку — 1100px «пропустити». */
-.skip-btn{background:none;border:none;cursor:pointer;color:var(--t4);font-size:var(--fs-foot);padding:0 16px 12px;min-height:44px;width:100%;text-align:center}
+.skip-btn{background:none;border:none;cursor:pointer;color:var(--t2);font-size:var(--fs-foot);padding:0 16px 12px;min-height:44px;width:100%;text-align:center}
 .body.has-flow-cta{padding-bottom:calc(16px + var(--safe-bottom) + var(--keyboard-h,0px))}
 /* Форми з ПЛАВАЮЧОЮ CTA: 14 (відступ від низу) + 46 (кнопка) + 16 (повітря).
    Без цього остання група полів лягала б під кнопку — саме це стереже
@@ -1475,6 +1475,15 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
 /* ── PHOTOS ── */
 .photos-strip{padding:0 var(--g3) var(--g3);display:flex;gap:6px;overflow-x:auto;scrollbar-width:none}
 .photos-strip::-webkit-scrollbar{display:none}
+/* ── ПЕРЕТЯГУВАННЯ ФАЙЛІВ ─────────────────────────────────────────────────
+   Стан «над зоною». Змінюється ЛИШЕ рамка й фон — не геометрія: зона стрибала
+   б під курсором, і дроп потрапляв би повз. З тієї ж причини немає ані
+   `transform`, ані зміни `padding`.
+   `outline`, а не `border`: рамка входить у розмір лише в `border-box`, а тут
+   є носії з інлайновим `border` (порожній стан файлів), тож зміна товщини
+   зсунула б вміст на 1px. */
+.drop-zone,.photos-strip{transition:background var(--dur-xs) var(--ease),outline-color var(--dur-xs) var(--ease);outline:2px solid transparent;outline-offset:2px;border-radius:var(--r-md)}
+.drop-zone.dropping,.photos-strip.dropping{background:var(--info-bg);outline-color:var(--info)}
 .photo-t{flex-shrink:0;width:80px;height:80px;border-radius:var(--r-sm);position:relative;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.45);font-size:var(--fs-t2);border:var(--bd);cursor:pointer;overflow:hidden;background:var(--glass-2);transition:border-radius 0.2s ease,filter 0.2s ease}
 .photo-t img{object-fit:cover;width:100%;height:100%}
 @media (hover: hover){.photo-t:hover{filter:brightness(1.12)}}
@@ -2074,7 +2083,7 @@ svg.ico{overflow:visible}
      носія, тож його бив кожен, оголошений НИЖЧЕ: `.del-acc` (рядок ~2270)
      має власну `width: calc(100% - …)` і розтягував кнопку видалення акаунта
      на всю рамку — 1076px замість 620. Оболонка і є десктопною рамкою, тож
-     прив'язка до неї ще й семантично правильна. Портали (`.modal`) свідомо
+     привʼязка до неї ще й семантично правильна. Портали (`.modal`) свідомо
      БЕЗ префікса: вони живуть у `<body>`, поза `#app-root`. */
   #app-root .body {
     display: flex;
@@ -2159,7 +2168,7 @@ svg.ico{overflow:visible}
      картки в них. Мусить іти ПІСЛЯ рядка вище: специфічність однакова. */
   #app-root .body > .list.fold-list { display: flex; flex-direction: column; align-items: stretch; }
   /* Гридяться картки ВСЕРЕДИНІ папки — і лише коли режим справді картковий.
-     Без цієї прив'язки компактні РЯДКИ всередині папки ставали в три колонки
+     Без цієї привʼязки компактні РЯДКИ всередині папки ставали в три колонки
      (видно на кадрі `db-objects-compact`), тобто `cards`-опт-ин обходився
      папками стороною. */
   #app-root .body > .list.cards .fold-wrap-inner { display: grid; grid-template-columns: repeat(auto-fit, 340px); justify-content: center; gap: 10px; align-items: start; }

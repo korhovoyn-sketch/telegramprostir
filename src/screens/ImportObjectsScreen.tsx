@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAppStore } from '@/store/appStore'
+import { useFileDrop } from '@/hooks/useFileDrop'
 import { useProperties, nextSortBase } from '@/hooks/useProperties'
 import { offlineGuard } from '@/lib/offline'
 import { hapticSelection, hapticNotify } from '@/lib/telegram'
@@ -236,6 +237,13 @@ export default function ImportObjectsScreen() {
     return { ok, skipped, noName }
   }, [body, mapping, nameCol, dbId, existing, dbType])
 
+  // Той самий шлях, що в інпута: `handleFile` — єдина точка розбору CSV.
+  const csvDrop = useFileDrop({
+    accept: (f) => /\.csv$/i.test(f.name) || f.type === 'text/csv' || f.type === 'text/plain',
+    onFiles: (files) => { void handleFile(files[0]) },
+    onRejected: () => showToast({ type: 'error', title: 'Потрібен CSV', subtitle: 'Перетягніть файл .csv' }),
+  })
+
   async function handleFile(file: File) {
     const text = await file.text()
     const grid = parseCsv(text)
@@ -270,10 +278,14 @@ export default function ImportObjectsScreen() {
         {!rows ? (
           <>
             <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconFile size={14} color="var(--info)" />Файл</span></div>
-            <div className="fg glass-s" style={{ margin: '0 12px 16px', padding: 'var(--pad-card)' }}>
+            <div
+              className={`fg glass-s drop-zone${csvDrop.dropping ? ' dropping' : ''}`}
+              {...csvDrop.dropProps}
+              style={{ margin: '0 12px 16px', padding: 'var(--pad-card)' }}
+            >
               <div style={{ fontSize: 'var(--fs-foot)', color: 'var(--t2)', lineHeight: 'var(--lh-relax)' }}>
                 Перший рядок — заголовки колонок. Якщо файл вивантажено з цього
-                застосунку, колонки зіставляться самі.
+                застосунку, колонки зіставляться самі. Файл можна перетягнути сюди.
               </div>
               <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 8 }}>
                 Обовʼязкова лише «Назва». Обʼєкти з назвами, які вже є в базі, буде пропущено.

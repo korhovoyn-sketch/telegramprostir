@@ -204,3 +204,132 @@ test('десктоп · документ з компʼютера: validate-uploa
     await ctx.close()
   }
 })
+
+/**
+ * Перетягування у вікно — те, чим на компʼютері додають файли за
+ * замовчуванням. Дроп симулюється справжнім `DragEvent` з `DataTransfer`:
+ * `bubbles: true` обовʼязково, бо React слухає на корені, а не на елементі.
+ */
+async function dropFile(page: Page, selector: string, name: string, type: string, bytes: number[]) {
+  return page.evaluate(({ selector, name, type, bytes }) => {
+    const dt = new DataTransfer()
+    dt.items.add(new File([new Uint8Array(bytes)], name, { type }))
+    const el = document.querySelector(selector)
+    if (!el) return false
+    el.dispatchEvent(new DragEvent('dragenter', { dataTransfer: dt, bubbles: true }))
+    el.dispatchEvent(new DragEvent('dragover', { dataTransfer: dt, bubbles: true }))
+    el.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true }))
+    return true
+  }, { selector, name, type, bytes })
+}
+
+const PNG_BYTES = Array.from(PNG)
+
+test('десктоп · фото ПЕРЕТЯГУВАННЯМ у смугу доходить до storage', async ({ browser }) => {
+  test.setTimeout(120_000)
+  const { ctx, page } = await desktop(browser)
+  try {
+    await fixtures(page)
+    const posts: string[] = []
+    await page.route('**/storage/v1/object/photos/**', (r) => {
+      if (r.request().method() === 'POST') posts.push(new URL(r.request().url()).pathname)
+      return json(r, { Key: 'photos/x' })
+    })
+    await page.route('**/rest/v1/property_photos**', (r) => {
+      if (r.request().method() === 'POST') {
+        const body = JSON.parse(r.request().postData() ?? '{}')
+        return json(r, [{ id: '80000000-0000-0000-0000-000000000001', ...body }], 201)
+      }
+      return json(r, [])
+    })
+
+    await openProperty(page)
+    expect(await dropFile(page, '.photos-strip', 'drag.png', 'image/png', PNG_BYTES)).toBe(true)
+
+    await expect(page.getByText('Завантажено!')).toBeVisible({ timeout: 20_000 })
+    expect(posts.length, 'перетягнуте фото не поїхало в storage').toBe(1)
+  } finally {
+    await ctx.close()
+  }
+})
+
+test('десктоп · документ ПЕРЕТЯГУВАННЯМ проходить той самий ланцюг', async ({ browser }) => {
+  test.setTimeout(120_000)
+  const { ctx, page } = await desktop(browser)
+  try {
+    await fixtures(page)
+    const fileRows: Record<string, unknown>[] = []
+    await page.route('**/functions/v1/validate-upload', (r) => json(r, {
+      uploadUrl: 'https://stub.local/signed/put',
+      storagePath: `${PROP.id}/1700000000_abc.pdf`,
+    }))
+    await page.route('https://stub.local/signed/put', (r) => r.fulfill({ status: 200, body: '{}' }))
+    await page.route('**/rest/v1/property_files**', (r) => {
+      if (r.request().method() === 'POST') {
+        const body = JSON.parse(r.request().postData() ?? '{}')
+        fileRows.push(body)
+        return json(r, [{ id: '90000000-0000-0000-0000-000000000001', created_at: NOW, ...body }], 201)
+      }
+      return json(r, fileRows)
+    })
+
+    await openProperty(page)
+    // Секція файлів монтується ПІСЛЯ свого запиту, тож без очікування дроп
+    // летить у ще неіснуючу зону (заміряно: `dropFile` вертав false).
+    await page.waitForSelector('.drop-zone', { timeout: 15_000 })
+    expect(await dropFile(page, '.drop-zone', 'dogovir.pdf', 'application/pdf', [37, 80, 68, 70])).toBe(true)
+
+    await expect.poll(() => fileRows.length, { timeout: 20_000 }).toBe(1)
+    expect(fileRows[0]).toMatchObject({ property_id: PROP.id, file_name: 'dogovir.pdf' })
+  } finally {
+    await ctx.close()
+  }
+})
+
+test('десктоп · чужий формат у зону фото — відмова, а не мовчазний перехід', async ({ browser }) => {
+  test.setTimeout(120_000)
+  const { ctx, page } = await desktop(browser)
+  try {
+    await fixtures(page)
+    let storageTouched = false
+    await page.route('**/storage/v1/object/photos/**', (r) => { storageTouched = true; return json(r, {}) })
+
+    await openProperty(page)
+    await dropFile(page, '.photos-strip', 'notes.txt', 'text/plain', [104, 105])
+
+    // Фільтр мусить СКАЗАТИ про відмову, а не проковтнути дроп: мовчазне
+    // «нічого не сталось» користувач читає як зламане перетягування.
+    await expect(page.getByText('Це не зображення')).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByText('Завантажено!')).toHaveCount(0)
+    expect(storageTouched, 'у storage поїхав нефайл зображення').toBe(false)
+  } finally {
+    await ctx.close()
+  }
+})
+
+test('десктоп · дроп ПОВЗ зону не відкриває файл замість застосунку', async ({ browser }) => {
+  test.setTimeout(120_000)
+  const { ctx, page } = await desktop(browser)
+  try {
+    await fixtures(page)
+    await page.goto('/')
+    await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 25_000 })
+
+    // Без глобального глушника браузер НАВІГУЄ на кинутий файл — тобто
+    // застосунок зникає разом із незбереженим станом. Перевіряється саме
+    // `defaultPrevented`: це і є та властивість, яка навігацію скасовує.
+    const prevented = await page.evaluate(() => {
+      const dt = new DataTransfer()
+      dt.items.add(new File([new Uint8Array([1, 2, 3])], 'stray.pdf', { type: 'application/pdf' }))
+      const over = new DragEvent('dragover', { dataTransfer: dt, bubbles: true, cancelable: true })
+      const drop = new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true })
+      document.body.dispatchEvent(over)
+      document.body.dispatchEvent(drop)
+      return { over: over.defaultPrevented, drop: drop.defaultPrevented }
+    })
+    expect(prevented.over, 'dragover не скасовано — вікно не стає ціллю дропу').toBe(true)
+    expect(prevented.drop, 'drop повз зону не скасовано — браузер відкриє файл').toBe(true)
+  } finally {
+    await ctx.close()
+  }
+})

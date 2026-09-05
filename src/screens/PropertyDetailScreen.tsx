@@ -3,6 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 import { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '@/store/appStore'
+import { useFileDrop } from '@/hooks/useFileDrop'
 import RetryState from '@/components/ui/RetryState'
 import { hapticImpact, hapticNotify } from '@/lib/telegram'
 import { offlineGuard } from '@/lib/offline'
@@ -98,6 +99,20 @@ export default function PropertyDetailScreen() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [property?.id])
 
+  // Перетягування фото у смугу. Хук стоїть ДО ранніх `return`: інакше порядок
+  // хуків між рендерами розходиться (`rules-of-hooks`), і React ламається на
+  // переході «завантаження → дані». Шлях ТОЙ САМИЙ, що в інпута — інакше дві
+  // копії конвеєра розійшлись би (урок дубльованого аплоуду
+  // `PhotoUploadScreen` vs `useProperties`).
+  const photoDrop = useFileDrop({
+    disabled: !isOwner,
+    // Тип із системи не завжди доходить (Windows дає порожній MIME), тож
+    // розширення — другий шлях, а не запасний.
+    accept: (f) => f.type.startsWith('image/') || /\.(jpe?g|png|webp|heic|heif)$/i.test(f.name),
+    onFiles: (files) => { if (property) navigate('photo-upload', { propertyId: property.id, files }) },
+    onRejected: () => showToast({ type: 'error', title: 'Це не зображення', subtitle: 'Перетягніть JPG, PNG або WebP' }),
+  })
+
   if (!property && error) return (
     <div className="scr bg-blue">
       <Header title="Обʼєкт" backLabel="Назад" />
@@ -182,6 +197,7 @@ export default function PropertyDetailScreen() {
     e.target.value = ''
     navigate('photo-upload', { propertyId: property!.id, files })
   }
+
 
   return (
     <div className="scr bg-blue">
@@ -523,7 +539,7 @@ export default function PropertyDetailScreen() {
             Фотографії
           </span>
         </div>
-        <div className="photos-strip">
+        <div className={`photos-strip${photoDrop.dropping ? ' dropping' : ''}`} {...photoDrop.dropProps}>
           {photos.map((photo, i) => (
             <div key={photo.id} className="photo-t" style={{ position: 'relative' }}>
               <img

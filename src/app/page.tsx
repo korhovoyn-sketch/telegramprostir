@@ -6,6 +6,7 @@ import { useAppStore } from '@/store/appStore'
 import { hapticNotify, layoutShrunkByKeyboard, telegramSafeArea } from '@/lib/telegram'
 import { useAuth } from '@/hooks/useAuth'
 import { useDeepLink } from '@/hooks/useDeepLink'
+import { useGlobalDropGuard } from '@/hooks/useFileDrop'
 import { useNotifications } from '@/hooks/useNotifications'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { IconWifiOff } from '@/components/Icons'
@@ -68,6 +69,9 @@ export default function Page() {
   const { setupAuthListener } = useAuth()
   const { loadNotifications } = useNotifications()
   useDeepLink()
+  // Дроп повз зону прийому інакше ВІДКРИВАЄ файл замість застосунку — на
+  // компʼютері це втрата незбереженого стану, тож глушник глобальний.
+  useGlobalDropGuard()
 
   // TG SDK setup — runs once on mount
   useEffect(() => {
