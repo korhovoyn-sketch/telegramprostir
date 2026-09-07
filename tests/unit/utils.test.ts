@@ -377,6 +377,20 @@ describe('getInitials', () => {
     expect(getInitials('петро', 'іванов')).toBe('ПІ'))
   it('handles missing last name', () =>
     expect(getInitials('петро')).toBe('П'))
+
+  // НЕВИБУХОВІСТЬ — та сама остання сітка, що в `formatPrice`. Порожнє імʼя
+  // досяжне: `updateProfile` кладе у стор ВІДПОВІДЬ PATCH, тож будь-яка
+  // відповідь без `first_name` знімала ВЕСЬ екран профілю в ErrorBoundary.
+  // Спіймано гардом мови; до фікса тут летіло `undefined.charAt`.
+  it('порожнє імʼя не кидає, а дає прочерк', () => {
+    expect(getInitials(undefined)).toBe('?')
+    expect(getInitials(null, null)).toBe('?')
+    expect(getInitials('')).toBe('?')
+    expect(getInitials('   ')).toBe('?')
+  })
+
+  it('порожнє ПРІЗВИЩЕ не зʼїдає імені', () =>
+    expect(getInitials('петро', '')).toBe('П'))
 })
 
 describe('greeting', () => {

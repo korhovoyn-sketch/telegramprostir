@@ -13,7 +13,7 @@ import RetryState from '@/components/ui/RetryState'
 import { IconPlus, IconLink, IconBan, IconUser, IconUsers, IconCopy, IconChevronRight, IconTrash } from '@/components/Icons'
 import { copyLink } from '@/lib/share'
 import { buildDeepLink, openTelegramShare, hapticNotify } from '@/lib/telegram'
-import { tr } from '@/lib/i18n'
+import { locale, tr } from '@/lib/i18n'
 
 /**
  * СПІЛЬНИЙ СПИСОК ДОСТУПІВ — гості і команда.
@@ -276,8 +276,8 @@ export default function AccessList({ kind }: { kind: AccessKind }) {
                   «Орендар, кв. 5» каже, за що доступ, а імʼя — кому. */}
               {r.person && r.label ? `${r.label} · ` : ''}
               {r.claimed_at
-                ? tr('Прийнято {0}', new Date(r.claimed_at).toLocaleDateString('uk-UA'))
-                : tr('Створено {0}', new Date(r.created_at).toLocaleDateString('uk-UA'))}
+                ? tr('Прийнято {0}', new Date(r.claimed_at).toLocaleDateString(locale()))
+                : tr('Створено {0}', new Date(r.created_at).toLocaleDateString(locale()))}
             </div>
             {r.status === 'revoked' && (
               <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>

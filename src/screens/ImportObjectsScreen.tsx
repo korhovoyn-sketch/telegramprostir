@@ -50,16 +50,16 @@ const FIELDS: { id: Field; label: string; aliases: string[] }[] = [
   { id: 'status',         label: tr('Статус'),                aliases: ['статус', 'status'] },
   { id: 'tenant_name',    label: tr('Орендар'),               aliases: ['орендар', 'tenant', 'арендатор'] },
   { id: 'landlord_name',  label: tr('Орендодавець'),          aliases: ['орендодавець', 'landlord'] },
-  { id: 'area_useful',    label: tr('Площа корисна'),         aliases: ['площа корисна (м²)', 'площа корисна', 'корисна площа', 'корисна'] },
-  { id: 'area_total',     label: tr('Площа розрахункова'),    aliases: ['площа розрахункова (м²)', 'площа розрахункова', 'розрахункова площа', 'загальна площа', 'розрахункова'] },
-  { id: 'area_basis',     label: tr('База розрахунку'),       aliases: ['база розрахунку', 'база'] },
-  { id: 'rent_rate',      label: tr('Ставка оренди'),         aliases: ['ставка оренди', 'ставка', 'оренда'] },
-  { id: 'rent_type',      label: tr('Тип ставки'),            aliases: ['тип ставки', 'тип оренди'] },
-  { id: 'utilities_rate', label: tr('Ставка експлуатаційних'), aliases: ['ставка експлуатаційних', 'експлуатаційні', 'комунальні'] },
-  { id: 'sale_price',     label: tr('Ціна продажу'),          aliases: ['ціна продажу', 'ціна'] },
-  { id: 'lease_start_date', label: tr('Договір з'),           aliases: ['договір з', 'початок договору'] },
-  { id: 'lease_end_date',   label: tr('Договір до'),          aliases: ['договір до', 'кінець договору'] },
-  { id: 'parking_spaces', label: tr('Місць паркінгу'),        aliases: ['місць паркінгу', 'паркомісць'] },
+  { id: 'area_useful',    label: tr('Площа корисна'),         aliases: ['площа корисна (м²)', 'площа корисна', 'корисна площа', 'корисна', 'usable area (m²)', 'usable area', 'usable'] },
+  { id: 'area_total',     label: tr('Площа розрахункова'),    aliases: ['площа розрахункова (м²)', 'площа розрахункова', 'розрахункова площа', 'загальна площа', 'розрахункова', 'billable area (m²)', 'billable area', 'billable'] },
+  { id: 'area_basis',     label: tr('База розрахунку'),       aliases: ['база розрахунку', 'база', 'calculation basis', 'basis'] },
+  { id: 'rent_rate',      label: tr('Ставка оренди'),         aliases: ['ставка оренди', 'ставка', 'оренда', 'rent rate', 'rent'] },
+  { id: 'rent_type',      label: tr('Тип ставки'),            aliases: ['тип ставки', 'тип оренди', 'rate type'] },
+  { id: 'utilities_rate', label: tr('Ставка експлуатаційних'), aliases: ['ставка експлуатаційних', 'експлуатаційні', 'комунальні', 'service charge rate', 'service charges'] },
+  { id: 'sale_price',     label: tr('Ціна продажу'),          aliases: ['ціна продажу', 'ціна', 'sale price'] },
+  { id: 'lease_start_date', label: tr('Договір з'),           aliases: ['договір з', 'початок договору', 'lease from'] },
+  { id: 'lease_end_date',   label: tr('Договір до'),          aliases: ['договір до', 'кінець договору', 'lease until'] },
+  { id: 'parking_spaces', label: tr('Місць паркінгу'),        aliases: ['місць паркінгу', 'паркомісць', 'parking spaces', 'spaces'] },
   { id: 'address',        label: tr('Адреса'),                aliases: ['адреса', 'address'] },
   { id: 'description',    label: tr('Опис'),                  aliases: ['опис', 'description', 'примітка'] },
 ]
@@ -76,15 +76,18 @@ const FIELDS: { id: Field; label: string; aliases: string[] }[] = [
  * Значення розпізнаються рівно ті, які пише `propertyRow` в ExportScreen.
  */
 const BASIS_ALIAS: Record<string, 'useful' | 'total'> = {
-  'корисна': 'useful', 'useful': 'useful',
-  'розрахункова': 'total', 'загальна': 'total', 'total': 'total',
+  'корисна': 'useful', 'useful': 'useful', 'usable': 'useful',
+  'розрахункова': 'total', 'загальна': 'total', 'total': 'total', 'billable': 'total',
 }
 
 function parseRentType(raw: string, dbType?: string): 'per_m2' | 'fixed' | 'per_day' {
   const v = raw.toLowerCase()
   if (v.includes('добу') || v.includes('day')) return 'per_day'
   if (v.includes('фіксован') || v.includes('fixed') || v.includes('сума')) return 'fixed'
-  if (v.includes('м²') || v.includes('m2') || v.includes('per_m2')) return 'per_m2'
+  // 'm²' з ЛАТИНСЬКОЮ m — саме так пише англійський експорт ($/m²/mo). Без
+  // цього рядка гілка трималась на фолбеку, а для паркінга фолбек — 'fixed',
+  // тобто ставка за метр перетворилась би на пласку суму.
+  if (v.includes('м²') || v.includes('m²') || v.includes('m2') || v.includes('per_m2')) return 'per_m2'
   // Порожня колонка: паркінг НЕ отримує $/м² за замовчуванням — там ставка
   // пласка, і мовчазний per_m2 помножив би її на площу місця.
   return dbType === 'parking' ? 'fixed' : 'per_m2'
@@ -94,6 +97,11 @@ const STATUS_ALIAS: Record<string, PropertyStatus> = {
   'вільно': 'free', 'вільний': 'free', 'free': 'free', 'вакантно': 'free',
   'зайнято': 'occupied', 'зайнятий': 'occupied', 'occupied': 'occupied', 'орендовано': 'occupied',
   'продаж': 'for_sale', 'на продаж': 'for_sale', 'for_sale': 'for_sale', 'продається': 'for_sale',
+  // Англійські ПІДПИСИ, які пише власний експорт у en-режимі. Службові
+  // значення ('free', 'for_sale') тут уже були — але у файлі стоїть саме
+  // підпис, тож без цих трьох рядків «For sale» падало у фолбек `?? 'free'`
+  // і статус обʼєкта мовчки змінювався на протилежний за змістом.
+  'vacant': 'free', 'for sale': 'for_sale', 'let': 'occupied',
 }
 
 /**

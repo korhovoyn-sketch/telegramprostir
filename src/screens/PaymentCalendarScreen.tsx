@@ -13,7 +13,7 @@ import { IconCalendar, IconClock, IconPlus, IconTrash, IconFile, IconCheckCircle
 import { formatPrice, humanizeDbError, objectsWord } from '@/lib/utils'
 import { RENT_PAYMENT_COLUMNS, RENT_PAYMENT_RECORD_COLUMNS, expectedRent, fmtDueDate } from '@/lib/rentPayments'
 import type { Property, RentPayment, RentPaymentRecord } from '@/types'
-import { tr } from '@/lib/i18n'
+import { locale, tr } from '@/lib/i18n'
 
 function dueDateStr(year: number, month: number, dueDay: number): string {
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(dueDay).padStart(2, '0')}`
@@ -203,7 +203,7 @@ export default function PaymentCalendarScreen() {
       const paidCount  = allItems.filter(it => it.record?.status === 'paid').length
       const totalCount = allItems.length
       const items = showOnlyUnpaid ? allItems.filter(it => it.record?.status !== 'paid') : allItems
-      return { label: d.toLocaleDateString('uk-UA', { month: 'long', year: 'numeric' }), items, isFirst: i === 0, paidCount, totalCount }
+      return { label: d.toLocaleDateString(locale(), { month: 'long', year: 'numeric' }), items, isFirst: i === 0, paidCount, totalCount }
     })
   }, [paymentItems, monthsAhead, showOnlyUnpaid])
 
@@ -230,7 +230,7 @@ export default function PaymentCalendarScreen() {
       const key = `${yr}-${mo}`
       if (!groups.has(key)) {
         const d = new Date(yr, mo - 1, 1)
-        groups.set(key, { label: d.toLocaleDateString('uk-UA', { month: 'long', year: 'numeric' }), records: [], total: 0 })
+        groups.set(key, { label: d.toLocaleDateString(locale(), { month: 'long', year: 'numeric' }), records: [], total: 0 })
       }
       const g = groups.get(key)!
       g.records.push(rec)
@@ -554,7 +554,7 @@ export default function PaymentCalendarScreen() {
                                   <span style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)' }}>{tr('за')}{' '}{fmtDueDate(rec.due_date)}</span>
                                   {rec.paid_at && (
                                     <span style={{ fontSize: 'var(--fs-cap2)', color: 'var(--t4)' }}>
-                                      {tr('· отримано')}{' '}{new Date(rec.paid_at).toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' })}
+                                      {tr('· отримано')}{' '}{new Date(rec.paid_at).toLocaleDateString(locale(), { day: 'numeric', month: 'short' })}
                                     </span>
                                   )}
                                 </div>

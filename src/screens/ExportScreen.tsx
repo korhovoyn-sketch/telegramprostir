@@ -11,7 +11,7 @@ import { toCsv, CSV_BOM } from '@/lib/csv'
 import { effectiveLandlord, withSortedPhotos, calcRentUtils, currencySymbol, rentUnitLabel, objectsWord, DB_TYPE_LABELS, STATUS_LABELS, formatLeaseDate, humanizeDbError, safeFileName, photoUrl } from '@/lib/utils'
 import { UTILITY_META } from '@/lib/utilityMeta'
 import type { Property, Database } from '@/types'
-import { tr } from '@/lib/i18n'
+import { locale, tr } from '@/lib/i18n'
 
 const FORMATS = [
   { id: 'pdf',   label: tr('PDF Документ'),   desc: tr('Брендований PDF — зберігається та шериться'), icon: <IconFile size={20} color="var(--info)" /> },
@@ -256,12 +256,12 @@ async function generatePDF(
   // Один форматер на весь документ. Плитка «Оренда» на обкладинці розділяла
   // тисячі, а ті самі гроші в таблиці й на сторінці обʼєкта — ні: «$26 800»
   // проти «$25000» в одному файлі читалось як два різні документи.
-  const money = (n: number) => `${cur}${n.toLocaleString('uk-UA')}`
+  const money = (n: number) => `${cur}${n.toLocaleString(locale())}`
   // Ставка несе ОДИНИЦЮ, а не речення: підпис поля вже сказав «Ставка
   // оренди», тож «25000 $ / міс (фіксована)» повторював сам себе, а пробіли
   // навколо скісних рвали число й одиницю на три окремі слова.
   const rateOf = (n: number, type: string) =>
-    tr('{0} {1}/{2}', n.toLocaleString('uk-UA'), cur, type === 'per_m2' ? tr('м²') : type === 'per_day' ? tr('добу') : tr('міс'))
+    tr('{0} {1}/{2}', n.toLocaleString(locale()), cur, type === 'per_m2' ? tr('м²') : type === 'per_day' ? tr('добу') : tr('міс'))
 
   // ── Embed Roboto for Cyrillic support ────────────────────────────────────────
   const toBase64 = (buf: ArrayBuffer): string => {
@@ -345,7 +345,7 @@ async function generatePDF(
   doc.setTextColor(...tpl.onAccent)
   doc.setGState(new GState({ opacity: 0.78 }))
   const typeLabel = DB_TYPE_LABELS[db.type] ?? db.type
-  const dateStr   = new Date().toLocaleDateString('uk-UA', { day: 'numeric', month: 'long', year: 'numeric' })
+  const dateStr   = new Date().toLocaleDateString(locale(), { day: 'numeric', month: 'long', year: 'numeric' })
   doc.text(`${typeLabel}  ·  ${rows.length} ${objectsWord(rows.length)}  ·  ${dateStr}`, M, 38)
   doc.setGState(new GState({ opacity: 1 }))
 
@@ -406,7 +406,7 @@ async function generatePDF(
       STATUS_LABELS[p.status] ?? p.status,
       p.area_useful ? `${p.area_useful}` : '—',
       p.area_total  ? `${p.area_total}`  : '—',
-      p.rent_rate   ? `${p.rent_rate.toLocaleString('uk-UA')}${p.rent_type === 'fixed' ? '' : rentUnitLabel(p.rent_type)}` : '—',
+      p.rent_rate   ? `${p.rent_rate.toLocaleString(locale())}${p.rent_type === 'fixed' ? '' : rentUnitLabel(p.rent_type)}` : '—',
       utils ? money(utils) : '—',
       // total — з calcRentUtils, УЖЕ нормалізований до місяця (per_day
       // множиться на 30 всередині) — рахувати rent+utils тут САМОСТІЙНО
@@ -512,7 +512,7 @@ async function generatePDF(
     doc.setFont('Roboto', 'normal')
     doc.setFontSize(7.5)
     doc.setTextColor(...TXMUT)
-    doc.text(new Date(p.updated_at).toLocaleDateString('uk-UA'), W - M - 4, y + 8, { align: 'right' })
+    doc.text(new Date(p.updated_at).toLocaleDateString(locale()), W - M - 4, y + 8, { align: 'right' })
 
     y += 28
 
@@ -931,7 +931,7 @@ async function generateExcel(
   // Title block
   sheetData.push([tr('База: {0}', db.name)])
   sheetData.push([tr('Тип: {0}', DB_TYPE_LABELS[db.type] ?? db.type)])
-  sheetData.push([tr('Дата: {0}', new Date().toLocaleDateString('uk-UA'))])
+  sheetData.push([tr('Дата: {0}', new Date().toLocaleDateString(locale()))])
   sheetData.push([tr('Обʼєктів: {0}', rows.length)])
   sheetData.push([]) // blank
 

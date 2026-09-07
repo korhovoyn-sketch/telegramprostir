@@ -5,7 +5,7 @@ import { monthlyRent, calcRentUtils, basisArea, formatPrice, objectsWord } from 
 import { IconActivity, IconCurrencyDollar, IconBolt, IconRuler, IconLayers, IconCircleCheck } from '@/components/Icons'
 import { prefersReducedMotion } from '@/lib/motion'
 import type { Property } from '@/types'
-import { tr } from '@/lib/i18n'
+import { locale, tr } from '@/lib/i18n'
 
 interface Props {
   properties: Property[]
@@ -241,23 +241,23 @@ export default function DatabaseStatsPanel({ properties, currency = 'USD', dbTyp
     ...(stats.occupiedUseful > 0 ? [{
       icon: ICON_EXPAND,
       label: tr('Площа зайнятих'),
-      value: tr('{0} м²', animOccupiedUseful.toLocaleString('uk-UA')),
-      sub: stats.occupiedTotal > 0 ? tr('заг: {0} м²', stats.occupiedTotal.toLocaleString('uk-UA')) : undefined,
+      value: tr('{0} м²', animOccupiedUseful.toLocaleString(locale())),
+      sub: stats.occupiedTotal > 0 ? tr('заг: {0} м²', stats.occupiedTotal.toLocaleString(locale())) : undefined,
       accentBg: 'var(--dv-purple-bg)',
       accentBorder: 'var(--dv-purple-bd)',
     } satisfies CardData] : []),
     ...(stats.totalUseful > 0 ? [{
       icon: ICON_LAYERS,
       label: tr('Вся корисна площа'),
-      value: tr('{0} м²', animTotalUseful.toLocaleString('uk-UA')),
-      sub: stats.totalArea > 0 ? tr('заг: {0} м²', stats.totalArea.toLocaleString('uk-UA')) : undefined,
+      value: tr('{0} м²', animTotalUseful.toLocaleString(locale())),
+      sub: stats.totalArea > 0 ? tr('заг: {0} м²', stats.totalArea.toLocaleString(locale())) : undefined,
       accentBg: 'var(--dv-indigo-bg)',
       accentBorder: 'var(--dv-indigo-bd)',
     } satisfies CardData] : []),
     ...(stats.freeUseful > 0 ? [{
       icon: ICON_CHECK,
       label: tr('Вільна площа'),
-      value: tr('{0} м²', animFree.toLocaleString('uk-UA')),
+      value: tr('{0} м²', animFree.toLocaleString(locale())),
       sub: tr('{0} вільних', stats.freeCount),
       accentBg: 'var(--dv-cyan-bg)',
       accentBorder: 'var(--dv-cyan-bd)',

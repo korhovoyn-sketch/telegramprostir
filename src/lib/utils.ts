@@ -1,5 +1,7 @@
 
-import { tr } from '@/lib/i18n'/**
+import { getLang, locale, tr } from '@/lib/i18n'
+
+/**
  * Retry wrapper for Supabase queries in Telegram's unreliable network.
  * Retries up to `attempts` times with exponential back-off on network errors.
  * Does NOT retry on 4xx / auth errors — those are deterministic failures.
@@ -130,7 +132,7 @@ export function formatPrice(amount: number, currency = 'USD'): string {
   // за прочерк. Гарди на місцях виклику лишаються — це остання сітка, не
   // дозвіл передавати сюди що завгодно.
   if (!Number.isFinite(amount)) return '—'
-  return `${currencySymbol(currency)}${amount.toLocaleString('uk-UA')}`
+  return `${currencySymbol(currency)}${amount.toLocaleString(locale())}`
 }
 
 // Дата БЕЗ часу («2026-08-01» — саме такі `lease_start_date`/`lease_end_date`)
@@ -151,7 +153,11 @@ export function formatLeaseDate(d: string): string {
   const dt = new Date(DATE_ONLY.test(d) ? `${d}T00:00:00` : d)
   // Нерозпізнаний рядок давав літеральне «Invalid Date» просто в картку.
   if (Number.isNaN(dt.getTime())) return '—'
-  return dt.toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  // ISO для англійської — свідомо, і не лише заради кругового рейсу:
+  // `mm/dd/yyyy` проти `dd/mm/yyyy` неможливо розрізнити за самим рядком, тож
+  // будь-який слеш-формат зробив би дату договору здогадкою.
+  if (getLang() === 'en') return dt.toISOString().slice(0, 10)
+  return dt.toLocaleDateString(locale(), { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
 export function formatLeasePeriod(start?: string | null, end?: string | null): string | null {
@@ -177,7 +183,7 @@ export function formatDate(iso: string): string {
   if (days < 5) return tr('{0} дні тому', days)
   if (days < 7) return tr('{0} днів тому', days)
 
-  return d.toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' })
+  return d.toLocaleDateString(locale(), { day: 'numeric', month: 'short' })
 }
 
 // Which area a per-m² rate multiplies by. Owners choose per object (form
@@ -232,6 +238,11 @@ export function monthlyRent(areaUseful: number, rentRate: number, rentType: stri
 // exception). Replaces the hardcoded "обʼєктів" that read wrong for 1 ("1
 // обʼєктів") and 2-4 ("2 обʼєктів") across cards, counts and delete dialogs.
 export function pluralUk(n: number, one: string, few: string, many: string): string {
+  // Англійська: однина рівно для 1, решта — множина. Словник цього НЕ покриває:
+  // для 21 українська бере форму `one` («21 обʼєкт»), і переклад тієї форми дав
+  // би «21 unit» замість «21 units». Тобто мова визначає не лише СЛОВА, а й
+  // правило вибору між ними.
+  if (getLang() === 'en') return Math.abs(n) === 1 ? one : few
   const mod10 = Math.abs(n) % 10
   const mod100 = Math.abs(n) % 100
   if (mod10 === 1 && mod100 !== 11) return one
@@ -411,10 +422,18 @@ export function greeting(): string {
   return hour < 12 ? tr('Доброго ранку') : hour < 17 ? tr('Добрий день') : tr('Добрий вечір')
 }
 
-export function getInitials(firstName: string, lastName?: string): string {
-  const f = firstName.charAt(0).toUpperCase()
-  const l = lastName ? lastName.charAt(0).toUpperCase() : ''
-  return f + l
+export function getInitials(firstName?: string | null, lastName?: string | null): string {
+  // НЕВИБУХАЮЧА, з тієї ж причини, що й `formatPrice`: `undefined.charAt`
+  // кидає і забирає ВЕСЬ екран профілю в ErrorBoundary — замість аватара з
+  // прочерком користувач бачить «Щось пішло не так» і кнопку перезапуску.
+  //
+  // Досяжність не теоретична: `updateProfile` робить `setUser(data)` з
+  // відповіді PATCH, тож будь-яка відповідь без `first_name` (звужений
+  // `select`, зміна USER_COLUMNS, часткова відповідь бекенда) знімає екран.
+  // Спіймано гардом мови, який тапає перемикач і бʼє саме в цей шлях.
+  const f = firstName?.trim().charAt(0).toUpperCase() ?? ''
+  const l = lastName?.trim().charAt(0).toUpperCase() ?? ''
+  return f + l || '?'
 }
 
 export const DB_TYPE_LABELS: Record<string, string> = {

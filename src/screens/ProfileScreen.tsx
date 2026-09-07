@@ -11,7 +11,7 @@ import Toggle from '@/components/ui/Toggle'
 import { IconMail, IconPhone, IconLanguage, IconCurrencyDollar, IconLogout, IconTrash, GlassCrown, IconBell, IconBellRing, IconChartLine, IconEye, IconMessage, IconAdjustments } from '@/components/Icons'
 import { TG_BOT , hapticSelection } from '@/lib/telegram'
 import { getInitials, scrollFocusedIntoView } from '@/lib/utils'
-import { tr } from '@/lib/i18n'
+import { tr, loadLang, persistLang } from '@/lib/i18n'
 
 export default function ProfileScreen() {
   const { user, databases, setUser, navigate } = useAppStore()
@@ -96,9 +96,25 @@ export default function ProfileScreen() {
     hapticSelection()
     const prev = user!
     setSavingLang(true)
+    // Спершу СЛОВНИК, потім стан: `loadLang` робить мову активною лише після
+    // того, як переклад приїхав, інакше перший кадр малює український текст,
+    // а другий англійський — блимання гірше за паузу в кілька мілісекунд.
+    await loadLang(lang)
+    persistLang(lang)
+    // Перемальовування дає САМЕ `setUser`: він міняє стан стора, а 34 екрани
+    // підписані на нього без селектора. Окремої дії для цього НЕ заводимо —
+    // фальсифікація показала, що вона не несе навантаження, тобто була б
+    // другим механізмом на те саме, який жоден тест не відрізняє.
     setUser({ ...prev, language_code: lang })
     const ok = await updateProfile({ language_code: lang })
-    if (!ok) setUser(prev)
+    if (!ok) {
+      // Відкат мусить бути ПОВНИЙ: інакше інтерфейс лишається англійським, а
+      // профіль у базі — українським, і наступний вхід «сам собою» повертає
+      // мову назад без жодного пояснення.
+      await loadLang(prev.language_code === 'en' ? 'en' : 'uk')
+      persistLang(prev.language_code === 'en' ? 'en' : 'uk')
+      setUser(prev)
+    }
     setSavingLang(false)
   }
 
