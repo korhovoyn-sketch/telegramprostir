@@ -38,6 +38,10 @@ type Field =
   | 'area_useful' | 'area_total' | 'area_basis' | 'rent_rate' | 'rent_type'
   | 'utilities_rate' | 'sale_price' | 'address' | 'description'
   | 'lease_start_date' | 'lease_end_date' | 'parking_spaces'
+// Межі імпорту — той самий клас дисципліни, що MAX_PHOTOS=20 і MAX_FILES=10.
+const MAX_ROWS = 500
+const MAX_FILE_MB = 5
+
 
 const FIELDS: { id: Field; label: string; aliases: string[] }[] = [
   { id: 'name',           label: 'Назва',                 aliases: ['назва', 'name', 'обʼєкт', 'обєкт', 'объект', 'номер місця'] },
@@ -245,8 +249,28 @@ export default function ImportObjectsScreen() {
   })
 
   async function handleFile(file: File) {
+    // МЕЖІ, і вони не косметичні: `file.text()` тягне файл ЦІЛКОМ у памʼять
+    // webview на телефоні, `parseCsv` будує з нього повну матрицю, а
+    // `createProperties` шле все ОДНИМ insert-ом. Без межі великий файл дає
+    // не «завеликий файл», а зависання екрана й відмову PostgREST — тобто
+    // найгіршу з можливих діагностик. Застосунок уже має цю дисципліну для
+    // фото (20) і документів (10); імпорт лишався єдиним входом без неї.
+    if (file.size > MAX_FILE_MB * 1024 * 1024) {
+      showToast({
+        type: 'error', title: 'Файл завеликий',
+        subtitle: `Максимум ${MAX_FILE_MB} МБ — розділіть його на частини`,
+      })
+      return
+    }
     const text = await file.text()
     const grid = parseCsv(text)
+    if (grid.length - 1 > MAX_ROWS) {
+      showToast({
+        type: 'error', title: `Максимум ${MAX_ROWS} обʼєктів за раз`,
+        subtitle: `У файлі ${grid.length - 1} — розділіть його на частини`,
+      })
+      return
+    }
     if (grid.length < 2) {
       showToast({ type: 'error', title: 'Порожній файл', subtitle: 'Потрібен рядок заголовків і хоча б один обʼєкт' })
       return

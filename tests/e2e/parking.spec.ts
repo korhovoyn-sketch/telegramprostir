@@ -111,3 +111,37 @@ test('parking property submits with per_day rate, parking_type and ev_charger', 
   // A parking spot carries no office total area.
   expect(created!.area_total == null).toBe(true)
 })
+
+// ── Плитка «Експлуатаційні» на db-objects: пласка сума, а не ×площа ─────────
+//
+// `DatabaseStatsPanel` рахувала експлуатаційні САМОТУЖКИ і гейтила одиницю по
+// НАЯВНОСТІ ПЛОЩІ — тобто структурно не могла знати про паркінг, бо тип бази
+// їй узагалі не передавали. Паркомісце 12 м² з пласкими $30 давало 12×30=$360,
+// і та сама база на `db-list`, картці обʼєкта, в PDF і XLSX показувала $30.
+//
+// Гард на РЕНДЕРІ, а не на формулі: юніт-тест доводить арифметику, але не те,
+// що `dbType` реально доїхав до компонента.
+test('панель статистики паркінга показує ПЛАСКІ експлуатаційні', async ({ page }) => {
+  await setupFixtures(page)
+  // Зайняте місце — панель рахує лише occupied.
+  await page.route('**/rest/v1/properties**', (route) => {
+    const accept = route.request().headers()['accept'] ?? ''
+    const occupied = { ...PARK_PROP, status: 'occupied', tenant_name: 'ТОВ «Авто»' }
+    return route.fulfill({
+      status: 200, contentType: 'application/json',
+      body: JSON.stringify(accept.includes('object') ? occupied : [occupied]),
+    })
+  })
+
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+  await page.getByText('Паркінг Центр').first().click()
+  await expect(page.getByText(/Всі \(\d\)/)).toBeVisible()
+
+  const tile = page.locator('.dash-card', { hasText: 'Експлуатаційні' }).first()
+  await expect(tile).toBeVisible()
+  // Лічильник анімований (useCountUp) — чекаємо на осіле значення.
+  await expect(tile).toContainText('$30', { timeout: 10_000 })
+  // І прямо: множення на площу дало б $360.
+  await expect(tile).not.toContainText('360')
+})

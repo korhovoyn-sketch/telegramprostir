@@ -45,6 +45,10 @@ export default function PhotoUploadScreen() {
   const doneCount = queue.filter((x) => x.status === 'done').length
   const errorCount = queue.filter((x) => x.status === 'error').length
   const done = total > 0 && (doneCount + errorCount) === total
+  // Черга порожня, хоч файли ПРИНОСИЛИ — усе відсіяв фільтр. Окремий стан, бо
+  // `done` вимагає `total > 0`: без нього екран показував «Завантаження… 0 з 0»
+  // назавжди, без пояснення і без виходу, крім стрілки в хедері.
+  const nothingToUpload = total === 0 && rawFiles.length > 0
   const overallPct = total > 0 ? Math.round((doneCount / total) * 100) : 0
 
   // Auto-navigate back 1.5s after all uploads finish
@@ -68,7 +72,20 @@ export default function PhotoUploadScreen() {
   useEffect(() => {
     if (startedRef.current) return
     startedRef.current = true
-    if (files.length === 0) return
+    if (files.length === 0) {
+      // ВСІ файли відсіяв фільтр — і доти це давало вічний спінер: `done`
+      // вимагає `total > 0`, тобто «Готово» не зʼявлялось НІКОЛИ, а причини
+      // не було видно ніде (тост існував лише для «>20 фото»). Найчастіший
+      // випадок — знімок понад 10 МБ: інпут має `accept="image/*"` і розміру
+      // не перевіряє, drop-зона теж.
+      if (rawFiles.length > 0) {
+        showToast({
+          type: 'error', title: 'Не підійшов жоден файл',
+          subtitle: `Потрібні JPG, PNG або WebP до ${MAX_MB} МБ`,
+        })
+      }
+      return
+    }
     if (offlineGuard('Завантаження фото недоступне офлайн')) { back(); return }
     if (validFiles.length > MAX_PHOTOS) {
       showToast({ type: 'error', title: `Максимум ${MAX_PHOTOS} фото`, subtitle: `Завантажено лише перші ${MAX_PHOTOS}` })
@@ -172,10 +189,14 @@ export default function PhotoUploadScreen() {
 
         <div style={{ textAlign: 'center' }}>
           <div style={{ color: 'var(--t1)', fontWeight: 'var(--fw-semi)', fontSize: 'var(--fs-call)' }}>
-            {done ? (errorCount > 0 && doneCount === 0 ? 'Помилка завантаження' : 'Завантажено!') : 'Завантаження...'}
+            {nothingToUpload
+              ? 'Не підійшов жоден файл'
+              : done ? (errorCount > 0 && doneCount === 0 ? 'Помилка завантаження' : 'Завантажено!') : 'Завантаження...'}
           </div>
           <div style={{ color: 'var(--t3)', fontSize: 'var(--fs-foot)', marginTop: 4 }}>
-            {done
+            {nothingToUpload
+              ? `Потрібні JPG, PNG або WebP до ${MAX_MB} МБ`
+              : done
               ? (errorCount > 0 ? `${doneCount} успішно, ${errorCount} з помилкою` : `${doneCount} фото збережено`)
               : `${doneCount} з ${total} фото`
             }
@@ -250,12 +271,12 @@ export default function PhotoUploadScreen() {
           ))}
         </div>
 
-        {done && (
+        {(done || nothingToUpload) && (
           <button
             className="mbtn mbtn-flow"
             onClick={back}
           >
-            Готово
+            {nothingToUpload ? 'Назад' : 'Готово'}
           </button>
         )}
       </div>

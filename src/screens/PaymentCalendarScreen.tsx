@@ -49,6 +49,10 @@ export default function PaymentCalendarScreen() {
 
   const [archiveRecords, setArchiveRecords] = useState<RentPaymentRecord[]>([])
   const [archiveLoading, setArchiveLoading] = useState(false)
+  // Збій архіву мусить відрізнятись від порожнього архіву: перше — «не знаємо»,
+  // друге — «підтверджених платежів не було». Тост живе секунди, порожній стан
+  // лишається на екрані як відповідь.
+  const [archiveError, setArchiveError] = useState(false)
   const [archiveLoaded, setArchiveLoaded]   = useState(false)
 
   const [showOnlyUnpaid, setShowOnlyUnpaid]     = useState(false)
@@ -108,19 +112,28 @@ export default function PaymentCalendarScreen() {
   async function loadRecordsForIds(ids: string[], ahead: number) {
     const start = new Date(); start.setDate(1)
     const end   = new Date(); end.setMonth(end.getMonth() + ahead); end.setDate(1)
-    const { data } = await supabase
+    // `error` НЕ відкидати: без записів кожен item лишається без `record`, тож
+    // СПЛАЧЕНА оренда малюється як несплачена/прострочена, смуга місяця дає
+    // 0/N, а плитка «Отримано» — нуль. Тобто збій запиту виглядав як «орендар
+    // не заплатив» — найдорожча з можливих неправд на грошовому екрані.
+    const { data, error } = await supabase
       .from('rent_payment_records').select(RENT_PAYMENT_RECORD_COLUMNS)
       .in('property_id', ids)
       .gte('due_date', start.toISOString().slice(0, 10))
       .lte('due_date', end.toISOString().slice(0, 10))
       .order('due_date', { ascending: false })
+    if (error) throw error
     setRecords((data ?? []) as RentPaymentRecord[])
   }
 
   // Reload records when horizon changes (properties already loaded)
   useEffect(() => {
     if (loading || properties.length === 0) return
-    loadRecordsForIds(properties.map(p => p.id), monthsAhead)
+    // Тепер `loadRecordsForIds` КИДАЄ на помилці, тож плаваючий виклик мусить
+    // її ловити — інакше зміна горизонту давала б необроблену відмову промісу.
+    loadRecordsForIds(properties.map(p => p.id), monthsAhead).catch((e) => {
+      showToast({ type: 'error', title: 'Не вдалося оновити платежі', subtitle: humanizeDbError(e) })
+    })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [monthsAhead])
 
@@ -135,14 +148,23 @@ export default function PaymentCalendarScreen() {
       .in('property_id', ids)
       .eq('status', 'paid')
       .order('due_date', { ascending: false })
-      .then(({ data }) => {
+      .then(({ data, error }) => {
         if (cancelled) return
+        // Без цієї гілки збій малював «Архів порожній / Підтверджені платежі
+        // зʼявляться тут» — впевнену заяву, що орендар не платив ЖОДНОГО разу.
+        if (error) {
+          setArchiveLoading(false)
+          setArchiveError(true)
+          showToast({ type: 'error', title: 'Не вдалося завантажити архів' })
+          return
+        }
         setArchiveRecords((data ?? []) as RentPaymentRecord[])
         setArchiveLoaded(true)
         setArchiveLoading(false)
       }, () => {
         if (cancelled) return
         setArchiveLoading(false)
+        setArchiveError(true)
         showToast({ type: 'error', title: 'Не вдалося завантажити архів' })
       })
     return () => { cancelled = true }
@@ -476,6 +498,11 @@ export default function PaymentCalendarScreen() {
           <div key="archive" className="tab-content-anim">
             {archiveLoading ? (
               <SkeletonList count={3} />
+            ) : archiveError ? (
+              <RetryState
+                subtitle="Не вдалося завантажити архів"
+                onRetry={() => { setArchiveError(false); setArchiveLoaded(false) }}
+              />
             ) : archiveRecords.length === 0 ? (
               <div className="empty-state" style={{ paddingTop: 32 }}>
                 <div className="empty-ic">🗂</div>

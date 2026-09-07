@@ -6,6 +6,7 @@ import { usePropertyFiles } from '@/hooks/usePropertyFiles'
 import { useAppStore } from '@/store/appStore'
 import { confirmAction } from '@/lib/confirm'
 import FilePreviewModal from '@/components/ui/FilePreviewModal'
+import RetryState from '@/components/ui/RetryState'
 import { IconFile, IconPlus, IconTrash, IconEye, IconCloudUpload } from '@/components/Icons'
 import type { PropertyFile } from '@/types'
 
@@ -43,7 +44,7 @@ function FileBadge({ mime }: { mime: string }) {
 }
 
 export default function FilesList({ propertyId, isOwner }: FilesListProps) {
-  const { files, loading, uploading, uploadProgress, currentUploadFile, fetchFiles, uploadFiles, deleteFile, getSignedUrl, maxFiles } =
+  const { files, loading, loadError, uploading, uploadProgress, currentUploadFile, fetchFiles, uploadFiles, deleteFile, getSignedUrl, maxFiles } =
     usePropertyFiles(propertyId)
   const { showToast } = useAppStore()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -54,9 +55,21 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
 
   async function runUpload(picked: File[]) {
     if (!picked.length) return
-    await uploadFiles(picked, msg =>
+    // Успіх — УМОВНИЙ. Стор тримає рівно один тост, тож беззастережне
+    // «завантажено» затирало повідомлення, яке щойно надіслав `onError`:
+    // користувач, чий файл відхилили за форматом, читав протилежне тому,
+    // що сталось.
+    const { uploaded, failed } = await uploadFiles(picked, msg =>
       showToast({ type: 'error', title: 'Помилка завантаження', subtitle: msg })
     )
+    if (uploaded === 0) return                 // помилку вже показали
+    if (failed > 0) {
+      showToast({
+        type: 'error', title: `Завантажено ${uploaded} з ${uploaded + failed}`,
+        subtitle: 'Решта не пройшла — перевірте формат і розмір',
+      })
+      return
+    }
     showToast({ type: 'success', title: 'Файл(и) завантажено' })
   }
 
@@ -86,10 +99,12 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
       destructive: true,
     })
     if (!ok) return
-    await deleteFile(file.id, file.storage_path, msg =>
+    const removed = await deleteFile(file.id, file.storage_path, msg =>
       showToast({ type: 'error', title: 'Помилка видалення', subtitle: msg })
     )
-    showToast({ type: 'success', title: 'Файл видалено' })
+    // Той самий клас: заблокований RLS DELETE лишав файл у списку, а тост
+    // казав «Файл видалено» поверх щойно показаної помилки.
+    if (removed) showToast({ type: 'success', title: 'Файл видалено' })
   }
 
   const canUpload = isOwner && files.length < maxFiles && !uploading
@@ -140,8 +155,13 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
         )}
       </div>
 
+      {/* Збій ЗАВАНТАЖЕННЯ — окремо від «файлів немає». */}
+      {!loading && loadError && !uploading && (
+        <RetryState subtitle="Не вдалося завантажити документи" onRetry={fetchFiles} />
+      )}
+
       {/* ── Empty state ── */}
-      {!loading && files.length === 0 && !uploading && (
+      {!loading && !loadError && files.length === 0 && !uploading && (
         <div
           className={`drop-zone${docDrop.dropping ? ' dropping' : ''}`}
           {...docDrop.dropProps}

@@ -892,3 +892,121 @@ BEGIN
 
   RAISE NOTICE '  ✓ 064: орендодавець успадковується й перевизначається; контракт превʼю цілий';
 END $$;
+
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- 15. 066 — якір особи, перелічення бакета фото, ціль гостьового лінка
+-- ═══════════════════════════════════════════════════════════════════════════
+DO $$
+DECLARE
+  v_uid  UUID;
+  n      INT;
+BEGIN
+  -- ── ЯКІР ОСОБИ ───────────────────────────────────────────────────────────
+  -- ПОЗИТИВ найперший і найважливіший: справжня адреса ЩЕ резолвиться. Без
+  -- цього «чужа адреса не резолвиться» означало б лише «не резолвиться ніхто»
+  -- — і ми б із чистою совістю поклали ВЕСЬ граф RLS.
+  PERFORM pg_temp.login('900001@telegram.propspace.app');
+  SELECT current_app_user_id() INTO v_uid;
+  IF v_uid IS NULL THEN
+    RAISE EXCEPTION '066: якір зламав НОРМАЛЬНИЙ вхід — current_app_user_id() віддає NULL';
+  END IF;
+
+  -- НЕГАТИВ 1: суфікс збігається, але локальна частина не самі цифри.
+  PERFORM pg_temp.login('900001@evil.com@telegram.propspace.app');
+  IF current_app_user_id() IS NOT NULL THEN
+    RAISE EXCEPTION '066: адреса з двома @ резолвиться в особу — якоря немає';
+  END IF;
+
+  -- НЕГАТИВ 2: чужий домен із тим самим початком.
+  PERFORM pg_temp.login('900001@telegram.propspace.app.evil.com');
+  IF current_app_user_id() IS NOT NULL THEN
+    RAISE EXCEPTION '066: домен-суфікс не заякорено справа';
+  END IF;
+
+  -- НЕГАТИВ 3: tg_id <= 0.
+  PERFORM pg_temp.login('0@telegram.propspace.app');
+  IF current_app_user_id() IS NOT NULL THEN
+    RAISE EXCEPTION '066: tg_id = 0 резолвиться в особу';
+  END IF;
+
+  PERFORM set_config('request.jwt.claims', '', false);
+  RAISE NOTICE '  ✓ 066: особа резолвиться лише з заякореної адреси й tg_id > 0';
+END $$;
+
+DO $$
+DECLARE n INT;
+BEGIN
+  -- ── ПЕРЕЛІЧЕННЯ БАКЕТА ФОТО ──────────────────────────────────────────────
+  -- Політика має бути НЕ для PUBLIC. Перевіряємо саме ролі: `USING` тут
+  -- перевірити виконанням складно (потрібен реальний storage-контекст), а от
+  -- «кому вона адресована» — рівно те, що було зламано.
+  SELECT COUNT(*) INTO n
+    FROM pg_policies
+   WHERE schemaname = 'storage' AND tablename = 'objects'
+     AND policyname = 'storage_photos_select'
+     AND 'authenticated' = ANY(roles) AND NOT ('public' = ANY(roles));
+  IF n <> 1 THEN
+    RAISE EXCEPTION '066: storage_photos_select не звужено до authenticated (знайдено %)', n;
+  END IF;
+
+  -- І сам предикат мусить питати про власність, а не лише про бакет:
+  -- `USING (bucket_id = ''photos'')` — це і був дефект.
+  SELECT COUNT(*) INTO n
+    FROM pg_policies
+   WHERE schemaname = 'storage' AND tablename = 'objects'
+     AND policyname = 'storage_photos_select'
+     AND qual LIKE '%get_owner_property_ids%';
+  IF n <> 1 THEN
+    RAISE EXCEPTION '066: storage_photos_select не перевіряє власність';
+  END IF;
+  RAISE NOTICE '  ✓ 066: бакет фото більше не перелічується анонімом';
+END $$;
+
+DO $$
+DECLARE
+  v_owner  UUID;
+  v_victim UUID;
+  v_guest  UUID;
+  v_db     UUID;
+  n        INT;
+BEGIN
+  -- ── ГОСТЬОВИЙ ЛІНК: ЦІЛЬ МУСИТЬ НАЛЕЖАТИ ВИДАВЦЮ ─────────────────────────
+  INSERT INTO users (tg_id, first_name, role) VALUES (966001, 'Аліса-видавець', 'owner')
+    RETURNING id INTO v_owner;
+  INSERT INTO users (tg_id, first_name, role) VALUES (966002, 'Богдан-жертва', 'owner')
+    RETURNING id INTO v_victim;
+  INSERT INTO users (tg_id, first_name, role) VALUES (966003, 'Клим-гість', 'owner')
+    RETURNING id INTO v_guest;
+
+  INSERT INTO databases (owner_id, name, type, color)
+    VALUES (v_victim, 'База Богдана', 'business_center', 'blue') RETURNING id INTO v_db;
+
+  -- Рядок, який 046 більше не дасть створити, але який МІГ бути посаджений
+  -- до неї: видавець — Аліса, ціль — база Богдана.
+  INSERT INTO guest_links (owner_id, db_id, guest_user_id, status, invite_token, label)
+    VALUES (v_owner, v_db, v_guest, 'active', 'tok_066_cross', 'підкидень');
+
+  PERFORM pg_temp.login('966003@telegram.propspace.app');
+  SET LOCAL ROLE authenticated;
+  SELECT COUNT(*) INTO n FROM databases WHERE id = v_db;
+  RESET ROLE;
+  IF n <> 0 THEN
+    RAISE EXCEPTION '066: гість читає базу ЖЕРТВИ за лінком із чужою ціллю (% рядків)', n;
+  END IF;
+
+  -- ПОЗИТИВ: законний лінк (ціль належить видавцю) ЧИТАЄТЬСЯ. Без цієї пари
+  -- «не видно нічого» і «не видно зайвого» нерозрізненні — рівно та помилка,
+  -- через яку 056 колись «спростували» хибно.
+  UPDATE guest_links SET owner_id = v_victim WHERE invite_token = 'tok_066_cross';
+  PERFORM pg_temp.login('966003@telegram.propspace.app');
+  SET LOCAL ROLE authenticated;
+  SELECT COUNT(*) INTO n FROM databases WHERE id = v_db;
+  RESET ROLE;
+  IF n <> 1 THEN
+    RAISE EXCEPTION '066: законний гостьовий лінк перестав відкривати базу (% рядків)', n;
+  END IF;
+
+  PERFORM set_config('request.jwt.claims', '', false);
+  RAISE NOTICE '  ✓ 066: гість бачить базу лише коли ціль належить видавцю лінка';
+END $$;

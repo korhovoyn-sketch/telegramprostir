@@ -34,6 +34,8 @@ interface Opts {
   rpcError?: string
   /** RPC падає транспортом (403). */
   httpStatus?: number
+  /** Падає САМЕ читання токена в шиті (не self-heal бази) — 500. */
+  failTokenRead?: boolean
 }
 
 const json = (route: Route, body: unknown) =>
@@ -44,6 +46,19 @@ async function setup(page: Page, calls: Record<string, unknown>[], opts: Opts = 
   await setupApp(page, { user: USER })
 
   await page.route('**/rest/v1/databases**', (route) => {
+    // Валити треба ВИКЛЮЧНО читання шита, інакше екран не доїде до кнопки
+    // «Поділитися» і тест «пройде» з хибної причини.
+    //
+    // Наївний фільтр по `share_token` НЕ годиться — і це спіймано прогоном, а
+    // не вгадано: `DB_COLUMNS` у `useDatabases` теж містить цю колонку (власник
+    // ділиться ВЛАСНОЮ базою), тож 500 лягав на список і «БЦ Рубін» не
+    // зʼявлявся взагалі. Шит просить рівно три колонки й починає з `name`.
+    if (opts.failTokenRead && decodeURIComponent(route.request().url()).includes('select=name,share_token')) {
+      return route.fulfill({
+        status: 500, contentType: 'application/json',
+        body: JSON.stringify({ message: 'internal error' }),
+      })
+    }
     const accept = route.request().headers()['accept'] ?? ''
     return json(route, accept.includes('object') ? db : [db])
   })
@@ -152,4 +167,37 @@ test('мертвий лінк: підтвердження оживляє сам�
   const call = calls.find((c) => c.p_action === 'set_expiry')
   expect(call, 'після підтвердження RPC мусить полетіти').toBeTruthy()
   expect(call!.p_days, 'саме натиснутий пресет, а не дефолт').toBe(30)
+})
+
+// ── Збій ЧИТАННЯ токена НЕ сміє ротувати токен ─────────────────────────────
+//
+// Найдорожчий зі знайдених дефектів цього класу: `const { data } = …` відкидав
+// `error`, тож будь-який збій давав `data === null` — рівно те саме, що бачить
+// код для легасі-рядка БЕЗ токена. А гілка легасі кличе `manage_share('rotate')`
+// з `silent: true`, і після міграції 060 ротація ЗНИЩУЄ старий токен. Тобто
+// мережевий блип на екрані, який власник відкриває регулярно, безшумно вбивав
+// КОЖНЕ роздане посилання і кожен QR — без підтвердження, яке той самий шит
+// показує для свідомої ротації («усі, з ким ви ділились, втратять доступ»).
+test('збій читання токена НЕ ротує його і пропонує повтор', async ({ page }) => {
+  const calls: Record<string, unknown>[] = []
+  await setup(page, calls, { failTokenRead: true })
+  await openShareSheet(page)
+
+  // Головне твердження: жодної МУТАЦІЇ на шляху збою читання.
+  expect(calls, 'збій читання не сміє слати manage_share').toHaveLength(0)
+
+  // І користувач бачить, що це збій читання, а не «посилання немає».
+  await expect(page.getByRole('button', { name: 'Спробувати ще раз' })).toBeVisible()
+  await expect(page.getByText(/наявне посилання ЦІЛЕ/)).toBeVisible()
+
+  // Антивакуум: кнопка справді перечитує — після відновлення бекенда
+  // зʼявляється справжнє посилання, а ротації так і не було.
+  await page.unroute('**/rest/v1/databases**')
+  await page.route('**/rest/v1/databases**', (route) => {
+    const accept = route.request().headers()['accept'] ?? ''
+    return json(route, accept.includes('object') ? makeDb(null) : [makeDb(null)])
+  })
+  await page.getByRole('button', { name: 'Спробувати ще раз' }).click()
+  await expect(page.getByText(/aabbccddeeff001122334455/)).toBeVisible({ timeout: 10_000 })
+  expect(calls, 'повтор читання теж не мутує').toHaveLength(0)
 })

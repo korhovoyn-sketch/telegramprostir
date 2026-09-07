@@ -6,6 +6,7 @@ import { hapticSelection, hapticNotify } from '@/lib/telegram'
 import { offlineGuard } from '@/lib/offline'
 import { confirmAction } from '@/lib/confirm'
 import { useProperties, nextSortBase } from '@/hooks/useProperties'
+import { useDbType } from '@/hooks/useDbType'
 import { useLandlords } from '@/hooks/useLandlords'
 import { useFolders } from '@/hooks/useFolders'
 import Header from '@/components/ui/Header'
@@ -47,7 +48,11 @@ export default function PropertyFormScreen() {
 
   // Parking DBs get a spot-oriented field set (number/area/level/type/EV, flat
   // utilities, monthly-or-daily rate) instead of the office/apartment layout.
-  const isParking = databases.find(d => d.id === screenParams.dbId)?.type === 'parking'
+  // Тип бази — через `useDbType`, а не зі стору: стор наповнює лише
+  // `DatabaseListScreen`, тож на холодному вході (deep-лінк `prop_`, гість,
+  // редактор) `isParking` мовчки ставав false — і паркомісце діставало
+  // ставку × площу замість пласкої суми ПЛЮС запис у не ту гілку колонок.
+  const { isParking } = useDbType(screenParams.dbId)
   // Дефолт бази — для плейсхолдера: порожнє поле має читатись як «успадковано»,
   // а не як «нікого». Пропозиції збираються з уже введених значень власника.
   const dbLandlord = databases.find(d => d.id === screenParams.dbId)?.landlord_name ?? ''
@@ -383,7 +388,8 @@ export default function PropertyFormScreen() {
       showToast({ type: 'error', title: 'Дата закінчення оренди раніше початку' })
       return
     }
-    hapticNotify('success')
+    // Хаптик успіху свідомо НЕ тут: раніше він спрацьовував ДО запиту, тобто
+    // рука відчувала «збережено» ще до того, як сервер про це дізнався.
     // ПОРОЖНЄ ПОЛЕ В РЕЖИМІ РЕДАГУВАННЯ — ЦЕ `null`, А НЕ `undefined`.
     // `JSON.stringify` викидає ключі зі значенням `undefined`, тобто такий ключ
     // просто НЕ ПОТРАПЛЯЄ в тіло PATCH, і колонка лишається старою. Форма при
@@ -428,7 +434,13 @@ export default function PropertyFormScreen() {
     }
 
     if (isEdit && editId) {
-      await updateProperty(editId, payload)
+      // Результат ПЕРЕВІРЯЄТЬСЯ. Раніше він ігнорувався, тож на невдалому
+      // збереженні користувача викидало з форми (втрачаючи всі правки) на
+      // екран деталей зі СТАРИМИ значеннями — а єдиний тост зі скаргою
+      // встигав зникнути. Гілки СТВОРЕННЯ поруч завжди перевіряли `ok`.
+      const ok = await updateProperty(editId, payload)
+      if (!ok) return
+      hapticNotify('success')
       // Повертаємось РІВНО туди, звідки відкрили форму.
       // • з екрана обʼєкта → backThenReplace: знімає попередній (той самий)
       //   екран деталей і ставить свіжий, щоб у history не було дубля;
@@ -485,9 +497,11 @@ export default function PropertyFormScreen() {
         area_total: rows[i].at,
         sort_order: sortBase + (i + 1) * 100,
       })))
+      if (ok) hapticNotify('success')
       if (ok && draftKey) localStorage.removeItem(draftKey)
     } else {
       const ok = await createProperty(payload)
+      if (ok) hapticNotify('success')
       if (ok && draftKey) localStorage.removeItem(draftKey)
     }
   }

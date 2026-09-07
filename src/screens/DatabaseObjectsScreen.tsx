@@ -737,7 +737,7 @@ export default function DatabaseObjectsScreen() {
         {/* Stats dashboard — у компакті ховаємо: користувач попросив щільності,
             а панель зʼїдала пів першого екрана списку */}
         {!reorderMode && !selectMode && !compactView && (
-          <DatabaseStatsPanel properties={properties} currency={user?.currency} />
+          <DatabaseStatsPanel properties={properties} currency={user?.currency} dbType={db?.type} />
         )}
 
         {/* Mode hints */}

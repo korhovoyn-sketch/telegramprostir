@@ -113,7 +113,12 @@ describe('get_guest_property_preview: форма JSON збігається з т
     const nested = new Set<string>()
     for (const m of screen.matchAll(/\b[pd]\??\.([a-z_]+)/g)) nested.add(m[1])
     // Поля з інших змінних того ж імені (публічне превʼю) сюди не належать.
-    const OTHER_SCOPE = /^property_/
+    //
+    // Обидві області ітеруються як `p`, тож текстово вони нерозрізненні —
+    // фільтр іменний. `property_*` покриває більшість полів `PreviewRow`;
+    // `owner_currency` — виняток, який НЕ має цього префікса, хоч належить
+    // тій самій відповіді `get_public_db_preview` (додана міграцією 040).
+    const OTHER_SCOPE = /^(property_|owner_currency$)/
     const want = [...nested].filter((k) => !OTHER_SCOPE.test(k))
 
     // Усі ключі, які функція кладе будь-де всередині вкладених обʼєктів.

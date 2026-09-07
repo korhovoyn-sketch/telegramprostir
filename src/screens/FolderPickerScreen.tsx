@@ -39,9 +39,13 @@ export default function FolderPickerScreen() {
   async function pick(folderId: string | null) {
     if (busy || offlineGuard()) return
     setBusy(true)
-    await moveToFolder(ids, folderId)
+    const ok = await moveToFolder(ids, folderId)
     setBusy(false)
-    back()
+    // Закриватись ЛИШЕ на успіху: `moveToFolder` відкочує оптимізм і показує
+    // тост, але екран закривався в будь-якому разі — і користувач повертався
+    // до списку, вважаючи, що переніс. `DbPickerScreen` поруч робить це
+    // правильно, тобто розбіжність була недоглядом.
+    if (ok) back()
   }
 
   // Створення тут ЗАВЕРШУЄ вибір: нова папка одразу стає цільовою.
@@ -51,9 +55,9 @@ export default function FolderPickerScreen() {
     setBusy(true)
     const created = await createFolder(name)
     if (!created) { setBusy(false); return }
-    await moveToFolder(ids, created.id)
+    const ok = await moveToFolder(ids, created.id)
     setBusy(false)
-    back()
+    if (ok) back()
   }
 
   return (

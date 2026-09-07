@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useMemo, type ReactNode } from 'react'
-import { monthlyRent, calcUtilities, basisArea, formatPrice, objectsWord } from '@/lib/utils'
+import { monthlyRent, calcRentUtils, basisArea, formatPrice, objectsWord } from '@/lib/utils'
 import { IconActivity, IconCurrencyDollar, IconBolt, IconRuler, IconLayers, IconCircleCheck } from '@/components/Icons'
 import { prefersReducedMotion } from '@/lib/motion'
 import type { Property } from '@/types'
@@ -9,6 +9,16 @@ import type { Property } from '@/types'
 interface Props {
   properties: Property[]
   currency?: string
+  /**
+   * Тип бази — ОБОВʼЯЗКОВИЙ, бо `utilities_rate` несе ДВІ РІЗНІ ОДИНИЦІ:
+   * для паркінга це пласка СУМА, для решти — ставка $/м². Панель раніше
+   * приймала лише `properties` і вирішувала це по НАЯВНОСТІ ПЛОЩІ — тобто
+   * структурно не могла бути правою: паркомісце 15 м² з пласкими $30
+   * рахувалось як 15 × 30 = $450, і плитка «Експлуатаційні / міс» на
+   * `db-objects` розходилась із `db-list`, карткою обʼєкта, PDF і XLSX у
+   * 15 разів. Прокидається пропом, а не вгадується.
+   */
+  dbType?: string | null
 }
 
 interface CardData {
@@ -149,7 +159,8 @@ function StatCard({ icon, label, value, sub, accentBg, accentBorder, bar, barCol
   )
 }
 
-export default function DatabaseStatsPanel({ properties, currency = 'USD' }: Props) {
+export default function DatabaseStatsPanel({ properties, currency = 'USD', dbType }: Props) {
+  const flatUtils = dbType === 'parking'
   const stats = useMemo(() => {
     const occupied = properties.filter(p => p.status === 'occupied')
     const forSale = properties.filter(p => p.status === 'for_sale')
@@ -158,11 +169,14 @@ export default function DatabaseStatsPanel({ properties, currency = 'USD' }: Pro
     const totalRent = occupied.reduce((sum, p) =>
       sum + (p.rent_rate ? monthlyRent(basisArea(p.area_useful, p.area_total, p.area_basis), p.rent_rate, p.rent_type) : 0), 0)
 
-    // Expenses are $/m² on the chosen basis area, otherwise a flat charge (parking).
-    const totalUtils = occupied.reduce((sum, p) => {
-      const a = basisArea(p.area_useful, p.area_total, p.area_basis)
-      return sum + (p.utilities_rate ? (a ? calcUtilities(a, p.utilities_rate) : p.utilities_rate) : 0)
-    }, 0)
+    // ЄДИНЕ джерело правди по грошах — `calcRentUtils`. Власний рахунок тут
+    // саме тому й розійшовся: він гейтив одиницю по наявності площі замість
+    // типу бази (див. `dbType` у Props).
+    const totalUtils = occupied.reduce((sum, p) =>
+      sum + calcRentUtils(
+        p.area_useful, p.area_total, p.rent_rate, p.rent_type,
+        p.utilities_rate, p.area_basis, flatUtils,
+      ).utils, 0)
 
     const occupiedUseful = occupied.reduce((sum, p) => sum + (p.area_useful ?? 0), 0)
     const occupiedTotal = occupied.reduce((sum, p) => sum + (p.area_total ?? 0), 0)
@@ -184,7 +198,7 @@ export default function DatabaseStatsPanel({ properties, currency = 'USD' }: Pro
       freeUseful: Math.round(freeUseful),
       ratio: properties.length > 0 ? occupied.length / properties.length : 0,
     }
-  }, [properties])
+  }, [properties, flatUtils])
 
   const animRent = useCountUp(stats.totalRent)
   const animUtils = useCountUp(stats.totalUtils)
