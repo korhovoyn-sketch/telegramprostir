@@ -208,7 +208,7 @@ export default function PropertyDetailScreen() {
           <button
             className="hdr-a"
             aria-label="Редагувати обʼєкт"
-            onClick={() => { hapticImpact('light'); navigate('property-form', { propertyId: property.id, dbId: screenParams.dbId, editMode: true }) }}
+            onClick={() => { hapticImpact('light'); navigate('property-form', { propertyId: property.id, dbId: screenParams.dbId ?? property.db_id, editMode: true }) }}
             style={{ background: 'none', border: 'var(--bd)' }}
           >
             <IconEdit size={16} />

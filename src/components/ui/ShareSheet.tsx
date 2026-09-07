@@ -49,6 +49,12 @@ export default function ShareSheet({ open, kind, id, name, shareText, onClose }:
   const [resolvedName, setResolvedName] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
+  // Збій ЧИТАННЯ мусить мати власний стан, і це не косметика: без нього
+  // `data === null` від помилки нерозрізненний з легасі-рядком без токена, а
+  // гілка легасі РОТУЄ токен — тобто мережевий збій тихо знищував усі роздані
+  // посилання. Ротація тепер лише для ДОВЕДЕНОГО `data && !data.share_token`.
+  const [loadErr, setLoadErr] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
     // Не тягнути дані, поки шит закритий/закривається — латчена ціль лишається
@@ -58,11 +64,12 @@ export default function ShareSheet({ open, kind, id, name, shareText, onClose }:
     let cancelled = false
     async function load() {
       setLoading(true)
+      setLoadErr(false)
       setToken(null)
       setExpiresAt(null)
       setResolvedName(null)
       try {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from(KIND_TABLE[kind])
           // idor-ok: токен і Є предметом цього шита; сам шит відкривається лише
           // з owner-only маршрутів (аналітика поширення, власні підбірки)
@@ -70,8 +77,16 @@ export default function ShareSheet({ open, kind, id, name, shareText, onClose }:
           .eq('id', latchedId)
           .single()
         if (cancelled) return
-        if (data?.name) setResolvedName(data.name)
-        if (data?.share_token) {
+        if (error || !data) {
+          // ЖОДНОЇ мутації на цій гілці. «Читання не вдалось» і «токена немає»
+          // на дроті виглядають однаково (`data === null`), тож розрізнити їх
+          // можна лише по `error` — а ціна помилки тут незворотна: після 060
+          // ротація ЗНИЩУЄ старий токен, тобто кожен розданий лінк і QR.
+          setLoadErr(true)
+          return
+        }
+        if (data.name) setResolvedName(data.name)
+        if (data.share_token) {
           setToken(data.share_token)
           setExpiresAt(data.share_expires_at)
         } else {
@@ -80,6 +95,8 @@ export default function ShareSheet({ open, kind, id, name, shareText, onClose }:
           // старого посилання ніколи не існувало.
           await runManage('rotate', undefined, { silent: true })
         }
+      } catch {
+        if (!cancelled) setLoadErr(true)
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -87,7 +104,7 @@ export default function ShareSheet({ open, kind, id, name, shareText, onClose }:
     load()
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, kind, latchedId])
+  }, [open, kind, latchedId, reloadKey])
 
   async function runManage(action: 'rotate' | 'set_expiry' | 'clear_expiry' | 'revoke', days?: number, opts?: { silent?: boolean }) {
     // silent-режим (фонове першогенерування при відкритті шита) не має права
@@ -176,6 +193,12 @@ export default function ShareSheet({ open, kind, id, name, shareText, onClose }:
             </>
           ) : loading ? (
             <div className="qr-empty"><div className="loader" /></div>
+          ) : loadErr ? (
+            /* Збій ЧИТАННЯ — повторити читання, а НЕ створювати новий токен:
+               перше нічого не ламає, друге вбиває всі роздані посилання. */
+            <button className="qr-empty qr-retry" onClick={() => setReloadKey((k) => k + 1)} disabled={busy}>
+              Спробувати ще раз
+            </button>
           ) : (
             /* Легасі-рядок без токена + фонове генерування не вдалося (офлайн,
                помилка RPC): без цієї кнопки тут висів би вічний спінер. */
@@ -185,8 +208,10 @@ export default function ShareSheet({ open, kind, id, name, shareText, onClose }:
           )}
         </div>
         <div className="qr-meta">
-          <div className="qr-name">{isExpired ? 'Посилання неактивне' : url ? 'Посилання для перегляду' : 'Посилання ще не створено'}</div>
-          <div className="qr-link" style={{ wordBreak: 'break-all', textDecoration: isExpired ? 'line-through' : 'none', opacity: isExpired ? .6 : 1 }}>{url || '…'}</div>
+          <div className="qr-name">{loadErr ? 'Не вдалося завантажити' : isExpired ? 'Посилання неактивне' : url ? 'Посилання для перегляду' : 'Посилання ще не створено'}</div>
+          <div className="qr-link" style={{ wordBreak: 'break-all', textDecoration: isExpired ? 'line-through' : 'none', opacity: isExpired ? .6 : 1 }}>
+            {loadErr ? 'Перевірте зʼєднання — наявне посилання ЦІЛЕ, ми його просто не прочитали.' : url || '…'}
+          </div>
           {isExpired && (
             <div className="qr-hint">Натисніть «Оновити посилання», щоб створити нове</div>
           )}

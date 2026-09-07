@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { useProperties } from '@/hooks/useProperties'
+import { useDbType } from '@/hooks/useDbType'
 import Header from '@/components/ui/Header'
 import RetryState from '@/components/ui/RetryState'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
@@ -10,7 +11,7 @@ import { IconUser, IconCurrencyDollar, IconBolt, IconKey } from '@/components/Ic
 import { offlineGuard } from '@/lib/offline'
 import { hapticNotify } from '@/lib/telegram'
 import {
-  sanitizeDecimal, scrollFocusedIntoView, calcRent, calcUtilities, basisArea,
+  sanitizeDecimal, scrollFocusedIntoView, calcRentUtils,
   currencySymbol, rentUnitLabel, formatPrice,
 } from '@/lib/utils'
 
@@ -23,12 +24,15 @@ import {
  * миттєвий фідбек дає сам перехід екрана — той самий висновок, що у фазі 2.
  */
 export default function RentPropertyScreen() {
-  const { screenParams, user, databases, showToast, back } = useAppStore()
+  const { screenParams, user, showToast, back } = useAppStore()
   const propertyId = screenParams.propertyId as string | undefined
   const dbId = screenParams.dbId as string | undefined
 
   const { properties, loading, error, loadSingleProperty, updateProperty } = useProperties(dbId)
   const property = properties.find(p => p.id === propertyId)
+  // ХУК СТОЇТЬ ДО ранніх `return` — інакше порядок хуків між рендерами
+  // ламається (`rules-of-hooks`); той самий урок, що з `useFileDrop`.
+  const { isParking } = useDbType(property?.db_id ?? dbId)
 
   useEffect(() => {
     if (propertyId) loadSingleProperty(propertyId)
@@ -75,15 +79,22 @@ export default function RentPropertyScreen() {
     )
   }
 
-  const isParking = databases.find(d => d.id === property.db_id)?.type === 'parking'
   const rateVal = parseFloat(rentRate)
   const utilVal = parseFloat(utilitiesRate)
-  const previewArea = basisArea(property.area_useful, property.area_total, property.area_basis)
-  const previewRent = isFinite(rateVal) && rateVal > 0 ? calcRent(previewArea, rateVal, property.rent_type) : 0
-  const previewUtils = isFinite(utilVal) && utilVal > 0
-    ? (property.area_total ? calcUtilities(previewArea, utilVal) : utilVal)
-    : 0
-  const previewTotal = property.rent_type === 'per_day' ? 0 : previewRent + previewUtils
+  // ЄДИНЕ джерело правди по грошах. Раніше превʼю рахувало експлуатаційні
+  // самотужки і гейтило одиницю на `property.area_total` — тобто на ХИБНІЙ
+  // ЗМІННІЙ: обʼєкт із базою «корисна» і порожньою розрахунковою площею
+  // показував пласкі $2,5 замість 50 м² × 2,5 = $125, і картка одразу після
+  // збереження суперечила екрану, на якому власник щойно вирішував ціну.
+  // Той самий гейт по типу БАЗИ, що й скрізь: `isParking` тепер надійний
+  // (`useDbType` довантажує рядок, стор на холодному вході порожній).
+  const preview = calcRentUtils(
+    property.area_useful, property.area_total,
+    isFinite(rateVal) && rateVal > 0 ? rateVal : 0, property.rent_type,
+    isFinite(utilVal) && utilVal > 0 ? utilVal : 0, property.area_basis,
+    isParking,
+  )
+  const previewTotal = property.rent_type === 'per_day' ? 0 : preview.total
   const rateUnit = `${currencySymbol(user?.currency)}${rentUnitLabel(property.rent_type)}`
   const utilUnit = `${currencySymbol(user?.currency)}${isParking ? '/міс' : '/м²'}`
 

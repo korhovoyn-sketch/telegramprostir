@@ -6,6 +6,7 @@ import { hapticSelection, hapticNotify } from '@/lib/telegram'
 import { offlineGuard } from '@/lib/offline'
 import { confirmAction } from '@/lib/confirm'
 import { useProperties, nextSortBase } from '@/hooks/useProperties'
+import { useDbType } from '@/hooks/useDbType'
 import { useLandlords } from '@/hooks/useLandlords'
 import { useFolders } from '@/hooks/useFolders'
 import Header from '@/components/ui/Header'
@@ -47,7 +48,11 @@ export default function PropertyFormScreen() {
 
   // Parking DBs get a spot-oriented field set (number/area/level/type/EV, flat
   // utilities, monthly-or-daily rate) instead of the office/apartment layout.
-  const isParking = databases.find(d => d.id === screenParams.dbId)?.type === 'parking'
+  // Тип бази — через `useDbType`, а не зі стору: стор наповнює лише
+  // `DatabaseListScreen`, тож на холодному вході (deep-лінк `prop_`, гість,
+  // редактор) `isParking` мовчки ставав false — і паркомісце діставало
+  // ставку × площу замість пласкої суми ПЛЮС запис у не ту гілку колонок.
+  const { isParking } = useDbType(screenParams.dbId)
   // Дефолт бази — для плейсхолдера: порожнє поле має читатись як «успадковано»,
   // а не як «нікого». Пропозиції збираються з уже введених значень власника.
   const dbLandlord = databases.find(d => d.id === screenParams.dbId)?.landlord_name ?? ''

@@ -162,3 +162,54 @@ describe('_monthly_utils: агрегат експлуатаційних по б�
     expect(dbMonthlyUtils(rows, 'parking')).not.toBe(dbMonthlyUtils(rows, 'business_center'))
   })
 })
+
+// ── ЕКРАННІ поверхні, що рахували експлуатаційні САМОТУЖКИ ─────────────────
+//
+// Два сайти не проходили через `calcRentUtils`, тож обовʼязковий
+// `flatUtilities` їх не зачепив — компілятор мовчав, і обидва гейтили одиницю
+// на НАЯВНОСТІ ПЛОЩІ замість типу бази. Заміряні розбіжності:
+//
+//   RentPropertyScreen   офіс 50 м², база «корисна», розрахункової немає
+//                        показував $2,5   проти правильних $125   (50×)
+//   DatabaseStatsPanel   паркомісце 15 м², пласкі $30
+//                        показувала $450  проти правильних $30    (15×)
+//
+// Тест закріплює ЧИСЛА, а не форму виразу: рівність двох записів однієї
+// формули трималась би за будь-якої реалізації (урок тавтологічного гарда).
+describe('екранні превʼю збігаються з єдиною формулою', () => {
+  const office = {
+    area_useful: 50, area_total: undefined as number | undefined,
+    rent_rate: 18, rent_type: 'per_m2', utilities_rate: 2.5, area_basis: 'useful',
+  }
+  const spot = {
+    area_useful: 15, area_total: undefined as number | undefined,
+    rent_rate: 100, rent_type: 'fixed', utilities_rate: 30, area_basis: 'useful',
+  }
+  const run = (p: typeof office, flat: boolean) =>
+    calcRentUtils(p.area_useful, p.area_total, p.rent_rate, p.rent_type, p.utilities_rate, p.area_basis, flat)
+
+  it('офіс без розрахункової площі: експлуатаційні рахуються від КОРИСНОЇ', () => {
+    expect(run(office, false).utils).toBe(125)
+  })
+
+  it('паркомісце: пласка сума, скільки б не було площі', () => {
+    expect(run(spot, true).utils).toBe(30)
+  })
+
+  it('ФАЛЬСИФІКАЦІЯ: старий гейт по `area_total` дає саме ті хибні числа', () => {
+    // Дослівно те, що стояло в RentPropertyScreen і DatabaseStatsPanel.
+    const legacy = (p: typeof office) => {
+      const a = basisArea(p.area_useful, p.area_total, p.area_basis)
+      return p.area_total ? Math.round(a * p.utilities_rate) : Math.round(p.utilities_rate)
+    }
+    const legacyPanel = (p: typeof office) => {
+      const a = basisArea(p.area_useful, p.area_total, p.area_basis)
+      return a ? Math.round(a * p.utilities_rate) : Math.round(p.utilities_rate)
+    }
+    expect(legacy(office)).toBe(3)          // ← замість 125
+    expect(legacyPanel(spot)).toBe(450)     // ← замість 30
+    // І головне: обидва РОЗХОДЯТЬСЯ з єдиною формулою.
+    expect(legacy(office)).not.toBe(run(office, false).utils)
+    expect(legacyPanel(spot)).not.toBe(run(spot, true).utils)
+  })
+})
