@@ -10,6 +10,7 @@ import { IconKey, IconBuilding, IconChevronRight } from '@/components/Icons'
 import { StatusBadge } from '@/components/ui/Badge'
 import { greeting, humanizeDbError, pluralUk } from '@/lib/utils'
 import type { GuestLink } from '@/types'
+import { tr } from '@/lib/i18n'
 
 export default function GuestHomeScreen() {
   const { user, navigate } = useAppStore()
@@ -64,16 +65,16 @@ export default function GuestHomeScreen() {
 
       <div className="body has-tabbar">
         <div className="greet">{greet}, {user?.first_name}</div>
-        <div className="display">Мої обʼєкти</div>
+        <div className="display">{tr('Мої обʼєкти')}</div>
 
         <div className="stat-g cols-2">
           <div className="stat glass-s">
             <div className="stat-n">{links.length}</div>
-            <div className="stat-l">{pluralUk(links.length, 'Доступ', 'Доступи', 'Доступів')}</div>
+            <div className="stat-l">{pluralUk(links.length, tr('Доступ'), tr('Доступи'), tr('Доступів'))}</div>
           </div>
           <div className="stat glass-s">
             <div className="stat-n">{links.filter(l => l.property_id).length}</div>
-            <div className="stat-l">Обʼєктів</div>
+            <div className="stat-l">{tr('Обʼєктів')}</div>
           </div>
         </div>
 
@@ -84,16 +85,16 @@ export default function GuestHomeScreen() {
         ) : links.length === 0 ? (
           <div className="empty-state" style={{ paddingTop: 32 }}>
             <div className="empty-ic">🏠</div>
-            <div className="empty-h">Немає доступних обʼєктів</div>
-            <div className="empty-s">Власник надішле вам запрошення-посилання</div>
+            <div className="empty-h">{tr('Немає доступних обʼєктів')}</div>
+            <div className="empty-s">{tr('Власник надішле вам запрошення-посилання')}</div>
           </div>
         ) : (
           <div>
             {links.map((link) => {
               const isProperty = !!link.property_id
               const name = isProperty
-                ? (link.property?.name ?? 'Обʼєкт')
-                : (link.database?.name ?? 'База')
+                ? (link.property?.name ?? tr('Обʼєкт'))
+                : (link.database?.name ?? tr('База'))
               const status = isProperty ? (link.property?.status ?? null) : null
 
               return (
@@ -125,7 +126,7 @@ export default function GuestHomeScreen() {
                     )}
                     {status && <div style={{ marginTop: 4 }}><StatusBadge status={status} /></div>}
                     {!isProperty && (
-                      <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 2 }}>База обʼєктів</div>
+                      <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 2 }}>{tr('База обʼєктів')}</div>
                     )}
                   </div>
                   <IconChevronRight size={12} color="var(--t4)" />

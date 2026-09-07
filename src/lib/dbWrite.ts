@@ -1,4 +1,5 @@
-/**
+
+import { tr } from '@/lib/i18n'/**
  * Верифікація того, що мутація СПРАВДІ зачепила рядки.
  *
  * PostgREST під RLS не вважає заблокований запис помилкою: `.delete()` чи
@@ -20,7 +21,7 @@
 export class NoRowsAffectedError extends Error {
   readonly code = '42501'
   constructor(what: string) {
-    super(`Немає доступу: ${what}`)
+    super(tr('Немає доступу: {0}', what))
     this.name = 'NoRowsAffectedError'
   }
 }

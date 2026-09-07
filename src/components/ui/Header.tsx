@@ -2,6 +2,7 @@
 
 import { useAppStore } from '@/store/appStore'
 import { IconChevronLeft } from '@/components/Icons'
+import { tr } from '@/lib/i18n'
 
 interface HeaderProps {
   title?: string
@@ -12,7 +13,7 @@ interface HeaderProps {
   hideBack?: boolean
 }
 
-export default function Header({ title, subtitle, backLabel = 'Назад', onBack, right, hideBack }: HeaderProps) {
+export default function Header({ title, subtitle, backLabel = tr('Назад'), onBack, right, hideBack }: HeaderProps) {
   const back = useAppStore((s) => s.back)
 
   function handleBack() {

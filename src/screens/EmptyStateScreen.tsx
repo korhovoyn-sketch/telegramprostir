@@ -3,6 +3,8 @@
 import { useAppStore } from '@/store/appStore'
 import ProxMascot from '@/components/ProxMascot'
 import { GlassDbIcon, GlassPhoto, GlassShare } from '@/components/Icons'
+import { tx } from '@/lib/tx'
+import { tr } from '@/lib/i18n'
 
 export default function EmptyStateScreen() {
   const { navigate, user } = useAppStore()
@@ -21,13 +23,13 @@ export default function EmptyStateScreen() {
               </div>
             </div>
 
-            <div className="empty-h">Ще немає підписок</div>
+            <div className="empty-h">{tr('Ще немає підписок')}</div>
             <div className="empty-s">
-              Відскануй QR-код від власника,<br />щоб отримати доступ до бази
+              {tx('Відскануй QR-код від власника,{0}щоб отримати доступ до бази', <br />)}
             </div>
 
             <button className="mbtn mbtn-flow" onClick={() => navigate('qr-scanner')} style={{ width: '80%' }}>
-              Сканувати QR
+              {tr('Сканувати QR')}
             </button>
           </div>
         </div>
@@ -47,9 +49,9 @@ export default function EmptyStateScreen() {
           </div>
         </div>
 
-        <div className="heading">Немає жодної бази</div>
+        <div className="heading">{tr('Немає жодної бази')}</div>
         <div className="subtext">
-          Створи першу базу обʼєктів нерухомості — це займе менше хвилини
+          {tr('Створи першу базу обʼєктів нерухомості — це займе менше хвилини')}
         </div>
 
         {/* Tips */}
@@ -57,22 +59,22 @@ export default function EmptyStateScreen() {
           <div className="feature">
             <GlassDbIcon type="business_center" color="blue" size={32} />
             <div>
-              <div className="feature-t">1. Назви базу</div>
-              <div className="feature-s">Наприклад &quot;БЦ Олімп&quot; або &quot;ЖК Перемоги&quot;</div>
+              <div className="feature-t">{tr('1. Назви базу')}</div>
+              <div className="feature-s">{tr('Наприклад "БЦ Олімп" або "ЖК Перемоги"')}</div>
             </div>
           </div>
           <div className="feature">
             <GlassPhoto size={32} />
             <div>
-              <div className="feature-t">2. Додай обʼєкти</div>
-              <div className="feature-s">Офіси, квартири, магазини з фото і ціною</div>
+              <div className="feature-t">{tr('2. Додай обʼєкти')}</div>
+              <div className="feature-s">{tr('Офіси, квартири, магазини з фото і ціною')}</div>
             </div>
           </div>
           <div className="feature">
             <GlassShare size={32} />
             <div>
-              <div className="feature-t">3. Поділись QR</div>
-              <div className="feature-s">Ріелтори отримають доступ миттєво</div>
+              <div className="feature-t">{tr('3. Поділись QR')}</div>
+              <div className="feature-s">{tr('Ріелтори отримають доступ миттєво')}</div>
             </div>
           </div>
         </div>
@@ -82,7 +84,7 @@ export default function EmptyStateScreen() {
         className="mbtn success"
         onClick={() => navigate('create-db')}
       >
-        Створити першу базу
+        {tr('Створити першу базу')}
       </button>
     </div>
   )

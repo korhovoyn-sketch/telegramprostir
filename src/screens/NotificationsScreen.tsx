@@ -15,6 +15,7 @@ import { confirmAction } from '@/lib/confirm'
 import { offlineGuard } from '@/lib/offline'
 import { formatDate, daysSince, pluralUk, objectsWord, formatLeaseDate, formatPrice } from '@/lib/utils'
 import type { Notification } from '@/types'
+import { tr } from '@/lib/i18n'
 
 // Вкладки описують ЛИШЕ те, що застосунок реально вміє створювати.
 //
@@ -72,19 +73,19 @@ export default function NotificationsScreen() {
   function leaseText(a: LeaseAlert): string {
     if (a.days < 0) {
       const d = Math.abs(a.days)
-      return `Договір закінчився ${d} ${pluralUk(d, 'день', 'дні', 'днів')} тому`
+      return tr('Договір закінчився {0} {1} тому', d, pluralUk(d, tr('день'), tr('дні'), tr('днів')))
     }
-    if (a.days === 0) return 'Договір закінчується сьогодні'
-    return `Залишилось ${a.days} ${pluralUk(a.days, 'день', 'дні', 'днів')}`
+    if (a.days === 0) return tr('Договір закінчується сьогодні')
+    return tr('Залишилось {0} {1}', a.days, pluralUk(a.days, tr('день'), tr('дні'), tr('днів')))
   }
 
   function payText(a: PaymentAlert): string {
     if (a.days < 0) {
       const d = Math.abs(a.days)
-      return `Прострочено на ${d} ${pluralUk(d, 'день', 'дні', 'днів')}`
+      return tr('Прострочено на {0} {1}', d, pluralUk(d, tr('день'), tr('дні'), tr('днів')))
     }
-    if (a.days === 0) return 'Оплата сьогодні'
-    return `Через ${a.days} ${pluralUk(a.days, 'день', 'дні', 'днів')}`
+    if (a.days === 0) return tr('Оплата сьогодні')
+    return tr('Через {0} {1}', a.days, pluralUk(a.days, tr('день'), tr('дні'), tr('днів')))
   }
 
   const filtered = notifications.filter((n) => {
@@ -101,7 +102,7 @@ export default function NotificationsScreen() {
 
   const groupedByDate = filtered.reduce((acc, n) => {
     const d = daysSince(n.created_at)
-    const key = d === 0 ? 'Сьогодні' : d === 1 ? 'Вчора' : d < 7 ? 'Цього тижня' : 'Раніше'
+    const key = d === 0 ? tr('Сьогодні') : d === 1 ? tr('Вчора') : d < 7 ? tr('Цього тижня') : tr('Раніше')
     if (!acc[key]) acc[key] = []
     acc[key].push(n)
     return acc
@@ -143,9 +144,9 @@ export default function NotificationsScreen() {
       <div className="hdr">
         <div className="hdr-sp" />
         <div className="hdr-t">
-          Сповіщення
+          {tr('Сповіщення')}
           {unreadCount > 0 && (
-            <div className="hdr-t-sub">{unreadCount} нових</div>
+            <div className="hdr-t-sub">{unreadCount} {tr('нових')}</div>
           )}
         </div>
         {unreadCount > 0 ? (
@@ -154,7 +155,7 @@ export default function NotificationsScreen() {
             onClick={markAllAsRead}
             style={{ background: 'none', border: 'var(--bd)' }}
           >
-            Прочитано
+            {tr('Прочитано')}
           </button>
         ) : (
           <div className="hdr-sp" />
@@ -165,9 +166,9 @@ export default function NotificationsScreen() {
         {/* Tabs */}
         <div className="notif-tabs">
           {([
-            { id: 'all', label: `Всі${unreadCount > 0 ? ` (${unreadCount})` : ''}` },
-            { id: 'lease', label: `Договори${leaseAlerts.length > 0 ? ` (${leaseAlerts.length})` : ''}` },
-            { id: 'payments', label: `Платежі${payAlerts.length > 0 ? ` (${payAlerts.length})` : ''}` },
+            { id: 'all', label: tr('Всі{0}', unreadCount > 0 ? ` (${unreadCount})` : '') },
+            { id: 'lease', label: tr('Договори{0}', leaseAlerts.length > 0 ? ` (${leaseAlerts.length})` : '') },
+            { id: 'payments', label: tr('Платежі{0}', payAlerts.length > 0 ? ` (${payAlerts.length})` : '') },
           ] as { id: NotifTab; label: string }[]).map((t) => (
             <div
               key={t.id}
@@ -186,7 +187,7 @@ export default function NotificationsScreen() {
             скаржився власник. Перед договорами, бо гроші — первинна робота. */}
         {showPay && payAlerts.length > 0 && (
           <>
-            <div className="over">Найближчі платежі</div>
+            <div className="over">{tr('Найближчі платежі')}</div>
             <div className="notif-l glass-s" style={{ margin: '0 12px 12px' }}>
               {payAlerts.map((a) => (
                 <button
@@ -222,7 +223,7 @@ export default function NotificationsScreen() {
             `<button>`: правило про кнопки стосується КЛІКАБЕЛЬНИХ елементів. */}
         {showViews && viewers.length > 0 && (
           <>
-            <div className="over">Хто переглядав</div>
+            <div className="over">{tr('Хто переглядав')}</div>
             <div className="notif-l glass-s" style={{ margin: '0 12px 12px' }}>
               {viewers.map((v) => (
                 <div key={v.viewerId} className="notif-i">
@@ -233,7 +234,7 @@ export default function NotificationsScreen() {
                       {[
                         v.properties > 0 ? `${v.properties} ${objectsWord(v.properties)}` : null,
                         v.databases > 0
-                          ? `${v.databases} ${pluralUk(v.databases, 'відкриття', 'відкриття', 'відкриттів')} бази`
+                          ? tr('{0} {1} бази', v.databases, pluralUk(v.databases, tr('відкриття'), tr('відкриття'), tr('відкриттів')))
                           : null,
                       ].filter(Boolean).join(' · ')}
                     </div>
@@ -250,7 +251,7 @@ export default function NotificationsScreen() {
             наближається, сповіщення мусить лишатись на екрані. */}
         {showLease && leaseAlerts.length > 0 && (
           <>
-            <div className="over">Терміни договорів</div>
+            <div className="over">{tr('Терміни договорів')}</div>
             <div className="notif-l glass-s" style={{ margin: '0 12px 12px' }}>
               {leaseAlerts.map((a) => (
                 <button
@@ -297,8 +298,8 @@ export default function NotificationsScreen() {
             && !(showViews && viewers.length > 0) ? (
           <div className="empty-state" style={{ paddingTop: 32 }}>
             <div className="empty-ic">🔔</div>
-            <div className="empty-h">Немає сповіщень</div>
-            <div className="empty-s">Тут зʼявляться перегляди, події та попередження про кінець договору</div>
+            <div className="empty-h">{tr('Немає сповіщень')}</div>
+            <div className="empty-s">{tr('Тут зʼявляться перегляди, події та попередження про кінець договору')}</div>
           </div>
         ) : (
           Object.entries(groupedByDate).map(([group, items]) => (
@@ -322,7 +323,7 @@ export default function NotificationsScreen() {
                     <span className="notif-t">{formatDate(n.created_at)}</span>
                     <button
                       className="notif-del"
-                      aria-label="Видалити сповіщення"
+                      aria-label={tr('Видалити сповіщення')}
                       onClick={(e) => { e.stopPropagation(); hapticNotify('warning'); deleteNotification(n.id) }}
                     >
                       <IconX size={14} />
@@ -351,9 +352,9 @@ export default function NotificationsScreen() {
               className="acc-act revoke"
               onClick={async () => {
                 const ok = await confirmAction({
-                  title: 'Очистити сповіщення?',
-                  message: `${notifications.length} ${pluralUk(notifications.length, 'сповіщення', 'сповіщення', 'сповіщень')} буде видалено назавжди — повернути їх неможливо.`,
-                  confirmLabel: 'Очистити',
+                  title: tr('Очистити сповіщення?'),
+                  message: tr('{0} {1} буде видалено назавжди — повернути їх неможливо.', notifications.length, pluralUk(notifications.length, tr('сповіщення'), tr('сповіщення'), tr('сповіщень'))),
+                  confirmLabel: tr('Очистити'),
                   destructive: true,
                 })
                 if (!ok || offlineGuard()) return
@@ -361,7 +362,7 @@ export default function NotificationsScreen() {
                 void deleteAllNotifications()
               }}
             >
-              <IconTrash size={14} />Очистити всі
+              <IconTrash size={14} />{tr('Очистити всі')}
             </button>
           </div>
         )}

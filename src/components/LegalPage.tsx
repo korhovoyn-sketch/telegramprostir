@@ -1,6 +1,7 @@
 // Спільна оболонка для юридичних сторінок (/privacy, /terms).
 // Серверний компонент: сторінки статичні, без клієнтського JS.
 import Link from 'next/link'
+import { tr } from '@/lib/i18n'
 
 export function H({ children }: { children: React.ReactNode }) {
   return <h2 className="lg-h">{children}</h2>
@@ -28,7 +29,7 @@ export default function LegalPage({ title, updated, children }: {
       <div className="lg-card">
         <Link className="lg-back" href="/">← prostir</Link>
         <h1 className="lg-t">{title}</h1>
-        <div className="lg-upd">Оновлено: {updated}</div>
+        <div className="lg-upd">{tr('Оновлено:')}{' '}{updated}</div>
         {children}
       </div>
     </div>

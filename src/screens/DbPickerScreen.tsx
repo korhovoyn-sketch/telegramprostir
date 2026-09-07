@@ -11,6 +11,7 @@ import { GlassDbIcon, IconPlus } from '@/components/Icons'
 import { objectsWord, scrollFocusedIntoView } from '@/lib/utils'
 import { offlineGuard } from '@/lib/offline'
 import type { Database } from '@/types'
+import { tr } from '@/lib/i18n'
 
 /**
  * Повноекранний вибір бази-приймача для пакетного переносу — заміна колишньої
@@ -70,8 +71,8 @@ export default function DbPickerScreen() {
   return (
     <div className="scr bg-blue">
       <Header
-        title="Перенести в базу"
-        subtitle={`${ids.length} ${objectsWord(ids.length)} буде переміщено`}
+        title={tr('Перенести в базу')}
+        subtitle={tr('{0} {1} буде переміщено', ids.length, objectsWord(ids.length))}
         onBack={back}
       />
 
@@ -79,12 +80,12 @@ export default function DbPickerScreen() {
         <div className="fg glass-s">
           <div className="fr">
             <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <IconPlus size={14} color="var(--t3)" />Нова
+              <IconPlus size={14} color="var(--t3)" />{tr('Нова')}
             </span>
             <input
               className="fr-i"
-              aria-label="Назва нової бази"
-              placeholder="Назва нової бази…"
+              aria-label={tr('Назва нової бази')}
+              placeholder={tr('Назва нової бази…')}
               value={newName}
               maxLength={60}
               onChange={(e) => setNewName(e.target.value)}
@@ -97,13 +98,13 @@ export default function DbPickerScreen() {
           <SkeletonLoader rows={3} rowHeight={69} />
         ) : error ? (
           <RetryState
-            title="Не вдалося завантажити бази"
+            title={tr('Не вдалося завантажити бази')}
             subtitle={error}
             onRetry={() => void loadDatabases()}
           />
         ) : targets.length === 0 ? (
           <div className="sheet-empty">
-            Інших баз ще немає. Введіть назву вгорі — обрані обʼєкти переїдуть у нову.
+            {tr('Інших баз ще немає. Введіть назву вгорі — обрані обʼєкти переїдуть у нову.')}
           </div>
         ) : (
           <div className="sheet-group">
@@ -117,7 +118,7 @@ export default function DbPickerScreen() {
               >
                 <span className="sheet-ic"><GlassDbIcon type={d.type} color={d.color} size={24} /></span>
                 <span className="sheet-lbl">{d.name}</span>
-                <span className="bdg bdg-info">{d._property_count ?? 0} об.</span>
+                <span className="bdg bdg-info">{d._property_count ?? 0} {tr('об.')}</span>
               </button>
             ))}
           </div>
@@ -129,7 +130,7 @@ export default function DbPickerScreen() {
           aria-busy={busy}
           onClick={() => void createAndMove()}
         >
-          Створити й перенести
+          {tr('Створити й перенести')}
         </button>
       </div>
     </div>

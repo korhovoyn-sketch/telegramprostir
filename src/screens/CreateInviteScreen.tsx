@@ -9,6 +9,7 @@ import Header from '@/components/ui/Header'
 import { modalBtnClass } from '@/components/ui/ActionSheet'
 import { buildDeepLink, openTelegramShare } from '@/lib/telegram'
 import { copyLink } from '@/lib/share'
+import { tr } from '@/lib/i18n'
 
 interface KindCopy {
   formTitle: string
@@ -23,24 +24,24 @@ interface KindCopy {
 
 const KIND_COPY: Record<'team' | 'guest', KindCopy> = {
   team: {
-    formTitle: 'Запросити в команду',
-    formSubtitle: "Людина отримає право редагувати обʼєкти цієї бази",
-    fieldLabel: 'Підпис інвайта',
-    placeholder: 'напр. Менеджер Оля',
-    successTitle: 'Запрошення створено!',
-    successSubtitle: 'Надішліть майбутньому члену команди',
+    formTitle: tr('Запросити в команду'),
+    formSubtitle: tr('Людина отримає право редагувати обʼєкти цієї бази'),
+    fieldLabel: tr('Підпис інвайта'),
+    placeholder: tr('напр. Менеджер Оля'),
+    successTitle: tr('Запрошення створено!'),
+    successSubtitle: tr('Надішліть майбутньому члену команди'),
     bg: 'bg-teal',
-    shareText: 'Запрошення до команди бази нерухомості',
+    shareText: tr('Запрошення до команди бази нерухомості'),
   },
   guest: {
-    formTitle: 'Запросити гостя',
-    formSubtitle: 'Згенеруємо запрошення-посилання',
-    fieldLabel: 'Підпис гостьового лінка',
-    placeholder: 'напр. Орендар, кв. 5',
-    successTitle: 'Посилання створено!',
-    successSubtitle: 'Надішліть гостю для отримання доступу',
+    formTitle: tr('Запросити гостя'),
+    formSubtitle: tr('Згенеруємо запрошення-посилання'),
+    fieldLabel: tr('Підпис гостьового лінка'),
+    placeholder: tr('напр. Орендар, кв. 5'),
+    successTitle: tr('Посилання створено!'),
+    successSubtitle: tr('Надішліть гостю для отримання доступу'),
     bg: 'bg-blue',
-    shareText: 'Запрошення до перегляду',
+    shareText: tr('Запрошення до перегляду'),
   },
 }
 
@@ -101,7 +102,7 @@ export default function CreateInviteScreen() {
       }
       setStep('created')
     } catch (e) {
-      showToast({ type: 'error', title: 'Не вдалося створити', subtitle: humanizeDbError(e) })
+      showToast({ type: 'error', title: tr('Не вдалося створити'), subtitle: humanizeDbError(e) })
     } finally {
       setSaving(false)
     }
@@ -109,8 +110,8 @@ export default function CreateInviteScreen() {
 
   async function handleCopy() {
     const ok = await copyLink(link)
-    if (ok) showToast({ type: 'success', title: 'Посилання скопійовано' })
-    else showToast({ type: 'error', title: 'Не вдалося скопіювати' })
+    if (ok) showToast({ type: 'success', title: tr('Посилання скопійовано') })
+    else showToast({ type: 'error', title: tr('Не вдалося скопіювати') })
   }
 
   function handleShare() {
@@ -119,7 +120,7 @@ export default function CreateInviteScreen() {
 
   return (
     <div className={`scr ${copy.bg}`}>
-      <Header title={step === 'form' ? copy.formTitle : copy.successTitle} backLabel="Назад" onBack={back} />
+      <Header title={step === 'form' ? copy.formTitle : copy.successTitle} backLabel={tr('Назад')} onBack={back} />
 
       {step === 'form' ? (
         <div className="body has-flow-cta" onFocusCapture={scrollFocusedIntoView}>
@@ -128,7 +129,7 @@ export default function CreateInviteScreen() {
           </div>
           <div style={{ margin: '0 12px 16px' }}>
             <div className="fld">
-              <div className="fld-l">Підпис (необовʼязково)</div>
+              <div className="fld-l">{tr('Підпис (необовʼязково)')}</div>
               <input
                 aria-label={copy.fieldLabel}
                 type="text"
@@ -151,7 +152,7 @@ export default function CreateInviteScreen() {
             disabled={saving}
             aria-busy={saving}
           >
-            Створити
+            {tr('Створити')}
           </button>
         </div>
       ) : (
@@ -163,17 +164,16 @@ export default function CreateInviteScreen() {
             <div className="link-mono" style={{ margin: '0 12px 16px' }}>{link}</div>
           ) : (
             <div className="link-mono" style={{ margin: '0 12px 16px' }}>
-              Посилання не сформувалось: у застосунку не налаштований юзернейм бота.
-              Запрошення вже створене — надішліть його після налаштування.
+              {tr('Посилання не сформувалось: у застосунку не налаштований юзернейм бота. Запрошення вже створене — надішліть його після налаштування.')}
             </div>
           )}
 
           <div style={{ display: 'flex', gap: 8, margin: '0 12px' }}>
             <button className={`${modalBtnClass('secondary')} sm`} disabled={!usable} onClick={handleCopy}>
-              Скопіювати
+              {tr('Скопіювати')}
             </button>
             <button className={`${modalBtnClass('primary')} sm`} disabled={!usable} onClick={handleShare}>
-              У Telegram
+              {tr('У Telegram')}
             </button>
           </div>
         </div>

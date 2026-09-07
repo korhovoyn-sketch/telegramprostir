@@ -3,6 +3,7 @@
 import { useAppStore } from '@/store/appStore'
 import { IconTabHome, IconTabBookmark, IconTabBell, IconTabUser } from '@/components/Icons'
 import type { ScreenName } from '@/types'
+import { tr } from '@/lib/i18n'
 
 interface Tab {
   id: string
@@ -12,22 +13,22 @@ interface Tab {
 }
 
 const REALTOR_TABS: Tab[] = [
-  { id: 'realtor-dashboard', label: 'Бази', screen: 'realtor-dashboard', icon: (a) => <IconTabHome size={26} active={a} /> },
-  { id: 'collections', label: 'Підбірки', screen: 'collections', icon: (a) => <IconTabBookmark size={26} active={a} /> },
-  { id: 'notifications', label: 'Сповіщення', screen: 'notifications', icon: (a) => <IconTabBell size={26} active={a} /> },
-  { id: 'profile', label: 'Профіль', screen: 'profile', icon: (a) => <IconTabUser size={26} active={a} /> },
+  { id: 'realtor-dashboard', label: tr('Бази'), screen: 'realtor-dashboard', icon: (a) => <IconTabHome size={26} active={a} /> },
+  { id: 'collections', label: tr('Підбірки'), screen: 'collections', icon: (a) => <IconTabBookmark size={26} active={a} /> },
+  { id: 'notifications', label: tr('Сповіщення'), screen: 'notifications', icon: (a) => <IconTabBell size={26} active={a} /> },
+  { id: 'profile', label: tr('Профіль'), screen: 'profile', icon: (a) => <IconTabUser size={26} active={a} /> },
 ]
 
 const OWNER_TABS: Tab[] = [
-  { id: 'db-list', label: 'Бази', screen: 'db-list', icon: (a) => <IconTabHome size={26} active={a} /> },
-  { id: 'notifications', label: 'Сповіщення', screen: 'notifications', icon: (a) => <IconTabBell size={26} active={a} /> },
-  { id: 'profile', label: 'Профіль', screen: 'profile', icon: (a) => <IconTabUser size={26} active={a} /> },
+  { id: 'db-list', label: tr('Бази'), screen: 'db-list', icon: (a) => <IconTabHome size={26} active={a} /> },
+  { id: 'notifications', label: tr('Сповіщення'), screen: 'notifications', icon: (a) => <IconTabBell size={26} active={a} /> },
+  { id: 'profile', label: tr('Профіль'), screen: 'profile', icon: (a) => <IconTabUser size={26} active={a} /> },
 ]
 
 const GUEST_TABS: Tab[] = [
-  { id: 'guest-home', label: 'Обʼєкти', screen: 'guest-home', icon: (a) => <IconTabHome size={26} active={a} /> },
-  { id: 'notifications', label: 'Сповіщення', screen: 'notifications', icon: (a) => <IconTabBell size={26} active={a} /> },
-  { id: 'profile', label: 'Профіль', screen: 'profile', icon: (a) => <IconTabUser size={26} active={a} /> },
+  { id: 'guest-home', label: tr('Обʼєкти'), screen: 'guest-home', icon: (a) => <IconTabHome size={26} active={a} /> },
+  { id: 'notifications', label: tr('Сповіщення'), screen: 'notifications', icon: (a) => <IconTabBell size={26} active={a} /> },
+  { id: 'profile', label: tr('Профіль'), screen: 'profile', icon: (a) => <IconTabUser size={26} active={a} /> },
 ]
 
 export default function TabBar() {

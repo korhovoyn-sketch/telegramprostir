@@ -7,12 +7,14 @@ import { useTelegram } from '@/hooks/useTelegram'
 import { isDeepLinkStartParam } from '@/lib/telegram'
 import ProxMascot from '@/components/ProxMascot'
 import { IconTelegram, GlassTelegram, GlassShield, GlassBolt, IconAdjustments } from '@/components/Icons'
+import { tr } from '@/lib/i18n'
+import { tx } from '@/lib/tx'
 
 const AUTH_STEPS = [
-  'Підключаємось до Telegram...',
-  'Перевіряємо дані...',
-  'Завантажуємо профіль...',
-  'Налаштовуємо середовище...',
+  tr('Підключаємось до Telegram...'),
+  tr('Перевіряємо дані...'),
+  tr('Завантажуємо профіль...'),
+  tr('Налаштовуємо середовище...'),
 ]
 
 export default function WelcomeScreen() {
@@ -80,7 +82,7 @@ export default function WelcomeScreen() {
 
   async function handleLogin() {
     if (!tg?.initData) {
-      showToast({ type: 'error', title: 'Потрібен Telegram', subtitle: 'Відкрийте додаток через Telegram Mini App' })
+      showToast({ type: 'error', title: tr('Потрібен Telegram'), subtitle: tr('Відкрийте додаток через Telegram Mini App') })
       return
     }
     await loginViaTelegram(tg.initData)
@@ -90,7 +92,7 @@ export default function WelcomeScreen() {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
     const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     if (!supabaseUrl) {
-      showToast({ type: 'error', title: 'NEXT_PUBLIC_SUPABASE_URL не вказано', subtitle: 'Перевірте налаштування Vercel' })
+      showToast({ type: 'error', title: tr('NEXT_PUBLIC_SUPABASE_URL не вказано'), subtitle: tr('Перевірте налаштування Vercel') })
       return
     }
     setDiagLoading(true)
@@ -101,7 +103,7 @@ export default function WelcomeScreen() {
       })
       const data = await res.json()
       if (data.ok) {
-        showToast({ type: 'success', title: 'Конфігурація OK', subtitle: 'Змінні та БД налаштовані. Якщо вхід не працює — перевірте правильність TELEGRAM_BOT_TOKEN.' })
+        showToast({ type: 'success', title: tr('Конфігурація OK'), subtitle: tr('Змінні та БД налаштовані. Якщо вхід не працює — перевірте правильність TELEGRAM_BOT_TOKEN.') })
       } else {
         const ENV_VAR_NAMES: Record<string, string> = {
           allowed_origin: 'ALLOWED_ORIGIN',
@@ -109,25 +111,25 @@ export default function WelcomeScreen() {
           supabase_url: 'SUPABASE_URL',
           service_key: 'SUPABASE_SERVICE_ROLE_KEY',
           anon_key: 'SUPABASE_ANON_KEY',
-          db: 'зʼєднання з БД',
+          db: tr('зʼєднання з БД'),
         }
         const checks = data.checks ?? {}
         const bad = (Object.entries(checks) as [string, boolean][])
           .filter(([, v]) => !v).map(([k]) => ENV_VAR_NAMES[k] ?? k)
         showToast({
           type: 'error',
-          title: 'Проблема конфігурації',
-          subtitle: bad.length ? `Не налаштовано в Supabase → Edge Functions → Secrets: ${bad.join(', ')}` : 'Edge Function недоступна',
+          title: tr('Проблема конфігурації'),
+          subtitle: bad.length ? tr('Не налаштовано в Supabase → Edge Functions → Secrets: {0}', bad.join(', ')) : tr('Edge Function недоступна'),
         })
       }
     } catch {
-      showToast({ type: 'error', title: 'Edge Function недоступна', subtitle: 'Перевірте, що функцію задеплоєно у Supabase' })
+      showToast({ type: 'error', title: tr('Edge Function недоступна'), subtitle: tr('Перевірте, що функцію задеплоєно у Supabase') })
     } finally {
       setDiagLoading(false)
     }
   }
 
-  const greeting = tgUser?.first_name ? `Привіт, ${tgUser.first_name}!` : 'Привіт!'
+  const greeting = tgUser?.first_name ? tr('Привіт, {0}!', tgUser.first_name) : tr('Привіт!')
 
   // ── Auth loading screen ─────────────────────────────────────────────────────
   if (loading) {
@@ -146,7 +148,7 @@ export default function WelcomeScreen() {
         </div>
 
         <div style={{ fontSize: 'var(--fs-t3)', fontWeight: 'var(--fw-bold)', color: 'var(--t1)', marginBottom: 8, textAlign: 'center', letterSpacing: '-.01em' }}>
-          Авторизація
+          {tr('Авторизація')}
         </div>
         <div style={{
           fontSize: 'var(--fs-note)', color: 'var(--t3)', textAlign: 'center',
@@ -171,7 +173,7 @@ export default function WelcomeScreen() {
         {showRetry ? (
           <div style={{ textAlign: 'center', padding: '0 32px' }}>
             <div style={{ fontSize: 'var(--fs-foot)', color: 'var(--t3)', marginBottom: 16, lineHeight: 1.5 }}>
-              Авторизація займає довше, ніж зазвичай.{'\n'}Перевірте підключення до інтернету.
+              {tr('Авторизація займає довше, ніж зазвичай.\nПеревірте підключення до інтернету.')}
             </div>
             <button
               onClick={handleLogin}
@@ -182,12 +184,12 @@ export default function WelcomeScreen() {
                 cursor: 'pointer', letterSpacing: '.01em',
               }}
             >
-              Спробувати ще раз
+              {tr('Спробувати ще раз')}
             </button>
           </div>
         ) : (
           <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t4)', textAlign: 'center' }}>
-            Не закривайте додаток
+            {tr('Не закривайте додаток')}
           </div>
         )}
       </div>
@@ -207,10 +209,9 @@ export default function WelcomeScreen() {
           </div>
         </div>
 
-        <div className="heading" style={{ textAlign: 'center' }}>{greeting}<br />Я — Прокс</div>
+        <div className="heading" style={{ textAlign: 'center' }}>{greeting}<br />{tr('Я — Прокс')}</div>
         <div className="subtext" style={{ textAlign: 'center' }}>
-          Твій AI-асистент для <b>управління нерухомістю</b> у Telegram.
-          Бази, обʼєкти, аналітика — все в одному місці.
+          {tx('Твій AI-асистент для {0} у Telegram. Бази, обʼєкти, аналітика — все в одному місці.', <b>{tr('управління нерухомістю')}</b>)}
         </div>
 
         {/* Feature cards */}
@@ -218,30 +219,30 @@ export default function WelcomeScreen() {
           <div className="feature">
             <GlassTelegram size={32} />
             <div>
-              <div className="feature-t">Вхід через Telegram</div>
-              <div className="feature-s">Без паролів — миттєва авторизація</div>
+              <div className="feature-t">{tr('Вхід через Telegram')}</div>
+              <div className="feature-s">{tr('Без паролів — миттєва авторизація')}</div>
             </div>
           </div>
           <div className="feature">
             <GlassShield size={32} />
             <div>
-              <div className="feature-t">Безпека даних</div>
-              <div className="feature-s">HMAC підпис, RLS, шифрування</div>
+              <div className="feature-t">{tr('Безпека даних')}</div>
+              <div className="feature-s">{tr('HMAC підпис, RLS, шифрування')}</div>
             </div>
           </div>
           <div className="feature">
             <GlassBolt size={32} />
             <div>
-              <div className="feature-t">Швидкий старт</div>
-              <div className="feature-s">Три кроки до першої бази</div>
+              <div className="feature-t">{tr('Швидкий старт')}</div>
+              <div className="feature-s">{tr('Три кроки до першої бази')}</div>
             </div>
           </div>
         </div>
 
         <div style={{ textAlign: 'center', fontSize: 'var(--fs-cap1)', color: 'var(--t4)', padding: '10px 28px 6px', lineHeight: 1.5 }}>
-          Натискаючи «Увійти», ви погоджуєтесь з{' '}
-          <a href="/terms/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--t2)', textDecoration: 'underline' }}>Умовами використання</a> та{' '}
-          <a href="/privacy/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--t2)', textDecoration: 'underline' }}>Політикою конфіденційності</a>
+          {tx('Натискаючи «Увійти», ви погоджуєтесь з {0} та {1}',
+            <a href="/terms/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--t2)', textDecoration: 'underline' }}>{tr('Умовами використання')}</a>,
+            <a href="/privacy/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--t2)', textDecoration: 'underline' }}>{tr('Політикою конфіденційності')}</a>)}
         </div>
 
         <button
@@ -253,14 +254,14 @@ export default function WelcomeScreen() {
             opacity: diagLoading ? 0.5 : 1,
           }}
         >
-          {diagLoading ? 'Перевірка...' : <><IconAdjustments size={14} /> Діагностика підключення</>}
+          {diagLoading ? tr('Перевірка...') : <><IconAdjustments size={14} /> {tr('Діагностика підключення')}</>}
         </button>
       </div>
 
       {/* CTA — always visible at bottom */}
       <button className="mbtn" onClick={handleLogin}>
         <IconTelegram size={18} />
-        Увійти через Telegram
+        {tr('Увійти через Telegram')}
       </button>
     </div>
   )

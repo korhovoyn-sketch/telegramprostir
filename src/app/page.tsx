@@ -11,6 +11,7 @@ import { useNotifications } from '@/hooks/useNotifications'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { IconWifiOff } from '@/components/Icons'
 import SplashScreen from '@/screens/SplashScreen'
+import { tr } from '@/lib/i18n'
 
 /** Мусить дорівнювати --bg у globals.css (нативний хром Telegram — не CSS). */
 const TG_CHROME_BG = '#040408'
@@ -416,7 +417,7 @@ export default function Page() {
     }
     const handleOnline = () => {
       setOnline(true)
-      showToast({ type: 'success', title: 'Зʼєднання відновлено' })
+      showToast({ type: 'success', title: tr('Зʼєднання відновлено') })
     }
     window.addEventListener('offline', handleOffline)
     window.addEventListener('online', handleOnline)
@@ -473,7 +474,7 @@ export default function Page() {
       {!isOnline && (
         <div className="offline-banner">
           <IconWifiOff size={14} />
-          Немає інтернету — дані можуть бути застарілими
+          {tr('Немає інтернету — дані можуть бути застарілими')}
         </div>
       )}
       <div key={navKey} className={`nav-wrap nav-${navDirection}`}>

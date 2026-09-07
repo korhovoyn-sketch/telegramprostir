@@ -3,6 +3,7 @@
 import { useAppStore } from '@/store/appStore'
 import ActionSheet from '@/components/ui/ActionSheet'
 import { useLatch } from '@/lib/useLatch'
+import { tr } from '@/lib/i18n'
 
 /**
  * Фолбек для `confirmAction()` там, де нативного попапа Telegram немає:
@@ -31,7 +32,7 @@ export default function ConfirmHost() {
           variant: latched.destructive === false ? 'primary' : 'danger',
           onClick: () => answer(true),
         },
-        { label: 'Скасувати', variant: 'secondary', onClick: () => answer(false) },
+        { label: tr('Скасувати'), variant: 'secondary', onClick: () => answer(false) },
       ] : []}
     />
   )

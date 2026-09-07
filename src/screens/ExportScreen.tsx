@@ -11,15 +11,16 @@ import { toCsv, CSV_BOM } from '@/lib/csv'
 import { effectiveLandlord, withSortedPhotos, calcRentUtils, currencySymbol, rentUnitLabel, objectsWord, DB_TYPE_LABELS, STATUS_LABELS, formatLeaseDate, humanizeDbError, safeFileName, photoUrl } from '@/lib/utils'
 import { UTILITY_META } from '@/lib/utilityMeta'
 import type { Property, Database } from '@/types'
+import { tr } from '@/lib/i18n'
 
 const FORMATS = [
-  { id: 'pdf',   label: 'PDF Документ',   desc: 'Брендований PDF — зберігається та шериться', icon: <IconFile size={20} color="var(--info)" /> },
-  { id: 'excel', label: 'Excel таблиця',   desc: 'Аналітика, розрахунки — .xlsx',               icon: <IconChartBar size={20} color="var(--ok-fg)" /> },
+  { id: 'pdf',   label: tr('PDF Документ'),   desc: tr('Брендований PDF — зберігається та шериться'), icon: <IconFile size={20} color="var(--info)" /> },
+  { id: 'excel', label: tr('Excel таблиця'),   desc: tr('Аналітика, розрахунки — .xlsx'),               icon: <IconChartBar size={20} color="var(--ok-fg)" /> },
   // CSV існує не «для повноти», а щоб круговий рейс був справжнім: імпорт
   // читає CSV (парсинг XLSX у проєкті заборонений — див. `lib/csv.ts`), і поки
   // застосунок віддавав лише .xlsx, обіцянка «вивантажив → завантажив назад»
   // вимагала від користувача перезберегти файл в Excel.
-  { id: 'csv',   label: 'CSV таблиця',     desc: 'Для імпорту назад у застосунок',              icon: <IconFileExport size={20} color="var(--violet)" /> },
+  { id: 'csv',   label: tr('CSV таблиця'),     desc: tr('Для імпорту назад у застосунок'),              icon: <IconFileExport size={20} color="var(--violet)" /> },
 ]
 
 type Rgb = [number, number, number]
@@ -55,17 +56,17 @@ interface PdfTheme {
 
 const TEMPLATES: PdfTheme[] = [
   {
-    id: 'classic', label: 'Класик', accent: '#1D4ED8', accentDark: '#1E3A8A',
+    id: 'classic', label: tr('Класик'), accent: '#1D4ED8', accentDark: '#1E3A8A',
     bg: [255, 255, 255], card: [246, 248, 252], border: [214, 222, 235],
     tx1: [17, 24, 39], tx2: [71, 85, 105], tx3: [128, 141, 160], onAccent: [255, 255, 255],
   },
   {
-    id: 'modern', label: 'Модерн', accent: '#6D28D9', accentDark: '#4C1D95',
+    id: 'modern', label: tr('Модерн'), accent: '#6D28D9', accentDark: '#4C1D95',
     bg: [255, 255, 255], card: [249, 246, 254], border: [223, 214, 240],
     tx1: [24, 18, 43], tx2: [82, 71, 105], tx3: [140, 130, 160], onAccent: [255, 255, 255],
   },
   {
-    id: 'dark', label: 'Нічний', accent: '#5AC8FA', accentDark: '#1A6A8A',
+    id: 'dark', label: tr('Нічний'), accent: '#5AC8FA', accentDark: '#1A6A8A',
     bg: [9, 8, 31], card: [20, 18, 52], border: [42, 38, 96],
     tx1: [232, 232, 248], tx2: [140, 140, 180], tx3: [110, 110, 150], onAccent: [255, 255, 255],
   },
@@ -260,7 +261,7 @@ async function generatePDF(
   // оренди», тож «25000 $ / міс (фіксована)» повторював сам себе, а пробіли
   // навколо скісних рвали число й одиницю на три окремі слова.
   const rateOf = (n: number, type: string) =>
-    `${n.toLocaleString('uk-UA')} ${cur}/${type === 'per_m2' ? 'м²' : type === 'per_day' ? 'добу' : 'міс'}`
+    tr('{0} {1}/{2}', n.toLocaleString('uk-UA'), cur, type === 'per_m2' ? tr('м²') : type === 'per_day' ? tr('добу') : tr('міс'))
 
   // ── Embed Roboto for Cyrillic support ────────────────────────────────────────
   const toBase64 = (buf: ArrayBuffer): string => {
@@ -282,7 +283,7 @@ async function generatePDF(
     fetch('/fonts/Roboto-Bold.ttf'),
   ])
   if (!regRes.ok || !boldRes.ok) {
-    throw new Error('Не вдалося завантажити шрифт для PDF')
+    throw new Error(tr('Не вдалося завантажити шрифт для PDF'))
   }
   const [regBuf, boldBuf] = await Promise.all([regRes.arrayBuffer(), boldRes.arrayBuffer()])
   doc.addFileToVFS('Roboto-Regular.ttf', toBase64(regBuf))
@@ -305,7 +306,7 @@ async function generatePDF(
   // відірваний підпис, а не як частина шапки.
   // Орендодавець бази — рядок шапки поруч із адресою: смуга росте під КОЖЕН
   // такий рядок, інакше другий ліг би на плитки статистики під нею.
-  const bandMeta = [db.address, db.landlord_name?.trim() ? `Орендодавець: ${db.landlord_name.trim()}` : null]
+  const bandMeta = [db.address, db.landlord_name?.trim() ? tr('Орендодавець: {0}', db.landlord_name.trim()) : null]
     .filter(Boolean) as string[]
   const bandH = 44 + bandMeta.length * 8
 
@@ -371,10 +372,10 @@ async function generatePDF(
 
   const cardY = bandH + 12
   const cards: [string, string, [number,number,number]][] = [
-    ['Вільно',  String(freeCount),     STATUS_STYLE.free.fg],
-    ['Зайнято', String(occupiedCount), STATUS_STYLE.occupied.fg],
-    ['Продаж',  String(saleCount),     STATUS_STYLE.for_sale.fg],
-    ['Оренда',  money(totalRent), ACC],
+    [tr('Вільно'),  String(freeCount),     STATUS_STYLE.free.fg],
+    [tr('Зайнято'), String(occupiedCount), STATUS_STYLE.occupied.fg],
+    [tr('Продаж'),  String(saleCount),     STATUS_STYLE.for_sale.fg],
+    [tr('Оренда'),  money(totalRent), ACC],
   ]
   const cardW = (W - M * 2 - 9) / 4
   cards.forEach(([label, val, color], i) => {
@@ -417,7 +418,7 @@ async function generatePDF(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ;(doc as unknown as any).autoTable({
     startY: tableY,
-    head: [['Назва', 'Пов.', 'Статус', 'Корисна', 'Розрах.', 'Ставка', 'Експл.', 'Разом/міс']],
+    head: [[tr('Назва'), tr('Пов.'), tr('Статус'), tr('Корисна'), tr('Розрах.'), tr('Ставка'), tr('Експл.'), tr('Разом/міс')]],
     body: tableRows,
     styles: {
       font: 'Roboto',
@@ -480,7 +481,7 @@ async function generatePDF(
     doc.setFont('Roboto', 'normal')
     doc.setTextColor(...tpl.onAccent)
     doc.setGState(new GState({ opacity: 0.7 }))
-    doc.text(`Обʼєкт ${idx + 1} з ${rows.length}`, W - M, 8, { align: 'right' })
+    doc.text(tr('Обʼєкт {0} з {1}', idx + 1, rows.length), W - M, 8, { align: 'right' })
     doc.setGState(new GState({ opacity: 1 }))
 
     let y = 20
@@ -566,7 +567,7 @@ async function generatePDF(
     const SEC = 9
 
     // ── ПЛОЩА І РОЗТАШУВАННЯ ──────────────────────────────────────────
-    drawSection('ПЛОЩА І РОЗТАШУВАННЯ', y)
+    drawSection(tr('ПЛОЩА І РОЗТАШУВАННЯ'), y)
     y += 5
     // Позначка бази розрахунку — не декор: саме вона каже, на яку з двох площ
     // множиться ставка $/м². Без неї читач бачить дві площі й суму, і не може
@@ -574,19 +575,19 @@ async function generatePDF(
     // Маркер бази йде до ЗНАЧЕННЯ, а не в підпис: у підписі він читався як
     // друга назва поля («КОРИСНА ПЛОЩА  БАЗА РОЗРАХУНКУ») і плутав.
     const basis = p.area_basis ?? 'total'
-    const areaVal = (v: number | null | undefined) => (v ? `${v} м²` : '—')
-    const basisMark = (which: 'useful' | 'total') => (basis === which ? 'база розрахунку' : undefined)
-    const yL1 = drawField('Корисна площа', areaVal(p.area_useful), CL, y, CW, basisMark('useful'))
-    const yR1 = drawField('Розрахункова площа', areaVal(p.area_total), CR, y, CW, basisMark('total'))
+    const areaVal = (v: number | null | undefined) => (v ? tr('{0} м²', v) : '—')
+    const basisMark = (which: 'useful' | 'total') => (basis === which ? tr('база розрахунку') : undefined)
+    const yL1 = drawField(tr('Корисна площа'), areaVal(p.area_useful), CL, y, CW, basisMark('useful'))
+    const yR1 = drawField(tr('Розрахункова площа'), areaVal(p.area_total), CR, y, CW, basisMark('total'))
     y = Math.max(yL1, yR1) + ROW
-    const yL2 = drawField('Поверх', p.floor ? `${p.floor} поверх` : '—', CL, y, CW)
-    const yR2 = p.address ? drawField('Адреса', p.address, CR, y, CW) : y
+    const yL2 = drawField(tr('Поверх'), p.floor ? tr('{0} поверх', p.floor) : '—', CL, y, CW)
+    const yR2 = p.address ? drawField(tr('Адреса'), p.address, CR, y, CW) : y
     y = Math.max(yL2, yR2)
     // Орендодавець — властивість ПРОСТОРУ, а не орендних відносин, тож рядок
     // стоїть тут, а не в секції «ОРЕНДАР»: у обʼєкта на продаж тієї секції
     // немає взагалі, а хто здає — питання, що лишається.
     const landlord = effectiveLandlord(p.landlord_name, db.landlord_name)
-    if (landlord) y = drawField('Орендодавець', landlord, CL, y + ROW, CW)
+    if (landlord) y = drawField(tr('Орендодавець'), landlord, CL, y + ROW, CW)
     y += SEC
 
     // ── ОРЕНДАР І ДОГОВІР ─────────────────────────────────────────────
@@ -594,13 +595,13 @@ async function generatePDF(
     // ця інформація на картці є, а в PDF її не було взагалі, як і дат
     // договору. Секція йде ПЕРЕД грошима, бо це перше, що питають.
     if (p.tenant_name || p.lease_start_date || p.lease_end_date) {
-      drawSection('ОРЕНДАР', y)
+      drawSection(tr('ОРЕНДАР'), y)
       y += 5
       const leaseStr = p.lease_start_date || p.lease_end_date
         ? `${p.lease_start_date ? formatLeaseDate(p.lease_start_date) : '—'} – ${p.lease_end_date ? formatLeaseDate(p.lease_end_date) : '—'}`
         : '—'
-      const yT1 = drawField('Орендар', p.tenant_name || '—', CL, y, CW)
-      const yT2 = leaseStr === '—' ? y : drawField('Договір', leaseStr, CR, y, CW)
+      const yT1 = drawField(tr('Орендар'), p.tenant_name || '—', CL, y, CW)
+      const yT2 = leaseStr === '—' ? y : drawField(tr('Договір'), leaseStr, CR, y, CW)
       y = Math.max(yT1, yT2) + SEC
     }
 
@@ -609,7 +610,7 @@ async function generatePDF(
     // великий блок «Разом на місяць: —», а ЦІНИ не показував ніде. Тобто
     // сторінка продажу була порожньою — найгірший випадок усього документа.
     if (p.status === 'for_sale' || p.sale_price) {
-      drawSection('ПРОДАЖ', y)
+      drawSection(tr('ПРОДАЖ'), y)
       y += 5
       doc.setFillColor(...ACD)
       doc.setGState(new GState({ opacity: isDark ? 0.22 : 0.10 }))
@@ -618,7 +619,7 @@ async function generatePDF(
       doc.setFont('Roboto', 'normal')
       doc.setFontSize(8.5)
       doc.setTextColor(...TXSEC)
-      doc.text('Ціна продажу', M + 5, y + 9)
+      doc.text(tr('Ціна продажу'), M + 5, y + 9)
       doc.setFont('Roboto', 'bold')
       doc.setFontSize(16)
       doc.setTextColor(...ACC)
@@ -633,24 +634,24 @@ async function generatePDF(
     // який щойно домалювали вище.
     const hasRent = !!(p.rent_rate || p.utilities_rate)
     if (hasRent) {
-    drawSection('ОРЕНДА', y)
+    drawSection(tr('ОРЕНДА'), y)
     y += 5
     const rentRateStr = p.rent_rate ? rateOf(p.rent_rate, p.rent_type) : '—'
-    const yL3 = drawField('Ставка оренди',    rentRateStr,            CL, y, CW)
+    const yL3 = drawField(tr('Ставка оренди'),    rentRateStr,            CL, y, CW)
     // «на місяць» у підписі — для per_day сире `rent` лишається ДОБОВОЮ
     // ставкою (Ставка оренди рядком вище її й показує), тут потрібен
     // нормалізований еквівалент: total мінус utils.
     const monthlyRentOnly = total - utils
-    const yR3 = drawField('Оренда на місяць', monthlyRentOnly ? money(monthlyRentOnly) : '—', CR, y, CW)
+    const yR3 = drawField(tr('Оренда на місяць'), monthlyRentOnly ? money(monthlyRentOnly) : '—', CR, y, CW)
     y = Math.max(yL3, yR3)
     // Рядок експлуатаційних малюється, ЛИШЕ якщо в ньому є що читати. Обʼєкт
     // із фіксованою орендою без комуналки інакше діставав пару полів із двома
     // «—» — тобто підпис стверджував, що дані мали б бути, а їх нема.
     if (p.utilities_rate || utils) {
       y += ROW
-      const yL4 = drawField('Ставка експлуатаційних',
+      const yL4 = drawField(tr('Ставка експлуатаційних'),
         p.utilities_rate ? rateOf(p.utilities_rate, 'per_m2') : '—', CL, y, CW)
-      const yR4 = drawField('Експлуатаційні на місяць', utils ? money(utils) : '—', CR, y, CW)
+      const yR4 = drawField(tr('Експлуатаційні на місяць'), utils ? money(utils) : '—', CR, y, CW)
       y = Math.max(yL4, yR4)
     }
     y += 5
@@ -669,7 +670,7 @@ async function generatePDF(
     doc.setFont('Roboto', 'normal')
     doc.setFontSize(8.5)
     doc.setTextColor(...TXSEC)
-    doc.text('Разом на місяць (оренда + експлуатаційні)', M + 5, y + 10)
+    doc.text(tr('Разом на місяць (оренда + експлуатаційні)'), M + 5, y + 10)
     doc.setFont('Roboto', 'bold')
     doc.setFontSize(16)
     doc.setTextColor(...ACC)
@@ -678,11 +679,11 @@ async function generatePDF(
     }
 
     // ── ПАРКІНГ ───────────────────────────────────────────────────────
-    drawSection('ПАРКІНГ', y)
+    drawSection(tr('ПАРКІНГ'), y)
     y += 5
-    const yL5 = drawField('Наявність',      p.has_parking ? 'Так' : 'Немає', CL, y, CW)
+    const yL5 = drawField(tr('Наявність'),      p.has_parking ? tr('Так') : tr('Немає'), CL, y, CW)
     const yR5 = p.has_parking
-      ? drawField('Кількість місць', String(p.parking_spaces || 0),    CR, y, CW)
+      ? drawField(tr('Кількість місць'), String(p.parking_spaces || 0),    CR, y, CW)
       : y
     y = Math.max(yL5, yR5) + SEC
 
@@ -693,7 +694,7 @@ async function generatePDF(
       .map((uid) => UTILITY_META.find((m) => m.id === uid)?.label)
       .filter((l): l is string => !!l)
     if (utilList.length > 0) {
-      drawSection('ЕКСПЛУАТАЦІЙНІ ПОСЛУГИ', y)
+      drawSection(tr('ЕКСПЛУАТАЦІЙНІ ПОСЛУГИ'), y)
       y += 5
       let px = M
       doc.setFont('Roboto', 'normal')
@@ -715,7 +716,7 @@ async function generatePDF(
 
     // ── ОПИС ──────────────────────────────────────────────────────────
     if (p.description) {
-      drawSection('ОПИС', y)
+      drawSection(tr('ОПИС'), y)
       y += 5
       doc.setFont('Roboto', 'normal')
       doc.setFontSize(9)
@@ -730,7 +731,7 @@ async function generatePDF(
     // про нерухомість без жодного знімка. Головне велике + до трьох у смужці:
     // більше на А4 під рештою секцій просто не лишається місця.
     if (shots.length > 0) {
-      drawSection('ФОТО', y)
+      drawSection(tr('ФОТО'), y)
       y += 5
       const gap = 3
       const fullW = W - M * 2
@@ -792,7 +793,7 @@ async function generatePDF(
       doc.setFont('Roboto', 'bold')
       doc.setFontSize(7.5)
       doc.setTextColor(...ACC)
-      doc.text('Контакти власника:', M, fY + 7)
+      doc.text(tr('Контакти власника:'), M, fY + 7)
       doc.setFont('Roboto', 'normal')
       doc.setTextColor(...TXSEC)
       const parts = [ownerName, ownerPhone, ownerEmail].filter(Boolean)
@@ -837,31 +838,31 @@ async function generatePDF(
  */
 function tableHeaders(cur: string): string[] {
   return [
-    '№', 'Назва', 'Поверх', 'Статус',
+    '№', tr('Назва'), tr('Поверх'), tr('Статус'),
     // Орендар і договір були відсутні: на картці обʼєкта в застосунку вони є,
     // а в таблиці — ні, тож зведення «хто де сидить і до якого числа» з
     // експорту зробити було неможливо.
-    'Орендар', 'Орендодавець', 'Договір з', 'Договір до',
-    'Площа корисна (м²)', 'Площа розрахункова (м²)', 'База розрахунку',
+    tr('Орендар'), tr('Орендодавець'), tr('Договір з'), tr('Договір до'),
+    tr('Площа корисна (м²)'), tr('Площа розрахункова (м²)'), tr('База розрахунку'),
     // Ставка експлуатаційних — СИРЕ введене значення, поруч зі ставкою оренди.
     // Її бракувало, і асиметрія була грошова: ставка оренди круговий рейс
     // переживала, а ця — ні, бо у файл ішла лише ПОРАХОВАНА місячна сума, з
     // якої ставку не відновити (для $/м² вона залежить від базової площі).
-    'Ставка оренди', 'Тип ставки', 'Ставка експлуатаційних',
-    `Оренда на місяць (${cur})`, `Експлуатаційні на місяць (${cur})`,
-    `Разом на місяць (${cur})`,
+    tr('Ставка оренди'), tr('Тип ставки'), tr('Ставка експлуатаційних'),
+    tr('Оренда на місяць ({0})', cur), tr('Експлуатаційні на місяць ({0})', cur),
+    tr('Разом на місяць ({0})', cur),
     // Ціна продажу не потрапляла нікуди — обʼєкт на продаж їхав у файл із
     // порожніми орендними колонками і без жодної цифри.
-    `Ціна продажу (${cur})`,
-    'Паркінг', 'Місць паркінгу',
-    'Адреса', 'Експлуатаційні послуги',
-    'Опис',
+    tr('Ціна продажу ({0})', cur),
+    tr('Паркінг'), tr('Місць паркінгу'),
+    tr('Адреса'), tr('Експлуатаційні послуги'),
+    tr('Опис'),
     // Фото в таблицю вбудувати неможливо: `xlsx` у клієнтській редакції не має
     // ЖОДНОГО API для зображень (перевірено на самому пакеті, а не з памʼяті).
     // Тому колонка несе ПОСИЛАННЯ — бакет `photos` публічний, той самий URL,
     // яким малює застосунок і публічна /v.
-    'Фото',
-    'Додано',
+    tr('Фото'),
+    tr('Додано'),
   ]
 }
 
@@ -885,9 +886,9 @@ function propertyRow(
     p.lease_end_date ? formatLeaseDate(p.lease_end_date) : '',
     p.area_useful ?? '',
     p.area_total  ?? '',
-    (p.area_basis ?? 'total') === 'useful' ? 'корисна' : 'розрахункова',
+    (p.area_basis ?? 'total') === 'useful' ? tr('корисна') : tr('розрахункова'),
     p.rent_rate   ?? '',
-    p.rent_type === 'per_m2' ? `${cur}/м²/міс` : p.rent_type === 'per_day' ? `${cur}/добу` : `фіксована ${cur}/міс`,
+    p.rent_type === 'per_m2' ? tr('{0}/м²/міс', cur) : p.rent_type === 'per_day' ? tr('{0}/добу', cur) : tr('фіксована {0}/міс', cur),
     p.utilities_rate ?? '',
     // «Оренда на місяць» — заголовок каже «на місяць», тож потрібен
     // нормалізований еквівалент (total - utils), НЕ сире rent (для per_day
@@ -899,7 +900,7 @@ function propertyRow(
     // експлуатаційними в колонці, підписаній «Разом на місяць».
     total || '',
     p.sale_price || '',
-    p.has_parking ? 'Так' : 'Ні',
+    p.has_parking ? tr('Так') : tr('Ні'),
     p.parking_spaces || '',
     p.address ?? '',
     (p.utilities ?? [])
@@ -928,10 +929,10 @@ async function generateExcel(
   const sheetData: (string | number)[][] = []
 
   // Title block
-  sheetData.push([`База: ${db.name}`])
-  sheetData.push([`Тип: ${DB_TYPE_LABELS[db.type] ?? db.type}`])
-  sheetData.push([`Дата: ${new Date().toLocaleDateString('uk-UA')}`])
-  sheetData.push([`Обʼєктів: ${rows.length}`])
+  sheetData.push([tr('База: {0}', db.name)])
+  sheetData.push([tr('Тип: {0}', DB_TYPE_LABELS[db.type] ?? db.type)])
+  sheetData.push([tr('Дата: {0}', new Date().toLocaleDateString('uk-UA'))])
+  sheetData.push([tr('Обʼєктів: {0}', rows.length)])
   sheetData.push([]) // blank
 
   const headers = tableHeaders(cur)
@@ -970,12 +971,12 @@ async function generateExcel(
     // додана колонка зсуває всі значення праворуч, і «РАЗОМ» опиняється не під
     // своїм стовпцем.
     const SUMMED = [
-      'Площа корисна (м²)', 'Площа розрахункова (м²)',
-      `Оренда на місяць (${cur})`, `Експлуатаційні на місяць (${cur})`,
-      `Разом на місяць (${cur})`, `Ціна продажу (${cur})`,
+      tr('Площа корисна (м²)'), tr('Площа розрахункова (м²)'),
+      tr('Оренда на місяць ({0})', cur), tr('Експлуатаційні на місяць ({0})', cur),
+      tr('Разом на місяць ({0})', cur), tr('Ціна продажу ({0})', cur),
     ]
     const totalsRow: (string | number)[] = headers.map((h, i) => {
-      if (i === 1) return 'РАЗОМ'
+      if (i === 1) return tr('РАЗОМ')
       if (!SUMMED.includes(h)) return ''
       const L = colLetter(h)
       return { f: `SUM(${L}${dataStart}:${L}${dataEnd})` } as unknown as number
@@ -1011,10 +1012,10 @@ async function generateExcel(
     'Орендар': 24, 'Орендодавець': 24, 'Договір з': 13, 'Договір до': 13,
     'Площа корисна (м²)': 18, 'Площа розрахункова (м²)': 20, 'База розрахунку': 16,
     'Ставка оренди': 14, 'Тип ставки': 18,
-    [`Оренда на місяць (${cur})`]: 18,
-    [`Експлуатаційні на місяць (${cur})`]: 22,
-    [`Разом на місяць (${cur})`]: 18,
-    [`Ціна продажу (${cur})`]: 18,
+    [tr('Оренда на місяць ({0})', cur)]: 18,
+    [tr('Експлуатаційні на місяць ({0})', cur)]: 22,
+    [tr('Разом на місяць ({0})', cur)]: 18,
+    [tr('Ціна продажу ({0})', cur)]: 18,
     'Паркінг': 10, 'Місць паркінгу': 12,
     'Адреса': 30, 'Експлуатаційні послуги': 32,
     'Опис': 35, 'Фото': 60, 'Додано': 12,
@@ -1026,14 +1027,14 @@ async function generateExcel(
 
   // Sheet 2 — summary by status
   const summaryData: (string | number)[][] = [
-    ['Зведена таблиця', `${db.name}`],
+    [tr('Зведена таблиця'), `${db.name}`],
     [],
-    ['Статус', 'Кількість', 'Розрахункова площа (м²)', `Сума оренди (${cur}/міс)`],
+    [tr('Статус'), tr('Кількість'), tr('Розрахункова площа (м²)'), tr('Сума оренди ({0}/міс)', cur)],
   ]
   const statuses: Array<{ key: string; label: string }> = [
-    { key: 'free',     label: 'Вільно'  },
-    { key: 'occupied', label: 'Зайнято' },
-    { key: 'for_sale', label: 'Продаж'  },
+    { key: 'free',     label: tr('Вільно')  },
+    { key: 'occupied', label: tr('Зайнято') },
+    { key: 'for_sale', label: tr('Продаж')  },
   ]
   // Місячна ставка БЕЗ експлуатаційних: total (нормалізований до місяця в
   // calcRentUtils) мінус utils, а не сире .rent — для per_day .rent лишається
@@ -1050,7 +1051,7 @@ async function generateExcel(
     summaryData.push([label, group.length, totalArea, totalRent])
   })
   summaryData.push([
-    'ВСЬОГО',
+    tr('ВСЬОГО'),
     properties.length,
     properties.reduce((s, p) => s + (p.area_useful ?? 0), 0),
     properties.reduce((s, p) => {
@@ -1063,8 +1064,8 @@ async function generateExcel(
   wsSummary['!cols'] = [{ wch: 14 }, { wch: 12 }, { wch: 22 }, { wch: 22 }]
 
   const wb = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(wb, ws, 'Обʼєкти')
-  XLSX.utils.book_append_sheet(wb, wsSummary, 'Зведена')
+  XLSX.utils.book_append_sheet(wb, ws, tr('Обʼєкти'))
+  XLSX.utils.book_append_sheet(wb, wsSummary, tr('Зведена'))
 
   // НЕ `XLSX.writeFile()`: він усередині клацає `<a download>`, а webview
   // Telegram цей атрибут ігнорує — замість збереження відкривався blob-URL, і
@@ -1111,8 +1112,8 @@ export default function ExportScreen() {
   const db = databases.find(d => d.id === dbId)
 
   async function handleExport() {
-    if (!dbId) { showToast({ type: 'error', title: 'Не вказано базу' }); return }
-    if (offlineGuard('Експорт недоступний офлайн')) return
+    if (!dbId) { showToast({ type: 'error', title: tr('Не вказано базу') }); return }
+    if (offlineGuard(tr('Експорт недоступний офлайн'))) return
     setLoading(true)
     try {
       const { data: propertiesRaw, error } = await supabase
@@ -1142,11 +1143,11 @@ export default function ExportScreen() {
       // instead of downloading an empty PDF/Excel.
       const exportable = onlyFree ? properties.filter(p => p.status === 'free') : properties
       if (exportable.length === 0) {
-        showToast({ type: 'error', title: 'Немає обʼєктів для експорту', subtitle: onlyFree ? 'У базі немає вільних обʼєктів' : 'Спершу додайте обʼєкти до бази' })
+        showToast({ type: 'error', title: tr('Немає обʼєктів для експорту'), subtitle: onlyFree ? tr('У базі немає вільних обʼєктів') : tr('Спершу додайте обʼєкти до бази') })
         return
       }
 
-      const dbRecord = db ?? ({ name: 'База', type: 'business_center', color: 'purple' } as Database)
+      const dbRecord = db ?? ({ name: tr('База'), type: 'business_center', color: 'purple' } as Database)
 
       if (format === 'pdf') {
         await generatePDF(
@@ -1160,16 +1161,16 @@ export default function ExportScreen() {
           user?.email ?? '',
           currencySymbol(user?.currency),
         )
-        showToast({ type: 'success', title: 'PDF збережено' })
+        showToast({ type: 'success', title: tr('PDF збережено') })
       } else if (format === 'csv') {
         await generateCsv(dbRecord, properties, onlyFree, currencySymbol(user?.currency))
-        showToast({ type: 'success', title: 'CSV збережено' })
+        showToast({ type: 'success', title: tr('CSV збережено') })
       } else {
         await generateExcel(dbRecord, properties, onlyFree, currencySymbol(user?.currency))
-        showToast({ type: 'success', title: 'Excel збережено' })
+        showToast({ type: 'success', title: tr('Excel збережено') })
       }
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка експорту', subtitle: humanizeDbError(e) })
+      showToast({ type: 'error', title: tr('Помилка експорту'), subtitle: humanizeDbError(e) })
     } finally {
       setLoading(false)
     }
@@ -1177,13 +1178,13 @@ export default function ExportScreen() {
 
   return (
     <div className="scr bg-teal">
-      <Header title="Експорт" backLabel="Назад" />
+      <Header title={tr('Експорт')} backLabel={tr('Назад')} />
 
       <div className="body">
         {/* Format */}
         <div className="over">
           <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <IconFileExport size={14} color="var(--info)" />Формат файлу
+            <IconFileExport size={14} color="var(--info)" />{tr('Формат файлу')}
           </span>
         </div>
         <div className="format-list">
@@ -1210,7 +1211,7 @@ export default function ExportScreen() {
           <>
             <div className="over" style={{ marginTop: 8 }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <IconFile size={14} color="#fb923c" />Стиль PDF
+                <IconFile size={14} color="#fb923c" />{tr('Стиль PDF')}
               </span>
             </div>
             <div className="tmpl-row">
@@ -1243,17 +1244,17 @@ export default function ExportScreen() {
         {/* Options */}
         <div className="over" style={{ marginTop: 8 }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <IconAdjustments size={14} color="var(--violet)" />Налаштування
+            <IconAdjustments size={14} color="var(--violet)" />{tr('Налаштування')}
           </span>
         </div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
           <div className="fr">
-            <span className="fr-l">Тільки вільні обʼєкти</span>
+            <span className="fr-l">{tr('Тільки вільні обʼєкти')}</span>
             <Toggle value={onlyFree} onChange={setOnlyFree} />
           </div>
           {format === 'pdf' && (
             <div className="fr">
-              <span className="fr-l">Контакти власника</span>
+              <span className="fr-l">{tr('Контакти власника')}</span>
               <Toggle value={contacts} onChange={setContacts} />
             </div>
           )}
@@ -1271,8 +1272,8 @@ export default function ExportScreen() {
           lineHeight: 1.5,
         }}>
           {format === 'pdf'
-            ? 'PDF містить шапку з назвою бази, зведену статистику по статусах, таблицю обʼєктів з кольоровими статусами та підвал з контактами.'
-            : 'Excel містить два аркуші: повний список обʼєктів з формулами підсумків та зведена таблиця по статусах.'
+            ? tr('PDF містить шапку з назвою бази, зведену статистику по статусах, таблицю обʼєктів з кольоровими статусами та підвал з контактами.')
+            : tr('Excel містить два аркуші: повний список обʼєктів з формулами підсумків та зведена таблиця по статусах.')
           }
         </div>
 
@@ -1289,7 +1290,7 @@ export default function ExportScreen() {
             її невидимою під `is-loading`), а ПІДПИС лишається: інакше кнопка
             втрачає доступну назву саме тоді, коли щось відбувається. */}
         {!loading && <IconFileExport size={18} />}
-        {format === 'pdf' ? 'Завантажити PDF' : format === 'csv' ? 'Завантажити CSV' : 'Завантажити Excel'}
+        {format === 'pdf' ? tr('Завантажити PDF') : format === 'csv' ? tr('Завантажити CSV') : tr('Завантажити Excel')}
       </button>
     </div>
   )

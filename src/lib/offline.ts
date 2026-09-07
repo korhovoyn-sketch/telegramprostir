@@ -1,4 +1,5 @@
 import { useAppStore } from '@/store/appStore'
+import { tr } from '@/lib/i18n'
 
 /**
  * Offline guard for event handlers / async actions (NOT render). When the app
@@ -12,10 +13,10 @@ import { useAppStore } from '@/store/appStore'
  * Replaces the inline `if (!isOnline) { showToast(...); return }` block that was
  * copy-pasted across ~24 sites.
  */
-export function offlineGuard(subtitle = 'Збереження недоступне офлайн'): boolean {
+export function offlineGuard(subtitle = tr('Збереження недоступне офлайн')): boolean {
   const { isOnline, showToast } = useAppStore.getState()
   if (!isOnline) {
-    showToast({ type: 'error', title: 'Немає інтернету', subtitle })
+    showToast({ type: 'error', title: tr('Немає інтернету'), subtitle })
     return true
   }
   return false

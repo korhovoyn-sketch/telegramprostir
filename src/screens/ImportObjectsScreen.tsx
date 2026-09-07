@@ -12,6 +12,7 @@ import { supabase } from '@/lib/supabase'
 import { sanitizeDecimal, objectsWord, STATUS_LABELS } from '@/lib/utils'
 import { IconFile, IconCheck, IconBan, IconLayoutGrid } from '@/components/Icons'
 import type { Property, PropertyStatus } from '@/types'
+import { tr } from '@/lib/i18n'
 
 /**
  * Рівно те, що приймає `createProperties`. Тип названий, а не приліплений
@@ -44,23 +45,23 @@ const MAX_FILE_MB = 5
 
 
 const FIELDS: { id: Field; label: string; aliases: string[] }[] = [
-  { id: 'name',           label: 'Назва',                 aliases: ['назва', 'name', 'обʼєкт', 'обєкт', 'объект', 'номер місця'] },
-  { id: 'floor',          label: 'Поверх',                aliases: ['поверх', 'floor', 'рівень'] },
-  { id: 'status',         label: 'Статус',                aliases: ['статус', 'status'] },
-  { id: 'tenant_name',    label: 'Орендар',               aliases: ['орендар', 'tenant', 'арендатор'] },
-  { id: 'landlord_name',  label: 'Орендодавець',          aliases: ['орендодавець', 'landlord'] },
-  { id: 'area_useful',    label: 'Площа корисна',         aliases: ['площа корисна (м²)', 'площа корисна', 'корисна площа', 'корисна'] },
-  { id: 'area_total',     label: 'Площа розрахункова',    aliases: ['площа розрахункова (м²)', 'площа розрахункова', 'розрахункова площа', 'загальна площа', 'розрахункова'] },
-  { id: 'area_basis',     label: 'База розрахунку',       aliases: ['база розрахунку', 'база'] },
-  { id: 'rent_rate',      label: 'Ставка оренди',         aliases: ['ставка оренди', 'ставка', 'оренда'] },
-  { id: 'rent_type',      label: 'Тип ставки',            aliases: ['тип ставки', 'тип оренди'] },
-  { id: 'utilities_rate', label: 'Ставка експлуатаційних', aliases: ['ставка експлуатаційних', 'експлуатаційні', 'комунальні'] },
-  { id: 'sale_price',     label: 'Ціна продажу',          aliases: ['ціна продажу', 'ціна'] },
-  { id: 'lease_start_date', label: 'Договір з',           aliases: ['договір з', 'початок договору'] },
-  { id: 'lease_end_date',   label: 'Договір до',          aliases: ['договір до', 'кінець договору'] },
-  { id: 'parking_spaces', label: 'Місць паркінгу',        aliases: ['місць паркінгу', 'паркомісць'] },
-  { id: 'address',        label: 'Адреса',                aliases: ['адреса', 'address'] },
-  { id: 'description',    label: 'Опис',                  aliases: ['опис', 'description', 'примітка'] },
+  { id: 'name',           label: tr('Назва'),                 aliases: ['назва', 'name', 'обʼєкт', 'обєкт', 'объект', 'номер місця'] },
+  { id: 'floor',          label: tr('Поверх'),                aliases: ['поверх', 'floor', 'рівень'] },
+  { id: 'status',         label: tr('Статус'),                aliases: ['статус', 'status'] },
+  { id: 'tenant_name',    label: tr('Орендар'),               aliases: ['орендар', 'tenant', 'арендатор'] },
+  { id: 'landlord_name',  label: tr('Орендодавець'),          aliases: ['орендодавець', 'landlord'] },
+  { id: 'area_useful',    label: tr('Площа корисна'),         aliases: ['площа корисна (м²)', 'площа корисна', 'корисна площа', 'корисна'] },
+  { id: 'area_total',     label: tr('Площа розрахункова'),    aliases: ['площа розрахункова (м²)', 'площа розрахункова', 'розрахункова площа', 'загальна площа', 'розрахункова'] },
+  { id: 'area_basis',     label: tr('База розрахунку'),       aliases: ['база розрахунку', 'база'] },
+  { id: 'rent_rate',      label: tr('Ставка оренди'),         aliases: ['ставка оренди', 'ставка', 'оренда'] },
+  { id: 'rent_type',      label: tr('Тип ставки'),            aliases: ['тип ставки', 'тип оренди'] },
+  { id: 'utilities_rate', label: tr('Ставка експлуатаційних'), aliases: ['ставка експлуатаційних', 'експлуатаційні', 'комунальні'] },
+  { id: 'sale_price',     label: tr('Ціна продажу'),          aliases: ['ціна продажу', 'ціна'] },
+  { id: 'lease_start_date', label: tr('Договір з'),           aliases: ['договір з', 'початок договору'] },
+  { id: 'lease_end_date',   label: tr('Договір до'),          aliases: ['договір до', 'кінець договору'] },
+  { id: 'parking_spaces', label: tr('Місць паркінгу'),        aliases: ['місць паркінгу', 'паркомісць'] },
+  { id: 'address',        label: tr('Адреса'),                aliases: ['адреса', 'address'] },
+  { id: 'description',    label: tr('Опис'),                  aliases: ['опис', 'description', 'примітка'] },
 ]
 
 /**
@@ -245,7 +246,7 @@ export default function ImportObjectsScreen() {
   const csvDrop = useFileDrop({
     accept: (f) => /\.csv$/i.test(f.name) || f.type === 'text/csv' || f.type === 'text/plain',
     onFiles: (files) => { void handleFile(files[0]) },
-    onRejected: () => showToast({ type: 'error', title: 'Потрібен CSV', subtitle: 'Перетягніть файл .csv' }),
+    onRejected: () => showToast({ type: 'error', title: tr('Потрібен CSV'), subtitle: tr('Перетягніть файл .csv') }),
   })
 
   async function handleFile(file: File) {
@@ -257,8 +258,8 @@ export default function ImportObjectsScreen() {
     // фото (20) і документів (10); імпорт лишався єдиним входом без неї.
     if (file.size > MAX_FILE_MB * 1024 * 1024) {
       showToast({
-        type: 'error', title: 'Файл завеликий',
-        subtitle: `Максимум ${MAX_FILE_MB} МБ — розділіть його на частини`,
+        type: 'error', title: tr('Файл завеликий'),
+        subtitle: tr('Максимум {0} МБ — розділіть його на частини', MAX_FILE_MB),
       })
       return
     }
@@ -266,13 +267,13 @@ export default function ImportObjectsScreen() {
     const grid = parseCsv(text)
     if (grid.length - 1 > MAX_ROWS) {
       showToast({
-        type: 'error', title: `Максимум ${MAX_ROWS} обʼєктів за раз`,
-        subtitle: `У файлі ${grid.length - 1} — розділіть його на частини`,
+        type: 'error', title: tr('Максимум {0} обʼєктів за раз', MAX_ROWS),
+        subtitle: tr('У файлі {0} — розділіть його на частини', grid.length - 1),
       })
       return
     }
     if (grid.length < 2) {
-      showToast({ type: 'error', title: 'Порожній файл', subtitle: 'Потрібен рядок заголовків і хоча б один обʼєкт' })
+      showToast({ type: 'error', title: tr('Порожній файл'), subtitle: tr('Потрібен рядок заголовків і хоча б один обʼєкт') })
       return
     }
     setFileName(file.name)
@@ -296,50 +297,49 @@ export default function ImportObjectsScreen() {
 
   return (
     <div className="scr bg-purple">
-      <Header title="Імпорт із CSV" subtitle={db?.name} backLabel="Назад" />
+      <Header title={tr('Імпорт із CSV')} subtitle={db?.name} backLabel={tr('Назад')} />
 
       <div className="body has-flow-cta">
         {!rows ? (
           <>
-            <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconFile size={14} color="var(--info)" />Файл</span></div>
+            <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconFile size={14} color="var(--info)" />{tr('Файл')}</span></div>
             <div
               className={`fg glass-s drop-zone${csvDrop.dropping ? ' dropping' : ''}`}
               {...csvDrop.dropProps}
               style={{ margin: '0 12px 16px', padding: 'var(--pad-card)' }}
             >
               <div style={{ fontSize: 'var(--fs-foot)', color: 'var(--t2)', lineHeight: 'var(--lh-relax)' }}>
-                Перший рядок — заголовки колонок. Якщо файл вивантажено з цього
-                застосунку, колонки зіставляться самі. Файл можна перетягнути сюди.
+                {tr('Перший рядок — заголовки колонок. Якщо файл вивантажено з цього застосунку, колонки зіставляться самі. Файл можна перетягнути сюди.')}
               </div>
               <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 8 }}>
-                Обовʼязкова лише «Назва». Обʼєкти з назвами, які вже є в базі, буде пропущено.
+                {tr('Обовʼязкова лише «Назва». Обʼєкти з назвами, які вже є в базі, буде пропущено.')}
               </div>
             </div>
             <input
               ref={fileRef}
               type="file"
               accept=".csv,text/csv,text/plain"
-              aria-label="Файл CSV"
+              aria-label={tr('Файл CSV')}
               style={{ display: 'none' }}
               onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleFile(f) }}
             />
             <button className="mbtn mbtn-flow" onClick={() => fileRef.current?.click()}>
-              Обрати файл
+              {tr('Обрати файл')}
             </button>
           </>
         ) : (
           <>
             <div className="over">
-              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconLayoutGrid size={14} color="var(--violet)" />Колонки</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconLayoutGrid size={14} color="var(--violet)" />{tr('Колонки')}</span>
               <span className="over-a">{fileName}</span>
             </div>
             <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
               {headers.map((h, i) => (
                 <div className="fr" key={i}>
-                  <span className="fr-l" style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h || `Колонка ${i + 1}`}</span>
+                  <span className="fr-l" style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h || tr('Колонка {0}', i + 1)}</span>
                   <select
                     className="fr-i"
-                    aria-label={`Куди імпортувати колонку «${h || i + 1}»`}
+                    aria-label={tr('Куди імпортувати колонку «{0}»', h || i + 1)}
                     value={mapping[i] ?? ''}
                     onChange={(e) => {
                       const v = (e.target.value || null) as Field | null
@@ -347,18 +347,18 @@ export default function ImportObjectsScreen() {
                     }}
                     style={{ marginLeft: 'auto', maxWidth: 190 }}
                   >
-                    <option value="">— не імпортувати —</option>
+                    <option value="">{tr('— не імпортувати —')}</option>
                     {FIELDS.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
                   </select>
                 </div>
               ))}
             </div>
 
-            <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconCheck size={14} color="var(--ok-fg)" />Буде імпортовано</span></div>
+            <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconCheck size={14} color="var(--ok-fg)" />{tr('Буде імпортовано')}</span></div>
             <div className="fg glass-s" style={{ margin: '0 12px 16px', padding: 'var(--pad-card)' }}>
               {nameCol < 0 ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--err-fg)', fontSize: 'var(--fs-foot)' }}>
-                  <IconBan size={14} />Вкажіть, яка колонка містить назву
+                  <IconBan size={14} />{tr('Вкажіть, яка колонка містить назву')}
                 </div>
               ) : (
                 <>
@@ -369,19 +369,19 @@ export default function ImportObjectsScreen() {
                       не дає жодного шляху дізнатись, що саме не заїхало. */}
                   {parsed.skipped.length > 0 && (
                     <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 6 }}>
-                      Пропущено (назва вже є): {parsed.skipped.slice(0, 8).join(', ')}
-                      {parsed.skipped.length > 8 ? ` та ще ${parsed.skipped.length - 8}` : ''}
+                      {tr('Пропущено (назва вже є):')}{' '}{parsed.skipped.slice(0, 8).join(', ')}
+                      {parsed.skipped.length > 8 ? tr(' та ще {0}', parsed.skipped.length - 8) : ''}
                     </div>
                   )}
                   {parsed.noName > 0 && (
                     <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 4 }}>
-                      Рядків без назви: {parsed.noName}
+                      {tr('Рядків без назви:')}{' '}{parsed.noName}
                     </div>
                   )}
                   {parsed.ok.length > 0 && (
                     <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 8 }}>
-                      Перший: {parsed.ok[0].name}
-                      {parsed.ok[0].floor ? ` · ${parsed.ok[0].floor} поверх` : ''}
+                      {tr('Перший:')}{' '}{parsed.ok[0].name}
+                      {parsed.ok[0].floor ? tr(' · {0} поверх', parsed.ok[0].floor) : ''}
                       {` · ${STATUS_LABELS[parsed.ok[0].status]}`}
                     </div>
                   )}
@@ -395,7 +395,7 @@ export default function ImportObjectsScreen() {
                 style={{ flex: 1 }}
                 onClick={() => { setRows(null); setFileName(''); if (fileRef.current) fileRef.current.value = '' }}
               >
-                Інший файл
+                {tr('Інший файл')}
               </button>
             </div>
             <button
@@ -404,7 +404,7 @@ export default function ImportObjectsScreen() {
               aria-busy={busy}
               onClick={handleImport}
             >
-              Імпортувати
+              {tr('Імпортувати')}
             </button>
           </>
         )}

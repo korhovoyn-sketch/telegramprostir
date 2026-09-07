@@ -1,6 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
+import { tr } from '@/lib/i18n'
 
 interface RetryStateProps {
   onRetry: () => void
@@ -18,13 +19,13 @@ interface RetryStateProps {
  * раз</button></div>` block that was copy-pasted across 8 screens. CSS lives in
  * globals.css (.retry-wrap/.retry-ic/.retry-h/.retry-s/.retry-btn).
  */
-export default function RetryState({ onRetry, title = 'Не вдалося завантажити', subtitle, icon = '📡' }: RetryStateProps) {
+export default function RetryState({ onRetry, title = tr('Не вдалося завантажити'), subtitle, icon = '📡' }: RetryStateProps) {
   return (
     <div className="retry-wrap">
       <div className="retry-ic">{icon}</div>
       <div className="retry-h">{title}</div>
       {subtitle != null && subtitle !== '' && <div className="retry-s">{subtitle}</div>}
-      <button className="retry-btn" onClick={onRetry}>Спробувати ще раз</button>
+      <button className="retry-btn" onClick={onRetry}>{tr('Спробувати ще раз')}</button>
     </div>
   )
 }

@@ -27,6 +27,7 @@ import type { Database, Property, PropertyStatus } from '@/types'
 import CoachMark from '@/components/ui/CoachMark'
 import { useOnboarding } from '@/hooks/useOnboarding'
 import { useHideOnScrollDown } from '@/hooks/useHideOnScrollDown'
+import { tr } from '@/lib/i18n'
 
 /**
  * Порція рендера списку. На модульному рівні, а не в тілі компонента: значення
@@ -147,9 +148,9 @@ export default function DatabaseObjectsScreen() {
   async function handleBatchDelete() {
     const n = selectedIds.size
     const ok = await confirmAction({
-      title: `Видалити ${n} ${objectsWord(n)}?`,
-      message: 'Всі вибрані обʼєкти і їхні фото будуть видалені. Це незворотно.',
-      confirmLabel: `Видалити (${n})`,
+      title: tr('Видалити {0} {1}?', n, objectsWord(n)),
+      message: tr('Всі вибрані обʼєкти і їхні фото будуть видалені. Це незворотно.'),
+      confirmLabel: tr('Видалити ({0})', n),
       destructive: true,
     })
     if (!ok) return
@@ -161,15 +162,15 @@ export default function DatabaseObjectsScreen() {
   async function handleDeleteDatabase() {
     if (!db) return
     const ok = await confirmAction({
-      title: 'Видалити базу?',
+      title: tr('Видалити базу?'),
       // Число узгоджується з дієсловом, а не приклеюється до сталого «будуть»:
       // «і всі 1 обʼєкт будуть видалені» — саме те, що показував кадр
       // підтвердження НАЙДЕСТРУКТИВНІШОЇ дії застосунку. Лапки — «ялинки», як
       // у решті текстів.
-      message: `Базу «${db.name}» і ${properties.length === 1
-        ? '1 обʼєкт буде видалено'
-        : `всі ${properties.length} ${objectsWord(properties.length)} буде видалено`}. Це незворотно.`,
-      confirmLabel: 'Видалити',
+      message: tr('Базу «{0}» і {1}. Це незворотно.', db.name, properties.length === 1
+        ? tr('1 обʼєкт буде видалено')
+        : tr('всі {0} {1} буде видалено', properties.length, objectsWord(properties.length))),
+      confirmLabel: tr('Видалити'),
       destructive: true,
     })
     if (!ok || offlineGuard()) return
@@ -363,7 +364,7 @@ export default function DatabaseObjectsScreen() {
       out.push({ key: f.id, id: f.id, name: f.name, items, count })
     }
     const noneCount = total.get('__none__') ?? 0
-    if (noneCount > 0) out.push({ key: '__none__', id: null, name: 'Без папки', items: none, count: noneCount })
+    if (noneCount > 0) out.push({ key: '__none__', id: null, name: tr('Без папки'), items: none, count: noneCount })
     return out
   }, [foldersEnabled, reorderMode, filtered, visible, folders, foldersById, search, tab])
 
@@ -372,11 +373,11 @@ export default function DatabaseObjectsScreen() {
 
   if (!db && dbFetchDone) return (
     <div className="scr bg-blue">
-      <Header title="База" backLabel="Назад" />
+      <Header title={tr('База')} backLabel={tr('Назад')} />
       <RetryState
         icon="🗄️"
-        title="Базу не знайдено"
-        subtitle="Можливо, її видалили, або в тебе більше немає до неї доступу."
+        title={tr('Базу не знайдено')}
+        subtitle={tr('Можливо, її видалили, або в тебе більше немає до неї доступу.')}
         onRetry={() => { setDbFetchDone(false); setDbRetryKey(k => k + 1) }}
       />
     </div>
@@ -430,8 +431,8 @@ export default function DatabaseObjectsScreen() {
             </div>
             <div className="row-s">
               {p.tenant_name?.trim() && <><IconBuilding size={14} color="var(--t3)" /><span>{p.name}</span></>}
-              {p.floor && <><IconLayers size={14} color="var(--t3)" /><span>{p.floor} пов.</span></>}
-              {p.area_useful && <><IconRuler size={14} color="var(--t3)" /><span>{p.area_useful} м²</span></>}
+              {p.floor && <><IconLayers size={14} color="var(--t3)" /><span>{p.floor} {tr('пов.')}</span></>}
+              {p.area_useful && <><IconRuler size={14} color="var(--t3)" /><span>{p.area_useful} {tr('м²')}</span></>}
             </div>
           </div>
           <div className="row-r">
@@ -493,7 +494,7 @@ export default function DatabaseObjectsScreen() {
             <button
               onClick={(e) => { e.stopPropagation(); hapticSelection(); reorderProperty(p.id, 'up') }}
               disabled={idx === 0}
-              aria-label="Вгору"
+              aria-label={tr('Вгору')}
               style={{
                 flex: 1, background: 'none', border: 'none', minHeight: 26,
                 color: idx === 0 ? 'rgba(255,255,255,.18)' : 'var(--t2)',
@@ -508,7 +509,7 @@ export default function DatabaseObjectsScreen() {
             <button
               onClick={(e) => { e.stopPropagation(); hapticSelection(); reorderProperty(p.id, 'down') }}
               disabled={idx === filtered.length - 1}
-              aria-label="Вниз"
+              aria-label={tr('Вниз')}
               style={{
                 flex: 1, background: 'none', border: 'none', minHeight: 26,
                 color: idx === filtered.length - 1 ? 'rgba(255,255,255,.18)' : 'var(--t2)',
@@ -532,7 +533,7 @@ export default function DatabaseObjectsScreen() {
               </div>
               {p.floor && (
                 <div style={{ fontSize: 'var(--fs-cap2)', color: 'var(--t3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 3 }}>
-                  <IconBuilding size={14} color="var(--t3)" />{p.floor} поверх
+                  <IconBuilding size={14} color="var(--t3)" />{p.floor} {tr('поверх')}
                 </div>
               )}
             </div>
@@ -549,10 +550,10 @@ export default function DatabaseObjectsScreen() {
                 </div>
                 {/* Один рядок фактів: поверх · площа — компактно, без розсипаної сітки */}
                 <div className="obj-s">
-                  {p.floor && <><IconBuilding size={14} color="var(--t3)" /><span>{p.floor} поверх</span></>}
+                  {p.floor && <><IconBuilding size={14} color="var(--t3)" /><span>{p.floor} {tr('поверх')}</span></>}
                   {p.area_useful != null && <>
                     {p.floor && <span className="obj-s-sep">·</span>}
-                    <IconRuler size={14} color="var(--t3)" /><span>{p.area_useful}/{p.area_total ?? p.area_useful} м²</span>
+                    <IconRuler size={14} color="var(--t3)" /><span>{p.area_useful}/{p.area_total ?? p.area_useful} {tr('м²')}</span>
                   </>}
                 </div>
               </div>
@@ -566,7 +567,7 @@ export default function DatabaseObjectsScreen() {
                 {!selectMode && !reorderMode && (
                   <button
                     className="obj-more"
-                    aria-label={`Дії з обʼєктом «${p.name}»`}
+                    aria-label={tr('Дії з обʼєктом «{0}»', p.name)}
                     onClick={(e) => { e.stopPropagation(); hapticSelection(); setActionsFor(p) }}
                   >
                     <IconDots size={18} />
@@ -608,7 +609,7 @@ export default function DatabaseObjectsScreen() {
                 {p.has_parking && (
                   <div className="obj-mt">
                     <IconParking size={14} color="var(--t3)" />
-                    <span>{p.parking_spaces} місць</span>
+                    <span>{p.parking_spaces} {tr('місць')}</span>
                   </div>
                 )}
                 {(p.photos?.length ?? 0) > 0 && (
@@ -626,8 +627,8 @@ export default function DatabaseObjectsScreen() {
                     <IconCurrencyDollar size={12} color="var(--ok-fg)" />
                   </span>
                   <div>
-                    <div className="obj-tot-l">{isDaily ? 'За добу' : 'На місяць'}</div>
-                    <div className="obj-tot-sub">{isDaily ? 'подобово' : rent > 0 && utils > 0 ? 'оренда + експлуатаційні' : rent > 0 ? 'оренда' : 'експлуатаційні'}</div>
+                    <div className="obj-tot-l">{isDaily ? tr('За добу') : tr('На місяць')}</div>
+                    <div className="obj-tot-sub">{isDaily ? tr('подобово') : rent > 0 && utils > 0 ? tr('оренда + експлуатаційні') : rent > 0 ? tr('оренда') : tr('експлуатаційні')}</div>
                   </div>
                 </div>
                 <div className="obj-tot-v">{formatPrice(dispVal, user?.currency)}</div>
@@ -644,18 +645,18 @@ export default function DatabaseObjectsScreen() {
       <Header
         title={db.name}
         subtitle={DB_TYPE_LABELS[db.type]}
-        backLabel="Бази"
+        backLabel={tr('Бази')}
         right={
           reorderMode ? (
             <button className="hdr-a" onClick={() => setReorderMode(false)} style={{ background: 'var(--ok-bg)', border: 'none', color: 'var(--ok-fg)', fontWeight: 'var(--fw-semi)', fontSize: 'var(--fs-foot)' }}>
-              Готово
+              {tr('Готово')}
             </button>
           ) : selectMode ? (
             <button className="hdr-a" onClick={exitSelectMode} style={{ background: 'none', border: 'var(--bd)', fontSize: 'var(--fs-foot)' }}>
-              Скасувати
+              {tr('Скасувати')}
             </button>
           ) : isOwner ? (
-            <button className="hdr-a" aria-label="Меню бази" onClick={() => setShowMenu(true)} style={{ background: 'none', border: 'var(--bd)' }}>
+            <button className="hdr-a" aria-label={tr('Меню бази')} onClick={() => setShowMenu(true)} style={{ background: 'none', border: 'var(--bd)' }}>
               <IconDots size={16} />
             </button>
           ) : <div className="hdr-sp" />
@@ -671,10 +672,10 @@ export default function DatabaseObjectsScreen() {
         {!reorderMode && (
           <div className="seg">
             {([
-              { id: 'all', label: `Всі (${counts.all})` },
-              { id: 'free', label: `Вільно (${counts.free})` },
-              { id: 'occupied', label: `Зайнято (${counts.occupied})` },
-              { id: 'for_sale', label: `Продаж (${counts.for_sale})` },
+              { id: 'all', label: tr('Всі ({0})', counts.all) },
+              { id: 'free', label: tr('Вільно ({0})', counts.free) },
+              { id: 'occupied', label: tr('Зайнято ({0})', counts.occupied) },
+              { id: 'for_sale', label: tr('Продаж ({0})', counts.for_sale) },
             ] as const).map((t) => (
               <div
                 key={t.id}
@@ -689,7 +690,7 @@ export default function DatabaseObjectsScreen() {
 
         {/* Search — hidden while reordering */}
         {!reorderMode && (
-          <SearchBar value={search} onChange={setSearch} placeholder="Пошук обʼєкту..." />
+          <SearchBar value={search} onChange={setSearch} placeholder={tr('Пошук обʼєкту...')} />
         )}
 
         {/* Sort + view toggle — one row: chips scroll left, toggle pinned right */}
@@ -699,10 +700,10 @@ export default function DatabaseObjectsScreen() {
               <div className="sort-scroll" style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6, overflowX: 'auto', paddingBottom: 2 }}>
                 <span style={{ display: 'flex', flexShrink: 0 }}><IconActivity size={12} color="var(--t4)" /></span>
                 {([
-                  { id: 'default', label: 'За порядком' },
-                  { id: 'floor',   label: 'За поверхом' },
-                  { id: 'rent',    label: 'За орендою'  },
-                  { id: 'area',    label: 'За площею'   },
+                  { id: 'default', label: tr('За порядком') },
+                  { id: 'floor',   label: tr('За поверхом') },
+                  { id: 'rent',    label: tr('За орендою')  },
+                  { id: 'area',    label: tr('За площею')   },
                 ] as const).map(opt => (
                   <button
                     key={opt.id}
@@ -724,10 +725,10 @@ export default function DatabaseObjectsScreen() {
             ) : <div style={{ flex: 1 }} />}
             {/* Icon-only view switch — compact, no labels */}
             <div className="view-seg">
-              <button className={`view-seg-b ${!statusCompact ? 'on' : ''}`} aria-label="Картки" onClick={() => toggleStatusCompact(false)}>
+              <button className={`view-seg-b ${!statusCompact ? 'on' : ''}`} aria-label={tr('Картки')} onClick={() => toggleStatusCompact(false)}>
                 <IconLayoutGrid size={16} />
               </button>
-              <button className={`view-seg-b ${statusCompact ? 'on' : ''}`} aria-label="Компактно" onClick={() => toggleStatusCompact(true)}>
+              <button className={`view-seg-b ${statusCompact ? 'on' : ''}`} aria-label={tr('Компактно')} onClick={() => toggleStatusCompact(true)}>
                 <IconLayers size={16} />
               </button>
             </div>
@@ -743,12 +744,12 @@ export default function DatabaseObjectsScreen() {
         {/* Mode hints */}
         {reorderMode && (
           <div style={{ padding: '8px 16px', fontSize: 'var(--fs-cap1)', color: 'var(--t3)', textAlign: 'center' }}>
-            Натисніть ↑ або ↓ щоб змінити позицію обʼєкта
+            {tr('Натисніть ↑ або ↓ щоб змінити позицію обʼєкта')}
           </div>
         )}
         {selectMode && (
           <div style={{ padding: '6px 16px', fontSize: 'var(--fs-cap1)', color: 'var(--t3)', textAlign: 'center', display: 'flex', justifyContent: 'center', gap: 12 }}>
-            <span>Оберіть обʼєкти для дії</span>
+            <span>{tr('Оберіть обʼєкти для дії')}</span>
             {filtered.length > 0 && (
               <button
                 onClick={() => {
@@ -758,7 +759,7 @@ export default function DatabaseObjectsScreen() {
                 }}
                 style={{ background: 'none', border: 'none', color: 'var(--accent)', fontSize: 'var(--fs-cap1)', cursor: 'pointer', padding: 0 }}
               >
-                {filtered.every(p => selectedIds.has(p.id)) ? 'Зняти все' : 'Вибрати все'}
+                {filtered.every(p => selectedIds.has(p.id)) ? tr('Зняти все') : tr('Вибрати все')}
               </button>
             )}
           </div>
@@ -772,27 +773,27 @@ export default function DatabaseObjectsScreen() {
         ) : filtered.length === 0 && properties.length === 0 ? (
           <div className="empty-state" style={{ paddingTop: 24 }}>
             <div className="empty-ic">🏢</div>
-            <div className="empty-h">Немає обʼєктів</div>
-            <div className="empty-s">{isOwner ? 'Натисни + щоб додати перший обʼєкт' : 'У цій базі поки немає обʼєктів'}</div>
+            <div className="empty-h">{tr('Немає обʼєктів')}</div>
+            <div className="empty-s">{isOwner ? tr('Натисни + щоб додати перший обʼєкт') : tr('У цій базі поки немає обʼєктів')}</div>
             {isOwner && (
               <button
                 className="mbtn success mbtn-flow"
                 onClick={() => navigate('property-form', { dbId: screenParams.dbId })}
               >
-                Додати перший обʼєкт
+                {tr('Додати перший обʼєкт')}
               </button>
             )}
           </div>
         ) : filtered.length === 0 && search ? (
           <div className="empty-state" style={{ paddingTop: 24 }}>
             <div className="empty-ic">🔍</div>
-            <div className="empty-h">Нічого не знайдено</div>
-            <div className="empty-s">Немає результатів для &quot;{search}&quot;</div>
+            <div className="empty-h">{tr('Нічого не знайдено')}</div>
+            <div className="empty-s">{tr('Немає результатів для "')}{search}&quot;</div>
             <button
               style={{ marginTop: 16, padding: '8px 20px', borderRadius: 'var(--r-pill)', background: 'var(--glass-2)', border: 'var(--bd)', color: 'var(--t2)', fontSize: 'var(--fs-foot)', cursor: 'pointer' }}
               onClick={() => setSearch('')}
             >
-              Очистити пошук
+              {tr('Очистити пошук')}
             </button>
           </div>
         ) : filtered.length === 0 ? (
@@ -801,14 +802,14 @@ export default function DatabaseObjectsScreen() {
           <div className="empty-state" style={{ paddingTop: 24 }}>
             <div className="empty-ic">{tab === 'free' ? '🟢' : tab === 'occupied' ? '🔑' : '🏷️'}</div>
             <div className="empty-h">
-              {tab === 'free' ? 'Немає вільних обʼєктів' : tab === 'occupied' ? 'Немає зайнятих обʼєктів' : 'Немає обʼєктів на продаж'}
+              {tab === 'free' ? tr('Немає вільних обʼєктів') : tab === 'occupied' ? tr('Немає зайнятих обʼєктів') : tr('Немає обʼєктів на продаж')}
             </div>
-            <div className="empty-s">Усього в базі — {properties.length} {objectsWord(properties.length)}</div>
+            <div className="empty-s">{tr('Усього в базі —')}{' '}{properties.length} {objectsWord(properties.length)}</div>
             <button
               style={{ marginTop: 16, padding: '8px 20px', borderRadius: 'var(--r-pill)', background: 'var(--glass-2)', border: 'var(--bd)', color: 'var(--t2)', fontSize: 'var(--fs-foot)', cursor: 'pointer' }}
               onClick={() => { hapticSelection(); setTab('all') }}
             >
-              Показати всі
+              {tr('Показати всі')}
             </button>
           </div>
         ) : sections ? (
@@ -864,15 +865,15 @@ export default function DatabaseObjectsScreen() {
           raised
           hidden={fabHidden}
           icon={<IconPlus size={14} />}
-          label="Додати обʼєкт"
+          label={tr('Додати обʼєкт')}
           onClick={() => navigate('property-form', { dbId: db.id })}
         />
       )}
 
       {isOwner && !fabSeen && !reorderMode && !selectMode && !loading && (
         <CoachMark
-          title="Додайте перший обʼєкт"
-          body="Натисніть +, щоб внести квартиру, офіс або приміщення з площею, статусом та орендою."
+          title={tr('Додайте перший обʼєкт')}
+          body={tr('Натисніть +, щоб внести квартиру, офіс або приміщення з площею, статусом та орендою.')}
           targetRef={fabRef}
           placement="above"
           onDone={markFabSeen}
@@ -885,23 +886,23 @@ export default function DatabaseObjectsScreen() {
       )}
       {isOwner && selectMode && selectedIds.size > 0 && (
         <div className="batchbar">
-          <span className="batchbar-n">{selectedIds.size} обрано</span>
+          <span className="batchbar-n">{selectedIds.size} {tr('обрано')}</span>
           <div className="batch-scroll">
             {!foldersUnavailable && (
               <button className="batch-pill" onClick={openFolderPicker}>
-                <IconFolder size={14} /> У папку
+                <IconFolder size={14} /> {tr('У папку')}
               </button>
             )}
             <button className="batch-pill" onClick={openDbPicker}>
-              <IconBuilding size={14} /> В базу
+              <IconBuilding size={14} /> {tr('В базу')}
             </button>
-            <button className="batch-pill ok" onClick={() => handleBatchStatus('free')}>Вільно</button>
-            <button className="batch-pill warn" onClick={() => handleBatchStatus('occupied')}>Зайнято</button>
-            <button className="batch-pill info" onClick={() => handleBatchStatus('for_sale')}>Продаж</button>
+            <button className="batch-pill ok" onClick={() => handleBatchStatus('free')}>{tr('Вільно')}</button>
+            <button className="batch-pill warn" onClick={() => handleBatchStatus('occupied')}>{tr('Зайнято')}</button>
+            <button className="batch-pill info" onClick={() => handleBatchStatus('for_sale')}>{tr('Продаж')}</button>
           </div>
           <button
             className="batch-pill err"
-            aria-label={`Видалити ${selectedIds.size} ${objectsWord(selectedIds.size)}`}
+            aria-label={tr('Видалити {0} {1}', selectedIds.size, objectsWord(selectedIds.size))}
             onClick={handleBatchDelete}
           >
             <IconTrash size={16} />
@@ -919,28 +920,28 @@ export default function DatabaseObjectsScreen() {
         <ActionSheet
           open={showMenu}
           title={db.name}
-          subtitle="Дії з базою"
+          subtitle={tr('Дії з базою')}
           onClose={() => setShowMenu(false)}
-          actions={[{ label: 'Скасувати', variant: 'secondary', onClick: () => setShowMenu(false) }]}
+          actions={[{ label: tr('Скасувати'), variant: 'secondary', onClick: () => setShowMenu(false) }]}
         >
           <div className="sheet-group">
             {[
               // …але шаринг/гості/команда — тільки для справжнього власника
               ...(db.owner_id === user?.id ? [
-                { Icon: IconChartBar,  label: 'Аналітика і поширення', nav: true,  danger: false, action: () => { setShowMenu(false); navigate('sharing-analytics', { dbId: db.id }) } },
+                { Icon: IconChartBar,  label: tr('Аналітика і поширення'), nav: true,  danger: false, action: () => { setShowMenu(false); navigate('sharing-analytics', { dbId: db.id }) } },
               ] : []),
-              { Icon: IconCalendar,    label: 'Календар платежів',     nav: true,  danger: false, action: () => { setShowMenu(false); navigate('payment-calendar', { dbId: db.id }) } },
+              { Icon: IconCalendar,    label: tr('Календар платежів'),     nav: true,  danger: false, action: () => { setShowMenu(false); navigate('payment-calendar', { dbId: db.id }) } },
               ...(db.owner_id === user?.id ? [
-                { Icon: IconKey,       label: 'Управління гостями',    nav: true,  danger: false, action: () => { setShowMenu(false); navigate('manage-guests', { dbId: db.id }) } },
-                { Icon: IconUsers,     label: 'Команда',               nav: true,  danger: false, action: () => { setShowMenu(false); navigate('team', { dbId: db.id }) } },
+                { Icon: IconKey,       label: tr('Управління гостями'),    nav: true,  danger: false, action: () => { setShowMenu(false); navigate('manage-guests', { dbId: db.id }) } },
+                { Icon: IconUsers,     label: tr('Команда'),               nav: true,  danger: false, action: () => { setShowMenu(false); navigate('team', { dbId: db.id }) } },
               ] : []),
-              { Icon: IconFileExport,  label: 'Експорт',               nav: true,  danger: false, action: () => { setShowMenu(false); navigate('export', { dbId: db.id }) } },
-              { Icon: IconFileExport,  label: 'Імпорт із CSV',         nav: true,  danger: false, action: () => { setShowMenu(false); navigate('import-objects', { dbId: db.id }) } },
+              { Icon: IconFileExport,  label: tr('Експорт'),               nav: true,  danger: false, action: () => { setShowMenu(false); navigate('export', { dbId: db.id }) } },
+              { Icon: IconFileExport,  label: tr('Імпорт із CSV'),         nav: true,  danger: false, action: () => { setShowMenu(false); navigate('import-objects', { dbId: db.id }) } },
               ...(!foldersUnavailable ? [
-                { Icon: IconFolder,    label: 'Папки',                 nav: false, danger: false, action: () => { setShowMenu(false); navigate('folder-manage', { dbId: screenParams.dbId }) } },
+                { Icon: IconFolder,    label: tr('Папки'),                 nav: false, danger: false, action: () => { setShowMenu(false); navigate('folder-manage', { dbId: screenParams.dbId }) } },
               ] : []),
-              { Icon: IconCircleCheck, label: 'Виділити обʼєкти',      nav: false, danger: false, action: enterSelectMode },
-              { Icon: IconAdjustments, label: 'Змінити порядок',       nav: false, danger: false, action: enterReorderMode },
+              { Icon: IconCircleCheck, label: tr('Виділити обʼєкти'),      nav: false, danger: false, action: enterSelectMode },
+              { Icon: IconAdjustments, label: tr('Змінити порядок'),       nav: false, danger: false, action: enterReorderMode },
               // Редагування й видалення САМОЇ бази — теж owner-only (як шаринг/гості/команда
               // вище): редактор команди має лише CRUD обʼєктів/фото/файлів/платежів
               // (041), а не право стерти чи перейменувати чужу базу. Без цього гейту
@@ -948,8 +949,8 @@ export default function DatabaseObjectsScreen() {
               // але storage-політика редактора ВСЕ ОДНО дозволяє видалити всі фото
               // бази — тож клієнт репортував би фальшивий успіх, стерши лише фотографії.
               ...(db.owner_id === user?.id ? [
-                { Icon: IconEdit,      label: 'Редагувати базу',       nav: true,  danger: false, action: () => { setShowMenu(false); navigate('edit-db', { dbId: db.id }) } },
-                { Icon: IconTrash,     label: 'Видалити базу',         nav: false, danger: true,  action: () => { setShowMenu(false); void handleDeleteDatabase() } },
+                { Icon: IconEdit,      label: tr('Редагувати базу'),       nav: true,  danger: false, action: () => { setShowMenu(false); navigate('edit-db', { dbId: db.id }) } },
+                { Icon: IconTrash,     label: tr('Видалити базу'),         nav: false, danger: true,  action: () => { setShowMenu(false); void handleDeleteDatabase() } },
               ] : []),
             ].map(({ Icon, label, nav, danger, action }) => (
               <button key={label} type="button" className={`sheet-row${danger ? ' danger' : ''}`} onClick={action}>
@@ -968,20 +969,20 @@ export default function DatabaseObjectsScreen() {
         <ActionSheet
           open={!!actionsFor}
           title={sheetProp?.name ?? ''}
-          subtitle="Дії з обʼєктом"
+          subtitle={tr('Дії з обʼєктом')}
           onClose={() => setActionsFor(null)}
-          actions={[{ label: 'Скасувати', variant: 'secondary', onClick: () => setActionsFor(null) }]}
+          actions={[{ label: tr('Скасувати'), variant: 'secondary', onClick: () => setActionsFor(null) }]}
         >
           <div className="sheet-group">
             {sheetProp && [
               ...(isOwner ? [
-                { Icon: IconEdit,   label: 'Редагувати', action: () => { setActionsFor(null); navigate('property-form', { propertyId: sheetProp.id, dbId: screenParams.dbId }) } },
-                { Icon: IconCopy,   label: 'Дублювати',  action: () => { setActionsFor(null); navigate('property-form', { dbId: screenParams.dbId, duplicateId: sheetProp.id }) } },
+                { Icon: IconEdit,   label: tr('Редагувати'), action: () => { setActionsFor(null); navigate('property-form', { propertyId: sheetProp.id, dbId: screenParams.dbId }) } },
+                { Icon: IconCopy,   label: tr('Дублювати'),  action: () => { setActionsFor(null); navigate('property-form', { dbId: screenParams.dbId, duplicateId: sheetProp.id }) } },
               ] : []),
               ...(sheetProp.status === 'occupied' ? [
-                { Icon: IconCalendar, label: 'Платежі',  action: () => { setActionsFor(null); navigate('payment-calendar', { propertyId: sheetProp.id, dbId: screenParams.dbId }) } },
+                { Icon: IconCalendar, label: tr('Платежі'),  action: () => { setActionsFor(null); navigate('payment-calendar', { propertyId: sheetProp.id, dbId: screenParams.dbId }) } },
               ] : []),
-              { Icon: IconFile,     label: 'Файли',      action: () => { setActionsFor(null); navigate('property-detail', { propertyId: sheetProp.id, dbId: screenParams.dbId, scrollTo: 'files' }) } },
+              { Icon: IconFile,     label: tr('Файли'),      action: () => { setActionsFor(null); navigate('property-detail', { propertyId: sheetProp.id, dbId: screenParams.dbId, scrollTo: 'files' }) } },
             ].map(({ Icon, label, action }) => (
               <button key={label} type="button" className="sheet-row" onClick={action}>
                 <span className="sheet-ic"><Icon size={16} /></span>

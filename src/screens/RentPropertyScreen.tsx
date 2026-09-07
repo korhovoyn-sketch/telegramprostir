@@ -14,6 +14,7 @@ import {
   sanitizeDecimal, scrollFocusedIntoView, calcRentUtils,
   currencySymbol, rentUnitLabel, formatPrice,
 } from '@/lib/utils'
+import { tr } from '@/lib/i18n'
 
 /**
  * Повноекранна форма «Здати в оренду» — заміна останнього `<Modal>` із полями
@@ -59,7 +60,7 @@ export default function RentPropertyScreen() {
   if (loading && !property) {
     return (
       <div className="scr bg-blue">
-        <Header title="Здати в оренду" onBack={back} />
+        <Header title={tr('Здати в оренду')} onBack={back} />
         <div className="body"><SkeletonLoader rows={3} rowHeight={69} /></div>
       </div>
     )
@@ -67,11 +68,11 @@ export default function RentPropertyScreen() {
   if (error || !property) {
     return (
       <div className="scr bg-blue">
-        <Header title="Здати в оренду" onBack={back} />
+        <Header title={tr('Здати в оренду')} onBack={back} />
         <div className="body">
           <RetryState
-            title="Не вдалося завантажити обʼєкт"
-            subtitle={error ?? 'Обʼєкт не знайдено'}
+            title={tr('Не вдалося завантажити обʼєкт')}
+            subtitle={error ?? tr('Обʼєкт не знайдено')}
             onRetry={() => { if (propertyId) void loadSingleProperty(propertyId) }}
           />
         </div>
@@ -96,14 +97,14 @@ export default function RentPropertyScreen() {
   )
   const previewTotal = property.rent_type === 'per_day' ? 0 : preview.total
   const rateUnit = `${currencySymbol(user?.currency)}${rentUnitLabel(property.rent_type)}`
-  const utilUnit = `${currencySymbol(user?.currency)}${isParking ? '/міс' : '/м²'}`
+  const utilUnit = tr('{0}{1}', currencySymbol(user?.currency), isParking ? tr('/міс') : tr('/м²'))
 
   async function handleSubmit() {
     if (!property || !tenantName.trim() || saving) return
     // Те саме правило, що в PropertyFormScreen: договір не може закінчуватись
     // раніше, ніж почався.
     if (leaseStart && leaseEnd && leaseEnd < leaseStart) {
-      showToast({ type: 'error', title: 'Дата закінчення оренди раніше початку' })
+      showToast({ type: 'error', title: tr('Дата закінчення оренди раніше початку') })
       return
     }
     if (offlineGuard()) return
@@ -120,25 +121,25 @@ export default function RentPropertyScreen() {
     }, { silent: true })
     setSaving(false)
     if (!ok) {
-      showToast({ type: 'error', title: 'Не вдалося здати в оренду' })
+      showToast({ type: 'error', title: tr('Не вдалося здати в оренду') })
       return
     }
     hapticNotify('success')
-    showToast({ type: 'success', title: 'Обʼєкт здано в оренду' })
+    showToast({ type: 'success', title: tr('Обʼєкт здано в оренду') })
     back()
   }
 
   return (
     <div className="scr bg-blue">
-      <Header title="Здати в оренду" subtitle={property.name} onBack={back} />
+      <Header title={tr('Здати в оренду')} subtitle={property.name} onBack={back} />
 
       <div className="body has-flow-cta" onFocusCapture={scrollFocusedIntoView}>
         <div className="fld-row">
           <div className="fld">
-            <div className="fld-l"><IconUser size={12} />Орендар</div>
+            <div className="fld-l"><IconUser size={12} />{tr('Орендар')}</div>
             <input
-              aria-label="Орендар"
-              placeholder="ТОВ «Назва» або ФОП"
+              aria-label={tr('Орендар')}
+              placeholder={tr('ТОВ «Назва» або ФОП')}
               value={tenantName}
               onChange={e => setTenantName(e.target.value)}
             />
@@ -149,10 +150,10 @@ export default function RentPropertyScreen() {
               «Експлуатаційні, $/м²» не вміщалась і ellipsis зʼїдав саму одиницю,
               тобто користувач не бачив, ЩО вводить. */}
           <div className="fld">
-            <div className="fld-l"><IconCurrencyDollar size={12} />Оренда</div>
+            <div className="fld-l"><IconCurrencyDollar size={12} />{tr('Оренда')}</div>
             <div className="fld-v">
               <input
-                aria-label="Орендна ставка"
+                aria-label={tr('Орендна ставка')}
                 type="text"
                 inputMode="decimal"
                 placeholder="0"
@@ -163,10 +164,10 @@ export default function RentPropertyScreen() {
             </div>
           </div>
           <div className="fld">
-            <div className="fld-l"><IconBolt size={12} />Експлуатаційні</div>
+            <div className="fld-l"><IconBolt size={12} />{tr('Експлуатаційні')}</div>
             <div className="fld-v">
               <input
-                aria-label="Ставка експлуатаційних"
+                aria-label={tr('Ставка експлуатаційних')}
                 type="text"
                 inputMode="decimal"
                 placeholder="0"
@@ -179,9 +180,9 @@ export default function RentPropertyScreen() {
         </div>
         <div className="fld-row">
           <div className="fld">
-            <div className="fld-l"><IconKey size={12} />Договір з</div>
+            <div className="fld-l"><IconKey size={12} />{tr('Договір з')}</div>
             <input
-              aria-label="Договір від"
+              aria-label={tr('Договір від')}
               type="date"
               value={leaseStart}
               onChange={e => setLeaseStart(e.target.value)}
@@ -189,9 +190,9 @@ export default function RentPropertyScreen() {
             />
           </div>
           <div className="fld">
-            <div className="fld-l"><IconKey size={12} />Договір до</div>
+            <div className="fld-l"><IconKey size={12} />{tr('Договір до')}</div>
             <input
-              aria-label="Договір до"
+              aria-label={tr('Договір до')}
               type="date"
               value={leaseEnd}
               onChange={e => setLeaseEnd(e.target.value)}
@@ -202,7 +203,7 @@ export default function RentPropertyScreen() {
 
         {previewTotal > 0 && (
           <div className="rent-sum">
-            <span>Разом на місяць</span>
+            <span>{tr('Разом на місяць')}</span>
             <span className="rent-sum-v">{formatPrice(previewTotal, user?.currency)}</span>
           </div>
         )}
@@ -213,7 +214,7 @@ export default function RentPropertyScreen() {
           aria-busy={saving}
           onClick={() => void handleSubmit()}
         >
-          Здати в оренду
+          {tr('Здати в оренду')}
         </button>
       </div>
     </div>

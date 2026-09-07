@@ -7,6 +7,7 @@ import { monthlyRent, basisArea, calcRentUtils, humanizeDbError } from '@/lib/ut
 import { assertAffected } from '@/lib/dbWrite'
 import { readSnapshot, writeSnapshot } from '@/lib/snapshot'
 import type { Database } from '@/types'
+import { tr } from '@/lib/i18n'
 
 // Single source of truth for the databases column list — keeps loadDatabases,
 // createDatabase and updateDatabase from drifting apart.
@@ -165,7 +166,7 @@ export function useDatabases() {
         if (mErr) {
           showToast({
             type: 'error',
-            title: 'Бази команди не завантажились',
+            title: tr('Бази команди не завантажились'),
             subtitle: humanizeDbError(mErr),
           })
         }
@@ -204,7 +205,7 @@ export function useDatabases() {
     } catch (e) {
       const msg = humanizeDbError(e)
       setError(msg)
-      showToast({ type: 'error', title: 'Помилка завантаження', subtitle: msg })
+      showToast({ type: 'error', title: tr('Помилка завантаження'), subtitle: msg })
     } finally {
       setLoading(false)
     }
@@ -229,11 +230,11 @@ export function useDatabases() {
       if (error) throw error
 
       setDatabases([data as Database, ...databases])
-      showToast({ type: 'success', title: 'Базу створено' })
+      showToast({ type: 'success', title: tr('Базу створено') })
       if (opts?.navigate !== false) backThenReplace('db-objects', { dbId: data.id })
       return data as Database
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
+      showToast({ type: 'error', title: tr('Помилка'), subtitle: humanizeDbError(e) })
       return null
     } finally {
       setLoading(false)
@@ -255,10 +256,10 @@ export function useDatabases() {
       if (error) throw error
 
       setDatabases(databases.map((d) => (d.id === id ? { ...d, ...data } : d)))
-      showToast({ type: 'success', title: 'Базу оновлено' })
+      showToast({ type: 'success', title: tr('Базу оновлено') })
       return true
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
+      showToast({ type: 'error', title: tr('Помилка'), subtitle: humanizeDbError(e) })
       return false
     } finally {
       setLoading(false)
@@ -303,7 +304,7 @@ export function useDatabases() {
         .eq('id', id)
         .select('id')
       if (error) throw error
-      assertAffected(deleted, 1, 'видалення бази')
+      assertAffected(deleted, 1, tr('видалення бази'))
 
       // Рядок доведено видалений — тепер прибирання файлів безпечне.
       if (paths.photos.length > 0) {
@@ -314,13 +315,13 @@ export function useDatabases() {
       }
 
       setDatabases(databases.filter((d) => d.id !== id))
-      showToast({ type: 'success', title: 'Базу видалено' })
+      showToast({ type: 'success', title: tr('Базу видалено') })
       // backThenReplace, не navigate: поточний екран (db-objects тієї ж бази)
       // інакше лишався б у history — Back після видалення повертав би на
       // спінер бази, якої вже нема (той самий клас, що і в deleteProperty).
       backThenReplace('db-list')
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
+      showToast({ type: 'error', title: tr('Помилка'), subtitle: humanizeDbError(e) })
     } finally {
       setLoading(false)
     }

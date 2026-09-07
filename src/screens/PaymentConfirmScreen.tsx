@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase'
 import { sanitizeDecimal, scrollFocusedIntoView, humanizeDbError, currencySymbol } from '@/lib/utils'
 import { RENT_PAYMENT_RECORD_COLUMNS, expectedRent, fmtDueDate } from '@/lib/rentPayments'
 import type { RentPaymentRecord } from '@/types'
+import { tr } from '@/lib/i18n'
 
 /**
  * Повноекранна форма підтвердження платежу — заміна колишньої `<Modal>` у
@@ -100,10 +101,10 @@ export default function PaymentConfirmScreen() {
         )
         .select(RENT_PAYMENT_RECORD_COLUMNS).single()
       if (error) throw error
-      showToast({ type: 'success', title: 'Платіж підтверджено' })
+      showToast({ type: 'success', title: tr('Платіж підтверджено') })
       back()
     } catch (e) {
-      showToast({ type: 'error', title: 'Платіж не зберігся', subtitle: humanizeDbError(e) })
+      showToast({ type: 'error', title: tr('Платіж не зберігся'), subtitle: humanizeDbError(e) })
     } finally {
       setSaving(false)
     }
@@ -111,10 +112,10 @@ export default function PaymentConfirmScreen() {
 
   if (!property && propError) return (
     <div className="scr bg-teal">
-      <Header title="Платіж" backLabel="Назад" />
+      <Header title={tr('Платіж')} backLabel={tr('Назад')} />
       <RetryState
         icon="🏚️"
-        title="Обʼєкт не знайдено"
+        title={tr('Обʼєкт не знайдено')}
         subtitle={propError}
         onRetry={() => propertyId && loadSingleProperty(propertyId)}
       />
@@ -123,7 +124,7 @@ export default function PaymentConfirmScreen() {
 
   if (!property || propLoading || recordLoading) return (
     <div className="scr bg-teal">
-      <Header title="Платіж" backLabel="Назад" />
+      <Header title={tr('Платіж')} backLabel={tr('Назад')} />
       <div className="loader-wrap">
         <div className="loader" />
       </div>
@@ -132,7 +133,7 @@ export default function PaymentConfirmScreen() {
 
   if (recordError) return (
     <div className="scr bg-teal">
-      <Header title="Платіж" subtitle={property.name} backLabel="Назад" />
+      <Header title={tr('Платіж')} subtitle={property.name} backLabel={tr('Назад')} />
       <RetryState subtitle={recordError} onRetry={loadRecord} />
     </div>
   )
@@ -145,9 +146,9 @@ export default function PaymentConfirmScreen() {
           204px проти 202px, тобто заголовок обрізався в «…отриман…». Обʼєкт дії
           і так каже підзаголовок, тож у заголовку лишається коротке. */}
       <Header
-        title={isPaid ? 'Редагувати платіж' : 'Підтвердити платіж'}
+        title={isPaid ? tr('Редагувати платіж') : tr('Підтвердити платіж')}
         subtitle={dueDate ? `${property.name} · ${fmtDueDate(dueDate)}` : property.name}
-        backLabel="Назад"
+        backLabel={tr('Назад')}
       />
 
       <div className="body has-flow-cta" onFocusCapture={scrollFocusedIntoView}>
@@ -160,16 +161,16 @@ export default function PaymentConfirmScreen() {
             перехід на `.fr` у фазі 2 був регресією. */}
         <div style={{ margin: '0 12px 16px' }}>
           <div className="fld">
-            <div className="fld-l">Сума отриманого платежу</div>
+            <div className="fld-l">{tr('Сума отриманого платежу')}</div>
             {/* Позначка валюти обовʼязкова: це єдине грошове поле застосунку,
                 і без неї воно показувало голе число там, де решта поверхонь
                 пише «$2 498». Символ — із профілю (`currencySymbol`), а не
                 літерал: власник може вести ціни в ₴ або €. */}
             <div className="fld-v">
               <input
-                aria-label="Сума отриманого платежу"
+                aria-label={tr('Сума отриманого платежу')}
                 type="text" inputMode="decimal"
-                placeholder="Введіть суму..."
+                placeholder={tr('Введіть суму...')}
                 value={amount}
                 onChange={e => setAmount(sanitizeDecimal(e.target.value))}
               />
@@ -177,11 +178,11 @@ export default function PaymentConfirmScreen() {
             </div>
           </div>
           <div className="fld" style={{ marginTop: 10 }}>
-            <div className="fld-l">Нотатка (необовʼязково)</div>
+            <div className="fld-l">{tr('Нотатка (необовʼязково)')}</div>
             <input
-              aria-label="Нотатка до платежу"
+              aria-label={tr('Нотатка до платежу')}
               type="text"
-              placeholder="Готівка, переказ, часткова оплата..."
+              placeholder={tr('Готівка, переказ, часткова оплата...')}
               value={notes}
               onChange={e => setNotes(e.target.value)}
               maxLength={200}
@@ -195,7 +196,7 @@ export default function PaymentConfirmScreen() {
           disabled={amountInvalid || saving}
           aria-busy={saving}
         >
-          {isPaid ? 'Зберегти зміни' : 'Підтвердити'}
+          {isPaid ? tr('Зберегти зміни') : tr('Підтвердити')}
         </button>
       </div>
     </div>

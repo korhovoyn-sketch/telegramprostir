@@ -8,6 +8,7 @@ import { uploadPropertyPhoto } from '@/lib/photoUpload'
 import Header from '@/components/ui/Header'
 import { humanizeDbError } from '@/lib/utils'
 import { IconCheck, IconX } from '@/components/Icons'
+import { tr } from '@/lib/i18n'
 
 /* eslint-disable @next/next/no-img-element */
 
@@ -56,7 +57,7 @@ export default function PhotoUploadScreen() {
   useEffect(() => {
     if (!done || backedRef.current) return
     if (doneCount > 0) {
-      showToast({ type: 'success', title: `${doneCount} фото завантажено` })
+      showToast({ type: 'success', title: tr('{0} фото завантажено', doneCount) })
     }
     const timer = setTimeout(() => {
       backedRef.current = true
@@ -80,15 +81,15 @@ export default function PhotoUploadScreen() {
       // не перевіряє, drop-зона теж.
       if (rawFiles.length > 0) {
         showToast({
-          type: 'error', title: 'Не підійшов жоден файл',
-          subtitle: `Потрібні JPG, PNG або WebP до ${MAX_MB} МБ`,
+          type: 'error', title: tr('Не підійшов жоден файл'),
+          subtitle: tr('Потрібні JPG, PNG або WebP до {0} МБ', MAX_MB),
         })
       }
       return
     }
-    if (offlineGuard('Завантаження фото недоступне офлайн')) { back(); return }
+    if (offlineGuard(tr('Завантаження фото недоступне офлайн'))) { back(); return }
     if (validFiles.length > MAX_PHOTOS) {
-      showToast({ type: 'error', title: `Максимум ${MAX_PHOTOS} фото`, subtitle: `Завантажено лише перші ${MAX_PHOTOS}` })
+      showToast({ type: 'error', title: tr('Максимум {0} фото', MAX_PHOTOS), subtitle: tr('Завантажено лише перші {0}', MAX_PHOTOS) })
     }
     let idx = 0
     // Скільки фото в обʼєкта ВЖЕ є — щоб продовжити нумерацію, а не почати
@@ -113,10 +114,10 @@ export default function PhotoUploadScreen() {
         setQueue((q) => q.map((x, i) => i === currentIdx
           ? { ...x, status: 'done', progress: 100, path } : x))
       } catch (e) {
-        const msg = humanizeDbError(e, 'Невідома помилка')
+        const msg = humanizeDbError(e, tr('Невідома помилка'))
         setQueue((q) => q.map((x, i) => i === currentIdx
           ? { ...x, status: 'error', progress: 0, errorMsg: msg } : x))
-        showToast({ type: 'error', title: 'Помилка завантаження', subtitle: msg })
+        showToast({ type: 'error', title: tr('Помилка завантаження'), subtitle: msg })
       }
 
       idx++
@@ -152,7 +153,7 @@ export default function PhotoUploadScreen() {
 
   return (
     <div className="scr bg-violet">
-      <Header title="Завантаження фото" backLabel="Назад" />
+      <Header title={tr('Завантаження фото')} backLabel={tr('Назад')} />
 
       <div className="body" style={{ alignItems: 'center', justifyContent: 'center', display: 'flex', flexDirection: 'column', gap: 24 }}>
         {/* Circular progress */}
@@ -190,15 +191,15 @@ export default function PhotoUploadScreen() {
         <div style={{ textAlign: 'center' }}>
           <div style={{ color: 'var(--t1)', fontWeight: 'var(--fw-semi)', fontSize: 'var(--fs-call)' }}>
             {nothingToUpload
-              ? 'Не підійшов жоден файл'
-              : done ? (errorCount > 0 && doneCount === 0 ? 'Помилка завантаження' : 'Завантажено!') : 'Завантаження...'}
+              ? tr('Не підійшов жоден файл')
+              : done ? (errorCount > 0 && doneCount === 0 ? tr('Помилка завантаження') : tr('Завантажено!')) : tr('Завантаження...')}
           </div>
           <div style={{ color: 'var(--t3)', fontSize: 'var(--fs-foot)', marginTop: 4 }}>
             {nothingToUpload
-              ? `Потрібні JPG, PNG або WebP до ${MAX_MB} МБ`
+              ? tr('Потрібні JPG, PNG або WebP до {0} МБ', MAX_MB)
               : done
-              ? (errorCount > 0 ? `${doneCount} успішно, ${errorCount} з помилкою` : `${doneCount} фото збережено`)
-              : `${doneCount} з ${total} фото`
+              ? (errorCount > 0 ? tr('{0} успішно, {1} з помилкою', doneCount, errorCount) : tr('{0} фото збережено', doneCount))
+              : tr('{0} з {1} фото', doneCount, total)
             }
           </div>
         </div>
@@ -257,7 +258,7 @@ export default function PhotoUploadScreen() {
                   </div>
                 )}
                 {item.status === 'done' && (
-                  <div style={{ marginTop: 2, fontSize: 'var(--fs-cap1)', color: '#4ade80' }}>Збережено</div>
+                  <div style={{ marginTop: 2, fontSize: 'var(--fs-cap1)', color: '#4ade80' }}>{tr('Збережено')}</div>
                 )}
               </div>
               <div style={{ flexShrink: 0 }}>
@@ -276,7 +277,7 @@ export default function PhotoUploadScreen() {
             className="mbtn mbtn-flow"
             onClick={back}
           >
-            {nothingToUpload ? 'Назад' : 'Готово'}
+            {nothingToUpload ? tr('Назад') : tr('Готово')}
           </button>
         )}
       </div>

@@ -5,6 +5,7 @@ import { useAppStore } from '@/store/appStore'
 import { useAuth, RESTORE_BUDGET_MS, PROFILE_KEY } from '@/hooks/useAuth'
 import { useTelegram } from '@/hooks/useTelegram'
 import { isDeepLinkStartParam, parseStartParam } from '@/lib/telegram'
+import { tr } from '@/lib/i18n'
 
 // How long to wait for a stored session to restore before giving up and
 // showing WelcomeScreen. Auto-login (Edge Function) is intentionally NOT done
@@ -16,7 +17,7 @@ import { isDeepLinkStartParam, parseStartParam } from '@/lib/telegram'
 
 export default function SplashScreen() {
   const [progress, setProgress] = useState(0)
-  const [statusText, setStatusText] = useState('Завантажуємо...')
+  const [statusText, setStatusText] = useState(tr('Завантажуємо...'))
   const navigateRoot = useAppStore((s) => s.navigateRoot)
   const { restoreSession } = useAuth()
   const { isReady } = useTelegram()
@@ -110,7 +111,7 @@ export default function SplashScreen() {
 
       // SDK is ready
       setProgress(14)
-      setStatusText('Перевіряємо сесію...')
+      setStatusText(tr('Перевіряємо сесію...'))
       animateTo(58)
 
       const hasSession = await Promise.race([
@@ -181,7 +182,7 @@ export default function SplashScreen() {
       </div>
 
       <div className="splash-name">prostir</div>
-      <div className="splash-sub">платформа нерухомості</div>
+      <div className="splash-sub">{tr('платформа нерухомості')}</div>
 
       <div style={{ position: 'absolute', bottom: 'calc(32px + var(--safe-bottom))', fontSize: 'var(--fs-cap2)', color: 'var(--t4)' }}>
         prostir v1.0.0 · powered by Telegram

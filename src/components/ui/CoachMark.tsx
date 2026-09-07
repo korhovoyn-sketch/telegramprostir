@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { skipAllOnboarding } from '@/hooks/useOnboarding'
+import { tr } from '@/lib/i18n'
 
 interface CoachMarkProps {
   title: string
@@ -89,8 +90,8 @@ export default function CoachMark({ title, body, targetRef, placement = 'auto', 
         <div className="cmark-ttl">{title}</div>
         <div className="cmark-bdy">{body}</div>
         <div className="cmark-acts">
-          <button className="cmark-skip" onClick={skipAll}>Пропустити все</button>
-          <button className="cmark-ok" onClick={dismiss}>Зрозуміло</button>
+          <button className="cmark-skip" onClick={skipAll}>{tr('Пропустити все')}</button>
+          <button className="cmark-ok" onClick={dismiss}>{tr('Зрозуміло')}</button>
         </div>
         {above && <div className="cmark-arr cmark-arr-dn" style={{ left: arrowX }} />}
       </div>

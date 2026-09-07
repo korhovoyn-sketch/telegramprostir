@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import { useAppStore } from '@/store/appStore'
+import { tr } from '@/lib/i18n'
 
 // Surfaces a one-time toast when a load takes unusually long, so a slow
 // connection doesn't read as a frozen app on the first screen after login.
@@ -13,8 +14,8 @@ export function useSlowLoadingToast(loading: boolean, delayMs = 4000): void {
     const t = setTimeout(() => {
       showToast({
         type: 'info',
-        title: 'Повільне зʼєднання',
-        subtitle: 'Завантаження триває довше, ніж зазвичай...',
+        title: tr('Повільне зʼєднання'),
+        subtitle: tr('Завантаження триває довше, ніж зазвичай...'),
       })
     }, delayMs)
     return () => clearTimeout(t)

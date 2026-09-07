@@ -5,6 +5,7 @@ import { monthlyRent, calcRentUtils, basisArea, formatPrice, objectsWord } from 
 import { IconActivity, IconCurrencyDollar, IconBolt, IconRuler, IconLayers, IconCircleCheck } from '@/components/Icons'
 import { prefersReducedMotion } from '@/lib/motion'
 import type { Property } from '@/types'
+import { tr } from '@/lib/i18n'
 
 interface Props {
   properties: Property[]
@@ -211,11 +212,11 @@ export default function DatabaseStatsPanel({ properties, currency = 'USD', dbTyp
   const cards: CardData[] = [
     {
       icon: ICON_ACTIVITY,
-      label: 'Зайнятість',
+      label: tr('Зайнятість'),
       value: `${stats.occupiedCount} / ${stats.total}`,
       sub: stats.forSaleCount > 0
-        ? `${Math.round(stats.ratio * 100)}% · ${stats.forSaleCount} на продаж`
-        : `${Math.round(stats.ratio * 100)}% заповнено`,
+        ? tr('{0}% · {1} на продаж', Math.round(stats.ratio * 100), stats.forSaleCount)
+        : tr('{0}% заповнено', Math.round(stats.ratio * 100)),
       accentBg: 'var(--dv-blue-bg)',
       accentBorder: 'var(--dv-blue-bd)',
       bar: stats.ratio,
@@ -223,7 +224,7 @@ export default function DatabaseStatsPanel({ properties, currency = 'USD', dbTyp
     },
     ...(stats.totalRent > 0 ? [{
       icon: ICON_DOLLAR,
-      label: 'Оренда / міс',
+      label: tr('Оренда / міс'),
       value: formatPrice(animRent, currency),
       sub: `${stats.occupiedCount} ${objectsWord(stats.occupiedCount)}`,
       accentBg: 'var(--dv-green-bg)',
@@ -231,33 +232,33 @@ export default function DatabaseStatsPanel({ properties, currency = 'USD', dbTyp
     } satisfies CardData] : []),
     ...(stats.totalUtils > 0 ? [{
       icon: ICON_ZAP,
-      label: 'Експлуатаційні / міс',
+      label: tr('Експлуатаційні / міс'),
       value: formatPrice(animUtils, currency),
-      sub: 'від зайнятих',
+      sub: tr('від зайнятих'),
       accentBg: 'var(--dv-amber-bg)',
       accentBorder: 'var(--dv-amber-bd)',
     } satisfies CardData] : []),
     ...(stats.occupiedUseful > 0 ? [{
       icon: ICON_EXPAND,
-      label: 'Площа зайнятих',
-      value: `${animOccupiedUseful.toLocaleString('uk-UA')} м²`,
-      sub: stats.occupiedTotal > 0 ? `заг: ${stats.occupiedTotal.toLocaleString('uk-UA')} м²` : undefined,
+      label: tr('Площа зайнятих'),
+      value: tr('{0} м²', animOccupiedUseful.toLocaleString('uk-UA')),
+      sub: stats.occupiedTotal > 0 ? tr('заг: {0} м²', stats.occupiedTotal.toLocaleString('uk-UA')) : undefined,
       accentBg: 'var(--dv-purple-bg)',
       accentBorder: 'var(--dv-purple-bd)',
     } satisfies CardData] : []),
     ...(stats.totalUseful > 0 ? [{
       icon: ICON_LAYERS,
-      label: 'Вся корисна площа',
-      value: `${animTotalUseful.toLocaleString('uk-UA')} м²`,
-      sub: stats.totalArea > 0 ? `заг: ${stats.totalArea.toLocaleString('uk-UA')} м²` : undefined,
+      label: tr('Вся корисна площа'),
+      value: tr('{0} м²', animTotalUseful.toLocaleString('uk-UA')),
+      sub: stats.totalArea > 0 ? tr('заг: {0} м²', stats.totalArea.toLocaleString('uk-UA')) : undefined,
       accentBg: 'var(--dv-indigo-bg)',
       accentBorder: 'var(--dv-indigo-bd)',
     } satisfies CardData] : []),
     ...(stats.freeUseful > 0 ? [{
       icon: ICON_CHECK,
-      label: 'Вільна площа',
-      value: `${animFree.toLocaleString('uk-UA')} м²`,
-      sub: `${stats.freeCount} вільних`,
+      label: tr('Вільна площа'),
+      value: tr('{0} м²', animFree.toLocaleString('uk-UA')),
+      sub: tr('{0} вільних', stats.freeCount),
       accentBg: 'var(--dv-cyan-bg)',
       accentBorder: 'var(--dv-cyan-bd)',
     } satisfies CardData] : []),

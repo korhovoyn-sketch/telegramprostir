@@ -8,6 +8,7 @@ import { openSessionGate, closeSessionGate } from '@/lib/sessionGate'
 import { isDeepLinkStartParam } from '@/lib/telegram'
 import { useAppStore } from '@/store/appStore'
 import type { User } from '@/types'
+import { tr } from '@/lib/i18n'
 
 const SESSION_KEY     = 'ps_session'
 export const PROFILE_KEY = 'ps_user'
@@ -216,18 +217,18 @@ export function useAuth() {
           break
         } catch (fetchErr) {
           if ((fetchErr as Error).name === 'AbortError') {
-            throw new Error('Сервер не відповідає (15 сек). Перевірте інтернет і спробуйте ще раз.')
+            throw new Error(tr('Сервер не відповідає (15 сек). Перевірте інтернет і спробуйте ще раз.'))
           }
           if (attempt < MAX_ATTEMPTS) {
             await new Promise(r => setTimeout(r, 1500 * attempt))
             continue
           }
-          throw new Error('Немає зʼєднання з сервером. Перевірте інтернет.')
+          throw new Error(tr('Немає зʼєднання з сервером. Перевірте інтернет.'))
         } finally {
           clearTimeout(timeoutId)
         }
       }
-      if (!res) throw new Error('Немає відповіді від сервера. Перевірте інтернет.')
+      if (!res) throw new Error(tr('Немає відповіді від сервера. Перевірте інтернет.'))
 
       if (!res.ok) {
         const rawText = await res.text().catch(() => '')
@@ -236,16 +237,16 @@ export function useAuth() {
         const code = body?.code ?? ''
 
         if (res.status === 404) {
-          throw new Error('Сервіс авторизації не знайдено (404). Функція не задеплоєна на Supabase.')
+          throw new Error(tr('Сервіс авторизації не знайдено (404). Функція не задеплоєна на Supabase.'))
         }
         if (res.status === 401) {
           if (code === 'INIT_DATA_EXPIRED') {
-            throw new Error('Сесія Telegram застаріла. Повністю закрийте додаток і відкрийте його знову з меню бота.')
+            throw new Error(tr('Сесія Telegram застаріла. Повністю закрийте додаток і відкрийте його знову з меню бота.'))
           }
-          throw new Error('Помилка перевірки даних Telegram. Перезапустіть додаток.')
+          throw new Error(tr('Помилка перевірки даних Telegram. Перезапустіть додаток.'))
         }
         if (res.status === 429) {
-          throw new Error('Забагато спроб входу. Зачекайте хвилину і спробуйте ще раз.')
+          throw new Error(tr('Забагато спроб входу. Зачекайте хвилину і спробуйте ще раз.'))
         }
 
         // Map safe error codes from the Edge Function to actionable Ukrainian messages.
@@ -255,7 +256,7 @@ export function useAuth() {
         // short-circuit, by design — see telegram-auth's Security rule #1). Point to
         // the diagnostics button instead of guessing specific var names.
         if (code === 'CONFIG_ERROR') {
-          throw new Error('Edge Function не налаштована на сервері. Натисніть «⚙ Діагностика підключення» на цьому екрані, щоб дізнатись, яку саме змінну додати в Supabase → Edge Functions → Secrets.')
+          throw new Error(tr('Edge Function не налаштована на сервері. Натисніть «⚙ Діагностика підключення» на цьому екрані, щоб дізнатись, яку саме змінну додати в Supabase → Edge Functions → Secrets.'))
         }
         // НІКОЛИ не радити тут 013_master_setup.sql / 016_complete_setup.sql.
         // Обидві містять цикл, що робить DROP POLICY для ВСІХ політик у схемі
@@ -265,20 +266,20 @@ export function useAuth() {
         // Порада в тексті помилки була кнопкою самознищення: користувач бачить
         // її саме тоді, коли панікує, і виконує не думаючи.
         if (code === 'DB_SETUP') {
-          throw new Error('Таблиці бази даних не створені. Потрібно накотити міграції — зверніться до адміністратора (див. RELEASE_CHECKLIST.md).')
+          throw new Error(tr('Таблиці бази даних не створені. Потрібно накотити міграції — зверніться до адміністратора (див. RELEASE_CHECKLIST.md).'))
         }
         if (code === 'TRIGGER_CONFLICT') {
           // 003_reconcile.sql безпечна й ідемпотентна — вона саме дропає
           // застарілий handle_new_user і НЕ чіпає чужі політики.
-          throw new Error('Застарілий тригер handle_new_user блокує реєстрацію. Запустіть 003_reconcile.sql у Supabase → SQL Editor.')
+          throw new Error(tr('Застарілий тригер handle_new_user блокує реєстрацію. Запустіть 003_reconcile.sql у Supabase → SQL Editor.'))
         }
         if (code === 'AUTH_CONFLICT') {
-          throw new Error('Помилка сесії авторизації. Спробуйте знову або зверніться до адміністратора.')
+          throw new Error(tr('Помилка сесії авторизації. Спробуйте знову або зверніться до адміністратора.'))
         }
 
         // Generic fallback for any other 500
         if (res.status >= 500) {
-          throw new Error('Помилка сервера авторизації. Перевірте налаштування Edge Function у Supabase.')
+          throw new Error(tr('Помилка сервера авторизації. Перевірте налаштування Edge Function у Supabase.'))
         }
 
         throw new Error(body?.error || body?.message || `HTTP ${res.status}`)
@@ -337,7 +338,7 @@ export function useAuth() {
     } catch (e) {
       const errorMsg = (e as Error).message || 'Unknown error'
       console.error('[useAuth] loginViaTelegram error:', errorMsg, e)
-      showToast({ type: 'error', title: 'Помилка входу', subtitle: errorMsg })
+      showToast({ type: 'error', title: tr('Помилка входу'), subtitle: errorMsg })
     } finally {
       setLoading(false)
     }
@@ -395,14 +396,14 @@ export function useAuth() {
       clearPersistedSession()
       setUser(null)
       useAppStore.getState().resetUserData()
-      showToast({ type: 'success', title: 'Акаунт видалено' })
+      showToast({ type: 'success', title: tr('Акаунт видалено') })
       navigateRoot('welcome', { fromLogout: true })
       _signOutPromise = supabase.auth.signOut({ scope: 'local' })
         .catch(() => {})
         .finally(() => { _signOutPromise = null })
       return true
     } catch (e) {
-      showToast({ type: 'error', title: 'Не вдалося видалити акаунт', subtitle: humanizeDbError(e) })
+      showToast({ type: 'error', title: tr('Не вдалося видалити акаунт'), subtitle: humanizeDbError(e) })
       return false
     } finally {
       setLoading(false)
@@ -449,10 +450,10 @@ export function useAuth() {
       if (error) throw error
       setUser(data as User)
       persistProfile(data as User)
-      if (!silent) showToast({ type: 'success', title: 'Профіль оновлено' })
+      if (!silent) showToast({ type: 'success', title: tr('Профіль оновлено') })
       return true
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка збереження', subtitle: humanizeDbError(e) })
+      showToast({ type: 'error', title: tr('Помилка збереження'), subtitle: humanizeDbError(e) })
       return false
     } finally {
       setLoading(false)

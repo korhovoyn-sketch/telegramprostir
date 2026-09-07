@@ -13,6 +13,7 @@ import { IconCalendar, IconClock, IconPlus, IconTrash, IconFile, IconCheckCircle
 import { formatPrice, humanizeDbError, objectsWord } from '@/lib/utils'
 import { RENT_PAYMENT_COLUMNS, RENT_PAYMENT_RECORD_COLUMNS, expectedRent, fmtDueDate } from '@/lib/rentPayments'
 import type { Property, RentPayment, RentPaymentRecord } from '@/types'
+import { tr } from '@/lib/i18n'
 
 function dueDateStr(year: number, month: number, dueDay: number): string {
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(dueDay).padStart(2, '0')}`
@@ -94,7 +95,7 @@ export default function PaymentCalendarScreen() {
     } catch (e) {
       const msg = humanizeDbError(e)
       setLoadError(msg)
-      showToast({ type: 'error', title: 'Помилка завантаження', subtitle: msg })
+      showToast({ type: 'error', title: tr('Помилка завантаження'), subtitle: msg })
     } finally {
       setLoading(false)
     }
@@ -132,7 +133,7 @@ export default function PaymentCalendarScreen() {
     // Тепер `loadRecordsForIds` КИДАЄ на помилці, тож плаваючий виклик мусить
     // її ловити — інакше зміна горизонту давала б необроблену відмову промісу.
     loadRecordsForIds(properties.map(p => p.id), monthsAhead).catch((e) => {
-      showToast({ type: 'error', title: 'Не вдалося оновити платежі', subtitle: humanizeDbError(e) })
+      showToast({ type: 'error', title: tr('Не вдалося оновити платежі'), subtitle: humanizeDbError(e) })
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [monthsAhead])
@@ -155,7 +156,7 @@ export default function PaymentCalendarScreen() {
         if (error) {
           setArchiveLoading(false)
           setArchiveError(true)
-          showToast({ type: 'error', title: 'Не вдалося завантажити архів' })
+          showToast({ type: 'error', title: tr('Не вдалося завантажити архів') })
           return
         }
         setArchiveRecords((data ?? []) as RentPaymentRecord[])
@@ -165,7 +166,7 @@ export default function PaymentCalendarScreen() {
         if (cancelled) return
         setArchiveLoading(false)
         setArchiveError(true)
-        showToast({ type: 'error', title: 'Не вдалося завантажити архів' })
+        showToast({ type: 'error', title: tr('Не вдалося завантажити архів') })
       })
     return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -246,9 +247,9 @@ export default function PaymentCalendarScreen() {
   // ── Handlers ─────────────────────────────────────────────────────────────────
   const handleDeleteSchedule = useCallback(async (prop: Property) => {
     const ok = await confirmAction({
-      title: 'Видалити розклад?',
-      message: `Розклад платежів для «${prop.name}» буде видалено.`,
-      confirmLabel: 'Видалити',
+      title: tr('Видалити розклад?'),
+      message: tr('Розклад платежів для «{0}» буде видалено.', prop.name),
+      confirmLabel: tr('Видалити'),
       destructive: true,
     })
     if (!ok || offlineGuard()) return
@@ -262,19 +263,19 @@ export default function PaymentCalendarScreen() {
       // ОЧІКУВАНЕ береться з ЗАПИТУ, а не з відповіді. `data?.length` тут
       // означало б `got !== got` — перевірка, що не може впасти НІКОЛИ. Один
       // рядок гарантує `UNIQUE(property_id)` у 021.
-      assertAffected(data, 1, 'видалення розкладу')
+      assertAffected(data, 1, tr('видалення розкладу'))
       setSchedules(prev => prev.filter(s => s.property_id !== prop.id))
-      showToast({ type: 'success', title: 'Розклад видалено' })
+      showToast({ type: 'success', title: tr('Розклад видалено') })
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
+      showToast({ type: 'error', title: tr('Помилка'), subtitle: humanizeDbError(e) })
     }
   }, [showToast])
 
   const handleUnpay = useCallback(async (rec: RentPaymentRecord, propName: string) => {
     const ok = await confirmAction({
-      title: 'Скасувати платіж?',
+      title: tr('Скасувати платіж?'),
       message: `${propName} · ${fmtDueDate(rec.due_date)}`,
-      confirmLabel: 'Скасувати платіж',
+      confirmLabel: tr('Скасувати платіж'),
       destructive: true,
     })
     if (!ok || offlineGuard()) return
@@ -284,12 +285,12 @@ export default function PaymentCalendarScreen() {
       const { data, error } = await supabase
         .from('rent_payment_records').delete().eq('id', rec.id).select('id')
       if (error) throw error
-      assertAffected(data, 1, 'скасування платежу')
+      assertAffected(data, 1, tr('скасування платежу'))
       setRecords(prev => prev.filter(r => r.id !== rec.id))
       if (archiveLoaded) setArchiveRecords(prev => prev.filter(r => r.id !== rec.id))
-      showToast({ type: 'success', title: 'Платіж скасовано' })
+      showToast({ type: 'success', title: tr('Платіж скасовано') })
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
+      showToast({ type: 'error', title: tr('Помилка'), subtitle: humanizeDbError(e) })
     }
   }, [archiveLoaded, showToast])
 
@@ -302,19 +303,19 @@ export default function PaymentCalendarScreen() {
   }
 
   function getStatusLabel(item: PaymentItem): string {
-    if (item.record?.status === 'paid') return 'Отримано'
-    if (item.daysUntilDue < 0)  return `Прострочено ${Math.abs(item.daysUntilDue)}д`
-    if (item.daysUntilDue === 0) return 'Сьогодні'
-    if (item.daysUntilDue === 1) return 'Завтра'
-    return `Через ${item.daysUntilDue} дн.`
+    if (item.record?.status === 'paid') return tr('Отримано')
+    if (item.daysUntilDue < 0)  return tr('Прострочено {0}д', Math.abs(item.daysUntilDue))
+    if (item.daysUntilDue === 0) return tr('Сьогодні')
+    if (item.daysUntilDue === 1) return tr('Завтра')
+    return tr('Через {0} дн.', item.daysUntilDue)
   }
 
-  const title = propertyId && properties[0] ? `Платежі — ${properties[0].name}` : 'Календар платежів'
+  const title = propertyId && properties[0] ? tr('Платежі — {0}', properties[0].name) : tr('Календар платежів')
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <div className="scr bg-teal">
-      <Header title={title} backLabel="Назад" />
+      <Header title={title} backLabel={tr('Назад')} />
 
       <div className="body">
         {/* Stats row */}
@@ -323,17 +324,17 @@ export default function PaymentCalendarScreen() {
               третину 375px-екрана і обрізався б трикрапкою */}
           <div className="stat glass-s stat-pop-anim" style={{ animationDelay: '0s' }}>
             <div className="stat-n" style={{ color: 'var(--err)' }}>{stats.overdue}</div>
-            <div className="stat-l" style={{ fontSize: 'var(--fs-cap3)' }}>Прострочено</div>
+            <div className="stat-l" style={{ fontSize: 'var(--fs-cap3)' }}>{tr('Прострочено')}</div>
           </div>
           <div className="stat glass-s stat-pop-anim" style={{ animationDelay: '.06s' }}>
             <div className="stat-n" style={{ color: 'var(--warn)' }}>{stats.upcoming}</div>
-            <div className="stat-l" style={{ fontSize: 'var(--fs-cap3)' }}>Очікується</div>
+            <div className="stat-l" style={{ fontSize: 'var(--fs-cap3)' }}>{tr('Очікується')}</div>
           </div>
           <div className="stat glass-s stat-pop-anim" style={{ animationDelay: '.12s' }}>
             <div className="stat-n" style={{ color: 'var(--ok)', fontSize: stats.paidAmount >= 100000 ? 'var(--fs-note)' : undefined }}>
               {stats.paidAmount > 0 ? formatPrice(stats.paidAmount, user?.currency) : stats.paid > 0 ? stats.paid : '—'}
             </div>
-            <div className="stat-l" style={{ fontSize: 'var(--fs-cap3)' }}>Отримано</div>
+            <div className="stat-l" style={{ fontSize: 'var(--fs-cap3)' }}>{tr('Отримано')}</div>
           </div>
         </div>
 
@@ -351,8 +352,8 @@ export default function PaymentCalendarScreen() {
               onClick={() => setActiveTab(tab)}
             >
               {tab === 'current'
-                ? <><IconCalendar size={14} />Поточні</>
-                : <><IconArchive size={14} />Архів</>}
+                ? <><IconCalendar size={14} />{tr('Поточні')}</>
+                : <><IconArchive size={14} />{tr('Архів')}</>}
             </button>
           ))}
         </div>
@@ -364,15 +365,15 @@ export default function PaymentCalendarScreen() {
         ) : properties.length === 0 ? (
           <div className="empty-state" style={{ paddingTop: 32 }}>
             <div className="empty-ic">📅</div>
-            <div className="empty-h">Немає орендованих обʼєктів</div>
-            <div className="empty-s">Встановіть орендарів для відстеження платежів</div>
+            <div className="empty-h">{tr('Немає орендованих обʼєктів')}</div>
+            <div className="empty-s">{tr('Встановіть орендарів для відстеження платежів')}</div>
           </div>
 
         ) : activeTab === 'current' ? (
           <div key="current" className="tab-content-anim">
             {/* Horizon selector + filter toggle */}
             <div style={{ margin: '0 12px 8px', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', flexShrink: 0 }}>Показати:</span>
+              <span style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', flexShrink: 0 }}>{tr('Показати:')}</span>
               {([1, 2, 3, 6] as MonthCount[]).map(n => (
                 <button
                   key={n}
@@ -385,7 +386,7 @@ export default function PaymentCalendarScreen() {
                     fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', cursor: 'pointer',
                   }}
                 >
-                  {n} міс
+                  {n} {tr('міс')}
                 </button>
               ))}
               <button
@@ -399,8 +400,8 @@ export default function PaymentCalendarScreen() {
                 }}
               >
                 {showOnlyUnpaid
-                  ? <><IconClock size={14} />Очікуються</>
-                  : <><IconLayers size={14} />Всі</>}
+                  ? <><IconClock size={14} />{tr('Очікуються')}</>
+                  : <><IconLayers size={14} />{tr('Всі')}</>}
               </button>
             </div>
 
@@ -446,7 +447,7 @@ export default function PaymentCalendarScreen() {
                     ))}
                     {section.items.length === 0 && section.paidCount === section.totalCount && section.totalCount > 0 && (
                       <div style={{ padding: '12px 14px', textAlign: 'center', fontSize: 'var(--fs-foot)', color: 'var(--ok)', fontWeight: 'var(--fw-semi)' }}>
-                        <IconCheck size={14} /> Всі платежі за цей місяць підтверджено
+                        <IconCheck size={14} /> {tr('Всі платежі за цей місяць підтверджено')}
                       </div>
                     )}
                   </div>
@@ -462,7 +463,7 @@ export default function PaymentCalendarScreen() {
             {propsWithoutSchedule.length > 0 && (
               <>
                 <div className="over">
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconFile size={14} color="#fb923c" />Немає розкладу</span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconFile size={14} color="#fb923c" />{tr('Немає розкладу')}</span>
                   <span className="over-a">{propsWithoutSchedule.length} {objectsWord(propsWithoutSchedule.length)}</span>
                 </div>
                 <div className="list" style={{ marginBottom: 12 }}>
@@ -476,7 +477,7 @@ export default function PaymentCalendarScreen() {
                         onClick={() => navigate('payment-schedule', { propertyId: prop.id, dbId: prop.db_id })}
                         style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 'var(--r-pill)', background: 'var(--info-bg)', border: '.5px solid rgba(122,179,255,.32)', color: 'var(--info)', fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', cursor: 'pointer', whiteSpace: 'nowrap' }}
                       >
-                        <IconPlus size={12} /> Налаштувати
+                        <IconPlus size={12} /> {tr('Налаштувати')}
                       </button>
                     </div>
                   ))}
@@ -487,8 +488,8 @@ export default function PaymentCalendarScreen() {
             {monthSections.every(s => s.items.length === 0 && s.totalCount === 0) && propsWithoutSchedule.length === 0 && (
               <div className="empty-state" style={{ paddingTop: 24 }}>
                 <div className="empty-ic">📅</div>
-                <div className="empty-h">Платежів немає</div>
-                <div className="empty-s">Всі розклади налаштовано — тут зʼявляться майбутні платежі</div>
+                <div className="empty-h">{tr('Платежів немає')}</div>
+                <div className="empty-s">{tr('Всі розклади налаштовано — тут зʼявляться майбутні платежі')}</div>
               </div>
             )}
           </div>
@@ -500,26 +501,26 @@ export default function PaymentCalendarScreen() {
               <SkeletonList count={3} />
             ) : archiveError ? (
               <RetryState
-                subtitle="Не вдалося завантажити архів"
+                subtitle={tr('Не вдалося завантажити архів')}
                 onRetry={() => { setArchiveError(false); setArchiveLoaded(false) }}
               />
             ) : archiveRecords.length === 0 ? (
               <div className="empty-state" style={{ paddingTop: 32 }}>
                 <div className="empty-ic">🗂</div>
-                <div className="empty-h">Архів порожній</div>
-                <div className="empty-s">Підтверджені платежі зʼявляться тут</div>
+                <div className="empty-h">{tr('Архів порожній')}</div>
+                <div className="empty-s">{tr('Підтверджені платежі зʼявляться тут')}</div>
               </div>
             ) : (
               <>
                 {/* Archive total card */}
                 {archiveTotal > 0 && (
                   <div style={{ margin: '0 12px 4px', padding: '14px 16px', borderRadius: 'var(--r-md)', background: 'var(--ok-bg)', border: '.5px solid var(--ok-bd)' }}>
-                    <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginBottom: 4 }}>Всього отримано за весь час</div>
+                    <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginBottom: 4 }}>{tr('Всього отримано за весь час')}</div>
                     <div style={{ fontSize: 'var(--fs-t2)', fontWeight: 'var(--fw-bold)', color: 'var(--ok-fg)' }}>
                       {formatPrice(archiveTotal, user?.currency)}
                     </div>
                     <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 3 }}>
-                      {archiveRecords.length} платежів · {archiveByMonth.length} міс.
+                      {tr('{0} платежів · {1} міс.', archiveRecords.length, archiveByMonth.length)}
                     </div>
                   </div>
                 )}
@@ -550,10 +551,10 @@ export default function PaymentCalendarScreen() {
                                   <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 1 }}>{prop.tenant_name}</div>
                                 )}
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 5, flexWrap: 'wrap' }}>
-                                  <span style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)' }}>за {fmtDueDate(rec.due_date)}</span>
+                                  <span style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)' }}>{tr('за')}{' '}{fmtDueDate(rec.due_date)}</span>
                                   {rec.paid_at && (
                                     <span style={{ fontSize: 'var(--fs-cap2)', color: 'var(--t4)' }}>
-                                      · отримано {new Date(rec.paid_at).toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' })}
+                                      {tr('· отримано')}{' '}{new Date(rec.paid_at).toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' })}
                                     </span>
                                   )}
                                 </div>
@@ -588,13 +589,13 @@ export default function PaymentCalendarScreen() {
                                   onClick={() => navigate('payment-confirm', { propertyId: prop.id, dbId: prop.db_id, dueDate: rec.due_date })}
                                   style={{ fontSize: 'var(--fs-cap2)', color: 'var(--t3)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0', display: 'flex', alignItems: 'center', gap: 4 }}
                                 >
-                                  <IconEdit size={14} /> Редагувати
+                                  <IconEdit size={14} /> {tr('Редагувати')}
                                 </button>
                                 <button
                                   onClick={() => handleUnpay(rec, prop.name)}
                                   style={{ fontSize: 'var(--fs-cap2)', color: 'var(--err)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0', marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}
                                 >
-                                  <IconX size={12} /> Скасувати платіж
+                                  <IconX size={12} /> {tr('Скасувати платіж')}
                                 </button>
                               </div>
                             )}
@@ -669,7 +670,7 @@ function PaymentItemCard({ item, statusColor, label, onMarkPaid, onEdit, onDelet
             onClick={onMarkPaid}
             style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 'var(--r-pill)', background: 'var(--ok-bg)', border: '.5px solid var(--ok-bd)', color: 'var(--ok-fg)', fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', cursor: 'pointer', whiteSpace: 'nowrap' }}
           >
-            <IconCheckCircle size={12} /> Отримано
+            <IconCheckCircle size={12} /> {tr('Отримано')}
           </button>
         ) : (
           <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -677,17 +678,17 @@ function PaymentItemCard({ item, statusColor, label, onMarkPaid, onEdit, onDelet
               onClick={onEditPaid}
               style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '6px 10px', borderRadius: 'var(--r-pill)', background: 'var(--ok-bg)', border: '.5px solid var(--ok-bd)', color: 'var(--ok-fg)', fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', cursor: 'pointer', whiteSpace: 'nowrap' }}
             >
-              <IconCheck size={14} /> Сплачено
+              <IconCheck size={14} /> {tr('Сплачено')}
             </button>
             <button
               onClick={onUnpay}
               style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: '50%', background: 'var(--err-bg)', border: '.5px solid rgba(255,59,48,.25)', color: 'var(--err)', fontSize: 'var(--fs-note)', cursor: 'pointer', flexShrink: 0 }}
-              title="Скасувати платіж"
+              title={tr('Скасувати платіж')}
               // Явна назва, а не лише `title`: після переходу з «×» на іконку
               // текстового вузла в кнопки немає, тож імʼя бралося б із `title`
               // і збігалося б із підписом кнопки ПІДТВЕРДЖЕННЯ того самого
               // рішення — дві різні дії з однаковим імʼям для читалки.
-              aria-label="Скасувати цей платіж"
+              aria-label={tr('Скасувати цей платіж')}
             >
               <IconX size={14} />
             </button>
@@ -701,13 +702,13 @@ function PaymentItemCard({ item, statusColor, label, onMarkPaid, onEdit, onDelet
           onClick={onEdit}
           style={{ fontSize: 'var(--fs-cap2)', color: 'var(--t3)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0' }}
         >
-          <IconEdit size={14} /> Редагувати розклад
+          <IconEdit size={14} /> {tr('Редагувати розклад')}
         </button>
         <button
           onClick={onDeleteSchedule}
           style={{ fontSize: 'var(--fs-cap2)', color: 'var(--err)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0', marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}
         >
-          <IconTrash size={12} /> Видалити
+          <IconTrash size={12} /> {tr('Видалити')}
         </button>
       </div>
     </div>

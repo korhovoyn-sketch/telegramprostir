@@ -9,6 +9,7 @@ import RetryState from '@/components/ui/RetryState'
 import { IconBuilding } from '@/components/Icons'
 import { formatPrice, calcRent, basisArea, computedRentUnit, photoUrl } from '@/lib/utils'
 import type { PropertyStatus, RentType } from '@/types'
+import { tr } from '@/lib/i18n'
 
 interface SharedProperty {
   id: string
@@ -132,13 +133,13 @@ export default function SharedCollectionScreen() {
   if (netErr) {
     return (
       <div className="scr bg-violet">
-        <Header title="Підбірка" backLabel="Назад" />
+        <Header title={tr('Підбірка')} backLabel={tr('Назад')} />
         <RetryState
           icon="📡"
-          title="Не вдалося завантажити"
+          title={tr('Не вдалося завантажити')}
           subtitle={typeof navigator !== 'undefined' && !navigator.onLine
-            ? 'Немає зʼєднання з інтернетом. Перевірте мережу і спробуйте ще раз.'
-            : 'Перевірте зʼєднання та спробуйте ще раз.'}
+            ? tr('Немає зʼєднання з інтернетом. Перевірте мережу і спробуйте ще раз.')
+            : tr('Перевірте зʼєднання та спробуйте ще раз.')}
           onRetry={() => setReloadKey((k) => k + 1)}
         />
       </div>
@@ -148,11 +149,11 @@ export default function SharedCollectionScreen() {
   if (notFound || !data) {
     return (
       <div className="scr bg-violet">
-        <Header title="Підбірка" backLabel="Назад" />
+        <Header title={tr('Підбірка')} backLabel={tr('Назад')} />
         <div className="empty-state" style={{ paddingTop: 48 }}>
           <div className="empty-ic">🔗</div>
-          <div className="empty-h">Підбірку не знайдено</div>
-          <div className="empty-s">Посилання недійсне або підбірку ще не опубліковано</div>
+          <div className="empty-h">{tr('Підбірку не знайдено')}</div>
+          <div className="empty-s">{tr('Посилання недійсне або підбірку ще не опубліковано')}</div>
         </div>
       </div>
     )
@@ -160,14 +161,14 @@ export default function SharedCollectionScreen() {
 
   return (
     <div className="scr bg-violet">
-      <Header title={data.name} subtitle={`${data.properties.length} обʼєктів`} backLabel="Назад" />
+      <Header title={data.name} subtitle={tr('{0} обʼєктів', data.properties.length)} backLabel={tr('Назад')} />
 
       <div className="body">
         {data.properties.length === 0 ? (
           <div className="empty-state" style={{ paddingTop: 32 }}>
             <div className="empty-ic">🏢</div>
-            <div className="empty-h">Підбірка порожня</div>
-            <div className="empty-s">Ріелтор ще не додав обʼєктів</div>
+            <div className="empty-h">{tr('Підбірка порожня')}</div>
+            <div className="empty-s">{tr('Ріелтор ще не додав обʼєктів')}</div>
           </div>
         ) : (
           <div className="list">
@@ -197,9 +198,9 @@ export default function SharedCollectionScreen() {
                     <div className="row-s" style={{ gap: 6, flexWrap: 'wrap', marginTop: 3 }}>
                       <StatusBadge status={p.status} />
                       {p.area_useful && (
-                        <span>{p.area_useful}{p.area_total ? `/${p.area_total}` : ''} м²</span>
+                        <span>{p.area_useful}{p.area_total ? `/${p.area_total}` : ''} {tr('м²')}</span>
                       )}
-                      {p.floor && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconBuilding size={12} color="var(--t3)" />{p.floor} пов.</span>}
+                      {p.floor && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconBuilding size={12} color="var(--t3)" />{p.floor} {tr('пов.')}</span>}
                       {rent > 0 && (
                         <span style={{ color: 'var(--t2)', fontWeight: 'var(--fw-semi)' }}>
                           {formatPrice(rent, data.currency)}{computedRentUnit(p.rent_type)}

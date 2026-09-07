@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAppStore } from '@/store/appStore'
+import { tr } from '@/lib/i18n'
 
 /**
  * Хто з ІМЕНОВАНИХ користувачів відкривав ваші бази й картки.
@@ -75,7 +76,7 @@ export function useViewerActivity() {
         }
         if (!row.viewer_id || row.viewer_id === user.id) continue
         const cur = byViewer.get(row.viewer_id)
-          ?? { name: row.viewer_name?.trim() || 'Учасник', props: new Set<string>(), dbs: 0, last: row.created_at }
+          ?? { name: row.viewer_name?.trim() || tr('Учасник'), props: new Set<string>(), dbs: 0, last: row.created_at }
         if (row.property_id) cur.props.add(row.property_id)
         else if (row.db_id) cur.dbs += 1
         // Вибірка відсортована спаданням, тож перший запис глядача і є останній.

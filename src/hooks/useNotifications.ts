@@ -6,6 +6,7 @@ import { humanizeDbError } from '@/lib/utils'
 import { assertAffected } from '@/lib/dbWrite'
 import { useAppStore } from '@/store/appStore'
 import type { Notification } from '@/types'
+import { tr } from '@/lib/i18n'
 
 /**
  * Квиток завантаження — МОДУЛЬНИЙ, і це принципово.
@@ -57,7 +58,7 @@ export function useNotifications() {
       // його провалом — і помилка тихо не виставлялась. Застарілу помилку
       // виправляє наступний успіх: кожне завантаження стартує з setError(null).
       setError(humanizeDbError(e))
-      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
+      showToast({ type: 'error', title: tr('Помилка'), subtitle: humanizeDbError(e) })
     } finally {
       setLoading(false)
     }
@@ -72,7 +73,7 @@ export function useNotifications() {
       const fresh = useAppStore.getState().notifications
       setNotifications(fresh.map((n) => (n.id === id ? { ...n, is_read: true } : n)))
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
+      showToast({ type: 'error', title: tr('Помилка'), subtitle: humanizeDbError(e) })
     }
   }, [setNotifications, showToast])
 
@@ -90,7 +91,7 @@ export function useNotifications() {
       loadTicket++
       markAllRead()
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
+      showToast({ type: 'error', title: tr('Помилка'), subtitle: humanizeDbError(e) })
     }
   }, [user, markAllRead, showToast])
 
@@ -111,7 +112,7 @@ export function useNotifications() {
       if (error) throw error
     } catch (e) {
       setNotifications(snapshot)
-      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
+      showToast({ type: 'error', title: tr('Помилка'), subtitle: humanizeDbError(e) })
     }
   }, [setNotifications, showToast])
 
@@ -141,11 +142,11 @@ export function useNotifications() {
       const { data, error } = await supabase
         .from('notifications').delete().in('id', ids).select('id')
       if (error) throw error
-      assertAffected(data, ids.length, 'очищення сповіщень')
-      showToast({ type: 'success', title: 'Сповіщення очищено' })
+      assertAffected(data, ids.length, tr('очищення сповіщень'))
+      showToast({ type: 'success', title: tr('Сповіщення очищено') })
     } catch (e) {
       setNotifications(snapshot)
-      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
+      showToast({ type: 'error', title: tr('Помилка'), subtitle: humanizeDbError(e) })
     }
   }, [setNotifications, showToast])
 
@@ -178,7 +179,7 @@ export function useNotifications() {
         // сліду про це не було. Webview Telegram постійно йде у фон, тож це не
         // рідкісний випадок, а звичайний.
         if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          console.warn('[notifications] realtime-канал відпав:', status)
+          console.warn(tr('[notifications] realtime-канал відпав:'), status)
           // Рефетч замість мовчазної втрати: рядки, вставлені поки сокет був
           // мертвий, realtime уже не догнати — їх дістане звичайний запит.
           //

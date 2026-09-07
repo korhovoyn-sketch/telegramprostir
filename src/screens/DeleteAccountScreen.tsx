@@ -8,8 +8,10 @@ import { IconTrash } from '@/components/Icons'
 import { offlineGuard } from '@/lib/offline'
 import { hapticNotify } from '@/lib/telegram'
 import { scrollFocusedIntoView } from '@/lib/utils'
+import { tx } from '@/lib/tx'
+import { tr } from '@/lib/i18n'
 
-const PHRASE = 'ВИДАЛИТИ'
+const PHRASE = tr('ВИДАЛИТИ')
 
 /**
  * Повноекранне видалення акаунта — останній `<Modal>` застосунку (фаза 5).
@@ -39,27 +41,26 @@ export default function DeleteAccountScreen() {
 
   return (
     <div className="scr bg-teal">
-      <Header title="Видалити акаунт?" onBack={back} />
+      <Header title={tr('Видалити акаунт?')} onBack={back} />
 
       <div className="body has-flow-cta" onFocusCapture={scrollFocusedIntoView}>
         <div className="del-warn glass-s">
           <IconTrash size={20} color="var(--err-fg)" />
           <p>
-            Буде <b>НАЗАВЖДИ</b> видалено: усі бази та обʼєкти, фото й документи,
-            платежі, підбірки й доступи. Відновити неможливо.
+            {tx('Буде {0} видалено: усі бази та обʼєкти, фото й документи, платежі, підбірки й доступи. Відновити неможливо.', <b>{tr('НАЗАВЖДИ')}</b>)}
           </p>
         </div>
 
         <div className="fg glass-s">
           <div className="fr">
-            <span className="fr-l">Впишіть <b style={{ color: 'var(--t1)' }}>{PHRASE}</b></span>
+            <span className="fr-l">{tr('Впишіть')}{' '}<b style={{ color: 'var(--t1)' }}>{PHRASE}</b></span>
             <input
               className="fr-i"
               value={text}
               onChange={(e) => setText(e.target.value)}
               placeholder={PHRASE}
               autoCapitalize="characters"
-              aria-label="Підтвердження видалення"
+              aria-label={tr('Підтвердження видалення')}
             />
           </div>
         </div>
@@ -70,7 +71,7 @@ export default function DeleteAccountScreen() {
           aria-busy={busy}
           onClick={() => void handleDelete()}
         >
-          Видалити акаунт
+          {tr('Видалити акаунт')}
         </button>
       </div>
     </div>

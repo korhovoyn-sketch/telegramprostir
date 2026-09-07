@@ -1,6 +1,7 @@
 'use client'
 
 import { IconSearch, IconX } from '@/components/Icons'
+import { tr } from '@/lib/i18n'
 
 interface SearchBarProps {
   value: string
@@ -8,7 +9,7 @@ interface SearchBarProps {
   placeholder?: string
 }
 
-export default function SearchBar({ value, onChange, placeholder = 'Пошук...' }: SearchBarProps) {
+export default function SearchBar({ value, onChange, placeholder = tr('Пошук...') }: SearchBarProps) {
   return (
     <div className="search-inline">
       <IconSearch size={16} color="var(--t3)" />

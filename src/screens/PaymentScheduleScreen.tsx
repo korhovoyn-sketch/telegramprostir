@@ -11,6 +11,7 @@ import { sanitizeInt, scrollFocusedIntoView, humanizeDbError } from '@/lib/utils
 import { RENT_PAYMENT_COLUMNS } from '@/lib/rentPayments'
 import { IconCalendar, IconBellRing } from '@/components/Icons'
 import type { RentPayment } from '@/types'
+import { tr } from '@/lib/i18n'
 
 /**
  * Повноекранна форма розкладу платежів — заміна колишньої `<Modal>` у
@@ -66,7 +67,7 @@ export default function PaymentScheduleScreen() {
     const day = parseInt(dueDay, 10)
     const notify = parseInt(notifyDays, 10)
     if (!isFinite(day) || day < 1 || day > 28) {
-      showToast({ type: 'error', title: 'День платежу має бути від 1 до 28' })
+      showToast({ type: 'error', title: tr('День платежу має бути від 1 до 28') })
       return
     }
     setSaving(true)
@@ -86,10 +87,10 @@ export default function PaymentScheduleScreen() {
         )
         .select(RENT_PAYMENT_COLUMNS).single()
       if (error) throw error
-      showToast({ type: 'success', title: 'Розклад збережено' })
+      showToast({ type: 'success', title: tr('Розклад збережено') })
       back()
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка збереження', subtitle: humanizeDbError(e) })
+      showToast({ type: 'error', title: tr('Помилка збереження'), subtitle: humanizeDbError(e) })
     } finally {
       setSaving(false)
     }
@@ -97,10 +98,10 @@ export default function PaymentScheduleScreen() {
 
   if (!property && propError) return (
     <div className="scr bg-teal">
-      <Header title="Розклад платежів" backLabel="Назад" />
+      <Header title={tr('Розклад платежів')} backLabel={tr('Назад')} />
       <RetryState
         icon="🏚️"
-        title="Обʼєкт не знайдено"
+        title={tr('Обʼєкт не знайдено')}
         subtitle={propError}
         onRetry={() => propertyId && loadSingleProperty(propertyId)}
       />
@@ -109,7 +110,7 @@ export default function PaymentScheduleScreen() {
 
   if (!property || propLoading || scheduleLoading) return (
     <div className="scr bg-teal">
-      <Header title="Розклад платежів" backLabel="Назад" />
+      <Header title={tr('Розклад платежів')} backLabel={tr('Назад')} />
       <div className="loader-wrap">
         <div className="loader" />
       </div>
@@ -118,30 +119,30 @@ export default function PaymentScheduleScreen() {
 
   if (scheduleError) return (
     <div className="scr bg-teal">
-      <Header title="Розклад платежів" subtitle={property.name} backLabel="Назад" />
+      <Header title={tr('Розклад платежів')} subtitle={property.name} backLabel={tr('Назад')} />
       <RetryState subtitle={scheduleError} onRetry={loadSchedule} />
     </div>
   )
 
   return (
     <div className="scr bg-teal">
-      <Header title={schedule ? 'Редагувати розклад' : 'Налаштувати розклад'} subtitle={property.name} backLabel="Назад" />
+      <Header title={schedule ? tr('Редагувати розклад') : tr('Налаштувати розклад')} subtitle={property.name} backLabel={tr('Назад')} />
 
       <div className="body has-flow-cta" onFocusCapture={scrollFocusedIntoView}>
         <div className="fg glass-s" style={{ margin: '0 12px 8px' }}>
           <div className="fr">
-            <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconCalendar size={14} color="var(--t3)" />День місяця (1–28)</span>
+            <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconCalendar size={14} color="var(--t3)" />{tr('День місяця (1–28)')}</span>
             <input
-              aria-label="День місяця"
+              aria-label={tr('День місяця')}
               className="fr-i"
               type="text" inputMode="numeric" maxLength={2}
               value={dueDay} onChange={e => setDueDay(sanitizeInt(e.target.value))}
             />
           </div>
           <div className="fr">
-            <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconBellRing size={14} color="var(--t3)" />Нагадати за, днів</span>
+            <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconBellRing size={14} color="var(--t3)" />{tr('Нагадати за, днів')}</span>
             <input
-              aria-label="Нагадати за, днів"
+              aria-label={tr('Нагадати за, днів')}
               className="fr-i"
               type="text" inputMode="numeric" maxLength={2}
               value={notifyDays} onChange={e => { const v = sanitizeInt(e.target.value); setNotifyDays(v && parseInt(v, 10) > 14 ? '14' : v) }}
@@ -149,7 +150,7 @@ export default function PaymentScheduleScreen() {
           </div>
         </div>
         <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', padding: '0 16px 16px' }}>
-          Ви отримаєте повідомлення через Telegram за {notifyDays || '3'} дн. до {dueDay || '5'}-го числа кожного місяця.
+          {tr('Ви отримаєте повідомлення через Telegram за {0} дн. до {1}-го числа кожного місяця.', notifyDays || '3', dueDay || '5')}
         </div>
 
         <button
@@ -158,7 +159,7 @@ export default function PaymentScheduleScreen() {
           disabled={saving}
           aria-busy={saving}
         >
-          Зберегти
+          {tr('Зберегти')}
         </button>
       </div>
     </div>
