@@ -204,7 +204,30 @@ WITH checks(ord, item, migration, ok) AS (VALUES
   -- що вона невидима для `anon`, тримає окремий гард (scripts/verify-behaviour),
   -- бо в тексті GRANT цього не видно (правило 12).
   (45, 'RPC get_due_lease_reminders', '065_lease_reminders.sql',
-      EXISTS (SELECT 1 FROM pg_proc WHERE proname='get_due_lease_reminders'))
+      EXISTS (SELECT 1 FROM pg_proc WHERE proname='get_due_lease_reminders')),
+
+  -- 066-1: якір особи. Перевіряємо саме ТІЛО: `CREATE OR REPLACE` міг бути
+  -- перекритий пізнішою копією без якоря — рівно так 038 колись стерла фікс
+  -- 031, і по тексту міграції цього не видно.
+  (46, 'current_app_user_id: домен заякорено і tg_id > 0', '066_identity_anchor_storage_enum_guest_target.sql',
+      (SELECT prosrc LIKE '%telegram\\.propspace\\.app$%' AND prosrc LIKE '%tg_id_val <= 0%'
+         FROM pg_proc WHERE proname='current_app_user_id' LIMIT 1)),
+
+  -- 066-2: бакет фото не перелічується. Перевіряємо ВІДСУТНІСТЬ пермісивного
+  -- варіанта, а не наявність строгого: політики обʼєднуються через OR, тож
+  -- пермісивна поруч зі строгою робить строгу безглуздою (урок 062).
+  (47, 'storage_photos_select звужено до authenticated', '066_identity_anchor_storage_enum_guest_target.sql',
+      (SELECT COUNT(*) = 1 FROM pg_policies
+        WHERE schemaname='storage' AND tablename='objects'
+          AND policyname='storage_photos_select'
+          AND 'authenticated' = ANY(roles) AND NOT ('public' = ANY(roles))
+          AND qual LIKE '%get_owner_property_ids%')),
+
+  -- 066-3: гостьовий лінк перевіряє ціль.
+  (48, 'db_guest_select звіряє owner_id цілі з видавцем', '066_identity_anchor_storage_enum_guest_target.sql',
+      (SELECT COUNT(*) = 1 FROM pg_policies
+        WHERE tablename='databases' AND policyname='db_guest_select'
+          AND qual LIKE '%owner_id%'))
 )
 SELECT
   CASE WHEN ok THEN '✅ OK     ' ELSE '❌ MISSING' END AS status,
