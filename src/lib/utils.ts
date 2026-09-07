@@ -349,13 +349,13 @@ export function bulkCreateNames(base: string, count: number, taken: string[]): s
   return names
 }
 
-const PARKING_TYPE_LABELS: Record<string, string> = {
+const PARKING_TYPE_LABELS = (): Record<string, string> => ({
   underground: tr('Підземний'),
   covered: tr('Критий'),
   open: tr('Просто неба'),
-}
+})
 export function parkingTypeLabel(t: string | null | undefined): string | null {
-  return t ? PARKING_TYPE_LABELS[t] ?? null : null
+  return t ? PARKING_TYPE_LABELS()[t] ?? null : null
 }
 
 export function calcUtilities(areaTotal: number, utilitiesRate: number): number {
@@ -436,20 +436,20 @@ export function getInitials(firstName?: string | null, lastName?: string | null)
   return f + l || '?'
 }
 
-export const DB_TYPE_LABELS: Record<string, string> = {
+export const DB_TYPE_LABELS = (): Record<string, string> => ({
   business_center: tr('Бізнес-центр'),
   residential: tr('ЖК'),
   retail: tr('Рітейл'),
   warehouse: tr('Склади'),
   individual: tr('Приватне'),
   parking: tr('Паркінг'),
-}
+})
 
-export const STATUS_LABELS: Record<string, string> = {
+export const STATUS_LABELS = (): Record<string, string> => ({
   free: tr('Вільно'),
   occupied: tr('Зайнято'),
   for_sale: tr('Продаж'),
-}
+})
 
 export const STATUS_BADGE_CLS: Record<string, string> = {
   free: 'bdg-ok',

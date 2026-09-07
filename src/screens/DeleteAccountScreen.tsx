@@ -11,7 +11,7 @@ import { scrollFocusedIntoView } from '@/lib/utils'
 import { tx } from '@/lib/tx'
 import { tr } from '@/lib/i18n'
 
-const PHRASE = tr('ВИДАЛИТИ')
+const PHRASE = () => (tr('ВИДАЛИТИ'))
 
 /**
  * Повноекранне видалення акаунта — останній `<Modal>` застосунку (фаза 5).
@@ -26,7 +26,7 @@ export default function DeleteAccountScreen() {
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
 
-  const armed = text.trim().toUpperCase() === PHRASE
+  const armed = text.trim().toUpperCase() === PHRASE()
 
   async function handleDelete() {
     if (!armed || busy || offlineGuard()) return
@@ -53,12 +53,12 @@ export default function DeleteAccountScreen() {
 
         <div className="fg glass-s">
           <div className="fr">
-            <span className="fr-l">{tr('Впишіть')}{' '}<b style={{ color: 'var(--t1)' }}>{PHRASE}</b></span>
+            <span className="fr-l">{tr('Впишіть')}{' '}<b style={{ color: 'var(--t1)' }}>{PHRASE()}</b></span>
             <input
               className="fr-i"
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder={PHRASE}
+              placeholder={PHRASE()}
               autoCapitalize="characters"
               aria-label={tr('Підтвердження видалення')}
             />

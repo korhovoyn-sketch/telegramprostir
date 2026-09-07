@@ -169,7 +169,7 @@ export default function RealtorDashboardScreen() {
                 <div className="row-mn">
                   <div className="row-t">{db.name}</div>
                   <div className="row-s">
-                    <span>{DB_TYPE_LABELS[db.type]}</span>
+                    <span>{DB_TYPE_LABELS()[db.type]}</span>
                   </div>
                 </div>
                 <span className="bdg bdg-info">{tr('Команда')}</span>
@@ -189,7 +189,7 @@ export default function RealtorDashboardScreen() {
                   <div className="row-mn">
                     <div className="row-t">{db.name}</div>
                     <div className="row-s">
-                      <span>{DB_TYPE_LABELS[db.type]}</span>
+                      <span>{DB_TYPE_LABELS()[db.type]}</span>
                     </div>
                   </div>
                   <IconChevronRight size={14} color="var(--t4)" />

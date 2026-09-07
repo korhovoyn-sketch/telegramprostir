@@ -11,7 +11,7 @@ import { formatDate, daysSince, humanizeDbError } from '@/lib/utils'
 import type { PropertyView } from '@/types'
 import { tr } from '@/lib/i18n'
 
-const WEEKDAY = [tr('Нд'), tr('Пн'), tr('Вт'), tr('Ср'), tr('Чт'), tr('Пт'), tr('Сб')]
+const WEEKDAY = () => ([tr('Нд'), tr('Пн'), tr('Вт'), tr('Ср'), tr('Чт'), tr('Пт'), tr('Сб')])
 
 // Last 7 days labels, oldest first (index 0 = 6 days ago, index 6 = today)
 function last7DayLabels(): string[] {
@@ -19,7 +19,7 @@ function last7DayLabels(): string[] {
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(now)
     d.setDate(now.getDate() - (6 - i))
-    return WEEKDAY[d.getDay()]
+    return WEEKDAY()[d.getDay()]
   })
 }
 

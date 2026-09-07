@@ -644,7 +644,7 @@ export default function DatabaseObjectsScreen() {
     <div className="scr bg-blue">
       <Header
         title={db.name}
-        subtitle={DB_TYPE_LABELS[db.type]}
+        subtitle={DB_TYPE_LABELS()[db.type]}
         backLabel={tr('Бази')}
         right={
           reorderMode ? (

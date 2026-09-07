@@ -12,29 +12,29 @@ interface Tab {
   icon: (active: boolean) => React.ReactNode
 }
 
-const REALTOR_TABS: Tab[] = [
+const REALTOR_TABS = (): Tab[] => ([
   { id: 'realtor-dashboard', label: tr('Бази'), screen: 'realtor-dashboard', icon: (a) => <IconTabHome size={26} active={a} /> },
   { id: 'collections', label: tr('Підбірки'), screen: 'collections', icon: (a) => <IconTabBookmark size={26} active={a} /> },
   { id: 'notifications', label: tr('Сповіщення'), screen: 'notifications', icon: (a) => <IconTabBell size={26} active={a} /> },
   { id: 'profile', label: tr('Профіль'), screen: 'profile', icon: (a) => <IconTabUser size={26} active={a} /> },
-]
+])
 
-const OWNER_TABS: Tab[] = [
+const OWNER_TABS = (): Tab[] => ([
   { id: 'db-list', label: tr('Бази'), screen: 'db-list', icon: (a) => <IconTabHome size={26} active={a} /> },
   { id: 'notifications', label: tr('Сповіщення'), screen: 'notifications', icon: (a) => <IconTabBell size={26} active={a} /> },
   { id: 'profile', label: tr('Профіль'), screen: 'profile', icon: (a) => <IconTabUser size={26} active={a} /> },
-]
+])
 
-const GUEST_TABS: Tab[] = [
+const GUEST_TABS = (): Tab[] => ([
   { id: 'guest-home', label: tr('Обʼєкти'), screen: 'guest-home', icon: (a) => <IconTabHome size={26} active={a} /> },
   { id: 'notifications', label: tr('Сповіщення'), screen: 'notifications', icon: (a) => <IconTabBell size={26} active={a} /> },
   { id: 'profile', label: tr('Профіль'), screen: 'profile', icon: (a) => <IconTabUser size={26} active={a} /> },
-]
+])
 
 export default function TabBar() {
   const { screen, navigateRoot, user, unreadCount } = useAppStore()
 
-  const tabs = user?.role === 'realtor' ? REALTOR_TABS : user?.role === 'guest' ? GUEST_TABS : OWNER_TABS
+  const tabs = user?.role === 'realtor' ? REALTOR_TABS() : user?.role === 'guest' ? GUEST_TABS() : OWNER_TABS()
 
   const activeId = tabs.find(t => t.screen === screen)?.id ?? tabs[0].id
 

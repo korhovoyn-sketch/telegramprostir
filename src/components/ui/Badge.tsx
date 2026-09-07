@@ -10,7 +10,7 @@ interface StatusBadgeProps {
 export function StatusBadge({ status }: StatusBadgeProps) {
   return (
     <span className={`bdg ${STATUS_BADGE_CLS[status]}`}>
-      {STATUS_LABELS[status]}
+      {STATUS_LABELS()[status]}
     </span>
   )
 }

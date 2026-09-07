@@ -61,11 +61,11 @@ interface GuestPreview {
   }>
 }
 
-const STATUS_LABELS: Record<string, string> = {
+const STATUS_LABELS = (): Record<string, string> => ({
   free: tr('Вільно'),
   occupied: tr('Зайнято'),
   for_sale: tr('Продаж'),
-}
+})
 
 
 export default function GuestDatabaseScreen() {
@@ -228,8 +228,8 @@ export default function GuestDatabaseScreen() {
                 </div>
                 <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 2 }}>
                   {isProperty
-                    ? (p?.db_type ? (DB_TYPE_LABELS[p.db_type] ?? p.db_type) : '')
-                    : (d?.type ? (DB_TYPE_LABELS[d.type] ?? d.type) : '')}
+                    ? (p?.db_type ? (DB_TYPE_LABELS()[p.db_type] ?? p.db_type) : '')
+                    : (d?.type ? (DB_TYPE_LABELS()[d.type] ?? d.type) : '')}
                 </div>
               </div>
               <span style={{
@@ -255,7 +255,7 @@ export default function GuestDatabaseScreen() {
                 )}
                 {p.status && (
                   <span className={`bdg ${STATUS_BADGE_CLS[p.status] ?? ''}`}>
-                    {STATUS_LABELS[p.status] ?? p.status}
+                    {STATUS_LABELS()[p.status] ?? p.status}
                   </span>
                 )}
               </div>
@@ -291,7 +291,7 @@ export default function GuestDatabaseScreen() {
                         )}
                       </div>
                       <span className={`bdg ${STATUS_BADGE_CLS[prop.status] ?? ''}`}>
-                        {STATUS_LABELS[prop.status] ?? prop.status}
+                        {STATUS_LABELS()[prop.status] ?? prop.status}
                       </span>
                     </div>
                     {prop.area_useful != null && (
@@ -342,7 +342,7 @@ export default function GuestDatabaseScreen() {
             <div>
               <div style={{ fontSize: 'var(--fs-sub)', fontWeight: 'var(--fw-bold)', color: 'var(--t1)' }}>{dbInfo?.db_name}</div>
               <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 2 }}>
-                {dbInfo?.db_type ? (DB_TYPE_LABELS[dbInfo.db_type] ?? dbInfo.db_type) : ''}
+                {dbInfo?.db_type ? (DB_TYPE_LABELS()[dbInfo.db_type] ?? dbInfo.db_type) : ''}
               </div>
             </div>
             <div style={{ marginLeft: 'auto' }}>
@@ -372,7 +372,7 @@ export default function GuestDatabaseScreen() {
                   </div>
                   {p.property_status && (
                     <span className={`bdg ${STATUS_BADGE_CLS[p.property_status] ?? ''}`}>
-                      {STATUS_LABELS[p.property_status] ?? p.property_status}
+                      {STATUS_LABELS()[p.property_status] ?? p.property_status}
                     </span>
                   )}
                 </div>

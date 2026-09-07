@@ -18,11 +18,11 @@ import { currencySymbol, sanitizeDecimal, sanitizeInt, formatPrice, calcRent, ca
 import type { PropertyStatus, RentType, ParkingType, AreaBasis } from '@/types'
 import { tr } from '@/lib/i18n'
 
-const PARKING_TYPES: { v: ParkingType; l: string }[] = [
+const PARKING_TYPES = (): { v: ParkingType; l: string }[] => ([
   { v: 'underground', l: tr('Підземний') },
   { v: 'covered', l: tr('Критий') },
   { v: 'open', l: tr('Просто неба') },
-]
+])
 
 export default function PropertyFormScreen() {
   const { screenParams, backThenReplace, back, showToast, user, isOnline, databases } = useAppStore()
@@ -907,7 +907,7 @@ export default function PropertyFormScreen() {
               <div className="fr">
                 <span className="fr-l">{tr('Тип')}</span>
                 <div className="fr-seg" style={{ maxWidth: 230 }}>
-                  {PARKING_TYPES.map(({ v, l }) => (
+                  {PARKING_TYPES().map(({ v, l }) => (
                     <button type="button" key={v} className={`fr-seg-b ${parkingType === v ? 'on' : ''}`} onClick={() => { hapticSelection(); setParkingType(parkingType === v ? '' : v) }}>{l}</button>
                   ))}
                 </div>
@@ -941,7 +941,7 @@ export default function PropertyFormScreen() {
             <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconBolt size={14} color="#fbbf24" />{tr('Експлуатаційні послуги')}</span></div>
             <div className="glass-s" style={{ margin: '0 12px 16px', borderRadius: 'var(--r-md)' }}>
               <div className="util-tags">
-                {UTILITY_META.map(({ id, label, Icon, color }) => {
+                {UTILITY_META().map(({ id, label, Icon, color }) => {
                   const on = utilities.includes(id)
                   return (
                     <button

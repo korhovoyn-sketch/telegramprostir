@@ -13,7 +13,7 @@ import { UTILITY_META } from '@/lib/utilityMeta'
 import type { Property, Database } from '@/types'
 import { locale, tr } from '@/lib/i18n'
 
-const FORMATS = [
+const FORMATS = () => ([
   { id: 'pdf',   label: tr('PDF Документ'),   desc: tr('Брендований PDF — зберігається та шериться'), icon: <IconFile size={20} color="var(--info)" /> },
   { id: 'excel', label: tr('Excel таблиця'),   desc: tr('Аналітика, розрахунки — .xlsx'),               icon: <IconChartBar size={20} color="var(--ok-fg)" /> },
   // CSV існує не «для повноти», а щоб круговий рейс був справжнім: імпорт
@@ -21,7 +21,7 @@ const FORMATS = [
   // застосунок віддавав лише .xlsx, обіцянка «вивантажив → завантажив назад»
   // вимагала від користувача перезберегти файл в Excel.
   { id: 'csv',   label: tr('CSV таблиця'),     desc: tr('Для імпорту назад у застосунок'),              icon: <IconFileExport size={20} color="var(--violet)" /> },
-]
+])
 
 type Rgb = [number, number, number]
 
@@ -54,7 +54,7 @@ interface PdfTheme {
   onAccent: Rgb
 }
 
-const TEMPLATES: PdfTheme[] = [
+const TEMPLATES = (): PdfTheme[] => ([
   {
     id: 'classic', label: tr('Класик'), accent: '#1D4ED8', accentDark: '#1E3A8A',
     bg: [255, 255, 255], card: [246, 248, 252], border: [214, 222, 235],
@@ -70,7 +70,7 @@ const TEMPLATES: PdfTheme[] = [
     bg: [9, 8, 31], card: [20, 18, 52], border: [42, 38, 96],
     tx1: [232, 232, 248], tx2: [140, 140, 180], tx3: [110, 110, 150], onAccent: [255, 255, 255],
   },
-]
+])
 
 /** RGB-триплет шаблона → CSS. Один опис шаблона живить і PDF, і його превʼю. */
 const rgbCss = (c: readonly number[]) => `rgb(${c[0]},${c[1]},${c[2]})`
@@ -214,7 +214,7 @@ async function generatePDF(
   applyPlugin(jsPDF)
 
   const rows = onlyFree ? properties.filter(p => p.status === 'free') : properties
-  const tpl  = TEMPLATES.find(t => t.id === template) ?? TEMPLATES[1]
+  const tpl  = TEMPLATES().find(t => t.id === template) ?? TEMPLATES()[1]
 
   // ── Design tokens — з ТЕМИ, а не захардкоджені ────────────────────────────
   const BG     = tpl.bg
@@ -344,7 +344,7 @@ async function generatePDF(
   doc.setFont('Roboto', 'normal')
   doc.setTextColor(...tpl.onAccent)
   doc.setGState(new GState({ opacity: 0.78 }))
-  const typeLabel = DB_TYPE_LABELS[db.type] ?? db.type
+  const typeLabel = DB_TYPE_LABELS()[db.type] ?? db.type
   const dateStr   = new Date().toLocaleDateString(locale(), { day: 'numeric', month: 'long', year: 'numeric' })
   doc.text(`${typeLabel}  ·  ${rows.length} ${objectsWord(rows.length)}  ·  ${dateStr}`, M, 38)
   doc.setGState(new GState({ opacity: 1 }))
@@ -403,7 +403,7 @@ async function generatePDF(
     return [
       p.name,
       p.floor ?? '—',
-      STATUS_LABELS[p.status] ?? p.status,
+      STATUS_LABELS()[p.status] ?? p.status,
       p.area_useful ? `${p.area_useful}` : '—',
       p.area_total  ? `${p.area_total}`  : '—',
       p.rent_rate   ? `${p.rent_rate.toLocaleString(locale())}${p.rent_type === 'fixed' ? '' : rentUnitLabel(p.rent_type)}` : '—',
@@ -499,7 +499,7 @@ async function generatePDF(
     doc.setFont('Roboto', 'bold')
     doc.setFontSize(7)
     doc.setTextColor(...st.fg)
-    doc.text(STATUS_LABELS[p.status] ?? p.status, M + 16, y + 12.5, { align: 'center' })
+    doc.text(STATUS_LABELS()[p.status] ?? p.status, M + 16, y + 12.5, { align: 'center' })
 
     // Object name
     doc.setFont('Roboto', 'bold')
@@ -691,7 +691,7 @@ async function generatePDF(
     // Список послуг є на картці обʼєкта в застосунку, але в документ не
     // потрапляв — а це саме те, про що питає орендар («світло є? газ є?»).
     const utilList = (p.utilities ?? [])
-      .map((uid) => UTILITY_META.find((m) => m.id === uid)?.label)
+      .map((uid) => UTILITY_META().find((m) => m.id === uid)?.label)
       .filter((l): l is string => !!l)
     if (utilList.length > 0) {
       drawSection(tr('ЕКСПЛУАТАЦІЙНІ ПОСЛУГИ'), y)
@@ -879,7 +879,7 @@ function propertyRow(
     idx + 1,
     p.name,
     p.floor ?? '',
-    STATUS_LABELS[p.status] ?? p.status,
+    STATUS_LABELS()[p.status] ?? p.status,
     p.tenant_name ?? '',
     effectiveLandlord(p.landlord_name, db.landlord_name) ?? '',
     p.lease_start_date ? formatLeaseDate(p.lease_start_date) : '',
@@ -904,7 +904,7 @@ function propertyRow(
     p.parking_spaces || '',
     p.address ?? '',
     (p.utilities ?? [])
-      .map((uid) => UTILITY_META.find((m) => m.id === uid)?.label)
+      .map((uid) => UTILITY_META().find((m) => m.id === uid)?.label)
       .filter(Boolean).join(', '),
     p.description ?? '',
     // Порядок той самий, що в картці й у PDF: вбудоване відношення приходить
@@ -930,7 +930,7 @@ async function generateExcel(
 
   // Title block
   sheetData.push([tr('База: {0}', db.name)])
-  sheetData.push([tr('Тип: {0}', DB_TYPE_LABELS[db.type] ?? db.type)])
+  sheetData.push([tr('Тип: {0}', DB_TYPE_LABELS()[db.type] ?? db.type)])
   sheetData.push([tr('Дата: {0}', new Date().toLocaleDateString(locale()))])
   sheetData.push([tr('Обʼєктів: {0}', rows.length)])
   sheetData.push([]) // blank
@@ -1188,7 +1188,7 @@ export default function ExportScreen() {
           </span>
         </div>
         <div className="format-list">
-          {FORMATS.map((f) => (
+          {FORMATS().map((f) => (
             <div
               key={f.id}
               className={`format-card ${format === f.id ? 'sel' : ''}`}
@@ -1215,7 +1215,7 @@ export default function ExportScreen() {
               </span>
             </div>
             <div className="tmpl-row">
-              {TEMPLATES.map((t) => (
+              {TEMPLATES().map((t) => (
                 <div
                   key={t.id}
                   className={`tmpl ${template === t.id ? 'sel' : ''}`}

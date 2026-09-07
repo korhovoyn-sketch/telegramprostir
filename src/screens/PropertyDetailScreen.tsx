@@ -239,7 +239,7 @@ export default function PropertyDetailScreen() {
               палітри, а бейдж у сітці нижче показував ще інший колір. */}
           <div className="obj-hero-bdg" style={{ background: STATUS_COLORS[property.status].bg, color: STATUS_COLORS[property.status].color }}>
             <span className="fdot" style={{ background: STATUS_COLORS[property.status].color }} />
-            {STATUS_LABELS[property.status]}
+            {STATUS_LABELS()[property.status]}
           </div>
 
           {/* For for_sale the bottom CTA is the share entry point — avoid a second one in the hero.
@@ -401,7 +401,7 @@ export default function PropertyDetailScreen() {
             <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', fontWeight: 'var(--fw-semi)', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 10 }}>{tr('Експлуатаційні послуги')}</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
               {(property.utilities ?? []).map(uid => {
-                const meta = UTILITY_META.find(m => m.id === uid)
+                const meta = UTILITY_META().find(m => m.id === uid)
                 if (!meta) return null
                 return (
                   <div key={uid} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 13px', borderRadius: 'var(--r-pill)', background: 'var(--glass-2)', border: '.5px solid var(--glass-3)', fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-med)', color: meta.color }}>

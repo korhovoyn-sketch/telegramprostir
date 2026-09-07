@@ -66,7 +66,7 @@ interface KindCopy {
 const BASE_GUEST = 'id,owner_id,property_id,db_id,invite_token,label,guest_user_id,status,claimed_at,created_at'
 const BASE_TEAM = 'id,db_id,user_id,role,invite_token,label,status,claimed_at,created_at'
 
-const COPY: Record<AccessKind, KindCopy> = {
+const COPY = (): Record<AccessKind, KindCopy> => ({
   guest: {
     table: 'guest_links', nameCol: 'guest_name', columns: BASE_GUEST,
     tokenPrefix: 'guest_', bg: 'bg-blue',
@@ -95,7 +95,7 @@ const COPY: Record<AccessKind, KindCopy> = {
     // Прийнятий інвайт ділити нема сенсу — токен уже спожитий.
     canShare: (s) => s === 'pending',
   },
-}
+})
 
 const STATUS_COLOR: Record<string, string> = {
   pending: 'var(--warn)',
@@ -105,7 +105,7 @@ const STATUS_COLOR: Record<string, string> = {
 
 export default function AccessList({ kind }: { kind: AccessKind }) {
   const { screenParams, showToast, navigate } = useAppStore()
-  const c = COPY[kind]
+  const c = COPY()[kind]
 
   const isProperty = kind === 'guest' && !!screenParams.propertyId
   const dbId = screenParams.dbId as string | undefined

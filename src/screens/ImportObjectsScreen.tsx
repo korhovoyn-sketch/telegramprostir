@@ -44,7 +44,7 @@ const MAX_ROWS = 500
 const MAX_FILE_MB = 5
 
 
-const FIELDS: { id: Field; label: string; aliases: string[] }[] = [
+const FIELDS = (): { id: Field; label: string; aliases: string[] }[] => ([
   { id: 'name',           label: tr('Назва'),                 aliases: ['назва', 'name', 'обʼєкт', 'обєкт', 'объект', 'номер місця'] },
   { id: 'floor',          label: tr('Поверх'),                aliases: ['поверх', 'floor', 'рівень'] },
   { id: 'status',         label: tr('Статус'),                aliases: ['статус', 'status'] },
@@ -62,7 +62,7 @@ const FIELDS: { id: Field; label: string; aliases: string[] }[] = [
   { id: 'parking_spaces', label: tr('Місць паркінгу'),        aliases: ['місць паркінгу', 'паркомісць', 'parking spaces', 'spaces'] },
   { id: 'address',        label: tr('Адреса'),                aliases: ['адреса', 'address'] },
   { id: 'description',    label: tr('Опис'),                  aliases: ['опис', 'description', 'примітка'] },
-]
+])
 
 /**
  * База розрахунку і тип ставки — ГРОШОВІ поля, і саме тому вони тут, а не
@@ -129,7 +129,7 @@ function autoMap(headers: string[]): (Field | null)[] {
     headers.forEach((h, i) => {
       if (out[i]) return
       const n = key(h)
-      const hit = FIELDS.find((f) => !used.has(f.id) && f.aliases.some((a) => norm(a) === n))
+      const hit = FIELDS().find((f) => !used.has(f.id) && f.aliases.some((a) => norm(a) === n))
       if (hit) { used.add(hit.id); out[i] = hit.id }
     })
   }
@@ -356,7 +356,7 @@ export default function ImportObjectsScreen() {
                     style={{ marginLeft: 'auto', maxWidth: 190 }}
                   >
                     <option value="">{tr('— не імпортувати —')}</option>
-                    {FIELDS.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
+                    {FIELDS().map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
                   </select>
                 </div>
               ))}
@@ -390,7 +390,7 @@ export default function ImportObjectsScreen() {
                     <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 8 }}>
                       {tr('Перший:')}{' '}{parsed.ok[0].name}
                       {parsed.ok[0].floor ? tr(' · {0} поверх', parsed.ok[0].floor) : ''}
-                      {` · ${STATUS_LABELS[parsed.ok[0].status]}`}
+                      {` · ${STATUS_LABELS()[parsed.ok[0].status]}`}
                     </div>
                   )}
                 </>

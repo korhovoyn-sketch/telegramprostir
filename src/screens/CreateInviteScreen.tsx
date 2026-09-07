@@ -22,7 +22,7 @@ interface KindCopy {
   shareText: string
 }
 
-const KIND_COPY: Record<'team' | 'guest', KindCopy> = {
+const KIND_COPY = (): Record<'team' | 'guest', KindCopy> => ({
   team: {
     formTitle: tr('Запросити в команду'),
     formSubtitle: tr('Людина отримає право редагувати обʼєкти цієї бази'),
@@ -43,7 +43,7 @@ const KIND_COPY: Record<'team' | 'guest', KindCopy> = {
     bg: 'bg-blue',
     shareText: tr('Запрошення до перегляду'),
   },
-}
+})
 
 /**
  * Повноекранна форма запрошення — заміна колишнього InviteSheet+CreatedLinkSheet
@@ -61,7 +61,7 @@ export default function CreateInviteScreen() {
   const isProperty = !!propertyId
   const targetId = propertyId ?? dbId
 
-  const copy = KIND_COPY[kind]
+  const copy = KIND_COPY()[kind]
 
   const [step, setStep] = useState<'form' | 'created'>('form')
   const [label, setLabel] = useState('')

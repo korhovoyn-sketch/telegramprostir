@@ -99,7 +99,7 @@ export default function RealtorDatabaseScreen() {
 
   return (
     <div className="scr bg-cyan">
-      <Header title={db.name} subtitle={DB_TYPE_LABELS[db.type]} backLabel={tr('Бази')} />
+      <Header title={db.name} subtitle={DB_TYPE_LABELS()[db.type]} backLabel={tr('Бази')} />
 
       <div className="body">
         {/* Owner card */}

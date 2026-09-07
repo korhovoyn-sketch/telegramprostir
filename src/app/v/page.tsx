@@ -97,7 +97,7 @@ interface ColRow {
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
-const STATUS_LABEL: Record<string, string> = { free: tr('Вільно'), occupied: tr('Зайнято'), for_sale: tr('Продаж') }
+const STATUS_LABEL = (): Record<string, string> => ({ free: tr('Вільно'), occupied: tr('Зайнято'), for_sale: tr('Продаж') })
 const STATUS_COLOR: Record<string, string> = {
   free: 'rgba(74,222,128,1)',
   occupied: 'rgba(251,191,36,1)',
@@ -108,14 +108,14 @@ const STATUS_BG: Record<string, string> = {
   occupied: 'rgba(251,191,36,.15)',
   for_sale: 'rgba(96,165,250,.15)',
 }
-const DB_TYPE_LABEL: Record<string, string> = {
+const DB_TYPE_LABEL = (): Record<string, string> => ({
   business_center: tr('Бізнес-центр'),
   residential: tr('Житловий комплекс'),
   retail: tr('Торговий центр'),
   warehouse: tr('Склад'),
   individual: tr('Індивідуальний обʼєкт'),
   parking: tr('Паркінг'),
-}
+})
 
 function fmtArea(a: number | null) { return a ? tr('{0} м²', a) : null }
 // Currency comes from the owner's profile (migration 040); default to USD for
@@ -504,7 +504,7 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
             background: STATUS_BG[status] ?? STATUS_BG.free,
             color: STATUS_COLOR[status] ?? STATUS_COLOR.free,
           }}>
-            {STATUS_LABEL[status] ?? status}
+            {STATUS_LABEL()[status] ?? status}
           </span>
           {data.property_floor && (
             <span style={{ fontSize: 'var(--fs-foot)', color: 'rgba(255,255,255,.55)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
@@ -517,7 +517,7 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
         </div>
         <div style={{ fontSize: 'var(--fs-foot)', color: 'rgba(255,255,255,.5)', display: 'flex', alignItems: 'center', gap: 6 }}>
           <IconMapPin size={14} color="rgba(255,255,255,.5)" />
-          {[data.db_name, DB_TYPE_LABEL[data.db_type]].filter(Boolean).join(' • ')}
+          {[data.db_name, DB_TYPE_LABEL()[data.db_type]].filter(Boolean).join(' • ')}
         </div>
         {data.property_address && (
           <div style={{ fontSize: 'var(--fs-foot)', color: 'rgba(255,255,255,.5)', marginTop: 4 }}>
@@ -687,7 +687,7 @@ function DatabaseView({ rows, token }: { rows: DbRow[]; token: string }) {
           <div>
             <div style={{ fontSize: 'var(--fs-lead)', fontWeight: 700, letterSpacing: '-.02em' }}>{info.db_name}</div>
             <div style={{ fontSize: 'var(--fs-cap1)', color: 'rgba(255,255,255,.5)', marginTop: 2 }}>
-              {DB_TYPE_LABEL[info.db_type] ?? info.db_type}
+              {DB_TYPE_LABEL()[info.db_type] ?? info.db_type}
               {properties.length > 0 && ` • ${properties.length} ${objectsWord(properties.length)}`}
             </div>
           </div>
@@ -725,7 +725,7 @@ function DatabaseView({ rows, token }: { rows: DbRow[]; token: string }) {
                         background: STATUS_BG[p.property_status] ?? STATUS_BG.free,
                         color: STATUS_COLOR[p.property_status] ?? STATUS_COLOR.free,
                       }}>
-                        {STATUS_LABEL[p.property_status] ?? p.property_status}
+                        {STATUS_LABEL()[p.property_status] ?? p.property_status}
                       </span>
                     )}
                   </div>
@@ -830,7 +830,7 @@ function CollectionView({ rows, token }: { rows: ColRow[]; token: string }) {
                         background: STATUS_BG[p.property_status] ?? STATUS_BG.free,
                         color: STATUS_COLOR[p.property_status] ?? STATUS_COLOR.free,
                       }}>
-                        {STATUS_LABEL[p.property_status] ?? p.property_status}
+                        {STATUS_LABEL()[p.property_status] ?? p.property_status}
                       </span>
                     )}
                   </div>

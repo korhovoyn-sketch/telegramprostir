@@ -10,12 +10,12 @@ import { IconTelegram, GlassTelegram, GlassShield, GlassBolt, IconAdjustments } 
 import { tr } from '@/lib/i18n'
 import { tx } from '@/lib/tx'
 
-const AUTH_STEPS = [
+const AUTH_STEPS = () => ([
   tr('Підключаємось до Telegram...'),
   tr('Перевіряємо дані...'),
   tr('Завантажуємо профіль...'),
   tr('Налаштовуємо середовище...'),
-]
+])
 
 export default function WelcomeScreen() {
   const { loginViaTelegram, loading } = useAuth()
@@ -33,7 +33,7 @@ export default function WelcomeScreen() {
     loadStartRef.current = Date.now()
     setStepIdx(0)
     const stepTimer = setInterval(() => {
-      setStepIdx(i => Math.min(i + 1, AUTH_STEPS.length - 1))
+      setStepIdx(i => Math.min(i + 1, AUTH_STEPS().length - 1))
     }, 4000)
     const elapsedTimer = setInterval(() => {
       setElapsed(Date.now() - loadStartRef.current)
@@ -155,12 +155,12 @@ export default function WelcomeScreen() {
           padding: '0 40px', marginBottom: 28, lineHeight: 1.5,
           minHeight: 22, transition: 'opacity .3s ease',
         }}>
-          {AUTH_STEPS[stepIdx]}
+          {AUTH_STEPS()[stepIdx]}
         </div>
 
         {/* Animated dots */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 32 }}>
-          {AUTH_STEPS.map((_, i) => (
+          {AUTH_STEPS().map((_, i) => (
             <div key={i} style={{
               width: i === stepIdx ? 20 : 8,
               height: 8, borderRadius: 4,

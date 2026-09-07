@@ -11,20 +11,20 @@ import { DB_COLORS, scrollFocusedIntoView } from '@/lib/utils'
 import type { DatabaseType } from '@/types'
 import { tr } from '@/lib/i18n'
 
-const TYPES: { id: DatabaseType; label: string; desc: string; neon: 'blue' | 'green' | 'pink' | 'orange' | 'teal' | 'purple' }[] = [
+const TYPES = (): { id: DatabaseType; label: string; desc: string; neon: 'blue' | 'green' | 'pink' | 'orange' | 'teal' | 'purple' }[] => ([
   { id: 'business_center', label: tr('Бізнес-центр'), desc: tr('Офіси з нумерацією'), neon: 'blue' },
   { id: 'residential', label: tr('ЖК'), desc: tr('Квартири, пентхауси'), neon: 'green' },
   { id: 'retail', label: tr('Рітейл'), desc: tr('Магазини, бутики'), neon: 'pink' },
   { id: 'warehouse', label: tr('Склади'), desc: tr('Логістика'), neon: 'orange' },
   { id: 'individual', label: tr('Приватне'), desc: tr('Будинки, ділянки'), neon: 'teal' },
   { id: 'parking', label: tr('Паркінг'), desc: tr('Паркувальні місця'), neon: 'purple' },
-]
+])
 
 const COLOR_NAMES = Object.keys(DB_COLORS)
-const COLOR_LABELS: Record<string, string> = {
+const COLOR_LABELS = (): Record<string, string> => ({
   purple: tr('Фіолетовий'), blue: tr('Синій'), green: tr('Зелений'),
   orange: tr('Помаранчевий'), pink: tr('Рожевий'), teal: tr('Бірюзовий'),
-}
+})
 
 export default function CreateDatabaseScreen() {
   const { screenParams, databases, backThenReplace } = useAppStore()
@@ -136,7 +136,7 @@ export default function CreateDatabaseScreen() {
         {/* Type selection */}
         <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconLayoutGrid size={14} color="var(--violet)" />{tr('Тип нерухомості')}</span></div>
         <div className="type-grid">
-          {TYPES.map((t) => (
+          {TYPES().map((t) => (
             <div
               key={t.id}
               className={`type-card ${type === t.id ? 'sel' : ''}`}
@@ -157,7 +157,7 @@ export default function CreateDatabaseScreen() {
               key={c}
               role="radio"
               aria-checked={color === c}
-              aria-label={COLOR_LABELS[c] ?? c}
+              aria-label={COLOR_LABELS()[c] ?? c}
               className={`color-c ${color === c ? 'sel' : ''}`}
               style={{ background: DB_COLORS[c] }}
               onClick={() => { hapticSelection(); setColor(c) }}
@@ -183,7 +183,7 @@ export default function CreateDatabaseScreen() {
                 <div className="row-s">
                   <span className="fresh"><span className="fdot" />{tr('сьогодні')}</span>
                   <span>·</span>
-                  <span>{TYPES.find(t => t.id === type)?.label}</span>
+                  <span>{TYPES().find(t => t.id === type)?.label}</span>
                 </div>
               </div>
               <span className="bdg bdg-info">{tr('0 об.')}</span>

@@ -241,7 +241,7 @@ export default function DatabaseListScreen() {
                         </div>
                       </div>
                       <div className="row-r">
-                        <span className="bdg" style={{ background: badge.bg, color: badge.color }}>{STATUS_LABELS[p.status]}</span>
+                        <span className="bdg" style={{ background: badge.bg, color: badge.color }}>{STATUS_LABELS()[p.status]}</span>
                       </div>
                       <IconChevronRight size={14} color="var(--t4)" />
                     </div>
@@ -291,7 +291,7 @@ export default function DatabaseListScreen() {
                 <div className="row-mn">
                   <div className="row-t">{db.name}</div>
                   <div className="row-s">
-                    <span>{DB_TYPE_LABELS[db.type]}</span>
+                    <span>{DB_TYPE_LABELS()[db.type]}</span>
                     {db.address && <><span>·</span><span>{db.address}</span></>}
                   </div>
                   {(db._monthly_income ?? 0) > 0 && (
