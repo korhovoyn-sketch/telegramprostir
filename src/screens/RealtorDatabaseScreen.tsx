@@ -193,9 +193,9 @@ export default function RealtorDatabaseScreen() {
                     <div className="obj-tot">
                       <div className="obj-tot-l">{isDaily ? 'За добу' : 'На місяць'}</div>
                       {/* Валюта ВЛАСНИКА, не глядача: рієлтор із ₴ бачив «₴2 000» там, де
-          власник, публічна /v і PDF кажуть «$2 000». `SharedCollectionScreen`
-          документує цей самий фікс у себе — тут його просто не застосували. */}
-      <div className="obj-tot-v">{formatPrice(dispVal, owner?.currency ?? user?.currency)}{isDaily ? rentUnitLabel(p.rent_type) : ''}</div>
+                          власник, публічна /v і PDF кажуть «$2 000». `SharedCollectionScreen`
+                          документує цей самий фікс у себе — тут його просто не застосували. */}
+                      <div className="obj-tot-v">{formatPrice(dispVal, owner?.currency ?? user?.currency)}{isDaily ? rentUnitLabel(p.rent_type) : ''}</div>
                     </div>
                   )}
                 </div>

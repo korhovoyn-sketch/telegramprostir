@@ -385,9 +385,9 @@ export default function GuestDatabaseScreen() {
                   {p.property_rent_rate != null && (
                     <div className="obj-mt">
                       <IconCurrencyDollar size={14} color="var(--t3)" />
-                      {/* Символ валюти був відсутній ЗОВСІМ («18 /м²») — і це перша сума, яку
-    бачить запрошений гість. Валюта власника приходить у превʼю. */}
-<span>{formatPrice(p.property_rent_rate, p.owner_currency ?? undefined)}{rentUnitLabel(p.property_rent_type)}</span>
+                      {/* Символ валюти був відсутній ЗОВСІМ («18 /м²») — і це перша сума,
+                          яку бачить запрошений гість. Валюта власника приходить у превʼю. */}
+                      <span>{formatPrice(p.property_rent_rate, p.owner_currency ?? undefined)}{rentUnitLabel(p.property_rent_type)}</span>
                     </div>
                   )}
                 </div>
