@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAppStore } from '@/store/appStore'
 import { useAuth } from '@/hooks/useAuth'
-import { DB_TYPE_LABELS, rentUnitLabel, objectsWord, DB_COLORS, STATUS_BADGE_CLS } from '@/lib/utils'
+import { DB_TYPE_LABELS, rentUnitLabel, objectsWord, DB_COLORS, STATUS_BADGE_CLS, formatPrice } from '@/lib/utils'
 import { IconBuilding, IconRuler, IconCurrencyDollar, IconX } from '@/components/Icons'
 
 // Public DB preview (realtor flow)
@@ -23,6 +23,8 @@ interface PreviewRow {
   property_rent_type: string | null
   property_rent_rate: number | null
   property_description: string | null
+  /** Валюта ВЛАСНИКА (RPC віддає її з 040) — не глядача. */
+  owner_currency: string | null
 }
 
 // Guest invite preview (guest flow)
@@ -383,7 +385,9 @@ export default function GuestDatabaseScreen() {
                   {p.property_rent_rate != null && (
                     <div className="obj-mt">
                       <IconCurrencyDollar size={14} color="var(--t3)" />
-                      <span>{p.property_rent_rate.toLocaleString('uk-UA')} {rentUnitLabel(p.property_rent_type)}</span>
+                      {/* Символ валюти був відсутній ЗОВСІМ («18 /м²») — і це перша сума, яку
+    бачить запрошений гість. Валюта власника приходить у превʼю. */}
+<span>{formatPrice(p.property_rent_rate, p.owner_currency ?? undefined)}{rentUnitLabel(p.property_rent_type)}</span>
                     </div>
                   )}
                 </div>

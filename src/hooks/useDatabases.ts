@@ -256,8 +256,10 @@ export function useDatabases() {
 
       setDatabases(databases.map((d) => (d.id === id ? { ...d, ...data } : d)))
       showToast({ type: 'success', title: 'Базу оновлено' })
+      return true
     } catch (e) {
       showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
+      return false
     } finally {
       setLoading(false)
     }

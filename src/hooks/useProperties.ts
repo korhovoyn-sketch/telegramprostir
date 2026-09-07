@@ -450,8 +450,8 @@ export function useProperties(dbId?: string) {
   }, [showToast])
 
   // Move one or more objects into a folder (folderId = null → ungroup).
-  const moveToFolder = useCallback(async (ids: string[], folderId: string | null) => {
-    if (ids.length === 0) return
+  const moveToFolder = useCallback(async (ids: string[], folderId: string | null): Promise<boolean> => {
+    if (ids.length === 0) return false
     // Той самий per-item відкат, що в `updateProperty`: повертаємо `folder_id`
     // лише зачепленим рядкам, не чіпаючи сусідні оптимістичні правки.
     const prevFolders = new Map(propertiesRef.current.map((p) => [p.id, p.folder_id]))
@@ -470,11 +470,13 @@ export function useProperties(dbId?: string) {
           ? `${ids.length} ${objectsWord(ids.length)} переміщено`
           : `${ids.length} ${objectsWord(ids.length)} без папки`,
       })
+      return true
     } catch (e) {
       setProperties(prev => prev.map(p => (
         ids.includes(p.id) ? { ...p, folder_id: prevFolders.get(p.id) ?? null } : p
       )))
       showToast({ type: 'error', title: 'Не вдалося перемістити', subtitle: humanizeDbError(e) })
+      return false
     }
   }, [showToast])
 

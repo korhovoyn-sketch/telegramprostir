@@ -300,3 +300,35 @@ test('круговий рейс: байти експорту заходять н
   expect(row.rent_rate).toBe(18)
   expect(row.area_useful).toBe(45)
 })
+
+// ── Межі імпорту ───────────────────────────────────────────────────────────
+//
+// Імпорт лишався ЄДИНИМ входом файлу без межі: фото обмежені 20, документи 10,
+// а тут `file.text()` тягнув усе в памʼять webview, `parseCsv` будував повну
+// матрицю, і `createProperties` слав це ОДНИМ insert-ом. Відмова виглядала б
+// як зависання екрана, а не як «файл завеликий».
+test('забагато рядків — відмова з числом, а не мовчазне зависання', async ({ page }) => {
+  const wire: Wire = { inserts: [] }
+  await openImport(page, wire)
+
+  const rows = ['Назва,Поверх']
+  for (let i = 1; i <= 501; i++) rows.push(`Офіс ${i},${i % 9}`)
+  await upload(page, 'big.csv', rows.join('\n'))
+
+  await expect(page.locator('.toast')).toContainText('Максимум 500')
+  // Головне: до превʼю справа не дійшла, тобто матриця не пішла далі.
+  await expect(page.getByText('Обрати файл')).toBeVisible()
+  expect(wire.inserts, 'жодного запису').toHaveLength(0)
+})
+
+test('межа НЕ зачіпає звичайний файл (антивакуум)', async ({ page }) => {
+  const wire: Wire = { inserts: [] }
+  await openImport(page, wire)
+
+  const rows = ['Назва,Поверх']
+  for (let i = 1; i <= 500; i++) rows.push(`Офіс ${i},${i % 9}`)
+  await upload(page, 'ok.csv', rows.join('\n'))
+
+  // Рівно на межі — проходить і показує превʼю.
+  await expect(page.getByText(/Готово до імпорту|обʼєкт/i).first()).toBeVisible({ timeout: 15_000 })
+})

@@ -87,7 +87,7 @@ export function parseCsv(input: string, delimiter?: string): string[][] {
   rows.push(row)
 
   return rows
-    .map((r) => r.map((c) => c.trim()))
+    .map((r) => r.map((c) => unescapeCsvCell(c.trim())))
     .filter((r) => r.some((c) => c !== ''))
 }
 
@@ -104,9 +104,39 @@ export function parseCsv(input: string, delimiter?: string): string[][] {
  * в Excel, — у сам рядок його класти не можна, бо тоді круговий рейс мусив би
  * його зрізати, і тест перестав би бути симетричним.
  */
+/**
+ * ФОРМУЛЬНА ІНʼЄКЦІЯ: лапки тут НЕ захист, і це головне непорозуміння класу.
+ *
+ * Excel/LibreOffice/Sheets вирішують «це формула» ПО ВМІСТУ клітинки вже
+ * ПІСЛЯ того, як зрізали лапки при розборі CSV. Тобто `"=HYPERLINK(...)"`
+ * обчислюється так само, як голе `=HYPERLINK(...)`. Єдиний надійний прийом —
+ * префікс `'`, який ті самі програми трактують як «далі текст».
+ *
+ * Чому це не теорія саме тут: вільний текст обʼєкта (назва, орендар,
+ * орендодавець, поверх, адреса, опис) може писати РЕДАКТОР КОМАНДИ у чужу
+ * базу (`db_members`), а власник потім надсилає вивантажений файл третім
+ * особам через `navigator.share`. Тобто ланцюг «чужий ввід → мій файл →
+ * чужа машина» тут штатний, а не гіпотетичний.
+ *
+ * XLSX не зачеплений: `aoa_to_sheet` пише рядок типом `s`, тобто літералом.
+ */
+const RISKY_LEAD = /^[=+\-@\t\r]/
+
+export function escapeCsvCell(s: string): string {
+  return RISKY_LEAD.test(s) ? `'${s}` : s
+}
+
+/** Зворотний бік: щоб круговий рейс «експорт → імпорт» лишався тотожним. */
+export function unescapeCsvCell(s: string): string {
+  return s.startsWith("'") && RISKY_LEAD.test(s.slice(1)) ? s.slice(1) : s
+}
+
 export function toCsv(rows: (string | number | null | undefined)[][], delimiter = ','): string {
   const cell = (v: string | number | null | undefined): string => {
-    const s = v == null ? '' : String(v)
+    // Числа не екрануємо: `-5` — це значення, а не формула, і префікс зробив
+    // би з нього текст, який Excel більше не підсумує. Ризиковий провід
+    // стосується лише РЯДКІВ, тобто того, що набрала людина.
+    const s = v == null ? '' : typeof v === 'number' ? String(v) : escapeCsvCell(String(v))
     // Лапки, роздільник і будь-який перенос — три випадки, що вимагають
     // огорнути поле; подвоєна лапка всередині — єдиний спосіб її внести.
     return /["\r\n]/.test(s) || s.includes(delimiter)

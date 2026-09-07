@@ -54,6 +54,7 @@ export default function DatabaseListScreen() {
   // Cross-database property search
   const [propResults, setPropResults]     = useState<PropSearchResult[]>([])
   const [propSearching, setPropSearching] = useState(false)
+  const [propError, setPropError] = useState(false)
 
   useEffect(() => { loadDatabases() }, [loadDatabases])
 
@@ -73,7 +74,7 @@ export default function DatabaseListScreen() {
         // бази, тож звуження «свій owner_id» віддавало йому порожньо. Видимість
         // вирішує RLS — вона знає і власника, і membership.
         const like = `%${pattern}%`
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('properties')
           .select('id, name, status, db_id, floor, tenant_name, address')
           .or([
@@ -83,6 +84,10 @@ export default function DatabaseListScreen() {
             `floor.ilike.${like}`,
           ].join(','))
           .limit(40)
+        // Без цієї гілки збій пошуку малював «0 знайдено / Нічого не знайдено»
+        // — впевнену заяву, що такого обʼєкта в базах НЕМАЄ.
+        if (error) { setPropError(true); setPropResults([]); return }
+        setPropError(false)
         setPropResults(
           (data ?? [])
             .filter(p => matchesQuery(search, p.name, p.tenant_name, p.floor, p.address))
@@ -96,6 +101,9 @@ export default function DatabaseListScreen() {
               dbName: databases.find(d => d.id === p.db_id)?.name ?? '—',
             }))
         )
+      } catch {
+        setPropError(true)
+        setPropResults([])
       } finally {
         setPropSearching(false)
       }
@@ -199,12 +207,18 @@ export default function DatabaseListScreen() {
               <span>Обʼєкти по всіх базах</span>
               {propSearching
                 ? <span className="over-a">…</span>
+                : propError
+                ? <span className="over-a">збій</span>
                 : <span className="over-a">{propResults.length} знайдено</span>
               }
             </div>
             {propSearching ? (
               <div style={{ padding: '8px 16px' }}>
                 <div className="skel" style={{ height: 44, borderRadius: 'var(--r-xs)' }} />
+              </div>
+            ) : propError ? (
+              <div style={{ padding: '8px 16px', fontSize: 'var(--fs-foot)', color: 'var(--t3)' }}>
+                Пошук не вдався — перевірте зʼєднання. Це НЕ означає, що обʼєкта немає.
               </div>
             ) : propResults.length === 0 ? (
               <div style={{ padding: '8px 16px', fontSize: 'var(--fs-foot)', color: 'var(--t3)' }}>Нічого не знайдено</div>

@@ -388,7 +388,8 @@ export default function PropertyFormScreen() {
       showToast({ type: 'error', title: 'Дата закінчення оренди раніше початку' })
       return
     }
-    hapticNotify('success')
+    // Хаптик успіху свідомо НЕ тут: раніше він спрацьовував ДО запиту, тобто
+    // рука відчувала «збережено» ще до того, як сервер про це дізнався.
     // ПОРОЖНЄ ПОЛЕ В РЕЖИМІ РЕДАГУВАННЯ — ЦЕ `null`, А НЕ `undefined`.
     // `JSON.stringify` викидає ключі зі значенням `undefined`, тобто такий ключ
     // просто НЕ ПОТРАПЛЯЄ в тіло PATCH, і колонка лишається старою. Форма при
@@ -433,7 +434,13 @@ export default function PropertyFormScreen() {
     }
 
     if (isEdit && editId) {
-      await updateProperty(editId, payload)
+      // Результат ПЕРЕВІРЯЄТЬСЯ. Раніше він ігнорувався, тож на невдалому
+      // збереженні користувача викидало з форми (втрачаючи всі правки) на
+      // екран деталей зі СТАРИМИ значеннями — а єдиний тост зі скаргою
+      // встигав зникнути. Гілки СТВОРЕННЯ поруч завжди перевіряли `ok`.
+      const ok = await updateProperty(editId, payload)
+      if (!ok) return
+      hapticNotify('success')
       // Повертаємось РІВНО туди, звідки відкрили форму.
       // • з екрана обʼєкта → backThenReplace: знімає попередній (той самий)
       //   екран деталей і ставить свіжий, щоб у history не було дубля;
@@ -490,9 +497,11 @@ export default function PropertyFormScreen() {
         area_total: rows[i].at,
         sort_order: sortBase + (i + 1) * 100,
       })))
+      if (ok) hapticNotify('success')
       if (ok && draftKey) localStorage.removeItem(draftKey)
     } else {
       const ok = await createProperty(payload)
+      if (ok) hapticNotify('success')
       if (ok && draftKey) localStorage.removeItem(draftKey)
     }
   }

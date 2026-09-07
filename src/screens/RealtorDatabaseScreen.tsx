@@ -49,7 +49,7 @@ export default function RealtorDatabaseScreen() {
       // Load owner info for contact card
       if (dbData.owner_id) {
         const { data: ownerData } = await supabase
-          .from('users').select('id,tg_id,tg_username,first_name,last_name,phone').eq('id', dbData.owner_id).single()
+          .from('users').select('id,tg_id,tg_username,first_name,last_name,phone,currency').eq('id', dbData.owner_id).single()
         if (ownerData) setOwner(ownerData as User)
       }
     } catch (e) {
@@ -192,7 +192,10 @@ export default function RealtorDatabaseScreen() {
                   {dispVal > 0 && (
                     <div className="obj-tot">
                       <div className="obj-tot-l">{isDaily ? 'За добу' : 'На місяць'}</div>
-                      <div className="obj-tot-v">{formatPrice(dispVal, user?.currency)}{isDaily ? rentUnitLabel(p.rent_type) : ''}</div>
+                      {/* Валюта ВЛАСНИКА, не глядача: рієлтор із ₴ бачив «₴2 000» там, де
+          власник, публічна /v і PDF кажуть «$2 000». `SharedCollectionScreen`
+          документує цей самий фікс у себе — тут його просто не застосували. */}
+      <div className="obj-tot-v">{formatPrice(dispVal, owner?.currency ?? user?.currency)}{isDaily ? rentUnitLabel(p.rent_type) : ''}</div>
                     </div>
                   )}
                 </div>

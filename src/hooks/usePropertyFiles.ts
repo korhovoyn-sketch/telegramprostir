@@ -21,10 +21,15 @@ export function usePropertyFiles(propertyId: string | undefined) {
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null)
   const [currentUploadFile, setCurrentUploadFile] = useState<string | null>(null)
+  // Збій ЗАВАНТАЖЕННЯ списку мусить відрізнятись від «файлів немає»: без цього
+  // помилка запиту малювала «Файли ще не додані», і власник міг залити договір,
+  // який уже там лежить. Причому мовчки — навіть тоста не було.
+  const [loadError, setLoadError] = useState(false)
 
   const fetchFiles = useCallback(async () => {
     if (!propertyId) return
     setLoading(true)
+    setLoadError(false)
     try {
       const { data, error } = await supabase
         .from('property_files')
@@ -32,17 +37,27 @@ export function usePropertyFiles(propertyId: string | undefined) {
         .eq('property_id', propertyId)
         .order('sort_order', { ascending: true })
         .order('created_at',  { ascending: true })
-      if (!error && data) setFiles(data as PropertyFile[])
+      if (error) { setLoadError(true); return }
+      setFiles((data ?? []) as PropertyFile[])
+    } catch {
+      setLoadError(true)
     } finally {
       setLoading(false)
     }
   }, [propertyId])
 
+  /**
+   * Повертає ПІДСУМОК, а не void, і це не косметика: викликач малював
+   * «Файл(и) завантажено» беззастережно після `await`, а стор тримає РІВНО
+   * ОДИН тост (`toast: Toast | null`) — тобто повідомлення про помилку, щойно
+   * надіслане через `onError`, ЗАТИРАЛОСЬ успіхом. Користувач, який приніс
+   * .txt, бачив «завантажено».
+   */
   const uploadFiles = useCallback(async (
     picked: File[],
     onError: (msg: string) => void
-  ) => {
-    if (!propertyId) return
+  ): Promise<{ uploaded: number; failed: number }> => {
+    if (!propertyId) return { uploaded: 0, failed: picked.length }
 
     // Guard: query DB for the real current count — avoids stale closure
     // when the user triggers a second upload batch before React re-renders.
@@ -60,7 +75,7 @@ export function usePropertyFiles(propertyId: string | undefined) {
       return true
     })
 
-    if (!valid.length) return
+    if (!valid.length) return { uploaded: 0, failed: picked.length }
 
     // Verify ownership before touching storage — prevents orphaned files when RLS
     // blocks the DB insert but the storage upload already succeeded.
@@ -72,9 +87,10 @@ export function usePropertyFiles(propertyId: string | undefined) {
 
     if (propErr || !propRow?.owner_id) {
       onError('Не вдалося підтвердити право власності на обʼєкт')
-      return
+      return { uploaded: 0, failed: picked.length }
     }
 
+    let uploaded = 0
     setUploading(true)
     setUploadProgress({ done: 0, total: valid.length })
     try {
@@ -181,12 +197,14 @@ export function usePropertyFiles(propertyId: string | undefined) {
         setFiles(prev => [...prev, row as PropertyFile])
         setUploadProgress({ done: i + 1, total: valid.length })
         currentCount++
+        uploaded++
       }
     } finally {
       setUploading(false)
       setCurrentUploadFile(null)
       setUploadProgress(null)
     }
+    return { uploaded, failed: picked.length - uploaded }
   }, [propertyId, files.length])
 
   const deleteFile = useCallback(async (
@@ -207,7 +225,7 @@ export function usePropertyFiles(propertyId: string | undefined) {
       // `humanizeDbError`, а не сира `error.message`: та несе назви колонок,
       // констрейнтів і текст політик просто в тост (правило 1 Security rules).
       onError(humanizeDbError(e))
-      return
+      return false
     }
     setFiles(prev => prev.filter(f => f.id !== fileId))
 
@@ -221,7 +239,11 @@ export function usePropertyFiles(propertyId: string | undefined) {
       .from(BUCKET).remove([storagePath])
     if (rmErr || (removed?.length ?? 0) !== 1) {
       onError('Документ прибрано зі списку, але файл лишився у сховищі')
+      // Рядок таки видалено — це часткова невдача, і викликач НЕ має малювати
+      // поверх неї «Файл видалено» (єдиний тост у сторі затер би пояснення).
+      return false
     }
+    return true
   }, [])
 
   const getSignedUrl = useCallback(async (storagePath: string): Promise<string | null> => {
@@ -234,6 +256,7 @@ export function usePropertyFiles(propertyId: string | undefined) {
   return {
     files,
     loading,
+    loadError,
     uploading,
     uploadProgress,
     currentUploadFile,

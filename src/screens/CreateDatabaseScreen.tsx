@@ -60,7 +60,6 @@ export default function CreateDatabaseScreen() {
   async function handleSave() {
     if (!canCreate || !type) return
     if (offlineGuard()) return
-    hapticNotify('success')
     // Порожнє поле — це `null`, а НЕ `undefined`: `JSON.stringify` викидає
     // ключі з `undefined`, тож очищена адреса просто не доїжджала до PATCH —
     // колонка лишалась старою, а тост казав «Базу оновлено». Сусідній
@@ -74,9 +73,15 @@ export default function CreateDatabaseScreen() {
       landlord_name: landlord.trim() || null,
     }
     if (isEdit && editId) {
-      await updateDatabase(editId, payload)
+      // Той самий клас, що у формі обʼєкта: раніше результат ігнорувався і
+      // хаптик успіху спрацьовував ДО запиту, тож на невдалому збереженні
+      // користувача викидало на список обʼєктів зі СТАРОЮ назвою бази.
+      const ok = await updateDatabase(editId, payload)
+      if (!ok) return
+      hapticNotify('success')
       backThenReplace('db-objects', { dbId: editId })
     } else {
+      hapticNotify('success')
       await createDatabase(payload)
     }
   }
