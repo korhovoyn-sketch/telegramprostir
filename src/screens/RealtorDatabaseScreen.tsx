@@ -175,7 +175,7 @@ export default function RealtorDatabaseScreen() {
                   <div className="obj-hd">
                     <div>
                       <div className="obj-t">{p.name}</div>
-                      {p.floor && <div className="obj-s" style={{ display: 'flex', alignItems: 'center', gap: 3 }}><IconBuilding size={12} color="var(--t3)" />{p.floor} {tr('поверх')}</div>}
+                      {p.floor && <div className="obj-s" style={{ display: 'flex', alignItems: 'center', gap: 3 }}><IconBuilding size={12} color="var(--t3)" />{tr('{0} поверх', p.floor)}</div>}
                     </div>
                     <StatusBadge status={p.status} />
                   </div>

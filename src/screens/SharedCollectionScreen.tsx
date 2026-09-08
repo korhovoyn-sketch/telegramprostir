@@ -200,7 +200,7 @@ export default function SharedCollectionScreen() {
                       {p.area_useful && (
                         <span>{p.area_useful}{p.area_total ? `/${p.area_total}` : ''} {tr('м²')}</span>
                       )}
-                      {p.floor && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconBuilding size={12} color="var(--t3)" />{p.floor} {tr('пов.')}</span>}
+                      {p.floor && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconBuilding size={12} color="var(--t3)" />{tr('{0} пов.', p.floor)}</span>}
                       {rent > 0 && (
                         <span style={{ color: 'var(--t2)', fontWeight: 'var(--fw-semi)' }}>
                           {formatPrice(rent, data.currency)}{computedRentUnit(p.rent_type)}

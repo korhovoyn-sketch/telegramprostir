@@ -431,7 +431,7 @@ export default function DatabaseObjectsScreen() {
             </div>
             <div className="row-s">
               {p.tenant_name?.trim() && <><IconBuilding size={14} color="var(--t3)" /><span>{p.name}</span></>}
-              {p.floor && <><IconLayers size={14} color="var(--t3)" /><span>{p.floor} {tr('пов.')}</span></>}
+              {p.floor && <><IconLayers size={14} color="var(--t3)" /><span>{tr('{0} пов.', p.floor)}</span></>}
               {p.area_useful && <><IconRuler size={14} color="var(--t3)" /><span>{p.area_useful} {tr('м²')}</span></>}
             </div>
           </div>
@@ -533,7 +533,7 @@ export default function DatabaseObjectsScreen() {
               </div>
               {p.floor && (
                 <div style={{ fontSize: 'var(--fs-cap2)', color: 'var(--t3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 3 }}>
-                  <IconBuilding size={14} color="var(--t3)" />{p.floor} {tr('поверх')}
+                  <IconBuilding size={14} color="var(--t3)" />{tr('{0} поверх', p.floor)}
                 </div>
               )}
             </div>
@@ -550,7 +550,7 @@ export default function DatabaseObjectsScreen() {
                 </div>
                 {/* Один рядок фактів: поверх · площа — компактно, без розсипаної сітки */}
                 <div className="obj-s">
-                  {p.floor && <><IconBuilding size={14} color="var(--t3)" /><span>{p.floor} {tr('поверх')}</span></>}
+                  {p.floor && <><IconBuilding size={14} color="var(--t3)" /><span>{tr('{0} поверх', p.floor)}</span></>}
                   {p.area_useful != null && <>
                     {p.floor && <span className="obj-s-sep">·</span>}
                     <IconRuler size={14} color="var(--t3)" /><span>{p.area_useful}/{p.area_total ?? p.area_useful} {tr('м²')}</span>

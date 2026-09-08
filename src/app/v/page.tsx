@@ -508,7 +508,7 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
           </span>
           {data.property_floor && (
             <span style={{ fontSize: 'var(--fs-foot)', color: 'rgba(255,255,255,.55)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-              <IconBuilding size={12} color="rgba(255,255,255,.55)" />{data.property_floor} {tr('поверх')}
+              <IconBuilding size={12} color="rgba(255,255,255,.55)" />{tr('{0} поверх', data.property_floor)}
             </span>
           )}
         </div>
@@ -730,7 +730,7 @@ function DatabaseView({ rows, token }: { rows: DbRow[]; token: string }) {
                     )}
                   </div>
                   <div style={{ display: 'flex', gap: 12, marginTop: 6, flexWrap: 'wrap' }}>
-                    {p.property_floor && <span style={{ fontSize: 'var(--fs-cap1)', color: 'rgba(255,255,255,.5)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconBuilding size={12} color="rgba(255,255,255,.5)" />{p.property_floor} {tr('пов.')}</span>}
+                    {p.property_floor && <span style={{ fontSize: 'var(--fs-cap1)', color: 'rgba(255,255,255,.5)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconBuilding size={12} color="rgba(255,255,255,.5)" />{tr('{0} пов.', p.property_floor)}</span>}
                     {p.property_area_useful && <span style={{ fontSize: 'var(--fs-cap1)', color: 'rgba(255,255,255,.5)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconRuler size={12} color="rgba(255,255,255,.5)" />{p.property_area_useful} {tr('м²')}</span>}
                     {p.property_status === 'for_sale' && p.property_sale_price ? (
                       <span className="num" style={{ fontSize: 'var(--fs-cap1)', fontWeight: 700, color: '#60a5fa' }}>

@@ -237,7 +237,7 @@ export default function DatabaseListScreen() {
                         <div className="row-t">{p.name}</div>
                         <div className="row-s">
                           <span style={{ color: 'var(--t3)' }}>{p.dbName}</span>
-                          {p.floor && <><span>·</span><span>{p.floor} {tr('пов.')}</span></>}
+                          {p.floor && <><span>·</span><span>{tr('{0} пов.', p.floor)}</span></>}
                         </div>
                       </div>
                       <div className="row-r">

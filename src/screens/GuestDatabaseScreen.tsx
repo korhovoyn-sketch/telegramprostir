@@ -245,7 +245,7 @@ export default function GuestDatabaseScreen() {
               <div style={{ marginTop: 12, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                 {p.floor && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--fs-foot)', color: 'var(--t2)' }}>
-                    <IconBuilding size={14} color="var(--t3)" />{p.floor} {tr('поверх')}
+                    <IconBuilding size={14} color="var(--t3)" />{tr('{0} поверх', p.floor)}
                   </div>
                 )}
                 {p.area_useful != null && (
@@ -287,7 +287,7 @@ export default function GuestDatabaseScreen() {
                       <div>
                         <div className="obj-t">{prop.name}</div>
                         {prop.floor && (
-                          <div className="obj-s"><IconBuilding size={14} color="var(--t3)" />{prop.floor} {tr('поверх')}</div>
+                          <div className="obj-s"><IconBuilding size={14} color="var(--t3)" />{tr('{0} поверх', prop.floor)}</div>
                         )}
                       </div>
                       <span className={`bdg ${STATUS_BADGE_CLS[prop.status] ?? ''}`}>
@@ -367,7 +367,7 @@ export default function GuestDatabaseScreen() {
                   <div>
                     <div className="obj-t">{p.property_name}</div>
                     {p.property_floor && (
-                      <div className="obj-s"><IconBuilding size={14} color="var(--t3)" />{p.property_floor} {tr('поверх')}</div>
+                      <div className="obj-s"><IconBuilding size={14} color="var(--t3)" />{tr('{0} поверх', p.property_floor)}</div>
                     )}
                   </div>
                   {p.property_status && (

@@ -1,33 +1,4 @@
-/**
- * АНГЛІЙСЬКИЙ СЛОВНИК — ГЕНЕРОВАНИЙ ФАЙЛ, руками не правити.
- *
- * Ключ — український рядок із виклику `tr()`/`tx()`; значення — переклад.
- * ДЖЕРЕЛО — `scripts/i18n/dict.json`; збирає `scripts/i18n/gen-dict.js`:
- *
- *     node scripts/i18n/gen-dict.js scripts/i18n/dict.json
- *
- * Джерело — памʼять перекладів, тож воно може містити БІЛЬШЕ за цей файл:
- * генератор виписує лише ключі, які СПРАВДІ Є В КОДІ, тож ключ, що осиротів
- * після рефакторингу, зникає звідси сам, а переклад лишається на випадок,
- * коли рядок повернеться. Гард `tests/unit/i18n.test.ts` падає, щойно код
- * і словник розійдуться в будь-який бік, і окремо — щойно цей файл виявиться
- * ПРАВЛЕНИМ РУКАМИ, тобто не збігається з тим, що дає генератор.
- *
- * ГЛОСАРІЙ (терміни, що мусять читатись однаково по всьому застосунку):
- *   обʼєкт → unit            база → database        підбірка → collection
- *   Вільно → Vacant          Зайнято → Occupied     Продаж → For sale
- *   орендар → tenant         орендодавець → landlord
- *   договір → lease          експлуатаційні → service charges
- *   корисна площа → usable area   розрахункова площа → billable area
- *
- * «Вільно» — саме `Vacant`, а не `Free`: англійською `free` читається
- * як «безкоштовно», тобто статус обʼєкта перетворився б на обіцянку ціни.
- *
- * Завантажується ДИНАМІЧНО (`await import`) і лише для англійської — щоб
- * український користувач, якого більшість, не платив за цей файл на
- * холодному старті. Те саме правило, що для `xlsx` і `jsPDF`.
- */
-export const EN: Record<string, string> = {
+{
   " · {0} поверх": " · floor {0}",
   " та ще {0}": " and {0} more",
   "-1, 2, підвал": "-1, 2, basement",
@@ -779,7 +750,9 @@ export const EN: Record<string, string> = {
   "Площа розрахункова": "Billable area",
   "Площа розрахункова (м²)": "Billable area (m²)",
   "Пн": "Mon",
+  "пов.": "fl.",
   "Пов.": "Fl.",
+  "поверх": "floor",
   "Поверх": "Floor",
   "Повільне зʼєднання": "Slow connection",
   "поділився посиланням": "shared a link",
@@ -1104,5 +1077,5 @@ export const EN: Record<string, string> = {
   "prostir — інструмент обліку нерухомості всередині Telegram: ви ведете бази обʼєктів, рахуєте оренду й експлуатаційні платежі, зберігаєте фото та документи, ділитесь добірками з рієлторами й клієнтами.": "prostir is a property record-keeping tool inside Telegram: you keep databases of units, calculate rent and service charges, store photos and documents, and share collections with agents and clients.",
   "prostir — платформа управління нерухомістю в Telegram. Бази обʼєктів, аналітика переглядів, підбірки для ріелторів.": "prostir is a property management platform in Telegram. Unit databases, view analytics, collections for agents.",
   "QR-код для ріелторів — не для власника": "The QR code is for agents — not for the owner",
-  "Word документ": "Word document",
+  "Word документ": "Word document"
 }

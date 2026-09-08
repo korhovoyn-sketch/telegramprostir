@@ -9,7 +9,7 @@ const fs = require('fs')
 const { allKeys } = require('./keys.js')
 
 const dictPath = process.argv[2]
-if (!dictPath) { console.error('вкажіть шлях до dict.json'); process.exit(1) }
+if (!dictPath) { console.error('вкажіть шлях до dict.json [і, опційно, вихідний файл]'); process.exit(1) }
 const dict = JSON.parse(fs.readFileSync(dictPath, 'utf8'))
 const keys = [...allKeys().keys()].sort((a, b) => a.localeCompare(b, 'uk'))
 
@@ -23,12 +23,21 @@ if (missing.length) {
 const esc = (s) => JSON.stringify(s)
 const body = keys.map((k) => `  ${esc(k)}: ${esc(dict[k])},`).join('\n')
 
-fs.writeFileSync('src/lib/dict-en.ts', `/**
+const outPath = process.argv[3] || 'src/lib/dict-en.ts'
+fs.writeFileSync(outPath, `/**
  * АНГЛІЙСЬКИЙ СЛОВНИК — ГЕНЕРОВАНИЙ ФАЙЛ, руками не правити.
  *
  * Ключ — український рядок із виклику \`tr()\`/\`tx()\`; значення — переклад.
- * Збирається \`scripts/i18n/gen-dict.js\`; гард \`tests/unit/i18n.test.ts\`
- * падає, щойно код і словник розійдуться в будь-який бік.
+ * ДЖЕРЕЛО — \`scripts/i18n/dict.json\`; збирає \`scripts/i18n/gen-dict.js\`:
+ *
+ *     node scripts/i18n/gen-dict.js scripts/i18n/dict.json
+ *
+ * Джерело — памʼять перекладів, тож воно може містити БІЛЬШЕ за цей файл:
+ * генератор виписує лише ключі, які СПРАВДІ Є В КОДІ, тож ключ, що осиротів
+ * після рефакторингу, зникає звідси сам, а переклад лишається на випадок,
+ * коли рядок повернеться. Гард \`tests/unit/i18n.test.ts\` падає, щойно код
+ * і словник розійдуться в будь-який бік, і окремо — щойно цей файл виявиться
+ * ПРАВЛЕНИМ РУКАМИ, тобто не збігається з тим, що дає генератор.
  *
  * ГЛОСАРІЙ (терміни, що мусять читатись однаково по всьому застосунку):
  *   обʼєкт → unit            база → database        підбірка → collection
