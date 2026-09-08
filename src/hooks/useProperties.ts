@@ -7,6 +7,7 @@ import { assertAffected } from '@/lib/dbWrite'
 import { readSnapshot, writeSnapshot } from '@/lib/snapshot'
 import { useAppStore } from '@/store/appStore'
 import type { Property, PropertyStatus } from '@/types'
+import { tr } from '@/lib/i18n'
 
 // Scalar column list + the photos relation, shared across every select so the
 // four query sites can't drift apart (and none falls back to select('*')).
@@ -157,7 +158,7 @@ export function useProperties(dbId?: string) {
     } catch (e) {
       const msg = humanizeDbError(e)
       setError(msg)
-      showToast({ type: 'error', title: 'Помилка завантаження', subtitle: msg })
+      showToast({ type: 'error', title: tr('Помилка завантаження'), subtitle: msg })
     } finally {
       setLoading(false)
     }
@@ -193,7 +194,7 @@ export function useProperties(dbId?: string) {
     } catch (e) {
       const msg = humanizeDbError(e)
       setError(msg)
-      showToast({ type: 'error', title: 'Помилка завантаження', subtitle: msg })
+      showToast({ type: 'error', title: tr('Помилка завантаження'), subtitle: msg })
     } finally {
       setLoading(false)
     }
@@ -236,11 +237,11 @@ export function useProperties(dbId?: string) {
       }
       if (err) throw err
       setProperties((prev) => [created as Property, ...prev])
-      showToast({ type: 'success', title: 'Обʼєкт додано' })
+      showToast({ type: 'success', title: tr('Обʼєкт додано') })
       backThenReplace('db-objects', { dbId: payload.db_id })
       return true
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
+      showToast({ type: 'error', title: tr('Помилка'), subtitle: humanizeDbError(e) })
       return false
     } finally {
       setLoading(false)
@@ -275,11 +276,11 @@ export function useProperties(dbId?: string) {
       }
       if (err) throw err
       setProperties((prev) => [...((created ?? []) as Property[]), ...prev])
-      showToast({ type: 'success', title: `Додано ${payloads.length} ${objectsWord(payloads.length)}` })
+      showToast({ type: 'success', title: tr('Додано {0} {1}', payloads.length, objectsWord(payloads.length)) })
       backThenReplace('db-objects', { dbId: payloads[0].db_id })
       return true
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
+      showToast({ type: 'error', title: tr('Помилка'), subtitle: humanizeDbError(e) })
       return false
     } finally {
       setLoading(false)
@@ -320,11 +321,11 @@ export function useProperties(dbId?: string) {
         setProperties((prev) => prev.map((p) => (
           p.id === id ? ({ ...updated, _view_count: (p as Property & { _view_count?: number })._view_count } as Property) : p
         )))
-        if (!opts.silent) showToast({ type: 'success', title: 'Збережено' })
+        if (!opts.silent) showToast({ type: 'success', title: tr('Збережено') })
         return true
       } catch (e) {
         if (prevItem) setProperties((prev) => prev.map((p) => (p.id === id ? prevItem : p)))
-        showToast({ type: 'error', title: 'Не збереглося — повернуто як було', subtitle: humanizeDbError(e) })
+        showToast({ type: 'error', title: tr('Не збереглося — повернуто як було'), subtitle: humanizeDbError(e) })
         return false
       }
     }
@@ -341,10 +342,10 @@ export function useProperties(dbId?: string) {
       if (error) throw error
       const updated = withSortedPhotos(one<Property>(data))
       setProperties((prev) => prev.map((p) => (p.id === id ? updated : p)))
-      if (!opts?.silent) showToast({ type: 'success', title: 'Збережено' })
+      if (!opts?.silent) showToast({ type: 'success', title: tr('Збережено') })
       return true
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
+      showToast({ type: 'error', title: tr('Помилка'), subtitle: humanizeDbError(e) })
       return false
     } finally {
       setLoading(false)
@@ -367,7 +368,7 @@ export function useProperties(dbId?: string) {
         .eq('id', id)
         .select('id')
       if (error) throw error
-      assertAffected(deleted, 1, 'видалення обʼєкта')
+      assertAffected(deleted, 1, tr('видалення обʼєкта'))
 
       if (photos && photos.length > 0) {
         await supabase.storage.from('photos').remove(photos.map((p) => p.storage_path))
@@ -377,14 +378,14 @@ export function useProperties(dbId?: string) {
       }
 
       setProperties((prev) => prev.filter((p) => p.id !== id))
-      showToast({ type: 'success', title: 'Обʼєкт видалено' })
+      showToast({ type: 'success', title: tr('Обʼєкт видалено') })
       // backThenReplace, не navigate: видалення відкривається ЛИШЕ з форми
       // редагування, куди заходять з property-detail того ж обʼєкта — просте
       // navigate лишило б і деталі, і форму цього вже неіснуючого обʼєкта в
       // history, і Back після видалення повертав би на мертвий екран.
       backThenReplace('db-objects', { dbId })
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
+      showToast({ type: 'error', title: tr('Помилка'), subtitle: humanizeDbError(e) })
     } finally {
       setLoading(false)
     }
@@ -408,7 +409,7 @@ export function useProperties(dbId?: string) {
         .in('id', ids)
         .select('id')
       if (error) throw error
-      assertAffected(deleted, ids.length, 'видалення обʼєктів')
+      assertAffected(deleted, ids.length, tr('видалення обʼєктів'))
 
       if (photos && photos.length > 0) {
         await supabase.storage.from('photos').remove(photos.map(p => p.storage_path))
@@ -417,9 +418,9 @@ export function useProperties(dbId?: string) {
         await supabase.storage.from('property-files').remove(docs.map(d => d.storage_path))
       }
       setProperties(prev => prev.filter(p => !ids.includes(p.id)))
-      showToast({ type: 'success', title: `Видалено ${ids.length} ${objectsWord(ids.length)}` })
+      showToast({ type: 'success', title: tr('Видалено {0} {1}', ids.length, objectsWord(ids.length)) })
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка видалення', subtitle: humanizeDbError(e) })
+      showToast({ type: 'error', title: tr('Помилка видалення'), subtitle: humanizeDbError(e) })
     } finally {
       setLoading(false)
     }
@@ -440,12 +441,12 @@ export function useProperties(dbId?: string) {
         .in('id', ids)
         .select('id')
       if (error) throw error
-      assertAffected(updated, ids.length, 'зміну статусу')
+      assertAffected(updated, ids.length, tr('зміну статусу'))
       setProperties(prev => prev.map(p => ids.includes(p.id) ? { ...p, status, ...cleared } : p))
-      const label: Record<PropertyStatus, string> = { free: 'Вільно', occupied: 'Зайнято', for_sale: 'Продаж' }
+      const label: Record<PropertyStatus, string> = { free: tr('Вільно'), occupied: tr('Зайнято'), for_sale: tr('Продаж') }
       showToast({ type: 'success', title: `${ids.length} ${objectsWord(ids.length)} — ${label[status]}` })
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
+      showToast({ type: 'error', title: tr('Помилка'), subtitle: humanizeDbError(e) })
     }
   }, [showToast])
 
@@ -463,19 +464,19 @@ export function useProperties(dbId?: string) {
         .in('id', ids)
         .select('id')
       if (error) throw error
-      assertAffected(moved, ids.length, 'переміщення в папку')
+      assertAffected(moved, ids.length, tr('переміщення в папку'))
       showToast({
         type: 'success',
         title: folderId
-          ? `${ids.length} ${objectsWord(ids.length)} переміщено`
-          : `${ids.length} ${objectsWord(ids.length)} без папки`,
+          ? tr('{0} {1} переміщено', ids.length, objectsWord(ids.length))
+          : tr('{0} {1} без папки', ids.length, objectsWord(ids.length)),
       })
       return true
     } catch (e) {
       setProperties(prev => prev.map(p => (
         ids.includes(p.id) ? { ...p, folder_id: prevFolders.get(p.id) ?? null } : p
       )))
-      showToast({ type: 'error', title: 'Не вдалося перемістити', subtitle: humanizeDbError(e) })
+      showToast({ type: 'error', title: tr('Не вдалося перемістити'), subtitle: humanizeDbError(e) })
       return false
     }
   }, [showToast])
@@ -504,7 +505,7 @@ export function useProperties(dbId?: string) {
         .in('id', ids)
         .select('id')
       if (error) throw error
-      assertAffected(moved, ids.length, 'перенесення в іншу базу')
+      assertAffected(moved, ids.length, tr('перенесення в іншу базу'))
 
       // Порядок — окремим, НЕобовʼязковим кроком: сам перенос уже стався одним
       // запитом (усе або нічого), а невдале перенумерування зіпсує лише порядок.
@@ -522,14 +523,14 @@ export function useProperties(dbId?: string) {
 
       showToast({
         type: 'success',
-        title: `${ids.length} ${objectsWord(ids.length)} у базі «${targetName}»`,
-        actionLabel: 'Відкрити',
+        title: tr('{0} {1} у базі «{2}»', ids.length, objectsWord(ids.length), targetName),
+        actionLabel: tr('Відкрити'),
         onAction: () => navigate('db-objects', { dbId: targetDbId }),
       })
       return true
     } catch (e) {
       setProperties(prevList)
-      showToast({ type: 'error', title: 'Не вдалося перенести', subtitle: humanizeDbError(e) })
+      showToast({ type: 'error', title: tr('Не вдалося перенести'), subtitle: humanizeDbError(e) })
       return false
     }
   }, [showToast, navigate])
@@ -574,11 +575,11 @@ export function useProperties(dbId?: string) {
       ])
       if (swapA.error) throw swapA.error
       if (swapB.error) throw swapB.error
-      assertAffected(swapA.data, 1, 'зміну порядку')
-      assertAffected(swapB.data, 1, 'зміну порядку')
+      assertAffected(swapA.data, 1, tr('зміну порядку'))
+      assertAffected(swapB.data, 1, tr('зміну порядку'))
     } catch (e) {
       setProperties(properties) // rollback
-      showToast({ type: 'error', title: 'Не вдалося зберегти порядок', subtitle: humanizeDbError(e) })
+      showToast({ type: 'error', title: tr('Не вдалося зберегти порядок'), subtitle: humanizeDbError(e) })
     }
   }, [properties, showToast])
 
@@ -592,7 +593,7 @@ export function useProperties(dbId?: string) {
       const { data, error } = await supabase
         .from('property_photos').delete().eq('id', photoId).select('id')
       if (error) throw error
-      assertAffected(data, 1, 'видалення фото')
+      assertAffected(data, 1, tr('видалення фото'))
       // Стан оновлюємо ОДРАЗУ після доведеного видалення рядка: саме рядок є
       // джерелом правди для застосунку, і він уже знесений. Якщо кинути тут
       // виняток через storage, фото лишиться намальованим при мертвому рядку.
@@ -617,12 +618,12 @@ export function useProperties(dbId?: string) {
       if (rmErr || (removed?.length ?? 0) !== 1) {
         showToast({
           type: 'error',
-          title: 'Фото прибрано, але файл лишився',
-          subtitle: 'Спробуйте ще раз пізніше — знімок може бути доступним за прямим посиланням',
+          title: tr('Фото прибрано, але файл лишився'),
+          subtitle: tr('Спробуйте ще раз пізніше — знімок може бути доступним за прямим посиланням'),
         })
       }
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка видалення фото', subtitle: humanizeDbError(e) })
+      showToast({ type: 'error', title: tr('Помилка видалення фото'), subtitle: humanizeDbError(e) })
       throw e
     }
   }, [showToast])

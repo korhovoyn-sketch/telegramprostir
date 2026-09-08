@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { TG_BOT, buildDeepLink } from '@/lib/telegram'
 import { IconBuilding, IconRuler, IconMapPin, IconBolt } from '@/components/Icons'
 import { photoUrl, calcRentUtils, basisArea, rentUnitLabel, parkingTypeLabel, formatPrice, objectsWord, pluralUk, DB_COLORS } from '@/lib/utils'
+import { tr } from '@/lib/i18n'
 
 // ── data types returned by the RPCs ──────────────────────────────────────────
 
@@ -96,7 +97,7 @@ interface ColRow {
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
-const STATUS_LABEL: Record<string, string> = { free: 'Вільно', occupied: 'Зайнято', for_sale: 'Продаж' }
+const STATUS_LABEL = (): Record<string, string> => ({ free: tr('Вільно'), occupied: tr('Зайнято'), for_sale: tr('Продаж') })
 const STATUS_COLOR: Record<string, string> = {
   free: 'rgba(74,222,128,1)',
   occupied: 'rgba(251,191,36,1)',
@@ -107,16 +108,16 @@ const STATUS_BG: Record<string, string> = {
   occupied: 'rgba(251,191,36,.15)',
   for_sale: 'rgba(96,165,250,.15)',
 }
-const DB_TYPE_LABEL: Record<string, string> = {
-  business_center: 'Бізнес-центр',
-  residential: 'Житловий комплекс',
-  retail: 'Торговий центр',
-  warehouse: 'Склад',
-  individual: 'Індивідуальний обʼєкт',
-  parking: 'Паркінг',
-}
+const DB_TYPE_LABEL = (): Record<string, string> => ({
+  business_center: tr('Бізнес-центр'),
+  residential: tr('Житловий комплекс'),
+  retail: tr('Торговий центр'),
+  warehouse: tr('Склад'),
+  individual: tr('Індивідуальний обʼєкт'),
+  parking: tr('Паркінг'),
+})
 
-function fmtArea(a: number | null) { return a ? `${a} м²` : null }
+function fmtArea(a: number | null) { return a ? tr('{0} м²', a) : null }
 // Currency comes from the owner's profile (migration 040); default to USD for
 // responses from a not-yet-migrated backend.
 function fmtPrice(n: number | null, currency?: string | null, suffix = '') {
@@ -346,7 +347,7 @@ function PhotoGallery({ paths }: { paths: string[] }) {
           key={active}
           className="v-fade"
           src={photoUrl(paths[active])}
-          alt={`Фото обʼєкта ${active + 1} з ${paths.length}`}
+          alt={tr('Фото обʼєкта {0} з {1}', active + 1, paths.length)}
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
         />
         {paths.length > 1 && (
@@ -363,13 +364,13 @@ function PhotoGallery({ paths }: { paths: string[] }) {
                 озвучує як назву пунктуаційного знака, тобто ніяк. */}
             <button
               className="v-btn"
-              aria-label="Попереднє фото"
+              aria-label={tr('Попереднє фото')}
               onClick={() => setActive(a => Math.max(0, a - 1))}
               style={{ ...s.galArrow, left: 8, display: active === 0 ? 'none' : 'flex' }}
             >‹</button>
             <button
               className="v-btn"
-              aria-label="Наступне фото"
+              aria-label={tr('Наступне фото')}
               onClick={() => setActive(a => Math.min(paths.length - 1, a + 1))}
               style={{ ...s.galArrow, right: 8, display: active === paths.length - 1 ? 'none' : 'flex' }}
             >›</button>
@@ -380,7 +381,7 @@ function PhotoGallery({ paths }: { paths: string[] }) {
         <div style={{ display: 'flex', gap: 6, padding: '8px 12px', overflowX: 'auto' }}>
           {paths.map((p, i) => (
             <button key={i} className="v-thumb" onClick={() => setActive(i)}
-              aria-label={`Фото ${i + 1} з ${paths.length}`}
+              aria-label={tr('Фото {0} з {1}', i + 1, paths.length)}
               aria-current={active === i ? 'true' : undefined}
               style={{
               flexShrink: 0, width: 56, height: 44, borderRadius: 8,
@@ -406,7 +407,7 @@ function PageHeader({ deepLink }: { deepLink: string }) {
         <div style={s.logoBox}>P</div>
         <span style={s.logoName}>prostir</span>
       </div>
-      <a href={deepLink} style={s.tgIconBtn} className="v-btn v-tg" aria-label="Відкрити в Telegram">
+      <a href={deepLink} style={s.tgIconBtn} className="v-btn v-tg" aria-label={tr('Відкрити в Telegram')}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
           <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12L6.88 13.47l-2.967-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.275.089z"/>
         </svg>
@@ -439,7 +440,7 @@ function ContactRow({ firstName, lastName, phone, tgUsername, label }: {
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.8 19.79 19.79 0 01.22 1.22 2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.91a16 16 0 006.72 6.72l1.06-1.06a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
             </svg>
-            Зателефонувати
+            {tr('Зателефонувати')}
           </a>
         )}
         {tgUsername && (
@@ -456,7 +457,7 @@ function ContactRow({ firstName, lastName, phone, tgUsername, label }: {
           </a>
         )}
         {!phone && !tgUsername && (
-          <span style={{ fontSize: 'var(--fs-foot)', color: 'rgba(255,255,255,.4)' }}>Контакти не вказані</span>
+          <span style={{ fontSize: 'var(--fs-foot)', color: 'rgba(255,255,255,.4)' }}>{tr('Контакти не вказані')}</span>
         )}
       </div>
     </div>
@@ -503,11 +504,11 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
             background: STATUS_BG[status] ?? STATUS_BG.free,
             color: STATUS_COLOR[status] ?? STATUS_COLOR.free,
           }}>
-            {STATUS_LABEL[status] ?? status}
+            {STATUS_LABEL()[status] ?? status}
           </span>
           {data.property_floor && (
             <span style={{ fontSize: 'var(--fs-foot)', color: 'rgba(255,255,255,.55)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-              <IconBuilding size={12} color="rgba(255,255,255,.55)" />{data.property_floor} поверх
+              <IconBuilding size={12} color="rgba(255,255,255,.55)" />{tr('{0} поверх', data.property_floor)}
             </span>
           )}
         </div>
@@ -516,7 +517,7 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
         </div>
         <div style={{ fontSize: 'var(--fs-foot)', color: 'rgba(255,255,255,.5)', display: 'flex', alignItems: 'center', gap: 6 }}>
           <IconMapPin size={14} color="rgba(255,255,255,.5)" />
-          {[data.db_name, DB_TYPE_LABEL[data.db_type]].filter(Boolean).join(' • ')}
+          {[data.db_name, DB_TYPE_LABEL()[data.db_type]].filter(Boolean).join(' • ')}
         </div>
         {data.property_address && (
           <div style={{ fontSize: 'var(--fs-foot)', color: 'rgba(255,255,255,.5)', marginTop: 4 }}>
@@ -527,7 +528,7 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
           <div style={{ fontSize: 'var(--fs-foot)', color: 'rgba(255,255,255,.5)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
             <IconBuilding size={14} color="rgba(255,255,255,.5)" />
             <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              Орендодавець: {data.property_landlord_name}
+              {tr('Орендодавець:')}{' '}{data.property_landlord_name}
             </span>
           </div>
         )}
@@ -539,14 +540,14 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
           <div style={{ display: 'flex' }}>
             {data.property_area_useful && (
               <div style={{ flex: 1, padding: '12px 16px', borderRight: '.5px solid rgba(255,255,255,.08)' }}>
-                <div style={{ fontSize: 'var(--fs-cap2)', color: 'rgba(255,255,255,.4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>Корисна площа</div>
-                <div style={{ fontSize: 'var(--fs-t3)', fontWeight: 700 }}>{data.property_area_useful} <span style={{ fontSize: 'var(--fs-note)' }}>м²</span></div>
+                <div style={{ fontSize: 'var(--fs-cap2)', color: 'rgba(255,255,255,.4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>{tr('Корисна площа')}</div>
+                <div style={{ fontSize: 'var(--fs-t3)', fontWeight: 700 }}>{data.property_area_useful} <span style={{ fontSize: 'var(--fs-note)' }}>{tr('м²')}</span></div>
               </div>
             )}
             {data.property_area_total && (
               <div style={{ flex: 1, padding: '12px 16px' }}>
-                <div style={{ fontSize: 'var(--fs-cap2)', color: 'rgba(255,255,255,.4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>Розрахункова площа</div>
-                <div style={{ fontSize: 'var(--fs-t3)', fontWeight: 700 }}>{data.property_area_total} <span style={{ fontSize: 'var(--fs-note)' }}>м²</span></div>
+                <div style={{ fontSize: 'var(--fs-cap2)', color: 'rgba(255,255,255,.4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>{tr('Розрахункова площа')}</div>
+                <div style={{ fontSize: 'var(--fs-t3)', fontWeight: 700 }}>{data.property_area_total} <span style={{ fontSize: 'var(--fs-note)' }}>{tr('м²')}</span></div>
               </div>
             )}
           </div>
@@ -556,30 +557,30 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
       {/* Price */}
       {status === 'for_sale' && data.property_sale_price ? (
         <div className="v-rise" style={{ ...s.card, ...s.pad, animationDelay: '120ms' }}>
-          <div style={s.sectionTitle}>Ціна продажу</div>
+          <div style={s.sectionTitle}>{tr('Ціна продажу')}</div>
           <div className="num" style={{ fontSize: 'var(--fs-t1)', fontWeight: 800, color: '#60a5fa', letterSpacing: '-.03em' }}>
             {fmtPrice(data.property_sale_price, currency)}
           </div>
         </div>
       ) : data.property_rent_rate ? (
         <div className="v-rise" style={{ ...s.card, ...s.pad, animationDelay: '120ms' }}>
-          <div style={s.sectionTitle}>Орендна ставка</div>
+          <div style={s.sectionTitle}>{tr('Орендна ставка')}</div>
           <div style={{ fontSize: 'var(--fs-foot)', color: 'rgba(255,255,255,.5)', marginBottom: 6 }}>
-            {data.property_rent_type === 'fixed' ? 'Фіксована оплата'
-              : data.property_rent_type === 'per_day' ? 'Подобова оплата' : 'За м²'}
+            {data.property_rent_type === 'fixed' ? tr('Фіксована оплата')
+              : data.property_rent_type === 'per_day' ? tr('Подобова оплата') : tr('За м²')}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 'var(--fs-foot)', color: 'rgba(255,255,255,.6)' }}>Оренда</span>
+              <span style={{ fontSize: 'var(--fs-foot)', color: 'rgba(255,255,255,.6)' }}>{tr('Оренда')}</span>
               <span style={{ fontSize: 'var(--fs-head)', fontWeight: 700 }}>
                 {fmtPrice(data.property_rent_rate, currency, rentUnitLabel(data.property_rent_type))}
               </span>
             </div>
             {data.property_utilities_rate && (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 'var(--fs-foot)', color: 'rgba(255,255,255,.6)' }}>Експлуатаційні</span>
+                <span style={{ fontSize: 'var(--fs-foot)', color: 'rgba(255,255,255,.6)' }}>{tr('Експлуатаційні')}</span>
                 <span style={{ fontSize: 'var(--fs-head)', fontWeight: 700 }}>
-                  {fmtPrice(data.property_utilities_rate, currency, basisAreaVal ? '/м²' : '/міс')}
+                  {fmtPrice(data.property_utilities_rate, currency, basisAreaVal ? tr('/м²') : tr('/міс'))}
                 </span>
               </div>
             )}
@@ -587,7 +588,7 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
               <>
                 <div style={{ height: .5, background: 'rgba(255,255,255,.1)', margin: '4px 0' }} />
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: 'var(--fs-note)', fontWeight: 600, color: 'rgba(255,255,255,.8)' }}>Разом / місяць</span>
+                  <span style={{ fontSize: 'var(--fs-note)', fontWeight: 600, color: 'rgba(255,255,255,.8)' }}>{tr('Разом / місяць')}</span>
                   <span className="num" style={{ fontSize: 'var(--fs-t2)', fontWeight: 800, color: '#4ade80', letterSpacing: '-.02em' }}>
                     {fmtPrice(rentTotal, currency)}
                   </span>
@@ -601,7 +602,7 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
       {/* Parking spot attributes */}
       {(parkingTypeLabel(data.property_parking_type) || data.property_ev_charger) && (
         <div className="v-rise" style={{ ...s.card, ...s.pad, animationDelay: '160ms' }}>
-          <div style={s.sectionTitle}>Паркомісце</div>
+          <div style={s.sectionTitle}>{tr('Паркомісце')}</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {parkingTypeLabel(data.property_parking_type) && (
               <span style={{ fontSize: 'var(--fs-foot)', fontWeight: 600, padding: '5px 11px', borderRadius: 9, background: 'rgba(168,124,255,.15)', color: 'rgba(168,124,255,.95)' }}>
@@ -610,7 +611,7 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
             )}
             {data.property_ev_charger && (
               <span style={{ fontSize: 'var(--fs-foot)', fontWeight: 600, padding: '5px 11px', borderRadius: 9, background: 'rgba(74,222,128,.15)', color: '#4ade80' }}>
-                <IconBolt size={14} /> Зарядка EV
+                <IconBolt size={14} /> {tr('Зарядка EV')}
               </span>
             )}
           </div>
@@ -620,7 +621,7 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
       {/* Description */}
       {data.property_description && (
         <div className="v-rise" style={{ ...s.card, ...s.pad, animationDelay: '200ms' }}>
-          <div style={s.sectionTitle}>Опис</div>
+          <div style={s.sectionTitle}>{tr('Опис')}</div>
           <div style={{ fontSize: 'var(--fs-note)', color: 'rgba(255,255,255,.75)', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>
             {data.property_description}
           </div>
@@ -632,7 +633,7 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
         <div className="v-rise" style={{ ...s.card, ...s.pad, animationDelay: '240ms' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--fs-note)', color: 'rgba(255,255,255,.75)' }}>
             <span style={{ fontSize: 'var(--fs-lead)' }}>🅟</span>
-            Паркінг: {data.property_parking_spaces} {pluralUk(data.property_parking_spaces, 'місце', 'місця', 'місць')}
+            {tr('Паркінг:')}{' '}{data.property_parking_spaces} {pluralUk(data.property_parking_spaces, tr('місце'), tr('місця'), tr('місць'))}
           </div>
         </div>
       )}
@@ -642,13 +643,13 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
         lastName={data.owner_last_name}
         phone={data.owner_phone}
         tgUsername={data.owner_tg_username}
-        label="Власник"
+        label={tr('Власник')}
       />
 
       {/* Bottom CTA */}
       <div style={s.bottomCta}>
         <a href={deepLink} className="v-btn v-cta" style={s.mainBtn}>
-          Відкрити в Telegram <span className="v-arr">→</span>
+          {tr('Відкрити в Telegram')}{' '}<span className="v-arr">→</span>
         </a>
       </div>
 
@@ -686,7 +687,7 @@ function DatabaseView({ rows, token }: { rows: DbRow[]; token: string }) {
           <div>
             <div style={{ fontSize: 'var(--fs-lead)', fontWeight: 700, letterSpacing: '-.02em' }}>{info.db_name}</div>
             <div style={{ fontSize: 'var(--fs-cap1)', color: 'rgba(255,255,255,.5)', marginTop: 2 }}>
-              {DB_TYPE_LABEL[info.db_type] ?? info.db_type}
+              {DB_TYPE_LABEL()[info.db_type] ?? info.db_type}
               {properties.length > 0 && ` • ${properties.length} ${objectsWord(properties.length)}`}
             </div>
           </div>
@@ -694,7 +695,7 @@ function DatabaseView({ rows, token }: { rows: DbRow[]; token: string }) {
             marginLeft: 'auto', fontSize: 'var(--fs-cap2)', fontWeight: 700,
             color: 'rgba(168,124,255,.9)', background: 'rgba(168,124,255,.15)',
             borderRadius: 8, padding: '3px 9px', letterSpacing: '.04em',
-          }}>Публічний перегляд</span>
+          }}>{tr('Публічний перегляд')}</span>
         </div>
       </div>
 
@@ -724,13 +725,13 @@ function DatabaseView({ rows, token }: { rows: DbRow[]; token: string }) {
                         background: STATUS_BG[p.property_status] ?? STATUS_BG.free,
                         color: STATUS_COLOR[p.property_status] ?? STATUS_COLOR.free,
                       }}>
-                        {STATUS_LABEL[p.property_status] ?? p.property_status}
+                        {STATUS_LABEL()[p.property_status] ?? p.property_status}
                       </span>
                     )}
                   </div>
                   <div style={{ display: 'flex', gap: 12, marginTop: 6, flexWrap: 'wrap' }}>
-                    {p.property_floor && <span style={{ fontSize: 'var(--fs-cap1)', color: 'rgba(255,255,255,.5)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconBuilding size={12} color="rgba(255,255,255,.5)" />{p.property_floor} пов.</span>}
-                    {p.property_area_useful && <span style={{ fontSize: 'var(--fs-cap1)', color: 'rgba(255,255,255,.5)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconRuler size={12} color="rgba(255,255,255,.5)" />{p.property_area_useful} м²</span>}
+                    {p.property_floor && <span style={{ fontSize: 'var(--fs-cap1)', color: 'rgba(255,255,255,.5)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconBuilding size={12} color="rgba(255,255,255,.5)" />{tr('{0} пов.', p.property_floor)}</span>}
+                    {p.property_area_useful && <span style={{ fontSize: 'var(--fs-cap1)', color: 'rgba(255,255,255,.5)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconRuler size={12} color="rgba(255,255,255,.5)" />{p.property_area_useful} {tr('м²')}</span>}
                     {p.property_status === 'for_sale' && p.property_sale_price ? (
                       <span className="num" style={{ fontSize: 'var(--fs-cap1)', fontWeight: 700, color: '#60a5fa' }}>
                         {fmtPrice(p.property_sale_price, p.owner_currency)}
@@ -757,7 +758,7 @@ function DatabaseView({ rows, token }: { rows: DbRow[]; token: string }) {
       ) : (
         <div className="v-rise" style={{ ...s.card, ...s.pad, textAlign: 'center', animationDelay: '60ms' }}>
           <div className="v-float" style={{ fontSize: 'var(--fs-t1)', marginBottom: 8 }}>🏢</div>
-          <div style={{ fontSize: 'var(--fs-note)', color: 'rgba(255,255,255,.6)' }}>У базі поки немає обʼєктів</div>
+          <div style={{ fontSize: 'var(--fs-note)', color: 'rgba(255,255,255,.6)' }}>{tr('У базі поки немає обʼєктів')}</div>
         </div>
       )}
 
@@ -766,12 +767,12 @@ function DatabaseView({ rows, token }: { rows: DbRow[]; token: string }) {
         lastName={info.owner_last_name}
         phone={info.owner_phone}
         tgUsername={info.owner_tg_username}
-        label="Власник"
+        label={tr('Власник')}
       />
 
       <div style={s.bottomCta}>
         <a href={deepLink} className="v-btn v-cta" style={s.mainBtn}>
-          Підключити базу в Telegram <span className="v-arr">→</span>
+          {tr('Підключити базу в Telegram')}{' '}<span className="v-arr">→</span>
         </a>
       </div>
       <div style={{ height: 8 }} />
@@ -797,7 +798,7 @@ function CollectionView({ rows, token }: { rows: ColRow[]; token: string }) {
       <PageHeader deepLink={deepLink} />
 
       <div className="v-rise" style={{ ...s.card, ...s.pad }}>
-        <div style={{ fontSize: 'var(--fs-cap2)', fontWeight: 700, color: 'rgba(255,255,255,.4)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 6 }}>Підбірка</div>
+        <div style={{ fontSize: 'var(--fs-cap2)', fontWeight: 700, color: 'rgba(255,255,255,.4)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 6 }}>{tr('Підбірка')}</div>
         <div style={{ fontSize: 'var(--fs-t3)', fontWeight: 700, letterSpacing: '-.02em', marginBottom: 6 }}>{info.collection_name}</div>
         <div style={{ fontSize: 'var(--fs-foot)', color: 'rgba(255,255,255,.5)' }}>
           {[info.realtor_first_name, info.realtor_last_name].filter(Boolean).join(' ')} •{' '}
@@ -829,13 +830,13 @@ function CollectionView({ rows, token }: { rows: ColRow[]; token: string }) {
                         background: STATUS_BG[p.property_status] ?? STATUS_BG.free,
                         color: STATUS_COLOR[p.property_status] ?? STATUS_COLOR.free,
                       }}>
-                        {STATUS_LABEL[p.property_status] ?? p.property_status}
+                        {STATUS_LABEL()[p.property_status] ?? p.property_status}
                       </span>
                     )}
                   </div>
                   <div style={{ fontSize: 'var(--fs-cap1)', color: 'rgba(255,255,255,.5)' }}>
                     {[
-                      p.property_floor ? `${p.property_floor} пов.` : null,
+                      p.property_floor ? tr('{0} пов.', p.property_floor) : null,
                       fmtArea(p.property_area_useful),
                       p.property_status === 'for_sale' && p.property_sale_price
                         ? fmtPrice(p.property_sale_price, p.owner_currency)
@@ -863,7 +864,7 @@ function CollectionView({ rows, token }: { rows: ColRow[]; token: string }) {
       ) : (
         <div className="v-rise" style={{ ...s.card, ...s.pad, textAlign: 'center', animationDelay: '60ms' }}>
           <div className="v-float" style={{ fontSize: 'var(--fs-t1)', marginBottom: 8 }}>🔖</div>
-          <div style={{ fontSize: 'var(--fs-note)', color: 'rgba(255,255,255,.6)' }}>У підбірці поки немає обʼєктів</div>
+          <div style={{ fontSize: 'var(--fs-note)', color: 'rgba(255,255,255,.6)' }}>{tr('У підбірці поки немає обʼєктів')}</div>
         </div>
       )}
 
@@ -872,12 +873,12 @@ function CollectionView({ rows, token }: { rows: ColRow[]; token: string }) {
         lastName={info.realtor_last_name}
         phone={info.realtor_phone}
         tgUsername={info.realtor_tg_username}
-        label="Рієлтор"
+        label={tr('Рієлтор')}
       />
 
       <div style={s.bottomCta}>
         <a href={deepLink} className="v-btn v-cta" style={s.mainBtn}>
-          Відкрити підбірку в Telegram <span className="v-arr">→</span>
+          {tr('Відкрити підбірку в Telegram')}{' '}<span className="v-arr">→</span>
         </a>
       </div>
       <div style={{ height: 8 }} />
@@ -892,7 +893,7 @@ function Loader() {
     <div style={{ ...s.wrap, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
       <div className="v-pulse" style={{ width: 44, height: 44, borderRadius: 14, background: 'linear-gradient(135deg,#7AB3FF,#A87CFF,#FF7AB8)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--fs-t2)', fontWeight: 700, marginBottom: 20 }}>P</div>
       <div className="v-spin" style={{ width: 22, height: 22, borderRadius: '50%', border: '2.5px solid rgba(255,255,255,.15)', borderTopColor: '#A87CFF', marginBottom: 14 }} />
-      <div style={{ fontSize: 'var(--fs-note)', color: 'rgba(255,255,255,.5)' }}>Завантаження...</div>
+      <div style={{ fontSize: 'var(--fs-note)', color: 'rgba(255,255,255,.5)' }}>{tr('Завантаження...')}</div>
     </div>
   )
 }
@@ -901,16 +902,16 @@ function ErrorView({ msg, icon, title, onRetry }: { msg: string; icon?: string; 
   return (
     <div style={{ ...s.wrap, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: 24, textAlign: 'center' }}>
       <div className="v-float" style={{ fontSize: 48, marginBottom: 16 }}>{icon ?? '🔗'}</div>
-      <div style={{ fontSize: 'var(--fs-lead)', fontWeight: 700, marginBottom: 8 }}>{title ?? 'Посилання недійсне'}</div>
+      <div style={{ fontSize: 'var(--fs-lead)', fontWeight: 700, marginBottom: 8 }}>{title ?? tr('Посилання недійсне')}</div>
       <div style={{ fontSize: 'var(--fs-note)', color: 'rgba(255,255,255,.5)', lineHeight: 1.5 }}>{msg}</div>
       {onRetry && (
         <button className="v-btn v-cta" onClick={onRetry} style={{ ...s.mainBtn, marginTop: 24, cursor: 'pointer' }}>
-          Спробувати ще раз
+          {tr('Спробувати ще раз')}
         </button>
       )}
       {TG_BOT && (
         <a href={`https://t.me/${TG_BOT}`} className="v-btn" style={{ ...s.tgBtn, marginTop: 12 }}>
-          Відкрити prostir
+          {tr('Відкрити prostir')}
         </a>
       )}
     </div>
@@ -936,13 +937,13 @@ export default function ViewerPage() {
     const col = params.get('col')
 
     if (!prop && !db && !col) {
-      setState({ status: 'error', msg: 'Параметри перегляду не вказані. Перевірте посилання.' })
+      setState({ status: 'error', msg: tr('Параметри перегляду не вказані. Перевірте посилання.') })
       return
     }
 
     const TOKEN_RE = /^[a-zA-Z0-9_-]{6,100}$/
     if ((prop && !TOKEN_RE.test(prop)) || (db && !TOKEN_RE.test(db)) || (col && !TOKEN_RE.test(col))) {
-      setState({ status: 'error', msg: 'Посилання невалідне. Перевірте QR-код або URL.' })
+      setState({ status: 'error', msg: tr('Посилання невалідне. Перевірте QR-код або URL.') })
       return
     }
 
@@ -958,8 +959,8 @@ export default function ViewerPage() {
         status: 'error',
         retry: true,
         msg: typeof navigator !== 'undefined' && !navigator.onLine
-          ? 'Немає зʼєднання з інтернетом. Перевір мережу і спробуй ще раз.'
-          : 'Не вдалося завантажити. Перевір зʼєднання та спробуй ще раз.',
+          ? tr('Немає зʼєднання з інтернетом. Перевір мережу і спробуй ще раз.')
+          : tr('Не вдалося завантажити. Перевір зʼєднання та спробуй ще раз.'),
       }
     }
 
@@ -968,7 +969,7 @@ export default function ViewerPage() {
         const { data, error, status } = await supabase.rpc('get_public_property_preview', { p_token: prop })
         if (status === 0) { setState(networkErrorState()); return }
         if (error || !data?.length) {
-          setState({ status: 'error', msg: 'Обʼєкт не знайдено або посилання застаріло.' })
+          setState({ status: 'error', msg: tr('Обʼєкт не знайдено або посилання застаріло.') })
           return
         }
         setState({ status: 'prop', data: (data as PropertyPreview[])[0], token: prop })
@@ -985,7 +986,7 @@ export default function ViewerPage() {
         const { data, error, status } = await supabase.rpc('get_public_db_preview', { p_token: db })
         if (status === 0) { setState(networkErrorState()); return }
         if (error || !data?.length) {
-          setState({ status: 'error', msg: 'Базу не знайдено або посилання застаріло.' })
+          setState({ status: 'error', msg: tr('Базу не знайдено або посилання застаріло.') })
           return
         }
         setState({ status: 'db', rows: data as DbRow[], token: db })
@@ -1001,7 +1002,7 @@ export default function ViewerPage() {
         const { data, error, status } = await supabase.rpc('get_public_collection_preview', { p_token: col })
         if (status === 0) { setState(networkErrorState()); return }
         if (error || !data?.length) {
-          setState({ status: 'error', msg: 'Підбірку не знайдено або посилання застаріло.' })
+          setState({ status: 'error', msg: tr('Підбірку не знайдено або посилання застаріло.') })
           return
         }
         setState({ status: 'col', rows: data as ColRow[], token: col })
@@ -1018,7 +1019,7 @@ export default function ViewerPage() {
     <ErrorView
       msg={state.msg}
       icon={state.retry ? '📡' : undefined}
-      title={state.retry ? 'Не вдалося завантажити' : undefined}
+      title={state.retry ? tr('Не вдалося завантажити') : undefined}
       onRetry={state.retry ? () => setRetryNonce(n => n + 1) : undefined}
     />
   )

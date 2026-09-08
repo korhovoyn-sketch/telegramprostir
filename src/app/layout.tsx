@@ -4,6 +4,7 @@ import './globals.css'
 import { useEffect } from 'react'
 import Toast from '@/components/ui/Toast'
 import ConfirmHost from '@/components/ui/ConfirmHost'
+import { tr } from '@/lib/i18n'
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
@@ -63,9 +64,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content, content-safe-area-inset=128" />
         <meta name="theme-color" content="#1a0533" />
         <title>prostir</title>
-        <meta name="description" content="prostir — платформа управління нерухомістю в Telegram. Бази обʼєктів, аналітика переглядів, підбірки для ріелторів." />
+        <meta name="description" content={tr('prostir — платформа управління нерухомістю в Telegram. Бази обʼєктів, аналітика переглядів, підбірки для ріелторів.')} />
         <meta property="og:title" content="prostir" />
-        <meta property="og:description" content="Платформа управління нерухомістю в Telegram" />
+        <meta property="og:description" content={tr('Платформа управління нерухомістю в Telegram')} />
         <meta property="og:type" content="website" />
       </head>
       <body>

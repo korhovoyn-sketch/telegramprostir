@@ -1,3 +1,6 @@
+
+import { getLang, locale, tr } from '@/lib/i18n'
+
 /**
  * Retry wrapper for Supabase queries in Telegram's unreliable network.
  * Retries up to `attempts` times with exponential back-off on network errors.
@@ -26,7 +29,7 @@ export async function withRetry<T>(
  * message is logged to console for diagnostics. Use this instead of
  * `subtitle: (e as Error).message` anywhere a toast is shown to the user.
  */
-export function humanizeDbError(e: unknown, fallback = 'Спробуйте ще раз'): string {
+export function humanizeDbError(e: unknown, fallback = tr('Спробуйте ще раз')): string {
   const raw = e instanceof Error ? e.message
     : (typeof e === 'object' && e !== null && 'message' in e) ? String((e as { message: unknown }).message)
     : String(e ?? '')
@@ -37,29 +40,29 @@ export function humanizeDbError(e: unknown, fallback = 'Спробуйте ще 
   // розпізнати її можна лише за іменем — жодна текстова гілка нижче її не ловить.
   // Звіряємось по імені, а не `instanceof`, щоб не тягнути імпорт у цей модуль.
   if (e instanceof Error && e.name === 'NoRowsAffectedError') {
-    return 'Немає доступу до цих даних.'
+    return tr('Немає доступу до цих даних.')
   }
 
   const m = raw.toLowerCase()
   // Network / connectivity (PostgREST resolves fetch failures as status 0)
   if (m.includes('fetch') || m.includes('network') || m.includes('failed to fetch')) {
-    return 'Немає зʼєднання. Перевірте інтернет і спробуйте ще раз.'
+    return tr('Немає зʼєднання. Перевірте інтернет і спробуйте ще раз.')
   }
   // RLS / permission denied — the user can't touch this row
   if (m.includes('row-level security') || m.includes('permission denied') || m.includes('not authorized')) {
-    return 'Немає доступу до цих даних.'
+    return tr('Немає доступу до цих даних.')
   }
   // Unique violation (Postgres 23505) — duplicate
   if (m.includes('duplicate key') || m.includes('23505') || m.includes('already exists')) {
-    return 'Такий запис уже існує.'
+    return tr('Такий запис уже існує.')
   }
   // Foreign-key / not-null / check violations — bad input shape
   if (m.includes('violates') || m.includes('23503') || m.includes('23502') || m.includes('23514')) {
-    return 'Некоректні дані. Перевірте введене й спробуйте ще раз.'
+    return tr('Некоректні дані. Перевірте введене й спробуйте ще раз.')
   }
   // Missing table/relation — deploy/migration issue, not the user's fault
   if (m.includes('does not exist') || m.includes('42p01')) {
-    return 'Сервіс тимчасово недоступний. Спробуйте пізніше.'
+    return tr('Сервіс тимчасово недоступний. Спробуйте пізніше.')
   }
   return fallback
 }
@@ -129,7 +132,7 @@ export function formatPrice(amount: number, currency = 'USD'): string {
   // за прочерк. Гарди на місцях виклику лишаються — це остання сітка, не
   // дозвіл передавати сюди що завгодно.
   if (!Number.isFinite(amount)) return '—'
-  return `${currencySymbol(currency)}${amount.toLocaleString('uk-UA')}`
+  return `${currencySymbol(currency)}${amount.toLocaleString(locale())}`
 }
 
 // Дата БЕЗ часу («2026-08-01» — саме такі `lease_start_date`/`lease_end_date`)
@@ -150,14 +153,18 @@ export function formatLeaseDate(d: string): string {
   const dt = new Date(DATE_ONLY.test(d) ? `${d}T00:00:00` : d)
   // Нерозпізнаний рядок давав літеральне «Invalid Date» просто в картку.
   if (Number.isNaN(dt.getTime())) return '—'
-  return dt.toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  // ISO для англійської — свідомо, і не лише заради кругового рейсу:
+  // `mm/dd/yyyy` проти `dd/mm/yyyy` неможливо розрізнити за самим рядком, тож
+  // будь-який слеш-формат зробив би дату договору здогадкою.
+  if (getLang() === 'en') return dt.toISOString().slice(0, 10)
+  return dt.toLocaleDateString(locale(), { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
 export function formatLeasePeriod(start?: string | null, end?: string | null): string | null {
   if (!start && !end) return null
   if (start && end) return `${formatLeaseDate(start)} — ${formatLeaseDate(end)}`
-  if (start) return `від ${formatLeaseDate(start)}`
-  return `до ${formatLeaseDate(end!)}`
+  if (start) return tr('від {0}', formatLeaseDate(start))
+  return tr('до {0}', formatLeaseDate(end!))
 }
 
 export function formatDate(iso: string): string {
@@ -169,14 +176,14 @@ export function formatDate(iso: string): string {
   const hours = Math.floor(diff / 3600000)
   const days = Math.floor(diff / 86400000)
 
-  if (mins < 1) return 'щойно'
-  if (mins < 60) return `${mins} хв тому`
-  if (hours < 24) return `${hours} год тому`
-  if (days === 1) return 'вчора'
-  if (days < 5) return `${days} дні тому`
-  if (days < 7) return `${days} днів тому`
+  if (mins < 1) return tr('щойно')
+  if (mins < 60) return tr('{0} хв тому', mins)
+  if (hours < 24) return tr('{0} год тому', hours)
+  if (days === 1) return tr('вчора')
+  if (days < 5) return tr('{0} дні тому', days)
+  if (days < 7) return tr('{0} днів тому', days)
 
-  return d.toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' })
+  return d.toLocaleDateString(locale(), { day: 'numeric', month: 'short' })
 }
 
 // Which area a per-m² rate multiplies by. Owners choose per object (form
@@ -231,6 +238,11 @@ export function monthlyRent(areaUseful: number, rentRate: number, rentType: stri
 // exception). Replaces the hardcoded "обʼєктів" that read wrong for 1 ("1
 // обʼєктів") and 2-4 ("2 обʼєктів") across cards, counts and delete dialogs.
 export function pluralUk(n: number, one: string, few: string, many: string): string {
+  // Англійська: однина рівно для 1, решта — множина. Словник цього НЕ покриває:
+  // для 21 українська бере форму `one` («21 обʼєкт»), і переклад тієї форми дав
+  // би «21 unit» замість «21 units». Тобто мова визначає не лише СЛОВА, а й
+  // правило вибору між ними.
+  if (getLang() === 'en') return Math.abs(n) === 1 ? one : few
   const mod10 = Math.abs(n) % 10
   const mod100 = Math.abs(n) % 100
   if (mod10 === 1 && mod100 !== 11) return one
@@ -269,15 +281,15 @@ export function overridesLandlord(
 }
 
 export function objectsWord(n: number): string {
-  return pluralUk(n, 'обʼєкт', 'обʼєкти', 'обʼєктів')
+  return pluralUk(n, tr('обʼєкт'), tr('обʼєкти'), tr('обʼєктів'))
 }
 
 // Unit suffix for a rent RATE (the raw rent_rate value): per_m2 → /м²,
 // per_day → /добу, else → /міс. Use only next to the rate itself.
 export function rentUnitLabel(rentType: string | null | undefined): string {
-  if (rentType === 'per_m2') return '/м²'
-  if (rentType === 'per_day') return '/добу'
-  return '/міс'
+  if (rentType === 'per_m2') return tr('/м²')
+  if (rentType === 'per_day') return tr('/добу')
+  return tr('/міс')
 }
 
 // Unit suffix for a COMPUTED rent amount (calcRent/monthlyRent output). per_m2
@@ -285,7 +297,7 @@ export function rentUnitLabel(rentType: string | null | undefined): string {
 // would misread e.g. a $1 800 monthly total as $1 800 per square metre). per_day
 // computes a daily figure, so /добу.
 export function computedRentUnit(rentType: string | null | undefined): string {
-  return rentType === 'per_day' ? '/добу' : '/міс'
+  return rentType === 'per_day' ? tr('/добу') : tr('/міс')
 }
 
 // Name for a duplicated object: increment a trailing number («Офіс 101» →
@@ -304,8 +316,8 @@ export function nextCopyName(base: string, taken: string[]): string {
     } while (has.has(candidate))
     return candidate
   }
-  let candidate = `${base} (копія)`
-  for (let i = 2; has.has(candidate); i++) candidate = `${base} (копія ${i})`
+  let candidate = tr('{0} (копія)', base)
+  for (let i = 2; has.has(candidate); i++) candidate = tr('{0} (копія {1})', base, i)
   return candidate
 }
 
@@ -337,13 +349,13 @@ export function bulkCreateNames(base: string, count: number, taken: string[]): s
   return names
 }
 
-const PARKING_TYPE_LABELS: Record<string, string> = {
-  underground: 'Підземний',
-  covered: 'Критий',
-  open: 'Просто неба',
-}
+const PARKING_TYPE_LABELS = (): Record<string, string> => ({
+  underground: tr('Підземний'),
+  covered: tr('Критий'),
+  open: tr('Просто неба'),
+})
 export function parkingTypeLabel(t: string | null | undefined): string | null {
-  return t ? PARKING_TYPE_LABELS[t] ?? null : null
+  return t ? PARKING_TYPE_LABELS()[t] ?? null : null
 }
 
 export function calcUtilities(areaTotal: number, utilitiesRate: number): number {
@@ -407,29 +419,37 @@ export function calcRentUtils(
 
 export function greeting(): string {
   const hour = new Date().getHours()
-  return hour < 12 ? 'Доброго ранку' : hour < 17 ? 'Добрий день' : 'Добрий вечір'
+  return hour < 12 ? tr('Доброго ранку') : hour < 17 ? tr('Добрий день') : tr('Добрий вечір')
 }
 
-export function getInitials(firstName: string, lastName?: string): string {
-  const f = firstName.charAt(0).toUpperCase()
-  const l = lastName ? lastName.charAt(0).toUpperCase() : ''
-  return f + l
+export function getInitials(firstName?: string | null, lastName?: string | null): string {
+  // НЕВИБУХАЮЧА, з тієї ж причини, що й `formatPrice`: `undefined.charAt`
+  // кидає і забирає ВЕСЬ екран профілю в ErrorBoundary — замість аватара з
+  // прочерком користувач бачить «Щось пішло не так» і кнопку перезапуску.
+  //
+  // Досяжність не теоретична: `updateProfile` робить `setUser(data)` з
+  // відповіді PATCH, тож будь-яка відповідь без `first_name` (звужений
+  // `select`, зміна USER_COLUMNS, часткова відповідь бекенда) знімає екран.
+  // Спіймано гардом мови, який тапає перемикач і бʼє саме в цей шлях.
+  const f = firstName?.trim().charAt(0).toUpperCase() ?? ''
+  const l = lastName?.trim().charAt(0).toUpperCase() ?? ''
+  return f + l || '?'
 }
 
-export const DB_TYPE_LABELS: Record<string, string> = {
-  business_center: 'Бізнес-центр',
-  residential: 'ЖК',
-  retail: 'Рітейл',
-  warehouse: 'Склади',
-  individual: 'Приватне',
-  parking: 'Паркінг',
-}
+export const DB_TYPE_LABELS = (): Record<string, string> => ({
+  business_center: tr('Бізнес-центр'),
+  residential: tr('ЖК'),
+  retail: tr('Рітейл'),
+  warehouse: tr('Склади'),
+  individual: tr('Приватне'),
+  parking: tr('Паркінг'),
+})
 
-export const STATUS_LABELS: Record<string, string> = {
-  free: 'Вільно',
-  occupied: 'Зайнято',
-  for_sale: 'Продаж',
-}
+export const STATUS_LABELS = (): Record<string, string> => ({
+  free: tr('Вільно'),
+  occupied: tr('Зайнято'),
+  for_sale: tr('Продаж'),
+})
 
 export const STATUS_BADGE_CLS: Record<string, string> = {
   free: 'bdg-ok',

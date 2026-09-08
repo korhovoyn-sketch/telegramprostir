@@ -7,6 +7,7 @@ import { hapticImpact } from '@/lib/telegram'
 import { IconX, IconShare, IconDownload, IconChevronLeft, IconChevronRight } from '@/components/Icons'
 import type { PropertyPhoto } from '@/types'
 import { photoUrl } from '@/lib/utils'
+import { tr } from '@/lib/i18n'
 
 export default function PhotoGalleryScreen() {
   const { back, screenParams } = useAppStore()
@@ -63,7 +64,7 @@ export default function PhotoGalleryScreen() {
   function handleShare() {
     if (!photo) return
     const imageUrl = photoUrl(photo.storage_path)
-    const shareText = `Фото нерухомості ${current + 1}/${photos.length}`
+    const shareText = tr('Фото нерухомості {0}/{1}', current + 1, photos.length)
     const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(imageUrl)}&text=${encodeURIComponent(shareText)}`
     if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
       window.Telegram.WebApp.openTelegramLink(shareUrl)
@@ -103,7 +104,7 @@ export default function PhotoGalleryScreen() {
         position: 'absolute', top: 0, left: 0, right: 0, zIndex: 'var(--z-content)',
       }}>
         <button
-          aria-label="Закрити"
+          aria-label={tr('Закрити')}
           onClick={back}
           style={{
             width: 36, height: 36, borderRadius: '50%',
@@ -120,7 +121,7 @@ export default function PhotoGalleryScreen() {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button
-            aria-label="Завантажити фото"
+            aria-label={tr('Завантажити фото')}
             onClick={handleDownload}
             style={{
               width: 36, height: 36, borderRadius: '50%',
@@ -133,7 +134,7 @@ export default function PhotoGalleryScreen() {
             <IconDownload size={18} />
           </button>
           <button
-            aria-label="Поділитись фото"
+            aria-label={tr('Поділитись фото')}
             onClick={handleShare}
             style={{
               width: 36, height: 36, borderRadius: '50%',
@@ -178,7 +179,7 @@ export default function PhotoGalleryScreen() {
         {photos.length > 1 && (
           <>
             <button
-              aria-label="Попереднє фото"
+              aria-label={tr('Попереднє фото')}
               onClick={prev}
               style={{
                 position: 'absolute', left: 16,
@@ -192,7 +193,7 @@ export default function PhotoGalleryScreen() {
               <IconChevronLeft size={20} />
             </button>
             <button
-              aria-label="Наступне фото"
+              aria-label={tr('Наступне фото')}
               onClick={next}
               style={{
                 position: 'absolute', right: 16,

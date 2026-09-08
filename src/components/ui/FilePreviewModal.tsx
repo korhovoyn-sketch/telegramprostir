@@ -4,6 +4,7 @@
 import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { IconX, IconDownload, IconExternalLink, IconFile } from '@/components/Icons'
+import { tr } from '@/lib/i18n'
 
 interface FilePreviewModalProps {
   url: string
@@ -105,7 +106,7 @@ export default function FilePreviewModal({ url, mime, name, onClose }: FilePrevi
         padding: 'calc(12px + env(safe-area-inset-top, 0px)) 12px 12px',
         background: 'linear-gradient(to bottom, rgba(0,0,0,.9), transparent)',
       }}>
-        <button onClick={onClose} aria-label="Закрити" style={iconBtnStyle}>
+        <button onClick={onClose} aria-label={tr('Закрити')} style={iconBtnStyle}>
           <IconX size={20} />
         </button>
         <div style={{
@@ -115,7 +116,7 @@ export default function FilePreviewModal({ url, mime, name, onClose }: FilePrevi
         }}>
           {name}
         </div>
-        <button onClick={handleDownload} aria-label="Завантажити файл" style={iconBtnStyle}>
+        <button onClick={handleDownload} aria-label={tr('Завантажити файл')} style={iconBtnStyle}>
           <IconDownload size={20} />
         </button>
       </div>
@@ -179,7 +180,7 @@ export default function FilePreviewModal({ url, mime, name, onClose }: FilePrevi
                 {name}
               </div>
               <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t4)' }}>
-                {isPdf ? 'PDF документ' : 'Word документ'}
+                {isPdf ? tr('PDF документ') : tr('Word документ')}
               </div>
             </div>
             <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -195,7 +196,7 @@ export default function FilePreviewModal({ url, mime, name, onClose }: FilePrevi
                 }}
               >
                 <IconExternalLink size={16} />
-                Відкрити
+                {tr('Відкрити')}
               </button>
               <button
                 onClick={handleDownload}
@@ -209,7 +210,7 @@ export default function FilePreviewModal({ url, mime, name, onClose }: FilePrevi
                 }}
               >
                 <IconDownload size={16} />
-                Завантажити
+                {tr('Завантажити')}
               </button>
             </div>
           </div>

@@ -19,6 +19,7 @@ import { effectiveLandlord, formatPrice, calcRentUtils, computedRentUnit, parkin
 import { UTILITY_META } from '@/lib/utilityMeta'
 import { supabase } from '@/lib/supabase'
 import { recordPropertyView } from '@/lib/viewTracking'
+import { tr } from '@/lib/i18n'
 
 
 export default function PropertyDetailScreen() {
@@ -110,16 +111,16 @@ export default function PropertyDetailScreen() {
     // розширення — другий шлях, а не запасний.
     accept: (f) => f.type.startsWith('image/') || /\.(jpe?g|png|webp|heic|heif)$/i.test(f.name),
     onFiles: (files) => { if (property) navigate('photo-upload', { propertyId: property.id, files }) },
-    onRejected: () => showToast({ type: 'error', title: 'Це не зображення', subtitle: 'Перетягніть JPG, PNG або WebP' }),
+    onRejected: () => showToast({ type: 'error', title: tr('Це не зображення'), subtitle: tr('Перетягніть JPG, PNG або WebP') }),
   })
 
   if (!property && error) return (
     <div className="scr bg-blue">
-      <Header title="Обʼєкт" backLabel="Назад" />
+      <Header title={tr('Обʼєкт')} backLabel={tr('Назад')} />
       <RetryState
         icon="🏚️"
-        title="Обʼєкт не знайдено"
-        subtitle={<>Можливо, його видалили. {error}</>}
+        title={tr('Обʼєкт не знайдено')}
+        subtitle={<>{tr('Можливо, його видалили.')}{' '}{error}</>}
         onRetry={() => screenParams.propertyId && loadSingleProperty(screenParams.propertyId)}
       />
     </div>
@@ -127,7 +128,7 @@ export default function PropertyDetailScreen() {
 
   if (!property || loading) return (
     <div className="scr bg-blue">
-      <Header title="Обʼєкт" backLabel="Назад" />
+      <Header title={tr('Обʼєкт')} backLabel={tr('Назад')} />
       <div className="loader-wrap">
         <div className="loader" />
       </div>
@@ -167,8 +168,8 @@ export default function PropertyDetailScreen() {
     hapticNotify('success')
     showToast({
       type: 'success',
-      title: 'Обʼєкт звільнено',
-      actionLabel: 'Скасувати',
+      title: tr('Обʼєкт звільнено'),
+      actionLabel: tr('Скасувати'),
       onAction: () => {
         updateProperty(property.id, prev, { optimistic: true, silent: true })
         hapticImpact('light')
@@ -178,16 +179,16 @@ export default function PropertyDetailScreen() {
 
   async function askDeletePhoto(photo: { id: string; path: string }) {
     const ok = await confirmAction({
-      title: 'Видалити фото?',
-      message: 'Фото буде видалено назавжди. Це незворотно.',
-      confirmLabel: 'Видалити',
+      title: tr('Видалити фото?'),
+      message: tr('Фото буде видалено назавжди. Це незворотно.'),
+      confirmLabel: tr('Видалити'),
       destructive: true,
     })
     if (!ok || offlineGuard()) return
     try {
       await deletePhoto(photo.id, photo.path)
     } catch {
-      showToast({ type: 'error', title: 'Не вдалося видалити фото' })
+      showToast({ type: 'error', title: tr('Не вдалося видалити фото') })
     }
   }
 
@@ -203,11 +204,11 @@ export default function PropertyDetailScreen() {
     <div className="scr bg-blue">
       <Header
         title={property.name}
-        backLabel="Назад"
+        backLabel={tr('Назад')}
         right={isOwner ? (
           <button
             className="hdr-a"
-            aria-label="Редагувати обʼєкт"
+            aria-label={tr('Редагувати обʼєкт')}
             onClick={() => { hapticImpact('light'); navigate('property-form', { propertyId: property.id, dbId: screenParams.dbId ?? property.db_id, editMode: true }) }}
             style={{ background: 'none', border: 'var(--bd)' }}
           >
@@ -238,7 +239,7 @@ export default function PropertyDetailScreen() {
               палітри, а бейдж у сітці нижче показував ще інший колір. */}
           <div className="obj-hero-bdg" style={{ background: STATUS_COLORS[property.status].bg, color: STATUS_COLORS[property.status].color }}>
             <span className="fdot" style={{ background: STATUS_COLORS[property.status].color }} />
-            {STATUS_LABELS[property.status]}
+            {STATUS_LABELS()[property.status]}
           </div>
 
           {/* For for_sale the bottom CTA is the share entry point — avoid a second one in the hero.
@@ -247,7 +248,7 @@ export default function PropertyDetailScreen() {
             <div className="obj-hero-r">
               <button
                 className="obj-hero-a"
-                aria-label="Поділитись обʼєктом"
+                aria-label={tr('Поділитись обʼєктом')}
                 onClick={(e) => { e.stopPropagation(); hapticImpact('light'); navigate('sharing-analytics', { propertyId: property.id, dbId: screenParams.dbId }) }}
               >
                 <IconShare size={14} />
@@ -264,7 +265,7 @@ export default function PropertyDetailScreen() {
               </div>
               <div className="obj-hero-photos" onClick={(e) => { e.stopPropagation(); openGallery(0) }}>
                 <IconPhoto size={12} />
-                {photos.length} фото
+                {photos.length} {tr('фото')}
               </div>
             </div>
           )}
@@ -276,30 +277,30 @@ export default function PropertyDetailScreen() {
             {property.area_useful && (
               <div className="obj-f">
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <IconRuler size={14} color="var(--info)" />{isParking ? 'Площа місця' : 'Корисна площа'}
+                  <IconRuler size={14} color="var(--info)" />{isParking ? tr('Площа місця') : tr('Корисна площа')}
                 </div>
-                <div className="obj-fv">{property.area_useful} м²</div>
+                <div className="obj-fv">{property.area_useful} {tr('м²')}</div>
               </div>
             )}
             {property.area_total && (
               <div className="obj-f">
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <IconRuler size={14} color="var(--info)" />Розрахункова площа
+                  <IconRuler size={14} color="var(--info)" />{tr('Розрахункова площа')}
                 </div>
-                <div className="obj-fv">{property.area_total} м²</div>
+                <div className="obj-fv">{property.area_total} {tr('м²')}</div>
               </div>
             )}
             {property.floor && (
               <div className="obj-f">
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <IconBuildingSkyscraper size={14} color="var(--violet)" />Поверх
+                  <IconBuildingSkyscraper size={14} color="var(--violet)" />{tr('Поверх')}
                 </div>
                 <div className="obj-fv">{property.floor}</div>
               </div>
             )}
             <div className="obj-f">
               <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                <IconCircleCheck size={14} color="#4ade80" />Статус
+                <IconCircleCheck size={14} color="#4ade80" />{tr('Статус')}
               </div>
               <div className="obj-fv">
                 <StatusBadge status={property.status} />
@@ -308,15 +309,15 @@ export default function PropertyDetailScreen() {
             {property.has_parking && !isParking && (
               <div className="obj-f">
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <IconCarGarage size={14} color="var(--warn)" />Паркінг
+                  <IconCarGarage size={14} color="var(--warn)" />{tr('Паркінг')}
                 </div>
-                <div className="obj-fv">{property.parking_spaces} місць</div>
+                <div className="obj-fv">{property.parking_spaces} {tr('місць')}</div>
               </div>
             )}
             {parkingTypeLabel(property.parking_type) && (
               <div className="obj-f">
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <IconCarGarage size={14} color="var(--warn)" />Тип місця
+                  <IconCarGarage size={14} color="var(--warn)" />{tr('Тип місця')}
                 </div>
                 <div className="obj-fv">{parkingTypeLabel(property.parking_type)}</div>
               </div>
@@ -324,15 +325,15 @@ export default function PropertyDetailScreen() {
             {property.ev_charger && (
               <div className="obj-f">
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <IconBolt size={14} color="#4ade80" />Зарядка EV
+                  <IconBolt size={14} color="#4ade80" />{tr('Зарядка EV')}
                 </div>
-                <div className="obj-fv">Є</div>
+                <div className="obj-fv">{tr('Є')}</div>
               </div>
             )}
             {rent > 0 && (
               <div className="obj-f">
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <IconCurrencyDollar size={14} color="var(--ok-fg)" />Оренда
+                  <IconCurrencyDollar size={14} color="var(--ok-fg)" />{tr('Оренда')}
                 </div>
                 <div className="obj-fv">{formatPrice(rent, user?.currency)}{computedRentUnit(property.rent_type)}</div>
               </div>
@@ -340,7 +341,7 @@ export default function PropertyDetailScreen() {
             {property.sale_price != null && (
               <div className="obj-f">
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <IconCurrencyDollar size={14} color="var(--ok-fg)" />Ціна продажу
+                  <IconCurrencyDollar size={14} color="var(--ok-fg)" />{tr('Ціна продажу')}
                 </div>
                 <div className="obj-fv">{formatPrice(property.sale_price, user?.currency)}</div>
               </div>
@@ -348,7 +349,7 @@ export default function PropertyDetailScreen() {
             {property.tenant_name && (
               <div className="obj-f" style={{ gridColumn: '1 / -1' }}>
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <IconUser size={14} color="var(--violet)" />Орендар
+                  <IconUser size={14} color="var(--violet)" />{tr('Орендар')}
                 </div>
                 <div className="obj-fv">{property.tenant_name}</div>
               </div>
@@ -356,7 +357,7 @@ export default function PropertyDetailScreen() {
             {landlord && (
               <div className="obj-f" style={{ gridColumn: '1 / -1' }}>
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <IconBuilding size={14} color="var(--violet)" />Орендодавець
+                  <IconBuilding size={14} color="var(--violet)" />{tr('Орендодавець')}
                 </div>
                 <div className="obj-fv">{landlord}</div>
               </div>
@@ -368,7 +369,7 @@ export default function PropertyDetailScreen() {
               // той самий прийом, що вже підняв .obj-tot-l/v/sub.
               <div className="obj-f" style={{ gridColumn: '1 / -1', background: 'var(--glass-card)', borderRadius: 'var(--r-sm)', padding: '8px 10px', margin: '2px 0 -4px' }}>
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <IconKey size={14} color="var(--violet)" />Строк договору
+                  <IconKey size={14} color="var(--violet)" />{tr('Строк договору')}
                 </div>
                 <div className="obj-fv">
                   {formatLeasePeriod(property.lease_start_date, property.lease_end_date)}
@@ -397,10 +398,10 @@ export default function PropertyDetailScreen() {
         {/* Utilities */}
         {(property.utilities ?? []).length > 0 && (
           <div style={{ margin: '0 12px 12px' }}>
-            <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', fontWeight: 'var(--fw-semi)', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 10 }}>Експлуатаційні послуги</div>
+            <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', fontWeight: 'var(--fw-semi)', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 10 }}>{tr('Експлуатаційні послуги')}</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
               {(property.utilities ?? []).map(uid => {
-                const meta = UTILITY_META.find(m => m.id === uid)
+                const meta = UTILITY_META().find(m => m.id === uid)
                 if (!meta) return null
                 return (
                   <div key={uid} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 13px', borderRadius: 'var(--r-pill)', background: 'var(--glass-2)', border: '.5px solid var(--glass-3)', fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-med)', color: meta.color }}>
@@ -417,7 +418,7 @@ export default function PropertyDetailScreen() {
         {total > 0 && (
           <div className="glass-s" style={{ margin: '0 12px 12px', borderRadius: 'var(--r-md)', padding: '12px 14px' }}>
             <div style={{ fontSize: 'var(--fs-cap2)', color: 'var(--t3)', fontWeight: 'var(--fw-semi)', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <IconCurrencyDollar size={12} color="var(--ok-fg)" />Фінанси
+              <IconCurrencyDollar size={12} color="var(--ok-fg)" />{tr('Фінанси')}
             </div>
             {rent > 0 && (
               <div className="cost-row">
@@ -425,7 +426,7 @@ export default function PropertyDetailScreen() {
                   <span style={{ width: 24, height: 24, borderRadius: 8, background: 'var(--ok-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <IconKey size={12} color="var(--ok-fg)" />
                   </span>
-                  Оренда
+                  {tr('Оренда')}
                 </span>
                 <span style={{ color: 'var(--ok-fg)', fontWeight: 'var(--fw-semi)' }}>{formatPrice(rent, user?.currency)}{computedRentUnit(property.rent_type)}</span>
               </div>
@@ -436,9 +437,9 @@ export default function PropertyDetailScreen() {
                   <span style={{ width: 24, height: 24, borderRadius: 8, background: 'var(--warn-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <IconBolt size={12} color="#fbbf24" />
                   </span>
-                  Експлуатаційні
+                  {tr('Експлуатаційні')}
                 </span>
-                <span style={{ color: 'var(--t2)', fontWeight: 'var(--fw-semi)' }}>+{formatPrice(utils, user?.currency)}/міс</span>
+                <span style={{ color: 'var(--t2)', fontWeight: 'var(--fw-semi)' }}>+{formatPrice(utils, user?.currency)}{tr('/міс')}</span>
               </div>
             )}
             {!isDaily && rent > 0 && utils > 0 && (
@@ -447,7 +448,7 @@ export default function PropertyDetailScreen() {
                   <span style={{ width: 24, height: 24, borderRadius: 8, background: 'var(--info-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <IconCalendar size={12} color="var(--info)" />
                   </span>
-                  Разом на місяць
+                  {tr('Разом на місяць')}
                 </span>
                 <span className="cost-ttl">{formatPrice(total, user?.currency)}</span>
               </div>
@@ -458,7 +459,7 @@ export default function PropertyDetailScreen() {
                   <span style={{ width: 24, height: 24, borderRadius: 8, background: 'var(--info-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <IconCalendar size={12} color="var(--info)" />
                   </span>
-                  Разом на місяць
+                  {tr('Разом на місяць')}
                 </span>
                 <span className="cost-ttl">{formatPrice(total, user?.currency)}</span>
               </div>
@@ -479,8 +480,8 @@ export default function PropertyDetailScreen() {
           >
             <IconUser size={16} color="var(--violet)" />
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 'var(--fs-note)', fontWeight: 'var(--fw-semi)', color: 'var(--t1)' }}>Гості</div>
-              <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 1 }}>Запрошення та керування доступом</div>
+              <div style={{ fontSize: 'var(--fs-note)', fontWeight: 'var(--fw-semi)', color: 'var(--t1)' }}>{tr('Гості')}</div>
+              <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 1 }}>{tr('Запрошення та керування доступом')}</div>
             </div>
             <IconChevronRight size={12} color="var(--t4)" />
           </div>
@@ -495,8 +496,8 @@ export default function PropertyDetailScreen() {
           >
             <IconCalendar size={16} color="var(--info)" />
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 'var(--fs-note)', fontWeight: 'var(--fw-semi)', color: 'var(--t1)' }}>Календар платежів</div>
-              <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 1 }}>Відстежувати та відмічати оплати</div>
+              <div style={{ fontSize: 'var(--fs-note)', fontWeight: 'var(--fw-semi)', color: 'var(--t1)' }}>{tr('Календар платежів')}</div>
+              <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 1 }}>{tr('Відстежувати та відмічати оплати')}</div>
             </div>
             <IconChevronRight size={12} color="var(--t4)" />
           </div>
@@ -513,9 +514,9 @@ export default function PropertyDetailScreen() {
           return (
             <div className="glass-s" style={{ margin: '0 12px 12px', borderRadius: 'var(--r-md)', padding: '12px 14px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                <span style={{ fontSize: 'var(--fs-cap2)', color: 'var(--t3)', fontWeight: 'var(--fw-semi)', textTransform: 'uppercase', letterSpacing: '.04em' }}>Договір оренди</span>
+                <span style={{ fontSize: 'var(--fs-cap2)', color: 'var(--t3)', fontWeight: 'var(--fw-semi)', textTransform: 'uppercase', letterSpacing: '.04em' }}>{tr('Договір оренди')}</span>
                 <span style={{ fontSize: 'var(--fs-cap1)', color: daysLeft < 30 ? 'var(--warn)' : 'var(--t3)', fontWeight: 'var(--fw-semi)' }}>
-                  {daysLeft > 0 ? `${daysLeft} дн.` : 'Завершено'}
+                  {daysLeft > 0 ? tr('{0} дн.', daysLeft) : tr('Завершено')}
                 </span>
               </div>
               <div style={{ height: 4, borderRadius: 'var(--r-pill)', background: 'var(--glass-2)', overflow: 'hidden' }}>
@@ -536,7 +537,7 @@ export default function PropertyDetailScreen() {
         <div className="over">
           <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <IconCamera size={14} color="var(--violet)" />
-            Фотографії
+            {tr('Фотографії')}
           </span>
         </div>
         <div className={`photos-strip${photoDrop.dropping ? ' dropping' : ''}`} {...photoDrop.dropProps}>
@@ -551,7 +552,7 @@ export default function PropertyDetailScreen() {
               />
               {isOwner && (
                 <button
-                  aria-label="Видалити фото"
+                  aria-label={tr('Видалити фото')}
                   onClick={(e) => { e.stopPropagation(); hapticImpact('light'); void askDeletePhoto({ id: photo.id, path: photo.storage_path }) }}
                   style={{
                     position: 'absolute', top: 3, right: 3,
@@ -573,7 +574,7 @@ export default function PropertyDetailScreen() {
             // Скидання UA-стилів явне, щоб вигляд плитки не змінився.
             <button
               type="button"
-              aria-label="Додати фото"
+              aria-label={tr('Додати фото')}
               className="photo-t"
               onClick={() => fileInputRef.current?.click()}
               style={{
@@ -589,7 +590,7 @@ export default function PropertyDetailScreen() {
 
         {isOwner && (
           <input
-            aria-label="Додати фото"
+            aria-label={tr('Додати фото')}
             ref={fileInputRef}
             type="file"
             accept="image/*"
@@ -606,7 +607,7 @@ export default function PropertyDetailScreen() {
 
         {property.description && (
           <>
-            <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconFile size={14} color="var(--violet)" />Опис</span></div>
+            <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconFile size={14} color="var(--violet)" />{tr('Опис')}</span></div>
             <div className="descr glass-s">
               <div className="descr-t">{property.description}</div>
             </div>
@@ -620,7 +621,7 @@ export default function PropertyDetailScreen() {
         <FloatingButton
           variant="success"
           icon={<IconKey size={16} />}
-          label="Здати в оренду"
+          label={tr('Здати в оренду')}
           onClick={() => {
             hapticImpact('light')
             // Префіл ставок робить САМ екран із рядка обʼєкта — передавати їх
@@ -633,7 +634,7 @@ export default function PropertyDetailScreen() {
         <FloatingButton
           variant="danger"
           icon={<IconCircleCheck size={16} />}
-          label="Звільнити обʼєкт"
+          label={tr('Звільнити обʼєкт')}
           onClick={() => { hapticImpact('light'); handleFreeProperty() }}
         />
       )}
@@ -641,7 +642,7 @@ export default function PropertyDetailScreen() {
         <FloatingButton
           variant="info"
           icon={<IconShare size={16} />}
-          label="Поділитись"
+          label={tr('Поділитись')}
           onClick={() => { hapticImpact('light'); navigate('sharing-analytics', { propertyId: property.id, dbId: screenParams.dbId }) }}
         />
       )}

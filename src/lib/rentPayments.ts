@@ -1,5 +1,6 @@
 import { basisArea, monthlyRent } from '@/lib/utils'
 import type { Property } from '@/types'
+import { locale } from './i18n'
 
 /**
  * Спільні для PaymentCalendarScreen/PaymentScheduleScreen/PaymentConfirmScreen:
@@ -32,5 +33,5 @@ export function expectedRent(p: Property): number {
 
 export function fmtDueDate(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00')
-  return d.toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' })
+  return d.toLocaleDateString(locale(), { day: 'numeric', month: 'long' })
 }

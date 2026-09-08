@@ -1,6 +1,7 @@
 'use client'
 
 import { Component, type ReactNode } from 'react'
+import { tr } from '@/lib/i18n'
 
 interface Props { children: ReactNode }
 interface State { hasError: boolean; error: Error | null }
@@ -35,9 +36,9 @@ export class ErrorBoundary extends Component<Props, State> {
           padding: 32, gap: 20, color: 'var(--t1)', textAlign: 'center'
         }}>
           <div style={{ fontSize: 64 }}>⚠️</div>
-          <div style={{ fontSize: 'var(--fs-t3)', fontWeight: 'var(--fw-bold)' }}>Щось пішло не так</div>
+          <div style={{ fontSize: 'var(--fs-t3)', fontWeight: 'var(--fw-bold)' }}>{tr('Щось пішло не так')}</div>
           <div style={{ fontSize: 'var(--fs-note)', color: 'var(--t2)', maxWidth: 280, lineHeight: 1.5 }}>
-            {this.state.error?.message ?? 'Невідома помилка'}
+            {this.state.error?.message ?? tr('Невідома помилка')}
           </div>
           <button
             onClick={() => {
@@ -51,7 +52,7 @@ export class ErrorBoundary extends Component<Props, State> {
               cursor: 'pointer'
             }}
           >
-            Перезапустити
+            {tr('Перезапустити')}
           </button>
         </div>
       )

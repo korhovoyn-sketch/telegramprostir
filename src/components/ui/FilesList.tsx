@@ -9,6 +9,7 @@ import FilePreviewModal from '@/components/ui/FilePreviewModal'
 import RetryState from '@/components/ui/RetryState'
 import { IconFile, IconPlus, IconTrash, IconEye, IconCloudUpload } from '@/components/Icons'
 import type { PropertyFile } from '@/types'
+import { tr } from '@/lib/i18n'
 
 interface FilesListProps {
   propertyId: string
@@ -60,17 +61,17 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
     // користувач, чий файл відхилили за форматом, читав протилежне тому,
     // що сталось.
     const { uploaded, failed } = await uploadFiles(picked, msg =>
-      showToast({ type: 'error', title: 'Помилка завантаження', subtitle: msg })
+      showToast({ type: 'error', title: tr('Помилка завантаження'), subtitle: msg })
     )
     if (uploaded === 0) return                 // помилку вже показали
     if (failed > 0) {
       showToast({
-        type: 'error', title: `Завантажено ${uploaded} з ${uploaded + failed}`,
-        subtitle: 'Решта не пройшла — перевірте формат і розмір',
+        type: 'error', title: tr('Завантажено {0} з {1}', uploaded, uploaded + failed),
+        subtitle: tr('Решта не пройшла — перевірте формат і розмір'),
       })
       return
     }
-    showToast({ type: 'success', title: 'Файл(и) завантажено' })
+    showToast({ type: 'success', title: tr('Файл(и) завантажено') })
   }
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -84,7 +85,7 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
     setOpeningId(file.id)
     try {
       const url = await getSignedUrl(file.storage_path)
-      if (!url) { showToast({ type: 'error', title: 'Не вдалося відкрити файл' }); return }
+      if (!url) { showToast({ type: 'error', title: tr('Не вдалося відкрити файл') }); return }
       setPreviewFile({ url, mime: file.mime_type, name: file.file_name })
     } finally {
       setOpeningId(null)
@@ -93,18 +94,18 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
 
   async function handleDelete(file: PropertyFile) {
     const ok = await confirmAction({
-      title: 'Видалити файл?',
-      message: `«${file.file_name}» буде видалено назавжди.`,
-      confirmLabel: 'Видалити',
+      title: tr('Видалити файл?'),
+      message: tr('«{0}» буде видалено назавжди.', file.file_name),
+      confirmLabel: tr('Видалити'),
       destructive: true,
     })
     if (!ok) return
     const removed = await deleteFile(file.id, file.storage_path, msg =>
-      showToast({ type: 'error', title: 'Помилка видалення', subtitle: msg })
+      showToast({ type: 'error', title: tr('Помилка видалення'), subtitle: msg })
     )
     // Той самий клас: заблокований RLS DELETE лишав файл у списку, а тост
     // казав «Файл видалено» поверх щойно показаної помилки.
-    if (removed) showToast({ type: 'success', title: 'Файл видалено' })
+    if (removed) showToast({ type: 'success', title: tr('Файл видалено') })
   }
 
   const canUpload = isOwner && files.length < maxFiles && !uploading
@@ -119,7 +120,7 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
       || f.type.startsWith('application/msword')
       || f.type.startsWith('application/vnd.openxmlformats-officedocument.wordprocessingml'),
     onFiles: (files) => { void runUpload(files) },
-    onRejected: () => showToast({ type: 'error', title: 'Формат не підтримується', subtitle: 'Перетягніть PDF або Word' }),
+    onRejected: () => showToast({ type: 'error', title: tr('Формат не підтримується'), subtitle: tr('Перетягніть PDF або Word') }),
   })
 
   return (
@@ -128,7 +129,7 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
       <div className="over">
         <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <IconFile size={14} color="var(--violet)" />
-          Файли
+          {tr('Файли')}
           {files.length > 0 && (
             <span style={{
               fontSize: 'var(--fs-cap2)', fontWeight: 'var(--fw-semi)', color: 'var(--t3)',
@@ -150,14 +151,14 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
               color: 'var(--info)', fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', cursor: 'pointer',
             }}
           >
-            <IconPlus size={12} />Додати
+            <IconPlus size={12} />{tr('Додати')}
           </button>
         )}
       </div>
 
       {/* Збій ЗАВАНТАЖЕННЯ — окремо від «файлів немає». */}
       {!loading && loadError && !uploading && (
-        <RetryState subtitle="Не вдалося завантажити документи" onRetry={fetchFiles} />
+        <RetryState subtitle={tr('Не вдалося завантажити документи')} onRetry={fetchFiles} />
       )}
 
       {/* ── Empty state ── */}
@@ -175,8 +176,8 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
           <IconCloudUpload size={26} color="var(--t4)" />
           <div style={{ fontSize: 'var(--fs-foot)', color: 'var(--t3)', textAlign: 'center', lineHeight: 1.4 }}>
             {isOwner
-              ? `Додайте PDF або Word файли (до ${maxFiles} шт., макс. 20 МБ) — або перетягніть їх сюди`
-              : 'Файли ще не додані'}
+              ? tr('Додайте PDF або Word файли (до {0} шт., макс. 20 МБ) — або перетягніть їх сюди', maxFiles)
+              : tr('Файли ще не додані')}
           </div>
           {isOwner && (
             <button
@@ -188,7 +189,7 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
                 display: 'flex', alignItems: 'center', gap: 6,
               }}
             >
-              <IconPlus size={14} />Завантажити файл
+              <IconPlus size={14} />{tr('Завантажити файл')}
             </button>
           )}
         </div>
@@ -276,7 +277,7 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
               <div className="loader" style={{ width: 16, height: 16, borderWidth: 2, flexShrink: 0 }} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', color: 'var(--info)', marginBottom: 4 }}>
-                  Завантаження {uploadProgress.done + 1}/{uploadProgress.total}
+                  {tr('Завантаження')}{' '}{uploadProgress.done + 1}/{uploadProgress.total}
                 </div>
                 {currentUploadFile && (
                   <div style={{ fontSize: 'var(--fs-cap2)', color: 'var(--t3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -308,13 +309,13 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
                 fontSize: 'var(--fs-foot)', fontWeight: 'var(--fw-med)', cursor: 'pointer',
               }}
             >
-              <IconPlus size={14} />Додати ще файл
+              <IconPlus size={14} />{tr('Додати ще файл')}
             </button>
           )}
 
           {files.length >= maxFiles && (
             <div style={{ fontSize: 'var(--fs-cap2)', color: 'var(--t3)', textAlign: 'center', padding: '4px 0 2px' }}>
-              Досягнуто ліміту {maxFiles} файлів
+              {tr('Досягнуто ліміту {0} файлів', maxFiles)}
             </div>
           )}
         </div>
@@ -323,7 +324,7 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
       {/* Hidden file input */}
       {isOwner && (
         <input
-          aria-label="Додати документ"
+          aria-label={tr('Додати документ')}
           ref={fileInputRef}
           type="file"
           accept=".pdf,.doc,.docx"

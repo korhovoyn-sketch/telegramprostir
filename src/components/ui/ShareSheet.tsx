@@ -13,6 +13,7 @@ import { copyLink } from '@/lib/share'
 import { formatLeaseDate } from '@/lib/utils'
 import { useLatch } from '@/lib/useLatch'
 import { IconRefresh, IconBan, IconChevronRight, IconClock } from '@/components/Icons'
+import { tr } from '@/lib/i18n'
 
 const ManageShareSchema = z.array(z.object({
   share_token: z.string().nullable(),
@@ -112,7 +113,7 @@ export default function ShareSheet({ open, kind, id, name, shareText, onClose }:
     // нічого не робив. Ретрай доступний кнопкою «Створити посилання».
     if (opts?.silent) {
       if (!useAppStore.getState().isOnline) return
-    } else if (offlineGuard('Зміни недоступні офлайн')) {
+    } else if (offlineGuard(tr('Зміни недоступні офлайн'))) {
       return
     }
     setBusy(true)
@@ -127,11 +128,11 @@ export default function ShareSheet({ open, kind, id, name, shareText, onClose }:
       setExpiresAt(row.share_expires_at)
       if (!opts?.silent) {
         hapticNotify('success')
-        if (action === 'rotate') showToast({ type: 'success', title: 'Посилання оновлено', subtitle: 'Старе посилання більше не діє' })
-        if (action === 'revoke') showToast({ type: 'success', title: 'Доступ відкликано' })
+        if (action === 'rotate') showToast({ type: 'success', title: tr('Посилання оновлено'), subtitle: tr('Старе посилання більше не діє') })
+        if (action === 'revoke') showToast({ type: 'success', title: tr('Доступ відкликано') })
       }
     } catch {
-      if (!opts?.silent) showToast({ type: 'error', title: 'Не вдалося змінити посилання' })
+      if (!opts?.silent) showToast({ type: 'error', title: tr('Не вдалося змінити посилання') })
     } finally {
       setBusy(false)
     }
@@ -139,11 +140,11 @@ export default function ShareSheet({ open, kind, id, name, shareText, onClose }:
 
   async function askManage(action: 'rotate' | 'revoke') {
     const ok = await confirmDestructive({
-      title: action === 'rotate' ? 'Оновити посилання?' : 'Відкликати доступ?',
+      title: action === 'rotate' ? tr('Оновити посилання?') : tr('Відкликати доступ?'),
       message: action === 'rotate'
-        ? 'Старе посилання та QR-код перестануть працювати. Усі, з ким ви ділились, втратять доступ.'
-        : 'Посилання одразу стане неактивним. Ви зможете створити нове через «Оновити посилання».',
-      confirmLabel: action === 'rotate' ? 'Оновити' : 'Відкликати',
+        ? tr('Старе посилання та QR-код перестануть працювати. Усі, з ким ви ділились, втратять доступ.')
+        : tr('Посилання одразу стане неактивним. Ви зможете створити нове через «Оновити посилання».'),
+      confirmLabel: action === 'rotate' ? tr('Оновити') : tr('Відкликати'),
       destructive: true,
     })
     if (ok) await runManage(action)
@@ -154,9 +155,9 @@ export default function ShareSheet({ open, kind, id, name, shareText, onClose }:
   // хто зберіг старе посилання, непомітно для власника.
   async function askRevive(action: 'set_expiry' | 'clear_expiry', days?: number) {
     const ok = await confirmDestructive({
-      title: 'Активувати старе посилання?',
-      message: 'Воно знову запрацює для ВСІХ, хто його вже має — включно з тими, у кого ви відкликали доступ. Щоб роздати доступ заново, скористайтесь «Оновити посилання».',
-      confirmLabel: 'Активувати старе',
+      title: tr('Активувати старе посилання?'),
+      message: tr('Воно знову запрацює для ВСІХ, хто його вже має — включно з тими, у кого ви відкликали доступ. Щоб роздати доступ заново, скористайтесь «Оновити посилання».'),
+      confirmLabel: tr('Активувати старе'),
       destructive: true,
     })
     if (ok) await runManage(action, days)
@@ -170,12 +171,12 @@ export default function ShareSheet({ open, kind, id, name, shareText, onClose }:
   async function handleCopy() {
     if (!url) return
     const ok = await copyLink(url)
-    if (ok) showToast({ type: 'success', title: 'Посилання скопійовано' })
-    else showToast({ type: 'error', title: 'Не вдалося скопіювати', subtitle: 'Виділіть і скопіюйте посилання вручну' })
+    if (ok) showToast({ type: 'success', title: tr('Посилання скопійовано') })
+    else showToast({ type: 'error', title: tr('Не вдалося скопіювати'), subtitle: tr('Виділіть і скопіюйте посилання вручну') })
   }
 
   return (
-    <ActionSheet open={open} title={resolvedName ?? latchedName} subtitle="Поділитися" onClose={onClose}>
+    <ActionSheet open={open} title={resolvedName ?? latchedName} subtitle={tr('Поділитися')} onClose={onClose}>
       {/* QR + link */}
       <div className="qr-hero glass-s" style={{ margin: '0 0 12px' }}>
         <div className="qr-wrap">
@@ -197,23 +198,23 @@ export default function ShareSheet({ open, kind, id, name, shareText, onClose }:
             /* Збій ЧИТАННЯ — повторити читання, а НЕ створювати новий токен:
                перше нічого не ламає, друге вбиває всі роздані посилання. */
             <button className="qr-empty qr-retry" onClick={() => setReloadKey((k) => k + 1)} disabled={busy}>
-              Спробувати ще раз
+              {tr('Спробувати ще раз')}
             </button>
           ) : (
             /* Легасі-рядок без токена + фонове генерування не вдалося (офлайн,
                помилка RPC): без цієї кнопки тут висів би вічний спінер. */
             <button className="qr-empty qr-retry" onClick={() => runManage('rotate')} disabled={busy}>
-              Створити посилання
+              {tr('Створити посилання')}
             </button>
           )}
         </div>
         <div className="qr-meta">
-          <div className="qr-name">{loadErr ? 'Не вдалося завантажити' : isExpired ? 'Посилання неактивне' : url ? 'Посилання для перегляду' : 'Посилання ще не створено'}</div>
+          <div className="qr-name">{loadErr ? tr('Не вдалося завантажити') : isExpired ? tr('Посилання неактивне') : url ? tr('Посилання для перегляду') : tr('Посилання ще не створено')}</div>
           <div className="qr-link" style={{ wordBreak: 'break-all', textDecoration: isExpired ? 'line-through' : 'none', opacity: isExpired ? .6 : 1 }}>
-            {loadErr ? 'Перевірте зʼєднання — наявне посилання ЦІЛЕ, ми його просто не прочитали.' : url || '…'}
+            {loadErr ? tr('Перевірте зʼєднання — наявне посилання ЦІЛЕ, ми його просто не прочитали.') : url || '…'}
           </div>
           {isExpired && (
-            <div className="qr-hint">Натисніть «Оновити посилання», щоб створити нове</div>
+            <div className="qr-hint">{tr('Натисніть «Оновити посилання», щоб створити нове')}</div>
           )}
         </div>
       </div>
@@ -225,10 +226,10 @@ export default function ShareSheet({ open, kind, id, name, shareText, onClose }:
           лишається без заливки (див. коментар до хелпера в ActionSheet). */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
         <button className={`${modalBtnClass('secondary')} sm`} disabled={loading || !url || isExpired} onClick={handleCopy}>
-          Скопіювати
+          {tr('Скопіювати')}
         </button>
         <button className={`${modalBtnClass('primary')} sm`} disabled={loading || !url || isExpired} onClick={() => openTelegramShare(url, latchedShareText)}>
-          У Telegram
+          {tr('У Telegram')}
         </button>
       </div>
 
@@ -236,17 +237,17 @@ export default function ShareSheet({ open, kind, id, name, shareText, onClose }:
       <div className="sheet-group">
         <div className="sheet-row" style={{ cursor: 'default' }}>
           <span className="sheet-ic"><IconClock size={16} /></span>
-          <span className="sheet-lbl">Термін дії</span>
+          <span className="sheet-lbl">{tr('Термін дії')}</span>
           <span style={{ color: isExpired ? 'var(--err-fg)' : 'var(--t3)', fontSize: 'var(--fs-foot)', flexShrink: 0 }}>
-            {isExpired ? 'закінчився' : expiresAt ? `до ${formatLeaseDate(expiresAt)}` : 'безстрокове'}
+            {isExpired ? tr('закінчився') : expiresAt ? tr('до {0}', formatLeaseDate(expiresAt)) : tr('безстрокове')}
           </span>
         </div>
         <div style={{ padding: '10px 14px 12px' }}>
           <div className="fr-seg">
             {([
-              { label: '7 днів',  action: 'set_expiry' as const,   days: 7,          on: daysLeft !== null && daysLeft > 0 && daysLeft <= 7 },
-              { label: '30 днів', action: 'set_expiry' as const,   days: 30,         on: daysLeft !== null && daysLeft > 7 && daysLeft <= 30 },
-              { label: 'Без обмежень', action: 'clear_expiry' as const, days: undefined, on: !expiresAt },
+              { label: tr('7 днів'),  action: 'set_expiry' as const,   days: 7,          on: daysLeft !== null && daysLeft > 0 && daysLeft <= 7 },
+              { label: tr('30 днів'), action: 'set_expiry' as const,   days: 30,         on: daysLeft !== null && daysLeft > 7 && daysLeft <= 30 },
+              { label: tr('Без обмежень'), action: 'clear_expiry' as const, days: undefined, on: !expiresAt },
             ]).map(({ label, action, days, on }) => (
               <button
                 type="button"
@@ -272,12 +273,12 @@ export default function ShareSheet({ open, kind, id, name, shareText, onClose }:
       <div className="sheet-group" style={{ marginBottom: 16 }}>
         <button type="button" className="sheet-row" disabled={busy} onClick={() => askManage('rotate')}>
           <span className="sheet-ic"><IconRefresh size={16} /></span>
-          <span className="sheet-lbl">Оновити посилання</span>
+          <span className="sheet-lbl">{tr('Оновити посилання')}</span>
           <IconChevronRight size={16} className="sheet-chev" />
         </button>
         <button type="button" className="sheet-row danger" disabled={busy} onClick={() => askManage('revoke')}>
           <span className="sheet-ic"><IconBan size={16} /></span>
-          <span className="sheet-lbl">Відкликати доступ</span>
+          <span className="sheet-lbl">{tr('Відкликати доступ')}</span>
         </button>
       </div>
 

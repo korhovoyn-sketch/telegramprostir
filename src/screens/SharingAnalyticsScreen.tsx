@@ -9,8 +9,9 @@ import ShareSheet from '@/components/ui/ShareSheet'
 import { IconShare, IconEye, IconChartLine } from '@/components/Icons'
 import { formatDate, daysSince, humanizeDbError } from '@/lib/utils'
 import type { PropertyView } from '@/types'
+import { tr } from '@/lib/i18n'
 
-const WEEKDAY = ['Нд', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб']
+const WEEKDAY = () => ([tr('Нд'), tr('Пн'), tr('Вт'), tr('Ср'), tr('Чт'), tr('Пт'), tr('Сб')])
 
 // Last 7 days labels, oldest first (index 0 = 6 days ago, index 6 = today)
 function last7DayLabels(): string[] {
@@ -18,7 +19,7 @@ function last7DayLabels(): string[] {
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(now)
     d.setDate(now.getDate() - (6 - i))
-    return WEEKDAY[d.getDay()]
+    return WEEKDAY()[d.getDay()]
   })
 }
 
@@ -142,28 +143,28 @@ export default function SharingAnalyticsScreen() {
     : screenParams.collectionId ? 'col' : 'db'
   const shareTargetId = (screenParams.propertyId ?? screenParams.collectionId ?? screenParams.dbId) as string
   const COPY = {
-    prop: { title: 'Поділитись обʼєктом', name: 'Обʼєкт', text: 'Перегляньте цей обʼєкт нерухомості',
-            empty: 'Поділись посиланням, щоб рієлтори побачили обʼєкти' },
-    db:   { title: 'Аналітика бази', name: 'База', text: 'Перегляньте базу нерухомості',
-            empty: 'Поділись посиланням, щоб рієлтори побачили обʼєкти' },
-    col:  { title: 'Аналітика підбірки', name: 'Підбірка', text: 'Перегляньте підбірку обʼєктів',
-            empty: 'Надішли підбірку клієнту — тут буде видно, коли він її відкрив' },
+    prop: { title: tr('Поділитись обʼєктом'), name: tr('Обʼєкт'), text: tr('Перегляньте цей обʼєкт нерухомості'),
+            empty: tr('Поділись посиланням, щоб рієлтори побачили обʼєкти') },
+    db:   { title: tr('Аналітика бази'), name: tr('База'), text: tr('Перегляньте базу нерухомості'),
+            empty: tr('Поділись посиланням, щоб рієлтори побачили обʼєкти') },
+    col:  { title: tr('Аналітика підбірки'), name: tr('Підбірка'), text: tr('Перегляньте підбірку обʼєктів'),
+            empty: tr('Надішли підбірку клієнту — тут буде видно, коли він її відкрив') },
   }[kind]
 
   return (
     <div className="scr bg-pink">
-      <Header title={COPY.title} backLabel="Назад" />
+      <Header title={COPY.title} backLabel={tr('Назад')} />
 
       <div className="body">
         {/* Views count */}
         <div className="stat-g">
           <div className="stat glass-s" style={{ gridColumn: 'span 2' }}>
             <div className="stat-n">{last7Views.length}</div>
-            <div className="stat-l">Переглядів за 7 днів</div>
+            <div className="stat-l">{tr('Переглядів за 7 днів')}</div>
           </div>
           <div className="stat glass-s">
             <div className="stat-n">{todayViews.length}</div>
-            <div className="stat-l">Сьогодні</div>
+            <div className="stat-l">{tr('Сьогодні')}</div>
           </div>
         </div>
 
@@ -172,9 +173,9 @@ export default function SharingAnalyticsScreen() {
           <div className="chart-h">
             <span className="chart-t">
               <IconChartLine size={14} color="var(--info-fg)" />
-              {' '}Перегляди
+              {' '}{tr('Перегляди')}
             </span>
-            <span className="chart-s">Останні 7 днів</span>
+            <span className="chart-s">{tr('Останні 7 днів')}</span>
           </div>
 
           <svg width="100%" height="80" viewBox="0 0 280 80" style={{ display: 'block' }}>
@@ -230,9 +231,9 @@ export default function SharingAnalyticsScreen() {
 
         {/* Recent viewers */}
         <div className="over">
-          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconEye size={14} color="var(--info)" />Останні перегляди</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconEye size={14} color="var(--info)" />{tr('Останні перегляди')}</span>
           <span className="over-a">
-            <IconEye size={12} /> {last7Views.length} за 7 днів
+            <IconEye size={12} /> {last7Views.length} {tr('за 7 днів')}
           </span>
         </div>
 
@@ -245,7 +246,7 @@ export default function SharingAnalyticsScreen() {
         ) : views.length === 0 ? (
           <div className="empty-state" style={{ paddingTop: 24 }}>
             <div className="empty-ic">👁️</div>
-            <div className="empty-h">Немає переглядів</div>
+            <div className="empty-h">{tr('Немає переглядів')}</div>
             <div className="empty-s">{COPY.empty}</div>
           </div>
         ) : (
@@ -256,13 +257,13 @@ export default function SharingAnalyticsScreen() {
                   {(v.viewer_name ?? '?').charAt(0).toUpperCase()}
                 </div>
                 <div className="view-mn">
-                  <div className="view-n">{v.viewer_name ?? 'Анонім'}</div>
+                  <div className="view-n">{v.viewer_name ?? tr('Анонім')}</div>
                   <div className="view-a">
-                    {v.action === 'photo' ? 'переглянув фото' :
-                     v.action === 'document' ? 'завантажив документ' :
-                     v.action === 'share' ? 'поділився посиланням' :
-                     v.action === 'favorite' ? 'додав до обраних' :
-                     'переглянув'}
+                    {v.action === 'photo' ? tr('переглянув фото') :
+                     v.action === 'document' ? tr('завантажив документ') :
+                     v.action === 'share' ? tr('поділився посиланням') :
+                     v.action === 'favorite' ? tr('додав до обраних') :
+                     tr('переглянув')}
                   </div>
                 </div>
                 <div className="view-r">
@@ -285,7 +286,7 @@ export default function SharingAnalyticsScreen() {
 
       <button className="mbtn" onClick={() => setShowShare(true)}>
         <IconShare size={18} />
-        Поділитися
+        {tr('Поділитися')}
       </button>
 
       <ShareSheet

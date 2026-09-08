@@ -17,6 +17,7 @@ import { useHideOnScrollDown } from '@/hooks/useHideOnScrollDown'
 import { IconChevronRight, IconPlus, IconDatabase, IconBuilding, IconCircleCheck, IconCurrencyDollar, IconBolt, GlassDbIcon } from '@/components/Icons'
 import { DB_TYPE_LABELS, formatPrice, STATUS_COLORS, STATUS_LABELS, greeting, matchesQuery, searchPattern, pluralUk, objectsWord } from '@/lib/utils'
 import type { PropertyStatus } from '@/types'
+import { tr } from '@/lib/i18n'
 
 interface PropSearchResult {
   id: string
@@ -149,14 +150,14 @@ export default function DatabaseListScreen() {
 
       <div className="body has-fab">
         <div className="greet">{greet}, {user?.first_name}</div>
-        <div className="display">Мої бази</div>
+        <div className="display">{tr('Мої бази')}</div>
 
         {/* Stats */}
         <div className="stat-g">
           <div className="stat glass-s" style={{ background: 'var(--dv-blue-bg)', border: '.5px solid var(--dv-blue-bd)' }}>
             <div className="stat-ic"><IconDatabase size={16} color="var(--dv-blue)" /></div>
             <div className="stat-n">{totals.dbs}</div>
-            <div className="stat-l">{pluralUk(totals.dbs, 'База', 'Бази', 'Баз')}</div>
+            <div className="stat-l">{pluralUk(totals.dbs, tr('База'), tr('Бази'), tr('Баз'))}</div>
           </div>
           <div className="stat glass-s" style={{ background: 'var(--dv-purple-bg)', border: '.5px solid var(--dv-purple-bd)' }}>
             <div className="stat-ic"><IconBuilding size={16} color="var(--violet)" /></div>
@@ -166,7 +167,7 @@ export default function DatabaseListScreen() {
           <div className="stat glass-s" style={{ background: 'var(--ok-bg)', border: '.5px solid var(--ok-bd)' }}>
             <div className="stat-ic"><IconCircleCheck size={16} color="var(--ok-fg)" /></div>
             <div className="stat-n" style={{ color: 'var(--ok-fg)' }}>{totals.free}</div>
-            <div className="stat-l" style={{ color: 'var(--ok-fg)' }}>Вільно</div>
+            <div className="stat-l" style={{ color: 'var(--ok-fg)' }}>{tr('Вільно')}</div>
           </div>
           {totals.income > 0 && (
             /* Дві грошові цифри в ОДНІЙ плитці, а не двома — рішення власника:
@@ -182,7 +183,7 @@ export default function DatabaseListScreen() {
                 <div className="stat-n" style={{ color: 'var(--ok-fg)', fontSize: 'var(--fs-lead)' }}>
                   {formatPrice(totals.income, user?.currency)}
                 </div>
-                <div className="stat-l">Оренда · зайнято {totals.occupied}</div>
+                <div className="stat-l">{tr('Оренда · зайнято')}{' '}{totals.occupied}</div>
               </div>
               {totals.utils > 0 && (
                 <div className="stat-half">
@@ -190,7 +191,7 @@ export default function DatabaseListScreen() {
                   <div className="stat-n" style={{ color: 'var(--warn-fg)', fontSize: 'var(--fs-lead)' }}>
                     {formatPrice(totals.utils, user?.currency)}
                   </div>
-                  <div className="stat-l">Експлуатаційні</div>
+                  <div className="stat-l">{tr('Експлуатаційні')}</div>
                 </div>
               )}
             </div>
@@ -198,18 +199,18 @@ export default function DatabaseListScreen() {
         </div>
 
         {/* Search */}
-        <SearchBar value={search} onChange={setSearch} placeholder="Пошук бази або обʼєкту..." />
+        <SearchBar value={search} onChange={setSearch} placeholder={tr('Пошук бази або обʼєкту...')} />
 
         {/* Cross-database property search results */}
         {showPropResults && (
           <div style={{ marginBottom: 8 }}>
             <div className="over">
-              <span>Обʼєкти по всіх базах</span>
+              <span>{tr('Обʼєкти по всіх базах')}</span>
               {propSearching
                 ? <span className="over-a">…</span>
                 : propError
-                ? <span className="over-a">збій</span>
-                : <span className="over-a">{propResults.length} знайдено</span>
+                ? <span className="over-a">{tr('збій')}</span>
+                : <span className="over-a">{propResults.length} {tr('знайдено')}</span>
               }
             </div>
             {propSearching ? (
@@ -218,10 +219,10 @@ export default function DatabaseListScreen() {
               </div>
             ) : propError ? (
               <div style={{ padding: '8px 16px', fontSize: 'var(--fs-foot)', color: 'var(--t3)' }}>
-                Пошук не вдався — перевірте зʼєднання. Це НЕ означає, що обʼєкта немає.
+                {tr('Пошук не вдався — перевірте зʼєднання. Це НЕ означає, що обʼєкта немає.')}
               </div>
             ) : propResults.length === 0 ? (
-              <div style={{ padding: '8px 16px', fontSize: 'var(--fs-foot)', color: 'var(--t3)' }}>Нічого не знайдено</div>
+              <div style={{ padding: '8px 16px', fontSize: 'var(--fs-foot)', color: 'var(--t3)' }}>{tr('Нічого не знайдено')}</div>
             ) : (
               <div className="list">
                 {propResults.map(p => {
@@ -236,11 +237,11 @@ export default function DatabaseListScreen() {
                         <div className="row-t">{p.name}</div>
                         <div className="row-s">
                           <span style={{ color: 'var(--t3)' }}>{p.dbName}</span>
-                          {p.floor && <><span>·</span><span>{p.floor} пов.</span></>}
+                          {p.floor && <><span>·</span><span>{tr('{0} пов.', p.floor)}</span></>}
                         </div>
                       </div>
                       <div className="row-r">
-                        <span className="bdg" style={{ background: badge.bg, color: badge.color }}>{STATUS_LABELS[p.status]}</span>
+                        <span className="bdg" style={{ background: badge.bg, color: badge.color }}>{STATUS_LABELS()[p.status]}</span>
                       </div>
                       <IconChevronRight size={14} color="var(--t4)" />
                     </div>
@@ -250,7 +251,7 @@ export default function DatabaseListScreen() {
             )}
             {/* Divider before DB results */}
             {filtered.length > 0 && (
-              <div className="over" style={{ marginTop: 4 }}><span>Бази</span></div>
+              <div className="over" style={{ marginTop: 4 }}><span>{tr('Бази')}</span></div>
             )}
           </div>
         )}
@@ -263,19 +264,19 @@ export default function DatabaseListScreen() {
         ) : !showPropResults && filtered.length === 0 && search ? (
           <div className="empty-state" style={{ paddingTop: 32 }}>
             <div className="empty-ic">🔍</div>
-            <div className="empty-h">Нічого не знайдено</div>
-            <div className="empty-s">Немає баз за запитом &quot;{search}&quot;</div>
+            <div className="empty-h">{tr('Нічого не знайдено')}</div>
+            <div className="empty-s">{tr('Немає баз за запитом "')}{search}&quot;</div>
           </div>
         ) : filtered.length === 0 && !showPropResults ? (
           <div className="empty-state" style={{ paddingTop: 32 }}>
             <div className="empty-ic">🏢</div>
-            <div className="empty-h">Немає баз</div>
-            <div className="empty-s">Створи першу базу обʼєктів</div>
+            <div className="empty-h">{tr('Немає баз')}</div>
+            <div className="empty-s">{tr('Створи першу базу обʼєктів')}</div>
             <button
               className="mbtn success mbtn-flow"
               onClick={() => { hapticImpact('light'); navigate('create-db') }}
             >
-              Створити першу базу
+              {tr('Створити першу базу')}
             </button>
           </div>
         ) : filtered.length > 0 ? (
@@ -290,22 +291,22 @@ export default function DatabaseListScreen() {
                 <div className="row-mn">
                   <div className="row-t">{db.name}</div>
                   <div className="row-s">
-                    <span>{DB_TYPE_LABELS[db.type]}</span>
+                    <span>{DB_TYPE_LABELS()[db.type]}</span>
                     {db.address && <><span>·</span><span>{db.address}</span></>}
                   </div>
                   {(db._monthly_income ?? 0) > 0 && (
                     <div style={{ fontSize: 'var(--fs-cap2)', color: 'var(--ok-fg)', marginTop: 2, fontWeight: 'var(--fw-semi)' }}>
-                      {formatPrice(db._monthly_income!, user?.currency)}/міс
+                      {formatPrice(db._monthly_income!, user?.currency)}{tr('/міс')}
                     </div>
                   )}
                 </div>
                 <div className="row-r">
                   {db._member && (
-                    <span className="bdg bdg-info">Команда</span>
+                    <span className="bdg bdg-info">{tr('Команда')}</span>
                   )}
-                  <span className="bdg bdg-info">{db._property_count ?? 0} об.</span>
+                  <span className="bdg bdg-info">{db._property_count ?? 0} {tr('об.')}</span>
                   {(db._free_count ?? 0) > 0 && (
-                    <span className="bdg bdg-ok">{db._free_count} вільно</span>
+                    <span className="bdg bdg-ok">{db._free_count} {tr('вільно')}</span>
                   )}
                 </div>
                 <IconChevronRight size={14} color="var(--t4)" />
@@ -322,14 +323,14 @@ export default function DatabaseListScreen() {
         raised
         hidden={fabHidden || showEmptyCta}
         icon={<IconPlus size={14} />}
-        label="Створити базу"
+        label={tr('Створити базу')}
         onClick={() => { hapticImpact('light'); navigate('create-db') }}
       />
 
       {!fabSeen && !loading && (
         <CoachMark
-          title="Створіть першу базу"
-          body="Натисніть +, щоб додати базу нерухомості — офісний центр, житловий комплекс або склад."
+          title={tr('Створіть першу базу')}
+          body={tr('Натисніть +, щоб додати базу нерухомості — офісний центр, житловий комплекс або склад.')}
           targetRef={fabRef}
           placement="above"
           onDone={markFabSeen}

@@ -13,6 +13,7 @@ import RetryState from '@/components/ui/RetryState'
 import { IconPlus, IconLink, IconBan, IconUser, IconUsers, IconCopy, IconChevronRight, IconTrash } from '@/components/Icons'
 import { copyLink } from '@/lib/share'
 import { buildDeepLink, openTelegramShare, hapticNotify } from '@/lib/telegram'
+import { locale, tr } from '@/lib/i18n'
 
 /**
  * СПІЛЬНИЙ СПИСОК ДОСТУПІВ — гості і команда.
@@ -65,36 +66,36 @@ interface KindCopy {
 const BASE_GUEST = 'id,owner_id,property_id,db_id,invite_token,label,guest_user_id,status,claimed_at,created_at'
 const BASE_TEAM = 'id,db_id,user_id,role,invite_token,label,status,claimed_at,created_at'
 
-const COPY: Record<AccessKind, KindCopy> = {
+const COPY = (): Record<AccessKind, KindCopy> => ({
   guest: {
     table: 'guest_links', nameCol: 'guest_name', columns: BASE_GUEST,
     tokenPrefix: 'guest_', bg: 'bg-blue',
-    title: (isProp) => (isProp ? 'Гості обʼєкта' : 'Гості бази'),
-    addLabel: 'Запросити гостя',
-    emptyIcon: '👤', emptyTitle: 'Немає запрошень',
-    emptyHint: 'Натисніть + щоб запросити гостя',
-    fallbackName: 'Гість',
-    shareText: (isProp) => (isProp ? 'Запрошення до перегляду обʼєкта' : 'Запрошення до перегляду бази'),
-    revokeMessage: (n) => `Гість «${n}» втратить доступ. Цю дію не можна скасувати.`,
-    statusLabel: { pending: 'Очікує', active: 'Активний', revoked: 'Відкликано' },
+    title: (isProp) => (isProp ? tr('Гості обʼєкта') : tr('Гості бази')),
+    addLabel: tr('Запросити гостя'),
+    emptyIcon: '👤', emptyTitle: tr('Немає запрошень'),
+    emptyHint: tr('Натисніть + щоб запросити гостя'),
+    fallbackName: tr('Гість'),
+    shareText: (isProp) => (isProp ? tr('Запрошення до перегляду обʼєкта') : tr('Запрошення до перегляду бази')),
+    revokeMessage: (n) => tr('Гість «{0}» втратить доступ. Цю дію не можна скасувати.', n),
+    statusLabel: { pending: tr('Очікує'), active: tr('Активний'), revoked: tr('Відкликано') },
     canShare: (s) => s !== 'revoked',
   },
   team: {
     table: 'db_members', nameCol: 'member_name', columns: BASE_TEAM,
     tokenPrefix: 'team_', bg: 'bg-teal',
-    title: () => 'Команда бази',
-    addLabel: 'Запросити в команду',
-    emptyIcon: '👥', emptyTitle: 'Команди поки немає',
-    emptyHint: 'Натисніть + щоб запросити помічника',
-    fallbackName: 'Запрошення',
-    shareText: () => 'Запрошення до команди бази нерухомості',
-    revokeMessage: (n) => `«${n}» втратить право редагувати базу.`,
-    statusLabel: { pending: 'Очікує', active: 'В команді', revoked: 'Відкликано' },
-    note: 'Члени команди можуть створювати і редагувати обʼєкти, фото, файли та платежі цієї бази. Поділитися базою, керувати гостями і командою може лише власник. Власник бачить, які обʼєкти учасник відкривав — про це варто сказати людині, коли запрошуєте.',
+    title: () => tr('Команда бази'),
+    addLabel: tr('Запросити в команду'),
+    emptyIcon: '👥', emptyTitle: tr('Команди поки немає'),
+    emptyHint: tr('Натисніть + щоб запросити помічника'),
+    fallbackName: tr('Запрошення'),
+    shareText: () => tr('Запрошення до команди бази нерухомості'),
+    revokeMessage: (n) => tr('«{0}» втратить право редагувати базу.', n),
+    statusLabel: { pending: tr('Очікує'), active: tr('В команді'), revoked: tr('Відкликано') },
+    note: tr('Члени команди можуть створювати і редагувати обʼєкти, фото, файли та платежі цієї бази. Поділитися базою, керувати гостями і командою може лише власник. Власник бачить, які обʼєкти учасник відкривав — про це варто сказати людині, коли запрошуєте.'),
     // Прийнятий інвайт ділити нема сенсу — токен уже спожитий.
     canShare: (s) => s === 'pending',
   },
-}
+})
 
 const STATUS_COLOR: Record<string, string> = {
   pending: 'var(--warn)',
@@ -104,7 +105,7 @@ const STATUS_COLOR: Record<string, string> = {
 
 export default function AccessList({ kind }: { kind: AccessKind }) {
   const { screenParams, showToast, navigate } = useAppStore()
-  const c = COPY[kind]
+  const c = COPY()[kind]
 
   const isProperty = kind === 'guest' && !!screenParams.propertyId
   const dbId = screenParams.dbId as string | undefined
@@ -171,9 +172,9 @@ export default function AccessList({ kind }: { kind: AccessKind }) {
 
   async function handleRevoke(r: AccessRow) {
     const ok = await confirmAction({
-      title: 'Відкликати доступ?',
+      title: tr('Відкликати доступ?'),
       message: c.revokeMessage(nameOf(r)),
-      confirmLabel: 'Відкликати',
+      confirmLabel: tr('Відкликати'),
       destructive: true,
     })
     if (!ok || offlineGuard()) return
@@ -189,16 +190,16 @@ export default function AccessList({ kind }: { kind: AccessKind }) {
         .eq('id', r.id)
         .select('id')
       if (error) throw error
-      assertAffected(data, 1, 'відкликання доступу')
+      assertAffected(data, 1, tr('відкликання доступу'))
       setRows(prev => prev.map(x => x.id === r.id ? { ...x, status: 'revoked' as const } : x))
       hapticNotify('success')
       // Тост обовʼязковий саме ТУТ: відкликаний рядок їде у згорнуту секцію,
       // тобто зникає з очей. Доти фідбеком був сам бейдж «Відкликано» на
       // місці — без нього дія завершувалась мовчазним зникненням рядка, що
       // читається як «щось пішло не так», а не як успіх.
-      showToast({ type: 'success', title: 'Доступ відкликано', subtitle: nameOf(r) })
+      showToast({ type: 'success', title: tr('Доступ відкликано'), subtitle: nameOf(r) })
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
+      showToast({ type: 'error', title: tr('Помилка'), subtitle: humanizeDbError(e) })
     } finally {
       setRevoking(null)
     }
@@ -212,9 +213,9 @@ export default function AccessList({ kind }: { kind: AccessKind }) {
   // позбавлення доступу — без підтвердження про наслідки.
   async function handleDelete(r: AccessRow) {
     const ok = await confirmAction({
-      title: 'Прибрати запис?',
-      message: `Запис про «${nameOf(r)}» зникне зі списку. Доступ уже відкликано, тож на права це не впливає.`,
-      confirmLabel: 'Прибрати',
+      title: tr('Прибрати запис?'),
+      message: tr('Запис про «{0}» зникне зі списку. Доступ уже відкликано, тож на права це не впливає.', nameOf(r)),
+      confirmLabel: tr('Прибрати'),
       destructive: true,
     })
     if (!ok || offlineGuard()) return
@@ -229,11 +230,11 @@ export default function AccessList({ kind }: { kind: AccessKind }) {
         .eq('id', r.id)
         .select('id')
       if (error) throw error
-      assertAffected(data, 1, 'видалення запису доступу')
+      assertAffected(data, 1, tr('видалення запису доступу'))
       setRows(prev => prev.filter(x => x.id !== r.id))
       hapticNotify('success')
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
+      showToast({ type: 'error', title: tr('Помилка'), subtitle: humanizeDbError(e) })
     } finally {
       setRevoking(null)
     }
@@ -242,8 +243,8 @@ export default function AccessList({ kind }: { kind: AccessKind }) {
   async function handleCopy(url: string) {
     const ok = await copyLink(url)
     showToast(ok
-      ? { type: 'success', title: 'Посилання скопійовано' }
-      : { type: 'error', title: 'Не вдалося скопіювати' })
+      ? { type: 'success', title: tr('Посилання скопійовано') }
+      : { type: 'error', title: tr('Не вдалося скопіювати') })
   }
 
   const active = rows.filter(r => r.status !== 'revoked')
@@ -275,13 +276,13 @@ export default function AccessList({ kind }: { kind: AccessKind }) {
                   «Орендар, кв. 5» каже, за що доступ, а імʼя — кому. */}
               {r.person && r.label ? `${r.label} · ` : ''}
               {r.claimed_at
-                ? `Прийнято ${new Date(r.claimed_at).toLocaleDateString('uk-UA')}`
-                : `Створено ${new Date(r.created_at).toLocaleDateString('uk-UA')}`}
+                ? tr('Прийнято {0}', new Date(r.claimed_at).toLocaleDateString(locale()))
+                : tr('Створено {0}', new Date(r.created_at).toLocaleDateString(locale()))}
             </div>
             {r.status === 'revoked' && (
               <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
                 <button className="acc-act revoke" disabled={revoking === r.id} onClick={() => handleDelete(r)}>
-                  <IconTrash size={14} />Прибрати
+                  <IconTrash size={14} />{tr('Прибрати')}
                 </button>
               </div>
             )}
@@ -294,18 +295,18 @@ export default function AccessList({ kind }: { kind: AccessKind }) {
                 {c.canShare(r.status) && (
                   <>
                     <button className="acc-act share icon" disabled={!usable}
-                      aria-label="Скопіювати посилання" onClick={() => handleCopy(url)}>
+                      aria-label={tr('Скопіювати посилання')} onClick={() => handleCopy(url)}>
                       <IconCopy size={16} />
                     </button>
                     <button className="acc-act share icon" disabled={!usable}
-                      aria-label="Надіслати посилання"
+                      aria-label={tr('Надіслати посилання')}
                       onClick={() => openTelegramShare(url, c.shareText(isProperty))}>
                       <IconLink size={16} />
                     </button>
                   </>
                 )}
                 <button className="acc-act revoke" disabled={revoking === r.id} onClick={() => handleRevoke(r)}>
-                  <IconBan size={14} />Відкликати
+                  <IconBan size={14} />{tr('Відкликати')}
                 </button>
               </div>
             )}
@@ -319,7 +320,7 @@ export default function AccessList({ kind }: { kind: AccessKind }) {
     <div className={`scr ${c.bg}`}>
       <Header
         title={c.title(isProperty)}
-        backLabel="Назад"
+        backLabel={tr('Назад')}
         right={
           <button
             className="hdr-a"
@@ -353,7 +354,7 @@ export default function AccessList({ kind }: { kind: AccessKind }) {
                 рядка екран виглядав би так, ніби список не завантажився. */}
             {active.length === 0 && (
               <div className="empty-state" style={{ paddingTop: 24, paddingBottom: 8 }}>
-                <div className="empty-h">Активних доступів немає</div>
+                <div className="empty-h">{tr('Активних доступів немає')}</div>
               </div>
             )}
 
@@ -362,8 +363,8 @@ export default function AccessList({ kind }: { kind: AccessKind }) {
                 <button type="button" className="acc-toggle" onClick={() => setShowRevoked(v => !v)}
                   aria-expanded={showRevoked}>
                   <span>
-                    {showRevoked ? 'Сховати відкликані' : 'Відкликані'} ({revoked.length}{' '}
-                    {pluralUk(revoked.length, 'доступ', 'доступи', 'доступів')})
+                    {showRevoked ? tr('Сховати відкликані') : tr('Відкликані')} ({revoked.length}{' '}
+                    {pluralUk(revoked.length, tr('доступ'), tr('доступи'), tr('доступів'))})
                   </span>
                   <IconChevronRight size={16} className="acc-chev" />
                 </button>

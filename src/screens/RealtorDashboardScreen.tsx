@@ -13,6 +13,7 @@ import type { Database, DbMember, RealtorSubscription } from '@/types'
 import CoachMark from '@/components/ui/CoachMark'
 import { useOnboarding } from '@/hooks/useOnboarding'
 import { useSlowLoadingToast } from '@/hooks/useSlowLoadingToast'
+import { tr } from '@/lib/i18n'
 
 export default function RealtorDashboardScreen() {
   const { user, navigate, showToast } = useAppStore()
@@ -89,7 +90,7 @@ export default function RealtorDashboardScreen() {
     } catch (e) {
       const msg = humanizeDbError(e)
       setLoadError(msg)
-      showToast({ type: 'error', title: 'Помилка завантаження', subtitle: msg })
+      showToast({ type: 'error', title: tr('Помилка завантаження'), subtitle: msg })
     } finally {
       setLoading(false)
     }
@@ -125,12 +126,12 @@ export default function RealtorDashboardScreen() {
 
       <div className="body has-tabbar-btn">
         <div className="greet">{greet}, {user?.first_name}</div>
-        <div className="display">Робочі бази</div>
+        <div className="display">{tr('Робочі бази')}</div>
 
         <div className="stat-g cols-2">
           <div className="stat glass-s">
             <div className="stat-n">{subscriptions.length + memberDatabases.length}</div>
-            <div className="stat-l">{pluralUk(subscriptions.length + memberDatabases.length, 'База', 'Бази', 'Баз')}</div>
+            <div className="stat-l">{pluralUk(subscriptions.length + memberDatabases.length, tr('База'), tr('Бази'), tr('Баз'))}</div>
           </div>
           <div className="stat glass-s">
             <div className="stat-n">{propertyCount}</div>
@@ -138,7 +139,7 @@ export default function RealtorDashboardScreen() {
           </div>
         </div>
 
-        <SearchBar value={search} onChange={setSearch} placeholder="Пошук бази..." />
+        <SearchBar value={search} onChange={setSearch} placeholder={tr('Пошук бази...')} />
 
         {loading ? (
           <SkeletonLoader rowHeight={88} />
@@ -148,10 +149,10 @@ export default function RealtorDashboardScreen() {
           <div className="empty-state" style={{ paddingTop: 32 }}>
             <div className="empty-ic">🏢</div>
             <div className="empty-h">
-              {search ? 'Нічого не знайдено' : 'Немає підписок'}
+              {search ? tr('Нічого не знайдено') : tr('Немає підписок')}
             </div>
             <div className="empty-s">
-              {search ? 'Немає баз за запитом' : 'Відскануй QR від власника'}
+              {search ? tr('Немає баз за запитом') : tr('Відскануй QR від власника')}
             </div>
           </div>
         ) : (
@@ -168,10 +169,10 @@ export default function RealtorDashboardScreen() {
                 <div className="row-mn">
                   <div className="row-t">{db.name}</div>
                   <div className="row-s">
-                    <span>{DB_TYPE_LABELS[db.type]}</span>
+                    <span>{DB_TYPE_LABELS()[db.type]}</span>
                   </div>
                 </div>
-                <span className="bdg bdg-info">Команда</span>
+                <span className="bdg bdg-info">{tr('Команда')}</span>
                 <IconChevronRight size={14} color="var(--t4)" />
               </div>
             ))}
@@ -188,7 +189,7 @@ export default function RealtorDashboardScreen() {
                   <div className="row-mn">
                     <div className="row-t">{db.name}</div>
                     <div className="row-s">
-                      <span>{DB_TYPE_LABELS[db.type]}</span>
+                      <span>{DB_TYPE_LABELS()[db.type]}</span>
                     </div>
                   </div>
                   <IconChevronRight size={14} color="var(--t4)" />
@@ -201,13 +202,13 @@ export default function RealtorDashboardScreen() {
       </div>
 
       <button ref={qrBtnRef} className="mbtn" onClick={() => navigate('qr-scanner')} style={{ bottom: 'calc(92px + var(--safe-bottom))' }}>
-        Додати базу за QR
+        {tr('Додати базу за QR')}
       </button>
 
       {!qrSeen && !loading && (
         <CoachMark
-          title="Підключіться до бази"
-          body="Попросіть власника надіслати QR-код або посилання, потім натисніть цю кнопку."
+          title={tr('Підключіться до бази')}
+          body={tr('Попросіть власника надіслати QR-код або посилання, потім натисніть цю кнопку.')}
           targetRef={qrBtnRef}
           placement="above"
           onDone={markQrSeen}

@@ -10,6 +10,7 @@ import Header from '@/components/ui/Header'
 import { hapticNotify } from '@/lib/telegram'
 import { scrollFocusedIntoView } from '@/lib/utils'
 import type { User } from '@/types'
+import { tr } from '@/lib/i18n'
 
 const SubscribeSchema = z.array(z.object({
   db_id: z.string().uuid().nullable(),
@@ -51,13 +52,13 @@ export default function QRScannerScreen() {
 
   async function subscribeByToken(token: string) {
     if (!user) return
-    if (offlineGuard('Підключення до бази недоступне офлайн')) return
+    if (offlineGuard(tr('Підключення до бази недоступне офлайн'))) return
     // Token-validated SECURITY DEFINER RPC: checks the token + expiry and
     // creates the subscription server-side (clients can no longer INSERT
     // subscriptions directly — see migration 036).
     const { data, error } = await supabase.rpc('subscribe_to_shared_db', { p_token: token })
     if (error) {
-      showToast({ type: 'error', title: 'Помилка підписки', subtitle: 'Спробуйте ще раз' })
+      showToast({ type: 'error', title: tr('Помилка підписки'), subtitle: tr('Спробуйте ще раз') })
       return
     }
     // safeParse: a malformed RPC response must surface the error toast, not
@@ -66,16 +67,16 @@ export default function QRScannerScreen() {
     const row = parsed.success ? parsed.data[0] : undefined
     if (!row || row.error === 'not_found') {
       // 036 filters expired tokens server-side, so "not found" covers both cases
-      showToast({ type: 'error', title: 'Базу не знайдено', subtitle: 'Посилання невірне або застаріло' })
+      showToast({ type: 'error', title: tr('Базу не знайдено'), subtitle: tr('Посилання невірне або застаріло') })
       return
     }
     if (row.error === 'own_db' && row.db_id) {
-      showToast({ type: 'info', title: 'Це ваша база', subtitle: 'QR-код для ріелторів — не для власника' })
+      showToast({ type: 'info', title: tr('Це ваша база'), subtitle: tr('QR-код для ріелторів — не для власника') })
       navigate('db-objects', { dbId: row.db_id })
       return
     }
     if (row.error || !row.db_id) {
-      showToast({ type: 'error', title: 'Помилка підписки', subtitle: 'Спробуйте ще раз' })
+      showToast({ type: 'error', title: tr('Помилка підписки'), subtitle: tr('Спробуйте ще раз') })
       return
     }
     // subscribe_to_shared_db may have normalised a default-owner (no databases
@@ -90,7 +91,7 @@ export default function QRScannerScreen() {
       if (freshUser) useAppStore.getState().setUser(freshUser as User)
     } catch { /* role refresh is best-effort */ }
     hapticNotify('success')
-    showToast({ type: 'success', title: 'Базу підключено!' })
+    showToast({ type: 'success', title: tr('Базу підключено!') })
     navigate('realtor-database', { dbId: row.db_id })
   }
 
@@ -100,12 +101,12 @@ export default function QRScannerScreen() {
       if (typeof tg.showScanQrPopup === 'function') {
         setScanning(true)
         ;(tg.showScanQrPopup as (opts: { text: string }, cb: (r: string | null) => boolean | Promise<boolean>) => void)(
-          { text: 'Відскануй QR-код бази prostir' },
+          { text: tr('Відскануй QR-код бази prostir') },
           async (result) => {
             if (!result) return false
             const token = extractDbToken(result)
             if (!token) {
-              showToast({ type: 'error', title: 'Невірний QR-код', subtitle: 'Відскануйте QR від prostir' })
+              showToast({ type: 'error', title: tr('Невірний QR-код'), subtitle: tr('Відскануйте QR від prostir') })
               return true
             }
             await subscribeByToken(token)
@@ -130,7 +131,7 @@ export default function QRScannerScreen() {
 
   return (
     <div className="scr" style={{ background: '#000' }}>
-      <Header title="Сканер QR" backLabel="Назад" />
+      <Header title={tr('Сканер QR')} backLabel={tr('Назад')} />
 
       <div className="col-read" onFocusCapture={scrollFocusedIntoView} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 32px', gap: 24 }}>
         {/* Scanner frame */}
@@ -180,19 +181,19 @@ export default function QRScannerScreen() {
 
         <div style={{ textAlign: 'center' }}>
           <div style={{ color: 'var(--t1)', fontWeight: 'var(--fw-semi)', fontSize: 'var(--fs-call)', marginBottom: 6 }}>
-            Відскануйте QR-код
+            {tr('Відскануйте QR-код')}
           </div>
           <div style={{ color: 'var(--t3)', fontSize: 'var(--fs-foot)' }}>
-            Направте камеру на QR-код від власника бази
+            {tr('Направте камеру на QR-код від власника бази')}
           </div>
         </div>
 
         {/* Manual input — accepts URL, db_ prefix, or raw token */}
         <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={{ color: 'var(--t3)', fontSize: 'var(--fs-cap1)', textAlign: 'center' }}>або вставте посилання / токен</div>
+          <div style={{ color: 'var(--t3)', fontSize: 'var(--fs-cap1)', textAlign: 'center' }}>{tr('або вставте посилання / токен')}</div>
           <div style={{ display: 'flex', gap: 8 }}>
             <input
-              aria-label="Код запрошення"
+              aria-label={tr('Код запрошення')}
               type="text"
               value={manualToken}
               onChange={(e) => setManualToken(e.target.value)}
@@ -201,7 +202,7 @@ export default function QRScannerScreen() {
               // плейсхолдера ще й залежала від ЮЗЕРНЕЙМА БОТА — змінної
               // оточення, — тож жоден гард не покрив би всі її значення.
               // Форму вводу і так називає підказка над рядком.
-              placeholder="Посилання або токен"
+              placeholder={tr('Посилання або токен')}
               onKeyDown={(e) => { if (e.key === 'Enter') handleManualSubmit() }}
               style={{
                 flex: 1,
@@ -237,7 +238,7 @@ export default function QRScannerScreen() {
                 whiteSpace: 'nowrap',
               }}
             >
-              {submitting ? '...' : 'Додати'}
+              {submitting ? '...' : tr('Додати')}
             </button>
           </div>
         </div>

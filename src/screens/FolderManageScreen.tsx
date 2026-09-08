@@ -11,6 +11,7 @@ import { hapticSelection, hapticNotify } from '@/lib/telegram'
 import { objectsWord, scrollFocusedIntoView } from '@/lib/utils'
 import { confirmAction } from '@/lib/confirm'
 import type { PropertyFolder } from '@/types'
+import { tr } from '@/lib/i18n'
 
 /**
  * Повноекранне керування папками — заміна колишньої `<Modal>` (фаза 4
@@ -68,13 +69,13 @@ export default function FolderManageScreen() {
   async function askDelete(folder: PropertyFolder) {
     const n = counts.get(folder.id) ?? 0
     const ok = await confirmAction({
-      title: `Видалити папку «${folder.name}»?`,
+      title: tr('Видалити папку «{0}»?', folder.name),
       // Папка не тягне за собою обʼєкти — вони лишаються в базі без групи,
       // і це головне, що користувач мусить розуміти перед підтвердженням.
       message: n > 0
-        ? `${n} ${objectsWord(n)} залишаться в базі, але без папки.`
-        : 'Порожня папка буде видалена.',
-      confirmLabel: 'Видалити',
+        ? tr('{0} {1} залишаться в базі, але без папки.', n, objectsWord(n))
+        : tr('Порожня папка буде видалена.'),
+      confirmLabel: tr('Видалити'),
       destructive: true,
     })
     if (!ok) return
@@ -83,18 +84,18 @@ export default function FolderManageScreen() {
 
   return (
     <div className="scr bg-blue">
-      <Header title="Папки" subtitle="Групуйте обʼєкти бази" onBack={back} />
+      <Header title={tr('Папки')} subtitle={tr('Групуйте обʼєкти бази')} onBack={back} />
 
       <div className="body has-flow-cta" onFocusCapture={scrollFocusedIntoView}>
         <div className="fg glass-s">
           <div className="fr">
             <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <IconPlus size={14} color="var(--t3)" />Нова
+              <IconPlus size={14} color="var(--t3)" />{tr('Нова')}
             </span>
             <input
               className="fr-i"
-              aria-label="Назва нової папки"
-              placeholder="Назва папки…"
+              aria-label={tr('Назва нової папки')}
+              placeholder={tr('Назва папки…')}
               value={newName}
               maxLength={40}
               onChange={(e) => setNewName(e.target.value)}
@@ -111,7 +112,7 @@ export default function FolderManageScreen() {
             <RetryState subtitle={loadErr} onRetry={() => loadFolders(dbId)} />
           ) : folders.length === 0 && (
             <div className="sheet-empty">
-              Ще немає папок. Введіть назву вгорі й натисніть «Додати папку».
+              {tr('Ще немає папок. Введіть назву вгорі й натисніть «Додати папку».')}
             </div>
           )}
           {folders.map((f, i) => {
@@ -122,7 +123,7 @@ export default function FolderManageScreen() {
                 {editingId === f.id ? (
                   <input
                     className="fold-mng-input"
-                    aria-label={`Нова назва папки «${f.name}»`}
+                    aria-label={tr('Нова назва папки «{0}»', f.name)}
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
                     onKeyDown={(e) => {
@@ -140,15 +141,15 @@ export default function FolderManageScreen() {
                 <div className="fold-mng-act">
                   {editingId === f.id ? (
                     <>
-                      <button aria-label="Зберегти" onClick={commitEdit}><IconCheck size={16} /></button>
-                      <button aria-label="Скасувати" onClick={() => setEditingId(null)}><IconX size={16} /></button>
+                      <button aria-label={tr('Зберегти')} onClick={commitEdit}><IconCheck size={16} /></button>
+                      <button aria-label={tr('Скасувати')} onClick={() => setEditingId(null)}><IconX size={16} /></button>
                     </>
                   ) : (
                     <>
-                      <button aria-label="Вгору" disabled={i === 0} onClick={() => { hapticSelection(); reorderFolder(f.id, 'up') }}><IconChevronUp size={16} /></button>
-                      <button aria-label="Вниз" disabled={i === folders.length - 1} onClick={() => { hapticSelection(); reorderFolder(f.id, 'down') }}><IconChevronDown size={16} /></button>
-                      <button aria-label="Перейменувати" onClick={() => startEdit(f)}><IconEdit size={16} /></button>
-                      <button aria-label="Видалити" className="danger" onClick={() => void askDelete(f)}><IconTrash size={16} /></button>
+                      <button aria-label={tr('Вгору')} disabled={i === 0} onClick={() => { hapticSelection(); reorderFolder(f.id, 'up') }}><IconChevronUp size={16} /></button>
+                      <button aria-label={tr('Вниз')} disabled={i === folders.length - 1} onClick={() => { hapticSelection(); reorderFolder(f.id, 'down') }}><IconChevronDown size={16} /></button>
+                      <button aria-label={tr('Перейменувати')} onClick={() => startEdit(f)}><IconEdit size={16} /></button>
+                      <button aria-label={tr('Видалити')} className="danger" onClick={() => void askDelete(f)}><IconTrash size={16} /></button>
                     </>
                   )}
                 </div>
@@ -163,7 +164,7 @@ export default function FolderManageScreen() {
           aria-busy={creating}
           onClick={() => void handleCreate()}
         >
-          Додати папку
+          {tr('Додати папку')}
         </button>
       </div>
     </div>

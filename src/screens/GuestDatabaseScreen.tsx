@@ -6,6 +6,7 @@ import { useAppStore } from '@/store/appStore'
 import { useAuth } from '@/hooks/useAuth'
 import { DB_TYPE_LABELS, rentUnitLabel, objectsWord, DB_COLORS, STATUS_BADGE_CLS, formatPrice } from '@/lib/utils'
 import { IconBuilding, IconRuler, IconCurrencyDollar, IconX } from '@/components/Icons'
+import { tr } from '@/lib/i18n'
 
 // Public DB preview (realtor flow)
 interface PreviewRow {
@@ -60,11 +61,11 @@ interface GuestPreview {
   }>
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  free: 'Вільно',
-  occupied: 'Зайнято',
-  for_sale: 'Продаж',
-}
+const STATUS_LABELS = (): Record<string, string> => ({
+  free: tr('Вільно'),
+  occupied: tr('Зайнято'),
+  for_sale: tr('Продаж'),
+})
 
 
 export default function GuestDatabaseScreen() {
@@ -85,7 +86,7 @@ export default function GuestDatabaseScreen() {
 
   useEffect(() => {
     if (!token) {
-      setErrorMsg('Недійсне посилання')
+      setErrorMsg(tr('Недійсне посилання'))
       setLoading(false)
       return
     }
@@ -97,17 +98,17 @@ export default function GuestDatabaseScreen() {
         if (guestMode) {
           // Guest invite preview
           const { data, error } = await supabase.rpc('get_guest_property_preview', { p_token: token })
-          if (error) { setErrorMsg('Не вдалося завантажити дані'); return }
+          if (error) { setErrorMsg(tr('Не вдалося завантажити дані')); return }
           const preview = data as GuestPreview | null
-          if (!preview) { setErrorMsg('Запрошення не знайдено або відкликано'); return }
-          if (preview.status === 'revoked') { setErrorMsg('Це запрошення відкликано власником'); return }
+          if (!preview) { setErrorMsg(tr('Запрошення не знайдено або відкликано')); return }
+          if (preview.status === 'revoked') { setErrorMsg(tr('Це запрошення відкликано власником')); return }
           setGuestPreview(preview)
         } else {
           // Realtor public DB preview
           const { data, error } = await supabase.rpc('get_public_db_preview', { p_token: token })
-          if (error) { setErrorMsg('Не вдалося завантажити дані'); return }
+          if (error) { setErrorMsg(tr('Не вдалося завантажити дані')); return }
           const result = (data ?? []) as PreviewRow[]
-          if (result.length === 0) { setErrorMsg('База не знайдена або посилання застаріло'); return }
+          if (result.length === 0) { setErrorMsg(tr('База не знайдена або посилання застаріло')); return }
           setRows(result)
         }
       } catch {
@@ -117,7 +118,7 @@ export default function GuestDatabaseScreen() {
         // гілку «Realtor public DB preview» з порожнім dbInfo — гість бачив
         // тиху «базу» без назви й без жодного натяку на помилку чи ретрай,
         // на найпершому екрані, куди веде неавторизований deep link.
-        setErrorMsg('Не вдалося завантажити дані')
+        setErrorMsg(tr('Не вдалося завантажити дані'))
       } finally {
         setLoading(false)
       }
@@ -161,16 +162,16 @@ export default function GuestDatabaseScreen() {
     return (
       <div className="scr bg-purple">
         <div className="hdr">
-          <button className="hdr-back" onClick={handleClose}><IconX size={18} /> Закрити</button>
-          <div className="hdr-t">{guestMode ? 'Запрошення' : 'Перегляд бази'}</div>
+          <button className="hdr-back" onClick={handleClose}><IconX size={18} /> {tr('Закрити')}</button>
+          <div className="hdr-t">{guestMode ? tr('Запрошення') : tr('Перегляд бази')}</div>
         </div>
         <div className="empty-state" style={{ paddingTop: 60 }}>
           <div className="empty-ic">{isLinkProblem ? '🔗' : '⚠️'}</div>
-          <div className="empty-h">{isLinkProblem ? 'Посилання недійсне' : 'Помилка завантаження'}</div>
+          <div className="empty-h">{isLinkProblem ? tr('Посилання недійсне') : tr('Помилка завантаження')}</div>
           <div className="empty-s">
             {isLinkProblem
-              ? 'Посилання застаріло, видалено або відкликано. Зверніться до власника.'
-              : 'Не вдалося завантажити дані. Перевірте підключення.'}
+              ? tr('Посилання застаріло, видалено або відкликано. Зверніться до власника.')
+              : tr('Не вдалося завантажити дані. Перевірте підключення.')}
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
             {!isLinkProblem && (
@@ -179,14 +180,14 @@ export default function GuestDatabaseScreen() {
                 style={{ position: 'static', margin: 0 }}
                 onClick={() => setReloadKey((k) => k + 1)}
               >
-                Спробувати ще раз
+                {tr('Спробувати ще раз')}
               </button>
             )}
             <button
               style={{ padding: '10px 24px', borderRadius: 'var(--r-pill)', background: 'var(--glass-2)', border: 'var(--bd)', color: 'var(--t2)', fontSize: 'var(--fs-note)', cursor: 'pointer' }}
               onClick={handleClose}
             >
-              Закрити
+              {tr('Закрити')}
             </button>
           </div>
         </div>
@@ -204,15 +205,15 @@ export default function GuestDatabaseScreen() {
     return (
       <div className="scr bg-teal">
         <div className="hdr">
-          <button className="hdr-back" onClick={handleClose}><IconX size={18} /> Закрити</button>
-          <div className="hdr-t">Запрошення</div>
+          <button className="hdr-back" onClick={handleClose}><IconX size={18} /> {tr('Закрити')}</button>
+          <div className="hdr-t">{tr('Запрошення')}</div>
         </div>
 
         <div className="body" style={{ paddingBottom: 96 }}>
           {/* Invite header */}
           <div className="glass" style={{ margin: '12px 12px 8px', padding: '16px' }}>
             <div style={{ fontSize: 'var(--fs-foot)', color: 'var(--t3)', marginBottom: 6 }}>
-              {guestPreview.owner_first} надає вам доступ до:
+              {guestPreview.owner_first} {tr('надає вам доступ до:')}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{
@@ -227,8 +228,8 @@ export default function GuestDatabaseScreen() {
                 </div>
                 <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 2 }}>
                   {isProperty
-                    ? (p?.db_type ? (DB_TYPE_LABELS[p.db_type] ?? p.db_type) : '')
-                    : (d?.type ? (DB_TYPE_LABELS[d.type] ?? d.type) : '')}
+                    ? (p?.db_type ? (DB_TYPE_LABELS()[p.db_type] ?? p.db_type) : '')
+                    : (d?.type ? (DB_TYPE_LABELS()[d.type] ?? d.type) : '')}
                 </div>
               </div>
               <span style={{
@@ -236,7 +237,7 @@ export default function GuestDatabaseScreen() {
                 color: '#0e9c92', background: 'rgba(14,156,146,.15)',
                 borderRadius: 6, padding: '3px 8px',
               }}>
-                Гостьовий доступ
+                {tr('Гостьовий доступ')}
               </span>
             </div>
 
@@ -244,17 +245,17 @@ export default function GuestDatabaseScreen() {
               <div style={{ marginTop: 12, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
                 {p.floor && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--fs-foot)', color: 'var(--t2)' }}>
-                    <IconBuilding size={14} color="var(--t3)" />{p.floor} поверх
+                    <IconBuilding size={14} color="var(--t3)" />{tr('{0} поверх', p.floor)}
                   </div>
                 )}
                 {p.area_useful != null && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--fs-foot)', color: 'var(--t2)' }}>
-                    <IconRuler size={14} color="var(--t3)" />{p.area_useful}{p.area_total ? `/${p.area_total}` : ''} м²
+                    <IconRuler size={14} color="var(--t3)" />{p.area_useful}{p.area_total ? `/${p.area_total}` : ''} {tr('м²')}
                   </div>
                 )}
                 {p.status && (
                   <span className={`bdg ${STATUS_BADGE_CLS[p.status] ?? ''}`}>
-                    {STATUS_LABELS[p.status] ?? p.status}
+                    {STATUS_LABELS()[p.status] ?? p.status}
                   </span>
                 )}
               </div>
@@ -263,11 +264,11 @@ export default function GuestDatabaseScreen() {
 
           {/* What guest gets */}
           <div style={{ margin: '0 12px 12px', padding: '14px 16px', background: 'var(--glass-1)', borderRadius: 'var(--r-md)', border: 'var(--bd)' }}>
-            <div style={{ fontSize: 'var(--fs-foot)', fontWeight: 'var(--fw-semi)', color: 'var(--t1)', marginBottom: 8 }}>Що ви отримаєте:</div>
+            <div style={{ fontSize: 'var(--fs-foot)', fontWeight: 'var(--fw-semi)', color: 'var(--t1)', marginBottom: 8 }}>{tr('Що ви отримаєте:')}</div>
             {[
-              'Перегляд усієї інформації про обʼєкт',
-              'Доступ до документів та файлів',
-              'Нагадування про строки оплати',
+              tr('Перегляд усієї інформації про обʼєкт'),
+              tr('Доступ до документів та файлів'),
+              tr('Нагадування про строки оплати'),
             ].map((item) => (
               <div key={item} style={{ fontSize: 'var(--fs-foot)', color: 'var(--t2)', marginBottom: 6 }}>{item}</div>
             ))}
@@ -277,7 +278,7 @@ export default function GuestDatabaseScreen() {
           {!isProperty && guestPreview.properties && guestPreview.properties.length > 0 && (
             <>
               <div style={{ padding: '0 16px 8px', fontSize: 'var(--fs-cap1)', color: 'var(--t3)' }}>
-                {guestPreview.properties.length} обʼєктів у базі
+                {guestPreview.properties.length} {tr('обʼєктів у базі')}
               </div>
               <div className="list cards">
                 {guestPreview.properties.map((prop) => (
@@ -286,18 +287,18 @@ export default function GuestDatabaseScreen() {
                       <div>
                         <div className="obj-t">{prop.name}</div>
                         {prop.floor && (
-                          <div className="obj-s"><IconBuilding size={14} color="var(--t3)" />{prop.floor} поверх</div>
+                          <div className="obj-s"><IconBuilding size={14} color="var(--t3)" />{tr('{0} поверх', prop.floor)}</div>
                         )}
                       </div>
                       <span className={`bdg ${STATUS_BADGE_CLS[prop.status] ?? ''}`}>
-                        {STATUS_LABELS[prop.status] ?? prop.status}
+                        {STATUS_LABELS()[prop.status] ?? prop.status}
                       </span>
                     </div>
                     {prop.area_useful != null && (
                       <div className="obj-met">
                         <div className="obj-mt">
                           <IconRuler size={14} color="var(--t3)" />
-                          <span>{prop.area_useful}{prop.area_total ? `/${prop.area_total}` : ''} м²</span>
+                          <span>{prop.area_useful}{prop.area_total ? `/${prop.area_total}` : ''} {tr('м²')}</span>
                         </div>
                       </div>
                     )}
@@ -314,7 +315,7 @@ export default function GuestDatabaseScreen() {
           disabled={ctaLoading}
           style={{ opacity: ctaLoading ? 0.7 : 1 }}
         >
-          {ctaLoading ? 'Підключення...' : 'Прийняти запрошення'}
+          {ctaLoading ? tr('Підключення...') : tr('Прийняти запрошення')}
         </button>
       </div>
     )
@@ -324,8 +325,8 @@ export default function GuestDatabaseScreen() {
   return (
     <div className="scr bg-purple">
       <div className="hdr">
-        <button className="hdr-back" onClick={handleClose}><IconX size={18} /> Закрити</button>
-        <div className="hdr-t">{dbInfo?.db_name ?? 'База'}</div>
+        <button className="hdr-back" onClick={handleClose}><IconX size={18} /> {tr('Закрити')}</button>
+        <div className="hdr-t">{dbInfo?.db_name ?? tr('База')}</div>
       </div>
 
       <div className="body" style={{ paddingBottom: 96 }}>
@@ -341,12 +342,12 @@ export default function GuestDatabaseScreen() {
             <div>
               <div style={{ fontSize: 'var(--fs-sub)', fontWeight: 'var(--fw-bold)', color: 'var(--t1)' }}>{dbInfo?.db_name}</div>
               <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 2 }}>
-                {dbInfo?.db_type ? (DB_TYPE_LABELS[dbInfo.db_type] ?? dbInfo.db_type) : ''}
+                {dbInfo?.db_type ? (DB_TYPE_LABELS()[dbInfo.db_type] ?? dbInfo.db_type) : ''}
               </div>
             </div>
             <div style={{ marginLeft: 'auto' }}>
               <span style={{ fontSize: 'var(--fs-cap2)', fontWeight: 'var(--fw-semi)', color: 'var(--accent)', background: 'rgba(168,124,255,.15)', borderRadius: 6, padding: '3px 8px' }}>
-                Публічний перегляд
+                {tr('Публічний перегляд')}
               </span>
             </div>
           </div>
@@ -354,7 +355,7 @@ export default function GuestDatabaseScreen() {
 
         <div style={{ padding: '0 16px 8px', fontSize: 'var(--fs-cap1)', color: 'var(--t3)' }}>
           {properties.length === 0
-            ? 'Обʼєктів поки немає'
+            ? tr('Обʼєктів поки немає')
             : `${properties.length} ${objectsWord(properties.length)}`}
         </div>
 
@@ -366,12 +367,12 @@ export default function GuestDatabaseScreen() {
                   <div>
                     <div className="obj-t">{p.property_name}</div>
                     {p.property_floor && (
-                      <div className="obj-s"><IconBuilding size={14} color="var(--t3)" />{p.property_floor} поверх</div>
+                      <div className="obj-s"><IconBuilding size={14} color="var(--t3)" />{tr('{0} поверх', p.property_floor)}</div>
                     )}
                   </div>
                   {p.property_status && (
                     <span className={`bdg ${STATUS_BADGE_CLS[p.property_status] ?? ''}`}>
-                      {STATUS_LABELS[p.property_status] ?? p.property_status}
+                      {STATUS_LABELS()[p.property_status] ?? p.property_status}
                     </span>
                   )}
                 </div>
@@ -379,7 +380,7 @@ export default function GuestDatabaseScreen() {
                   {p.property_area_useful != null && (
                     <div className="obj-mt">
                       <IconRuler size={14} color="var(--t3)" />
-                      <span>{p.property_area_useful}{p.property_area_total != null ? `/${p.property_area_total}` : ''} м²</span>
+                      <span>{p.property_area_useful}{p.property_area_total != null ? `/${p.property_area_total}` : ''} {tr('м²')}</span>
                     </div>
                   )}
                   {p.property_rent_rate != null && (
@@ -403,7 +404,7 @@ export default function GuestDatabaseScreen() {
         disabled={ctaLoading}
         style={{ opacity: ctaLoading ? 0.7 : 1 }}
       >
-        {ctaLoading ? 'Завантаження...' : 'Підключити базу та зареєструватись'}
+        {ctaLoading ? tr('Завантаження...') : tr('Підключити базу та зареєструватись')}
       </button>
     </div>
   )

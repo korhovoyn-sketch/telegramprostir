@@ -5,6 +5,7 @@ import { supabase, USER_COLUMNS } from '@/lib/supabase'
 import { useAppStore } from '@/store/appStore'
 import { hapticNotify, parseStartParam } from '@/lib/telegram'
 import type { ScreenName, User } from '@/types'
+import { tr } from '@/lib/i18n'
 
 export function useDeepLink() {
   const user = useAppStore((s) => s.user)
@@ -59,11 +60,11 @@ export function useDeepLink() {
           const result = (data && typeof data === 'object' && ('property_id' in data || 'error' in data)) ? data as { property_id?: string; db_id?: string; error?: string } : null
 
           if (error || !result || result.error) {
-            const msg = result?.error === 'revoked' ? 'Запрошення відкликано власником'
-              : result?.error === 'already_claimed' ? 'Це запрошення вже використано'
-              : result?.error === 'cannot_claim_own_link' ? 'Не можна прийняти власне запрошення'
-              : 'Запрошення не знайдено або недійсне'
-            showToast({ type: 'error', title: 'Помилка доступу', subtitle: msg })
+            const msg = result?.error === 'revoked' ? tr('Запрошення відкликано власником')
+              : result?.error === 'already_claimed' ? tr('Це запрошення вже використано')
+              : result?.error === 'cannot_claim_own_link' ? tr('Не можна прийняти власне запрошення')
+              : tr('Запрошення не знайдено або недійсне')
+            showToast({ type: 'error', title: tr('Помилка доступу'), subtitle: msg })
             navigateFallback()
             return
           }
@@ -77,7 +78,7 @@ export function useDeepLink() {
           if (freshUser) useAppStore.getState().setUser(freshUser as User)
 
           hapticNotify('success')
-          showToast({ type: 'success', title: 'Доступ отримано! 🎉' })
+          showToast({ type: 'success', title: tr('Доступ отримано! 🎉') })
           useAppStore.getState().navigateRoot('guest-home')
           if (result.property_id) {
             navigate('property-detail', { propertyId: result.property_id, dbId: result.db_id ?? undefined })
@@ -97,11 +98,11 @@ export function useDeepLink() {
           const result = (data && typeof data === 'object' && ('db_id' in data || 'error' in data)) ? data as { db_id?: string; error?: string } : null
 
           if (error || !result || result.error) {
-            const msg = result?.error === 'revoked' ? 'Запрошення відкликано власником'
-              : result?.error === 'already_claimed' ? 'Це запрошення вже використано'
-              : result?.error === 'cannot_claim_own_link' ? 'Це ваша власна база'
-              : 'Запрошення не знайдено або недійсне'
-            showToast({ type: 'error', title: 'Помилка доступу', subtitle: msg })
+            const msg = result?.error === 'revoked' ? tr('Запрошення відкликано власником')
+              : result?.error === 'already_claimed' ? tr('Це запрошення вже використано')
+              : result?.error === 'cannot_claim_own_link' ? tr('Це ваша власна база')
+              : tr('Запрошення не знайдено або недійсне')
+            showToast({ type: 'error', title: tr('Помилка доступу'), subtitle: msg })
             navigateFallback()
             return
           }
@@ -113,8 +114,8 @@ export function useDeepLink() {
           // своє членство, і єдина, де це ще її вибір.
           showToast({
             type: 'success',
-            title: 'Ви в команді! 🎉',
-            subtitle: 'Редагування доступне. Власник бачить, які обʼєкти ви відкривали.',
+            title: tr('Ви в команді! 🎉'),
+            subtitle: tr('Редагування доступне. Власник бачить, які обʼєкти ви відкривали.'),
           })
           // db-list підтягне member-бази через useDatabases (roles не змінюються)
           useAppStore.getState().navigateRoot('db-list')
@@ -137,7 +138,7 @@ export function useDeepLink() {
           const prop = (Array.isArray(rows) && rows[0] && typeof rows[0] === 'object' && 'id' in rows[0]) ? rows[0] as { id: string; db_id: string } : null
 
           if (!prop) {
-            showToast({ type: 'error', title: 'Обʼєкт не знайдено', subtitle: 'Посилання недійсне або обʼєкт видалено' })
+            showToast({ type: 'error', title: tr('Обʼєкт не знайдено'), subtitle: tr('Посилання недійсне або обʼєкт видалено') })
             navigateFallback()
             return
           }
@@ -156,7 +157,7 @@ export function useDeepLink() {
           const col = (Array.isArray(rows) && rows[0] && typeof rows[0] === 'object' && 'id' in rows[0]) ? rows[0] as { id: string; realtor_id: string } : null
 
           if (!col) {
-            showToast({ type: 'error', title: 'Підбірку не знайдено', subtitle: 'Посилання недійсне або підбірку видалено' })
+            showToast({ type: 'error', title: tr('Підбірку не знайдено'), subtitle: tr('Посилання недійсне або підбірку видалено') })
             navigateFallback()
             return
           }
@@ -183,7 +184,7 @@ export function useDeepLink() {
         const token = parsed.token
 
         if (!useAppStore.getState().isOnline) {
-          showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Підключення до бази недоступне офлайн' })
+          showToast({ type: 'error', title: tr('Немає інтернету'), subtitle: tr('Підключення до бази недоступне офлайн') })
           navigateFallback()
           return
         }
@@ -193,7 +194,7 @@ export function useDeepLink() {
         const { data: rows, error: dbErr } = await supabase
           .rpc('subscribe_to_shared_db', { p_token: token })
         if (dbErr) {
-          showToast({ type: 'error', title: 'Помилка запиту', subtitle: 'Не вдалося перевірити посилання' })
+          showToast({ type: 'error', title: tr('Помилка запиту'), subtitle: tr('Не вдалося перевірити посилання') })
           navigateFallback()
           return
         }
@@ -201,7 +202,7 @@ export function useDeepLink() {
 
         if (!sub || sub.error === 'not_found') {
           // 036 filters expired tokens server-side — "not found" covers both cases
-          showToast({ type: 'error', title: 'Базу не знайдено', subtitle: 'Посилання невірне або застаріло' })
+          showToast({ type: 'error', title: tr('Базу не знайдено'), subtitle: tr('Посилання невірне або застаріло') })
           navigateFallback()
           return
         }
@@ -214,7 +215,7 @@ export function useDeepLink() {
         }
 
         if (sub.error || !sub.db_id) {
-          showToast({ type: 'error', title: 'Помилка підписки', subtitle: 'Спробуйте ще раз' })
+          showToast({ type: 'error', title: tr('Помилка підписки'), subtitle: tr('Спробуйте ще раз') })
           navigateFallback()
           return
         }
@@ -234,7 +235,7 @@ export function useDeepLink() {
         } catch { /* role refresh is best-effort */ }
 
         hapticNotify('success')
-        showToast({ type: 'success', title: 'Базу підключено! 🎉' })
+        showToast({ type: 'success', title: tr('Базу підключено! 🎉') })
         useAppStore.getState().navigateRoot('realtor-dashboard')
         navigate('realtor-database', { dbId: sub.db_id })
       } catch (e) {

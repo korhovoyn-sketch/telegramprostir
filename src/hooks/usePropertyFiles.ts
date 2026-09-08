@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { assertAffected } from '@/lib/dbWrite'
 import { humanizeDbError } from '@/lib/utils'
 import type { PropertyFile } from '@/types'
+import { tr } from '@/lib/i18n'
 
 const MAX_FILES = 10
 const MAX_SIZE  = 20 * 1024 * 1024
@@ -70,8 +71,8 @@ export function usePropertyFiles(propertyId: string | undefined) {
     // Filter out invalid files before showing progress so total is accurate
     const valid = picked.filter(file => {
       if (currentCount >= MAX_FILES) return false
-      if (!ALLOWED_MIME.has(file.type)) { onError(`«${file.name}» — формат не підтримується (тільки PDF, DOC, DOCX)`); return false }
-      if (file.size > MAX_SIZE)         { onError(`«${file.name}» перевищує 20 МБ`); return false }
+      if (!ALLOWED_MIME.has(file.type)) { onError(tr('«{0}» — формат не підтримується (тільки PDF, DOC, DOCX)', file.name)); return false }
+      if (file.size > MAX_SIZE)         { onError(tr('«{0}» перевищує 20 МБ', file.name)); return false }
       return true
     })
 
@@ -86,7 +87,7 @@ export function usePropertyFiles(propertyId: string | undefined) {
       .single()
 
     if (propErr || !propRow?.owner_id) {
-      onError('Не вдалося підтвердити право власності на обʼєкт')
+      onError(tr('Не вдалося підтвердити право власності на обʼєкт'))
       return { uploaded: 0, failed: picked.length }
     }
 
@@ -105,7 +106,7 @@ export function usePropertyFiles(propertyId: string | undefined) {
       for (let i = 0; i < valid.length; i++) {
         const file = valid[i]
         if (currentCount >= MAX_FILES) {
-          onError(`Максимум ${MAX_FILES} файлів на обʼєкт`)
+          onError(tr('Максимум {0} файлів на обʼєкт', MAX_FILES))
           break
         }
 
@@ -190,7 +191,7 @@ export function usePropertyFiles(propertyId: string | undefined) {
 
         if (dbErr) {
           console.warn(`[usePropertyFiles] DB insert failed for ${storagePath}:`, dbErr.message)
-          onError(`Файл завантажено, але не збережено: ${dbErr.message}`)
+          onError(tr('Файл завантажено, але не збережено: {0}', dbErr.message))
           continue
         }
 
@@ -220,7 +221,7 @@ export function usePropertyFiles(propertyId: string | undefined) {
       const { data, error } = await supabase
         .from('property_files').delete().eq('id', fileId).select('id')
       if (error) throw error
-      assertAffected(data, 1, 'видалення файлу')
+      assertAffected(data, 1, tr('видалення файлу'))
     } catch (e) {
       // `humanizeDbError`, а не сира `error.message`: та несе назви колонок,
       // констрейнтів і текст політик просто в тост (правило 1 Security rules).
@@ -238,7 +239,7 @@ export function usePropertyFiles(propertyId: string | undefined) {
     const { data: removed, error: rmErr } = await supabase.storage
       .from(BUCKET).remove([storagePath])
     if (rmErr || (removed?.length ?? 0) !== 1) {
-      onError('Документ прибрано зі списку, але файл лишився у сховищі')
+      onError(tr('Документ прибрано зі списку, але файл лишився у сховищі'))
       // Рядок таки видалено — це часткова невдача, і викликач НЕ має малювати
       // поверх неї «Файл видалено» (єдиний тост у сторі затер би пояснення).
       return false

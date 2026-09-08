@@ -6,6 +6,7 @@ import { humanizeDbError } from '@/lib/utils'
 import { assertAffected } from '@/lib/dbWrite'
 import { useAppStore } from '@/store/appStore'
 import type { PropertyFolder } from '@/types'
+import { tr } from '@/lib/i18n'
 
 const FOLDER_COLUMNS = 'id, db_id, owner_id, name, sort_order, created_at, updated_at'
 
@@ -57,7 +58,7 @@ export function useFolders(dbId?: string) {
       setFolders((data ?? []) as PropertyFolder[])
     } catch (e) {
       setError(humanizeDbError(e))
-      showToast({ type: 'error', title: 'Помилка завантаження папок', subtitle: humanizeDbError(e) })
+      showToast({ type: 'error', title: tr('Помилка завантаження папок'), subtitle: humanizeDbError(e) })
     } finally {
       setLoading(false)
     }
@@ -70,7 +71,7 @@ export function useFolders(dbId?: string) {
     if (!trimmed) return null
     // Дублікати імен збивають з пантелику (дві однакові папки в списку) — не даємо.
     if (foldersRef.current.some(f => f.name.trim().toLowerCase() === trimmed.toLowerCase())) {
-      showToast({ type: 'error', title: 'Така папка вже є', subtitle: `«${trimmed}» вже існує в цій базі` })
+      showToast({ type: 'error', title: tr('Така папка вже є'), subtitle: tr('«{0}» вже існує в цій базі', trimmed) })
       return null
     }
     try {
@@ -86,10 +87,10 @@ export function useFolders(dbId?: string) {
 
       if (error) throw error
       setFolders(prev => [...prev, data as PropertyFolder])
-      showToast({ type: 'success', title: 'Папку створено' })
+      showToast({ type: 'success', title: tr('Папку створено') })
       return data as PropertyFolder
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
+      showToast({ type: 'error', title: tr('Помилка'), subtitle: humanizeDbError(e) })
       return null
     }
   }, [dbId, user, showToast])
@@ -101,7 +102,7 @@ export function useFolders(dbId?: string) {
     const current = prev.find(f => f.id === id)
     if (current && current.name === trimmed) return // без змін — не смикаємо мережу
     if (prev.some(f => f.id !== id && f.name.trim().toLowerCase() === trimmed.toLowerCase())) {
-      showToast({ type: 'error', title: 'Така папка вже є', subtitle: `«${trimmed}» вже існує в цій базі` })
+      showToast({ type: 'error', title: tr('Така папка вже є'), subtitle: tr('«{0}» вже існує в цій базі', trimmed) })
       return
     }
     setFolders(list => list.map(f => f.id === id ? { ...f, name: trimmed } : f))
@@ -112,10 +113,10 @@ export function useFolders(dbId?: string) {
         .eq('id', id)
         .select('id')
       if (error) throw error
-      assertAffected(data, 1, 'перейменування папки')
+      assertAffected(data, 1, tr('перейменування папки'))
     } catch (e) {
       setFolders(prev)
-      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
+      showToast({ type: 'error', title: tr('Помилка'), subtitle: humanizeDbError(e) })
     }
   }, [showToast])
 
@@ -131,12 +132,12 @@ export function useFolders(dbId?: string) {
         .eq('id', id)
         .select('id')
       if (error) throw error
-      assertAffected(data, 1, 'видалення папки')
-      showToast({ type: 'success', title: 'Папку видалено' })
+      assertAffected(data, 1, tr('видалення папки'))
+      showToast({ type: 'success', title: tr('Папку видалено') })
       return true
     } catch (e) {
       setFolders(prev)
-      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
+      showToast({ type: 'error', title: tr('Помилка'), subtitle: humanizeDbError(e) })
       return false
     }
   }, [showToast])
@@ -164,7 +165,7 @@ export function useFolders(dbId?: string) {
       ])
     } catch {
       setFolders(list)
-      showToast({ type: 'error', title: 'Не вдалося зберегти порядок' })
+      showToast({ type: 'error', title: tr('Не вдалося зберегти порядок') })
     }
   }, [showToast])
 

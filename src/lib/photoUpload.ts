@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { compressImage } from '@/lib/image'
+import { tr } from '@/lib/i18n'
 
 const MAX_MB = 10
 const ALLOWED = /\.(jpe?g|png|webp|heic|heif)$/i
@@ -23,14 +24,14 @@ export async function uploadPropertyPhoto(propertyId: string, rawFile: File, sor
   // Lenient accept: a correctly-typed image with an odd filename (common for
   // HEIC straight off iOS) still uploads.
   if (!ALLOWED.test(rawFile.name) && !rawFile.type.startsWith('image/')) {
-    throw new Error('Дозволені лише зображення (JPG, PNG, WEBP, HEIC)')
+    throw new Error(tr('Дозволені лише зображення (JPG, PNG, WEBP, HEIC)'))
   }
   // Resize/re-encode BEFORE the size check: a 12 MB camera shot becomes a few
   // hundred KB and passes; compressImage fails open, so the original comes back
   // on any decode failure.
   const file = await compressImage(rawFile)
   if (file.size > MAX_MB * 1024 * 1024) {
-    throw new Error(`Файл занадто великий (макс. ${MAX_MB}МБ)`)
+    throw new Error(tr('Файл занадто великий (макс. {0}МБ)', MAX_MB))
   }
 
   const rawExt = file.name.split('.').pop() ?? ''

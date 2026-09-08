@@ -5,6 +5,7 @@ import { useAppStore } from '@/store/appStore'
 import { useAuth } from '@/hooks/useAuth'
 import { IconMail, IconPhone, IconTelegram, IconLock } from '@/components/Icons'
 import { scrollFocusedIntoView } from '@/lib/utils'
+import { tr } from '@/lib/i18n'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 
@@ -26,7 +27,7 @@ export default function ProfileSetupScreen() {
 
   async function handleContinue() {
     if (email && !EMAIL_RE.test(email)) {
-      showToast({ type: 'error', title: 'Невірний email', subtitle: 'Перевірте формат адреси' })
+      showToast({ type: 'error', title: tr('Невірний email'), subtitle: tr('Перевірте формат адреси') })
       return
     }
     if (email || phone) {
@@ -54,20 +55,20 @@ export default function ProfileSetupScreen() {
             textTransform: 'uppercase',
             marginBottom: 16,
           }}>
-            Крок 2 з 2
+            {tr('Крок 2 з 2')}
           </div>
-          <div className="display" style={{ textAlign: 'center' }}>Контакти</div>
+          <div className="display" style={{ textAlign: 'center' }}>{tr('Контакти')}</div>
           <div className="subt" style={{ textAlign: 'center', marginBottom: 24 }}>
-            Необовʼязково — для сповіщень і звітів
+            {tr('Необовʼязково — для сповіщень і звітів')}
           </div>
         </div>
 
         {/* Telegram data (locked) */}
         <div style={{ margin: '0 12px 16px' }}>
-          <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconTelegram size={14} color="var(--info)" />Дані Telegram</span></div>
+          <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconTelegram size={14} color="var(--info)" />{tr('Дані Telegram')}</span></div>
           <div className="fg glass-s">
             <div className="fr">
-              <span className="fr-l">Імʼя</span>
+              <span className="fr-l">{tr('Імʼя')}</span>
               <span style={{ flex: 1, textAlign: 'right', color: 'var(--t3)', fontSize: 'var(--fs-note)' }}>
                 {user?.first_name} {user?.last_name}
               </span>
@@ -86,7 +87,7 @@ export default function ProfileSetupScreen() {
 
         {/* Optional contacts */}
         <div style={{ margin: '0 12px 16px' }}>
-          <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconPhone size={14} color="#4ade80" />Додаткові контакти</span></div>
+          <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconPhone size={14} color="#4ade80" />{tr('Додаткові контакти')}</span></div>
           <div className="fg glass-s">
             <div className="fr">
               <IconMail size={16} color="var(--t3)" />
@@ -102,9 +103,9 @@ export default function ProfileSetupScreen() {
             </div>
             <div className="fr">
               <IconPhone size={16} color="var(--t3)" />
-              <span className="fr-l">Телефон</span>
+              <span className="fr-l">{tr('Телефон')}</span>
               <input
-                aria-label="Телефон"
+                aria-label={tr('Телефон')}
                 className="fr-i"
                 type="tel"
                 placeholder="+380 67 000 0000"
@@ -120,10 +121,10 @@ export default function ProfileSetupScreen() {
           disabled={loading}
           aria-busy={loading}
         >
-          Почати роботу →
+          {tr('Почати роботу →')}
         </button>
         <button className="skip-btn" onClick={() => navigateRoot(dest)} disabled={loading}>
-          Пропустити →
+          {tr('Пропустити →')}
         </button>
       </div>
     </div>

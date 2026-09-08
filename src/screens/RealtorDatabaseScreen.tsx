@@ -17,6 +17,7 @@ import { IconShare, IconPhoto, IconMessage, IconBuilding, IconRuler, IconParking
 import { sharePublicUrl , hapticSelection } from '@/lib/telegram'
 import { formatPrice, calcRentUtils, rentUnitLabel, DB_TYPE_LABELS, getInitials, formatLeasePeriod, humanizeDbError, matchesQuery } from '@/lib/utils'
 import type { Database, Property, PropertyStatus, User } from '@/types'
+import { tr } from '@/lib/i18n'
 
 export default function RealtorDatabaseScreen() {
   const { screenParams, navigate, showToast, user } = useAppStore()
@@ -54,7 +55,7 @@ export default function RealtorDatabaseScreen() {
       }
     } catch (e) {
       setError(true)
-      showToast({ type: 'error', title: 'Помилка завантаження', subtitle: humanizeDbError(e) })
+      showToast({ type: 'error', title: tr('Помилка завантаження'), subtitle: humanizeDbError(e) })
     } finally {
       setLoading(false)
     }
@@ -87,9 +88,9 @@ export default function RealtorDatabaseScreen() {
 
   if (!db) return (
     <div className="scr bg-cyan">
-      <Header title="База" backLabel="Бази" />
+      <Header title={tr('База')} backLabel={tr('Бази')} />
       {error ? (
-        <RetryState title="Помилка завантаження" subtitle="Перевір підключення і спробуй ще раз" onRetry={load} />
+        <RetryState title={tr('Помилка завантаження')} subtitle={tr('Перевір підключення і спробуй ще раз')} onRetry={load} />
       ) : (
         <div className="loader-wrap"><div className="loader" /></div>
       )}
@@ -98,29 +99,29 @@ export default function RealtorDatabaseScreen() {
 
   return (
     <div className="scr bg-cyan">
-      <Header title={db.name} subtitle={DB_TYPE_LABELS[db.type]} backLabel="Бази" />
+      <Header title={db.name} subtitle={DB_TYPE_LABELS()[db.type]} backLabel={tr('Бази')} />
 
       <div className="body">
         {/* Owner card */}
         <div className="owner-c glass-s" style={{ margin: '0 12px 12px' }}>
           <div className="owner-av av-grad-2">
-            {owner ? getInitials(owner.first_name, owner.last_name ?? undefined) : 'В'}
+            {owner ? getInitials(owner.first_name, owner.last_name ?? undefined) : tr('В')}
           </div>
           <div className="owner-mn">
             <div className="owner-n">
-              {owner ? `${owner.first_name}${owner.last_name ? ' ' + owner.last_name : ''}` : 'Власник'}
+              {owner ? `${owner.first_name}${owner.last_name ? ' ' + owner.last_name : ''}` : tr('Власник')}
             </div>
             <div className="owner-s">
               {owner?.tg_username
                 ? <span>@{owner.tg_username}</span>
-                : <span>Власник бази</span>
+                : <span>{tr('Власник бази')}</span>
               }
             </div>
           </div>
           {owner?.tg_username && (
             <button
               className="owner-act"
-              aria-label="Написати власнику"
+              aria-label={tr('Написати власнику')}
               onClick={() => window.Telegram?.WebApp?.openTelegramLink(`https://t.me/${owner.tg_username}`)}
             >
               <IconMessage size={16} />
@@ -131,10 +132,10 @@ export default function RealtorDatabaseScreen() {
         {/* Tabs */}
         <div className="seg">
           {([
-            { id: 'all',      label: `Всі (${counts.all})` },
-            { id: 'free',     label: `Вільно (${counts.free})` },
-            { id: 'occupied', label: `Зайнято (${counts.occupied})` },
-            { id: 'for_sale', label: `Продаж (${counts.for_sale})` },
+            { id: 'all',      label: tr('Всі ({0})', counts.all) },
+            { id: 'free',     label: tr('Вільно ({0})', counts.free) },
+            { id: 'occupied', label: tr('Зайнято ({0})', counts.occupied) },
+            { id: 'for_sale', label: tr('Продаж ({0})', counts.for_sale) },
           ] as { id: 'all' | 'free' | 'occupied' | 'for_sale'; label: string }[]).filter(t => t.id === 'all' || counts[t.id as keyof typeof counts] > 0).map((t) => (
             <div key={t.id} className={`seg-b ${tab === t.id ? 'on' : ''}`} onClick={() => { hapticSelection(); setTab(t.id) }}>
               {t.label}
@@ -142,19 +143,19 @@ export default function RealtorDatabaseScreen() {
           ))}
         </div>
 
-        <SearchBar value={search} onChange={setSearch} placeholder="Пошук обʼєкту..." />
+        <SearchBar value={search} onChange={setSearch} placeholder={tr('Пошук обʼєкту...')} />
 
         {loading ? (
           <SkeletonLoader rowHeight={200} />
         ) : filtered.length === 0 ? (
           <div className="empty-state" style={{ paddingTop: 24 }}>
             <div className="empty-ic">🔍</div>
-            <div className="empty-h">Нічого не знайдено</div>
+            <div className="empty-h">{tr('Нічого не знайдено')}</div>
             <button
               style={{ marginTop: 16, padding: '8px 20px', borderRadius: 'var(--r-pill)', background: 'var(--glass-2)', border: 'var(--bd)', color: 'var(--t2)', fontSize: 'var(--fs-foot)', cursor: 'pointer' }}
               onClick={() => setSearch('')}
             >
-              Очистити пошук
+              {tr('Очистити пошук')}
             </button>
           </div>
         ) : (
@@ -174,13 +175,13 @@ export default function RealtorDatabaseScreen() {
                   <div className="obj-hd">
                     <div>
                       <div className="obj-t">{p.name}</div>
-                      {p.floor && <div className="obj-s" style={{ display: 'flex', alignItems: 'center', gap: 3 }}><IconBuilding size={12} color="var(--t3)" />{p.floor} поверх</div>}
+                      {p.floor && <div className="obj-s" style={{ display: 'flex', alignItems: 'center', gap: 3 }}><IconBuilding size={12} color="var(--t3)" />{tr('{0} поверх', p.floor)}</div>}
                     </div>
                     <StatusBadge status={p.status} />
                   </div>
                   <div className="obj-met">
-                    {p.area_useful && <div className="obj-mt"><IconRuler size={12} color="var(--t3)" /><span>{p.area_useful}/{p.area_total ?? p.area_useful} м²</span></div>}
-                    {p.has_parking && <div className="obj-mt"><IconParking size={12} color="var(--t3)" /><span>{p.parking_spaces} м.</span></div>}
+                    {p.area_useful && <div className="obj-mt"><IconRuler size={12} color="var(--t3)" /><span>{p.area_useful}/{p.area_total ?? p.area_useful} {tr('м²')}</span></div>}
+                    {p.has_parking && <div className="obj-mt"><IconParking size={12} color="var(--t3)" /><span>{p.parking_spaces} {tr('м.')}</span></div>}
                     {(p.photos?.length ?? 0) > 0 && <div className="obj-mt"><IconPhoto size={12} /> {p.photos!.length}</div>}
                     {p.status === 'occupied' && formatLeasePeriod(p.lease_start_date, p.lease_end_date) && (
                       <div className="obj-mt" style={{ gridColumn: '1 / -1', color: 'var(--t3)' }}>
@@ -191,7 +192,7 @@ export default function RealtorDatabaseScreen() {
                   </div>
                   {dispVal > 0 && (
                     <div className="obj-tot">
-                      <div className="obj-tot-l">{isDaily ? 'За добу' : 'На місяць'}</div>
+                      <div className="obj-tot-l">{isDaily ? tr('За добу') : tr('На місяць')}</div>
                       {/* Валюта ВЛАСНИКА, не глядача: рієлтор із ₴ бачив «₴2 000» там, де
                           власник, публічна /v і PDF кажуть «$2 000». `SharedCollectionScreen`
                           документує цей самий фікс у себе — тут його просто не застосували. */}
@@ -209,9 +210,9 @@ export default function RealtorDatabaseScreen() {
           If the owner hasn't a token yet, hide the share action. */}
       {db.share_token && (
         <button className="mbtn" onClick={() => {
-          sharePublicUrl('db', db.share_token!, `Перегляньте базу «${db.name}»`)
+          sharePublicUrl('db', db.share_token!, tr('Перегляньте базу «{0}»', db.name))
         }}>
-          <IconShare size={18} /> Поділитись базою
+          <IconShare size={18} /> {tr('Поділитись базою')}
         </button>
       )}
     </div>

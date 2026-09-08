@@ -9,6 +9,7 @@ import RetryState from '@/components/ui/RetryState'
 import { IconFolder, IconInbox, IconPlus } from '@/components/Icons'
 import { objectsWord, scrollFocusedIntoView } from '@/lib/utils'
 import { offlineGuard } from '@/lib/offline'
+import { tr } from '@/lib/i18n'
 
 /**
  * Повноекранний вибір папки для пакетного переміщення — заміна колишньої
@@ -63,8 +64,8 @@ export default function FolderPickerScreen() {
   return (
     <div className="scr bg-blue">
       <Header
-        title={`Перемістити ${ids.length} ${objectsWord(ids.length)}`}
-        subtitle="Оберіть папку або створіть нову"
+        title={tr('Перемістити {0} {1}', ids.length, objectsWord(ids.length))}
+        subtitle={tr('Оберіть папку або створіть нову')}
         onBack={back}
       />
 
@@ -72,12 +73,12 @@ export default function FolderPickerScreen() {
         <div className="fg glass-s">
           <div className="fr">
             <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-              <IconPlus size={14} color="var(--t3)" />Нова
+              <IconPlus size={14} color="var(--t3)" />{tr('Нова')}
             </span>
             <input
               className="fr-i"
-              aria-label="Назва нової папки"
-              placeholder="Назва папки…"
+              aria-label={tr('Назва нової папки')}
+              placeholder={tr('Назва папки…')}
               value={newName}
               maxLength={40}
               onChange={(e) => setNewName(e.target.value)}
@@ -89,7 +90,7 @@ export default function FolderPickerScreen() {
         <div className="sheet-group">
           <button type="button" className="sheet-row" disabled={busy} onClick={() => void pick(null)}>
             <span className="sheet-ic"><IconInbox size={16} /></span>
-            <span className="sheet-lbl">Без папки</span>
+            <span className="sheet-lbl">{tr('Без папки')}</span>
           </button>
           {/* Той самий розподіл, що в керуванні папками: збій завантаження не
               сміє виглядати як «папок немає» — інакше обʼєкт їде в «Без
@@ -111,7 +112,7 @@ export default function FolderPickerScreen() {
           aria-busy={busy}
           onClick={() => void createAndPick()}
         >
-          Створити й перемістити
+          {tr('Створити й перемістити')}
         </button>
       </div>
     </div>

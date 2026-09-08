@@ -24,6 +24,7 @@ import CoachMark from '@/components/ui/CoachMark'
 import FloatingButton from '@/components/ui/FloatingButton'
 import { useOnboarding } from '@/hooks/useOnboarding'
 import { useHideOnScrollDown } from '@/hooks/useHideOnScrollDown'
+import { tr } from '@/lib/i18n'
 
 // ─── Extended types ────────────────────────────────────────────────────────────
 
@@ -62,7 +63,7 @@ function CollectionCard({
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="collection-n">{col.name}</div>
           <div className="collection-meta">
-            {col.is_draft && <span className="bdg bdg-info">Чернетка</span>}
+            {col.is_draft && <span className="bdg bdg-info">{tr('Чернетка')}</span>}
             <span>·</span>
             <span>{formatDate(col.updated_at)}</span>
             <span>·</span>
@@ -71,7 +72,7 @@ function CollectionCard({
         </div>
         <button
           className="owner-act"
-          aria-label="Поділитись підбіркою"
+          aria-label={tr('Поділитись підбіркою')}
           onClick={onShare}
         >
           <IconShare size={14} />
@@ -142,7 +143,7 @@ function CollectionDetail({
       if (error) throw error
       setCollectionProps((data ?? []) as unknown as CollectionProperty[])
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка завантаження', subtitle: humanizeDbError(e) })
+      showToast({ type: 'error', title: tr('Помилка завантаження'), subtitle: humanizeDbError(e) })
     } finally {
       setLoadingProps(false)
     }
@@ -181,7 +182,7 @@ function CollectionDetail({
       const available = ((props ?? []) as Property[]).filter((p) => !addedIds.has(p.id))
       setAvailableProps(available)
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка завантаження', subtitle: humanizeDbError(e) })
+      showToast({ type: 'error', title: tr('Помилка завантаження'), subtitle: humanizeDbError(e) })
     } finally {
       setLoadingAvail(false)
     }
@@ -206,9 +207,9 @@ function CollectionDetail({
 
       // Update count in parent
       onUpdate({ ...collection, property_count: collection.property_count + 1 })
-      showToast({ type: 'success', title: 'Обʼєкт додано' })
+      showToast({ type: 'success', title: tr('Обʼєкт додано') })
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
+      showToast({ type: 'error', title: tr('Помилка'), subtitle: humanizeDbError(e) })
     }
   }
 
@@ -226,18 +227,18 @@ function CollectionDetail({
 
       setCollectionProps((prev) => prev.filter((cp) => cp.property_id !== propertyId))
       onUpdate({ ...collection, property_count: Math.max(0, collection.property_count - 1) })
-      showToast({ type: 'success', title: 'Обʼєкт видалено' })
+      showToast({ type: 'success', title: tr('Обʼєкт видалено') })
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
+      showToast({ type: 'error', title: tr('Помилка'), subtitle: humanizeDbError(e) })
     }
   }
 
   async function shareCollection() {
     if (collection.property_count === 0) {
-      showToast({ type: 'error', title: 'Підбірка порожня', subtitle: 'Додайте обʼєкти перед тим як ділитися' })
+      showToast({ type: 'error', title: tr('Підбірка порожня'), subtitle: tr('Додайте обʼєкти перед тим як ділитися') })
       return
     }
-    if (!isOnline && collection.is_draft) { showToast({ type: 'error', title: 'Немає інтернету', subtitle: 'Збереження недоступне офлайн' }); return }
+    if (!isOnline && collection.is_draft) { showToast({ type: 'error', title: tr('Немає інтернету'), subtitle: tr('Збереження недоступне офлайн') }); return }
     // Mark as active (not draft) when sharing.
     //
     // Тут раніше стояла причина «невдача видно одразу при наступному відкритті
@@ -256,7 +257,7 @@ function CollectionDetail({
         if (error) throw error
         onUpdate({ ...collection, is_draft: false })
       } catch (e) {
-        showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
+        showToast({ type: 'error', title: tr('Помилка'), subtitle: humanizeDbError(e) })
         return
       }
     }
@@ -265,9 +266,9 @@ function CollectionDetail({
 
   async function deleteCollection() {
     const ok = await confirmAction({
-      title: 'Видалити підбірку?',
-      message: `Підбірку "${collection.name}" буде видалено. Це незворотно.`,
-      confirmLabel: 'Видалити',
+      title: tr('Видалити підбірку?'),
+      message: tr('Підбірку "{0}" буде видалено. Це незворотно.', collection.name),
+      confirmLabel: tr('Видалити'),
       destructive: true,
     })
     if (!ok || offlineGuard()) return
@@ -281,12 +282,12 @@ function CollectionDetail({
         .eq('id', collection.id)
         .select('id')
       if (error) throw error
-      assertAffected(data, 1, 'видалення підбірки')
+      assertAffected(data, 1, tr('видалення підбірки'))
       hapticNotify('success')
-      showToast({ type: 'success', title: 'Підбірку видалено' })
+      showToast({ type: 'success', title: tr('Підбірку видалено') })
       onDelete(collection.id)
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
+      showToast({ type: 'error', title: tr('Помилка'), subtitle: humanizeDbError(e) })
     }
   }
 
@@ -298,7 +299,7 @@ function CollectionDetail({
       <div className="hdr">
         <button
           className="hdr-a"
-          aria-label="Назад"
+          aria-label={tr('Назад')}
           onClick={onBack}
           style={{ background: 'none', border: 'var(--bd)' }}
         >
@@ -309,13 +310,13 @@ function CollectionDetail({
             {collection.name}
           </div>
           {collection.is_draft && (
-            <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)' }}>Чернетка</div>
+            <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)' }}>{tr('Чернетка')}</div>
           )}
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button
             className="hdr-a"
-            aria-label="Видалити підбірку"
+            aria-label={tr('Видалити підбірку')}
             onClick={deleteCollection}
             style={{ background: 'none', border: 'var(--bd)', color: 'var(--err)' }}
           >
@@ -323,7 +324,7 @@ function CollectionDetail({
           </button>
           <button
             className="hdr-a"
-            aria-label="Поділитись підбіркою"
+            aria-label={tr('Поділитись підбіркою')}
             onClick={shareCollection}
             style={{ background: 'none', border: 'var(--bd)' }}
           >
@@ -348,8 +349,8 @@ function CollectionDetail({
             <IconChartBar size={18} color="var(--info-fg)" />
           </div>
           <div className="row-mn" style={{ flex: 1, minWidth: 0 }}>
-            <div className="row-t">Аналітика підбірки</div>
-            <div className="row-s">Хто і коли відкривав посилання</div>
+            <div className="row-t">{tr('Аналітика підбірки')}</div>
+            <div className="row-s">{tr('Хто і коли відкривав посилання')}</div>
           </div>
           <IconChevronRight size={16} color="var(--t3)" />
         </button>
@@ -359,8 +360,8 @@ function CollectionDetail({
         ) : collectionProps.length === 0 ? (
           <div className="empty-state" style={{ paddingTop: 32 }}>
             <div className="empty-ic">🏢</div>
-            <div className="empty-h">Немає обʼєктів</div>
-            <div className="empty-s">Додай перший обʼєкт до підбірки</div>
+            <div className="empty-h">{tr('Немає обʼєктів')}</div>
+            <div className="empty-s">{tr('Додай перший обʼєкт до підбірки')}</div>
           </div>
         ) : (
           <div className="list">
@@ -392,7 +393,7 @@ function CollectionDetail({
                     <div className="row-s" style={{ gap: 6, flexWrap: 'wrap' }}>
                       <StatusBadge status={p.status} />
                       {p.area_useful && (
-                        <span>{p.area_useful} м²</span>
+                        <span>{p.area_useful} {tr('м²')}</span>
                       )}
                       {p.rent_rate && (
                         <span>{getRentLabel(p, currency)}</span>
@@ -403,7 +404,7 @@ function CollectionDetail({
                   {/* Remove button */}
                   <button
                     className="owner-act"
-                    aria-label="Видалити з підбірки"
+                    aria-label={tr('Видалити з підбірки')}
                     onClick={() => removeProperty(cp.property_id)}
                     style={{ flexShrink: 0, marginTop: 2 }}
                   >
@@ -422,18 +423,18 @@ function CollectionDetail({
         compact
         hidden={fabHidden}
         icon={<IconPlus size={14} />}
-        label="Додати обʼєкт"
+        label={tr('Додати обʼєкт')}
         onClick={openAddModal}
       />
 
       {/* Add property modal */}
       <ActionSheet
         open={showAddModal}
-        title="Додати обʼєкт"
-        subtitle="Оберіть обʼєкт із підписаних баз"
+        title={tr('Додати обʼєкт')}
+        subtitle={tr('Оберіть обʼєкт із підписаних баз')}
         onClose={() => setShowAddModal(false)}
         actions={[
-          { label: 'Закрити', variant: 'secondary', onClick: () => setShowAddModal(false) },
+          { label: tr('Закрити'), variant: 'secondary', onClick: () => setShowAddModal(false) },
         ]}
       >
           <div style={{ marginTop: 4 }}>
@@ -443,7 +444,7 @@ function CollectionDetail({
               </div>
             ) : availableProps.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--t3)', fontSize: 'var(--fs-foot)' }}>
-                Немає доступних обʼєктів
+                {tr('Немає доступних обʼєктів')}
               </div>
             ) : (
               <div className="list" style={{ gap: 6 }}>
@@ -471,12 +472,12 @@ function CollectionDetail({
                         <div className="row-t" style={{ fontSize: 'var(--fs-foot)' }}>{p.name}</div>
                         <div className="row-s" style={{ gap: 4 }}>
                           <StatusBadge status={p.status} />
-                          {p.area_useful && <span>{p.area_useful} м²</span>}
+                          {p.area_useful && <span>{p.area_useful} {tr('м²')}</span>}
                         </div>
                       </div>
                       <button
                         className="owner-act"
-                        aria-label="Додати до підбірки"
+                        aria-label={tr('Додати до підбірки')}
                         onClick={() => addProperty(p.id)}
                         style={{ flexShrink: 0, background: 'var(--purple-bd)' }}
                       >
@@ -566,7 +567,7 @@ export default function CollectionsScreen() {
     } catch (e) {
       const msg = humanizeDbError(e)
       setLoadError(msg)
-      showToast({ type: 'error', title: 'Помилка завантаження', subtitle: msg })
+      showToast({ type: 'error', title: tr('Помилка завантаження'), subtitle: msg })
     } finally {
       setLoading(false)
     }
@@ -587,7 +588,7 @@ export default function CollectionsScreen() {
   async function createCollection() {
     if (!user) return
     if (offlineGuard()) return
-    const name = `Підбірка ${collections.length + 1}`
+    const name = tr('Підбірка {0}', collections.length + 1)
     try {
       const { data, error } = await supabase
         .from('collections')
@@ -603,16 +604,16 @@ export default function CollectionsScreen() {
         thumb_urls: [],
       }
       setCollections([newCol, ...collections])
-      showToast({ type: 'success', title: 'Підбірку створено' })
+      showToast({ type: 'success', title: tr('Підбірку створено') })
     } catch (e) {
-      showToast({ type: 'error', title: 'Помилка', subtitle: humanizeDbError(e) })
+      showToast({ type: 'error', title: tr('Помилка'), subtitle: humanizeDbError(e) })
     }
   }
 
   function handleShare(e: React.MouseEvent, col: CollectionWithCount) {
     e.stopPropagation()
     if (col.property_count === 0) {
-      useAppStore.getState().showToast({ type: 'error', title: 'Підбірка порожня', subtitle: 'Додайте обʼєкти перед тим як ділитися' })
+      useAppStore.getState().showToast({ type: 'error', title: tr('Підбірка порожня'), subtitle: tr('Додайте обʼєкти перед тим як ділитися') })
       return
     }
     setShareTarget(col)
@@ -647,13 +648,13 @@ export default function CollectionsScreen() {
     <div className="scr bg-violet">
       <div className="hdr">
         <div className="hdr-sp" />
-        <div className="hdr-t">Підбірки</div>
+        <div className="hdr-t">{tr('Підбірки')}</div>
         <div className="hdr-sp" />
       </div>
 
       <div className="body has-fab">
-        <div className="greet">Мої підбірки</div>
-        <div className="display">Для клієнтів</div>
+        <div className="greet">{tr('Мої підбірки')}</div>
+        <div className="display">{tr('Для клієнтів')}</div>
 
         {/* Порожній стан має ВЛАСНУ первинну дію, тож FAB із тим самим підписом
             ховається: інакше на екрані одночасно дві однакові кнопки
@@ -666,13 +667,13 @@ export default function CollectionsScreen() {
         ) : collections.length === 0 ? (
           <div className="empty-state" style={{ paddingTop: 32 }}>
             <div className="empty-ic">📋</div>
-            <div className="empty-h">Немає підбірок</div>
-            <div className="empty-s">Створи першу підбірку обʼєктів для клієнта</div>
+            <div className="empty-h">{tr('Немає підбірок')}</div>
+            <div className="empty-s">{tr('Створи першу підбірку обʼєктів для клієнта')}</div>
             <button
               className="mbtn success mbtn-flow"
               onClick={createCollection}
             >
-              Створити підбірку
+              {tr('Створити підбірку')}
             </button>
           </div>
         ) : (
@@ -697,14 +698,14 @@ export default function CollectionsScreen() {
         raised
         hidden={fabHidden || showEmptyCta}
         icon={<IconPlus size={14} />}
-        label="Створити підбірку"
+        label={tr('Створити підбірку')}
         onClick={createCollection}
       />
 
       {!fabSeen && !loading && (
         <CoachMark
-          title="Створіть підбірку"
-          body="Натисніть +, щоб зібрати підбірку обʼєктів для клієнта та поділитися посиланням."
+          title={tr('Створіть підбірку')}
+          body={tr('Натисніть +, щоб зібрати підбірку обʼєктів для клієнта та поділитися посиланням.')}
           targetRef={fabRef}
           placement="above"
           onDone={markFabSeen}
