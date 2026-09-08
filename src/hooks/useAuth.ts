@@ -8,7 +8,7 @@ import { openSessionGate, closeSessionGate } from '@/lib/sessionGate'
 import { isDeepLinkStartParam } from '@/lib/telegram'
 import { useAppStore } from '@/store/appStore'
 import type { User } from '@/types'
-import { tr } from '@/lib/i18n'
+import { tr, loadLang, persistLang, getLang } from '@/lib/i18n'
 
 const SESSION_KEY     = 'ps_session'
 export const PROFILE_KEY = 'ps_user'
@@ -317,6 +317,17 @@ export function useAuth() {
       persistSession(access_token, refresh_token)
 
       const dbUser: User = user
+      // МОВА — ДО `setUser`, і це не косметика. На ПЕРШОМУ вході кешу профілю
+      // ще немає, тож `startupLang()` у сплеші не мав звідки взяти 'en' —
+      // англомовний користувач проходив би онбординг українською. Edge-функція
+      // пише `language_code` з `tgUser.language_code`, тобто тут значення вже
+      // правильне. Порядок такий самий, як у перемикачі профілю: спершу
+      // словник, потім стан — інакше перший кадр український, другий
+      // англійський, і блимання гірше за паузу.
+      if ((dbUser.language_code === 'en' ? 'en' : 'uk') !== getLang()) {
+        await loadLang(dbUser.language_code === 'en' ? 'en' : 'uk')
+        persistLang(dbUser.language_code === 'en' ? 'en' : 'uk')
+      }
       setUser(dbUser)
       persistProfile(dbUser)
 

@@ -19,8 +19,16 @@ import { setupApp, DEFAULT_USER, jsonRoute } from './helpers/harness'
 const USER = { ...DEFAULT_USER, role: 'owner' as const, first_name: 'Mykola', last_name: 'T' }
 const CYR = /[а-яА-ЯіїєґІЇЄҐ]/
 
-async function seed(page: Page) {
-  await setupApp(page, { user: USER })
+/**
+ * ФІКСТУРА МУСИТЬ БУТИ УЗГОДЖЕНА: `setupApp` віддає цього ж користувача як
+ * ВІДПОВІДЬ ЛОГІНУ edge-функції, а тести окремо роутять таблицю `users`.
+ * Доки за `language_code` не йшов НІХТО, розбіжність між цими двома джерелами
+ * була невидима — і фікстура тихо тримала 'uk' у логіні при 'en' у таблиці.
+ * Тепер вхід синхронізує мову з профілем акаунта, тож суперечлива фікстура
+ * означала б перевірку неіснуючого стану.
+ */
+async function seed(page: Page, lang: 'uk' | 'en' = 'uk') {
+  await setupApp(page, { user: { ...USER, language_code: lang } })
   await page.route('**/rest/v1/databases**', (r) => jsonRoute(r, []))
   await page.route('**/rest/v1/properties**', (r) => jsonRoute(r, []))
   for (const t of ['notifications', 'property_views', 'db_members', 'rent_payments', 'collections']) {
@@ -65,7 +73,7 @@ test('перемикач у профілі справді перемикає м�
 })
 
 test('мова переживає перезапуск застосунку', async ({ page }) => {
-  await seed(page)
+  await seed(page, 'en')
   await page.route('**/rest/v1/users**', (r) => jsonRoute(r, [{ ...USER, language_code: 'en' }]))
   // Так виглядає ДРУГИЙ запуск: мову вже збережено локально, і перший кадр
   // мусить бути англійським — інакше користувач бачить спалах українського.
@@ -77,7 +85,7 @@ test('мова переживає перезапуск застосунку', as
 })
 
 test('англійською числа й дати беруть англійську локаль', async ({ page }) => {
-  await seed(page)
+  await seed(page, 'en')
   await page.route('**/rest/v1/users**', (r) => jsonRoute(r, [{ ...USER, language_code: 'en' }]))
   await page.addInitScript(() => localStorage.setItem('ps_lang', 'en'))
 
@@ -87,4 +95,21 @@ test('англійською числа й дати беруть англійс�
   // — комою. Захардкоджена локаль лишала б мову перемкненою наполовину.
   const html = await page.content()
   expect(html.includes(' м²'), 'український формат площі просочився').toBe(false)
+})
+
+test('на ВХОДІ вирішує профіль акаунта, а не мова пристрою', async ({ page }) => {
+  // Правило неочевидне, тож воно під гардом. Пристрій памʼятає англійську
+  // (попередній користувач), акаунт україномовний — виграти мусить АКАУНТ.
+  // Інакше вхід під чужим профілем лишав би мову попереднього, а сам код це
+  // вже припускав: відкат у `handleLangChange` синхронізує пристрій і сервер
+  // саме тому, що «наступний вхід сам собою поверне мову назад».
+  await seed(page, 'uk')
+  await page.route('**/rest/v1/users**', (r) => jsonRoute(r, [{ ...USER, language_code: 'uk' }]))
+  await page.addInitScript(() => localStorage.setItem('ps_lang', 'en'))
+
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+  // І пристрій мусить ЗАПАМʼЯТАТИ це, інакше наступний холодний старт знову
+  // намалював би англійську й мова «блимала» б через запуск.
+  expect(await page.evaluate(() => localStorage.getItem('ps_lang'))).toBe('uk')
 })

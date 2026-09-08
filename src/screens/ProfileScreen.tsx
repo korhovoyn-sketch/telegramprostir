@@ -11,7 +11,7 @@ import Toggle from '@/components/ui/Toggle'
 import { IconMail, IconPhone, IconLanguage, IconCurrencyDollar, IconLogout, IconTrash, GlassCrown, IconBell, IconBellRing, IconChartLine, IconEye, IconMessage, IconAdjustments } from '@/components/Icons'
 import { TG_BOT , hapticSelection } from '@/lib/telegram'
 import { getInitials, scrollFocusedIntoView } from '@/lib/utils'
-import { tr, loadLang, persistLang } from '@/lib/i18n'
+import { tr, loadLang, persistLang, getLang } from '@/lib/i18n'
 
 export default function ProfileScreen() {
   const { user, databases, setUser, navigate } = useAppStore()
@@ -91,7 +91,13 @@ export default function ProfileScreen() {
   // мережі пауза до відповіді сервера читається як «перемикач не працює».
   // Помилка — відкат плюс тост із причиною (updateProfile його показує).
   async function handleLangChange(lang: 'uk' | 'en') {
-    if ((user?.language_code ?? 'uk') === lang) return
+    // ПОРІВНЮЄМО З ДІЙСНОЮ МОВОЮ ЕКРАНА, а не лише з профілем. Раніше умова
+    // дивилась тільки в профіль — і при розбіжності (профіль каже 'en', екран
+    // український) тап по «Eng» ВИХОДИВ ОДРАЗУ: сегмент уже підсвічений,
+    // кнопка нічого не робить, і полагодити мову можна було лише через
+    // переклик на українську й назад. Тобто єдиний контрол, що лікує стан,
+    // відмовлявся саме в тому стані, заради якого існує.
+    if ((user?.language_code ?? 'uk') === lang && getLang() === lang) return
     if (offlineGuard()) return
     hapticSelection()
     const prev = user!
