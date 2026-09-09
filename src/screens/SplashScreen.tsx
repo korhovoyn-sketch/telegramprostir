@@ -5,7 +5,7 @@ import { useAppStore } from '@/store/appStore'
 import { useAuth, RESTORE_BUDGET_MS, PROFILE_KEY } from '@/hooks/useAuth'
 import { useTelegram } from '@/hooks/useTelegram'
 import { isDeepLinkStartParam, parseStartParam } from '@/lib/telegram'
-import { loadLang, storedLang, tr } from '@/lib/i18n'
+import { loadLang, storedLang, tr, LANG_KEY } from '@/lib/i18n'
 
 // How long to wait for a stored session to restore before giving up and
 // showing WelcomeScreen. Auto-login (Edge Function) is intentionally NOT done
@@ -14,6 +14,32 @@ import { loadLang, storedLang, tr } from '@/lib/i18n'
 // RESTORE_BUDGET_MS is shared with useAuth's loginViaTelegram, which derives its
 // own wait from however much of this budget the in-flight restore already used —
 // keeping both screens deferring to one source of truth instead of guessing.
+
+/**
+ * МОВА СТАРТУ. Порядок джерел — не смак, а причина кожного:
+ *
+ * 1. `ps_lang` — ЯВНИЙ вибір на ЦЬОМУ пристрої, тож він головний.
+ * 2. Кешований профіль. `users.language_code` заповнює edge-функція з
+ *    `tgUser.language_code` ще на ПЕРШОМУ вході, тобто англомовний користувач
+ *    має 'en' у базі до того, як щось перемикав руками. Доти це поле не читав
+ *    НІХТО: `loadLang(storedLang())` дивився лише в localStorage, тож новий
+ *    пристрій, почищений вебвʼю або перший запуск давали УКРАЇНСЬКИЙ інтерфейс
+ *    людині, чий профіль каже 'en' — і перемикач цього не лікував (див.
+ *    `handleLangChange`).
+ *
+ * Читається СИНХРОННО і ДО першого кадру — тим самим шляхом, що й роль вище.
+ * Інакше перший кадр малює українською, а другий англійською, і блимання
+ * гірше за паузу в кілька мілісекунд.
+ */
+function startupLang(): 'uk' | 'en' {
+  const device = storedLang()
+  try {
+    if (localStorage.getItem(LANG_KEY)) return device
+    const raw = localStorage.getItem(PROFILE_KEY)
+    if (raw && (JSON.parse(raw) as { language_code?: string }).language_code === 'en') return 'en'
+  } catch { /* приватний режим — лишається значення пристрою */ }
+  return device
+}
 
 export default function SplashScreen() {
   const [progress, setProgress] = useState(0)
@@ -121,7 +147,7 @@ export default function SplashScreen() {
       // мови, а не оглядом — на вигляд рядок стояв «поруч з іншими».
       //
       // Ціни для української це не має: там гілка синхронна, без запиту.
-      await loadLang(storedLang())
+      await loadLang(startupLang())
 
       const hasSession = await Promise.race([
         restoreSession(),
