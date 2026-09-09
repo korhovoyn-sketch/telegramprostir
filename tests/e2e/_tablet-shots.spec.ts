@@ -20,7 +20,7 @@ for (const g of GEOM) {
     const page = await ctx.newPage()
     await page.clock.setFixedTime(new Date('2026-02-10T12:00:00Z'))
     const owner = ALL_GROUPS.find((x) => x.role === 'owner')!
-    await owner.fixtures(page)
+    await owner.fixtures(page, 'ios')
     for (const step of owner.screens.slice(0, 6)) {
       try {
         await step.go(page)

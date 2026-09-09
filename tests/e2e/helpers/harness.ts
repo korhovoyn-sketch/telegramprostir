@@ -47,13 +47,20 @@ export interface HarnessOptions {
   startParam?: string
   /** ms delay before the Edge Function login responds (to observe the loading UI). */
   loginDelayMs?: number
+  /**
+   * Який клієнт Telegram рапортує. Від цього залежить, чи вмикається
+   * ДЕСКТОПНА РАМКА: 'ios'/'android' — вебвʼю на весь екран (планшет теж),
+   * 'tdesktop' — вікно. Дефолт свідомо `undefined`: так поводиться стаб, що
+   * нічого про клієнт не каже, і застосунок лишається в десктопній гілці.
+   */
+  platform?: string
 }
 
 /** Inject window.Telegram.WebApp before any app script runs. */
 export async function installTelegram(page: Page, opts: HarnessOptions = {}) {
   const user = opts.user ?? DEFAULT_USER
   await page.addInitScript(
-    ({ tgId, firstName, username, startParam }) => {
+    ({ tgId, firstName, username, startParam, platform }) => {
       const cloud = new Map<string, string>()
       // Реальний емітер подій: без нього застосунок ніколи не бачить
       // viewportChanged, і всю клавіатурну логіку неможливо перевірити.
@@ -63,6 +70,7 @@ export async function installTelegram(page: Page, opts: HarnessOptions = {}) {
         WebApp: {
           initData: 'mock_init_data_signed',
           initDataUnsafe: { user: { id: tgId, first_name: firstName, username }, start_param: startParam },
+          platform,
           colorScheme: 'dark',
           viewportHeight: 568,
           viewportStableHeight: 568,
@@ -185,7 +193,7 @@ export async function installTelegram(page: Page, opts: HarnessOptions = {}) {
         if (withSecondary) w.Telegram.WebApp.SecondaryButton = make('Secondary')
       }
     },
-    { tgId: user.tg_id, firstName: user.first_name, username: user.tg_username, startParam: opts.startParam },
+    { tgId: user.tg_id, firstName: user.first_name, username: user.tg_username, startParam: opts.startParam, platform: opts.platform },
   )
 }
 

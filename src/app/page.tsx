@@ -96,6 +96,17 @@ export default function Page() {
       document.documentElement.dataset.tgTheme = tg.colorScheme
     }
 
+    // ЯКИЙ ЦЕ КЛІЄНТ — і цей атрибут CSS читає, на відміну від теми вище.
+    // Десктопна рамка (плаваюча картка з полями) вмикалась по самій ширині
+    // ≥680px, а iPad у портреті це 744px — тобто планшет, де вебвʼю і так на
+    // весь екран, діставав чорні поля по краях і зрізані картки в ландшафті.
+    // Дефолт — БЕЗ атрибута, тобто десктопний: так вікно не блимає рамкою на
+    // старті, а платить за пізню появу лише планшет.
+    const MOBILE = ['ios', 'android', 'android_x']
+    if (MOBILE.includes((tg.platform ?? '').toLowerCase())) {
+      document.documentElement.dataset.tgClient = 'mobile'
+    }
+
     // Врізи від Telegram: у його iOS-webview env(safe-area-inset-*) не
     // наповнюється, тож весь наш хром (таббар, CTA, панель обраних) сідав би під
     // home-індикатор. CSS бере max(env, --tg-safe-*), тобто це підсилення, а не

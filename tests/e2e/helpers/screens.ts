@@ -86,8 +86,8 @@ async function emptyTables(page: Page, names: string[]) {
 
 // ── Власник ───────────────────────────────────────────────────────────────────
 
-export async function ownerFixtures(page: Page) {
-  await setupApp(page, { user: OWNER })
+export async function ownerFixtures(page: Page, platform?: string) {
+  await setupApp(page, { user: OWNER, platform })
   await seedSession(page, OWNER as unknown as Record<string, unknown>)
   await page.route('**/rest/v1/databases**', (r) =>
     json(r, (r.request().headers()['accept'] ?? '').includes('object') ? DB : [DB]))
@@ -381,9 +381,9 @@ export const OWNER_SCREENS: ScreenStep[] = [
 export const REALTOR: HarnessUser = { ...DEFAULT_USER, role: 'realtor', first_name: 'Олена' }
 const COL_ID = '70000000-0000-0000-0000-000000000001'
 
-export async function realtorFixtures(page: Page) {
+export async function realtorFixtures(page: Page, platform?: string) {
   const RDB = { ...DB, owner_id: OTHER_OWNER }
-  await setupApp(page, { user: REALTOR })
+  await setupApp(page, { user: REALTOR, platform })
   await seedSession(page, REALTOR as unknown as Record<string, unknown>)
   await page.route('**/rest/v1/realtor_subscriptions**', (r) => json(r, [{
     id: '30000000-0000-0000-0000-000000000009', realtor_id: REALTOR.id,
@@ -462,11 +462,11 @@ export const REALTOR_SCREENS: ScreenStep[] = [
 
 // ── Гість ─────────────────────────────────────────────────────────────────────
 
-export async function guestFixtures(page: Page) {
+export async function guestFixtures(page: Page, platform?: string) {
   const GUEST = { ...DEFAULT_USER, first_name: 'Гість' } as unknown as HarnessUser
   ;(GUEST as unknown as { role: string }).role = 'guest'
   const PROPERTY = { ...PROPERTIES[0], owner_id: OTHER_OWNER }
-  await setupApp(page, { user: GUEST })
+  await setupApp(page, { user: GUEST, platform })
   await seedSession(page, GUEST as unknown as Record<string, unknown>)
   await page.route('**/rest/v1/guest_links**', (r) => json(r, [{
     id: '50000000-0000-0000-0000-000000000001', owner_id: PROPERTY.owner_id,
@@ -503,8 +503,8 @@ export const GUEST_SCREENS: ScreenStep[] = [
 // ── Онбординг ─────────────────────────────────────────────────────────────────
 // Екрани, які користувач бачить РАНІШЕ за все інше, і які теж не міряв ніхто.
 
-export async function onboardingFixtures(page: Page) {
-  await setupApp(page, { user: { ...DEFAULT_USER, role: null } })
+export async function onboardingFixtures(page: Page, platform?: string) {
+  await setupApp(page, { user: { ...DEFAULT_USER, role: null }, platform })
 }
 
 export const ONBOARDING_SCREENS: ScreenStep[] = [
@@ -528,7 +528,7 @@ export const ONBOARDING_SCREENS: ScreenStep[] = [
 ]
 
 /** Усі групи разом — для гардів, яким байдуже до ролі. */
-export const ALL_GROUPS: { role: string; fixtures: (p: Page) => Promise<void>; screens: ScreenStep[] }[] = [
+export const ALL_GROUPS: { role: string; fixtures: (p: Page, platform?: string) => Promise<void>; screens: ScreenStep[] }[] = [
   { role: 'owner', fixtures: ownerFixtures, screens: OWNER_SCREENS },
   { role: 'realtor', fixtures: realtorFixtures, screens: REALTOR_SCREENS },
   { role: 'guest', fixtures: guestFixtures, screens: GUEST_SCREENS },
