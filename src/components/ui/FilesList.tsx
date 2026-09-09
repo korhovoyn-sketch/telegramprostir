@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useFileDrop } from '@/hooks/useFileDrop'
+import { isDoc } from '@/lib/fileType'
 import { usePropertyFiles } from '@/hooks/usePropertyFiles'
 import { useAppStore } from '@/store/appStore'
 import { confirmAction } from '@/lib/confirm'
@@ -110,15 +111,12 @@ export default function FilesList({ propertyId, isOwner }: FilesListProps) {
 
   const canUpload = isOwner && files.length < maxFiles && !uploading
 
-  // Перетягування документів. Фільтр по РОЗШИРЕННЮ, а не лише по MIME: Windows
-  // віддає порожній `type` для .docx, тобто перевірка тільки типу відкидала б
-  // саме той формат, заради якого зону й роблять.
+  // Той САМИЙ предикат, що й у завантажувача (`lib/fileType`). Доти вони були
+  // різні, і застосунок суперечив сам собі: зона приймала .docx по розширенню,
+  // а завантажувач одразу відхиляв його по порожньому MIME.
   const docDrop = useFileDrop({
     disabled: !canUpload,
-    accept: (f) => /\.(pdf|docx?)$/i.test(f.name)
-      || f.type === 'application/pdf'
-      || f.type.startsWith('application/msword')
-      || f.type.startsWith('application/vnd.openxmlformats-officedocument.wordprocessingml'),
+    accept: isDoc,
     onFiles: (files) => { void runUpload(files) },
     onRejected: () => showToast({ type: 'error', title: tr('Формат не підтримується'), subtitle: tr('Перетягніть PDF або Word') }),
   })

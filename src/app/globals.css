@@ -561,6 +561,11 @@ body{
 /* ── FORM GROUP ── */
 .fg{margin:0 var(--g3) var(--g3);border-radius:var(--r-md);overflow:hidden}
 .fr{display:flex;align-items:center;padding:12px var(--pad-card);border-bottom:.5px solid rgba(255,255,255,.08);gap:10px;min-height:var(--input-h)}
+/* Підказка ПІД рядком поля: попередження, що не блокує збереження (дублікат
+   назви). Не `.fr`, бо це не рядок вводу — немає ні мінімальної висоти, ні
+   роздільника, інакше форма читалась би як «ще одне поле». */
+.fr-note{display:flex;align-items:center;gap:6px;padding:8px var(--pad-card) 10px;
+  font-size:var(--fs-cap1);color:var(--warn-fg);line-height:1.35}
 .fr:last-child{border:none}
 /* Form row label — Subhead Regular (readable but not competing with value) */
 .fr-l{font-size:var(--fs-sub);color:var(--t1);flex:0 0 auto;min-width:82px;line-height:var(--lh-snug)}

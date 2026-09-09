@@ -129,6 +129,8 @@ function CollectionDetail({
   const [availableProps, setAvailableProps] = useState<Property[]>([])
   const [loadingAvail, setLoadingAvail] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [adding, setAdding] = useState<Set<string>>(new Set())
+  const addingRef = useRef<Set<string>>(new Set())
   const [showShare, setShowShare] = useState(false)
 
   const loadCollectionProperties = useCallback(async () => {
@@ -194,7 +196,15 @@ function CollectionDetail({
   }
 
   async function addProperty(propertyId: string) {
+    // Гард СИНХРОННИЙ і ПООБʼЄКТНИЙ: рядок зникає зі списку лише ПІСЛЯ
+    // відповіді, тож на LTE він лишається під пальцем усю дорогу. Складений
+    // ключ у БД (`PRIMARY KEY (collection_id, property_id)`) дубль не пустить,
+    // але користувач отримував замість цього сиру помилку унікальності — тобто
+    // «вже додано» виглядало як збій.
+    if (addingRef.current.has(propertyId)) return
     if (offlineGuard()) return
+    addingRef.current.add(propertyId)
+    setAdding((prev) => new Set(prev).add(propertyId))
     try {
       const { error } = await supabase
         .from('collection_properties')
@@ -210,6 +220,9 @@ function CollectionDetail({
       showToast({ type: 'success', title: tr('Обʼєкт додано') })
     } catch (e) {
       showToast({ type: 'error', title: tr('Помилка'), subtitle: humanizeDbError(e) })
+    } finally {
+      addingRef.current.delete(propertyId)
+      setAdding((prev) => { const n = new Set(prev); n.delete(propertyId); return n })
     }
   }
 
@@ -479,6 +492,8 @@ function CollectionDetail({
                         className="owner-act"
                         aria-label={tr('Додати до підбірки')}
                         onClick={() => addProperty(p.id)}
+                        disabled={adding.has(p.id)}
+                        aria-busy={adding.has(p.id)}
                         style={{ flexShrink: 0, background: 'var(--purple-bd)' }}
                       >
                         <IconPlus size={14} />
@@ -515,6 +530,8 @@ export default function CollectionsScreen() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [selectedCollection, setSelectedCollection] = useState<CollectionWithCount | null>(null)
   const [shareTarget, setShareTarget] = useState<CollectionWithCount | null>(null)
+  const [creating, setCreating] = useState(false)
+  const creatingRef = useRef(false)
   const fabRef = useRef<HTMLButtonElement>(null)
   const { isDone: fabSeen, markDone: markFabSeen } = useOnboarding('col-fab')
 
@@ -587,8 +604,20 @@ export default function CollectionsScreen() {
 
   async function createCollection() {
     if (!user) return
+    // Гард СИНХРОННИЙ (ref), бо стан оновлюється асинхронно і два швидкі тапи
+    // проскакували обидва — а між ними ще й читалась та сама `collections
+    // .length`, тобто зʼявлялись ДВІ підбірки з ОДНАКОВОЮ назвою. Це рівно те
+    // «повторне введення», яке користувач потім розбирає руками.
+    if (creatingRef.current) return
     if (offlineGuard()) return
-    const name = tr('Підбірка {0}', collections.length + 1)
+    creatingRef.current = true
+    setCreating(true)
+    // Від НАЙМЕНШОГО вільного номера, а не від довжини: видалили «Підбірка 1» —
+    // і довжина знову дає число, яке вже зайняте.
+    const taken = new Set(collections.map((c) => c.name))
+    let n = 1
+    while (taken.has(tr('Підбірка {0}', n))) n += 1
+    const name = tr('Підбірка {0}', n)
     try {
       const { data, error } = await supabase
         .from('collections')
@@ -607,6 +636,9 @@ export default function CollectionsScreen() {
       showToast({ type: 'success', title: tr('Підбірку створено') })
     } catch (e) {
       showToast({ type: 'error', title: tr('Помилка'), subtitle: humanizeDbError(e) })
+    } finally {
+      creatingRef.current = false
+      setCreating(false)
     }
   }
 
@@ -670,7 +702,9 @@ export default function CollectionsScreen() {
             <div className="empty-h">{tr('Немає підбірок')}</div>
             <div className="empty-s">{tr('Створи першу підбірку обʼєктів для клієнта')}</div>
             <button
-              className="mbtn success mbtn-flow"
+              className={`mbtn success mbtn-flow${creating ? ' is-loading' : ''}`}
+              disabled={creating}
+              aria-busy={creating}
               onClick={createCollection}
             >
               {tr('Створити підбірку')}
@@ -699,6 +733,7 @@ export default function CollectionsScreen() {
         hidden={fabHidden || showEmptyCta}
         icon={<IconPlus size={14} />}
         label={tr('Створити підбірку')}
+        disabled={creating}
         onClick={createCollection}
       />
 

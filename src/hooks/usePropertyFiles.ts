@@ -6,15 +6,11 @@ import { assertAffected } from '@/lib/dbWrite'
 import { humanizeDbError } from '@/lib/utils'
 import type { PropertyFile } from '@/types'
 import { tr } from '@/lib/i18n'
+import { resolveDocMime } from '@/lib/fileType'
 
 const MAX_FILES = 10
 const MAX_SIZE  = 20 * 1024 * 1024
 const BUCKET    = 'property-files'
-const ALLOWED_MIME = new Set([
-  'application/pdf',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-])
 
 export function usePropertyFiles(propertyId: string | undefined) {
   const [files, setFiles]       = useState<PropertyFile[]>([])
@@ -68,13 +64,22 @@ export function usePropertyFiles(propertyId: string | undefined) {
       .eq('property_id', propertyId)
     let currentCount = dbCount ?? files.length
 
-    // Filter out invalid files before showing progress so total is accurate
-    const valid = picked.filter(file => {
-      if (currentCount >= MAX_FILES) return false
-      if (!ALLOWED_MIME.has(file.type)) { onError(tr('«{0}» — формат не підтримується (тільки PDF, DOC, DOCX)', file.name)); return false }
-      if (file.size > MAX_SIZE)         { onError(tr('«{0}» перевищує 20 МБ', file.name)); return false }
-      return true
-    })
+    // Filter out invalid files before showing progress so total is accurate.
+    // Тип РОЗВʼЯЗУЄТЬСЯ, а не читається: `file.type` для .docx законно буває
+    // порожнім (див. lib/fileType.ts). Далі по конвеєру йде саме розвʼязане
+    // значення — і на сервер, і в колонку.
+    const valid: { file: File; mime: string }[] = []
+    let overLimit = 0
+    for (const file of picked) {
+      if (currentCount + valid.length >= MAX_FILES) { overLimit++; continue }
+      const mime = resolveDocMime(file)
+      if (!mime)                { onError(tr('«{0}» — формат не підтримується (тільки PDF, DOC, DOCX)', file.name)); continue }
+      if (file.size > MAX_SIZE) { onError(tr('«{0}» перевищує 20 МБ', file.name)); continue }
+      valid.push({ file, mime })
+    }
+    // Межу мовчки не проковтуємо: без цього вибір файлів на вже повному обʼєкті
+    // не давав ані завантаження, ані пояснення.
+    if (overLimit > 0) onError(tr('Максимум {0} файлів на обʼєкт', MAX_FILES))
 
     if (!valid.length) return { uploaded: 0, failed: picked.length }
 
@@ -104,7 +109,7 @@ export function usePropertyFiles(propertyId: string | undefined) {
       const userToken = session?.access_token ?? supabaseKey
 
       for (let i = 0; i < valid.length; i++) {
-        const file = valid[i]
+        const { file, mime } = valid[i]
         if (currentCount >= MAX_FILES) {
           onError(tr('Максимум {0} файлів на обʼєкт', MAX_FILES))
           break
@@ -132,7 +137,7 @@ export function usePropertyFiles(propertyId: string | undefined) {
             body: JSON.stringify({
               propertyId,
               fileName: file.name,
-              mimeType: file.type,
+              mimeType: mime,
               fileSize: file.size,
             }),
           })
@@ -163,7 +168,7 @@ export function usePropertyFiles(propertyId: string | undefined) {
         const uploadResult = await fetch(uploadUrl, {
           method: 'PUT',
           headers: {
-            'Content-Type': file.type,
+            'Content-Type': mime,
             'x-upsert': 'false',
           },
           body: file,
@@ -183,7 +188,7 @@ export function usePropertyFiles(propertyId: string | undefined) {
             storage_path: storagePath,
             file_name:    file.name,
             file_size:    file.size,
-            mime_type:    file.type,
+            mime_type:    mime,
             sort_order:   currentCount,
           })
           .select('id,property_id,owner_id,storage_path,file_name,file_size,mime_type,sort_order,created_at')

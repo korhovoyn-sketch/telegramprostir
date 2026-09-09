@@ -4,10 +4,11 @@ import { useEffect, useState, useRef } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { supabase } from '@/lib/supabase'
 import { offlineGuard } from '@/lib/offline'
+import { isImage, MAX_INPUT_MB } from '@/lib/fileType'
 import { uploadPropertyPhoto } from '@/lib/photoUpload'
 import Header from '@/components/ui/Header'
 import { humanizeDbError } from '@/lib/utils'
-import { IconCheck, IconX } from '@/components/Icons'
+import { IconCheck, IconX, IconAlertTriangle } from '@/components/Icons'
 import { tr } from '@/lib/i18n'
 
 /* eslint-disable @next/next/no-img-element */
@@ -23,14 +24,21 @@ interface UploadItem {
 export default function PhotoUploadScreen() {
   const { screenParams, back, showToast } = useAppStore()
   const propertyId = screenParams.propertyId as string
-  const MAX_MB = 10
+  // МЕЖА НА ОБʼЄКТ, не на партію. Доти 20 обмежувало рівно один захід, а
+  // `existingCount` читався лише заради нумерації — тобто 20 + 20 + 20 клалось
+  // без жодного слова. Документи цю дисципліну мали з самого початку
+  // (`MAX_FILES` звіряється з лічильником у БД), фото — ні.
   const MAX_PHOTOS = 20
-  const ALLOWED = /\.(jpe?g|png|webp|heic|heif)$/i
   const rawFiles = (screenParams.files as File[]) ?? []
-  const validFiles = rawFiles.filter((f) =>
-    (ALLOWED.test(f.name) || f.type.startsWith('image/')) &&
-    f.size <= MAX_MB * 1024 * 1024
-  )
+  // Причини відсіву РОЗДІЛЬНІ: «не те» і «завелике» лікуються по-різному, тож
+  // спільне «не підійшло» лишало б користувача без наступного кроку.
+  // Межа ВХОДУ, а не фінальна: конвеєр навмисно стискає знімок перед
+  // перевіркою 10 МБ (див. `lib/fileType`), тож фільтрувати вхід по 10 означало
+  // б відкидати звичайне фото з сучасного телефона ДО стиснення — тобто
+  // позбавляти сенсу сам конвеєр.
+  const notImages = rawFiles.filter((f) => !isImage(f))
+  const tooBig = rawFiles.filter((f) => isImage(f) && f.size > MAX_INPUT_MB * 1024 * 1024)
+  const validFiles = rawFiles.filter((f) => isImage(f) && f.size <= MAX_INPUT_MB * 1024 * 1024)
   const files = validFiles.slice(0, MAX_PHOTOS)
 
   // Stable preview URLs — created once, revoked on unmount
@@ -50,6 +58,13 @@ export default function PhotoUploadScreen() {
   // `done` вимагає `total > 0`: без нього екран показував «Завантаження… 0 з 0»
   // назавжди, без пояснення і без виходу, крім стрілки в хедері.
   const nothingToUpload = total === 0 && rawFiles.length > 0
+  // Скільки з обраного не поїде і ЧОМУ. Причини роздільні: «не те» і
+  // «завелике» лікуються по-різному, тож спільне «не підійшло» лишало б
+  // користувача без наступного кроку.
+  const skipped = notImages.length + tooBig.length
+  const skipReason = notImages.length > 0
+    ? tr('Не зображення: {0}', notImages.length)
+    : tr('Завеликі: {0} — максимум {1} МБ', tooBig.length, MAX_INPUT_MB)
   const overallPct = total > 0 ? Math.round((doneCount / total) * 100) : 0
 
   // Auto-navigate back 1.5s after all uploads finish
@@ -57,7 +72,12 @@ export default function PhotoUploadScreen() {
   useEffect(() => {
     if (!done || backedRef.current) return
     if (doneCount > 0) {
-      showToast({ type: 'success', title: tr('{0} фото завантажено', doneCount) })
+      // ПІДСУМОК КАЖЕ ВСЮ ПРАВДУ, і це не косметика: стор тримає рівно ОДИН
+      // тост, тож окреме раннє попередження про відсіяні файли затирав саме
+      // цей рядок — користувач читав «3 фото завантажено», обравши пʼять.
+      showToast(skipped > 0
+        ? { type: 'error', title: tr('{0} фото завантажено', doneCount), subtitle: skipReason }
+        : { type: 'success', title: tr('{0} фото завантажено', doneCount) })
     }
     const timer = setTimeout(() => {
       backedRef.current = true
@@ -70,6 +90,9 @@ export default function PhotoUploadScreen() {
   // двічі — без гарда КОЖНЕ фото вантажилось двома копіями (два файли в
   // storage + два рядки property_photos). Ref переживає double-invoke.
   const startedRef = useRef(false)
+  // Скільки з цієї партії дозволено. Ref, бо читає замикання черги, яке
+  // створюється до того, як лічильник із БД приїхав.
+  const limitRef = useRef(Infinity)
   useEffect(() => {
     if (startedRef.current) return
     startedRef.current = true
@@ -82,15 +105,12 @@ export default function PhotoUploadScreen() {
       if (rawFiles.length > 0) {
         showToast({
           type: 'error', title: tr('Не підійшов жоден файл'),
-          subtitle: tr('Потрібні JPG, PNG або WebP до {0} МБ', MAX_MB),
+          subtitle: tr('Потрібні JPG, PNG або WebP до {0} МБ', MAX_INPUT_MB),
         })
       }
       return
     }
     if (offlineGuard(tr('Завантаження фото недоступне офлайн'))) { back(); return }
-    if (validFiles.length > MAX_PHOTOS) {
-      showToast({ type: 'error', title: tr('Максимум {0} фото', MAX_PHOTOS), subtitle: tr('Завантажено лише перші {0}', MAX_PHOTOS) })
-    }
     let idx = 0
     // Скільки фото в обʼєкта ВЖЕ є — щоб продовжити нумерацію, а не почати
     // спочатку. Читаємо один раз перед чергою; помилка тут не критична —
@@ -98,7 +118,7 @@ export default function PhotoUploadScreen() {
     let existingCount = 0
 
     async function uploadNext() {
-      if (idx >= files.length) return
+      if (idx >= Math.min(files.length, limitRef.current)) return
 
       const currentIdx = idx
       setQueue((q) => q.map((x, i) => i === currentIdx ? { ...x, status: 'uploading', progress: 10 } : x))
@@ -141,6 +161,17 @@ export default function PhotoUploadScreen() {
       } catch {
         // Фолбек 0 — стара (гірша, але робоча) нумерація. Черга мусить
         // стартувати в будь-якому разі.
+      }
+      // Той самий лічильник тепер тримає і МЕЖУ. Обрізаємо чергу, а не
+      // відмовляємо цілком: із пʼяти обраних три можуть законно влізти.
+      const room = Math.max(0, MAX_PHOTOS - existingCount)
+      if (files.length > room) {
+        setQueue((q) => q.slice(0, room))
+        limitRef.current = room
+        showToast(room === 0
+          ? { type: 'error', title: tr('Максимум {0} фото на обʼєкт', MAX_PHOTOS), subtitle: tr('Видаліть зайві, щоб додати нові') }
+          : { type: 'error', title: tr('Максимум {0} фото на обʼєкт', MAX_PHOTOS), subtitle: tr('Завантажено лише {0}', room) })
+        if (room === 0) { back(); return }
       }
       uploadNext()
     })()
@@ -196,13 +227,23 @@ export default function PhotoUploadScreen() {
           </div>
           <div style={{ color: 'var(--t3)', fontSize: 'var(--fs-foot)', marginTop: 4 }}>
             {nothingToUpload
-              ? tr('Потрібні JPG, PNG або WebP до {0} МБ', MAX_MB)
+              ? tr('Потрібні JPG, PNG або WebP до {0} МБ', MAX_INPUT_MB)
               : done
               ? (errorCount > 0 ? tr('{0} успішно, {1} з помилкою', doneCount, errorCount) : tr('{0} фото збережено', doneCount))
               : tr('{0} з {1} фото', doneCount, total)
             }
           </div>
         </div>
+
+        {/* ВІДСІЯНЕ ВИДНО ВЕСЬ ЧАС, поки екран відкритий. Тостом це показати не
+            можна: стор тримає рівно один, і підсумок завантаження його затирає
+            — тобто попередження зникало саме тоді, коли ставало актуальним. */}
+        {skipped > 0 && (
+          <div className="fr-note" role="status" style={{ justifyContent: 'center', padding: 0 }}>
+            <IconAlertTriangle size={14} color="var(--warn-fg)" />
+            {skipReason}
+          </div>
+        )}
 
         {/* Queue list */}
         <div className="glass-s" style={{ width: '100%', borderRadius: 14, overflow: 'hidden' }}>
