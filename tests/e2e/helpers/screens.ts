@@ -374,6 +374,29 @@ export const OWNER_SCREENS: ScreenStep[] = [
       await expect(page.getByLabel('Підтвердження видалення')).toBeVisible({ timeout: 15_000 })
     },
   },
+  {
+    // Форма РЕДАГУВАННЯ бази — вхід лише з меню обʼєктів. Була поза обходом,
+    // хоч це форма з полями: ані контрасту, ані обрізаного тексту, ані пʼятьох
+    // ширин на ній не міряв ніхто.
+    label: 'edit-db',
+    go: async (page) => {
+      await atDbObjects(page)
+      await page.locator('.hdr-a').first().click()
+      await page.getByText('Редагувати базу').click()
+      await expect(page.getByLabel('Назва бази')).toBeVisible({ timeout: 15_000 })
+    },
+  },
+  {
+    // ПЕРШИЙ екран нового власника, і доти поза обходом. Крок ОСТАННІЙ у групі
+    // свідомо: він підміняє `databases` порожнім списком, а роути живуть на
+    // сторінці до кінця прогону — вище він забрав би дані в усіх сусідів.
+    label: 'empty-state',
+    go: async (page) => {
+      await page.route('**/rest/v1/databases**', (r) => json(r, []))
+      await page.goto('/')
+      await expect(page.getByText(/Створити.*базу/).first()).toBeVisible({ timeout: 20_000 })
+    },
+  },
 ]
 
 // ── Рієлтор ───────────────────────────────────────────────────────────────────
