@@ -69,17 +69,32 @@ export function usePropertyFiles(propertyId: string | undefined) {
     // порожнім (див. lib/fileType.ts). Далі по конвеєру йде саме розвʼязане
     // значення — і на сервер, і в колонку.
     const valid: { file: File; mime: string }[] = []
+    const rejectReasons: string[] = []
     let overLimit = 0
     for (const file of picked) {
-      if (currentCount + valid.length >= MAX_FILES) { overLimit++; continue }
+      // ФОРМАТ І РОЗМІР ПЕРЕВІРЯЮТЬСЯ ПЕРШИМИ, і це не стиль: на МЕЖІ порядок
+      // визначає ДІАГНОЗ. Поки перевірка місткості стояла попереду, .txt,
+      // обраний на повному обʼєкті, чув «Максимум 10 файлів на обʼєкт» —
+      // підказку, яка веде НЕ ТУДИ (видалити зайве замість узяти інший файл),
+      // і при цьому лишає користувача в упевненості, що формат прийнятний.
       const mime = resolveDocMime(file)
-      if (!mime)                { onError(tr('«{0}» — формат не підтримується (тільки PDF, DOC, DOCX)', file.name)); continue }
-      if (file.size > MAX_SIZE) { onError(tr('«{0}» перевищує 20 МБ', file.name)); continue }
+      if (!mime)                { rejectReasons.push(tr('«{0}» — формат не підтримується (тільки PDF, DOC, DOCX)', file.name)); continue }
+      if (file.size > MAX_SIZE) { rejectReasons.push(tr('«{0}» перевищує 20 МБ', file.name)); continue }
+      if (currentCount + valid.length >= MAX_FILES) { overLimit++; continue }
       valid.push({ file, mime })
     }
     // Межу мовчки не проковтуємо: без цього вибір файлів на вже повному обʼєкті
     // не давав ані завантаження, ані пояснення.
-    if (overLimit > 0) onError(tr('Максимум {0} файлів на обʼєкт', MAX_FILES))
+    if (overLimit > 0) rejectReasons.push(tr('Максимум {0} файлів на обʼєкт', MAX_FILES))
+    // ОДНЕ повідомлення на ВСІ причини: стор тримає рівно один тост, тож
+    // окремий `onError` на кожен файл затирав попередній — з партії у три
+    // відхилені користувач читав лише останню причину і вважав решту
+    // завантаженою. Перелік обмежений трьома: довший тост однаково не
+    // прочитають, а «…і ще N» тримає підсумок чесним.
+    if (rejectReasons.length > 0) {
+      const head = rejectReasons.slice(0, 3).join(' · ')
+      onError(rejectReasons.length > 3 ? `${head} · ${tr('…і ще {0}', rejectReasons.length - 3)}` : head)
+    }
 
     if (!valid.length) return { uploaded: 0, failed: picked.length }
 

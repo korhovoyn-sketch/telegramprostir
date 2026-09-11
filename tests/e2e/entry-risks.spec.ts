@@ -273,6 +273,80 @@ test('перевантаження: ЧАСТКОВИЙ відсів не мов�
   }).toBe(1)
 })
 
+test('перевантаження: зріз ПАРТІЇ не мовчить, і підпис називає ВСІ причини', async ({ page }) => {
+  // Два боки ОДНІЄЇ помилки обліку, обидва — моя ж регресія попереднього раунду.
+  //
+  // (1) `files = validFiles.slice(0, MAX_PHOTOS)` різав партію ДО перевірки
+  //     місткості, тож на ПОРОЖНЬОМУ обʼєкті пізніша умова рахувала `20 > 20`
+  //     — хибу. 22 обраних фото ставали 20 без тоста і без напису.
+  // (2) `skipReason` був ТЕРНАРНИМ вибором ОДНІЄЇ причини, тоді як `skipped`
+  //     рахував суму: «не зображення» ховало «понад межу», і підпис
+  //     суперечив би цифрі, якби цифру десь показали.
+  test.setTimeout(120_000)
+  await ownerFixtures(page)
+  await page.route('**/rest/v1/properties**', (r) =>
+    json(r, (r.request().headers()['accept'] ?? '').includes('object') ? PROP : [PROP]))
+  // Обʼєкт ПОРОЖНІЙ — саме той випадок, де зріз партії був німим.
+  await page.route('**/rest/v1/property_photos**', (r) =>
+    r.request().method() === 'POST'
+      ? json(r, [{ id: 'p' }], 201)
+      : r.fulfill({ status: 200, contentType: 'application/json',
+          headers: { 'content-range': '*/0' }, body: '[]' }))
+  await page.route('**/storage/v1/object/photos/**', (r) => json(r, { Key: 'photos/x' }))
+
+  await atProperty(page)
+  // 22 придатні + одне не-зображення: межа партії (20) зрізає ДВА, фільтр — ОДНЕ.
+  const picked = Array.from({ length: 22 }, (_, i) => ({
+    name: `IMG_${i}.png`, mimeType: 'image/png', buffer: PNG,
+  }))
+  picked.push({ name: 'нотатки.txt', mimeType: 'text/plain', buffer: Buffer.from('не фото') })
+  await page.locator('input[type="file"][accept="image/*"]').setInputFiles(picked)
+
+  // Персистентний рядок, а не тост: стор тримає рівно ОДИН тост (див. сусідній
+  // гард). Обидві причини мусять бути НАЗВАНІ — саме це й ламав тернарний вибір.
+  const note = page.locator('.fr-note')
+  await expect(note).toBeVisible({ timeout: 25_000 })
+  await expect(note, 'підпис не назвав відсіяне не-зображення').toContainText(/Не зображення: 1/)
+  await expect(note, 'зріз партії лишився німим — 22 фото мовчки стали 20')
+    .toContainText(/Понад межу 20 фото: 2/)
+})
+
+test('перевантаження: непридатний файл на ПОВНОМУ обʼєкті чує про ФОРМАТ', async ({ page }) => {
+  // Перевірка місткості стояла ПЕРЕД перевіркою формату, тож на межі .txt
+  // діставав «Максимум 10 файлів на обʼєкт» — підказку, яка веде НЕ ТУДИ
+  // (видалити зайве замість узяти інший файл). Друга половина: кожна причина
+  // йшла окремим `onError`, а стор тримає ОДИН тост, тож останній викликач
+  // затирав попередніх — із трьох відхилених користувач читав лише одну
+  // причину і вважав решту завантаженою.
+  test.setTimeout(90_000)
+  await ownerFixtures(page)
+  await page.route('**/rest/v1/properties**', (r) =>
+    json(r, (r.request().headers()['accept'] ?? '').includes('object') ? PROP : [PROP]))
+  let validateCalls = 0
+  await page.route('**/functions/v1/validate-upload', (r) => {
+    validateCalls++
+    return json(r, { uploadUrl: 'https://stub.local/put', storagePath: 'x' })
+  })
+  // Обʼєкт УЖЕ повний: 10 із 10.
+  await page.route('**/rest/v1/property_files**', (r) => r.fulfill({
+    status: 200, contentType: 'application/json',
+    headers: { 'content-range': '0-9/10', 'access-control-expose-headers': 'content-range' },
+    body: '[]',
+  }))
+
+  await atProperty(page)
+  await page.locator('input[type="file"][accept=".pdf,.doc,.docx"]').setInputFiles([
+    { name: 'нотатки.txt', mimeType: 'text/plain', buffer: Buffer.from('не документ') },
+  ])
+
+  await expect(page.locator('.toast'), 'причиною названо кількість, а не формат')
+    .toContainText(/формат не підтримується/i, { timeout: 20_000 })
+  // АНТИВАКУУМ: файл справді не поїхав на сервер — тобто фікс не «пропустив
+  // усе», а лише виправив ДІАГНОЗ.
+  await page.waitForTimeout(800)
+  expect(validateCalls, 'непридатний файл усе одно поїхав на сервер').toBe(0)
+})
+
 // ─────────────────────────────────────────────────────────────────────────────
 // ПОВТОРНЕ ВВЕДЕННЯ
 // ─────────────────────────────────────────────────────────────────────────────
