@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Route } from '@playwright/test'
-import { setupApp, DEFAULT_USER, seedSession } from './helpers/harness'
+import { setupApp, DEFAULT_USER, seedSession, jsonRoute as json } from './helpers/harness'
 
 /**
  * Іконки по РЕНДЕРУ, не по джерелу.
@@ -15,8 +15,6 @@ const NOW = '2025-09-01T09:00:00.000Z'
 const USER = { ...DEFAULT_USER, role: 'owner' as const, first_name: 'Микола' }
 const DB_ID = '10000000-0000-0000-0000-000000000001'
 
-const json = (r: Route, body: unknown) =>
-  r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
 
 const DB = {
   id: DB_ID, owner_id: USER.id, name: 'БЦ Рубін', address: 'вул. Хрещатик, 1',

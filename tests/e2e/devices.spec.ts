@@ -1,7 +1,7 @@
 import { test, expect, type Browser, type Page } from '@playwright/test'
 import { ALL_GROUPS } from './helpers/screens'
 import { smallTargets, TAP_DEBT } from './helpers/contrast'
-import { DEVICES, deviceContext } from './helpers/devices'
+import { DEVICES, deviceContext, IPAD } from './helpers/devices'
 
 /**
  * ОБХІД УСІХ ЕКРАНІВ НА ПʼЯТИ ГЕОМЕТРІЯХ ПРИСТРОЇВ.
@@ -177,3 +177,56 @@ for (const dev of DEVICES) {
     expect([...new Set(problems)], `${dev.name} (${dev.width}×${dev.height})`).toEqual([])
   })
 }
+
+/**
+ * ПЛАНШЕТ ЗАПОВНЮЄ ЕКРАН, А ДЕСКТОП — НІ.
+ *
+ * Десктопна рамка вмикалась по ОДНІЙ ширині (≥680px), а iPad у портреті це
+ * 744px — тобто планшет, де Mini App і так на весь екран, отримував плаваючу
+ * картку `100vw − 80` зі скругленням і ЧОРНИМИ ПОЛЯМИ по краях, а в ландшафті
+ * рамка ще й різала висоту (`min(100vh − 48px, 1000px)`) і обрізала нижні
+ * картки. Жоден гард цього не бачив: `devices` міряв лише переповнення,
+ * підпис CTA і зону дотику, а `desktop-layout` починається з 1280.
+ *
+ * ОБИДВІ ПОЛОВИНИ ОБОВʼЯЗКОВІ. Сама лише перевірка «планшет без рамки»
+ * проходила б і тоді, коли десктопні правила не застосовуються НІДЕ (напр.
+ * хтось прибрав медіазапит цілком) — тобто доводила б відсутність, а не
+ * правильність. Тому поруч стоїть позитивний контроль: та сама ширина БЕЗ
+ * тач-вказівника мусить рамку мати.
+ */
+test('рамка: планшет заповнює екран, десктоп тієї ж ширини — ні', async ({ browser }: { browser: Browser }) => {
+  const W = 900, H = 1200
+
+  const frameOf = async (platform: string | undefined) => {
+    const ctx = await browser.newContext({
+      viewport: { width: W, height: H },
+      deviceScaleFactor: 1, isMobile: !!platform, hasTouch: !!platform,
+      userAgent: platform ? IPAD : undefined,
+    })
+    const page = await ctx.newPage()
+    // Клієнт рапортується ЯВНО. Спроба вгадати його з `pointer: coarse`
+    // провалилась на замірі: headless Chromium віддає `coarse` навіть у
+    // звичайному десктопному контексті, тож правило матчилось усюди й
+    // забирало рамку в десктопа.
+    const owner = ALL_GROUPS.find((g) => g.role === 'owner')!
+    await owner.fixtures(page, platform)
+    await owner.screens[0].go(page)
+    const m = await page.locator('#app-root').evaluate((el) => {
+      const r = el.getBoundingClientRect()
+      const cs = getComputedStyle(el)
+      return { w: Math.round(r.width), h: Math.round(r.height), radius: cs.borderTopLeftRadius }
+    })
+    await ctx.close()
+    return m
+  }
+
+  const tablet = await frameOf('ios')
+  expect(tablet.w, `планшет: оболонка ${tablet.w}px замість ${W} — це чорні поля по краях`).toBe(W)
+  expect(tablet.h, `планшет: оболонка ${tablet.h}px замість ${H} — вміст обріжеться`).toBe(H)
+  expect(parseFloat(tablet.radius), 'планшет: скруглення рамки — на весь екран воно зайве').toBe(0)
+
+  // ПОЗИТИВНИЙ КОНТРОЛЬ: без тачу та сама ширина — це десктоп, і рамка МУСИТЬ бути.
+  const desktop = await frameOf(undefined)
+  expect(desktop.w, 'десктоп: рамка зникла — правило зламане, а не звужене').toBeLessThan(W)
+  expect(parseFloat(desktop.radius), 'десктоп: рамка без скруглення').toBeGreaterThan(0)
+})

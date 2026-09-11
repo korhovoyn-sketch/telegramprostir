@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { useFileDrop } from '@/hooks/useFileDrop'
+import { isImage } from '@/lib/fileType'
 import RetryState from '@/components/ui/RetryState'
 import { hapticImpact, hapticNotify } from '@/lib/telegram'
 import { offlineGuard } from '@/lib/offline'
@@ -107,9 +108,8 @@ export default function PropertyDetailScreen() {
   // `PhotoUploadScreen` vs `useProperties`).
   const photoDrop = useFileDrop({
     disabled: !isOwner,
-    // Тип із системи не завжди доходить (Windows дає порожній MIME), тож
-    // розширення — другий шлях, а не запасний.
-    accept: (f) => f.type.startsWith('image/') || /\.(jpe?g|png|webp|heic|heif)$/i.test(f.name),
+    // Той самий предикат, що й у черзі завантаження (`lib/fileType`).
+    accept: isImage,
     onFiles: (files) => { if (property) navigate('photo-upload', { propertyId: property.id, files }) },
     onRejected: () => showToast({ type: 'error', title: tr('Це не зображення'), subtitle: tr('Перетягніть JPG, PNG або WebP') }),
   })

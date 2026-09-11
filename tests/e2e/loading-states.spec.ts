@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Route } from '@playwright/test'
-import { setupApp, DEFAULT_USER, seedSession, skipCoachmarks } from './helpers/harness'
+import { setupApp, DEFAULT_USER, seedSession, skipCoachmarks, jsonRoute as json } from './helpers/harness'
 
 /**
  * Стани завантаження: стабільність лейауту і матриця станів на екран.
@@ -42,8 +42,6 @@ const PROPS = Array.from({ length: 6 }, (_, i) => ({
   created_at: NOW, updated_at: NOW, photos: [], _view_count: 0,
 }))
 
-const json = (r: Route, body: unknown, status = 200) =>
-  r.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
 
 /**
  * Лічильник стрибків лейауту. Ставиться init-скриптом ДО першого рендера і

@@ -1,4 +1,5 @@
 import { test, expect, type Page, type Route } from '@playwright/test'
+import { jsonRoute as json } from './helpers/harness'
 
 /**
  * ЯКІСТЬ ПУБЛІЧНОЇ /v — прогалина, що була СТРУКТУРНОЮ.
@@ -16,8 +17,6 @@ import { test, expect, type Page, type Route } from '@playwright/test'
  * без доступної назви, кнопка Telegram у шапці 36×36, стрілки 32×32.
  */
 
-const json = (r: Route, b: unknown) =>
-  r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(b) })
 
 const NOW_PLUS = new Date(Date.now() + 30 * 86400000).toISOString()
 

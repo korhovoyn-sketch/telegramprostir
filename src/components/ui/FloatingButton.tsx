@@ -28,10 +28,14 @@ interface FloatingButtonProps {
       екрана-деталі. Розмір НЕ виводиться з `variant` навмисно — колір несе
       семантику дії, а не габарит. */
   compact?: boolean
+  /** «У процесі» — саме `disabled`, а не знятий обробник: мертвий тап лишає
+      `:active` і читається як зламана кнопка. Неактивність показує КОЛІР
+      (`.btn-glass:disabled`), не `opacity`. */
+  disabled?: boolean
 }
 
 const FloatingButton = forwardRef<HTMLButtonElement, FloatingButtonProps>(
-  function FloatingButton({ variant, icon, label, onClick, raised, hidden, compact }, ref) {
+  function FloatingButton({ variant, icon, label, onClick, raised, hidden, compact, disabled }, ref) {
     return (
       <button
         ref={ref}
@@ -41,6 +45,8 @@ const FloatingButton = forwardRef<HTMLButtonElement, FloatingButtonProps>(
         aria-label={label}
         className={`btn-glass fbtn ${TONE[variant]}${compact ? ' compact' : ''}${raised ? ' raised' : ''}${hidden ? ' fab-off' : ''}`}
         onClick={onClick}
+        disabled={disabled}
+        aria-busy={disabled}
       >
         {icon}
         {label}

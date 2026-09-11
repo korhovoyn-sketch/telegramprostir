@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Route } from '@playwright/test'
-import { setupApp, DEFAULT_USER } from './helpers/harness'
+import { setupApp, DEFAULT_USER, jsonRoute as json } from './helpers/harness'
 
 /**
  * Спільний контракт інстансів `<Modal>`, що ще лишаються (переробка модалок —
@@ -30,8 +30,6 @@ const DB2_ID = '10000000-0000-0000-0000-000000000002'
 const FOLDER_ID = '50000000-0000-0000-0000-000000000001'
 const COL_ID = '70000000-0000-0000-0000-000000000001'
 
-const json = (r: Route, body: unknown) =>
-  r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
 
 const db = (id: string, name: string) => ({
   id, owner_id: OWNER.id, name, address: 'вул. Хрещатик, 1',

@@ -1,12 +1,11 @@
 import { test, expect, type Page, type Route } from '@playwright/test'
+import { jsonRoute as json } from './helpers/harness'
 
 // ─── Public share viewer (/v) — the standalone page every share-link recipient
 // hits in a plain browser (no Telegram). It calls get_public_*_preview RPCs
 // directly and had zero e2e coverage. This drives all three preview types plus
 // the invalid-token, not-found, and network-retry states.
 
-const json = (route: Route, body: unknown, status = 200) =>
-  route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
 
 // PostgREST network failure surfaces as status 0 in postgrest-js — Playwright's
 // route.abort() makes supabase-js resolve with status 0, exactly the real signal.

@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Route } from '@playwright/test'
-import { setupApp, DEFAULT_USER } from './helpers/harness'
+import { setupApp, DEFAULT_USER, jsonRoute as json } from './helpers/harness'
 
 // ─── Parking DB: the property form must adapt to a spot-oriented field set ─────
 
@@ -29,8 +29,6 @@ const PARK_PROP = {
 
 async function setupFixtures(page: Page, onCreate?: (body: Record<string, unknown>) => void) {
   await setupApp(page, { user: USER })
-  const json = (route: Route, body: unknown) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
 
   await page.route('**/rest/v1/databases**', (route) => {
     const accept = route.request().headers()['accept'] ?? ''

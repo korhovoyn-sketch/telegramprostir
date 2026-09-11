@@ -11,7 +11,7 @@ import { useLandlords } from '@/hooks/useLandlords'
 import { useFolders } from '@/hooks/useFolders'
 import Header from '@/components/ui/Header'
 import Toggle from '@/components/ui/Toggle'
-import { IconRuler, IconLayers, IconLayoutGrid, IconActivity, IconBuilding, IconCurrencyDollar, IconBolt, IconCarGarage, IconFile, IconUser, IconKey, IconMapPin, IconEdit, IconFolder, IconChevronRight, IconTrash, IconCheck, IconPlus } from '@/components/Icons'
+import { IconRuler, IconLayers, IconLayoutGrid, IconActivity, IconBuilding, IconCurrencyDollar, IconBolt, IconCarGarage, IconFile, IconUser, IconKey, IconMapPin, IconEdit, IconFolder, IconChevronRight, IconTrash, IconCheck, IconPlus, IconAlertTriangle } from '@/components/Icons'
 import { UTILITY_META } from '@/lib/utilityMeta'
 import FilesList from '@/components/ui/FilesList'
 import { currencySymbol, sanitizeDecimal, sanitizeInt, formatPrice, calcRent, calcUtilities, basisArea, rentUnitLabel, nextCopyName, bulkCreateNames, objectsWord, scrollFocusedIntoView } from '@/lib/utils'
@@ -133,6 +133,14 @@ export default function PropertyFormScreen() {
   // Closing confirmation guards against an accidental swipe-down, but a crash
   // or webview kill still loses typed input — the draft in localStorage
   // survives that. Restored automatically; «Очистити» in the toast discards.
+  // Похідне, не стан. Порівняння без регістру й країв — «офіс 101 » і
+  // «Офіс 101» для людини та сама назва.
+  const nameTaken = useMemo(() => {
+    const n = name.trim().toLowerCase()
+    if (!n) return false
+    return properties.some((p) => p.id !== editId && p.name.trim().toLowerCase() === n)
+  }, [name, properties, editId])
+
   const isNewBlank = !isEdit && !duplicateId
   const draftKey = user && screenParams.dbId ? `draft_v1:${user.id}:prop-new:${screenParams.dbId}` : null
   const draftReadyRef = useRef(false)
@@ -538,6 +546,18 @@ export default function PropertyFormScreen() {
             <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconEdit size={14} color="var(--t3)" />{isParking ? tr('Номер місця') : tr('Назва')}</span>
             <input aria-label={isParking ? tr('Номер місця') : tr('Назва обʼєкта')} className="fr-i" placeholder={isParking ? '№ 42, A-15' : tr('Офіс 101')} maxLength={100} value={name} onChange={e => setName(e.target.value)} autoFocus={!isEdit} />
           </div>
+          {/* ПОПЕРЕДЖЕННЯ, А НЕ ЗАБОРОНА: два «Комора» в одній базі бувають
+              законно. Але імпорт із CSV дублікати ПРОПУСКАЄ і перелічує
+              поіменно, а ручне введення досі мовчки клало другий такий самий
+              рядок — тобто той самий застосунок відповідав на те саме питання
+              двома різними способами. Дешево, бо список у режимі створення вже
+              завантажений (для `bulkCreateNames`). */}
+          {nameTaken && (
+            <div className="fr-note" role="status">
+              <IconAlertTriangle size={14} color="var(--warn-fg)" />
+              {tr('Обʼєкт із такою назвою вже є в базі')}
+            </div>
+          )}
           {!isEdit && (
             <div className="fr">
               <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>

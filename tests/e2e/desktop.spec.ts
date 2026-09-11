@@ -1,13 +1,11 @@
 import { test, expect, type Page, type Route, type Browser } from '@playwright/test'
-import { setupApp, DEFAULT_USER } from './helpers/harness'
+import { setupApp, DEFAULT_USER, jsonRoute as json } from './helpers/harness'
 
 // ─── Desktop presentation (Telegram Desktop / Web run Mini Apps in a wide window) ─
 // On screens ≥680px the app must render as a centered phone-sized frame, NOT a
 // full-width stretched layout. The public /v page is a separate web surface.
 
 const NOW = new Date().toISOString()
-const json = (r: Route, body: unknown) =>
-  r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
 
 const OWNER = { ...DEFAULT_USER, role: 'owner' as const, first_name: 'Микола', last_name: 'К.', phone: '+380670000000' }
 const DB_ID = '10000000-0000-0000-0000-000000000001'

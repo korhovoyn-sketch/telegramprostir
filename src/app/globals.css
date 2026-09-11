@@ -561,6 +561,11 @@ body{
 /* ── FORM GROUP ── */
 .fg{margin:0 var(--g3) var(--g3);border-radius:var(--r-md);overflow:hidden}
 .fr{display:flex;align-items:center;padding:12px var(--pad-card);border-bottom:.5px solid rgba(255,255,255,.08);gap:10px;min-height:var(--input-h)}
+/* Підказка ПІД рядком поля: попередження, що не блокує збереження (дублікат
+   назви). Не `.fr`, бо це не рядок вводу — немає ні мінімальної висоти, ні
+   роздільника, інакше форма читалась би як «ще одне поле». */
+.fr-note{display:flex;align-items:center;gap:6px;padding:8px var(--pad-card) 10px;
+  font-size:var(--fs-cap1);color:var(--warn-fg);line-height:1.35}
 .fr:last-child{border:none}
 /* Form row label — Subhead Regular (readable but not competing with value) */
 .fr-l{font-size:var(--fs-sub);color:var(--t1);flex:0 0 auto;min-width:82px;line-height:var(--lh-snug)}
@@ -706,7 +711,15 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 .toast-s{font-size:var(--fs-cap1);color:rgba(255,255,255,.65);margin-top:2px;line-height:1.3}
 .toast-act{flex-shrink:0;padding:6px 12px;border-radius:var(--r-pill);background:var(--glass-2);border:.5px solid var(--glass-bd);color:var(--t1);font-size:var(--fs-foot);font-weight:600;cursor:pointer;transition:background .15s ease}
 .toast-act:active{background:var(--glass-3)}
-.toast-close{color:rgba(255,255,255,.55);font-size:var(--fs-note);cursor:pointer;padding:4px}
+/* 44px ФІЗИЧНО, а не через `::after`: псевдоелемент тут спрацював би (у
+   `.toast` немає overflow), але фізичний бокс не має цього класу ризику взагалі.
+   Відʼємне поле по вертикалі втримує висоту тоста: у лейаут кнопка віддає
+   44−22=22px, тобто менше за 28px іконки, і смуга лишається тієї самої висоти.
+   Доти було 22×30 — і не міряв ніхто, бо жоден крок обходу не ловив видимий
+   тост. */
+.toast-close{color:rgba(255,255,255,.55);font-size:var(--fs-note);cursor:pointer;
+  min-width:44px;min-height:44px;margin:-11px -11px -11px 0;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0}
 
 /* ── OFFLINE BANNER ── */
 .offline-banner{position:fixed;top:0;left:0;right:0;z-index:var(--z-banner);display:flex;align-items:center;justify-content:center;gap:7px;padding:calc(10px + var(--safe-top)) 16px 10px;background:rgba(255,149,0,.22);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);border-bottom:.5px solid rgba(255,149,0,.45);font-size:var(--fs-foot);font-weight:600;color:#FFD580;letter-spacing:.01em;animation:toastSlideIn .35s var(--ease-spr) both}
@@ -829,6 +842,19 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
    градієнт екрана має йти крізь нього суцільно, аж у контент нижче. Скрим
    існує рівно для того, щоб бейдж і назва читались ПОВЕРХ ФОТО — без фото він
    лишає темну смугу і рве перехід. Це те, що власник побачив на пристрої. */
+/* Герой КЛІКАБЕЛЬНИЙ, коли є фото (відкриває галерею), і доти не мав жодного
+   стану натиску — тап по знімку не давав сигналу на тачі. Невидимо було тому,
+   що жоден крок обходу не мав фото: клікабельність вмикається лише з ними.
+   `:not(.empty)` — бо порожній герой обробника не має. Той самий рецепт, що
+   `.obj-card`/`.row`. */
+.obj-hero:not(.empty):active{transform:scale(.985)}
+/* Ширина черги завантаження — КЛАСОМ, не інлайном. Інлайнова ширина бʼє будь-яку
+   специфічність, тож вона перемагала правило десктопної колонки
+   (`#app-root .body > *`, (1,1,0)) і черга розтягувалась на всю рамку. Клас має
+   (0,1,0), тобто на телефоні діє він, а від 680px — колонка. `align-self` тут
+   НЕ годиться: `stretch` скасовує `align-items:center` батька, і блок ставав
+   правильної ширини, але притиснутий до лівого краю. */
+.photo-queue{width:100%}
 .obj-hero.empty{background:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
 .obj-hero.empty::after{display:none}
 /* ── ПЕРСОНАЖ ПОРОЖНЬОГО ГЕРОЯ: скляна сфера з LED-екраном ────────────────
@@ -2025,6 +2051,47 @@ svg.ico{overflow:visible}
       0 16px 40px rgba(0,0,0,.5),
       0 0 80px rgba(120,60,255,.14);
   }
+}
+
+/* ── ПЛАНШЕТ — ЦЕ НЕ ДЕСКТОП ──────────────────────────────────────────────
+   Рамка вище вмикається по ОДНІЙ ширині (≥680px), а iPad у портреті — це
+   744px. Тобто планшет, де Mini App розгорнутий на ВЕСЬ екран, отримував
+   плаваючу картку `100vw − 80` зі скругленням 44px: чорні поля по краях і
+   застосунок, стиснутий до двох третин екрана. У ландшафті гірше — рамка ще
+   й ріже висоту (`min(100vh − 48px, 1000px)`), тож нижні картки обрізались.
+
+   ПИТАЄМО TELEGRAM, А НЕ ВГАДУЄМО. `platform` каже, який це клієнт
+   ('ios'/'android' — мобільний, вебвʼю на весь екран; 'tdesktop'/'macos'/
+   'web*' — вікно). `page.tsx` кладе результат у `data-tg-client`.
+
+   ЧОМУ НЕ `pointer: coarse`, хоч він і діяв би з першого кадру: ЗАМІРЯНО, що
+   headless Chromium рапортує `coarse` і `hover: none` НАВІТЬ у звичайному
+   десктопному контексті, тож медіазапит матчився всюди й забирав рамку в
+   десктопа (шість падінь у `desktop*.spec`). Сигнал, який неможливо чесно
+   перевірити, гірший за трохи пізніший.
+
+   ЦІНА НАЗВАНА: атрибут зʼявляється в mount-ефекті, тобто планшет може
+   показати один кадр із рамкою. Це той самий клас, що вже описаний для
+   `--tg-vh` («старт застосунку осідає САМ, один раз»), і платить за нього
+   лише планшет — десктоп дефолт має правильний. */
+html[data-tg-client='mobile'] body {
+  display: block;
+  align-items: stretch;
+  justify-content: flex-start;
+  background: #06050e;
+}
+
+html[data-tg-client='mobile'] #app-root {
+  position: fixed;
+  /* `inset` ПЕРШИМ: десктопна гілка робить `inset: unset`, і якби цей скид
+     стояв після top/left/right — він би їх перекрив, а оболонка лишилась би
+     без позиціонування (наступано тут же). */
+  inset: 0 0 auto 0;
+  width: auto;
+  height: max(var(--tg-vh, 100svh), 100svh);
+  border-radius: 0;
+  box-shadow: none;
+  transform: none;
 }
 
 /* ── ДЕСКТОП: КОЛОНКА ЧИТАННЯ ЗА ЗАМОВЧУВАННЯМ, КОЛЕКЦІЯ — ЯВНИЙ ОПТ-АУТ ──

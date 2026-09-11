@@ -336,7 +336,6 @@
   "Завантаження фото недоступне офлайн": "Photo upload is unavailable offline",
   "Завантаження...": "Loading...",
   "Завантажено {0} з {1}": "Uploaded {0} of {1}",
-  "Завантажено лише перші {0}": "Only the first {0} were loaded",
   "Завантажено!": "Uploaded!",
   "завантажив документ": "uploaded a document",
   "Завантажити": "Download",
@@ -447,7 +446,6 @@
   "Максимум {0} МБ — розділіть його на частини": "Maximum {0} MB — split it into parts",
   "Максимум {0} обʼєктів за раз": "Maximum {0} units at a time",
   "Максимум {0} файлів на обʼєкт": "Maximum {0} files per unit",
-  "Максимум {0} фото": "Maximum {0} photos",
   "мати право вносити дані, які вносите, — зокрема дані орендарів та третіх осіб;": "have the right to enter the data you enter — in particular tenant and third-party data;",
   "Менше обʼєктів": "Fewer units",
   "Меню бази": "Database menu",
@@ -1077,5 +1075,12 @@
   "prostir — інструмент обліку нерухомості всередині Telegram: ви ведете бази обʼєктів, рахуєте оренду й експлуатаційні платежі, зберігаєте фото та документи, ділитесь добірками з рієлторами й клієнтами.": "prostir is a property record-keeping tool inside Telegram: you keep databases of units, calculate rent and service charges, store photos and documents, and share collections with agents and clients.",
   "prostir — платформа управління нерухомістю в Telegram. Бази обʼєктів, аналітика переглядів, підбірки для ріелторів.": "prostir is a property management platform in Telegram. Unit databases, view analytics, collections for agents.",
   "QR-код для ріелторів — не для власника": "The QR code is for agents — not for the owner",
-  "Word документ": "Word document"
+  "Word документ": "Word document",
+  "Видаліть зайві, щоб додати нові": "Delete some to add new ones",
+  "Завантажено лише {0}": "Only {0} uploaded",
+  "Максимум {0} фото на обʼєкт": "Max {0} photos per property",
+  "Обʼєкт із такою назвою вже є в базі": "A property with this name already exists",
+  "Потрібні JPG, PNG або WebP": "JPG, PNG or WebP required",
+  "Завеликі: {0} — максимум {1} МБ": "Too large: {0} — max {1} MB",
+  "Не зображення: {0}": "Not images: {0}"
 }
