@@ -246,13 +246,8 @@ export default function PhotoUploadScreen() {
         )}
 
         {/* Queue list */}
-        {/* `alignSelf`, а НЕ `width:'100%'`: інлайнова ширина бʼє будь-яку
-            специфічність, тож вона перемагала правило десктопної колонки
-            (`#app-root .body > *`) — черга розтягувалась на 90–1190 замість
-            330–950. Той самий клас, що вже описаний для інлайнового `margin`.
-            `stretch` дає повну ширину на телефоні і поступається явній ширині
-            колонки на десктопі. */}
-        <div className="glass-s" style={{ alignSelf: 'stretch', borderRadius: 'var(--r-md)', overflow: 'hidden' }}>
+        {/* Ширина — КЛАСОМ `.photo-queue`, а не інлайном: причина в CSS. */}
+        <div className="glass-s photo-queue" style={{ borderRadius: 'var(--r-md)', overflow: 'hidden' }}>
           {queue.map((item, i) => (
             <div
               key={i}
