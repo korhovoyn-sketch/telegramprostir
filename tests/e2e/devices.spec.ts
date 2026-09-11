@@ -210,23 +210,54 @@ test('рамка: планшет заповнює екран, десктоп т�
     // забирало рамку в десктопа.
     const owner = ALL_GROUPS.find((g) => g.role === 'owner')!
     await owner.fixtures(page, platform)
-    await owner.screens[0].go(page)
-    const m = await page.locator('#app-root').evaluate((el) => {
+    await owner.screens.find((x) => x.label === 'db-objects')!.go(page)
+    const shell = await page.locator('#app-root').evaluate((el) => {
       const r = el.getBoundingClientRect()
       const cs = getComputedStyle(el)
       return { w: Math.round(r.width), h: Math.round(r.height), radius: cs.borderTopLeftRadius }
     })
+    // ПІДПИС-БРЕНДУВАННЯ під рамкою: його умова (`min-width:900 and
+    // min-height:1010`) матчить iPad Pro 12.9" портретно, а сам він стоїть
+    // `fixed; bottom:22px` — тобто на повноекранному клієнті лягав би просто
+    // на таббар.
+    const caption = await page.evaluate(() =>
+      getComputedStyle(document.body, '::after').content)
+    // ПОРТАЛ ШИТА — окремий носій, і саме тому дефект пережив гард: оболонку
+    // розтягнули, а `.modal-overlay` лишився приколотий до `--frame-w/h/r`
+    // десктопною гілкою, яка матчить від 680px, тобто на БУДЬ-ЯКОМУ планшеті.
+    await page.getByLabel('Меню бази').click()
+    await expect(page.locator('.modal')).toBeVisible()
+    await page.waitForTimeout(420)
+    const overlay = await page.locator('.modal-overlay').first().evaluate((el) => {
+      const r = el.getBoundingClientRect()
+      return {
+        w: Math.round(r.width), h: Math.round(r.height),
+        left: Math.round(r.left), top: Math.round(r.top),
+        radius: getComputedStyle(el).borderTopLeftRadius,
+      }
+    })
     await ctx.close()
-    return m
+    return { ...shell, caption, overlay }
   }
 
   const tablet = await frameOf('ios')
   expect(tablet.w, `планшет: оболонка ${tablet.w}px замість ${W} — це чорні поля по краях`).toBe(W)
   expect(tablet.h, `планшет: оболонка ${tablet.h}px замість ${H} — вміст обріжеться`).toBe(H)
   expect(parseFloat(tablet.radius), 'планшет: скруглення рамки — на весь екран воно зайве').toBe(0)
+  expect(tablet.caption, 'планшет: підпис-брендування ляже просто на таббар').toBe('none')
+  // Заміряно фальсифікацією ЦЬОГО гарда: зі знятим правилом оверлей на
+  // 900×1200 — це 820×1000 у точці (40,100) з радіусом 44, тобто плаваюча
+  // картка, що лишає НЕЗАТЕМНЕНИЙ живий інтерфейс обабіч і висить на 100px
+  // над низом екрана.
+  expect(tablet.overlay, 'планшет: шит — плаваюча картка, а не повний оверлей')
+    .toEqual({ w: W, h: H, left: 0, top: 0, radius: '0px' })
 
   // ПОЗИТИВНИЙ КОНТРОЛЬ: без тачу та сама ширина — це десктоп, і рамка МУСИТЬ бути.
   const desktop = await frameOf(undefined)
   expect(desktop.w, 'десктоп: рамка зникла — правило зламане, а не звужене').toBeLessThan(W)
   expect(parseFloat(desktop.radius), 'десктоп: рамка без скруглення').toBeGreaterThan(0)
+  expect(desktop.overlay.w, 'десктоп: оверлей розлився на весь екран — правило зламане, а не звужене')
+    .toBeLessThan(W)
+  expect(parseFloat(desktop.overlay.radius), 'десктоп: оверлей без скруглення рамки')
+    .toBeGreaterThan(0)
 })

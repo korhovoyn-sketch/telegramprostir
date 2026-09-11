@@ -40,6 +40,11 @@ export default function PhotoUploadScreen() {
   const tooBig = rawFiles.filter((f) => isImage(f) && f.size > MAX_INPUT_MB * 1024 * 1024)
   const validFiles = rawFiles.filter((f) => isImage(f) && f.size <= MAX_INPUT_MB * 1024 * 1024)
   const files = validFiles.slice(0, MAX_PHOTOS)
+  // Скільки партія втратила на ВЛАСНІЙ межі. Без цього рядка зріз був німий:
+  // `files` уже обрізаний до 20, тож пізніша перевірка `files.length > room`
+  // на порожньому обʼєкті рахує `20 > 20` — тобто хибу, і 25 обраних фото
+  // мовчки ставали 20 без тоста й без напису.
+  const batchOver = validFiles.length - files.length
 
   // Stable preview URLs — created once, revoked on unmount
   const [previews] = useState<string[]>(() => files.map((f) => URL.createObjectURL(f)))
@@ -48,6 +53,10 @@ export default function PhotoUploadScreen() {
   const [queue, setQueue] = useState<UploadItem[]>(
     files.map((f) => ({ file: f, status: 'pending', progress: 0 }))
   )
+  // Зріз за лічильником НАЯВНИХ фото приїжджає асинхронно, тож він мусить мати
+  // власний стан: тост про нього затирає підсумок завантаження (стор тримає
+  // рівно ОДИН тост), а напис лишається на екрані.
+  const [roomCut, setRoomCut] = useState(0)
 
   // Derive done from queue — no separate boolean that can get stuck
   const total = queue.length
@@ -58,20 +67,31 @@ export default function PhotoUploadScreen() {
   // `done` вимагає `total > 0`: без нього екран показував «Завантаження… 0 з 0»
   // назавжди, без пояснення і без виходу, крім стрілки в хедері.
   const nothingToUpload = total === 0 && rawFiles.length > 0
-  // Скільки з обраного не поїде і ЧОМУ. Причини роздільні: «не те» і
-  // «завелике» лікуються по-різному, тож спільне «не підійшло» лишало б
+  // Скільки з обраного не поїде і ЧОМУ. Причини роздільні: «не те», «завелике»
+  // і «понад межу» лікуються по-різному, тож спільне «не підійшло» лишало б
   // користувача без наступного кроку.
-  const skipped = notImages.length + tooBig.length
-  const skipReason = notImages.length > 0
-    ? tr('Не зображення: {0}', notImages.length)
-    : tr('Завеликі: {0} — максимум {1} МБ', tooBig.length, MAX_INPUT_MB)
+  // ПЕРЕЛІК, А НЕ ТЕРНАРНИЙ ВИБІР ОДНІЄЇ: причини НЕ взаємовиключні, і
+  // `skipped` рахував суму, тоді як підпис називав лише першу — один PDF плюс
+  // два завеликих звітувались як «Не зображення: 1» при трьох відсіяних.
+  const overLimit = batchOver + roomCut
+  const skipped = notImages.length + tooBig.length + overLimit
+  const skipReasons: string[] = []
+  if (notImages.length > 0) skipReasons.push(tr('Не зображення: {0}', notImages.length))
+  if (tooBig.length > 0) skipReasons.push(tr('Завеликі: {0} — максимум {1} МБ', tooBig.length, MAX_INPUT_MB))
+  if (overLimit > 0) skipReasons.push(tr('Понад межу {0} фото: {1}', MAX_PHOTOS, overLimit))
+  const skipReason = skipReasons.join(' · ')
   const overallPct = total > 0 ? Math.round((doneCount / total) * 100) : 0
 
   // Auto-navigate back 1.5s after all uploads finish
   const backedRef = useRef(false)
+  // Підсумок показуємо РІВНО раз. Ефект тепер залежить від `skipped`/`skipReason`
+  // (вони похідні від `roomCut`, тобто від СТАНУ, який приїжджає асинхронно) —
+  // без цієї засувки повторний прогін ефекту дублював би тост і скидав таймер.
+  const toastedRef = useRef(false)
   useEffect(() => {
     if (!done || backedRef.current) return
-    if (doneCount > 0) {
+    if (doneCount > 0 && !toastedRef.current) {
+      toastedRef.current = true
       // ПІДСУМОК КАЖЕ ВСЮ ПРАВДУ, і це не косметика: стор тримає рівно ОДИН
       // тост, тож окреме раннє попередження про відсіяні файли затирав саме
       // цей рядок — користувач читав «3 фото завантажено», обравши пʼять.
@@ -84,7 +104,7 @@ export default function PhotoUploadScreen() {
       back()
     }, 1500)
     return () => clearTimeout(timer)
-  }, [done, doneCount, showToast, back])
+  }, [done, doneCount, skipped, skipReason, showToast, back])
 
   // Гард від подвійного старту черги: StrictMode у dev проганяє mount-ефекти
   // двічі — без гарда КОЖНЕ фото вантажилось двома копіями (два файли в
@@ -167,6 +187,7 @@ export default function PhotoUploadScreen() {
       const room = Math.max(0, MAX_PHOTOS - existingCount)
       if (files.length > room) {
         setQueue((q) => q.slice(0, room))
+        setRoomCut(files.length - room)
         limitRef.current = room
         showToast(room === 0
           ? { type: 'error', title: tr('Максимум {0} фото на обʼєкт', MAX_PHOTOS), subtitle: tr('Видаліть зайві, щоб додати нові') }
