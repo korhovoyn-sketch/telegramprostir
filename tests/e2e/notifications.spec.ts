@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Route } from '@playwright/test'
-import { setupApp, DEFAULT_USER, jsonRoute, skipCoachmarks } from './helpers/harness'
+import { setupApp, DEFAULT_USER, jsonRoute, skipCoachmarks, jsonRoute as json } from './helpers/harness'
 
 /**
  * Оповіщення НАСКРІЗЬ: бейдж непрочитаних у таббарі, автопозначення при вході,
@@ -57,8 +57,6 @@ async function setup(page: Page, notifications: unknown[], opts: { schedules?: u
   const wire: Wire = { patches: [], deletes: [] }
   await setupApp(page, { user: USER })
   await skipCoachmarks(page)
-  const json = (r: Route, body: unknown) =>
-    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
 
   await page.route('**/rest/v1/databases**', (r) =>
     json(r, (r.request().headers()['accept'] ?? '').includes('object') ? DB : [DB]))
@@ -259,8 +257,6 @@ test('повільний GET не оживляє бейдж після позн�
   const wire: Wire = { patches: [], deletes: [] }
   await setupApp(page, { user: USER })
   await skipCoachmarks(page)
-  const json = (r: Route, body: unknown) =>
-    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   await page.route('**/rest/v1/databases**', (r) => json(r, [DB]))
   await page.route('**/rest/v1/properties**', (r) => json(r, []))
   await page.route('**/rest/v1/notifications**', async (r) => {
@@ -390,8 +386,6 @@ test('ГЛОБАЛЬНИЙ лічильник, випущений РАНІШЕ, 
 
   await setupApp(page, { user: USER })
   await skipCoachmarks(page)
-  const json = (r: Route, body: unknown) =>
-    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   await page.route('**/rest/v1/databases**', (r) => json(r, [DB]))
   await page.route('**/rest/v1/properties**', (r) => json(r, []))
   await page.route('**/rest/v1/notifications**', async (r) => {

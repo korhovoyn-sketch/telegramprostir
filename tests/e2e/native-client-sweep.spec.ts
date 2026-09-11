@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Route } from '@playwright/test'
-import { setupApp, DEFAULT_USER, objectAction } from './helpers/harness'
+import { setupApp, DEFAULT_USER, objectAction, jsonRoute as json } from './helpers/harness'
 
 /**
  * Обхід ВСІХ екранів так, як їх бачить реальний Telegram: з нативною нижньою
@@ -19,8 +19,6 @@ const REALTOR = { ...DEFAULT_USER, role: 'realtor' as const, first_name: 'Іри
 const DB_ID = '10000000-0000-0000-0000-000000000001'
 const FOLDER_ID = '50000000-0000-0000-0000-000000000001'
 
-const json = (r: Route, body: unknown) =>
-  r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
 
 const DB = {
   id: DB_ID, owner_id: OWNER.id, name: 'БЦ Рубін', address: 'вул. Хрещатик, 1',

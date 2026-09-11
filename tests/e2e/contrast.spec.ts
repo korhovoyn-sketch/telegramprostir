@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { setupApp, DEFAULT_USER, seedSession } from './helpers/harness'
+import { setupApp, DEFAULT_USER, seedSession, jsonRoute as json } from './helpers/harness'
 import { measureContrast, belowAA, smallTargets, TAP_DEBT } from './helpers/contrast'
 import { ALL_GROUPS, ownerFixtures, OWNER_SCREENS } from './helpers/screens'
 
@@ -96,6 +96,11 @@ const CONTRAST_DEBT: ReadonlySet<string> = new Set([
  * факт, дозволяє боргу тихо повернутись усередині дозволеного.
  */
 const FROZEN: Record<string, number> = {
+  'property-detail-photo': 0,
+  'photo-gallery': 0,
+  'photo-upload': 0,
+  'guest-database': 0,
+  'shared-collection': 0,
   // Форма редагування бази несе РІВНО ті самі два блоки, що й create-db (це та
   // сама форма): оверлайн «Колір мітки» і підзаголовок типу «Будинки, ділянки».
   // Обидва — уже прийняті класи, тож крок не знайшов нового дефекту; він зробив
@@ -164,6 +169,11 @@ const MIN_ROWS: Record<string, number> = {
   // Хедер + підзаголовок + підпис поля + кнопка = 5. Плейсхолдер текстовим
   // вузлом не є, тож більше тут і не буде: екран — одне поле й одна дія.
   'create-invite': 5,
+  // Галерея — переглядач ФОТО: увесь її вміст це знімки й іконкові кнопки, а
+  // тексту рівно один блок — лічильник «1 / 3». Він при цьому і є тим, що варто
+  // міряти: біле поверх ДОВІЛЬНОГО знімка. Решту екрана тримають `devices` і
+  // `screen-text-fit`, яким текст не потрібен.
+  'photo-gallery': 1,
 }
 
 async function auditScreen(page: Page, label: string) {
@@ -251,8 +261,6 @@ const PROP = {
 async function singleDbFixtures(page: Page) {
   await setupApp(page, { user: USER })
   await seedSession(page, USER as unknown as Record<string, unknown>)
-  const json = (r: import('@playwright/test').Route, body: unknown) =>
-    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   await page.route('**/rest/v1/databases**', (r) =>
     json(r, (r.request().headers()['accept'] ?? '').includes('object') ? DB : [DB]))
   await page.route('**/rest/v1/properties**', (r) =>

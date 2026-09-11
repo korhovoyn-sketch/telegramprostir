@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Route } from '@playwright/test'
-import { setupApp, DEFAULT_USER } from './helpers/harness'
+import { setupApp, DEFAULT_USER, jsonRoute as json } from './helpers/harness'
 
 // ─── ShareSheet functional drive-through ──────────────────────────────────────
 // Exercises copy, expiry presets, rotate and revoke — asserting each fires the
@@ -21,8 +21,6 @@ const manageCalls: Array<Record<string, unknown>> = []
 
 async function setup(page: Page) {
   await setupApp(page, { user: USER })
-  const json = (route: Route, body: unknown) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
 
   await page.route('**/rest/v1/databases**', (route) => {
     const accept = route.request().headers()['accept'] ?? ''

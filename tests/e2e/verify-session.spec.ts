@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Route } from '@playwright/test'
-import { setupApp, DEFAULT_USER } from './helpers/harness'
+import { setupApp, DEFAULT_USER, jsonRoute as json } from './helpers/harness'
 
 // ─── Verification drive-through of this session's changes ─────────────────────
 // Screens: home (no header bell), objects (compact view toggle, Apple action
@@ -69,8 +69,6 @@ const PROPERTIES = [
 async function setupFixtures(page: Page) {
   await setupApp(page, { user: USER })
   // Later page.route registrations win over the harness catch-all.
-  const json = (route: Route, body: unknown) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
 
   await page.route('**/rest/v1/databases**', (route) => {
     const accept = route.request().headers()['accept'] ?? ''

@@ -246,7 +246,13 @@ export default function PhotoUploadScreen() {
         )}
 
         {/* Queue list */}
-        <div className="glass-s" style={{ width: '100%', borderRadius: 14, overflow: 'hidden' }}>
+        {/* `alignSelf`, а НЕ `width:'100%'`: інлайнова ширина бʼє будь-яку
+            специфічність, тож вона перемагала правило десктопної колонки
+            (`#app-root .body > *`) — черга розтягувалась на 90–1190 замість
+            330–950. Той самий клас, що вже описаний для інлайнового `margin`.
+            `stretch` дає повну ширину на телефоні і поступається явній ширині
+            колонки на десктопі. */}
+        <div className="glass-s" style={{ alignSelf: 'stretch', borderRadius: 'var(--r-md)', overflow: 'hidden' }}>
           {queue.map((item, i) => (
             <div
               key={i}
@@ -283,8 +289,12 @@ export default function PhotoUploadScreen() {
                 <div style={{ fontSize: 'var(--fs-foot)', color: 'var(--t2)', fontWeight: 'var(--fw-med)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {item.file.name}
                 </div>
+                {/* Та сама геометрія, що `.dash-bar`: волосинка 3px під пігулкою.
+                    Число 2 було третьою копією рецепта з власним значенням — на
+                    3px пігулка й 2px візуально однакові, але зі шкали бере лише
+                    перша. */}
                 {item.status === 'uploading' && (
-                  <div style={{ marginTop: 4, height: 3, background: 'var(--glass-2)', borderRadius: 2, overflow: 'hidden' }}>
+                  <div style={{ marginTop: 4, height: 3, background: 'var(--glass-2)', borderRadius: 'var(--r-pill)', overflow: 'hidden' }}>
                     <div style={{ height: '100%', width: '100%', background: 'var(--info)', transformOrigin: 'left', transform: `scaleX(${item.progress / 100})`, transition: 'transform .3s var(--ease)' }} />
                   </div>
                 )}
@@ -305,6 +315,10 @@ export default function PhotoUploadScreen() {
               <div style={{ flexShrink: 0 }}>
                 {item.status === 'done' && <IconCheck size={16} color="#4ade80" />}
                 {item.status === 'error' && <IconX size={16} color="var(--err-fg)" />}
+                {/* Та сама геометрія, що `.dash-bar`: волосинка 3px під пігулкою.
+                    Число 2 було третьою копією рецепта з власним значенням — на
+                    3px пігулка й 2px візуально однакові, але зі шкали бере лише
+                    перша. */}
                 {item.status === 'uploading' && (
                   <div className="loader" style={{ width: 14, height: 14 }} />
                 )}

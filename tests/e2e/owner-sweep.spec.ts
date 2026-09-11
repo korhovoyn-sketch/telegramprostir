@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Route } from '@playwright/test'
-import { setupApp, DEFAULT_USER } from './helpers/harness'
+import { setupApp, DEFAULT_USER, jsonRoute as json } from './helpers/harness'
 
 // ─── Owner sweep: CollectionsScreen + ExportScreen ────────────────────────────
 // (PaymentCalendarScreen and NotificationsScreen already covered in owner-workflow.spec.ts)
@@ -39,8 +39,6 @@ const COLLECTION = {
 }
 
 async function baseFixtures(page: Page) {
-  const json = (route: Route, body: unknown) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
 
   await page.route('**/rest/v1/databases**', (route) => {
     const accept = route.request().headers()['accept'] ?? ''
@@ -80,9 +78,6 @@ test.describe('owner sweep: uncovered screens', () => {
   })
 
   test('CollectionsScreen shows a collection card (owner opens own shared collection via deep link)', async ({ page }) => {
-    const json = (route: Route, body: unknown) =>
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
-
     await setupApp(page, { user: USER, startParam: 'col_cc00112233445566778899bb' })
     await baseFixtures(page)
 
@@ -105,9 +100,6 @@ test.describe('owner sweep: uncovered screens', () => {
   })
 
   test('CollectionsScreen (list view) creates a collection card when empty', async ({ page }) => {
-    const json = (route: Route, body: unknown) =>
-      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
-
     // Deep-link to a collection id that matches nothing yet loaded — the owner
     // tab bar has no "Підбірки" entry, so this share-link path is the only way
     // to reach CollectionsScreen as an owner (mirrors useDeepLink's own-collection branch).

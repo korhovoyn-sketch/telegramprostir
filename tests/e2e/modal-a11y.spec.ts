@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Route } from '@playwright/test'
-import { setupApp, DEFAULT_USER } from './helpers/harness'
+import { setupApp, DEFAULT_USER, jsonRoute as json } from './helpers/harness'
 
 /**
  * Сітка безпеки під рефакторинг модалок.
@@ -46,8 +46,6 @@ const PROPERTIES = [
   ...Array.from({ length: 8 }, (_, i) => prop(i + 2)),
 ]
 
-const json = (route: Route, body: unknown) =>
-  route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
 
 async function fixtures(page: Page) {
   await setupApp(page, { user: USER })

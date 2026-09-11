@@ -79,6 +79,39 @@ const FOLDERS = [{
   name: 'Перший поверх', sort_order: 100, created_at: NOW, updated_at: NOW,
 }]
 
+/**
+ * ФОТО. Усі фікстури обходу тримали `property_photos` порожнім, тож герой
+ * картки З ФОТО (зі скримом `.obj-hero::after`), галерея і черга завантаження
+ * не міряв ЖОДЕН гард якості — вимірювався лише порожній варіант з орбом.
+ * 1×1 PNG: важить нічого, а для геометрії й контрасту зміст кадру не потрібен.
+ */
+const PNG_1PX = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+
+function photoRows(propertyId: string, n = 3) {
+  return Array.from({ length: n }, (_, i) => ({
+    id: `60000000-0000-0000-0000-00000000000${i + 1}`,
+    property_id: propertyId, owner_id: OWNER.id,
+    storage_path: `${propertyId}/170000000${i}_abc.png`,
+    url: PNG_1PX, sort_order: i, created_at: NOW,
+  }))
+}
+
+/** Ті самі рядки у формі, в якій їх чекає екран деталей (вкладені `photos`). */
+async function withPhotos(page: Page) {
+  const rows = photoRows(PROPERTIES[0].id)
+  await page.route('**/rest/v1/property_photos**', (r) => json(r, rows))
+  await page.route('**/rest/v1/properties**', (r) => {
+    const accept = r.request().headers()['accept'] ?? ''
+    const withPh = PROPERTIES.map((pr) =>
+      pr.id === PROPERTIES[0].id ? { ...pr, photos: rows } : pr)
+    if (accept.includes('object')) {
+      const m = r.request().url().match(/id=eq\.([0-9a-f-]+)/)
+      return json(r, withPh.find((pr) => pr.id === m?.[1]) ?? withPh[0])
+    }
+    return json(r, withPh)
+  })
+}
+
 /** Порожні таблиці, які тягне майже кожен екран. */
 async function emptyTables(page: Page, names: string[]) {
   for (const t of names) await page.route(`**/rest/v1/${t}**`, (r) => json(r, []))
@@ -387,6 +420,47 @@ export const OWNER_SCREENS: ScreenStep[] = [
     },
   },
   {
+    // Герой картки З ФОТО — ІНШИЙ стан рендера, ніж порожній орб: зʼявляється
+    // скрим `.obj-hero::after`, а на ньому лежать бейдж і назва. Саме заради
+    // їхньої читабельності скрим і існує, і саме його ніхто не міряв.
+    label: 'property-detail-photo',
+    go: async (page) => {
+      await withPhotos(page)
+      await atDbObjects(page)
+      await page.locator('.obj-card').first().locator('.obj-t').click()
+      await expect(page.getByRole('button', { name: /Звільнити/ })).toBeVisible({ timeout: 15_000 })
+    },
+  },
+  {
+    label: 'photo-gallery',
+    go: async (page) => {
+      await withPhotos(page)
+      await atDbObjects(page)
+      await page.locator('.obj-card').first().locator('.obj-t').click()
+      await expect(page.getByRole('button', { name: /Звільнити/ })).toBeVisible({ timeout: 15_000 })
+      await page.locator('.obj-hero').click()
+      await expect(page.getByRole('button', { name: 'Поділитись фото' }))
+        .toBeVisible({ timeout: 15_000 })
+    },
+  },
+  {
+    // Черга завантаження. Щоб екран не зник, storage-запит ТРИМАЄТЬСЯ: інакше
+    // черга добігає і `back()` через 1.5с забирає екран з-під заміру.
+    label: 'photo-upload',
+    go: async (page) => {
+      await withPhotos(page)
+      await page.route('**/storage/v1/object/photos/**', () => { /* висить навмисно */ })
+      await atDbObjects(page)
+      await page.locator('.obj-card').first().locator('.obj-t').click()
+      await expect(page.getByRole('button', { name: /Звільнити/ })).toBeVisible({ timeout: 15_000 })
+      await page.locator('input[type="file"][accept="image/*"]').setInputFiles([{
+        name: 'a.png', mimeType: 'image/png',
+        buffer: Buffer.from(PNG_1PX.split(',')[1], 'base64'),
+      }])
+      await expect(page.getByText('Завантаження фото')).toBeVisible({ timeout: 15_000 })
+    },
+  },
+  {
     // ПЕРШИЙ екран нового власника, і доти поза обходом. Крок ОСТАННІЙ у групі
     // свідомо: він підміняє `databases` порожнім списком, а роути живуть на
     // сторінці до кінця прогону — вище він забрав би дані в усіх сусідів.
@@ -481,6 +555,45 @@ export const REALTOR_SCREENS: ScreenStep[] = [
       await expect(page.locator('.hdr-t')).toHaveText('Аналітика підбірки', { timeout: 15_000 })
     },
   },
+  {
+    // ЄДИНА зовнішня поверхня рієлтора: те, що бачить його КЛІЄНТ за лінком.
+    // Доти фікстура `col_` у deeplinks мала ПОРОЖНЮ підбірку («0 обʼєктів»),
+    // тобто вміст, заради якого екран існує, не рендерився в жодному тесті —
+    // рівно той клас, що вже давав дефекти в галереї на `/v`.
+    //
+    // Крок ОСТАННІЙ у групі: він патчить `start_param` власним init-скриптом,
+    // а той лишається на всі наступні `goto`.
+    label: 'shared-collection',
+    go: async (page) => {
+      const row = (n: number, over: Record<string, unknown> = {}) => ({
+        collection_name: 'Для клієнта А', owner_currency: 'USD',
+        property_id: `20000000-0000-0000-0000-00000000000${n}`,
+        property_name: `Офіс ${100 + n}`, property_status: 'free',
+        property_floor: String(n + 1), property_area_useful: 45,
+        property_area_total: 52, property_area_basis: 'total',
+        property_rent_type: 'per_m2', property_rent_rate: 18,
+        first_photo: PNG_1PX, ...over,
+      })
+      // Ланцюг ДВОЕТАПНИЙ: `useDeepLink` спершу резолвить токен у id, і лише
+      // потім екран тягне вміст. `realtor_id` мусить бути ЧУЖИЙ — інакше
+      // застосунок відкриє власну підбірку в режимі редагування.
+      await page.route('**/rest/v1/rpc/lookup_shared_collection', (r) => json(r, [
+        { id: COL_ID, realtor_id: OTHER_OWNER },
+      ]))
+      await page.route('**/rest/v1/rpc/get_public_collection_preview', (r) => json(r, [
+        row(1, { property_name: 'Офіс 101 у бізнес-центрі', property_area_useful: 175.8 }),
+        row(2),
+        row(3, { property_status: 'for_sale', property_rent_rate: null, first_photo: null }),
+      ]))
+      await page.addInitScript(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const tg = (window as any).Telegram?.WebApp
+        if (tg?.initDataUnsafe) tg.initDataUnsafe.start_param = 'col_cc00112233445566778899dd'
+      })
+      await page.goto('/')
+      await expect(page.getByText('Для клієнта А').first()).toBeVisible({ timeout: 20_000 })
+    },
+  },
 ]
 
 // ── Гість ─────────────────────────────────────────────────────────────────────
@@ -519,6 +632,29 @@ export const GUEST_SCREENS: ScreenStep[] = [
       await expect(page.getByText("Мої обʼєкти")).toBeVisible({ timeout: 20_000 })
       await page.getByText('Офіс 101').first().click()
       await expect(page.getByText('Корисна площа')).toBeVisible({ timeout: 15_000 })
+    },
+  },
+  {
+    // ПЕРША точка контакту запрошеного: екран, де він приймає гостьовий лінк.
+    // Досяжний ЛИШЕ через deep link, тож крок патчить `start_param` власним
+    // init-скриптом (вони біжать у порядку реєстрації, тож цей перекриває
+    // харнесний). Через це крок ОСТАННІЙ у групі: init-скрипт лишається
+    // зареєстрованим на всі наступні `goto`, і сусіди поїхали б у цей же екран.
+    label: 'guest-database',
+    go: async (page) => {
+      await page.route('**/rest/v1/rpc/get_guest_property_preview', (r) => json(r, {
+        type: 'property', owner_first: 'Богдан', status: 'free',
+        name: 'Офіс 101', area_useful: 45, area_total: 52,
+        rent_rate: 18, rent_type: 'per_m2', database: null,
+      }))
+      await page.addInitScript(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const tg = (window as any).Telegram?.WebApp
+        if (tg?.initDataUnsafe) tg.initDataUnsafe.start_param = 'guest_gg000000000000000000001'
+      })
+      await page.goto('/')
+      await expect(page.getByText(/Запрошення|Приєднатись|Офіс 101/).first())
+        .toBeVisible({ timeout: 20_000 })
     },
   },
 ]

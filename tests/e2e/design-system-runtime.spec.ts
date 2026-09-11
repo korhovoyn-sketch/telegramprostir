@@ -1,5 +1,5 @@
 import { test, expect, type Browser, type Page, type Route } from '@playwright/test'
-import { setupApp, DEFAULT_USER, seedSession } from './helpers/harness'
+import { setupApp, DEFAULT_USER, seedSession, jsonRoute as json } from './helpers/harness'
 import { ALL_GROUPS } from './helpers/screens'
 import { readFileSync } from 'node:fs'
 
@@ -75,8 +75,6 @@ const PROPS = [1, 2].map((i) => ({
 async function setup(page: Page) {
   await setupApp(page, { user: USER })
   await seedSession(page, USER as unknown as Record<string, unknown>)
-  const json = (r: Route, body: unknown) =>
-    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   await page.route('**/rest/v1/databases**', (r) =>
     json(r, (r.request().headers()['accept'] ?? '').includes('object') ? DB : [DB]))
   await page.route('**/rest/v1/properties**', (r) =>

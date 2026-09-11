@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Route } from '@playwright/test'
-import { setupApp, DEFAULT_USER } from './helpers/harness'
+import { setupApp, DEFAULT_USER, jsonRoute as json } from './helpers/harness'
 
 // ─── Workflow tests for the UX package ─────────────────────────────────────────
 // Optimistic status change + undo, rollback on failure, drafts, duplicate,
@@ -37,8 +37,6 @@ const PROPERTIES = [
   prop(3, {}),
 ]
 
-const json = (route: Route, body: unknown, status = 200) =>
-  route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
 
 async function fixtures(page: Page) {
   await setupApp(page, { user: USER })

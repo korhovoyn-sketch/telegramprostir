@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Route, type Browser } from '@playwright/test'
-import { setupApp, DEFAULT_USER } from './helpers/harness'
+import { setupApp, DEFAULT_USER, jsonRoute as json } from './helpers/harness'
 
 // ─── Telegram theme independence ──────────────────────────────────────────────
 // The app is dark-only by design: whatever theme the user picks in Telegram
@@ -10,8 +10,6 @@ import { setupApp, DEFAULT_USER } from './helpers/harness'
 // drives both schemes and asserts the invariants hold.
 
 const NOW = new Date().toISOString()
-const json = (r: Route, body: unknown) =>
-  r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
 
 const OWNER = { ...DEFAULT_USER, role: 'owner' as const, first_name: 'Микола' }
 const DB_ID = '10000000-0000-0000-0000-000000000001'

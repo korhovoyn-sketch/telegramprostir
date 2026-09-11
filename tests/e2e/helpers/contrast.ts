@@ -41,11 +41,18 @@ export const textBoxes = (page: Page) => page.evaluate((): TextBox[] => {
   const seen = new Set<Element>()
   let n: Node | null
   while ((n = walker.nextNode())) {
-    const txt = (n.textContent ?? '').trim()
-    if (txt.length < 2) continue
+    // ДОВЖИНУ міряємо на ЕЛЕМЕНТІ, а не на вузлі. JSX ріже складене значення на
+    // кілька текстових вузлів (`{current + 1} / {photos.length}` — це «1», « / »,
+    // «3»), і фільтр «коротше за 2 символи» відкидав КОЖЕН уламок окремо. Тобто
+    // зонд мовчки пропускав будь-яке коротке складене значення по всьому
+    // застосунку — лічильник галереї, «12 м²», «30 %». Третя сліпа зона цього
+    // зонда після `pointer-events:none` і чіпа за краєм h-скролера.
+    if (!(n.textContent ?? '').trim()) continue
     const el = n.parentElement
     if (!el || seen.has(el)) continue
     seen.add(el)
+    const txt = (el.textContent ?? '').trim()
+    if (txt.length < 2) continue
     const r = el.getBoundingClientRect()
     if (r.width < 6 || r.height < 6 || r.top < 0 || r.bottom > window.innerHeight) continue
     const cs = getComputedStyle(el)

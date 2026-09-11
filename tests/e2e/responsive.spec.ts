@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Route, type Browser } from '@playwright/test'
-import { setupApp, DEFAULT_USER } from './helpers/harness'
+import { setupApp, DEFAULT_USER, jsonRoute as json } from './helpers/harness'
 
 // ─── Cross-device responsive check ────────────────────────────────────────────
 // The default suite runs one profile (iphone-se 375×667). This spec renders the
@@ -9,8 +9,6 @@ import { setupApp, DEFAULT_USER } from './helpers/harness'
 // a screenshot per device×screen for visual review (screenshots/resp-*, gitignored).
 
 const NOW = new Date().toISOString()
-const json = (r: Route, body: unknown) =>
-  r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
 
 // Narrowest Android → largest iPhone. Chromium only (sandbox has no webkit).
 const DEVICES = [

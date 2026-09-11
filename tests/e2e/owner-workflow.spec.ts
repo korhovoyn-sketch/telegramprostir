@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Route } from '@playwright/test'
-import { setupApp, DEFAULT_USER } from './helpers/harness'
+import { setupApp, DEFAULT_USER, jsonRoute as json } from './helpers/harness'
 
 // ─── Full owner workflow: every screen an owner touches ───────────────────────
 
@@ -40,8 +40,6 @@ const PROPERTIES = [
 
 async function setupFixtures(page: Page) {
   await setupApp(page, { user: USER })
-  const json = (route: Route, body: unknown) =>
-    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
 
   await page.route('**/rest/v1/databases**', (route) => {
     if (route.request().method() === 'POST') {

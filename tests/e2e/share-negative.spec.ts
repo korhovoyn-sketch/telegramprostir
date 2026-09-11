@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Route } from '@playwright/test'
-import { setupApp, DEFAULT_USER } from './helpers/harness'
+import { setupApp, DEFAULT_USER, jsonRoute as json } from './helpers/harness'
 
 // ShareSheet: шляхи ВІДМОВИ й реактивація мертвого лінка.
 //
@@ -38,8 +38,6 @@ interface Opts {
   failTokenRead?: boolean
 }
 
-const json = (route: Route, body: unknown) =>
-  route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
 
 async function setup(page: Page, calls: Record<string, unknown>[], opts: Opts = {}) {
   const db = makeDb(opts.expiresAt ?? null)

@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Route } from '@playwright/test'
-import { setupApp, DEFAULT_USER } from './helpers/harness'
+import { setupApp, DEFAULT_USER, jsonRoute as json } from './helpers/harness'
 
 // ─── Команда бази (db_members, міграція 041) ───────────────────────────────────
 // Власник: TeamScreen (створення інвайта, revoke). Редактор: бейдж «Команда»
@@ -34,8 +34,6 @@ const PROP = {
   created_at: NOW, updated_at: NOW, photos: [],
 }
 
-const json = (route: Route, body: unknown, status = 200) =>
-  route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
 
 function skipCoachmarks(page: Page) {
   return page.addInitScript(() => {

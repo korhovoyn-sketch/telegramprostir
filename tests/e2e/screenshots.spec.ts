@@ -1,5 +1,5 @@
 import { test, expect, type Page, type Route, type Locator } from '@playwright/test'
-import { setupApp, DEFAULT_USER, type HarnessUser } from './helpers/harness'
+import { setupApp, DEFAULT_USER, type HarnessUser, jsonRoute as json } from './helpers/harness'
 import { IN_SANDBOX } from './helpers/env'
 
 // ─── Візуальний бейслайн кожного досяжного екрана ─────────────────────────────
@@ -68,8 +68,6 @@ async function snap(page: Page, name: string, nav: () => Promise<void>, extraMas
     mask: [page.locator('.dash-bar-fill'), ...extraMask],
   })
 }
-const json = (route: Route, body: unknown) =>
-  route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
 
 // ── Owner fixtures ────────────────────────────────────────────────────────────
 const OWNER = { ...DEFAULT_USER, role: 'owner' as const, first_name: 'Микола', last_name: 'К.', phone: '+380670000000' }
@@ -226,6 +224,16 @@ test('screens · owner journey', async ({ page }) => {
     await page.getByText(/Календар платежів|Прострочено/).first().waitFor()
     await page.getByRole('button', { name: /Налаштувати/ }).first().click()
     await page.getByText('Налаштувати розклад').waitFor()
+  })
+  await page.goto('/'); await page.getByText('Мої бази').waitFor()
+  await page.getByText('БЦ Рубін').first().click(); await page.getByText('Всі (3)').waitFor()
+
+  // Форма РЕДАГУВАННЯ бази — існує давно, а візуального бейслайна не мала
+  // жодного разу: зміни в ній не бачив ніхто.
+  await snap(page, 'edit-db', async () => {
+    await page.getByLabel('Меню бази').click()
+    await page.getByText('Редагувати базу', { exact: true }).click()
+    await page.getByLabel('Назва бази').waitFor()
   })
   await page.goto('/'); await page.getByText('Мої бази').waitFor()
   await page.getByText('БЦ Рубін').first().click(); await page.getByText('Всі (3)').waitFor()
