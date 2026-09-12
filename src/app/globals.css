@@ -78,6 +78,13 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
   --t3:rgba(255,255,255,.74);
   --t4:rgba(255,255,255,.64);
   --ok:#34C759;--ok-light:#40D46B;--ok-bg:rgba(52,199,89,.18);--ok-fg:#a4f0c1;--ok-bd:rgba(52,199,89,.28);
+  /* ЯСКРАВО-ЗЕЛЕНИЙ «ГОТОВО» — окремий тон від `--ok`, і він СТАРШИЙ за токени:
+     15 входжень у 7 файлах (галочки завершення, рамка завантаженого,
+     аватар гостя, підпис «Збережено»). Це де-факто конвенція без імені —
+     рівно той випадок, який правило «рецепт, написаний УТРЕТЄ, — це токен»
+     описує, лише перевищений упʼятеро. Значення НЕ змінюється: свідомо
+     чистий рефакторинг, щоб жоден візуальний бейслайн не зрушився. */
+  --ok-bright:#4ade80;
   --warn:#FF9500;--warn-bg:rgba(255,149,0,.18);--warn-fg:#ffc985;--warn-bd:rgba(255,149,0,.28);
   --err:#FF3B30;--err-bg:rgba(255,59,48,.16);--err-fg:#ffacac;--err-bd:rgba(255,59,48,.26);
   /* --info-bg була з іншого відтінку (tg-blue 34,158,217), ніж решта сімʼї
@@ -1556,7 +1563,7 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
 .av-grad-4{background:linear-gradient(135deg,#FFD78F 0%,#FFA557 50%,#EF7A23 100%)}
 .av-grad-5{background:linear-gradient(135deg,#C8B0FF 0%,#8B5BE8 50%,#5723B0 100%)}
 .av-grad-6{background:linear-gradient(135deg,#FFB8E0 0%,#E879B9 50%,#A8327C 100%)}
-.av-grad-guest{background:linear-gradient(135deg,#4ade80,#16a34a)}
+.av-grad-guest{background:linear-gradient(135deg,var(--ok-bright),#16a34a)}
 
 /* ── HEADER AVATAR (role-based initial badge) ── */
 .hdr-av{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:var(--fs-sub);color:var(--t1);border:var(--bd);flex-shrink:0}
