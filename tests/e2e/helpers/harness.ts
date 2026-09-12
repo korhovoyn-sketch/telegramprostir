@@ -329,6 +329,52 @@ export function seedSession(page: Page, user: Record<string, unknown>) {
 }
 
 /**
+ * СЕСІЯ SUPABASE в localStorage — окремо від `seedSession`, і це рішення про
+ * РОЗМІР роботи, а не про правильність.
+ *
+ * Що виявлено: `seedSession` сідає лише `ps_user` (кеш профілю, який веде
+ * НАВІГАЦІЮ), тоді як `supabase.auth.getSession()` читає власний ключ
+ * localStorage. Тобто в усіх 16 спеках, що кличуть цей хелпер, сесії Supabase
+ * НЕ ІСНУЄ — набір моделює стан «застосунок вважає мене залогіненим, а Supabase
+ * ні», якого в проді не буває за побудовою: `restoreSession()` у сплеші питає
+ * саме `getSession()`, і без неї користувач іде на Welcome.
+ *
+ * Наслідок не косметичний: код, що ЧЕСНО вимагає токен користувача, виглядає
+ * зламаним, а код, що тихо підставляє anon-ключ у ролі Bearer, — робочим.
+ *
+ * ЧОМУ ЦЕ НЕ ЗРОБЛЕНО ГЛОБАЛЬНО. Спроба сідати сесію всередині `seedSession`
+ * ЗАМІРЯНА на повному прогоні: 435 тестів зелені, але ТРИ кроки обходу
+ * (`collections`, `guest-home`, `notifications`) перестають досягати екрана —
+ * сплеш іде іншою, РЕАЛЬНОЮ гілкою, якої набір не проходив ніколи, і там
+ * зʼявляється додаткова асинхронна робота. Це не привід ховати знахідку, але й
+ * не хвіст цього раунду: увімкнення реального шляху сесії — власна робота зі
+ * своєю верифікацією (і, можливо, зі знайденим дефектом сплеша).
+ *
+ * Ключ виведений так само, як його рахує supabase-js:
+ * `sb-${hostname.split('.')[0]}-auth-token` — перевірено в бандлі, не вгадано.
+ */
+export function seedSupabaseSession(page: Page, user: Record<string, unknown>) {
+  const jwt = makeJwt(user as unknown as HarnessUser)
+  const session = {
+    access_token: jwt,
+    refresh_token: 'refresh-xyz',
+    token_type: 'bearer',
+    expires_in: 3600,
+    expires_at: Math.floor(Date.now() / 1000) + 3600,
+    user: {
+      id: user.id,
+      email: `${user.tg_id}@telegram.propspace.app`,
+      aud: 'authenticated',
+      role: 'authenticated',
+    },
+  }
+  return page.addInitScript((sess) => {
+    localStorage.setItem('sb-localhost-auth-token', JSON.stringify(sess))
+  }, session)
+}
+
+
+/**
  * Дія над обʼєктом зі списку. Раніше це був тап по кнопці в рядку картки
  * (`.obj-act-btn`); рядок прибрано — він займав 25-32% картки, а його кнопки
  * не могли взяти 44px, бо над ними лежить тіло картки. Тепер дії живуть у

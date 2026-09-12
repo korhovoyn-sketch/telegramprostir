@@ -29,8 +29,11 @@ const EASE = 'cubic-bezier(.16,1,.3,1)'
  * застосунку, що обходило власне ж правило.
  */
 
-export default function Collapsible({ open, className, children }: {
+export default function Collapsible({ open, id, className, children }: {
   open: boolean
+  /** Ціль `aria-controls` кнопки-заголовка — без неї звʼязок «кнопка ↔ тіло»
+   *  існує лише візуально, тобто читалка про нього не знає. */
+  id?: string
   className?: string
   children: React.ReactNode
 }) {
@@ -56,6 +59,7 @@ export default function Collapsible({ open, className, children }: {
       return
     }
 
+    const from = outer.getBoundingClientRect().height
     animRef.current?.cancel()
 
     // Рух вимкнено — стрибаємо в кінцевий стан тим самим кодом, що й після
@@ -69,7 +73,6 @@ export default function Collapsible({ open, className, children }: {
       return
     }
 
-    const from = outer.getBoundingClientRect().height
     const to = open ? inner.getBoundingClientRect().height : 0
 
     // Fix the start height so the animation has a concrete origin (height:auto
@@ -104,12 +107,32 @@ export default function Collapsible({ open, className, children }: {
       })
       .catch(() => { /* cancelled by a newer toggle — nothing to clean up */ })
 
-    return () => { anim.cancel() }
+    // ПЕРЕРИВАННЯ: висоту треба ЗАМОРОЗИТИ в інлайновий стиль ДО `cancel()`.
+    //
+    // `cancel()` знімає `fill:forwards`, і висота миттєво повертається на те,
+    // що лежить в інлайновому стилі — а там `from` ПОПЕРЕДНЬОГО руху, тобто
+    // висота на його ПОЧАТКУ. React же виконує ПРИБИРАННЯ ефекту ПЕРЕД тілом
+    // наступного, отже на момент, коли тіло міряє `from`, стрибок уже стався і
+    // будь-яке читання там віддає застаріле значення. Порядком усередині тіла
+    // це не лікується в принципі — лікується лише тут.
+    //
+    // Заміряно на 8 картках (розгорнута папка 1452px): згорнути, перервати на
+    // 5-му кадрі (видимі 456px) і розгорнути назад давало 1452 на ПЕРШОМУ ж
+    // кадрі і далі шість поспіль — тобто зворотний хід не анімувався ВЗАГАЛІ
+    // (`from` і `to` обидва виходили 1452), а на екрані був стрибок 456→1452,
+    // 68% висоти обгортки за один кадр. Це рівно той «стрибок», заради якого
+    // компонент і писався, лише на шляху переривання — і саме тому його не
+    // бачив гард: він міряє ОДНЕ, неперерване згортання.
+    return () => {
+      outer.style.height = `${outer.getBoundingClientRect().height}px`
+      anim.cancel()
+    }
   }, [open])
 
   return (
     <div
       ref={outerRef}
+      id={id}
       className="fold-wrap"
       style={initialOpen
         ? { height: 'auto', opacity: 1 }

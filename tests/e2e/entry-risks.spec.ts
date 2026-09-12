@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test'
 import { deflateSync } from 'node:zlib'
 import {
-  setupApp, DEFAULT_USER, skipCoachmarks, seedSession, jsonRoute as json,
+  setupApp, DEFAULT_USER, skipCoachmarks, seedSession, seedSupabaseSession, jsonRoute as json,
 } from './helpers/harness'
 
 /**
@@ -99,6 +99,9 @@ function crc32(buf: Buffer): number {
 async function ownerFixtures(page: Page) {
   await setupApp(page, { user: USER })
   await seedSession(page, USER as unknown as Record<string, unknown>)
+  // Завантаження документів ЧЕСНО вимагає токен користувача — без цього
+  // рядка тест міряв би стан, якого в проді не буває (див. хелпер).
+  await seedSupabaseSession(page, USER as unknown as Record<string, unknown>)
   await skipCoachmarks(page)
   await page.route('**/rest/v1/databases**', (r) =>
     json(r, (r.request().headers()['accept'] ?? '').includes('object') ? DB : [DB]))
@@ -345,6 +348,82 @@ test('перевантаження: непридатний файл на ПОВ�
   // усе», а лише виправив ДІАГНОЗ.
   await page.waitForTimeout(800)
   expect(validateCalls, 'непридатний файл усе одно поїхав на сервер').toBe(0)
+})
+
+test('конвеєр документів: ОДИН тост на партію, і він називає ОБИДВІ причини', async ({ page }) => {
+  // Стор тримає рівно ОДИН тост — це властивість архітектури, тож поки
+  // `onError` кличеться з кожної гілки шляху, ОСТАННЄ ЗА ЧАСОМ виграє
+  // незалежно від важливості. Передперевірка формату це вже визнавала й
+  // агрегувала причини, а цикл завантаження її скасовував шістьма власними
+  // викликами: партія «непридатний + той, що впаде» показувала лише збій
+  // завантаження, і про відхилений ФОРМАТ користувач не дізнавався НІКОЛИ.
+  test.setTimeout(90_000)
+  await ownerFixtures(page)
+  await page.route('**/rest/v1/properties**', (r) =>
+    json(r, (r.request().headers()['accept'] ?? '').includes('object') ? PROP : [PROP]))
+  await page.route('**/rest/v1/property_files**', (r) => json(r, []))
+  await page.route('**/functions/v1/validate-upload', (r) =>
+    json(r, { uploadUrl: 'https://stub.local/put', storagePath: `${PROP_ID}/1_a.pdf` }))
+  // PUT падає — саме та гілка, що затирала повідомлення про формат.
+  await page.route('https://stub.local/put', (r) => r.fulfill({ status: 500, body: '' }))
+
+  await atProperty(page)
+  await page.locator('input[type="file"][accept=".pdf,.doc,.docx"]').setInputFiles([
+    { name: 'нотатки.txt', mimeType: 'text/plain', buffer: Buffer.from('не документ') },
+    { name: 'Договір.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4') },
+  ])
+
+  const toast = page.locator('.toast')
+  await expect(toast).toBeVisible({ timeout: 20_000 })
+  // Обидві причини в ОДНОМУ повідомленні. До фікса тут лишалась тільки друга.
+  await expect(toast, 'формат відхиленого файлу затерло повідомлення про збій завантаження')
+    .toContainText(/формат не підтримується/i)
+  await expect(toast, 'збій завантаження не названий').toContainText(/Договір\.pdf/)
+})
+
+test('конвеєр документів: збій INSERT прибирає файл, а не лишає сироту', async ({ page }) => {
+  // Передперевірка власності обіцяла в коментарі, що осиротілих не буде — але
+  // це був лише ПЕРЕДчек: усе, що падало ПІСЛЯ аплоуду, лишало файл у сховищі
+  // назавжди. Сусідній конвеєр фото (`photoUpload.ts`) прибирання мав; цей ні.
+  test.setTimeout(90_000)
+  await ownerFixtures(page)
+  const removed: string[] = []
+  await page.route('**/rest/v1/properties**', (r) =>
+    json(r, (r.request().headers()['accept'] ?? '').includes('object') ? PROP : [PROP]))
+  await page.route('**/functions/v1/validate-upload', (r) =>
+    json(r, { uploadUrl: 'https://stub.local/put', storagePath: `${PROP_ID}/1_dogovir.pdf` }))
+  await page.route('https://stub.local/put', (r) => r.fulfill({ status: 200, body: '{}' }))
+  // INSERT відмовляє — рядок не зʼявився, отже файл у сховищі нічим не адресований.
+  await page.route('**/rest/v1/property_files**', (r) =>
+    r.request().method() === 'POST'
+      ? r.fulfill({ status: 403, contentType: 'application/json',
+          body: JSON.stringify({ message: 'new row violates row-level security policy for table "property_files"' }) })
+      : json(r, []))
+  await page.route('**/storage/v1/object/property-files**', (r) => {
+    if (r.request().method() === 'DELETE') {
+      removed.push(r.request().postData() ?? '')
+      return json(r, [{ name: `${PROP_ID}/1_dogovir.pdf` }])
+    }
+    return json(r, {})
+  })
+
+  await atProperty(page)
+  await page.locator('input[type="file"][accept=".pdf,.doc,.docx"]').setInputFiles([
+    { name: 'Договір.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4') },
+  ])
+
+  await expect.poll(() => removed.length, {
+    message: 'файл лишився у сховищі без рядка — осиротів назавжди',
+    timeout: 20_000,
+  }).toBe(1)
+  expect(removed[0], 'прибрано не той шлях').toContain('1_dogovir.pdf')
+
+  // ДРУГА ПОЛОВИНА: сира `message` від PostgREST несе назву таблиці й текст
+  // політики — вона не сміє доїхати в тост (правило 1 Security rules).
+  const toast = page.locator('.toast')
+  await expect(toast).toBeVisible()
+  await expect(toast, 'у тост протекла внутрішня деталь БД')
+    .not.toContainText(/row-level security|property_files/i)
 })
 
 // ─────────────────────────────────────────────────────────────────────────────

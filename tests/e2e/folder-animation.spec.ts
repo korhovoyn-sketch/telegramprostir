@@ -59,3 +59,103 @@ test('акордеон папки анімує висоту, а не стриб�
   const faded = fades.filter((o) => o < 1)
   expect(faded, `обгортка не має фейдитись під час руху, отримали ${JSON.stringify(fades)}`).toEqual([])
 })
+
+/**
+ * ПЕРЕРИВАННЯ — клас, якого гард вище не бачить ЗА ПОБУДОВОЮ: він міряє ОДНЕ,
+ * неперерване згортання, а дефект живе рівно там, де рух скасовують на льоту.
+ *
+ * Заміряно ДО фікса (8 карток, розгорнута папка 1452px): згорнути, перервати
+ * на 5-му кадрі (видимі 456px) і розгорнути назад давало 1452 на ПЕРШОМУ ж
+ * кадрі і шість поспіль по 1452 — тобто зворотний хід не анімувався ВЗАГАЛІ, а
+ * на екрані був стрибок 456→1452, 68% висоти обгортки за один кадр.
+ *
+ * Причина — у ПРИБИРАННІ ефекту: React виконує його ПЕРЕД тілом наступного,
+ * тож `anim.cancel()` знімав `fill:forwards` і висота поверталась на
+ * інлайновий стиль (початок перерваного руху) ще до того, як тіло встигало її
+ * прочитати. Тому фікс мусить бути саме в прибиранні, а не в тілі.
+ */
+test('перерване згортання продовжується з ВИДИМОЇ висоти, а не стрибає', async ({ page }) => {
+  await setup(page); await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({timeout:20000})
+  await page.getByText('Міком Палац').first().click()
+  await expect(page.getByText('Всі (8)')).toBeVisible()
+  await page.waitForTimeout(700)
+
+  const { open: openH, mid, after } = await page.evaluate(async () => {
+    const hd = document.querySelector('.fold-hd') as HTMLElement
+    const wrap = document.querySelector('.fold-wrap') as HTMLElement
+    const frame = () => new Promise((r) => requestAnimationFrame(() => r(null)))
+    const H = () => Math.round(wrap.getBoundingClientRect().height)
+    const openH = H()
+    hd.click()                                  // згортаємо
+    for (let i = 0; i < 5; i++) await frame()   // ...і перериваємо на льоту
+    const mid = H()
+    hd.click()
+    const after: number[] = []
+    for (let i = 0; i < 6; i++) { await frame(); after.push(H()) }
+    return { open: openH, mid, after }
+  })
+
+  // Антивакуум: переривання мусить статись ПОСЕРЕД руху. Якщо `mid` дорівнює
+  // відкритій висоті, згортання ще не почалось — і тест нижче збігався б ні на
+  // чому, бо продовжувати не було б звідки.
+  expect(mid, `перервали не посеред руху: open=${openH}, mid=${mid}`).toBeLessThan(openH * 0.8)
+  expect(mid).toBeGreaterThan(0)
+
+  // Зворотний хід СТАРТУЄ близько до видимої висоти, а не з кінцевої.
+  expect(after[0], `стрибок: видимі ${mid}px → ${after[0]}px за один кадр (кінцева ${openH})`)
+    .toBeLessThan(mid + (openH - mid) * 0.5)
+  // ...і справді РУХАЄТЬСЯ через проміжні значення, а не стоїть.
+  expect(new Set(after).size, `очікуємо рух, отримали ${JSON.stringify(after)}`).toBeGreaterThan(3)
+})
+
+/**
+ * Індикатор і тіло — ОДИН рецепт. Було .2s `--ease` проти 300мс `--ease-out`:
+ * стрілка ставала в кінцеве положення на 100мс раніше, ніж секція дорухалась,
+ * ще й іншою кривою. Читається як «готово» посеред руху.
+ */
+test('стрілка їде тим самим рецептом, що й тіло', async ({ page }) => {
+  await setup(page); await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({timeout:20000})
+  await page.getByText('Міком Палац').first().click()
+  await expect(page.getByText('Всі (8)')).toBeVisible()
+
+  const { dur, ease, easeOut } = await page.evaluate(() => {
+    const chev = document.querySelector('.fold-hd-chev') as HTMLElement
+    const t = getComputedStyle(chev).transition
+    return {
+      dur: /(\d*\.?\d+)s/.exec(t)?.[1] ?? '',
+      ease: /cubic-bezier\([^)]+\)/.exec(t)?.[0] ?? '',
+      easeOut: getComputedStyle(document.documentElement).getPropertyValue('--ease-out').trim(),
+    }
+  })
+  // 300мс — та сама тривалість, що жене `Collapsible.tsx` (і що вже несе виїзд шита).
+  expect(dur, 'тривалість стрілки мусить збігатися з тілом (0.3s)').toBe('0.3')
+  // Криву звіряємо з ТОКЕНОМ, а не з літералом: інакше гард закріпив би копію.
+  const norm = (c: string) => c.replace(/\s/g, '').replace(/0\./g, '.')
+  expect(norm(ease), 'крива стрілки мусить бути --ease-out').toBe(norm(easeOut))
+})
+
+/**
+ * Заголовок — ЄДИНИЙ орган керування акордеоном. Як `<div>` він був недосяжний
+ * з клавіатури і читалка не оголошувала ні роль, ні стан секції.
+ */
+test('заголовок папки — кнопка зі станом, досяжна з клавіатури', async ({ page }) => {
+  await setup(page); await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({timeout:20000})
+  await page.getByText('Міком Палац').first().click()
+  await expect(page.getByText('Всі (8)')).toBeVisible()
+  await page.waitForTimeout(700)
+
+  const hd = page.locator('.fold-hd').first()
+  await expect(hd).toHaveJSProperty('tagName', 'BUTTON')
+  await expect(hd).toHaveAttribute('aria-expanded', 'true')
+  // `aria-controls` мусить вказувати на РЕАЛЬНЕ тіло, а не в порожнечу.
+  const controls = await hd.getAttribute('aria-controls')
+  await expect(page.locator(`#${controls}`)).toHaveClass(/fold-wrap/)
+
+  // Клавіатура справді перемикає стан.
+  await hd.focus()
+  await page.keyboard.press('Enter')
+  await expect(hd).toHaveAttribute('aria-expanded', 'false')
+})

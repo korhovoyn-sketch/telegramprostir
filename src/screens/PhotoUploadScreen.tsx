@@ -189,10 +189,23 @@ export default function PhotoUploadScreen() {
         setQueue((q) => q.slice(0, room))
         setRoomCut(files.length - room)
         limitRef.current = room
-        showToast(room === 0
-          ? { type: 'error', title: tr('Максимум {0} фото на обʼєкт', MAX_PHOTOS), subtitle: tr('Видаліть зайві, щоб додати нові') }
-          : { type: 'error', title: tr('Максимум {0} фото на обʼєкт', MAX_PHOTOS), subtitle: tr('Завантажено лише {0}', room) })
-        if (room === 0) { back(); return }
+        // ТОСТ ЛИШЕ ДЛЯ `room === 0`, і це не економія. При `room > 0` екран
+        // лишається відкритим, і зріз уже названий персистентним рядком
+        // `.fr-note` («Понад межу N фото: M») — а тост, по-перше, казав
+        // «Завантажено лише N» у МИНУЛОМУ часі ДО початку завантаження, тобто
+        // стверджував те, чого ще не сталось, а по-друге його однаково затирав
+        // підсумковий тост (стор тримає рівно один). При `room === 0` ми
+        // НАВІГУЄМО ГЕТЬ, тож рядка на екрані вже ніхто не побачить — там тост
+        // єдиний носій пояснення, і він лишається.
+        if (room === 0) {
+          showToast({
+            type: 'error',
+            title: tr('Максимум {0} фото на обʼєкт', MAX_PHOTOS),
+            subtitle: tr('Видаліть зайві, щоб додати нові'),
+          })
+          back()
+          return
+        }
       }
       uploadNext()
     })()
@@ -215,7 +228,7 @@ export default function PhotoUploadScreen() {
             <circle
               cx="56" cy="56" r={radius}
               fill="none"
-              stroke={done && errorCount === 0 ? '#4ade80' : done && doneCount === 0 ? 'var(--err-fg)' : 'var(--violet)'}
+              stroke={done && errorCount === 0 ? 'var(--ok-bright)' : done && doneCount === 0 ? 'var(--err-fg)' : 'var(--violet)'}
               strokeWidth="8"
               strokeLinecap="round"
               strokeDasharray={circ}
@@ -229,7 +242,7 @@ export default function PhotoUploadScreen() {
           }}>
             {done ? (
               <span className="icon-check-pop">
-                <IconCheck size={26} color="#4ade80" />
+                <IconCheck size={26} color="var(--ok-bright)" />
               </span>
             ) : (
               <>
@@ -287,7 +300,7 @@ export default function PhotoUploadScreen() {
                 border: item.status === 'error'
                   ? '1.5px solid var(--err-fg)'
                   : item.status === 'done'
-                  ? '1.5px solid #4ade80'
+                  ? '1.5px solid var(--ok-bright)'
                   : '1.5px solid rgba(255,255,255,.1)',
                 transition: 'border-color .3s ease',
               }}>
@@ -325,11 +338,11 @@ export default function PhotoUploadScreen() {
                   </div>
                 )}
                 {item.status === 'done' && (
-                  <div style={{ marginTop: 2, fontSize: 'var(--fs-cap1)', color: '#4ade80' }}>{tr('Збережено')}</div>
+                  <div style={{ marginTop: 2, fontSize: 'var(--fs-cap1)', color: 'var(--ok-bright)' }}>{tr('Збережено')}</div>
                 )}
               </div>
               <div style={{ flexShrink: 0 }}>
-                {item.status === 'done' && <IconCheck size={16} color="#4ade80" />}
+                {item.status === 'done' && <IconCheck size={16} color="var(--ok-bright)" />}
                 {item.status === 'error' && <IconX size={16} color="var(--err-fg)" />}
                 {/* Та сама геометрія, що `.dash-bar`: волосинка 3px під пігулкою.
                     Число 2 було третьою копією рецепта з власним значенням — на

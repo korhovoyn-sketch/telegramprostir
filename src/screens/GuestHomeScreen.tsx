@@ -112,7 +112,7 @@ export default function GuestHomeScreen() {
                 >
                   <div style={{ width: 40, height: 40, borderRadius: 'var(--r-sm)', background: isProperty ? 'rgba(74,222,128,.15)' : 'var(--info-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     {isProperty
-                      ? <IconKey size={18} color="#4ade80" />
+                      ? <IconKey size={18} color="var(--ok-bright)" />
                       : <IconBuilding size={18} color="var(--info)" />}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
