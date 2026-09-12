@@ -377,3 +377,37 @@ describe('типографіка', () => {
     expect(bad, 'у слові чужий апостроф — має бути ʼ (U+02BC)').toEqual([])
   })
 })
+
+/**
+ * Акордеон папок описаний у ДВОХ файлах: тіло жене `Collapsible.tsx`
+ * (Web Animations API, тобто JS-числа), стрілку — `globals.css`. Рантайм-гард
+ * `folder-animation.spec.ts` звіряє стрілку з токеном `--ease-out`, але JS він
+ * не бачить: помінявши `DURATION` у компоненті, розсинхрон повертають мовчки, і
+ * на екрані індикатор знову «готовий» посеред руху.
+ *
+ * Тому рецепт звіряється джерельно, у трьох точках одразу.
+ */
+describe('акордеон папок: тіло і стрілка — один рецепт', () => {
+  const tsx = readFileSync('src/components/ui/Collapsible.tsx', 'utf8')
+  const jsDur = Number(/const DURATION = (\d+)/.exec(tsx)?.[1])
+  const jsEase = /const EASE = '([^']+)'/.exec(tsx)?.[1] ?? ''
+  const chev = /\.fold-hd-chev\{[^}]*transition:transform ([\d.]+)s (var\(--[a-z-]+\)|cubic-bezier\([^)]+\))/.exec(css)
+  const easeOut = /--ease-out:\s*(cubic-bezier\([^)]+\))/.exec(css)?.[1] ?? ''
+
+  it('тривалість тіла і стрілки збігається', () => {
+    expect(jsDur, 'не знайдено DURATION у Collapsible.tsx').toBeGreaterThan(0)
+    expect(chev, 'не знайдено transition у .fold-hd-chev').toBeTruthy()
+    expect(Math.round(Number(chev![1]) * 1000), 'стрілка і тіло їдуть різний час').toBe(jsDur)
+  })
+
+  it('крива тіла — це токен --ease-out, а не своя копія', () => {
+    expect(easeOut, 'не знайдено --ease-out у globals.css').toBeTruthy()
+    const norm = (c: string) => c.replace(/\s/g, '')
+    // JS не читає CSS-змінні, тож літерал там лишається — але він мусить бути
+    // ТИМ САМИМ значенням, що й токен, інакше це просто друга крива.
+    expect(norm(jsEase), 'EASE у Collapsible розійшовся з --ease-out').toBe(norm(easeOut))
+    // ...і стрілка бере саме токен, а не повторює число.
+    expect(chev![2], 'стрілка мусить посилатись на var(--ease-out)').toBe('var(--ease-out)')
+  })
+})
+
