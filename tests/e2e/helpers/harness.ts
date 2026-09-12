@@ -320,12 +320,44 @@ export function skipCoachmarks(page: Page) {
 }
 
 /** Cached profile → Fast Path 0 restores the session instantly (no splash
- *  detour to the public preview screens on deep links). Includes coachmarks. */
+ *  detour to the public preview screens on deep links). Includes coachmarks.
+ *
+ *  СІДАЄ Й СЕСІЮ SUPABASE, а не лише кеш профілю — і це виправлення ФІКСТУРИ,
+ *  а не поступка коду. `ps_user` веде НАВІГАЦІЮ, але `supabase.auth.getSession()`
+ *  читає localStorage за власним ключем, тож раніше він повертав `null` у
+ *  КОЖНОМУ тесті: набір моделював «застосунок вважає мене залогіненим, а
+ *  Supabase — ні». У проді такого стану не буває за побудовою — `restoreSession()`
+ *  у сплеші питає саме `getSession()`, і без неї користувач іде на Welcome,
+ *  тобто до екрана обʼєкта не доходить.
+ *
+ *  Чому це важливо: поки фікстура віддавала `null`, будь-який код, що ЧЕСНО
+ *  вимагає токен користувача, виглядав зламаним, а код, що тихо підставляв
+ *  anon-ключ, — робочим. Тобто набір заохочував саме ту помилку. Той самий клас,
+ *  що вже описаний для `language_code`: «фікстура мусить бути узгоджена, інакше
+ *  тест перевіряє стан, якого не буває».
+ *
+ *  Ключ сховища виведений так само, як це робить supabase-js:
+ *  `sb-${hostname.split('.')[0]}-auth-token` (перевірено в бандлі, не вгадано). */
 export function seedSession(page: Page, user: Record<string, unknown>) {
-  return page.addInitScript((u) => {
+  const jwt = makeJwt(user as unknown as HarnessUser)
+  const session = {
+    access_token: jwt,
+    refresh_token: 'refresh-xyz',
+    token_type: 'bearer',
+    expires_in: 3600,
+    expires_at: Math.floor(Date.now() / 1000) + 3600,
+    user: {
+      id: user.id,
+      email: `${user.tg_id}@telegram.propspace.app`,
+      aud: 'authenticated',
+      role: 'authenticated',
+    },
+  }
+  return page.addInitScript(({ u, sess }) => {
     localStorage.setItem('ps_user', JSON.stringify(u))
     localStorage.setItem('ob_v1', JSON.stringify(['owner-fab', 'obj-fab', 'realtor-qr', 'col-fab']))
-  }, user)
+    localStorage.setItem('sb-localhost-auth-token', JSON.stringify(sess))
+  }, { u: user, sess: session })
 }
 
 /**
