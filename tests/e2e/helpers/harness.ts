@@ -320,25 +320,40 @@ export function skipCoachmarks(page: Page) {
 }
 
 /** Cached profile → Fast Path 0 restores the session instantly (no splash
- *  detour to the public preview screens on deep links). Includes coachmarks.
- *
- *  СІДАЄ Й СЕСІЮ SUPABASE, а не лише кеш профілю — і це виправлення ФІКСТУРИ,
- *  а не поступка коду. `ps_user` веде НАВІГАЦІЮ, але `supabase.auth.getSession()`
- *  читає localStorage за власним ключем, тож раніше він повертав `null` у
- *  КОЖНОМУ тесті: набір моделював «застосунок вважає мене залогіненим, а
- *  Supabase — ні». У проді такого стану не буває за побудовою — `restoreSession()`
- *  у сплеші питає саме `getSession()`, і без неї користувач іде на Welcome,
- *  тобто до екрана обʼєкта не доходить.
- *
- *  Чому це важливо: поки фікстура віддавала `null`, будь-який код, що ЧЕСНО
- *  вимагає токен користувача, виглядав зламаним, а код, що тихо підставляв
- *  anon-ключ, — робочим. Тобто набір заохочував саме ту помилку. Той самий клас,
- *  що вже описаний для `language_code`: «фікстура мусить бути узгоджена, інакше
- *  тест перевіряє стан, якого не буває».
- *
- *  Ключ сховища виведений так само, як це робить supabase-js:
- *  `sb-${hostname.split('.')[0]}-auth-token` (перевірено в бандлі, не вгадано). */
+ *  detour to the public preview screens on deep links). Includes coachmarks. */
 export function seedSession(page: Page, user: Record<string, unknown>) {
+  return page.addInitScript((u) => {
+    localStorage.setItem('ps_user', JSON.stringify(u))
+    localStorage.setItem('ob_v1', JSON.stringify(['owner-fab', 'obj-fab', 'realtor-qr', 'col-fab']))
+  }, user)
+}
+
+/**
+ * СЕСІЯ SUPABASE в localStorage — окремо від `seedSession`, і це рішення про
+ * РОЗМІР роботи, а не про правильність.
+ *
+ * Що виявлено: `seedSession` сідає лише `ps_user` (кеш профілю, який веде
+ * НАВІГАЦІЮ), тоді як `supabase.auth.getSession()` читає власний ключ
+ * localStorage. Тобто в усіх 16 спеках, що кличуть цей хелпер, сесії Supabase
+ * НЕ ІСНУЄ — набір моделює стан «застосунок вважає мене залогіненим, а Supabase
+ * ні», якого в проді не буває за побудовою: `restoreSession()` у сплеші питає
+ * саме `getSession()`, і без неї користувач іде на Welcome.
+ *
+ * Наслідок не косметичний: код, що ЧЕСНО вимагає токен користувача, виглядає
+ * зламаним, а код, що тихо підставляє anon-ключ у ролі Bearer, — робочим.
+ *
+ * ЧОМУ ЦЕ НЕ ЗРОБЛЕНО ГЛОБАЛЬНО. Спроба сідати сесію всередині `seedSession`
+ * ЗАМІРЯНА на повному прогоні: 435 тестів зелені, але ТРИ кроки обходу
+ * (`collections`, `guest-home`, `notifications`) перестають досягати екрана —
+ * сплеш іде іншою, РЕАЛЬНОЮ гілкою, якої набір не проходив ніколи, і там
+ * зʼявляється додаткова асинхронна робота. Це не привід ховати знахідку, але й
+ * не хвіст цього раунду: увімкнення реального шляху сесії — власна робота зі
+ * своєю верифікацією (і, можливо, зі знайденим дефектом сплеша).
+ *
+ * Ключ виведений так само, як його рахує supabase-js:
+ * `sb-${hostname.split('.')[0]}-auth-token` — перевірено в бандлі, не вгадано.
+ */
+export function seedSupabaseSession(page: Page, user: Record<string, unknown>) {
   const jwt = makeJwt(user as unknown as HarnessUser)
   const session = {
     access_token: jwt,
@@ -353,12 +368,11 @@ export function seedSession(page: Page, user: Record<string, unknown>) {
       role: 'authenticated',
     },
   }
-  return page.addInitScript(({ u, sess }) => {
-    localStorage.setItem('ps_user', JSON.stringify(u))
-    localStorage.setItem('ob_v1', JSON.stringify(['owner-fab', 'obj-fab', 'realtor-qr', 'col-fab']))
+  return page.addInitScript((sess) => {
     localStorage.setItem('sb-localhost-auth-token', JSON.stringify(sess))
-  }, { u: user, sess: session })
+  }, session)
 }
+
 
 /**
  * Дія над обʼєктом зі списку. Раніше це був тап по кнопці в рядку картки

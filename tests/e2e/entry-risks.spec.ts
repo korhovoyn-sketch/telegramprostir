@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test'
 import { deflateSync } from 'node:zlib'
 import {
-  setupApp, DEFAULT_USER, skipCoachmarks, seedSession, jsonRoute as json,
+  setupApp, DEFAULT_USER, skipCoachmarks, seedSession, seedSupabaseSession, jsonRoute as json,
 } from './helpers/harness'
 
 /**
@@ -99,6 +99,9 @@ function crc32(buf: Buffer): number {
 async function ownerFixtures(page: Page) {
   await setupApp(page, { user: USER })
   await seedSession(page, USER as unknown as Record<string, unknown>)
+  // Завантаження документів ЧЕСНО вимагає токен користувача — без цього
+  // рядка тест міряв би стан, якого в проді не буває (див. хелпер).
+  await seedSupabaseSession(page, USER as unknown as Record<string, unknown>)
   await skipCoachmarks(page)
   await page.route('**/rest/v1/databases**', (r) =>
     json(r, (r.request().headers()['accept'] ?? '').includes('object') ? DB : [DB]))
