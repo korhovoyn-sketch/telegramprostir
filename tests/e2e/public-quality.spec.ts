@@ -175,3 +175,47 @@ test('публічна /v тримається на 360px', async ({ page }) => 
     expect(await smallTargets(page), `${url}: зона дотику < 44px на 360`).toEqual([])
   }
 })
+
+/**
+ * ── ЮРИДИЧНІ СТОРІНКИ ─────────────────────────────────────────────────────
+ *
+ * `/privacy` і `/terms` — та сама структурна прогалина, що була в `/v`: це
+ * Next-маршрути, а не екрани `appStore`, тож обхід `helpers/screens.ts` їх не
+ * бачить. Усе покриття, яке вони мали, — ОДИН скрін-бейслайн, тобто питання
+ * «чи не змінилось», і жодного «чи придатне до вжитку».
+ *
+ * Знайдене першим же заміром: `.lg-back` — ЄДИНИЙ контрол цих сторінок і
+ * єдиний шлях назад — мав висоту 20px при порозі 44. Той самий клас, що вже
+ * давав на `/v` кнопку Telegram 36×36 і стрілки галереї 32×32.
+ *
+ * Сторінки статичні й без стану, тож гард дешевий: переповнення, зона дотику
+ * і доступна назва на кожному посиланні.
+ */
+for (const path of ['/privacy/', '/terms/']) {
+  for (const w of [360, 375]) {
+    test(`${path} придатна до вжитку на ${w}px`, async ({ page }) => {
+      await page.setViewportSize({ width: w, height: 780 })
+      await page.goto(path)
+      await expect(page.locator('.lg-t')).toBeVisible()
+
+      const r = await page.evaluate(() => {
+        const links = Array.from(document.querySelectorAll<HTMLElement>('a'))
+        return {
+          hScroll: document.documentElement.scrollWidth > window.innerWidth + 1,
+          // Антивакуум: без жодного посилання перевірки нижче порожні й зелені.
+          links: links.length,
+          small: links.filter((a) => {
+            const b = a.getBoundingClientRect()
+            return b.width > 0 && b.height < 44
+          }).map((a) => `${a.textContent?.trim().slice(0, 30)} h=${Math.round(a.getBoundingClientRect().height)}`),
+          unnamed: links.filter((a) => !(a.textContent?.trim() || a.getAttribute('aria-label'))).length,
+        }
+      })
+
+      expect(r.links, 'на сторінці немає жодного посилання — перевірки нижче вакуумні').toBeGreaterThan(0)
+      expect(r.hScroll, 'юридична сторінка скролиться вбік').toBe(false)
+      expect(r.small, 'посилання нижче 44px — на цих сторінках це єдиний шлях назад').toEqual([])
+      expect(r.unnamed, 'посилання без доступної назви').toBe(0)
+    })
+  }
+}

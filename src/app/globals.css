@@ -2378,7 +2378,13 @@ html[data-tg-client='mobile'] body::after { content: none; }
    Own minimal styling: they render outside the app shell, also in a browser. */
 .lg-wrap{min-height:100svh;background:linear-gradient(180deg,#06050e,#140a2e 60%,#1a0f38);padding:calc(24px + var(--safe-top)) 16px calc(40px + var(--safe-bottom));display:flex;justify-content:center}
 .lg-card{width:100%;max-width:640px}
-.lg-back{display:inline-block;margin-bottom:18px;color:var(--t3);font-size:var(--fs-foot);text-decoration:none}
+/* Зона дотику ФІЗИЧНА, не через `::after`: це ЄДИНИЙ контрол юридичних
+   сторінок і єдиний шлях назад, а мірявся він у 20px. Відʼємні поля
+   вводять приріст у власний падінг картки, тож геометрія тексту не
+   змінюється. `::after` тут був би тим самим рецептом, що вже тричі не
+   спрацював (.seg-b/.notif-tab/.fr-seg-b) — досить одного предка з
+   `overflow ≠ visible`, і зона лишається розміром бокса. */
+.lg-back{display:inline-flex;align-items:center;min-height:44px;margin:-12px 0 6px;padding:0 8px;margin-inline-start:-8px;color:var(--t3);font-size:var(--fs-foot);text-decoration:none}
 .lg-t{font-size:var(--fs-t2);font-weight:var(--fw-bold);color:var(--t1);letter-spacing:-.02em;line-height:var(--lh-tight);margin-bottom:6px}
 .lg-upd{font-size:var(--fs-cap1);color:var(--t4);margin-bottom:22px}
 .lg-h{font-size:var(--fs-call);font-weight:var(--fw-semi);color:var(--t1);margin:22px 0 8px}

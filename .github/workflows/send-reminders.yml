@@ -30,13 +30,19 @@ jobs:
         env:
           PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
           SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           # Голосний провал замість тихого no-op: саме на цьому обпікся
           # migrate.yml — 15 запусків поспіль падали на відсутньому секреті,
           # і цього ніхто не помітив, бо ніхто не дивився.
+          #
+          # АЛЕ `-z` ловить лише ВІДСУТНІЙ секрет, не ХИБНИЙ — і саме хибний
+          # тут і стався: крок проходив, а виклик віддавав 401 у 31 прогоні
+          # поспіль. Тому діагностику перенесено туди, де вона видима: у
+          # повідомлення про 401 нижче.
           missing=""
           [ -z "$PROJECT_REF" ] && missing="$missing SUPABASE_PROJECT_REF"
-          [ -z "$SERVICE_KEY" ] && missing="$missing SUPABASE_SERVICE_ROLE_KEY"
+          [ -z "$SERVICE_KEY$CRON_SECRET" ] && missing="$missing CRON_SECRET(або SUPABASE_SERVICE_ROLE_KEY)"
           if [ -n "$missing" ]; then
             echo "::error::Не задані секрети:$missing"
             echo "Додай їх у Settings → Secrets and variables → Actions."
@@ -47,15 +53,22 @@ jobs:
         env:
           PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
           SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           set -euo pipefail
           url="https://${PROJECT_REF}.supabase.co/functions/v1/send-reminders"
+
+          # CRON_SECRET — головний, службовий ключ лишається сумісним фолбеком.
+          # Перший задаємо МИ і кладемо в Supabase тим самим воркфлоу
+          # (`set-supabase-secrets.yml`), тож розійтись йому нема з чим; другий
+          # інжектить платформа, і його копія тут уже одного разу розійшлась.
+          bearer="${CRON_SECRET:-$SERVICE_KEY}"
 
           # Тіло відповіді й код розділяємо, щоб побачити І діагностику функції,
           # І статус. Функція віддає JSON із лічильниками надісланого.
           body=$(mktemp)
           code=$(curl -sS -X POST "$url" \
-            -H "Authorization: Bearer ${SERVICE_KEY}" \
+            -H "Authorization: Bearer ${bearer}" \
             -H "Content-Type: application/json" \
             -o "$body" -w '%{http_code}' \
             --max-time 120 \
@@ -65,6 +78,20 @@ jobs:
           cat "$body"
           echo
 
+          if [ "$code" = "401" ]; then
+            # НАЙЧАСТІША причина, і вона коштувала 31 прогону поспіль: секрет у
+            # GitHub не збігається з тим, що бачить функція. Саме тому тут
+            # названо ЛІКИ, а не лише симптом — інакше «повернула 401» читається
+            # як «нагадувань просто немає».
+            echo "::error::send-reminders: 401 — секрет планувальника не збігається з тим, що в Supabase."
+            echo "ЩО ЗРОБИТИ (один раз):"
+            echo "  1. Придумай довгий випадковий рядок: openssl rand -hex 32"
+            echo "  2. GitHub → Settings → Secrets and variables → Actions → CRON_SECRET = цей рядок"
+            echo "  3. Actions → «Set Supabase Edge Function Secrets» → Run workflow"
+            echo "     (він покладе ТОЙ САМИЙ рядок у Supabase як CRON_SECRET)"
+            echo "Після цього обидва боки задаються з одного місця й розійтись не можуть."
+            exit 1
+          fi
           if [ "$code" != "200" ]; then
             echo "::error::send-reminders повернула $code"
             exit 1
