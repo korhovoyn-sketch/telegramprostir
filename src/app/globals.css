@@ -2383,7 +2383,10 @@ html[data-tg-client='mobile'] body::after { content: none; }
    вводять приріст у власний падінг картки, тож геометрія тексту не
    змінюється. `::after` тут був би тим самим рецептом, що вже тричі не
    спрацював (.seg-b/.notif-tab/.fr-seg-b) — досить одного предка з
-   `overflow ≠ visible`, і зона лишається розміром бокса. */
+   `overflow ≠ visible`, і зона лишається розміром бокса.
+   Ціна названа заміром, а не на око: вміст нижче зсувається рівно на
+   1px (профіль чорнила по рядках у бейслайні — той самий, зміщений на
+   один), тож перезняті кадри legal-* саме про це, а не про регресію. */
 .lg-back{display:inline-flex;align-items:center;min-height:44px;margin:-12px 0 6px;padding:0 8px;margin-inline-start:-8px;color:var(--t3);font-size:var(--fs-foot);text-decoration:none}
 .lg-t{font-size:var(--fs-t2);font-weight:var(--fw-bold);color:var(--t1);letter-spacing:-.02em;line-height:var(--lh-tight);margin-bottom:6px}
 .lg-upd{font-size:var(--fs-cap1);color:var(--t4);margin-bottom:22px}
