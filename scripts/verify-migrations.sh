@@ -199,6 +199,57 @@ if ! out=$($PSQL -d shadow_gap -f supabase/RELEASE.sql 2>&1); then
 fi
 echo "✓ RELEASE.sql переживає прогалину в базі (024 відсутня)"
 
+# ── АТОМАРНІСТЬ RELEASE.sql ────────────────────────────────────────────────
+# ЧОМУ ЦЕ ОКРЕМА ПЕРЕВІРКА, І ЧОМУ ЇЇ ДОСІ НЕ БУЛО. Шапка файлу обіцяє «при
+# будь-якій помилці НІЧОГО не застосується», і саме ця властивість урятувала
+# прод, коли накат упав на `mark_overdue_payments()`. Але доказ був
+# ОДНОРАЗОВИЙ — зроблений руками під час написання, — а сталого гарда не
+# існувало. Обґрунтування, зроблене один раз, протухає мовчки: 065 додала
+# власні BEGIN/COMMIT, і файл перестав бути атомарним, не зламавши жодного
+# тесту.
+#
+# Механізм: у Postgres немає вкладених транзакцій. Внутрішній `BEGIN` дає лише
+# WARNING, а внутрішній `COMMIT` ЗАКРИВАЄ зовнішню транзакцію — усе після
+# нього йде в autocommit. Заміряно: збій у зоні 066 (БЕЗПЕКОВОЇ міграції)
+# лишав обʼєкти 064 і 065 у базі, тобто напівзастосований стан рівно там, де
+# оператор, за вже записаним уроком, вважає, що не застосувалось нічого.
+#
+# ДЕ САМЕ ламати — не деталь. Збій треба вставити перед ОСТАННІМ `COMMIT;`:
+# перед першим він у зламаному файлі потрапляє ще всередину зовнішньої
+# транзакції, відкат відбувається, і гард мовчить про дефект. На цьому я вже
+# наступив, будуючи пробу.
+psql -h "$SOCK" -p $PORT -U postgres -q -c "CREATE DATABASE shadow_atomic" >/dev/null
+$PSQL -d shadow_atomic -f scripts/pg-shim.sql >/dev/null 2>&1
+for f in $(ls supabase/migrations/*.sql | sort); do
+  b=$(basename "$f"); case "$b" in 0041_*|009_*) continue;; esac
+  if [[ "$b" =~ ^([0-9]{3})_ ]]; then n=$((10#${BASH_REMATCH[1]})); else n=0; fi
+  [ "$n" -ge 48 ] && continue
+  $PSQL -d shadow_atomic -f "$f" >/dev/null 2>&1 || true
+done
+probe_sql() { psql -h "$SOCK" -p $PORT -U postgres -d shadow_atomic -At -c "$1"; }
+# АНТИВАКУУМ: якщо маркери вже є до накату, «їх немає після» не значить нічого.
+LEASE_Q="SELECT count(*) FROM pg_proc WHERE proname='get_due_lease_reminders'"
+LAND_Q="SELECT count(*) FROM information_schema.columns WHERE table_name='properties' AND column_name='landlord_name'"
+if [ "$(probe_sql "$LEASE_Q")$(probe_sql "$LAND_Q")" != "00" ]; then
+  echo "✗ стенд атомарності забруднений: маркери 064/065 є ще ДО накату — перевірка вакуумна"; exit 1
+fi
+LAST_COMMIT=$(grep -nE '^COMMIT;[[:space:]]*$' supabase/RELEASE.sql | tail -1 | cut -d: -f1)
+[ -z "$LAST_COMMIT" ] && { echo "✗ у RELEASE.sql немає завершального COMMIT"; exit 1; }
+awk -v k="$LAST_COMMIT" 'NR==k{print "SELECT 1/0;"} {print}' supabase/RELEASE.sql > "$SOCK/atomic_boom.sql"
+$PSQL -d shadow_atomic -f "$SOCK/atomic_boom.sql" >/dev/null 2>&1 && {
+  echo "✗ підставлений збій не завалив накат — проба атомарності нічого не міряє"; exit 1
+}
+left="$(probe_sql "$LEASE_Q")$(probe_sql "$LAND_Q")"
+if [ "$left" != "00" ]; then
+  echo "✗ RELEASE.sql НЕ атомарний: після збою в зоні останньої міграції в базі лишились"
+  echo "  обʼєкти попередніх (get_due_lease_reminders/landlord_name = $left)."
+  echo "  Причина майже напевно та сама: якась міграція несе власні BEGIN;/COMMIT;,"
+  echo "  а внутрішній COMMIT закриває зовнішню транзакцію. Їх вирізає"
+  echo "  scripts/build-release-sql.sh — перезбери файл і перевір його лічильник."
+  exit 1
+fi
+echo "✓ RELEASE.sql атомарний: збій у зоні останньої міграції не лишає напівстану"
+
 # І навпаки: якщо бракує чогось ОБОВʼЯЗКОВОГО, файл мусить сказати ЩО САМЕ,
 # а не впасти на першому-ліпшому обʼєкті.
 psql -h "$SOCK" -p $PORT -U postgres -q -c "CREATE DATABASE shadow_bare" >/dev/null

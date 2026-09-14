@@ -87,7 +87,7 @@ export default function ProfileSetupScreen() {
 
         {/* Optional contacts */}
         <div style={{ margin: '0 12px 16px' }}>
-          <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconPhone size={14} color="#4ade80" />{tr('Додаткові контакти')}</span></div>
+          <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconPhone size={14} color="var(--ok-bright)" />{tr('Додаткові контакти')}</span></div>
           <div className="fg glass-s">
             <div className="fr">
               <IconMail size={16} color="var(--t3)" />

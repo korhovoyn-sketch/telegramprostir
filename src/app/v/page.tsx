@@ -435,7 +435,7 @@ function ContactRow({ firstName, lastName, phone, tgUsername, label }: {
             ...s.contactBtn,
             background: 'linear-gradient(135deg,rgba(74,222,128,.18),rgba(74,222,128,.07))',
             border: '.5px solid rgba(74,222,128,.35)',
-            color: '#4ade80',
+            color: 'var(--ok-bright)',
           }}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.8 19.79 19.79 0 01.22 1.22 2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.91a16 16 0 006.72 6.72l1.06-1.06a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
@@ -589,7 +589,7 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
                 <div style={{ height: .5, background: 'rgba(255,255,255,.1)', margin: '4px 0' }} />
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: 'var(--fs-note)', fontWeight: 600, color: 'rgba(255,255,255,.8)' }}>{tr('Разом / місяць')}</span>
-                  <span className="num" style={{ fontSize: 'var(--fs-t2)', fontWeight: 800, color: '#4ade80', letterSpacing: '-.02em' }}>
+                  <span className="num" style={{ fontSize: 'var(--fs-t2)', fontWeight: 800, color: 'var(--ok-bright)', letterSpacing: '-.02em' }}>
                     {fmtPrice(rentTotal, currency)}
                   </span>
                 </div>
@@ -610,7 +610,7 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
               </span>
             )}
             {data.property_ev_charger && (
-              <span style={{ fontSize: 'var(--fs-foot)', fontWeight: 600, padding: '5px 11px', borderRadius: 9, background: 'rgba(74,222,128,.15)', color: '#4ade80' }}>
+              <span style={{ fontSize: 'var(--fs-foot)', fontWeight: 600, padding: '5px 11px', borderRadius: 9, background: 'rgba(74,222,128,.15)', color: 'var(--ok-bright)' }}>
                 <IconBolt size={14} /> {tr('Зарядка EV')}
               </span>
             )}
@@ -737,7 +737,7 @@ function DatabaseView({ rows, token }: { rows: DbRow[]; token: string }) {
                         {fmtPrice(p.property_sale_price, p.owner_currency)}
                       </span>
                     ) : p.property_rent_rate ? (
-                      <span className="num" style={{ fontSize: 'var(--fs-cap1)', fontWeight: 700, color: '#4ade80' }}>
+                      <span className="num" style={{ fontSize: 'var(--fs-cap1)', fontWeight: 700, color: 'var(--ok-bright)' }}>
                         {fmtPrice(p.property_rent_rate, p.owner_currency, rentUnitLabel(p.property_rent_type))}
                       </span>
                     ) : null}

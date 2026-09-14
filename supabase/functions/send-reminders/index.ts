@@ -4,6 +4,15 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? ''
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 const BOT_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN') ?? ''
+// Власний секрет планувальника. ЧОМУ ВІН ПОТРІБЕН, хоч SERVICE_KEY уже є:
+// SERVICE_KEY інжектить сама платформа Supabase, задати його ми не можемо —
+// отже копія в GitHub Secrets мусить підтримуватись ВРУЧНУ, і ніщо не стежить,
+// щоб вона збігалась. Вона й розійшлась: щоденний виклик віддавав 401 у 31
+// прогоні поспіль, а `notifications` наповнює ВИКЛЮЧНО ця функція — тобто
+// сповіщень у проді не існувало взагалі. CRON_SECRET натомість задається з
+// ОДНОГО місця (`set-supabase-secrets.yml` кладе його в Supabase, той самий
+// рядок лежить у GitHub Secrets), тож розійтись йому нема з чим.
+const CRON_SECRET = Deno.env.get('CRON_SECRET') ?? ''
 
 // Telegram sendMessage can hang on a stalled connection; without a bound one
 // slow/dead socket would block the whole reminder run (and eventually the
@@ -47,9 +56,21 @@ async function sendTelegramMessage(chatId: number, text: string): Promise<Respon
   }
 }
 
+// Приймаємо АБО власний секрет планувальника, АБО службовий ключ — щоб
+// увімкнення CRON_SECRET не вимагало міняти обидва боки одночасно.
+// FAIL-CLOSED: порожній секрет кандидатом НЕ стає, інакше порожній
+// `Authorization` збігся б із порожнім значенням і пустив би будь-кого.
+// Обидва порівняння виконуються ЗАВЖДИ (без короткого замикання), тож за
+// часом відповіді не видно навіть того, який саме секрет підійшов.
+function authorized(auth: string): boolean {
+  const byCron = CRON_SECRET.length > 0 && timingSafeEqual(auth, `Bearer ${CRON_SECRET}`)
+  const byKey = SERVICE_KEY.length > 0 && timingSafeEqual(auth, `Bearer ${SERVICE_KEY}`)
+  return byCron || byKey
+}
+
 Deno.serve(async (req) => {
   const auth = req.headers.get('Authorization') ?? ''
-  if (!SERVICE_KEY || !timingSafeEqual(auth, `Bearer ${SERVICE_KEY}`)) {
+  if (!authorized(auth)) {
     return new Response('Unauthorized', { status: 401 })
   }
   if (!SUPABASE_URL || !SERVICE_KEY) {

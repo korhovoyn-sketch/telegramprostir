@@ -28,7 +28,9 @@
 --
 -- ЯК НАКОЧУВАТИ: вставити цілком і виконати ОДИН раз.
 --   * усе загорнуте в BEGIN/COMMIT — при будь-якій помилці НІЧОГО не
---     застосується, тобто напівстану не буде;
+--     застосується, тобто напівстану не буде. Це не декларація: CI
+--     підставляє збій у зоні ОСТАННЬОЇ міграції і вимагає, щоб у базі
+--     не лишилось обʼєктів попередніх (verify-migrations.sh);
 --   * файл ІДЕМПОТЕНТНИЙ (перевірено повторним накатом у CI), тож
 --     повторний запуск безпечний;
 --   * після нього запусти supabase/verify_release.sql — усі рядки
@@ -2307,7 +2309,6 @@ NOTIFY pgrst, 'reload schema';
 --    `REVOKE ALL ... FROM PUBLIC` ПЕРЕД грантом.
 -- ============================================================================
 
-BEGIN;
 
 DROP FUNCTION IF EXISTS get_due_lease_reminders();
 
@@ -2355,7 +2356,6 @@ $$;
 REVOKE ALL ON FUNCTION get_due_lease_reminders() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION get_due_lease_reminders() TO service_role;
 
-COMMIT;
 
 NOTIFY pgrst, 'reload schema';
 

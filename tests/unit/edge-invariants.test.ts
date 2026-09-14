@@ -106,10 +106,32 @@ describe('validate-upload', () => {
 })
 
 describe('крон-функції закриті від сторонніх', () => {
-  it('send-reminders вимагає service-key константним порівнянням', () => {
+  it('send-reminders вимагає секрет константним порівнянням', () => {
     const src = read('send-reminders')
     expect(src).toMatch(/timingSafeEqual/)
     expect(src).toMatch(/401/)
+  })
+
+  /**
+   * FAIL-CLOSED для ОБОХ секретів планувальника.
+   *
+   * Функція приймає або власний `CRON_SECRET`, або службовий ключ. Порожнє
+   * значення кандидатом ставати НЕ сміє: `Bearer ` + '' збіглося б із порожнім
+   * `Authorization`, тобто відсутність налаштування відкривала б функцію,
+   * яка розсилає нагадування й читає `tg_id` усіх власників. Це той самий
+   * клас, що вже описаний для rate-limiter'а (fails-closed, не fails-open).
+   *
+   * Перевіряється саме наявність перевірки довжини ПЕРЕД порівнянням — гард
+   * джерельний, бо Deno в пісочниці немає (див. шапку файлу).
+   */
+  it('порожній секрет не стає кандидатом — обидві гілки fail-closed', () => {
+    const src = read('send-reminders')
+    for (const name of ['CRON_SECRET', 'SERVICE_KEY']) {
+      const re = new RegExp(`${name}\\.length > 0 && timingSafeEqual`)
+      expect(re.test(src),
+        `${name} порівнюється без перевірки на порожнечу — незаданий секрет відкриває функцію`)
+        .toBe(true)
+    }
   })
 
   it('telegram-bot перевіряє secret_token із заголовка', () => {

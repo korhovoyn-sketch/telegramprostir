@@ -47,8 +47,16 @@ export async function uploadPropertyPhoto(propertyId: string, rawFile: File, sor
     ...(sortOrder != null ? { sort_order: sortOrder } : {}),
   })
   if (dbErr) {
-    // Clean up the orphaned storage file so it doesn't accumulate.
-    await supabase.storage.from('photos').remove([path]).catch(() => {})
+    // Прибираємо осиротілий файл, щоб він не накопичувався.
+    // ДОВЖИНА, а не `.catch()`: supabase-js НЕ реджектить — він віддає
+    // `{ data, error }`, тож `.catch(() => {})`, який тут стояв, не спрацьовував
+    // жодного разу і просто ховав результат. Схований політикою обʼєкт при
+    // цьому повертає ПОРОЖНІЙ масив і `error: null`, тобто «прибрав» і «не мав
+    // права» на дроті нерозрізненні (той самий урок, що в `deletePhoto`).
+    const { data: removed } = await supabase.storage.from('photos').remove([path])
+    if ((removed?.length ?? 0) !== 1) {
+      console.warn('[photoUpload] orphan left in storage:', path)
+    }
     throw dbErr
   }
 

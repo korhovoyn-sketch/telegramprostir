@@ -56,11 +56,35 @@ export const isDoc = (file: { name: string; type: string }): boolean =>
  * ЗОБРАЖЕННЯ — та сама хвороба, слабший симптом. `heic` з айфона регулярно
  * приходить без типу; тут перевірка й так була по «тип АБО розширення», тож
  * модуль лише зводить дві копії предиката в одну.
+ *
+ * АЛОВЛИСТ, А НЕ ПРЕФІКС `image/`, і це БЕЗПЕКА, а не педантизм.
+ * `image/svg+xml` — активний контент, а бакет `photos` ПУБЛІЧНИЙ (016) і його
+ * `storage_path` віддається анонімам на `/v`. Перевірено, що конвеєр SVG НЕ
+ * знешкоджує — обидві гілки `compressImage` віддають оригінал:
+ *   • WebKit (а це Telegram на iOS) не вміє SVG у `createImageBitmap` — кидає,
+ *     спрацьовує fail-open `catch`;
+ *   • Chromium растеризує, але дрібний SVG після цього БІЛЬШИЙ за себе, тож
+ *     спрацьовує `blob.size >= file.size * MIN_GAIN` і оригінал лишається.
+ * Далі `.svg` проходить фільтр розширення в `photoUpload` і лягає в публічне
+ * сховище цілим. Завантажувати може й РЕДАКТОР команди (041), тобто менш
+ * довірений принципал саджає скрипт у публічне оголошення власника.
+ *
+ * Чому аловлист, а не `!== 'image/svg+xml'`: чорний список ловить лише те, про
+ * що вже знаєш. Аловлист відмовляє за замовчуванням — той самий принцип, за
+ * яким `resolveDocMime` повертає `null`, а не «спробуємо».
+ *
+ * `image/gif` у списку СВІДОМО: `compressImage` навмисно пропускає gif без
+ * перекодування, тобто підтримка була, і цей фікс не має права її забрати.
  */
-const IMG_EXT = /\.(jpe?g|png|webp|heic|heif)$/i
+const IMG_EXT = /\.(jpe?g|png|webp|heic|heif|gif)$/i
+
+const IMG_MIME = new Set([
+  'image/jpeg', 'image/jpg', 'image/png',
+  'image/webp', 'image/heic', 'image/heif', 'image/gif',
+])
 
 export const isImage = (file: { name: string; type: string }): boolean =>
-  file.type.startsWith('image/') || IMG_EXT.test(file.name)
+  IMG_MIME.has(file.type.toLowerCase()) || IMG_EXT.test(file.name)
 
 /**
  * МЕЖІ РОЗМІРУ — ДВІ, І ЦЕ НЕ ДУБЛЮВАННЯ.

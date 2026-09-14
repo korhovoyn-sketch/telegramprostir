@@ -67,6 +67,32 @@ describe('зображення: тип АБО розширення', () => {
   it('антивакуум: pdf зображенням не є', () => {
     expect(isImage({ name: 'a.pdf', type: 'application/pdf' })).toBe(false)
   })
+
+  /**
+   * SVG — АКТИВНИЙ КОНТЕНТ У ПУБЛІЧНОМУ БАКЕТІ, і конвеєр його не знешкоджує:
+   * обидві гілки `compressImage` віддають ОРИГІНАЛ (WebKit кидає на
+   * `createImageBitmap`, Chromium растеризує в БІЛЬШИЙ файл і спрацьовує
+   * `MIN_GAIN`). Далі `.svg` лягає в бакет `photos`, який публічний, і
+   * віддається анонімам на `/v`.
+   */
+  it('svg НЕ зображення — ані типом, ані розширенням', () => {
+    expect(isImage({ name: 'x.svg', type: 'image/svg+xml' })).toBe(false)
+    expect(isImage({ name: 'x.svg', type: '' })).toBe(false)
+    // Тип із параметрами й у верхньому регістрі — те саме рішення.
+    expect(isImage({ name: 'x', type: 'IMAGE/SVG+XML' })).toBe(false)
+  })
+
+  it('антивакуум аловлиста: gif лишився, бо compressImage його свідомо пропускає', () => {
+    expect(isImage({ name: 'anim.gif', type: 'image/gif' })).toBe(true)
+  })
+
+  it('антивакуум аловлиста: «відмовляй усім» не проходить', () => {
+    for (const f of [
+      { name: 'a.png',  type: 'image/png' },
+      { name: 'a.webp', type: 'image/webp' },
+      { name: 'a.JPEG', type: '' },
+    ]) expect(isImage(f), `${f.name} мусить прийматись`).toBe(true)
+  })
 })
 
 /**

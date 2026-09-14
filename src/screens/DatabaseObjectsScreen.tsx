@@ -827,13 +827,23 @@ export default function DatabaseObjectsScreen() {
               const open = forceExpand || !collapsed.has(sec.key)
               return (
                 <div key={sec.key} className="fold-sec">
-                  <div className={`fold-hd ${open ? 'open' : ''}`} onClick={() => toggleFolder(sec.key)}>
+                  {/* Заголовок — `<button>`, а не `<div>`: це ЄДИНИЙ орган
+                      керування акордеоном, тож із `<div>` він недосяжний з
+                      клавіатури і читалка не оголошує ні його роль, ні стан.
+                      Те саме правило, що вже застосоване до `.sheet-row`. */}
+                  <button
+                    type="button"
+                    className={`fold-hd ${open ? 'open' : ''}`}
+                    aria-expanded={open}
+                    aria-controls={`fold-body-${sec.key}`}
+                    onClick={() => toggleFolder(sec.key)}
+                  >
                     <span className={`fold-hd-chev ${open ? 'open' : ''}`}><IconChevronRight size={16} /></span>
                     <span className="fold-hd-ic">{sec.id ? <IconFolder size={16} /> : <IconInbox size={16} />}</span>
                     <span className="fold-hd-name">{sec.name}</span>
                     <span className="fold-hd-cnt">{sec.count}</span>
-                  </div>
-                  <Collapsible open={open} className="fold-wrap-inner">
+                  </button>
+                  <Collapsible open={open} id={`fold-body-${sec.key}`} className="fold-wrap-inner">
                     {sec.items.map((p) => renderCard(p, 0))}
                   </Collapsible>
                 </div>

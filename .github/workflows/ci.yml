@@ -47,6 +47,31 @@ jobs:
       - run: npm run lint
       - run: npm run build
       - run: npm run test
+      # ── ЗʼЯВИВСЯ БЕЗПЕЧНИЙ ФІКС? ──────────────────────────────────────────
+      # НЕ «нуль advisory»: частина з них фікса не має взагалі (`xlsx`) або
+      # лікується лише мажором (`next`/`postcss`/`vitest`), і їхня
+      # недосяжність обґрунтована в tests/unit/dependency-surface.test.ts.
+      # Падати на них щодня означало б привчити ігнорувати цей крок.
+      #
+      # Тут ловиться рівно те, що вислизнуло під час релізного аудиту:
+      # advisory-база рухається САМА, тож «безпечного фіксу немає» — стан на
+      # дату, а не властивість. Перевірка знайшла пʼять пакетів із немажорним
+      # фіксом (три з них `high`), поки докблок гарда стверджував, що таких
+      # немає жодного. Крок мовчить, доки фікс потребує мажора, і падає в той
+      # день, коли його стало можна взяти одним `npm audit fix`.
+      - name: Залежності з БЕЗПЕЧНИМ фіксом
+        run: |
+          npm audit --json > /tmp/audit.json 2>/dev/null || true
+          node -e '
+            const a = JSON.parse(require("fs").readFileSync("/tmp/audit.json","utf8"));
+            const safe = Object.entries(a.vulnerabilities ?? {})
+              .filter(([, v]) => v.fixAvailable === true)
+              .map(([k, v]) => `${v.severity.padEnd(8)} ${k}`);
+            if (!safe.length) { console.log("✓ безпечних (немажорних) фіксів немає — решта обґрунтована в dependency-surface.test.ts"); process.exit(0); }
+            console.log("::error::Зʼявився безпечний фікс — `npm audit fix` (без --force) закриє:");
+            safe.forEach((l) => console.log("  " + l));
+            process.exit(1);
+          '
       - name: Upload coverage
         if: always()
         uses: actions/upload-artifact@v4

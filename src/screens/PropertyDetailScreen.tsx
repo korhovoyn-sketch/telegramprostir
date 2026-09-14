@@ -300,7 +300,7 @@ export default function PropertyDetailScreen() {
             )}
             <div className="obj-f">
               <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                <IconCircleCheck size={14} color="#4ade80" />{tr('Статус')}
+                <IconCircleCheck size={14} color="var(--ok-bright)" />{tr('Статус')}
               </div>
               <div className="obj-fv">
                 <StatusBadge status={property.status} />
@@ -325,7 +325,7 @@ export default function PropertyDetailScreen() {
             {property.ev_charger && (
               <div className="obj-f">
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <IconBolt size={14} color="#4ade80" />{tr('Зарядка EV')}
+                  <IconBolt size={14} color="var(--ok-bright)" />{tr('Зарядка EV')}
                 </div>
                 <div className="obj-fv">{tr('Є')}</div>
               </div>
