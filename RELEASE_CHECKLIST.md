@@ -254,9 +254,14 @@ Secrets не дорівнює тому, що Supabase інжектить у фу
 
 - [ ] `openssl rand -hex 32` — згенеровано довгий випадковий рядок
 - [ ] GitHub → Settings → Secrets and variables → Actions → **`CRON_SECRET`** = цей рядок
-- [ ] Actions → **Set Supabase Edge Function Secrets** → Run workflow
-      (кладе ТОЙ САМИЙ рядок у Supabase; у логу має бути
-      `CRON_SECRET will be pushed`)
+- [ ] Actions → **Set Supabase Edge Function Secrets** → Run workflow,
+      **поле домену лишити ПОРОЖНІМ** (порожнє = «не чіпати ALLOWED_ORIGIN»).
+      У логу має бути `CRON_SECRET will be pushed` і
+      `ALLOWED_ORIGIN left untouched`.
+
+      > Поле було обовʼязковим, і це був капкан: щоб полагодити сповіщення,
+      > доводилось перевбивати прод-origin, а одруківка там пінить CORS на
+      > чужу адресу і кладе вхід **усім**. Тепер порожнє значення безпечне.
 - [ ] Actions → **Send rent reminders** → Run workflow — відповідь `200`,
       а не `401`
 - [ ] Створено тестовий розклад платежу з `due_day` = сьогодні + `notify_days_before`

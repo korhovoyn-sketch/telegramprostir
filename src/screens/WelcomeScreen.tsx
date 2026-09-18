@@ -102,11 +102,30 @@ export default function WelcomeScreen() {
         headers: { 'Authorization': `Bearer ${anonKey ?? ''}`, 'apikey': anonKey ?? '' },
       })
       const data = await res.json()
+      // РОЗБІЖНІСТЬ ORIGIN — окрема гілка, і вона мусить іти ПЕРШОЮ.
+      // Решта прапорців каже «змінну задано»; ця — «задано ПРАВИЛЬНО». Без неї
+      // хибний ALLOWED_ORIGIN читався як здоровий: усі перевірки true, тост
+      // «Конфігурація OK», а вхід при цьому мертвий, бо CORS пінить відповідь
+      // на чужий origin. Обидві адреси публічні, тож показуємо їх дослівно —
+      // інакше «не збігається» не каже, що саме правити.
+      if (data.checks?.origin_match === false) {
+        showToast({
+          type: 'error',
+          title: tr('ALLOWED_ORIGIN не збігається'),
+          subtitle: tr('У Supabase задано {0}, а застосунок відкрито з {1}. Вхід блокує CORS, поки вони різні.',
+            String(data.allowed_origin_value ?? '—'), window.location.origin),
+        })
+        return
+      }
       if (data.ok) {
-        showToast({ type: 'success', title: tr('Конфігурація OK'), subtitle: tr('Змінні та БД налаштовані. Якщо вхід не працює — перевірте правильність TELEGRAM_BOT_TOKEN.') })
+        showToast({ type: 'success', title: tr('Конфігурація OK'), subtitle: tr('Змінні, БД, токен бота і origin перевірені.') })
       } else {
         const ENV_VAR_NAMES: Record<string, string> = {
           allowed_origin: 'ALLOWED_ORIGIN',
+          // Окремий рядок від `bot_token`: той каже «задано», цей — «Telegram
+          // його прийняв». Без розрізнення список назвав би змінну, яка
+          // насправді НЕ порожня, і порада «додайте її» вела б у глухий кут.
+          bot_token_valid: tr('TELEGRAM_BOT_TOKEN (хибний — Telegram його не приймає)'),
           bot_token: 'TELEGRAM_BOT_TOKEN',
           supabase_url: 'SUPABASE_URL',
           service_key: 'SUPABASE_SERVICE_ROLE_KEY',

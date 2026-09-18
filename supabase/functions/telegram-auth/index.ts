@@ -173,7 +173,8 @@ function classifyError(msg: string): ErrCode {
 }
 
 Deno.serve(async (req) => {
-  const cors = corsHeadersFor(req.headers.get('Origin'), CORS_METHODS)
+  const reqOrigin = req.headers.get('Origin')
+  const cors = corsHeadersFor(reqOrigin, CORS_METHODS)
 
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: cors })
@@ -182,10 +183,21 @@ Deno.serve(async (req) => {
   // ── GET: lightweight health / config check ──────────────────────────────
   // Returns which env vars are configured (not their values).
   // Useful for diagnosing why auth is broken without exposing secrets.
-  // Always reachable — including when ALLOWED_ORIGIN itself is unset — so the
-  // in-app "Діагностика підключення" button can name that exact secret
-  // instead of the caller just seeing a generic connection failure.
+  //
+  // ДОСЯЖНІСТЬ ЦІЄЇ ВІДПОВІДІ — ЧАСТИНА ЇЇ СЕНСУ, і спільний `cors` її ламав.
+  // Він пінить `Access-Control-Allow-Origin` на ALLOWED_ORIGIN, тож коли та
+  // задана ХИБНО, браузер блокує саме ту відповідь, яка мала б це пояснити:
+  // клієнт отримує голу мережеву помилку і показує «Edge Function
+  // недоступна — перевірте, що функцію задеплоєно», тобто відсилає шукати
+  // зламане не туди. Попередній коментар тут стверджував «always reachable»,
+  // і це було правдою лише для ВІДСУТНЬОЇ змінної, не для хибної.
+  //
+  // Відбиття Origin тут нічого не відкриває: тіло — самі булеві прапорці
+  // конфігурації, без токенів і даних користувача, і воно й так доступне
+  // будь-кому з публічним anon-ключем (curl взагалі не шле Origin). Суворе
+  // пінування лишається на POST, тобто там, де у відповіді є сесія.
   if (req.method === 'GET') {
+    const diagCors = { ...cors, 'Access-Control-Allow-Origin': reqOrigin ?? '*' }
     const checks = {
       allowed_origin: !!allowedOrigin,
       bot_token:   !!Deno.env.get('TELEGRAM_BOT_TOKEN'),
@@ -194,6 +206,36 @@ Deno.serve(async (req) => {
       anon_key:     !!Deno.env.get('SUPABASE_ANON_KEY'),
     }
     const allOk = Object.values(checks).every(Boolean)
+
+    // `!!allowedOrigin` каже лише «щось задано» — рівно та сама сліпота, через
+    // яку `-z` у воркфлоу планувальника не побачив розійдений секрет: ловить
+    // ПОРОЖНЄ, не ХИБНЕ. Питання, на яке треба відповісти, інше: чи пустить
+    // CORS саме цей застосунок. `null` — коли Origin не надіслали (curl), і
+    // тоді порівнювати нема з чим, тож у `ok` це не входить.
+    const originMatch = reqOrigin ? allowedOrigin === reqOrigin : null
+
+    // ПРОБА ТОКЕНА БОТА — та сама причина, що й db-проба нижче: `!!` каже
+    // лише «задано». Хибний токен провалює HMAC-перевірку, тобто вхід мертвий,
+    // а діагностика показувала `bot_token: true` — і тост прямо відсилав
+    // користувача «перевірити правильність TELEGRAM_BOT_TOKEN» ВРУЧНУ, тобто
+    // продукт знав про цю дірку і перекладав роботу на людину. `getMe` —
+    // найдешевший спосіб спитати сам Telegram. Best-effort і лише коли решта
+    // зійшлась, щоб здоровий шлях не платив за мережевий виклик.
+    // Повертається САМЕ булеве: тіло `getMe` містить юзернейм бота, і хоч він
+    // публічний, діагностиці він не потрібен.
+    let botTokenValid: boolean | null = null
+    if (checks.bot_token) {
+      try {
+        const ctl = new AbortController()
+        const t = setTimeout(() => ctl.abort(), 5000)
+        const r = await fetch(
+          `https://api.telegram.org/bot${Deno.env.get('TELEGRAM_BOT_TOKEN')}/getMe`,
+          { signal: ctl.signal },
+        )
+        clearTimeout(t)
+        botTokenValid = r.ok
+      } catch { /* мережа/таймаут — не знаємо, лишаємо null (не «зламано») */ }
+    }
 
     // Optionally probe DB connectivity when config looks good
     let db = false
@@ -209,8 +251,21 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ ok: allOk && db, checks: { ...checks, db } }),
-      { headers: { ...cors, 'Content-Type': 'application/json' } },
+      JSON.stringify({
+        ok: allOk && db && originMatch !== false && botTokenValid !== false,
+        checks: {
+          ...checks,
+          db,
+          ...(originMatch === null ? {} : { origin_match: originMatch }),
+          ...(botTokenValid === null ? {} : { bot_token_valid: botTokenValid }),
+        },
+        // НЕ секрет: це публічна адреса застосунку, і вона й так стоїть у
+        // заголовку `Access-Control-Allow-Origin` кожної відповіді. Без неї
+        // клієнт може сказати лише «не збігається», не назвавши з ЧИМ.
+        allowed_origin_value: allowedOrigin,
+        request_origin: reqOrigin,
+      }),
+      { headers: { ...diagCors, 'Content-Type': 'application/json' } },
     )
   }
 

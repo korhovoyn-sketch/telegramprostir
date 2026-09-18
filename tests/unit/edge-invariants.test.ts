@@ -105,6 +105,85 @@ describe('validate-upload', () => {
   })
 })
 
+describe('діагностика конфігурації лишається досяжною і бачить ХИБНЕ значення', () => {
+  /**
+   * ЧОМУ ЦЕ ГАРД, А НЕ ДРІБНИЦЯ.
+   *
+   * `ALLOWED_ORIGIN` — єдина змінна, яка гейтить сама себе: `corsHeadersFor`
+   * пінить на неї `Access-Control-Allow-Origin`, тож поки вона ХИБНА, браузер
+   * блокує будь-яку відповідь цієї функції — включно з тією, що мала б про це
+   * сказати. Користувач тоді бачить «Edge Function недоступна» і йде
+   * перевіряти деплой, хоч зламана одна змінна.
+   *
+   * Тому GET-гілка свідомо відбиває Origin запиту (тіло — самі булеві
+   * прапорці, без токенів і даних користувача) і віддає `origin_match`.
+   * Суворе пінування лишається на POST, де у відповіді є сесія.
+   */
+  it('GET віддає ВЛАСНІ cors-заголовки, а не спільні', () => {
+    const src = read('telegram-auth')
+    expect(src, 'GET більше не будує diagCors — відповідь діагностики знову пінить на ALLOWED_ORIGIN')
+      .toMatch(/diagCors/)
+    expect(src, "diagCors мусить відбивати Origin запиту, інакше сенс утрачено")
+      .toMatch(/'Access-Control-Allow-Origin':\s*reqOrigin\s*\?\?\s*'\*'/)
+  })
+
+  it('перевіряється ЗБІГ, а не лише наявність', () => {
+    const src = read('telegram-auth')
+    expect(src, 'зник originMatch — `!!allowedOrigin` каже лише «щось задано», і хибне значення читається як здорове')
+      .toMatch(/const originMatch\s*=\s*reqOrigin\s*\?\s*allowedOrigin === reqOrigin\s*:\s*null/)
+    expect(src, 'ok мусить падати на розбіжності, інакше клієнт покаже «Конфігурація OK» при мертвому вході')
+      .toMatch(/originMatch !== false/)
+  })
+
+  /**
+   * АНТИВАКУУМ: суворе пінування МУСИТЬ лишитись там, де відповідь несе сесію.
+   * Без цієї половини «діагностику видно звідусіль» легко перетворюється на
+   * «видно звідусіль усе».
+   */
+  it('POST-шлях суворого пінування НЕ послаблено', () => {
+    const shared = readFileSync(resolve(process.cwd(), 'supabase/functions/_shared/cors.ts'), 'utf8')
+    expect(shared, 'corsHeadersFor перестав пінити на ALLOWED_ORIGIN — це вже не CORS-обмеження')
+      .toMatch(/allowedOrigin \?\? reqOrigin \?\? '\*'/)
+    const src = read('telegram-auth')
+    expect(src, 'diagCors протік за межі GET-гілки')
+      .toMatch(/if \(req\.method === 'GET'\) \{\s*\n\s*const diagCors/)
+  })
+
+  /**
+   * Третє входження класу «перевірено наявність, не правильність»: хибний
+   * токен бота провалює HMAC, тобто вхід мертвий, а `!!` показував здоровий
+   * прапорець. Показово, що продукт про дірку ЗНАВ — успішний тост відсилав
+   * користувача перевіряти токен руками.
+   */
+  it('валідність токена бота ПЕРЕВІРЯЄТЬСЯ, а не декларується', () => {
+    const src = read('telegram-auth')
+    expect(src, 'зникла проба getMe — `!!` знову каже лише «задано»')
+      .toMatch(/api\.telegram\.org\/bot\$\{Deno\.env\.get\('TELEGRAM_BOT_TOKEN'\)\}\/getMe/)
+    expect(src, 'проба мусить мати таймаут: health-ендпоінт не сміє висіти на мертвій мережі')
+      .toMatch(/AbortController[\s\S]{0,200}?getMe/)
+    expect(src, 'хибний токен мусить валити ok, інакше проба нічого не міняє')
+      .toMatch(/botTokenValid !== false/)
+    expect(src, 'невідомий результат (мережа) НЕ сміє читатись як «зламано»')
+      .toMatch(/let botTokenValid: boolean \| null = null/)
+  })
+
+  /**
+   * Воркфлоу секретів — ЄДИНИЙ шлях задати CRON_SECRET, і він же пушить
+   * ALLOWED_ORIGIN. Поки домен був `required`, полагодити сповіщення означало
+   * перевбити прод-origin, а одруківка там кладе вхід УСІМ. Порожній ввід
+   * мусить лишатись безпечним дефолтом «нічого не міняти».
+   */
+  it('воркфлоу секретів не змушує перевбивати origin заради іншого секрета', () => {
+    const wf = readFileSync(resolve(process.cwd(), '.github/workflows/set-supabase-secrets.yml'), 'utf8')
+    expect(wf, 'vercel_domain знову required — фікс сповіщень знову тягне ризик локауту')
+      .toMatch(/vercel_domain:[\s\S]{0,200}?required:\s*false/)
+    expect(wf, 'ALLOWED_ORIGIN пушиться безумовно — порожній ввід затре робоче значення')
+      .not.toMatch(/supabase secrets set[\s\S]{0,200}?ALLOWED_ORIGIN=/)
+    expect(wf, 'немає гілки, що пушить ALLOWED_ORIGIN лише за наявності вводу')
+      .toMatch(/if \[ -n "\$\{\{ inputs\.vercel_domain \}\}" \]/)
+  })
+})
+
 describe('крон-функції закриті від сторонніх', () => {
   it('send-reminders вимагає секрет константним порівнянням', () => {
     const src = read('send-reminders')
