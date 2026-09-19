@@ -1,6 +1,6 @@
 import { test, expect, type Browser, type Page } from '@playwright/test'
 import { ALL_GROUPS } from './helpers/screens'
-import { smallTargets, TAP_DEBT } from './helpers/contrast'
+import { smallTargets, TAP_DEBT, settleToasts } from './helpers/contrast'
 import { DEVICES, deviceContext, IPAD } from './helpers/devices'
 
 /**
@@ -159,6 +159,9 @@ for (const dev of DEVICES) {
             problems.push(
               `${s.label}: підпис «${sp.label}» ${sp.text}px не влазить у кнопку .${sp.cls} (${sp.box}px)`)
           }
+          // Тост зʼявляється асинхронно і виїжджає зі `scale(.95)` — пауза
+          // вище його не покриває (див. settleToasts).
+          await settleToasts(page)
           for (const t of await smallTargets(page, 44)) {
             // Саме `key`, а не перший клас із `cls`: той обрізаний до 24
             // символів, тож довге імʼя тихо перестало б збігатись із боргом.

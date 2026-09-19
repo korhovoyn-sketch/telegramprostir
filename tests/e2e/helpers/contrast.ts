@@ -207,7 +207,11 @@ export const smallTargets = (page: Page, min: number) => page.evaluate<SmallTarg
         cls: e.className?.toString().slice(0, 24) || e.tagName.toLowerCase(),
         key: e.className?.toString().trim().split(/\s+/)[0] || e.tagName.toLowerCase(),
         label: (e.getAttribute('aria-label') || e.textContent || '').trim().slice(0, 22),
-        w: Math.round(r.width), h: effH,
+        // НЕ Math.round: бокс 43.89px друкувався як «44», тобто повідомлення
+        // суперечило саме собі («44×45 — зона дотику під 44px») і відсилало
+        // шукати дефект там, де його немає. Заміряно на `.toast-close` під
+        // час виїзду тоста: 41.8 → 44, і 25 кадрів із 40 нижче порога.
+        w: Math.round(r.width * 100) / 100, h: effH,
       })
     }
   })
@@ -253,3 +257,28 @@ export const TAP_DEBT: ReadonlySet<string> = new Set([
   // Apple має 32pt, а смуга займає всю ширину екрана.
   'seg-b',
 ])
+
+/**
+ * ТОСТ ВИЇЖДЖАЄ ЗІ `scale(.95)`, І ЗАМІР ПОСЕРЕД ЦЬОГО — ЗАМІР РУХУ.
+ *
+ * Обходи чекають фіксовану паузу ПІСЛЯ переходу на екран, але тост зʼявляється
+ * АСИНХРОННО — від завантаження даних, — тож у ту паузу він не вкладається.
+ * Заміряно покадрово: ширина `.toast-close` іде 41.8 → 44, тобто зона дотику
+ * «менша за 44px» рівно доти, доки триває анімація. Це вже описаний клас
+ * («геометрія, знята посеред анімації»), просто на носії, якого раніше не
+ * ловили — звідси один флейк на повний прогін.
+ *
+ * Чекаємо САМЕ тост, а не «усі анімації»: у застосунку є нескінченні
+ * (`shimmer`, `cmarkPulse`, плавання ілюстрацій), і очікування на них
+ * висіло б до таймауту. Вихід по таймауту свідомо НЕ падає — тоді міряємо як
+ * і раніше, тобто гард не стає слабшим за той, що був.
+ */
+export async function settleToasts(page: Page, timeout = 3000) {
+  await page
+    .waitForFunction(() => {
+      const t = document.querySelector('.toast')
+      if (!t) return true
+      return t.getAnimations({ subtree: true }).every((a) => a.playState !== 'running')
+    }, undefined, { timeout })
+    .catch(() => {})
+}

@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test'
 import { setupApp, DEFAULT_USER, seedSession, jsonRoute as json } from './helpers/harness'
-import { measureContrast, belowAA, smallTargets, TAP_DEBT } from './helpers/contrast'
+import { measureContrast, belowAA, smallTargets, TAP_DEBT, settleToasts } from './helpers/contrast'
 import { ALL_GROUPS, ownerFixtures, OWNER_SCREENS } from './helpers/screens'
 
 /**
@@ -225,6 +225,7 @@ test('фактична зона дотику — 44px (Apple HIG)', async ({ pag
   for (const s of OWNER_SCREENS) {
     await s.go(page)
     await page.waitForTimeout(500)
+    await settleToasts(page)
     const small = await smallTargets(page, 44)
     const unexpected = [...new Set(small
       .filter((t) => !TAP_DEBT.has(t.key))
