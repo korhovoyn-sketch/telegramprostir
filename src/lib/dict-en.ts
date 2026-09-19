@@ -1119,6 +1119,6 @@ export const EN: Record<string, string> = {
   "prostir — інструмент обліку нерухомості всередині Telegram: ви ведете бази обʼєктів, рахуєте оренду й експлуатаційні платежі, зберігаєте фото та документи, ділитесь добірками з рієлторами й клієнтами.": "prostir is a property record-keeping tool inside Telegram: you keep databases of units, calculate rent and service charges, store photos and documents, and share collections with agents and clients.",
   "prostir — платформа управління нерухомістю в Telegram. Бази обʼєктів, аналітика переглядів, підбірки для ріелторів.": "prostir is a property management platform in Telegram. Unit databases, view analytics, collections for agents.",
   "QR-код для ріелторів — не для власника": "The QR code is for agents — not for the owner",
-  "TELEGRAM_BOT_TOKEN (хибний — Telegram його не приймає)": "TELEGRAM_BOT_TOKEN (invalid — Telegram rejects it)",
+  "TELEGRAM_BOT_TOKEN задано, але Telegram його не приймає — перевірте значення.": "TELEGRAM_BOT_TOKEN is set, but Telegram rejects it — check the value.",
   "Word документ": "Word document",
 }

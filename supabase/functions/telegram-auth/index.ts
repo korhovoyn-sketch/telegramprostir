@@ -176,8 +176,20 @@ Deno.serve(async (req) => {
   const reqOrigin = req.headers.get('Origin')
   const cors = corsHeadersFor(reqOrigin, CORS_METHODS)
 
+  // Preflight МУСИТЬ відповідати тим самим ACAO, що й сама відповідь, інакше
+  // браузер ріже запит ще ДО неї. Саме тут провалилась перша редакція
+  // діагностики: `diagCors` жив у гілці GET, а клієнт шле не-safelisted
+  // заголовки, тобто preflight обовʼязковий — і він пінився на ХИБНИЙ
+  // ALLOWED_ORIGIN, тож до GET браузер не доходив НІКОЛИ. Відбиття тут
+  // дозволене лише для preflight САМОЇ діагностики (`GET`): для POST воно
+  // означало б, що вхід виконується з будь-якого origin — читати відповідь
+  // атакувальник не зміг би, але побічні ефекти сталися б.
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: cors })
+    const wants = req.headers.get('Access-Control-Request-Method')
+    const headers = wants === 'GET'
+      ? { ...cors, 'Access-Control-Allow-Origin': reqOrigin ?? '*', 'Vary': 'Origin' }
+      : cors
+    return new Response('ok', { headers })
   }
 
   // ── GET: lightweight health / config check ──────────────────────────────
@@ -197,7 +209,7 @@ Deno.serve(async (req) => {
   // будь-кому з публічним anon-ключем (curl взагалі не шле Origin). Суворе
   // пінування лишається на POST, тобто там, де у відповіді є сесія.
   if (req.method === 'GET') {
-    const diagCors = { ...cors, 'Access-Control-Allow-Origin': reqOrigin ?? '*' }
+    const diagCors = { ...cors, 'Access-Control-Allow-Origin': reqOrigin ?? '*', 'Vary': 'Origin' }
     const checks = {
       allowed_origin: !!allowedOrigin,
       bot_token:   !!Deno.env.get('TELEGRAM_BOT_TOKEN'),
@@ -219,22 +231,28 @@ Deno.serve(async (req) => {
     // а діагностика показувала `bot_token: true` — і тост прямо відсилав
     // користувача «перевірити правильність TELEGRAM_BOT_TOKEN» ВРУЧНУ, тобто
     // продукт знав про цю дірку і перекладав роботу на людину. `getMe` —
-    // найдешевший спосіб спитати сам Telegram. Best-effort і лише коли решта
-    // зійшлась, щоб здоровий шлях не платив за мережевий виклик.
+    // найдешевший спосіб спитати сам Telegram. Best-effort; біжить, коли
+    // токен непорожній — порівнювати нема з чим, поки його немає взагалі.
     // Повертається САМЕ булеве: тіло `getMe` містить юзернейм бота, і хоч він
     // публічний, діагностиці він не потрібен.
     let botTokenValid: boolean | null = null
     if (checks.bot_token) {
+      const ctl = new AbortController()
+      const t = setTimeout(() => ctl.abort(), 5000)
       try {
-        const ctl = new AbortController()
-        const t = setTimeout(() => ctl.abort(), 5000)
         const r = await fetch(
           `https://api.telegram.org/bot${Deno.env.get('TELEGRAM_BOT_TOKEN')}/getMe`,
           { signal: ctl.signal },
         )
-        clearTimeout(t)
-        botTokenValid = r.ok
+        // `r.ok` тут НЕ годиться: воно звело б «Telegram каже, що токен
+        // недійсний» і «Telegram зараз відмовляє» в одне `false`. Ціна
+        // помилки несиметрична — побачивши «токен хибний», оператор іде
+        // РОТУВАТИ робочий токен, тобто ламає вхід за хибним діагнозом.
+        // 429/5xx — це «не знаю», і воно лишається `null`, як мережевий збій.
+        if (r.status === 401 || r.status === 404) botTokenValid = false
+        else if (r.ok) botTokenValid = true
       } catch { /* мережа/таймаут — не знаємо, лишаємо null (не «зламано») */ }
+      finally { clearTimeout(t) }
     }
 
     // Optionally probe DB connectivity when config looks good

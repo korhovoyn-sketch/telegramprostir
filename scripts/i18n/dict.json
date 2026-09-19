@@ -49,7 +49,7 @@
   "PDF збережено": "PDF saved",
   "PDF містить шапку з назвою бази, зведену статистику по статусах, таблицю обʼєктів з кольоровими статусами та підвал з контактами.": "The PDF contains a header with the database name, summary statistics by status, a table of units with colour-coded statuses, and a footer with contacts.",
   "QR-код для ріелторів — не для власника": "The QR code is for agents — not for the owner",
-  "TELEGRAM_BOT_TOKEN (хибний — Telegram його не приймає)": "TELEGRAM_BOT_TOKEN (invalid — Telegram rejects it)",
+  "TELEGRAM_BOT_TOKEN задано, але Telegram його не приймає — перевірте значення.": "TELEGRAM_BOT_TOKEN is set, but Telegram rejects it — check the value.",
   "Word документ": "Word document",
   "[notifications] realtime-канал відпав:": "[notifications] realtime channel dropped:",
   "prostir — застосунок для управління нерухомістю всередині Telegram. Ця політика пояснює, які дані ми обробляємо, навіщо і як ви можете їх видалити.": "prostir is a property management app inside Telegram. This policy explains what data we process, why, and how you can delete it.",

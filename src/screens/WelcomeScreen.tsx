@@ -90,25 +90,34 @@ export default function WelcomeScreen() {
 
   async function handleDiag() {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
     if (!supabaseUrl) {
       showToast({ type: 'error', title: tr('NEXT_PUBLIC_SUPABASE_URL не вказано'), subtitle: tr('Перевірте налаштування Vercel') })
       return
     }
     setDiagLoading(true)
     try {
-      const res = await fetch(`${supabaseUrl}/functions/v1/telegram-auth`, {
-        method: 'GET',
-        headers: { 'Authorization': `Bearer ${anonKey ?? ''}`, 'apikey': anonKey ?? '' },
-      })
+      // БЕЗ заголовків — і це не прибирання зайвого, а умова досяжності.
+      // `Authorization`/`apikey` не входять у CORS-safelist, тож із ними
+      // браузер спершу робить preflight, а він пінився на ALLOWED_ORIGIN —
+      // тобто саме тоді, коли діагностика потрібна, до неї не доходило.
+      // Функція задеплоєна з `--no-verify-jwt`, і воркфлоу секретів ходить
+      // сюди голим curl, тож ключ їй не потрібен: без заголовків це простий
+      // запит без preflight узагалі.
+      const res = await fetch(`${supabaseUrl}/functions/v1/telegram-auth`, { method: 'GET' })
       const data = await res.json()
-      // РОЗБІЖНІСТЬ ORIGIN — окрема гілка, і вона мусить іти ПЕРШОЮ.
-      // Решта прапорців каже «змінну задано»; ця — «задано ПРАВИЛЬНО». Без неї
-      // хибний ALLOWED_ORIGIN читався як здоровий: усі перевірки true, тост
-      // «Конфігурація OK», а вхід при цьому мертвий, бо CORS пінить відповідь
-      // на чужий origin. Обидві адреси публічні, тож показуємо їх дослівно —
-      // інакше «не збігається» не каже, що саме правити.
-      if (data.checks?.origin_match === false) {
+      // РОЗБІЖНІСТЬ ORIGIN — окрема гілка, бо решта прапорців каже «змінну
+      // задано», а ця — «задано ПРАВИЛЬНО»: хибний ALLOWED_ORIGIN інакше
+      // читався як здоровий (усі перевірки true, тост «Конфігурація OK»,
+      // а вхід мертвий).
+      //
+      // ГЕЙТ НА `allowed_origin === true` ОБОВʼЯЗКОВИЙ. Коли змінної немає
+      // ВЗАГАЛІ, `origin_match` теж `false` (null !== origin) — і без гейта
+      // ця гілка виходила раніше за список відсутніх змінних, тобто ковтала
+      // решту діагнозів. Гірше, текст був би неправдивий саме там:
+      // `corsHeadersFor` при незаданій змінній відбиває Origin, тобто CORS
+      // НЕ блокує, а POST падає з читабельним CONFIG_ERROR — незадану змінну
+      // має називати список нижче, а не це повідомлення.
+      if (data.checks?.allowed_origin === true && data.checks?.origin_match === false) {
         showToast({
           type: 'error',
           title: tr('ALLOWED_ORIGIN не збігається'),
@@ -122,10 +131,6 @@ export default function WelcomeScreen() {
       } else {
         const ENV_VAR_NAMES: Record<string, string> = {
           allowed_origin: 'ALLOWED_ORIGIN',
-          // Окремий рядок від `bot_token`: той каже «задано», цей — «Telegram
-          // його прийняв». Без розрізнення список назвав би змінну, яка
-          // насправді НЕ порожня, і порада «додайте її» вела б у глухий кут.
-          bot_token_valid: tr('TELEGRAM_BOT_TOKEN (хибний — Telegram його не приймає)'),
           bot_token: 'TELEGRAM_BOT_TOKEN',
           supabase_url: 'SUPABASE_URL',
           service_key: 'SUPABASE_SERVICE_ROLE_KEY',
@@ -133,12 +138,20 @@ export default function WelcomeScreen() {
           db: tr('зʼєднання з БД'),
         }
         const checks = data.checks ?? {}
-        const bad = (Object.entries(checks) as [string, boolean][])
-          .filter(([, v]) => !v).map(([k]) => ENV_VAR_NAMES[k] ?? k)
+        // ВІДСУТНЄ і ХИБНЕ — різні діагнози, і змішувати їх не можна:
+        // `bot_token_valid:false` означає, що змінна ЗАДАНА, просто Telegram
+        // її не приймає. У списку «не налаштовано» вона читалась би як
+        // порожня, а порада «додайте її» вела б у глухий кут — той самий
+        // клас, через який цей прапорець узагалі зʼявився.
+        const missing = (Object.entries(checks) as [string, boolean][])
+          .filter(([k, v]) => !v && k in ENV_VAR_NAMES).map(([k]) => ENV_VAR_NAMES[k])
+        const parts: string[] = []
+        if (missing.length) parts.push(tr('Не налаштовано в Supabase → Edge Functions → Secrets: {0}', missing.join(', ')))
+        if (checks.bot_token_valid === false) parts.push(tr('TELEGRAM_BOT_TOKEN задано, але Telegram його не приймає — перевірте значення.'))
         showToast({
           type: 'error',
           title: tr('Проблема конфігурації'),
-          subtitle: bad.length ? tr('Не налаштовано в Supabase → Edge Functions → Secrets: {0}', bad.join(', ')) : tr('Edge Function недоступна'),
+          subtitle: parts.length ? parts.join(' ') : tr('Edge Function недоступна'),
         })
       }
     } catch {
