@@ -27,10 +27,14 @@ const b64 = async (rel) => (await readFile(resolve(HERE, rel))).toString('base64
 
 let html = await readFile(resolve(HERE, 'index.html'), 'utf8')
 
-// 1 · Шрифти. Без них кирилиця падає на DejaVu і дек виглядає іншим продуктом.
-for (const w of ['Regular', 'Bold']) {
-  html = html.replace(`url('fonts/Roboto-${w}.ttf')`,
-    `url('data:font/ttf;base64,${await b64(`fonts/Roboto-${w}.ttf`)}')`)
+// 1 · Шрифти. Без них кирилиця падає на DejaVu і дек виглядає іншим
+//     продуктом. Обидві гарнітури ЗМІННІ (одна вага 100–900 на файл),
+//     тож вшивається по одному файлу на родину, а не по чотири.
+for (const f of ['Geologica', 'JetBrainsMono']) {
+  const before = html
+  html = html.replace(`url('fonts/${f}.ttf')`,
+    `url('data:font/ttf;base64,${await b64(`fonts/${f}.ttf`)}')`)
+  if (html === before) throw new Error(`шрифт ${f} не знайдено в index.html`)
 }
 
 // 2 · Кадри продукту — через canvas у браузері.
@@ -79,17 +83,28 @@ const BOARD = []
 for (let i = 1; i <= 5; i++) {
   BOARD.push(`data:image/jpeg;base64,${await b64(`creatives/board-${i}.jpg`)}`)
 }
-html = html.replace('src="creatives/board-${i + 1}.jpg"', 'src="${BOARD_IMG[i]}"')
+{
+  const before = html
+  html = html.replace('src="creatives/board-${i}.jpg"', 'src="${BOARD_IMG[i - 1]}"')
+  html = html.replace('poster="creatives/board-1.jpg"', `poster="${BOARD[0]}"`)
+  if (html === before) throw new Error('шаблон сторіборду в index.html змінився — заміна не спрацювала')
+}
 html = html.replace('<script>', `<script>window.BOARD_IMG = ${JSON.stringify(BOARD)};</script>\n<script>`, 1)
-html = html.replace('creatives/reel-15s.webm',
-  `data:video/webm;base64,${await b64('creatives/reel-15s.webm')}`)
+// У дек іде ЛЕГКА копія: майстер на 6 Мбіт/с у base64 важить 8 МБ, а
+// показується він тут у колонці 320 px. Публікувати треба майстер.
+{
+  const before = html
+  html = html.replace('creatives/reel-15s.webm',
+    `data:video/webm;base64,${await b64('creatives/reel-15s-preview.webm')}`)
+  if (html === before) throw new Error('посилання на відео в index.html змінилось')
+}
 
 /* Антивакуум. Перша редакція цієї перевірки була ПОРОЖНЬОЮ: регекс чекав
    лапку ОДРАЗУ за `src`, тобто `src="shots/…"` не матчив ніколи, і збирач
    спокійно віддав файл із вісьмома дірками. Тепер питання простіше й
    відповідь на нього однозначна: підрядка `shots/` у виході бути не може
    взагалі — усі шляхи або замінені на data-URI, або йдуть через SHOT. */
-for (const frag of ['shots/', 'fonts/Roboto', 'creatives/']) {
+for (const frag of ['shots/', 'fonts/', 'creatives/']) {
   if (html.includes(frag)) throw new Error(`у виході лишився зовнішній шлях: ${frag}`)
 }
 
