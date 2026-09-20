@@ -30,7 +30,7 @@ let html = await readFile(resolve(HERE, 'index.html'), 'utf8')
 // 1 · Шрифти. Без них кирилиця падає на DejaVu і дек виглядає іншим
 //     продуктом. Обидві гарнітури ЗМІННІ (одна вага 100–900 на файл),
 //     тож вшивається по одному файлу на родину, а не по чотири.
-for (const f of ['Geologica', 'JetBrainsMono']) {
+for (const f of ['Inter']) {
   const before = html
   html = html.replace(`url('fonts/${f}.ttf')`,
     `url('data:font/ttf;base64,${await b64(`fonts/${f}.ttf`)}')`)
@@ -73,8 +73,14 @@ for (const name of shots) {
 }
 await browser.close()
 
-// Рантаймові шляхи: віддаємо генераторам плиток мапу замість файлів
-html = html.replace('src="shots/${shot}.png"', 'src="${SHOT[shot]}"')
+// Рантаймові шляхи: віддаємо генераторам плиток мапу замість файлів.
+// Заміна ОБОВʼЯЗКОВА — мовчазний промах тут і давав «самодостатній»
+// файл із дірками; нижній антивакуум це ловить, але помилка тут точніша.
+{
+  const before = html
+  html = html.replace('src="shots/${name}.png"', 'src="${SHOT[name]}"')
+  if (html === before) throw new Error('шаблон кадру в index.html змінився — заміна не спрацювала')
+}
 html = html.replace('<script>', `<script>window.SHOT = ${JSON.stringify(SHOT)};</script>\n<script>`, 1)
 
 // 3 · Сторіборд — той самий клас, що й кадри: шлях будується в рантаймі
