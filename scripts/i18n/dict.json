@@ -1094,5 +1094,6 @@
   "щоб працювали функції застосунку: списки, розрахунки, календар платежів, поширення;": "to make the app’s features work: lists, calculations, the payment calendar, sharing;",
   "щойно": "just now",
   "— не імпортувати —": "— do not import —",
-  "…і ще {0}": "…and {0} more"
+  "…і ще {0}": "…and {0} more",
+  "Частина даних тимчасово кешується у локальному сховищі вашого пристрою, щоб застосунок відкривався миттєво. Цей кеш стирається при виході з акаунта і при його видаленні; налаштування пристрою — мова й вигляд списків — лишаються.": "Some data is cached temporarily in your device’s local storage so the app opens instantly. This cache is erased when you sign out and when you delete your account; device preferences — language and list layout — remain."
 }

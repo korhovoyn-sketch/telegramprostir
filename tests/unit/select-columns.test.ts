@@ -127,6 +127,57 @@ describe('SELECT покриває все, що пише форма', () => {
   })
 })
 
+/**
+ * ТЕ САМЕ ПРАВИЛО ДЛЯ ФОРМИ БАЗИ — воно тут не було застосоване.
+ *
+ * `select-columns` виріс із дефекту форми ОБʼЄКТА (`parking_type` писався, але
+ * не читався, тож редагування його стирало). Форма БАЗИ має рівно ту саму
+ * будову — `createDatabase`/`updateDatabase` беруть payload, виведений із типу
+ * `Database`, а читає їх `DB_COLUMNS`, — і жодного гарда не мала.
+ *
+ * Тобто клас закрили в одному місці й лишили відкритим у сусідньому: нове
+ * поле бази (як `landlord_name` у 064) мовчки стиралося б при редагуванні.
+ */
+describe('SELECT бази покриває все, що пише її форма', () => {
+  const hooks = read('hooks/useDatabases.ts')
+  const types = read('types/index.ts')
+
+  /** Поля інтерфейсу `Database`, які МОЖЕ записати форма. */
+  function writableDbFields(): string[] {
+    const start = types.indexOf('export interface Database {')
+    expect(start, 'інтерфейс Database не знайдено — тест застарів').toBeGreaterThan(-1)
+    const body = types.slice(start, types.indexOf('\n}', start))
+    const all = [...body.matchAll(/^\s{2}(_?[a-z_]+)\??:/gm)].map((m) => m[1])
+    // Серверні (пише БД), похідні (`_`-префікс) і токен шарингу — свідомо поза
+    // формою: перші два ніхто не редагує, третій тягнуть окремо ті два екрани,
+    // яким він потрібен, щоб він не осідав у SWR-снапшоті.
+    const SERVER = ['id', 'owner_id', 'created_at', 'updated_at',
+                    'share_token', 'share_expires_at']
+    return all.filter((f) => !f.startsWith('_') && !SERVER.includes(f))
+  }
+
+  it('поля Database розібрано', () => {
+    const f = writableDbFields()
+    expect(f.length, 'розбір інтерфейсу дав порожньо — гард вакуумний').toBeGreaterThanOrEqual(4)
+    expect(f).toContain('name')
+  })
+
+  it('кожне записуване поле бази є в DB_COLUMNS', () => {
+    const cols = /const DB_COLUMNS = '([^']+)'/.exec(hooks)
+    expect(cols, 'DB_COLUMNS не знайдено').not.toBeNull()
+    const list = cols![1].split(',').map((c) => c.trim())
+    const missing = writableDbFields().filter((f) => !list.includes(f))
+    expect(missing, 'колонка, якої немає в SELECT, — це колонка, яку редагування стирає')
+      .toEqual([])
+  })
+
+  it('DB_COLUMNS НЕ тягне токен шарингу — він осідав би в localStorage', () => {
+    const cols = /const DB_COLUMNS = '([^']+)'/.exec(hooks)![1]
+    expect(cols, 'share_token у списку СПИСКУ баз → потрапляє у SWR-снапшот')
+      .not.toContain('share_token')
+  })
+})
+
 describe('токен шарингу не роздається ширше, ніж треба', () => {
 
 

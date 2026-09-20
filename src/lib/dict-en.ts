@@ -1076,6 +1076,7 @@ export const EN: Record<string, string> = {
   "Ціна продажу — лише число": "The sale price must be a number",
   "Ціна продажу ({0})": "Sale price ({0})",
   "Цього тижня": "This week",
+  "Частина даних тимчасово кешується у локальному сховищі вашого пристрою, щоб застосунок відкривався миттєво. Цей кеш стирається при виході з акаунта і при його видаленні; налаштування пристрою — мова й вигляд списків — лишаються.": "Some data is cached temporarily in your device’s local storage so the app opens instantly. This cache is erased when you sign out and when you delete your account; device preferences — language and list layout — remain.",
   "Через {0} {1}": "In {0} {1}",
   "Через {0} дн.": "In {0} days",
   "Чернетка": "Draft",
