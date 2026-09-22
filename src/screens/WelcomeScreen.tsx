@@ -271,21 +271,18 @@ export default function WelcomeScreen() {
           </div>
         </div>
 
-        <div style={{ textAlign: 'center', fontSize: 'var(--fs-cap1)', color: 'var(--t4)', padding: '10px 28px 6px', lineHeight: 1.5 }}>
+        <div style={{ textAlign: 'center', fontSize: 'var(--fs-cap1)', color: 'var(--t3)', padding: '10px 28px 6px', lineHeight: 1.5 }}>
           {tx('Натискаючи «Увійти», ви погоджуєтесь з {0} та {1}',
-            <a href="/terms/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--t2)', textDecoration: 'underline' }}>{tr('Умовами використання')}</a>,
-            <a href="/privacy/" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--t2)', textDecoration: 'underline' }}>{tr('Політикою конфіденційності')}</a>)}
+            <a href="/terms/" target="_blank" rel="noopener noreferrer" className="legal-a">{tr('Умовами використання')}</a>,
+            <a href="/privacy/" target="_blank" rel="noopener noreferrer" className="legal-a">{tr('Політикою конфіденційності')}</a>)}
         </div>
 
-        <button
-          onClick={handleDiag}
-          disabled={diagLoading}
-          style={{
-            background: 'none', border: 'none', color: 'var(--t4)',
-            fontSize: 'var(--fs-cap2)', cursor: 'pointer', padding: '4px 16px 8px',
-            opacity: diagLoading ? 0.5 : 1,
-          }}
-        >
+        {/* Клас, а не інлайновий стиль, і це має ціну: доти кнопка була
+            БЕЗІМЕННОЮ для зондів (вони ключуються класом, із фолбеком на тег),
+            тобто її 28px зони дотику не бачив ніхто. Той самий урок, що вже
+            оплачений на «Пропустити →». Неактивність показує КОЛІР, а не
+            `opacity` — над темним склом прозорість зʼїдає елемент. */}
+        <button className="diag-btn" onClick={handleDiag} disabled={diagLoading} aria-busy={diagLoading}>
           {diagLoading ? tr('Перевірка...') : <><IconAdjustments size={14} /> {tr('Діагностика підключення')}</>}
         </button>
       </div>

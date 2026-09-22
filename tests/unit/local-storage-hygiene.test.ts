@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { SESSION_PREFIXES, DEVICE_KEYS, clearSessionState } from '../../src/lib/localState'
+import { SESSION_PREFIXES, DEVICE_KEYS, clearSessionState, lsGet, lsSet, lsRemove } from '../../src/lib/localState'
 
 /**
  * КЛЮЧ, ЯКИЙ НІХТО НЕ КЛАСИФІКУВАВ, ПЕРЕЖИВАЄ ВИХІД З АКАУНТА.
@@ -61,6 +61,9 @@ function resolveKey(arg: string): string | null {
 function writtenKeys(): { key: string; where: string }[] {
   const out: { key: string; where: string }[] = []
   for (const f of FILES) {
+    // Самі обгортки (`lsSet`) пишуть за ПАРАМЕТРОМ, а не за літералом —
+    // класифікувати там нічого, і резолвер брав би імʼя аргументу за ключ.
+    if (f.path.endsWith('localState.ts')) continue
     for (const m of f.src.matchAll(/localStorage\.setItem\(\s*([^,]+),/g)) {
       const key = resolveKey(m[1].trim())
       if (key) out.push({ key, where: f.path.slice(SRC.length + 1) })
@@ -137,5 +140,68 @@ describe('гігієна локального сховища', () => {
     // перебір мусить іти по САМОМУ сховищу, а не по відомому списку імен.
     expect(mod, 'чистка не перебирає localStorage — ключі з userId лишаться')
       .toMatch(/localStorage\.key\(/)
+  })
+
+  it('жоден доступ до localStorage не лишається голим', () => {
+    // ЧОМУ ЦЕ ВЗАГАЛІ ГАРД. `localStorage` кидає не лише на записі при
+    // переповненні квоти: у сторонньому iframe із заблокованим сховищем
+    // кидає САМ ГЕТТЕР `window.localStorage` (`SecurityError`). Для цього
+    // застосунку це штатний режим — Telegram Web показує Mini App саме в
+    // iframe на web.telegram.org.
+    //
+    // Найдорожче місце було в `DatabaseObjectsScreen`: читання
+    // `ps:occCompact` стояло в ІНІЦІАЛІЗАТОРІ `useState`, тобто виняток
+    // стався б під час РЕНДЕРА — ErrorBoundary на головному робочому
+    // екрані. Сім місць лишались голими при бездоганній дисципліні в
+    // решті проєкту, тобто це був дрейф, а не компроміс.
+    const offenders: string[] = []
+    for (const { path, src } of FILES) {
+      if (path.endsWith('localState.ts')) continue // тут і живуть самі обгортки
+      const lines = src.split('\n')
+      lines.forEach((line, i) => {
+        // Блоковий коментар теж треба вирізати: перша редакція цього гарда
+        // репортувала три ХИБНІ спрацювання на рядках, де слово
+        // `localStorage` лише згадане в описі.
+        const t = line.trim()
+        if (t.startsWith('*') || t.startsWith('/*')) return
+        const code = line.split('//')[0]
+        if (!/\blocalStorage\s*\./.test(code)) return
+        // Вікно ВКЛЮЧАЄ поточний рядок: `try { localStorage.setItem(...) }`
+        // в один рядок — звичайний тут стиль, і без цього зонд називав би
+        // захищений код голим.
+        const near = lines.slice(Math.max(0, i - 12), i + 1).join('\n')
+        if (!near.includes('try')) {
+          offenders.push(`${path.slice(path.indexOf('src'))}:${i + 1}  ${code.trim().slice(0, 60)}`)
+        }
+      })
+    }
+    expect(offenders, `голий доступ до сховища:\n${offenders.join('\n')}`).toEqual([])
+  })
+
+  it('АНТИВАКУУМ: обгортки справді ковтають виняток сховища', () => {
+    // Підміняється САМ ГЕТТЕР `window.localStorage`, а не його метод, і це
+    // не педантизм із двох причин. По-перше, це і є реальний випадок:
+    // у сторонньому iframe із заблокованим сховищем кидає саме звернення до
+    // властивості, ще до будь-якого виклику. По-друге, перша редакція цього
+    // тесту робила `vi.spyOn(window.localStorage, 'getItem')` — і НЕ ПАДАЛА
+    // на обгортці з прибраним `try`: у jsdom `Storage` схований за проксі,
+    // тож шпигун на метод до модуля просто не доїжджав. Тобто антивакуум
+    // сам був вакуумним, і показала це власна фальсифікація.
+    const real = Object.getOwnPropertyDescriptor(window, 'localStorage')
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      get() { throw new DOMException('denied', 'SecurityError') },
+    })
+    try {
+      expect(() => lsGet('ps:occCompact')).not.toThrow()
+      expect(lsGet('ps:occCompact')).toBeNull()
+      expect(() => lsSet('ps_lang', 'en')).not.toThrow()
+      expect(() => lsRemove('ps_lang')).not.toThrow()
+      // Чистка теж мусить пережити недоступне сховище: вона біжить на
+      // виході з акаунта, тобто в момент, коли падати найдорожче.
+      expect(() => clearSessionState()).not.toThrow()
+    } finally {
+      if (real) Object.defineProperty(window, 'localStorage', real)
+    }
   })
 })

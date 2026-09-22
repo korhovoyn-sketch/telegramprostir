@@ -6,6 +6,7 @@ import { useAppStore } from '@/store/appStore'
 import { hapticNotify, parseStartParam } from '@/lib/telegram'
 import type { ScreenName, User } from '@/types'
 import { tr } from '@/lib/i18n'
+import { lsGet, lsRemove } from '@/lib/localState'
 
 export function useDeepLink() {
   const user = useAppStore((s) => s.user)
@@ -17,7 +18,7 @@ export function useDeepLink() {
     if (!user || handled.current) return
 
     const startParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param
-      ?? localStorage.getItem('ps_guest_join_token') ?? undefined
+      ?? lsGet('ps_guest_join_token') ?? undefined
     if (!startParam) return
 
     handled.current = true
@@ -51,7 +52,7 @@ export function useDeepLink() {
           // Consume the stored token up front: whether the claim succeeds or the
           // link is already claimed/revoked, replaying it on every app launch
           // would show the same error toast forever.
-          localStorage.removeItem('ps_guest_join_token')
+          lsRemove('ps_guest_join_token')
           const token = parsed.token
           const { data, error } = await supabase.rpc('claim_guest_link', { p_token: token })
           // claim_guest_link returns either {property_id, db_id} on success or
@@ -180,7 +181,7 @@ export function useDeepLink() {
         // ── db_<shareToken> — database share link ────────────────────────────
         // parseStartParam only yields known kinds, so anything not handled above
         // is 'db' — no redundant prefix re-check needed.
-        localStorage.removeItem('ps_guest_join_token')
+        lsRemove('ps_guest_join_token')
         const token = parsed.token
 
         if (!useAppStore.getState().isOnline) {

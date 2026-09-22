@@ -974,9 +974,9 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
   .orb-body,.orb-blob,.orb-dust i{animation:none}
 }
 
-.obj-hero-bdg{position:absolute;top:10px;left:10px;display:flex;align-items:center;gap:5px;padding:4px 10px 4px 8px;border-radius:var(--r-pill);background:rgba(52,199,89,.85);backdrop-filter:blur(10px);font-size:var(--fs-cap2);font-weight:600;color:#fff;z-index:var(--z-content)}
+.obj-hero-bdg{position:absolute;top:10px;left:10px;display:flex;align-items:center;gap:5px;padding:4px 10px 4px 8px;border-radius:var(--r-pill);background:rgba(52,199,89,.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);font-size:var(--fs-cap2);font-weight:600;color:#fff;z-index:var(--z-content)}
 .obj-hero-r{position:absolute;top:10px;right:10px;display:flex;gap:6px;z-index:var(--z-content)}
-.obj-hero-a{width:44px;height:44px;border-radius:50%;background:rgba(0,0,0,.4);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;color:var(--t1);font-size:var(--fs-note);border:.5px solid rgba(255,255,255,.2);cursor:pointer}
+.obj-hero-a{width:44px;height:44px;border-radius:50%;background:rgba(0,0,0,.4);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;color:var(--t1);font-size:var(--fs-note);border:.5px solid rgba(255,255,255,.2);cursor:pointer}
 .obj-hero-meta{position:absolute;bottom:10px;left:12px;right:12px;z-index:var(--z-content);display:flex;justify-content:space-between;align-items:flex-end;color:#fff}
 .obj-hero-name{font-size:var(--fs-lead);font-weight:700;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:calc(100% - 80px)}
 .obj-hero-addr{font-size:var(--fs-cap1);color:rgba(255,255,255,.75);margin-top:2px;display:flex;align-items:center;gap:3px}
@@ -1449,6 +1449,26 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
 
 /* ── FEATURES LIST ── */
 .features-list{padding:0 16px;display:flex;flex-direction:column;gap:10px;position:relative;z-index:var(--z-above)}
+/* Степер кількості у формі обʼєкта. Візуально лишається 32×32 (рішення про
+   щільність рядка), а зона дотику розширена до 44 псевдоелементом. Тут це
+   ПРАЦЮЄ, на відміну від `.seg-b`: ±6px лишаються всередині 48px-рядка, тобто
+   `overflow:hidden` на `.fg` їх не клiпає. Доти борг був невидимий узагалі —
+   кнопки не мали класу, а в TAP_DEBT стояло бланкетне `'button'`. */
+/* ЗОНА ДОТИКУ РОСТЕ ЛИШЕ ПО ВЕРТИКАЛІ — для чипів, чия ширина вже ≥44, а
+   висота свідомо мала заради щільності рядка (чипи діапазону в календарі
+   платежів, «Налаштувати» в картці без розкладу).
+   Вбік розширювати НЕ МОЖНА: сусід стоїть через 6px проміжку, тож
+   горизонтальна зона крала б його тапи. Ніщо з цих носіїв не клiпає —
+   звичайний флекс і `.glass-s` без `overflow`, на відміну від `.seg-b`,
+   де власний `overflow:hidden` під ellipsis зʼїдає псевдоелемент. */
+.tap-v{position:relative}
+.tap-v::after{content:'';position:absolute;left:0;right:0;top:-9px;bottom:-9px}
+.step-btn{position:relative;width:32px;height:32px;border-radius:var(--r-xs);background:var(--glass-2);border:.5px solid var(--glass-bd);color:var(--t1);font-size:var(--fs-lead);line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.step-btn:disabled{color:var(--t4);cursor:default}
+.step-btn::after{content:'';position:absolute;inset:-7px}
+.diag-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 16px;background:none;border:none;font-size:var(--fs-cap2);color:var(--t3);cursor:pointer}
+.diag-btn:disabled{color:var(--t4);cursor:default}
+.legal-a{color:var(--t2);text-decoration:underline}
 .feature{display:flex;align-items:center;gap:13px;padding:13px 14px;background:var(--glass-2);backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%);border:var(--bd);border-radius:var(--r-md)}
 .feature-ic{width:40px;height:40px;border-radius:var(--r-icon);display:flex;align-items:center;justify-content:center;font-size:var(--fs-lead);flex-shrink:0;color:#fff}
 /* Feature title — Subhead Semibold */
@@ -1556,7 +1576,15 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
 .sticker-wrap{position:relative;width:100%;display:flex;justify-content:center;align-items:center;margin:24px 0 16px;height:200px}
 .sticker{width:170px;height:170px;position:relative;z-index:var(--z-above);animation:bounce 3s ease-in-out infinite}
 .sparkle{position:absolute;pointer-events:none;animation:sparkleFloat 4s ease-in-out infinite}
-.shimmer-ring{position:absolute;width:280px;height:280px;border-radius:50%;background:conic-gradient(from 0deg,transparent,rgba(255,255,255,.22),transparent 30%);animation:shimmerSpin 8s linear infinite;z-index:var(--z-raised)}
+/* Обертається ВНУТРІШНІЙ шар, а зовнішній бокс клiпає — і це не стиль.
+   Квадрат 280px під `rotate` має бокс 280×√2 ≈ 396px, тобто на 360px-екрані
+   виходив за край на 16px з кожного боку. Видимого дефекту не було (коло
+   вписане в квадрат, а `.body` має `overflow-x:hidden`), але контейнер
+   ставав прокрутним по горизонталі, і гард пристроїв читав це як
+   переповнення. Кути конічного градієнта й так прозорі, тож клiп нічого не
+   змінює у вигляді. */
+.shimmer-ring{position:absolute;width:280px;height:280px;border-radius:50%;overflow:hidden;z-index:var(--z-raised)}
+.shimmer-ring::before{content:'';position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,transparent,rgba(255,255,255,.22),transparent 30%);animation:shimmerSpin 8s linear infinite}
 .glow-orb{position:absolute;width:240px;height:240px;border-radius:50%;filter:blur(40px);animation:glowPulse 4s ease-in-out infinite;z-index:var(--z-base)}
 
 /* ── AVATAR GRADIENTS ── */
@@ -1599,7 +1627,7 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
 .gallery-thumbs::-webkit-scrollbar{display:none}
 .gallery-thumb{width:56px;height:56px;border-radius:var(--r-sm);flex-shrink:0;border:2px solid transparent;cursor:pointer;overflow:hidden;background:var(--glass-2);display:flex;align-items:center;justify-content:center;font-size:var(--fs-lead)}
 .gallery-thumb.active{border-color:#fff}
-.gallery-info{position:absolute;bottom:var(--g3);left:50%;transform:translateX(-50%);font-size:var(--fs-cap2);color:rgba(255,255,255,.8);background:rgba(0,0,0,.5);backdrop-filter:blur(10px);padding:4px 10px;border-radius:var(--r-sm);white-space:nowrap}
+.gallery-info{position:absolute;bottom:var(--g3);left:50%;transform:translateX(-50%);font-size:var(--fs-cap2);color:rgba(255,255,255,.8);background:rgba(0,0,0,.5);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);padding:4px 10px;border-radius:var(--r-sm);white-space:nowrap}
 
 /* ── CONFETTI ── */
 .confetti-piece{position:absolute;width:8px;height:8px;border-radius:var(--r-pill);pointer-events:none;z-index:var(--z-confetti)}
@@ -2370,7 +2398,7 @@ html[data-tg-client='mobile'] body::after { content: none; }
     scroll-behavior: auto !important;
   }
   .scr { animation: none }
-  .shimmer-ring,.glow-orb,.sticker,.sparkle { animation: none !important }
+  .shimmer-ring::before,.glow-orb,.sticker,.sparkle { animation: none !important }
 }
 
 /* ── LEGAL PAGES (/privacy, /terms) ──────────────────────────────────────────

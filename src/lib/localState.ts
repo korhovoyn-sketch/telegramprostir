@@ -75,3 +75,39 @@ export function clearSessionState(): void {
     doomed.forEach((k) => { try { localStorage.removeItem(k) } catch { /* ignore */ } })
   } catch { /* private mode блокує сховище цілком */ }
 }
+
+/**
+ * БЕЗПЕЧНИЙ ДОСТУП ДО СХОВИЩА — і причина не в «про всяк випадок».
+ *
+ * `localStorage` кидає не лише на запису при переповненні квоти: у
+ * СТОРОННЬОМУ iframe із заблокованим сховищем кидає САМ ГЕТТЕР
+ * `window.localStorage` (`SecurityError`). Для цього застосунку це не
+ * екзотика, а штатний режим — **Telegram Web** показує Mini App саме в
+ * iframe на `web.telegram.org`, і браузер користувача цілком може різати
+ * там сторонні дані.
+ *
+ * Ціна в найгіршому місці була така: `DatabaseObjectsScreen` читав
+ * `ps:occCompact` в ІНІЦІАЛІЗАТОРІ `useState`, тобто виняток стався б
+ * ПІД ЧАС РЕНДЕРА — а це ErrorBoundary на головному робочому екрані, без
+ * жодного шляху назад. Решта проєкту цю дисципліну тримала (`i18n.ts`,
+ * `SplashScreen`, `snapshot.ts`), тож сім місць, що лишались голими, були
+ * ДРЕЙФОМ, а не компромісом.
+ *
+ * Контракт навмисно беззубий: читання віддає `null`, запис і видалення
+ * мовчки не стаються. Усе, що тут лежить, — кеш і налаштування; застосунок
+ * зобовʼязаний працювати без них, просто менш зручно.
+ */
+export function lsGet(key: string): string | null {
+  if (typeof window === 'undefined') return null
+  try { return localStorage.getItem(key) } catch { return null }
+}
+
+export function lsSet(key: string, value: string): void {
+  if (typeof window === 'undefined') return
+  try { localStorage.setItem(key, value) } catch { /* сховище недоступне */ }
+}
+
+export function lsRemove(key: string): void {
+  if (typeof window === 'undefined') return
+  try { localStorage.removeItem(key) } catch { /* сховище недоступне */ }
+}

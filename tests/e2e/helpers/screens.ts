@@ -668,6 +668,28 @@ export async function onboardingFixtures(page: Page, platform?: string) {
 
 export const ONBOARDING_SCREENS: ScreenStep[] = [
   {
+    /**
+     * ПЕРШИЙ ЕКРАН, ЯКИЙ БАЧИТЬ КОЖЕН НОВИЙ КОРИСТУВАЧ — і до цього кроку
+     * його не міряв ЖОДЕН гард якості.
+     *
+     * Кадр у `screenshots` він мав, тобто «чи не змінився» перевірялось; а
+     * контраст, зона дотику, пʼять ширин, шкала радіуса/шрифту, обрізаний
+     * текст і десктопна колонка — ні, бо всі вони ходять САМЕ цим списком.
+     * Разом із `splash` це були єдині два екрани поза обходом, і якщо splash
+     * транзитний, то welcome — той, на якому людина ухвалює рішення ввійти.
+     *
+     * `#fromLogout` — документований шлях повз відновлення сесії
+     * (`SplashScreen` дивиться саме на хеш). Наступні кроки роблять
+     * `goto('/')` без хеша, тож стан сюди не протікає.
+     */
+    label: 'welcome',
+    go: async (page) => {
+      await page.goto('/#fromLogout')
+      await expect(page.getByRole('button', { name: /Увійти через Telegram/ }))
+        .toBeVisible({ timeout: 20_000 })
+    },
+  },
+  {
     label: 'role-select',
     go: async (page) => {
       await page.goto('/')

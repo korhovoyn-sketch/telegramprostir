@@ -136,6 +136,7 @@ for (const dev of DEVICES) {
     test.setTimeout(600_000)
     const problems: string[] = []
     const visited: string[] = []
+    let branchChecked = false
 
     for (const group of ALL_GROUPS) {
       // Роль = власний контекст: `page.route` реєструється на сторінку, і
@@ -144,12 +145,28 @@ for (const dev of DEVICES) {
       const page = await ctx.newPage()
       page.setDefaultTimeout(25_000)
       try {
-        await group.fixtures(page)
+        // `platform` ОБОВ'ЯЗКОВИЙ, і це не косметика: без нього `data-tg-client`
+        // не виставляється, тож 744px іде в десктопну рамку — див. `Device.platform`.
+        await group.fixtures(page, dev.platform)
         for (const s of group.screens) {
           await s.go(page)
           // Екрани виїжджають анімацією; замір посеред неї — це замір руху.
           await page.waitForTimeout(450)
           visited.push(s.label)
+
+          // АНТИВАКУУМ ГІЛКИ: доводить, що обхід міряє ТЕ САМЕ, що побачить
+          // користувач. Поки `platform` не передавався, 744px мовчки йшов у
+          // десктопну рамку — тобто всі виміри нижче стосувались плаваючої
+          // картки 664×1000, а не повноекранного планшета. Без цієї перевірки
+          // повернення `fixtures(page)` відкотило б обхід назад так само тихо.
+          if (dev.width >= 680 && !branchChecked) {
+            branchChecked = true
+            const rootW = await page.evaluate(
+              () => document.getElementById('app-root')?.getBoundingClientRect().width ?? 0)
+            expect(Math.round(rootW),
+              `${dev.name}: оболонка ${rootW}px при вікні ${dev.width}px — обхід міряє ДЕСКТОПНУ рамку, `
+              + 'а не мобільну гілку клієнта (platform не доїхав у фікстури)').toBe(dev.width)
+          }
 
           for (const o of await horizontalOverflow(page)) {
             problems.push(

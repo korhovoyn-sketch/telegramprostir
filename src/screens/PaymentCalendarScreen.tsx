@@ -377,6 +377,7 @@ export default function PaymentCalendarScreen() {
               {([1, 2, 3, 6] as MonthCount[]).map(n => (
                 <button
                   key={n}
+                  className="tap-v"
                   onClick={() => setMonthsAhead(n)}
                   style={{
                     padding: '4px 10px', borderRadius: 8,
@@ -390,6 +391,7 @@ export default function PaymentCalendarScreen() {
                 </button>
               ))}
               <button
+                className="tap-v"
                 onClick={() => setShowOnlyUnpaid(v => !v)}
                 style={{
                   marginLeft: 'auto', padding: '4px 10px', borderRadius: 8,
@@ -474,6 +476,7 @@ export default function PaymentCalendarScreen() {
                         {prop.tenant_name && <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 2 }}>{prop.tenant_name}</div>}
                       </div>
                       <button
+                        className="tap-v"
                         onClick={() => navigate('payment-schedule', { propertyId: prop.id, dbId: prop.db_id })}
                         style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 'var(--r-pill)', background: 'var(--info-bg)', border: '.5px solid rgba(122,179,255,.32)', color: 'var(--info)', fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', cursor: 'pointer', whiteSpace: 'nowrap' }}
                       >
