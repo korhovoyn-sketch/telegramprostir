@@ -107,7 +107,7 @@ export default function PhotoGalleryScreen() {
           aria-label={tr('Закрити')}
           onClick={back}
           style={{
-            width: 36, height: 36, borderRadius: '50%',
+            width: 44, height: 44, borderRadius: '50%',
             background: 'var(--glass-3)',
             border: '1px solid rgba(255,255,255,.2)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -124,7 +124,7 @@ export default function PhotoGalleryScreen() {
             aria-label={tr('Завантажити фото')}
             onClick={handleDownload}
             style={{
-              width: 36, height: 36, borderRadius: '50%',
+              width: 44, height: 44, borderRadius: '50%',
               background: 'var(--glass-3)',
               border: '1px solid rgba(255,255,255,.2)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -137,7 +137,7 @@ export default function PhotoGalleryScreen() {
             aria-label={tr('Поділитись фото')}
             onClick={handleShare}
             style={{
-              width: 36, height: 36, borderRadius: '50%',
+              width: 44, height: 44, borderRadius: '50%',
               background: 'var(--glass-3)',
               border: '1px solid rgba(255,255,255,.2)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -155,15 +155,13 @@ export default function PhotoGalleryScreen() {
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        {/* Counter badge */}
-        <div style={{
-          position: 'absolute', top: 16, right: 16, zIndex: 'var(--z-above)',
-          background: 'rgba(0,0,0,.55)', backdropFilter: 'blur(8px)',
-          padding: '4px 10px', borderRadius: 'var(--r-pill)',
-          fontSize: 'var(--fs-foot)', fontWeight: 'var(--fw-semi)', color: 'var(--t1)',
-        }}>
-          {current + 1} / {photos.length}
-        </div>
+        {/* Лічильника тут НЕМА, і це фікс, а не спрощення: бейдж стояв на
+            `top:16; right:16` із `--z-above` (5), тобто ПОВЕРХ хедера
+            (`--z-content`, 2), і накривав кнопку «Поділитись фото» рівно на
+            36×36 — тобто цілком. Заміряно: `elementFromPoint` у центрі кнопки
+            віддавав цей `<div>`, отже поділитись фото з галереї було
+            НЕМОЖЛИВО. Той самий «1 / 3» і так стоїть у хедері, тож це був ще
+            й другий лічильник на одному екрані. */}
         {url ? (
           <img
             key={url}
@@ -183,7 +181,7 @@ export default function PhotoGalleryScreen() {
               onClick={prev}
               style={{
                 position: 'absolute', left: 16,
-                width: 40, height: 40, borderRadius: '50%',
+                width: 44, height: 44, borderRadius: '50%',
                 background: 'var(--glass-3)',
                 border: '1px solid rgba(255,255,255,.2)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -197,7 +195,7 @@ export default function PhotoGalleryScreen() {
               onClick={next}
               style={{
                 position: 'absolute', right: 16,
-                width: 40, height: 40, borderRadius: '50%',
+                width: 44, height: 44, borderRadius: '50%',
                 background: 'var(--glass-3)',
                 border: '1px solid rgba(255,255,255,.2)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',

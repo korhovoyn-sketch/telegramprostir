@@ -41,7 +41,11 @@ export interface Database {
   /** Орендодавець за замовчуванням для всіх обʼєктів бази (064). Обʼєкт може
    *  перевизначити своїм `landlord_name`. */
   landlord_name?: string | null
-  share_token: string
+  /** ПУБЛІЧНИЙ /v-лінк, тобто bearer-креденшл без терміну життя.
+   *  У списку баз його НЕМА свідомо: екран його не рендерить, а через
+   *  SWR-снапшот він осідав би в localStorage. Тягнуть окремо лише
+   *  `ShareSheet` і `RealtorDatabaseScreen` — там він і потрібен. */
+  share_token?: string
   share_expires_at?: string
   created_at: string
   updated_at: string

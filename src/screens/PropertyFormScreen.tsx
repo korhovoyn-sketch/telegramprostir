@@ -17,6 +17,7 @@ import FilesList from '@/components/ui/FilesList'
 import { currencySymbol, sanitizeDecimal, sanitizeInt, formatPrice, calcRent, calcUtilities, basisArea, rentUnitLabel, nextCopyName, bulkCreateNames, objectsWord, scrollFocusedIntoView } from '@/lib/utils'
 import type { PropertyStatus, RentType, ParkingType, AreaBasis } from '@/types'
 import { tr } from '@/lib/i18n'
+import { lsRemove } from '@/lib/localState'
 
 const PARKING_TYPES = (): { v: ParkingType; l: string }[] => ([
   { v: 'underground', l: tr('Підземний') },
@@ -180,7 +181,7 @@ export default function PropertyFormScreen() {
         subtitle: tr('Незбережений обʼєкт з минулого разу'),
         actionLabel: tr('Очистити'),
         onAction: () => {
-          localStorage.removeItem(draftKey)
+          lsRemove(draftKey)
           setName(''); setFloor(''); setStatus('free'); setAreaUseful(''); setAreaTotal(''); setAreaBasis('total')
           setRentType('per_m2'); setRentRate(''); setUtilitiesRate(''); setHasParking(false)
           setParkingSpaces('1'); setParkingType(''); setEvCharger(false); setDescription('')
@@ -507,11 +508,11 @@ export default function PropertyFormScreen() {
         sort_order: sortBase + (i + 1) * 100,
       })))
       if (ok) hapticNotify('success')
-      if (ok && draftKey) localStorage.removeItem(draftKey)
+      if (ok && draftKey) lsRemove(draftKey)
     } else {
       const ok = await createProperty(payload)
       if (ok) hapticNotify('success')
-      if (ok && draftKey) localStorage.removeItem(draftKey)
+      if (ok && draftKey) lsRemove(draftKey)
     }
   }
 
@@ -566,29 +567,17 @@ export default function PropertyFormScreen() {
               {/* marginLeft:auto — контрол праворуч, як інпути/сегменти сусідніх рядків */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto' }}>
                 <button
+                  className="step-btn"
                   aria-label={tr('Менше обʼєктів')}
                   onClick={() => { hapticSelection(); setCount(c => Math.max(1, c - 1)) }}
                   disabled={count <= 1}
-                  style={{
-                    width: 32, height: 32, borderRadius: 'var(--r-xs)',
-                    background: 'var(--glass-2)', border: '.5px solid var(--glass-bd)',
-                    color: count <= 1 ? 'var(--t4)' : 'var(--t1)',
-                    fontSize: 'var(--fs-lead)', lineHeight: 1, cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}
                 >−</button>
                 <span className="num" style={{ minWidth: 28, textAlign: 'center', fontSize: 'var(--fs-call)', fontWeight: 'var(--fw-semi)', color: 'var(--t1)' }}>{count}</span>
                 <button
+                  className="step-btn"
                   aria-label={tr('Більше обʼєктів')}
                   onClick={() => { hapticSelection(); setCount(c => Math.min(BULK_MAX, c + 1)) }}
                   disabled={count >= BULK_MAX}
-                  style={{
-                    width: 32, height: 32, borderRadius: 'var(--r-xs)',
-                    background: 'var(--glass-2)', border: '.5px solid var(--glass-bd)',
-                    color: count >= BULK_MAX ? 'var(--t4)' : 'var(--t1)',
-                    fontSize: 'var(--fs-lead)', lineHeight: 1, cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}
                 >+</button>
               </div>
             </div>

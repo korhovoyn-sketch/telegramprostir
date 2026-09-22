@@ -11,7 +11,7 @@ import { tr } from '@/lib/i18n'
 
 // Single source of truth for the databases column list — keeps loadDatabases,
 // createDatabase and updateDatabase from drifting apart.
-const DB_COLUMNS = 'id,owner_id,name,address,type,color,landlord_name,share_token,share_expires_at,created_at,updated_at'
+const DB_COLUMNS = 'id,owner_id,name,address,type,color,landlord_name,created_at,updated_at'
 /**
  * Те саме БЕЗ токена шарингу — для баз, де користувач лише РЕДАКТОР.
  *
@@ -31,7 +31,7 @@ const DB_COLUMNS_MEMBER = 'id,owner_id,name,address,type,color,landlord_name,cre
  * екран. Тобто фронт, задеплоєний раніше за міграцію, показав би не «без
  * орендодавця», а порожній застосунок.
  */
-const DB_COLUMNS_PRE064 = 'id,owner_id,name,address,type,color,share_token,share_expires_at,created_at,updated_at'
+const DB_COLUMNS_PRE064 = 'id,owner_id,name,address,type,color,created_at,updated_at'
 const DB_COLUMNS_MEMBER_PRE064 = 'id,owner_id,name,address,type,color,created_at,updated_at'
 // `utilities_rate` тут потрібен для другої грошової цифри на екрані списку.
 // Колонка з `001_schema.sql`, тобто є в КОЖНІЙ розгорнутій базі — ризику 400 на

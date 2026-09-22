@@ -34,6 +34,7 @@
   "8. Припинення": "8. Termination",
   "9. Зміни умов": "9. Changes to the terms",
   "9. Контакти": "9. Contacts",
+  "ALLOWED_ORIGIN не збігається": "ALLOWED_ORIGIN does not match",
   "CSV збережено": "CSV saved",
   "CSV таблиця": "CSV spreadsheet",
   "Edge Function не налаштована на сервері. Натисніть «⚙ Діагностика підключення» на цьому екрані, щоб дізнатись, яку саме змінну додати в Supabase → Edge Functions → Secrets.": "The Edge Function is not configured on the server. Tap “⚙ Connection diagnostics” on this screen to find out exactly which variable to add in Supabase → Edge Functions → Secrets.",
@@ -48,6 +49,7 @@
   "PDF збережено": "PDF saved",
   "PDF містить шапку з назвою бази, зведену статистику по статусах, таблицю обʼєктів з кольоровими статусами та підвал з контактами.": "The PDF contains a header with the database name, summary statistics by status, a table of units with colour-coded statuses, and a footer with contacts.",
   "QR-код для ріелторів — не для власника": "The QR code is for agents — not for the owner",
+  "TELEGRAM_BOT_TOKEN задано, але Telegram його не приймає — перевірте значення.": "TELEGRAM_BOT_TOKEN is set, but Telegram rejects it — check the value.",
   "Word документ": "Word document",
   "[notifications] realtime-канал відпав:": "[notifications] realtime channel dropped:",
   "prostir — застосунок для управління нерухомістю всередині Telegram. Ця політика пояснює, які дані ми обробляємо, навіщо і як ви можете їх видалити.": "prostir is a property management app inside Telegram. This policy explains what data we process, why, and how you can delete it.",
@@ -372,7 +374,7 @@
   "Зелений": "Green",
   "Зміни недоступні офлайн": "Changes are unavailable offline",
   "Змінити порядок": "Reorder",
-  "Змінні та БД налаштовані. Якщо вхід не працює — перевірте правильність TELEGRAM_BOT_TOKEN.": "Environment variables and the database are configured. If sign-in does not work, check that TELEGRAM_BOT_TOKEN is correct.",
+  "Змінні, БД, токен бота і origin перевірені.": "Env vars, database, bot token and origin all verified.",
   "Значення не може бути відʼємним": "The value cannot be negative",
   "Зняти все": "Clear all",
   "Зрозуміло": "Got it",
@@ -906,6 +908,7 @@
   "Три кроки до першої бази": "Three steps to your first database",
   "Тут зʼявляться перегляди, події та попередження про кінець договору": "Views, events and lease-expiry warnings will appear here",
   "Тільки вільні обʼєкти": "Vacant units only",
+  "У Supabase задано {0}, а застосунок відкрито з {1}. Вхід блокує CORS, поки вони різні.": "Supabase has {0}, but the app is open from {1}. CORS blocks sign-in while they differ.",
   "У Telegram": "In Telegram",
   "У базі немає вільних обʼєктів": "The database has no vacant units",
   "У базі поки немає обʼєктів": "The database has no units yet",
@@ -1091,5 +1094,6 @@
   "щоб працювали функції застосунку: списки, розрахунки, календар платежів, поширення;": "to make the app’s features work: lists, calculations, the payment calendar, sharing;",
   "щойно": "just now",
   "— не імпортувати —": "— do not import —",
-  "…і ще {0}": "…and {0} more"
+  "…і ще {0}": "…and {0} more",
+  "Частина даних тимчасово кешується у локальному сховищі вашого пристрою, щоб застосунок відкривався миттєво. Цей кеш стирається при виході з акаунта і при його видаленні; налаштування пристрою — мова й вигляд списків — лишаються.": "Some data is cached temporarily in your device’s local storage so the app opens instantly. This cache is erased when you sign out and when you delete your account; device preferences — language and list layout — remain."
 }

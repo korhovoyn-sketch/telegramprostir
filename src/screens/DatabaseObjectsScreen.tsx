@@ -28,6 +28,7 @@ import CoachMark from '@/components/ui/CoachMark'
 import { useOnboarding } from '@/hooks/useOnboarding'
 import { useHideOnScrollDown } from '@/hooks/useHideOnScrollDown'
 import { tr } from '@/lib/i18n'
+import { lsGet } from '@/lib/localState'
 
 /**
  * Порція рендера списку. На модульному рівні, а не в тілі компонента: значення
@@ -100,8 +101,7 @@ export default function DatabaseObjectsScreen() {
   }
   // Одне вподобання «компактно» на обидві статусні вкладки (зайняті + вільні).
   // Ключ лишається історичним 'ps:occCompact', щоб не скидати вибір користувачам.
-  const [statusCompact, setStatusCompact] = useState(() =>
-    typeof window !== 'undefined' && localStorage.getItem('ps:occCompact') === '1')
+  const [statusCompact, setStatusCompact] = useState(() => lsGet('ps:occCompact') === '1')
 
   function toggleStatusCompact(next: boolean) {
     hapticSelection()

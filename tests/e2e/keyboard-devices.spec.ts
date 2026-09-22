@@ -31,8 +31,8 @@ const DB = {
   created_at: NOW, updated_at: NOW, properties: [],
 }
 
-async function fixtures(page: Page) {
-  await setupApp(page, { user: USER })
+async function fixtures(page: Page, platform?: string) {
+  await setupApp(page, { user: USER, platform })
   await page.route('**/rest/v1/databases**', (r) =>
     jsonRoute(r, (r.request().headers()['accept'] ?? '').includes('object') ? DB : [DB]))
   for (const t of ['properties', 'property_folders', 'property_files', 'property_views',
@@ -82,7 +82,7 @@ for (const dev of DEVICES) {
     const problems: string[] = []
 
     try {
-      await fixtures(page)
+      await fixtures(page, dev.platform)
       await atHome(page)
 
       const W = dev.width
