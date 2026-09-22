@@ -1448,7 +1448,7 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
 .empty-s{font-size:var(--fs-sub);color:var(--t2);line-height:var(--lh-norm);max-width:260px;margin-bottom:22px}
 
 /* ── FEATURES LIST ── */
-.features-list{padding:0 16px;display:flex;flex-direction:column;gap:10px;position:relative;z-index:var(--z-above)}
+.features-list{padding:0 16px;width:100%;display:flex;flex-direction:column;gap:10px;position:relative;z-index:var(--z-above)}
 /* Степер кількості у формі обʼєкта. Візуально лишається 32×32 (рішення про
    щільність рядка), а зона дотику розширена до 44 псевдоелементом. Тут це
    ПРАЦЮЄ, на відміну від `.seg-b`: ±6px лишаються всередині 48px-рядка, тобто
@@ -1462,11 +1462,13 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
    звичайний флекс і `.glass-s` без `overflow`, на відміну від `.seg-b`,
    де власний `overflow:hidden` під ellipsis зʼїдає псевдоелемент. */
 .tap-v{position:relative}
+.tap-v:active,.step-btn:active,.diag-btn:active{transform:scale(.96)}
+.tap-v,.step-btn,.diag-btn{transition:transform var(--dur-sm) var(--ease-out)}
 .tap-v::after{content:'';position:absolute;left:0;right:0;top:-9px;bottom:-9px}
 .step-btn{position:relative;width:32px;height:32px;border-radius:var(--r-xs);background:var(--glass-2);border:.5px solid var(--glass-bd);color:var(--t1);font-size:var(--fs-lead);line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .step-btn:disabled{color:var(--t4);cursor:default}
 .step-btn::after{content:'';position:absolute;inset:-7px}
-.diag-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 16px;background:none;border:none;font-size:var(--fs-cap2);color:var(--t3);cursor:pointer}
+.diag-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:46px;padding:0 16px;background:none;border:none;font-size:var(--fs-cap2);color:var(--t3);cursor:pointer}
 .diag-btn:disabled{color:var(--t4);cursor:default}
 .legal-a{color:var(--t2);text-decoration:underline}
 .feature{display:flex;align-items:center;gap:13px;padding:13px 14px;background:var(--glass-2);backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%);border:var(--bd);border-radius:var(--r-md)}

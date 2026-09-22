@@ -247,7 +247,7 @@ export default function WelcomeScreen() {
         </div>
 
         {/* Feature cards */}
-        <div className="features-list" style={{ width: '100%' }}>
+        <div className="features-list">
           <div className="feature">
             <GlassTelegram size={32} />
             <div>
@@ -271,20 +271,22 @@ export default function WelcomeScreen() {
           </div>
         </div>
 
+        {/* СТОЇТЬ ВИЩЕ ЗА РЯДОК ЗГОДИ, і це замір, а не смак: плаваюча «Увійти»
+            (`position:fixed`) накривала нижні ~4px цієї кнопки на 360×740,
+            щойно її зону дотику підняли до 46px (683.8 проти 680). Текст
+            згоди сусідство зі скримом терпить, ДІЯ — ні.
+            Клас, а не інлайновий стиль: зонди ключуються класом із фолбеком на
+            тег, тож доти кнопка була безіменною і її 28px не бачив ніхто — той
+            самий урок, що вже оплачений на «Пропустити →». Неактивність
+            показує КОЛІР, а не `opacity`. */}
+        <button className="diag-btn" onClick={handleDiag} disabled={diagLoading} aria-busy={diagLoading}>
+          {diagLoading ? tr('Перевірка...') : <><IconAdjustments size={14} /> {tr('Діагностика підключення')}</>}
+        </button>
         <div style={{ textAlign: 'center', fontSize: 'var(--fs-cap1)', color: 'var(--t3)', padding: '10px 28px 6px', lineHeight: 1.5 }}>
           {tx('Натискаючи «Увійти», ви погоджуєтесь з {0} та {1}',
             <a href="/terms/" target="_blank" rel="noopener noreferrer" className="legal-a">{tr('Умовами використання')}</a>,
             <a href="/privacy/" target="_blank" rel="noopener noreferrer" className="legal-a">{tr('Політикою конфіденційності')}</a>)}
         </div>
-
-        {/* Клас, а не інлайновий стиль, і це має ціну: доти кнопка була
-            БЕЗІМЕННОЮ для зондів (вони ключуються класом, із фолбеком на тег),
-            тобто її 28px зони дотику не бачив ніхто. Той самий урок, що вже
-            оплачений на «Пропустити →». Неактивність показує КОЛІР, а не
-            `opacity` — над темним склом прозорість зʼїдає елемент. */}
-        <button className="diag-btn" onClick={handleDiag} disabled={diagLoading} aria-busy={diagLoading}>
-          {diagLoading ? tr('Перевірка...') : <><IconAdjustments size={14} /> {tr('Діагностика підключення')}</>}
-        </button>
       </div>
 
       {/* CTA — always visible at bottom */}
