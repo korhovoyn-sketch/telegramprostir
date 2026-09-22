@@ -1461,9 +1461,14 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
    горизонтальна зона крала б його тапи. Ніщо з цих носіїв не клiпає —
    звичайний флекс і `.glass-s` без `overflow`, на відміну від `.seg-b`,
    де власний `overflow:hidden` під ellipsis зʼїдає псевдоелемент. */
+/* Чипи діапазону календаря («1 міс … 6 міс», фільтр). Висота 38px, і 44 тут
+   НЕДОСЯЖНІ: на 360px рядок переноситься, тож вертикальне розширення `::after`
+   крало б тапи сусіднього рядка — заміряно, ефективна висота падала до 34.
+   Тому зона лишається боксом, а борг названий у `TAP_DEBT` як `range-chip`. */
+.range-chip{position:relative}
 .tap-v{position:relative}
-.tap-v:active,.step-btn:active,.diag-btn:active{transform:scale(.96)}
-.tap-v,.step-btn,.diag-btn{transition:transform var(--dur-sm) var(--ease-out)}
+.range-chip:active,.tap-v:active,.step-btn:active,.diag-btn:active{transform:scale(.96)}
+.range-chip,.tap-v,.step-btn,.diag-btn{transition:transform var(--dur-sm) var(--ease-out)}
 .tap-v::after{content:'';position:absolute;left:0;right:0;top:-9px;bottom:-9px}
 .step-btn{position:relative;width:32px;height:32px;border-radius:var(--r-xs);background:var(--glass-2);border:.5px solid var(--glass-bd);color:var(--t1);font-size:var(--fs-lead);line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .step-btn:disabled{color:var(--t4);cursor:default}
