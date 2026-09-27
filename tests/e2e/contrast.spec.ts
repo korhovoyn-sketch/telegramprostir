@@ -149,6 +149,7 @@ const FROZEN: Record<string, number> = {
   'manage-guests': 0,
   'create-invite': 0,
   'create-invite-created': 0,
+  'tenancy-archive': 0,
   'folder-manage': 0,
   'rent-property': 0,
   'folder-picker': 0,

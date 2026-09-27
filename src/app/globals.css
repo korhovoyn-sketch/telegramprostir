@@ -822,6 +822,21 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 .acc-toggle:active{background:var(--glass-2)}
 .acc-toggle[aria-expanded="true"] .acc-chev{transform:rotate(90deg)}
 .acc-chev{flex-shrink:0;color:var(--t4);transition:transform .22s var(--ease)}
+/* Суми архівної картки оренди. Рядок ПЕРЕНОСИТЬСЯ (`wrap`), бо на 360px
+   «Ставка» і «Отримано» разом не влазять, а обрізати гроші не можна. */
+.ten-prop{font-weight:var(--fw-med);color:var(--t2);margin-bottom:4px}
+.ten-when{display:flex;align-items:center;gap:5px;color:var(--t3)}
+.ten-ll{margin-top:3px;color:var(--t3)}
+.ten-sums{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.ten-sum{display:inline-flex;align-items:center;gap:4px;padding:4px 9px;border-radius:var(--r-pill);background:var(--glass-2);font-size:var(--fs-cap1);color:var(--t3)}
+.ten-sum b{font-weight:var(--fw-semi);color:var(--t2)}
+/* Сума ОТРИМАНОГО — гроші, тож обидва шари беруть ЧИТАБЕЛЬНИЙ `--ok-fg`.
+   Саторований `--ok` (#34C759) на власній заливці `--ok-bg` дає 2.93:1 —
+   знайдено обходом contrast, той самий клас, що вже описаний для `.bdg-busy`
+   («тонований бейдж, foreground на тлі своєї ж заливки»). Різниця лише в
+   тому, що тут це ЦИФРА, а не підпис: політика «правити дані» діє. */
+.ten-sum.ok{background:var(--ok-bg);color:var(--ok-fg)}
+.ten-sum.ok b{color:var(--ok-fg)}
 .cost-row{display:flex;justify-content:space-between;align-items:baseline;padding:3px 0;font-size:var(--fs-foot);color:var(--t2)}
 .cost-row+.cost-row{border-top:.5px solid rgba(255,255,255,.07);padding-top:8px;margin-top:6px}
 .cost-ttl{font-size:var(--fs-t2);font-weight:700;color:var(--t1);letter-spacing:-.02em}

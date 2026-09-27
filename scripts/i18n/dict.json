@@ -1095,5 +1095,20 @@
   "щойно": "just now",
   "— не імпортувати —": "— do not import —",
   "…і ще {0}": "…and {0} more",
-  "Частина даних тимчасово кешується у локальному сховищі вашого пристрою, щоб застосунок відкривався миттєво. Цей кеш стирається при виході з акаунта і при його видаленні; налаштування пристрою — мова й вигляд списків — лишаються.": "Some data is cached temporarily in your device’s local storage so the app opens instantly. This cache is erased when you sign out and when you delete your account; device preferences — language and list layout — remain."
+  "Частина даних тимчасово кешується у локальному сховищі вашого пристрою, щоб застосунок відкривався миттєво. Цей кеш стирається при виході з акаунта і при його видаленні; налаштування пристрою — мова й вигляд списків — лишаються.": "Some data is cached temporarily in your device’s local storage so the app opens instantly. This cache is erased when you sign out and when you delete your account; device preferences — language and list layout — remain.",
+  "Архів оренд": "Tenancy archive",
+  "місяць": "month",
+  "місяці": "months",
+  "місяців": "months",
+  "Без імені": "Unnamed",
+  "Триває": "Ongoing",
+  "{0} — {1} · {2}": "{0} — {1} · {2}",
+  "з {0} · {1}": "since {0} · {1}",
+  "Орендар або обʼєкт...": "Tenant or unit...",
+  "Архів ще не увімкнено": "Archive not enabled yet",
+  "Розділ зʼявиться після оновлення бази даних.": "This section appears after the database update.",
+  "Оренд ще не було": "No tenancies yet",
+  "Щойно ви здасте обʼєкт, тут зʼявиться картка правовідносин — і залишиться після звільнення.": "As soon as you rent a unit out, its tenancy card appears here — and stays after the unit is vacated.",
+  "Спробуйте іншу назву обʼєкта або імʼя орендаря.": "Try another unit name or tenant name.",
+  "{0} у списку · {1} завершено": "{0} listed · {1} closed"
 }

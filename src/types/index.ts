@@ -126,6 +126,42 @@ export interface PropertyFolder {
   updated_at: string
 }
 
+/**
+ * ОРЕНДА як сутність (міграція 067): рядок ВІДКРИВАЄТЬСЯ, коли обʼєкт стає
+ * зайнятим, і ЗАКРИВАЄТЬСЯ, коли перестає. Факти ЗАМОРОЖЕНІ в самому рядку —
+ * архівна картка мусить читатись і після перейменування обʼєкта, зміни ставки
+ * чи видалення обʼєкта зовсім (`property_id` тоді стає NULL).
+ *
+ * `started_at`/`ended_at` — моменти САМИХ ДІЙ, а не дати договору: `lease_*`
+ * необовʼязкові, тож оренда цілком може не мати жодної договірної дати.
+ */
+export interface Tenancy {
+  id: string
+  owner_id: string
+  db_id: string
+  property_id: string | null
+  property_name: string
+  tenant_name?: string | null
+  landlord_name?: string | null
+  rent_rate?: number | null
+  rent_type?: RentType | null
+  utilities_rate?: number | null
+  area_basis?: AreaBasis | null
+  area_useful?: number | null
+  area_total?: number | null
+  currency?: string | null
+  lease_start_date?: string | null
+  lease_end_date?: string | null
+  started_at: string
+  ended_at?: string | null
+  created_at: string
+  updated_at: string
+  /** Підтверджені платежі, чий `due_date` потрапляє в період оренди. Рахує
+   *  `useTenancies` другим запитом — у БД цього звʼязку немає (див. хук). */
+  _paid_total?: number
+  _paid_count?: number
+}
+
 export interface PropertyFile {
   id: string
   property_id: string
@@ -273,6 +309,7 @@ export type ScreenName =
   | 'db-picker'
   | 'folder-picker'
   | 'rent-property'
+  | 'tenancy-archive'
   | 'delete-account'
 
 export interface RentPayment {

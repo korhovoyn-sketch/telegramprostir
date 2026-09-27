@@ -227,7 +227,24 @@ WITH checks(ord, item, migration, ok) AS (VALUES
   (48, 'db_guest_select звіряє owner_id цілі з видавцем', '066_identity_anchor_storage_enum_guest_target.sql',
       (SELECT COUNT(*) = 1 FROM pg_policies
         WHERE tablename='databases' AND policyname='db_guest_select'
-          AND qual LIKE '%owner_id%'))
+          AND qual LIKE '%owner_id%')),
+
+  -- 067-1: сама таблиця архіву з RLS. Без неї екран працює, просто вимкнений.
+  (49, 'tenancies: таблиця існує і RLS увімкнена', '067_tenancies.sql',
+      (SELECT COALESCE((SELECT relrowsecurity FROM pg_class WHERE relname='tenancies'), false))),
+
+  -- 067-2: ТРИГЕР, а не лише функція. Функція без тригера — це мертвий код:
+  -- жоден зі ТРЬОХ клієнтських шляхів звільнення її не покличе, і архів
+  -- лишиться назавжди порожнім, не подавши жодного сигналу.
+  (50, 'trg_sync_tenancy висить на properties', '067_tenancies.sql',
+      (SELECT COUNT(*) = 1 FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
+        WHERE c.relname='properties' AND t.tgname='trg_sync_tenancy' AND NOT t.tgisinternal)),
+
+  -- 067-3: рівно ОДНА відкрита оренда на обʼєкт. Без цього індексу повторне
+  -- відкриття плодило б дублі, і «отримано» рахувалось би двічі.
+  (51, 'частковий UNIQUE: одна відкрита оренда на обʼєкт', '067_tenancies.sql',
+      (SELECT COUNT(*) = 1 FROM pg_indexes
+        WHERE tablename='tenancies' AND indexname='idx_tenancies_one_open'))
 )
 SELECT
   CASE WHEN ok THEN '✅ OK     ' ELSE '❌ MISSING' END AS status,

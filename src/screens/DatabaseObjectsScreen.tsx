@@ -18,7 +18,7 @@ import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import ActionSheet from '@/components/ui/ActionSheet'
 import { useLatch } from '@/lib/useLatch'
 import Collapsible from '@/components/ui/Collapsible'
-import { IconCheck, IconPlus, IconDots, IconPhoto, IconChevronUp, IconChevronDown, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconCopy, IconUser, IconUsers, IconFile, IconLayers, IconLayoutGrid, IconChartBar, IconKey, IconFileExport, IconCircleCheck, IconAdjustments, IconTrash, IconChevronRight, IconFolder, IconInbox } from '@/components/Icons'
+import { IconCheck, IconPlus, IconDots, IconPhoto, IconChevronUp, IconChevronDown, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconCopy, IconUser, IconUsers, IconFile, IconLayers, IconLayoutGrid, IconChartBar, IconKey, IconFileExport, IconCircleCheck, IconAdjustments, IconTrash, IconChevronRight, IconFolder, IconInbox, IconArchive } from '@/components/Icons'
 import DatabaseStatsPanel from '@/components/ui/DatabaseStatsPanel'
 import FloatingButton from '@/components/ui/FloatingButton'
 import { overridesLandlord, formatPrice, calcRent, calcRentUtils, basisArea, floorSortKey, computedRentUnit, rentUnitLabel, objectsWord, DB_TYPE_LABELS, formatLeasePeriod, STATUS_COLORS, matchesQuery } from '@/lib/utils'
@@ -941,6 +941,10 @@ export default function DatabaseObjectsScreen() {
                 { Icon: IconChartBar,  label: tr('Аналітика і поширення'), nav: true,  danger: false, action: () => { setShowMenu(false); navigate('sharing-analytics', { dbId: db.id }) } },
               ] : []),
               { Icon: IconCalendar,    label: tr('Календар платежів'),     nav: true,  danger: false, action: () => { setShowMenu(false); navigate('payment-calendar', { dbId: db.id }) } },
+              // НЕ owner-only: RLS архіву (067) покриває і власника, і редактора
+              // команди — він створює ті самі оренди, тож ховати від нього
+              // історію було б брехнею про те, хто що зробив.
+              { Icon: IconArchive,     label: tr('Архів оренд'),           nav: true,  danger: false, action: () => { setShowMenu(false); navigate('tenancy-archive', { dbId: db.id }) } },
               ...(db.owner_id === user?.id ? [
                 { Icon: IconKey,       label: tr('Управління гостями'),    nav: true,  danger: false, action: () => { setShowMenu(false); navigate('manage-guests', { dbId: db.id }) } },
                 { Icon: IconUsers,     label: tr('Команда'),               nav: true,  danger: false, action: () => { setShowMenu(false); navigate('team', { dbId: db.id }) } },
