@@ -67,4 +67,28 @@ describe('заголовки безпеки', () => {
     expect(H['Permissions-Policy']).toMatch(/geolocation=\(\)/)
     expect(H['Permissions-Policy']).toMatch(/microphone=\(\)/)
   })
+
+  // Публічна `/v` несе share-токен у query і показує дані власника. Посилання,
+  // опубліковане хоч раз на відкритій сторінці, без цього потрапило б у пошук
+  // РАЗОМ із токеном. Два шари: заголовок (Vercel) і мета-тег (будь-який
+  // хостинг, включно з прев'ю) — зникнення кожного має валити тест окремо.
+  it('жодна сторінка не індексується: X-Robots-Tag noindex', () => {
+    expect(H['X-Robots-Tag'], 'X-Robots-Tag зник — /v з токеном може потрапити в пошук')
+      .toMatch(/noindex/)
+    expect(H['X-Robots-Tag']).toMatch(/nofollow/)
+  })
+
+  it('мета robots noindex у кореневому layout (шар на випадок хостингу без vercel.json)', () => {
+    const layout = readFileSync(resolve(process.cwd(), 'src/app/layout.tsx'), 'utf8')
+    expect(layout).toMatch(/<meta name="robots" content="[^"]*noindex[^"]*"/)
+  })
+
+  // robots.txt із Disallow ЗАБОРОНЯЄ обхід, а заборонену сторінку пошуковик не
+  // читає — тобто не бачить noindex і може проіндексувати саме URL із токеном,
+  // якщо на нього послались. Тому Disallow тут — не посилення, а діра.
+  it('robots.txt не блокує обхід (інакше noindex стає невидимим)', () => {
+    let robots = ''
+    try { robots = readFileSync(resolve(process.cwd(), 'public/robots.txt'), 'utf8') } catch { /* файлу немає — і добре */ }
+    expect(robots).not.toMatch(/^\s*Disallow:\s*\/\s*$/m)
+  })
 })

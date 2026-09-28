@@ -5,7 +5,7 @@
 -- Джерело правди — supabase/migrations/; CI звіряє, що цей файл їм
 -- відповідає (робота `migrations`, крок «RELEASE.sql не розійшовся»).
 --
--- Містить міграції 20 шт., від 48 і далі:
+-- Містить міграції 21 шт., від 48 і далі:
 --   * 048_guest_name.sql
 --   * 049_drop_idor_get_shared_collection.sql
 --   * 050_guest_preview_owner_check.sql
@@ -26,6 +26,7 @@
 --   * 065_lease_reminders.sql
 --   * 066_identity_anchor_storage_enum_guest_target.sql
 --   * 067_tenancies.sql
+--   * 068_tenancies_read_only.sql
 --
 -- ЯК НАКОЧУВАТИ: вставити цілком і виконати ОДИН раз.
 --   * усе загорнуте в BEGIN/COMMIT — при будь-якій помилці НІЧОГО не
@@ -2743,5 +2744,57 @@ WHERE p.status = 'occupied'
   AND NOT EXISTS (
     SELECT 1 FROM tenancies t WHERE t.property_id = p.id AND t.ended_at IS NULL
   );
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 068_tenancies_read_only.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- ═══════════════════════════════════════════════════════════════════════════
+-- 068 — архів оренд стає ЛИШЕ ДЛЯ ЧИТАННЯ з боку клієнтів
+-- ═══════════════════════════════════════════════════════════════════════════
+--
+-- 067 завела `tenancies` з політиками FOR ALL (дзеркало `property_folders`).
+-- Для папок це правильно — їх створюють і видаляють руками. Для архіву ні:
+-- його цінність у тому, що він ПРАВДИВИЙ. Це історія правовідносин, до якої
+-- повертаються при спорі з орендарем, і запис, який можна відредагувати,
+-- доказом не є.
+--
+-- Конкретна діра, заміряна на живому Postgres (scripts/verify-rls.sql):
+-- РЕДАКТОР команди — принципал, якого власник запрошує й відкликає, тобто
+-- менш довірений — міг стерти ВЕСЬ архів власника одним DELETE або
+-- переписати імена орендарів і суми. Власник так само міг «підправити»
+-- власну історію заднім числом.
+--
+-- Клієнту запис не потрібен узагалі: `useTenancies` лише читає, а рядки
+-- відкриває й закриває тригер `sync_tenancy_on_property_change()`, який є
+-- SECURITY DEFINER і належить власнику таблиці — тобто RLS не проходить
+-- взагалі. Стенд окремо доводить, що після цієї міграції тригер пише далі.
+--
+-- ДВА шари, і обидва потрібні:
+--   1. політики — лише SELECT;
+--   2. відкликані табличні права на запис. Без другого шару наступна
+--      міграція, що «за зразком» додасть FOR ALL-політику, мовчки відкрила б
+--      запис знову; з ним — додати політику недостатньо, треба ще й явний
+--      GRANT, тобто рішення стає видимим у дифі.
+--
+-- Ідемпотентна: безпечна і на базі, де 067 застосована, і разом із нею в
+-- одному накаті (supabase/RELEASE.sql).
+-- ═══════════════════════════════════════════════════════════════════════════
+
+DROP POLICY IF EXISTS "tenancies_owner_all"  ON tenancies;
+DROP POLICY IF EXISTS "tenancies_editor_all" ON tenancies;
+
+DROP POLICY IF EXISTS "tenancies_owner_select" ON tenancies;
+CREATE POLICY "tenancies_owner_select" ON tenancies
+  FOR SELECT
+  USING (db_id IN (SELECT get_owner_db_ids(current_app_user_id())));
+
+-- Редактор БАЧИТЬ архів: він створює ті самі оренди, і ховати від нього
+-- історію було б брехнею про те, хто що зробив. Але лише бачить.
+DROP POLICY IF EXISTS "tenancies_editor_select" ON tenancies;
+CREATE POLICY "tenancies_editor_select" ON tenancies
+  FOR SELECT
+  USING (db_id IN (SELECT get_editor_db_ids(current_app_user_id())));
+
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON tenancies FROM anon, authenticated;
 
 COMMIT;

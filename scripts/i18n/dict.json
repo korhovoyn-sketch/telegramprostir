@@ -12,7 +12,6 @@
   "1. Що це за сервіс": "1. What this service is",
   "1. Які дані ми отримуємо": "1. What data we receive",
   "10. Контакти": "10. Contacts",
-  "13 вересня 2026": "13 September 2026",
   "2. Ваш акаунт": "2. Your account",
   "2. Додай обʼєкти": "2. Add units",
   "2. Навіщо ми це обробляємо": "2. Why we process it",
@@ -1110,5 +1109,7 @@
   "Оренд ще не було": "No tenancies yet",
   "Щойно ви здасте обʼєкт, тут зʼявиться картка правовідносин — і залишиться після звільнення.": "As soon as you rent a unit out, its tenancy card appears here — and stays after the unit is vacated.",
   "Спробуйте іншу назву обʼєкта або імʼя орендаря.": "Try another unit name or tenant name.",
-  "{0} у списку · {1} завершено": "{0} listed · {1} closed"
+  "{0} у списку · {1} завершено": "{0} listed · {1} closed",
+  "Коли обʼєкт звільняється, найменування орендаря, строки й умови оренди переходять в архів оренд бази — це історія ваших правовідносин, до якої можна повернутися. Записи архіву не може змінити ні ви, ні редактори вашої бази: вони видаляються лише разом із базою або акаунтом.": "When a property is vacated, the tenant’s name and the lease terms move into the database’s tenancy archive — the history of your legal relationships that you can come back to. Archive records cannot be changed by you or by your database editors: they are deleted only together with the database or the account.",
+  "28 вересня 2026": "28 September 2026"
 }

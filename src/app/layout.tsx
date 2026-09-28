@@ -63,6 +63,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content, content-safe-area-inset=128" />
         <meta name="theme-color" content="#1a0533" />
+        {/* Не індексувати НІЧОГО. Публічна `/v` несе share-токен у query — це її
+            креденшл, — а сторінка показує назви, ціни, фото й контакт власника.
+            Посилання, опубліковане хоч раз на відкритій сторінці, інакше
+            потрапило б у пошук разом із токеном, і знайти його міг би будь-хто.
+            Дублює `X-Robots-Tag` із vercel.json — на хостингу без нього
+            (прев'ю, `serve out`) лишається хоча б цей шар. robots.txt із
+            Disallow тут НЕ годиться: заборонену до обходу сторінку пошуковик
+            не читає, тобто не бачить і noindex, і може проіндексувати саме URL. */}
+        <meta name="robots" content="noindex, nofollow, noarchive" />
         <title>prostir</title>
         <meta name="description" content={tr('prostir — платформа управління нерухомістю в Telegram. Бази обʼєктів, аналітика переглядів, підбірки для ріелторів.')} />
         <meta property="og:title" content="prostir" />
