@@ -68,7 +68,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             Посилання, опубліковане хоч раз на відкритій сторінці, інакше
             потрапило б у пошук разом із токеном, і знайти його міг би будь-хто.
             Дублює `X-Robots-Tag` із vercel.json — на хостингу без нього
-            (прев'ю, `serve out`) лишається хоча б цей шар. robots.txt із
+            (превʼю, `serve out`) лишається хоча б цей шар. robots.txt із
             Disallow тут НЕ годиться: заборонену до обходу сторінку пошуковик
             не читає, тобто не бачить і noindex, і може проіндексувати саме URL. */}
         <meta name="robots" content="noindex, nofollow, noarchive" />
