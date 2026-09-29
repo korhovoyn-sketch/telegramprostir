@@ -990,6 +990,7 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 }
 
 .obj-hero-bdg{position:absolute;top:10px;left:10px;display:flex;align-items:center;gap:5px;padding:4px 10px 4px 8px;border-radius:var(--r-pill);background:rgba(52,199,89,.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);font-size:var(--fs-cap2);font-weight:600;color:#fff;z-index:var(--z-content)}
+.obj-hero-bdg.on-photo{background:var(--glass-off);color:var(--t1);border:.5px solid rgba(255,255,255,.2)}
 .obj-hero-r{position:absolute;top:10px;right:10px;display:flex;gap:6px;z-index:var(--z-content)}
 .obj-hero-a{width:44px;height:44px;border-radius:50%;background:rgba(0,0,0,.4);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;color:var(--t1);font-size:var(--fs-note);border:.5px solid rgba(255,255,255,.2);cursor:pointer}
 .obj-hero-meta{position:absolute;bottom:10px;left:12px;right:12px;z-index:var(--z-content);display:flex;justify-content:space-between;align-items:flex-end;color:#fff}

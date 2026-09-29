@@ -240,7 +240,15 @@ export default function PropertyDetailScreen() {
           {/* Колір беремо з ЄДИНОГО джерела STATUS_COLORS: раніше пігулка була
               захардкоджено зелена для будь-якого статусу, крапка — з третьої
               палітри, а бейдж у сітці нижче показував ще інший колір. */}
-          <div className="obj-hero-bdg" style={{ background: STATUS_COLORS[property.status].bg, color: STATUS_COLORS[property.status].color }}>
+          {/* Поверх ФОТО тонований бейдж нечитабельний: 18% тону над світлим
+              небом дали 1.88:1 («Зайнято»). Тож на знімку бейдж — темне скло з
+              білим підписом, а статус несе кольорова крапка. Знайдено, щойно
+              харнес почав віддавати справжній знімок: доти під бейджем лежала
+              бита картинка, тобто темний ґрунт героя. */}
+          <div
+            className={`obj-hero-bdg${photos.length > 0 ? ' on-photo' : ''}`}
+            style={photos.length > 0 ? undefined : { background: STATUS_COLORS[property.status].bg, color: STATUS_COLORS[property.status].color }}
+          >
             <span className="fdot" style={{ background: STATUS_COLORS[property.status].color }} />
             {STATUS_LABELS()[property.status]}
           </div>
