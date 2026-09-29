@@ -197,7 +197,7 @@ export default function WelcomeScreen() {
               width: i === stepIdx ? 20 : 8,
               height: 8, borderRadius: 4,
               background: i === stepIdx ? 'var(--accent)' : 'var(--glass-3)',
-              transition: 'all .35s var(--ease)',
+              transition: 'width .35s var(--ease), background .35s var(--ease)',
             }} />
           ))}
         </div>

@@ -621,7 +621,7 @@ body{
 .fr-seg{display:flex;background:var(--glass-2);border-radius:var(--rc-out);padding:var(--rc-pad);gap:2px;width:100%;border:var(--bd)}
 /* Сегмент — <button>, не <div>: інакше перемикач недосяжний з клавіатури, а в
    модалці його не бачить і фокус-пастка. Звідси скидання UA-стилів кнопки. */
-.fr-seg-b{flex:1;padding:6px 4px;border:none;background:transparent;font-family:inherit;border-radius:var(--rc-in);font-size:var(--fs-cap2);font-weight:600;text-align:center;color:var(--t3);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;transition:all .22s var(--ease);display:flex;align-items:center;justify-content:center;min-height:44px}
+.fr-seg-b{flex:1;padding:6px 4px;border:none;background:transparent;font-family:inherit;border-radius:var(--rc-in);font-size:var(--fs-cap2);font-weight:600;text-align:center;color:var(--t3);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;transition:background .22s var(--ease),color .22s var(--ease),box-shadow .22s var(--ease);display:flex;align-items:center;justify-content:center;min-height:44px}
 .fr-seg-b.on{background:var(--glass-3);color:var(--t1);box-shadow:var(--shadow-seg-on)}
 /* Неактивний — приглушений колір, не opacity (правило проєкту). */
 .fr-seg-b:disabled{cursor:default;color:var(--t4)}
@@ -1032,7 +1032,7 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
    і назва типу («Приватне») падала на 4.39:1. Текст тут уже --t1, тобто чисто
    білий — підняти його нікуди, лікується лише ґрунт. Той самий прийом, що вже
    підняв .obj-tot-l/v/sub. */
-.type-card{padding:14px;border-radius:var(--r-md);display:flex;flex-direction:column;gap:7px;cursor:pointer;background:var(--glass-card);border:var(--bd);transition:all var(--dur-sm) var(--ease),transform var(--dur-xs) ease,filter var(--dur-xs) ease,opacity var(--dur-xs) ease;position:relative;overflow:hidden}
+.type-card{padding:14px;border-radius:var(--r-md);display:flex;flex-direction:column;gap:7px;cursor:pointer;background:var(--glass-card);border:var(--bd);transition:background var(--dur-sm) var(--ease),border-color var(--dur-sm) var(--ease),box-shadow var(--dur-sm) var(--ease),transform var(--dur-xs) ease,filter var(--dur-xs) ease,opacity var(--dur-xs) ease;position:relative;overflow:hidden}
 .type-card.sel{border:.5px solid rgba(120,180,255,.55);background:rgba(34,158,217,.18);box-shadow:0 0 0 2px rgba(34,158,217,.18) inset}
 @media (hover: hover){.type-card:hover:not(.sel){background:var(--glass-2);transform:translateY(-1px)}}
 .type-card:active{transform:scale(.97)}
@@ -1051,7 +1051,7 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 
 /* ── FORMAT LIST ── */
 .format-list{padding:0 var(--g3) var(--g3);display:flex;flex-direction:column;gap:7px}
-.format-card{padding:13px;border-radius:var(--r-md);display:flex;align-items:center;gap:12px;cursor:pointer;background:var(--glass-1);border:var(--bd);transition:all var(--dur-sm) var(--ease),transform var(--dur-xs) ease,filter var(--dur-xs) ease,opacity var(--dur-xs) ease;position:relative;overflow:hidden}
+.format-card{padding:13px;border-radius:var(--r-md);display:flex;align-items:center;gap:12px;cursor:pointer;background:var(--glass-1);border:var(--bd);transition:background var(--dur-sm) var(--ease),border-color var(--dur-sm) var(--ease),box-shadow var(--dur-sm) var(--ease),transform var(--dur-xs) ease,filter var(--dur-xs) ease,opacity var(--dur-xs) ease;position:relative;overflow:hidden}
 .format-card.sel{border:.5px solid rgba(120,180,255,.55);background:rgba(34,158,217,.16);box-shadow:0 0 0 2px rgba(34,158,217,.16) inset}
 @media (hover: hover){.format-card:hover:not(.sel){background:var(--glass-2)}}
 .format-ic{width:44px;height:44px;border-radius:var(--r-icon);display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;border:var(--bd)}
@@ -1447,12 +1447,18 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
 .fold-pick-new:active{background:var(--glass-2)}
 
 /* ── SKELETON ── */
-.skel{background:linear-gradient(90deg,var(--glass-1),var(--glass-2),var(--glass-1));background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:var(--r-sm)}
+/* Відблиск скелетона — ПРОХІД смуги (`transform`), а не зсув фону.
+   `background-position` не композитується: кожен кадр перемальовував УСІ
+   заглушки екрана, і так безкінечно, поки йде запит — рівно на LTE, де запит
+   довгий. Смуга на псевдоелементі рухається композитором. */
+.skel{position:relative;overflow:hidden;background:var(--glass-1);border-radius:var(--r-sm)}
+.skel::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.05),transparent);transform:translateX(-100%);animation:skelSweep 1.5s infinite}
+@keyframes skelSweep{to{transform:translateX(100%)}}
 .skel-row{height:48px;margin-bottom:8px}
-.skel:nth-child(2){animation-delay:0.08s}
-.skel:nth-child(3){animation-delay:0.16s}
-.skel:nth-child(4){animation-delay:0.24s}
-.skel:nth-child(n+5){animation-delay:0.32s}
+.skel:nth-child(2)::after{animation-delay:0.08s}
+.skel:nth-child(3)::after{animation-delay:0.16s}
+.skel:nth-child(4)::after{animation-delay:0.24s}
+.skel:nth-child(n+5)::after{animation-delay:0.32s}
 
 /* ── EMPTY STATE ── */
 .empty-state{display:flex;flex-direction:column;align-items:center;text-align:center;padding:60px 32px 20px}
@@ -1564,6 +1570,20 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
 .drop-zone.dropping,.photos-strip.dropping{background:var(--info-bg);outline-color:var(--info)}
 .photo-t{flex-shrink:0;width:80px;height:80px;border-radius:var(--r-sm);position:relative;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.45);font-size:var(--fs-t2);border:var(--bd);cursor:pointer;overflow:hidden;background:var(--glass-2);transition:border-radius 0.2s ease,filter 0.2s ease}
 .photo-t img{object-fit:cover;width:100%;height:100%}
+/* ── ПОЯВА ФОТО (`components/ui/Photo.tsx`) ─────────────────────────────
+   Знімок проявляється, коли приїхали БАЙТИ, а не коли змонтувався вузол:
+   анімація при монтуванні на LTE програвала на порожньому елементі, і фото
+   потім зʼявлялось ривком. Рух — лише `opacity`/`transform`, тобто
+   композитор; до того ж місце вже займає ґрунт носія, тож лейаут не рухається. */
+.photo-img{opacity:0;transition:opacity var(--dur-md) var(--ease-out),transform var(--dur-lg) var(--ease-out)}
+.photo-img.on{opacity:1}
+.photo-img.zoom{transform:scale(.97)}
+.photo-img.zoom.on{transform:none}
+/* Знімок не завантажився: спокійна заглушка замість гліфа битої картинки. */
+.photo-miss{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--t4);pointer-events:none}
+/* Кнопка-відкривач мініатюри: скидання UA-стилів, геометрія — плитки. */
+.photo-open{position:absolute;inset:0;padding:0;border:none;background:none;cursor:pointer;display:block;color:inherit;font:inherit}
+.photo-open img{object-fit:cover;width:100%;height:100%}
 @media (hover: hover){.photo-t:hover{filter:brightness(1.12)}}
 .media-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;padding:10px var(--pad-card)}
 .media-i{aspect-ratio:1;background:var(--glass-0);border-radius:var(--r-xs);display:flex;align-items:center;justify-content:center;font-size:var(--fs-lead);border:var(--bd);color:#fff;cursor:pointer;position:relative}
@@ -1661,7 +1681,6 @@ svg.ico{overflow:visible}
 /* ── ANIMATIONS ── */
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes pls{0%,100%{transform:scale(1);opacity:.9}50%{transform:scale(1.5);opacity:.3}}
-@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 @keyframes toastSlideIn{from{opacity:0;transform:translateY(-80px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}
 /* ── Блюр НЕ працює, поки шит їде ──
    Замір із реального iPhone (покадровий розбір запису): перші ~60% шляху шит
@@ -1699,7 +1718,6 @@ svg.ico{overflow:visible}
 @keyframes scanLine{0%,100%{transform:translateY(calc(var(--scan-h,240px) * .08))}
   50%{transform:translateY(calc(var(--scan-h,240px) * .88))}}
 @keyframes qrPop{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}
-@keyframes galleryFadeIn{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:scale(1)}}
 @keyframes fpmSlideUp{from{opacity:0;transform:translateY(32px)}to{opacity:1;transform:translateY(0)}}
 @keyframes pingFx{0%{transform:scale(1)}50%{transform:scale(1.16)}100%{transform:scale(1)}}
 
@@ -1849,8 +1867,12 @@ svg.ico{overflow:visible}
 .cmark-root{position:fixed;inset:0;z-index:var(--z-coach);pointer-events:none}
 .cmark-panel{position:absolute;background:rgba(0,0,0,.72);pointer-events:auto;cursor:pointer}
 /* Pulsing glow ring draws the eye to the target element */
-.cmark-ring{position:absolute;border-radius:var(--r-sm);border:1.5px solid rgba(148,214,255,.72);box-shadow:0 0 0 3px rgba(148,214,255,.14),0 0 22px rgba(148,214,255,.38);pointer-events:none;animation:cmarkPulse 2s ease-in-out infinite}
-@keyframes cmarkPulse{0%,100%{box-shadow:0 0 0 3px rgba(148,214,255,.14),0 0 22px rgba(148,214,255,.38)}50%{box-shadow:0 0 0 6px rgba(148,214,255,.24),0 0 38px rgba(148,214,255,.58)}}
+/* Пульс — ПРОЯВ другого шару світіння (`opacity`), а не інтерполяція
+   `box-shadow`: та перемальовувала розмите світіння 38px щокадру весь час, поки
+   користувач читає підказку. Спокійний стан той самий, що й був. */
+.cmark-ring{position:absolute;border-radius:var(--r-sm);border:1.5px solid rgba(148,214,255,.72);box-shadow:0 0 0 3px rgba(148,214,255,.14),0 0 22px rgba(148,214,255,.38);pointer-events:none}
+.cmark-ring::after{content:'';position:absolute;inset:-1.5px;border-radius:inherit;box-shadow:0 0 0 6px rgba(148,214,255,.12),0 0 38px rgba(148,214,255,.3);opacity:0;animation:cmarkGlow 2s ease-in-out infinite}
+@keyframes cmarkGlow{50%{opacity:1}}
 /* Tooltip bubble — Liquid Glass dark glass card */
 .cmark-bubble{background:rgba(16,12,34,.95);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border:.5px solid rgba(255,255,255,.18);border-radius:var(--r-md);padding:14px 16px 12px;box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 16px 44px rgba(0,0,0,.64);pointer-events:auto;animation:cmarkIn .28s var(--ease-spr) both}
 @keyframes cmarkIn{from{opacity:0;transform:scale(.90)}to{opacity:1;transform:scale(1)}}

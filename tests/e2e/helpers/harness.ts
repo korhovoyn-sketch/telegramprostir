@@ -1,4 +1,6 @@
 import type { Page, Route } from '@playwright/test'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { parseSelect, project } from './selectProjection'
 
 export interface HarnessUser {
@@ -197,6 +199,9 @@ export async function installTelegram(page: Page, opts: HarnessOptions = {}) {
   )
 }
 
+/** Тестова «фотографія»: градієнт 96×64, щоб кадри показували знімок, а не пляму. */
+export const PHOTO_PNG = readFileSync(join(__dirname, '..', 'fixtures', 'photo.png'))
+
 /** Intercept every Supabase REST / Auth / Edge call with deterministic fixtures. */
 export async function mockBackend(page: Page, opts: HarnessOptions = {}) {
   // Герметичність БУКВАЛЬНО: справжній telegram-web-app.js з telegram.org
@@ -206,6 +211,13 @@ export async function mockBackend(page: Page, opts: HarnessOptions = {}) {
   // 7 тестів. Віддаємо порожній скрипт.
   await page.route('**/telegram-web-app.js', (route) =>
     route.fulfill({ status: 200, contentType: 'application/javascript', body: '' }))
+  // Публічні URL фото — СПРАВЖНІЙ знімок. Доти вони не роутились нікуди, тож
+  // кожен екран із фото (герой, смужка, галерея, картки /v) у тестах малював
+  // БИТУ картинку, і всі гарди якості й бейслайни міряли саме цей стан.
+  // Реєструється ПЕРШИМ, тобто спек, якому потрібна повільна мережа чи 404,
+  // перекриває його власним `page.route`.
+  await page.route('**/storage/v1/object/public/photos/**', (route) =>
+    route.fulfill({ status: 200, contentType: 'image/png', body: PHOTO_PNG }))
   const user = opts.user ?? DEFAULT_USER
   const jwt = makeJwt(user)
   const json = (route: Route, body: unknown, status = 200) =>

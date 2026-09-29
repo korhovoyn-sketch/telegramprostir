@@ -1,6 +1,5 @@
 'use client'
 
-/* eslint-disable @next/next/no-img-element */
 import { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { useFileDrop } from '@/hooks/useFileDrop'
@@ -16,6 +15,7 @@ import { IconEdit, IconShare, IconMapPin, IconPhoto, IconX, IconCamera, IconRule
 import FilesList from '@/components/ui/FilesList'
 import FloatingButton from '@/components/ui/FloatingButton'
 import SpaceOrb, { type OrbStatus } from '@/components/ui/SpaceOrb'
+import { Photo } from '@/components/ui/Photo'
 import { effectiveLandlord, formatPrice, calcRentUtils, computedRentUnit, parkingTypeLabel, STATUS_LABELS, STATUS_COLORS, formatLeasePeriod, photoUrl, daysUntil } from '@/lib/utils'
 import { UTILITY_META } from '@/lib/utilityMeta'
 import { supabase } from '@/lib/supabase'
@@ -225,10 +225,13 @@ export default function PropertyDetailScreen() {
           style={{ cursor: photos.length > 0 ? 'pointer' : 'default' }}
         >
           {photos.length > 0 ? (
-            <img
+            <Photo
+              key={photos[0].id}
               src={photoUrl(photos[0].storage_path)}
               alt={property.name}
+              eager
               style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+              fallback={<span className="photo-miss" aria-hidden="true"><IconPhoto size={24} /></span>}
             />
           ) : (
             <SpaceOrb status={property.status as OrbStatus} />
@@ -543,13 +546,22 @@ export default function PropertyDetailScreen() {
         <div className={`photos-strip${photoDrop.dropping ? ' dropping' : ''}`} {...photoDrop.dropProps}>
           {photos.map((photo, i) => (
             <div key={photo.id} className="photo-t" style={{ position: 'relative' }}>
-              <img
-                src={photoUrl(photo.storage_path)}
-                alt=""
-                loading="lazy"
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              {/* Відкриває галерею `<button>`, а не клікабельний `<img>`: до
+                  картинки не дійти з клавіатури і читалка її не оголошує як дію.
+                  Плитка лишається `<div>`, бо поруч кнопка видалення, а
+                  `<button>` у `<button>` — невалідна розмітка. */}
+              <button
+                type="button"
+                className="photo-open"
+                aria-label={tr('Фото {0} з {1}', i + 1, photos.length)}
                 onClick={() => openGallery(i)}
-              />
+              >
+                <Photo
+                  src={photoUrl(photo.storage_path)}
+                  alt=""
+                  fallback={<span className="photo-miss" aria-hidden="true"><IconPhoto size={16} /></span>}
+                />
+              </button>
               {isOwner && (
                 <button
                   aria-label={tr('Видалити фото')}
@@ -557,7 +569,7 @@ export default function PropertyDetailScreen() {
                   style={{
                     position: 'absolute', top: 3, right: 3,
                     width: 20, height: 20, borderRadius: '50%',
-                    background: 'rgba(0,0,0,.65)', border: 'none',
+                    background: 'var(--glass-off)', border: 'none',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     color: 'var(--t1)', cursor: 'pointer', zIndex: 'var(--z-content)',
                   }}

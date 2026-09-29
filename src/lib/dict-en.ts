@@ -573,6 +573,7 @@ export const EN: Record<string, string> = {
   "Не вдалося завантажити дані. Перевірте підключення.": "Could not load the data. Check your connection.",
   "Не вдалося завантажити документи": "Could not load the documents",
   "Не вдалося завантажити обʼєкт": "Could not load the unit",
+  "Не вдалося завантажити фото": "Could not load the photo",
   "Не вдалося завантажити шрифт для PDF": "Could not load the font for the PDF",
   "Не вдалося завантажити. Перевір зʼєднання та спробуй ще раз.": "Could not load. Check your connection and try again.",
   "Не вдалося зберегти порядок": "Could not save the order",
