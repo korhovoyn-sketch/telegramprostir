@@ -118,12 +118,9 @@ export default function RentPropertyScreen() {
       lease_end_date: leaseEnd || undefined,
       ...(isFinite(parsedRate) && parsedRate >= 0 ? { rent_rate: parsedRate } : {}),
       ...(isFinite(parsedUtils) && parsedUtils >= 0 ? { utilities_rate: parsedUtils } : {}),
-    }, { silent: true })
+    }, { silent: true, errorTitle: tr('Не вдалося здати в оренду') })
     setSaving(false)
-    if (!ok) {
-      showToast({ type: 'error', title: tr('Не вдалося здати в оренду') })
-      return
-    }
+    if (!ok) return
     hapticNotify('success')
     showToast({ type: 'success', title: tr('Обʼєкт здано в оренду') })
     back()
@@ -140,6 +137,7 @@ export default function RentPropertyScreen() {
             <input
               aria-label={tr('Орендар')}
               placeholder={tr('ТОВ «Назва» або ФОП')}
+              maxLength={200}
               value={tenantName}
               onChange={e => setTenantName(e.target.value)}
             />

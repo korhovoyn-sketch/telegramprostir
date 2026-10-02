@@ -46,6 +46,17 @@ describe('humanizeDbError', () => {
     const out = humanizeDbError(new Error(raw))
     expect(out).not.toContain('secret_internal_col')
   })
+  it('задовге значення (22001) пояснює, ЩО не так, а не «спробуйте ще раз»', () => {
+    // Саме так БД відмовляла задовгому телефону чи поверху з імпорту, і тост
+    // «Спробуйте ще раз» штовхав людину повторювати те саме введення.
+    const out = humanizeDbError({ code: '22001', message: 'value too long for type character varying(32)' })
+    expect(out).toContain('задовге')
+    expect(out).not.toContain('varying')
+  })
+  it('некоректна дата/число дає підказку про формат', () => {
+    expect(humanizeDbError({ message: 'invalid input syntax for type date: "31.02.2026"' })).toContain('дати')
+    expect(humanizeDbError({ message: 'date/time field value out of range: "2026-02-31"' })).toContain('дати')
+  })
   it('accepts a custom fallback', () => {
     expect(humanizeDbError({}, 'кастом')).toBe('кастом')
   })

@@ -10,6 +10,8 @@ import { useDbType } from '@/hooks/useDbType'
 import { useLandlords } from '@/hooks/useLandlords'
 import { useFolders } from '@/hooks/useFolders'
 import Header from '@/components/ui/Header'
+import RetryState from '@/components/ui/RetryState'
+import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import Toggle from '@/components/ui/Toggle'
 import { IconRuler, IconLayers, IconLayoutGrid, IconActivity, IconBuilding, IconCurrencyDollar, IconBolt, IconCarGarage, IconFile, IconUser, IconKey, IconMapPin, IconEdit, IconFolder, IconChevronRight, IconTrash, IconCheck, IconPlus, IconAlertTriangle } from '@/components/Icons'
 import { UTILITY_META } from '@/lib/utilityMeta'
@@ -27,7 +29,7 @@ const PARKING_TYPES = (): { v: ParkingType; l: string }[] => ([
 
 export default function PropertyFormScreen() {
   const { screenParams, backThenReplace, back, showToast, user, isOnline, databases } = useAppStore()
-  const { properties, loadProperties, createProperty, createProperties, updateProperty, deleteProperty, loading } = useProperties(screenParams.dbId)
+  const { properties, loadProperties, createProperty, createProperties, updateProperty, deleteProperty, loading, error: loadError } = useProperties(screenParams.dbId)
   const { folders, unavailable: foldersUnavailable, loadFolders, createFolder } = useFolders(screenParams.dbId)
 
   const editId = screenParams.propertyId
@@ -47,6 +49,9 @@ export default function PropertyFormScreen() {
   // Користувач уже щось увів. Тоді переграння префілу СКАСОВУЄТЬСЯ: свіжий рядок
   // не має права затерти введене (саме так виглядає «зміни не зберігаються»).
   const touchedRef = useRef(false)
+  // Спроба завантаження в режимі редагування ЗАВЕРШИЛАСЬ (успішно чи ні).
+  // Без цього «обʼєкта немає в списку» і «список ще їде» нерозрізненні.
+  const [editLoadDone, setEditLoadDone] = useState(false)
 
   // Parking DBs get a spot-oriented field set (number/area/level/type/EV, flat
   // utilities, monthly-or-daily rate) instead of the office/apartment layout.
@@ -170,6 +175,7 @@ export default function PropertyFormScreen() {
       setDescription(String(d.description ?? ''))
       setSalePrice(String(d.salePrice ?? ''))
       setTenantName(String(d.tenantName ?? ''))
+      setLandlordName(String(d.landlordName ?? ''))
       setLeaseStartDate(String(d.leaseStartDate ?? ''))
       setLeaseEndDate(String(d.leaseEndDate ?? ''))
       setAddress(String(d.address ?? ''))
@@ -185,7 +191,7 @@ export default function PropertyFormScreen() {
           setName(''); setFloor(''); setStatus('free'); setAreaUseful(''); setAreaTotal(''); setAreaBasis('total')
           setRentType('per_m2'); setRentRate(''); setUtilitiesRate(''); setHasParking(false)
           setParkingSpaces('1'); setParkingType(''); setEvCharger(false); setDescription('')
-          setSalePrice(''); setTenantName(''); setLeaseStartDate(''); setLeaseEndDate('')
+          setSalePrice(''); setTenantName(''); setLandlordName(''); setLeaseStartDate(''); setLeaseEndDate('')
           setAddress(''); setUtilities([]); setFolderId(null)
         },
       })
@@ -200,7 +206,7 @@ export default function PropertyFormScreen() {
           localStorage.setItem(draftKey, JSON.stringify({
             name, floor, status, areaUseful, areaTotal, areaBasis, rentType, rentRate,
             utilitiesRate, hasParking, parkingSpaces, parkingType, evCharger,
-            description, salePrice, tenantName, leaseStartDate, leaseEndDate,
+            description, salePrice, tenantName, landlordName, leaseStartDate, leaseEndDate,
             address, utilities, folderId,
           }))
         } else {
@@ -211,7 +217,7 @@ export default function PropertyFormScreen() {
     return () => clearTimeout(t)
   }, [isNewBlank, draftKey, name, floor, status, areaUseful, areaTotal, areaBasis, rentType,
       rentRate, utilitiesRate, hasParking, parkingSpaces, parkingType, evCharger,
-      description, salePrice, tenantName, leaseStartDate, leaseEndDate, address, utilities, folderId])
+      description, salePrice, tenantName, landlordName, leaseStartDate, leaseEndDate, address, utilities, folderId])
 
   useEffect(() => {
     // Префіл РІВНО ОДИН раз на обʼєкт. Ефект залежить від `existing`, а це
@@ -251,7 +257,7 @@ export default function PropertyFormScreen() {
       setLeaseEndDate(existing.lease_end_date ?? '')
       setFolderId(existing.folder_id ?? null)
     } else if (isEdit) {
-      loadProperties(screenParams.dbId)
+      void loadProperties(screenParams.dbId).finally(() => setEditLoadDone(true))
     }
   }, [isEdit, existing, screenParams.dbId, loadProperties])
 
@@ -514,6 +520,35 @@ export default function PropertyFormScreen() {
       if (ok) hapticNotify('success')
       if (ok && draftKey) lsRemove(draftKey)
     }
+  }
+
+  // РЕДАГУВАННЯ БЕЗ ДАНИХ — НЕ ФОРМА. Доти тут малювались ПОРОЖНІ поля з
+  // плейсхолдерами («Офіс 101», «47»), що виглядали як справжні значення,
+  // статусом «Вільно» і активним «Зберегти зміни». Один дотик слав PATCH, де
+  // кожне незаповнене поле — `null`: площі, ставки, орендар, договір і опис
+  // стирались, а тригер архіву ще й закривав оренду. Видалення з порожньої
+  // форми теж було доступне. Тож поки рядка немає — заглушка, а коли спроба
+  // завантаження завершилась без нього — повтор із поясненням.
+  if (isEdit && !existing) {
+    return (
+      <div className="scr bg-blue">
+        <Header title={tr('Редагування')} backLabel={tr('Назад')} />
+        <div className="body">
+          {editLoadDone && !loading ? (
+            <RetryState
+              title={tr('Не вдалося завантажити обʼєкт')}
+              subtitle={loadError ?? tr('Обʼєкт не знайдено')}
+              onRetry={() => {
+                setEditLoadDone(false)
+                void loadProperties(screenParams.dbId).finally(() => setEditLoadDone(true))
+              }}
+            />
+          ) : (
+            <SkeletonLoader rows={5} />
+          )}
+        </div>
+      </div>
+    )
   }
 
   return (

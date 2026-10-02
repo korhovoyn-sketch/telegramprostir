@@ -104,8 +104,12 @@ describe('SELECT покриває все, що пише форма', () => {
   it('кожна колонка, яку читає ExportScreen, є в його власному select', () => {
     const src = read('screens/ExportScreen.tsx')
 
-    const sel = src.slice(src.indexOf(".select('id,db_id,owner_id,name,floor"))
-    const selected = sel.slice(sel.indexOf("'") + 1, sel.indexOf("')"))
+    // Вибірка живе в константі (її ж знімає ретрай без опційних колонок).
+    // Якщо константу перейменують, гард мусить ВПАСТИ, а не перевіряти порожнечу.
+    const at = src.indexOf("const EXPORT_SELECT = '")
+    expect(at, 'ExportScreen більше не має EXPORT_SELECT — гард втратив опору').toBeGreaterThan(-1)
+    const sel = src.slice(at + "const EXPORT_SELECT = '".length)
+    const selected = sel.slice(0, sel.indexOf("'"))
       .replace(/photos:property_photos\([^)]*\)/, 'photos')
       .split(',').map((c) => c.trim()).filter(Boolean)
 

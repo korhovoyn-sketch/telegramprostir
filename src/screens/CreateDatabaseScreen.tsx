@@ -82,8 +82,10 @@ export default function CreateDatabaseScreen() {
       hapticNotify('success')
       backThenReplace('db-objects', { dbId: editId })
     } else {
-      hapticNotify('success')
-      await createDatabase(payload)
+      // Хаптик — ПІСЛЯ відповіді: раніше рука відчувала «створено» ще до
+      // того, як сервер про це дізнався, і так само на невдалому створенні.
+      const created = await createDatabase(payload)
+      if (created) hapticNotify('success')
     }
   }
 

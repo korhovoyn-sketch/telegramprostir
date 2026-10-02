@@ -14,8 +14,8 @@ export interface User {
   tg_username?: string
   first_name: string
   last_name?: string
-  email?: string
-  phone?: string
+  email?: string | null
+  phone?: string | null
   role: UserRole
   language_code: string
   currency: string

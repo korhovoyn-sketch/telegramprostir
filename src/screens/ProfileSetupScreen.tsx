@@ -5,9 +5,8 @@ import { useAppStore } from '@/store/appStore'
 import { useAuth } from '@/hooks/useAuth'
 import { IconMail, IconPhone, IconTelegram, IconLock } from '@/components/Icons'
 import { scrollFocusedIntoView } from '@/lib/utils'
+import { EMAIL_MAX, PHONE_MAX, isValidEmail, isValidPhone } from '@/lib/contact'
 import { tr } from '@/lib/i18n'
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 
 export default function ProfileSetupScreen() {
   const user = useAppStore((s) => s.user)
@@ -26,12 +25,18 @@ export default function ProfileSetupScreen() {
   const dest = user?.role === 'owner' ? 'empty-state' : 'realtor-dashboard'
 
   async function handleContinue() {
-    if (email && !EMAIL_RE.test(email)) {
+    const e = email.trim()
+    const ph = phone.trim()
+    if (e && !isValidEmail(e)) {
       showToast({ type: 'error', title: tr('Невірний email'), subtitle: tr('Перевірте формат адреси') })
       return
     }
-    if (email || phone) {
-      const ok = await updateProfile({ email: email || undefined, phone: phone || undefined }, true)
+    if (ph && !isValidPhone(ph)) {
+      showToast({ type: 'error', title: tr('Невірний номер телефону'), subtitle: tr('Лише цифри, пробіли, +, - і дужки') })
+      return
+    }
+    if (e || ph) {
+      const ok = await updateProfile({ email: e || undefined, phone: ph || undefined }, true)
       if (!ok) return
     }
     navigateRoot(dest)
@@ -96,6 +101,7 @@ export default function ProfileSetupScreen() {
                 aria-label="Email"
                 className="fr-i"
                 type="email"
+                maxLength={EMAIL_MAX}
                 placeholder="you@email.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -108,6 +114,8 @@ export default function ProfileSetupScreen() {
                 aria-label={tr('Телефон')}
                 className="fr-i"
                 type="tel"
+                inputMode="tel"
+                maxLength={PHONE_MAX}
                 placeholder="+380 67 000 0000"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}

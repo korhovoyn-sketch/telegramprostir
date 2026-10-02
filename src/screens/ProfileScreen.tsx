@@ -11,10 +11,11 @@ import Toggle from '@/components/ui/Toggle'
 import { IconMail, IconPhone, IconLanguage, IconCurrencyDollar, IconLogout, IconTrash, GlassCrown, IconBell, IconBellRing, IconChartLine, IconEye, IconMessage, IconAdjustments } from '@/components/Icons'
 import { TG_BOT , hapticSelection } from '@/lib/telegram'
 import { getInitials, scrollFocusedIntoView } from '@/lib/utils'
+import { EMAIL_MAX, PHONE_MAX, isValidEmail, isValidPhone } from '@/lib/contact'
 import { tr, loadLang, persistLang, getLang } from '@/lib/i18n'
 
 export default function ProfileScreen() {
-  const { user, databases, setUser, navigate } = useAppStore()
+  const { user, databases, setUser, navigate, showToast } = useAppStore()
   const { logout, updateProfile } = useAuth()
 
   const [pushEnabled, setPushEnabled] = useState(user?.notification_push ?? true)
@@ -74,6 +75,30 @@ export default function ProfileScreen() {
     setPublicPhone(v)
     const ok = await updateProfile({ public_phone: v })
     if (!ok) setPublicPhone(!v)
+  }
+
+  // Збереження контакту на blur — з тією самою перевіркою, що й на онбордингу.
+  // Невалідне значення НЕ пишеться і не лишається в полі як «збережене»: поле
+  // повертається до збереженого, а тост пояснює чому. Порожнє — це `null`, а не
+  // `''`: так колонка й читається скрізь як «не вказано».
+  async function saveContact(field: 'email' | 'phone', raw: string) {
+    const ref = field === 'email' ? emailRef : phoneRef
+    const saved = (field === 'email' ? user?.email : user?.phone) ?? ''
+    const val = raw.trim()
+    if (val === saved) { if (ref.current) ref.current.value = saved; return }
+    const valid = !val || (field === 'email' ? isValidEmail(val) : isValidPhone(val))
+    if (!valid) {
+      if (ref.current) ref.current.value = saved
+      showToast({
+        type: 'error',
+        title: field === 'email' ? tr('Невірний email') : tr('Невірний номер телефону'),
+        subtitle: field === 'email' ? tr('Перевірте формат адреси') : tr('Лише цифри, пробіли, +, - і дужки'),
+      })
+      return
+    }
+    if (offlineGuard()) { if (ref.current) ref.current.value = saved; return }
+    const ok = await updateProfile(field === 'email' ? { email: val || null } : { phone: val || null })
+    if (!ok && ref.current) ref.current.value = saved
   }
 
   async function handleLogout() {
@@ -199,12 +224,12 @@ export default function ProfileScreen() {
           <div className="fr">
             <IconMail size={16} color="var(--t3)" />
             <span className="fr-l" style={{ marginLeft: 6 }}>Email</span>
-            <input aria-label="Email" ref={emailRef} className="fr-i" type="email" placeholder={tr('Не вказано')} defaultValue={user.email ?? ''} onBlur={async e => { const val = e.target.value; if (val === (user.email ?? '')) return; const ok = await updateProfile({ email: val }); if (!ok && emailRef.current) emailRef.current.value = user.email ?? '' }} />
+            <input aria-label="Email" ref={emailRef} className="fr-i" type="email" maxLength={EMAIL_MAX} placeholder={tr('Не вказано')} defaultValue={user.email ?? ''} onBlur={(e) => void saveContact('email', e.target.value)} />
           </div>
           <div className="fr">
             <IconPhone size={16} color="var(--t3)" />
             <span className="fr-l" style={{ marginLeft: 6 }}>{tr('Телефон')}</span>
-            <input aria-label={tr('Телефон')} ref={phoneRef} className="fr-i" type="tel" placeholder={tr('Не вказано')} defaultValue={user.phone ?? ''} onBlur={async e => { const val = e.target.value; if (val === (user.phone ?? '')) return; const ok = await updateProfile({ phone: val }); if (!ok && phoneRef.current) phoneRef.current.value = user.phone ?? '' }} />
+            <input aria-label={tr('Телефон')} ref={phoneRef} className="fr-i" type="tel" inputMode="tel" maxLength={PHONE_MAX} placeholder={tr('Не вказано')} defaultValue={user.phone ?? ''} onBlur={(e) => void saveContact('phone', e.target.value)} />
           </div>
         </div>
 

@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useAppStore } from '@/store/appStore'
 import { monthlyRent, basisArea, calcRentUtils, humanizeDbError } from '@/lib/utils'
 import { assertAffected } from '@/lib/dbWrite'
+import { stripOptionalKeys, withOptionalColumns } from '@/lib/optionalColumns'
 import { readSnapshot, writeSnapshot } from '@/lib/snapshot'
 import type { Database } from '@/types'
 import { tr } from '@/lib/i18n'
@@ -221,18 +222,25 @@ export function useDatabases() {
     if (!user) return null
     setLoading(true)
     try {
-      const { data, error } = await supabase
-        .from('databases')
-        .insert({ ...payload, owner_id: user.id })
-        .select(DB_COLUMNS)
-        .single()
+      // Ретрай без `landlord_name` — той самий, що вже стояв на ЧИТАННІ списку
+      // баз. Без нього бекенд без 064 не давав створити ЖОДНОЇ бази.
+      const { data, error } = await withOptionalColumns((pre) => {
+        const row = { ...payload, owner_id: user.id }
+        return supabase
+          .from('databases')
+          .insert(pre ? stripOptionalKeys(row) : row)
+          .select(pre ? DB_COLUMNS_PRE064 : DB_COLUMNS)
+          .single()
+      })
 
       if (error) throw error
+      // Через `unknown`: умовний `select` парсер типів supabase-js не розбирає.
+      const created = data as unknown as Database
 
-      setDatabases([data as Database, ...databases])
+      setDatabases([created, ...databases])
       showToast({ type: 'success', title: tr('Базу створено') })
-      if (opts?.navigate !== false) backThenReplace('db-objects', { dbId: data.id })
-      return data as Database
+      if (opts?.navigate !== false) backThenReplace('db-objects', { dbId: created.id })
+      return created
     } catch (e) {
       showToast({ type: 'error', title: tr('Помилка'), subtitle: humanizeDbError(e) })
       return null
@@ -246,16 +254,19 @@ export function useDatabases() {
     try {
       // `.single()` уже сам падає, коли рядків нуль (PGRST116), тож окремий
       // assertAffected тут зайвий — мовчазного провалу на цьому шляху немає.
-      const { data, error } = await supabase
-        .from('databases')
-        .update({ ...payload, updated_at: new Date().toISOString() })
-        .eq('id', id)
-        .select(DB_COLUMNS)
-        .single()
+      const { data, error } = await withOptionalColumns((pre) => {
+        const body = { ...payload, updated_at: new Date().toISOString() }
+        return supabase
+          .from('databases')
+          .update(pre ? stripOptionalKeys(body) : body)
+          .eq('id', id)
+          .select(pre ? DB_COLUMNS_PRE064 : DB_COLUMNS)
+          .single()
+      })
 
       if (error) throw error
 
-      setDatabases(databases.map((d) => (d.id === id ? { ...d, ...data } : d)))
+      setDatabases(databases.map((d) => (d.id === id ? { ...d, ...(data as unknown as Database) } : d)))
       showToast({ type: 'success', title: tr('Базу оновлено') })
       return true
     } catch (e) {

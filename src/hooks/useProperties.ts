@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { humanizeDbError, objectsWord, withSortedPhotos } from '@/lib/utils'
 import { assertAffected } from '@/lib/dbWrite'
+import { isMissingOptionalColumn, stripOptionalKeys, stripOptionalSelect, withOptionalColumns } from '@/lib/optionalColumns'
 import { readSnapshot, writeSnapshot } from '@/lib/snapshot'
 import { useAppStore } from '@/store/appStore'
 import type { Property, PropertyStatus } from '@/types'
@@ -43,20 +44,11 @@ export const PROPERTY_WITH_PHOTOS = `${PROPERTY_COLUMNS}, photos:property_photos
 // card can show a view count; create/update don't need it (a fresh row has none).
 const PROPERTY_SELECT = `${PROPERTY_WITH_PHOTOS}, views:property_views(id)`
 
-// Deploy-order safety: колонки, яких може ще не бути в базі, бо їхня міграція
-// не накочена. PostgREST на невідому колонку віддає 400 на ВЕСЬ запит, тож без
-// ретраю список обʼєктів просто не завантажився б.
-//
-// СПИСОК, а не пара констант на кожну колонку: `folder_id` (043) отримав свою
-// пару, і повторювати той самий рецепт для `landlord_name` (064) означало б
-// завести четверту й пʼяту константу, а далі шосту. Ретрай усе одно один —
-// він знімає ВСІ необовʼязкові колонки одразу, бо розрізняти, якої саме
-// бракує, ні до чого: обидві опційні й обидві зайві на старому бекенді.
-const OPTIONAL_COLUMNS = ['folder_id', 'landlord_name'] as const
-const stripOptional = (sel: string) =>
-  OPTIONAL_COLUMNS.reduce((acc, c) => acc.replace(`${c}, `, ''), sel)
-const PROPERTY_SELECT_PRE043 = stripOptional(PROPERTY_SELECT)
-const PROPERTY_WITH_PHOTOS_PRE043 = stripOptional(PROPERTY_WITH_PHOTOS)
+// Deploy-order safety: колонки, яких може ще не бути в базі (043, 064), і
+// ретрай без них — у `lib/optionalColumns`. Там же пояснення, чому ретрай
+// мусить стояти на КОЖНОМУ запиті, що їх згадує, а не лише на читанні.
+const PROPERTY_SELECT_PRE043 = stripOptionalSelect(PROPERTY_SELECT)
+export const PROPERTY_WITH_PHOTOS_PRE043 = stripOptionalSelect(PROPERTY_WITH_PHOTOS)
 // `.select().single()` мусить повернути обʼєкт, але проксі/мок може віддати
 // масив. Без розгортання рядок у списку став би масивом — і екран падав із
 // «Cannot read properties of undefined» замість того, щоб просто оновитись.
@@ -64,10 +56,21 @@ function one<T>(data: unknown): T {
   return (Array.isArray(data) ? data[0] : data) as T
 }
 
-const isMissingFolderColumn = (e: unknown): boolean => {
-  const err = e as { code?: string; message?: string } | null
-  return err?.code === '42703'
-    || OPTIONAL_COLUMNS.some((c) => new RegExp(c, 'i').test(err?.message ?? ''))
+/**
+ * PATCH одного обʼєкта з ретраєм без опційних колонок — і в тілі, і в
+ * `select=`. Без ретраю бекенд без 064 відмовляв КОЖНОМУ збереженню: форма
+ * обʼєкта, «Здати в оренду», «Звільнити» — усе йде сюди.
+ */
+function updateRow(id: string, payload: Partial<Property>) {
+  return withOptionalColumns((pre) => {
+    const body = { ...payload, updated_at: new Date().toISOString() }
+    return supabase
+      .from('properties')
+      .update(pre ? stripOptionalKeys(body) : body)
+      .eq('id', id)
+      .select(pre ? PROPERTY_WITH_PHOTOS_PRE043 : PROPERTY_WITH_PHOTOS)
+      .single()
+  })
 }
 
 export function useProperties(dbId?: string) {
@@ -138,7 +141,7 @@ export function useProperties(dbId?: string) {
 
       let rows = primary.data as unknown as Record<string, unknown>[] | null
       let err = primary.error
-      if (err && isMissingFolderColumn(err)) {
+      if (err && isMissingOptionalColumn(err)) {
         const fb = await supabase
           .from('properties')
           .select(PROPERTY_SELECT_PRE043)
@@ -176,7 +179,7 @@ export function useProperties(dbId?: string) {
 
       let row = primary.data as unknown as Record<string, unknown> | null
       let err = primary.error
-      if (err && isMissingFolderColumn(err)) {
+      if (err && isMissingOptionalColumn(err)) {
         const fb = await supabase
           .from('properties')
           .select(PROPERTY_SELECT_PRE043)
@@ -220,13 +223,8 @@ export function useProperties(dbId?: string) {
 
       let created = primary.data as unknown as Property | null
       let err = primary.error
-      if (err && isMissingFolderColumn(err)) {
-        const pre043 = { ...row }
-        // Знімаємо ВСІ необовʼязкові колонки, а не лише ту, на яку впав запит:
-        // на бекенді без 043 і без 064 бракує обох, і зняття однієї дало б
-        // другий 400 — цього разу вже без ретраю.
-        delete pre043.folder_id
-        delete pre043.landlord_name
+      if (err && isMissingOptionalColumn(err)) {
+        const pre043 = stripOptionalKeys(row)
         const fb = await supabase
           .from('properties')
           .insert(pre043)
@@ -265,8 +263,12 @@ export function useProperties(dbId?: string) {
 
       let created = primary.data as unknown as Property[] | null
       let err = primary.error
-      if (err && isMissingFolderColumn(err)) {
-        const pre043 = rows.map((r) => { const c = { ...r }; delete c.folder_id; return c })
+      if (err && isMissingOptionalColumn(err)) {
+        // ОБИДВІ колонки, а не лише `folder_id`: для масиву supabase-js будує
+        // `columns=` з `Object.keys`, тож `landlord_name` зі значенням
+        // `undefined` теж потрапляв туди — і масове створення падало без 064
+        // навіть із порожнім полем орендодавця.
+        const pre043 = rows.map(stripOptionalKeys)
         const fb = await supabase
           .from('properties')
           .insert(pre043)
@@ -290,7 +292,7 @@ export function useProperties(dbId?: string) {
   const updateProperty = useCallback(async (
     id: string,
     payload: Partial<Property>,
-    opts?: { optimistic?: boolean; silent?: boolean },
+    opts?: { optimistic?: boolean; silent?: boolean; errorTitle?: string },
   ): Promise<boolean> => {
     // Optimistic path: apply locally right away, sync in the background,
     // roll back on failure. Used for one-tap status changes (free/rent) so
@@ -304,12 +306,7 @@ export function useProperties(dbId?: string) {
       const prevItem = propertiesRef.current.find((p) => p.id === id)
       setProperties((prev) => prev.map((p) => (p.id === id ? ({ ...p, ...payload } as Property) : p)))
       try {
-        const { data, error } = await supabase
-          .from('properties')
-          .update({ ...payload, updated_at: new Date().toISOString() })
-          .eq('id', id)
-          .select(PROPERTY_WITH_PHOTOS)
-          .single()
+        const { data, error } = await updateRow(id, payload)
         if (error) throw error
         // Сортування ОБОВʼЯЗКОВЕ і тут: цей — оптимістичний — шлях досягається
         // зі «Здати в оренду», «Звільнити обʼєкт» і undo, тобто зі звичайного
@@ -332,12 +329,7 @@ export function useProperties(dbId?: string) {
 
     setLoading(true)
     try {
-      const { data, error } = await supabase
-        .from('properties')
-        .update({ ...payload, updated_at: new Date().toISOString() })
-        .eq('id', id)
-        .select(PROPERTY_WITH_PHOTOS)
-        .single()
+      const { data, error } = await updateRow(id, payload)
 
       if (error) throw error
       const updated = withSortedPhotos(one<Property>(data))
@@ -345,7 +337,10 @@ export function useProperties(dbId?: string) {
       if (!opts?.silent) showToast({ type: 'success', title: tr('Збережено') })
       return true
     } catch (e) {
-      showToast({ type: 'error', title: tr('Помилка'), subtitle: humanizeDbError(e) })
+      // Заголовок — від викликача, ПРИЧИНА — завжди звідси. Раніше екран
+      // показував власний тост поверх цього, а стор тримає ОДИН тост: людина
+      // читала «Не вдалося здати в оренду» і не дізнавалась чому.
+      showToast({ type: 'error', title: opts?.errorTitle ?? tr('Помилка'), subtitle: humanizeDbError(e) })
       return false
     } finally {
       setLoading(false)
@@ -499,11 +494,10 @@ export function useProperties(dbId?: string) {
     const prevList = propertiesRef.current
     setProperties((prev) => prev.filter((p) => !ids.includes(p.id)))
     try {
-      const { data: moved, error } = await supabase
-        .from('properties')
-        .update({ db_id: targetDbId, owner_id: targetOwnerId, folder_id: null, updated_at: new Date().toISOString() })
-        .in('id', ids)
-        .select('id')
+      const { data: moved, error } = await withOptionalColumns((pre) => {
+        const body = { db_id: targetDbId, owner_id: targetOwnerId, folder_id: null, updated_at: new Date().toISOString() }
+        return supabase.from('properties').update(pre ? stripOptionalKeys(body) : body).in('id', ids).select('id')
+      })
       if (error) throw error
       assertAffected(moved, ids.length, tr('перенесення в іншу базу'))
 
