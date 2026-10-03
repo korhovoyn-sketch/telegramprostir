@@ -291,18 +291,24 @@ export function useDatabases() {
       // видалено», база лишалась жива — а всі її фото були вже стерті.
       // Осиротілий файл при цьому не є витоком (політики читання привʼязані до
       // рядків, яких уже немає), тож новий порядок строго безпечніший.
-      const { data: props } = await supabase
+      // Будь-яке читання тут, що не вдалося, ЗУПИНЯЄ видалення: після каскаду
+      // шляхів уже не дістати, а бакет фото публічний — знімки лишились би
+      // доступні за URL, роздані на /v, назавжди й без способу їх прибрати.
+      const { data: props, error: propsErr } = await supabase
         .from('properties')
         .select('id')
         .eq('db_id', id)
+      if (propsErr) throw propsErr
 
       let paths: { photos: string[]; docs: string[] } = { photos: [], docs: [] }
       if (props && props.length > 0) {
         const propIds = props.map((p) => p.id)
-        const [{ data: photos }, { data: docs }] = await Promise.all([
+        const [{ data: photos, error: photosErr }, { data: docs, error: docsErr }] = await Promise.all([
           supabase.from('property_photos').select('storage_path').in('property_id', propIds),
           supabase.from('property_files').select('storage_path').in('property_id', propIds),
         ])
+        if (photosErr) throw photosErr
+        if (docsErr) throw docsErr
         paths = {
           photos: (photos ?? []).map((p) => p.storage_path),
           docs: (docs ?? []).map((d) => d.storage_path),

@@ -133,6 +133,8 @@ export default function PaymentCalendarScreen() {
     // Тепер `loadRecordsForIds` КИДАЄ на помилці, тож плаваючий виклик мусить
     // її ловити — інакше зміна горизонту давала б необроблену відмову промісу.
     loadRecordsForIds(properties.map(p => p.id), monthsAhead).catch((e) => {
+      // Без записів нового горизонту кожен його платіж читався б несплаченим.
+      setLoadError(humanizeDbError(e))
       showToast({ type: 'error', title: tr('Не вдалося оновити платежі'), subtitle: humanizeDbError(e) })
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -323,16 +325,16 @@ export default function PaymentCalendarScreen() {
           {/* cap3 на всіх трьох лейблах: «ПРОСТРОЧЕНО» на cap2 не влазить у
               третину 375px-екрана і обрізався б трикрапкою */}
           <div className="stat glass-s stat-pop-anim" style={{ animationDelay: '0s' }}>
-            <div className="stat-n" style={{ color: 'var(--err)' }}>{stats.overdue}</div>
+            <div className="stat-n" style={{ color: 'var(--err)' }}>{loadError ? '—' : stats.overdue}</div>
             <div className="stat-l" style={{ fontSize: 'var(--fs-cap3)' }}>{tr('Прострочено')}</div>
           </div>
           <div className="stat glass-s stat-pop-anim" style={{ animationDelay: '.06s' }}>
-            <div className="stat-n" style={{ color: 'var(--warn)' }}>{stats.upcoming}</div>
+            <div className="stat-n" style={{ color: 'var(--warn)' }}>{loadError ? '—' : stats.upcoming}</div>
             <div className="stat-l" style={{ fontSize: 'var(--fs-cap3)' }}>{tr('Очікується')}</div>
           </div>
           <div className="stat glass-s stat-pop-anim" style={{ animationDelay: '.12s' }}>
             <div className="stat-n" style={{ color: 'var(--ok)', fontSize: stats.paidAmount >= 100000 ? 'var(--fs-note)' : undefined }}>
-              {stats.paidAmount > 0 ? formatPrice(stats.paidAmount, user?.currency) : stats.paid > 0 ? stats.paid : '—'}
+              {!loadError && stats.paidAmount > 0 ? formatPrice(stats.paidAmount, user?.currency) : !loadError && stats.paid > 0 ? stats.paid : '—'}
             </div>
             <div className="stat-l" style={{ fontSize: 'var(--fs-cap3)' }}>{tr('Отримано')}</div>
           </div>
@@ -360,7 +362,11 @@ export default function PaymentCalendarScreen() {
 
         {loading ? (
           <SkeletonList count={3} />
-        ) : loadError && properties.length === 0 ? (
+        ) : loadError ? (
+          // Повтор — на БУДЬ-ЯКИЙ збій, а не лише коли не прийшли обʼєкти.
+          // Обʼєкти без розкладу малювались «Немає розкладу» з кнопкою
+          // «Налаштувати», а лічильники — впевненим «0 прострочено»: збій
+          // мережі видавав себе за відповідь про гроші.
           <RetryState subtitle={loadError} onRetry={loadCurrent} />
         ) : properties.length === 0 ? (
           <div className="empty-state" style={{ paddingTop: 32 }}>

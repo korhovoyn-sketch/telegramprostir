@@ -352,10 +352,15 @@ export function useProperties(dbId?: string) {
     try {
       // Спершу ЧИТАЄМО шляхи (після каскаду їх не дістати), потім видаляємо
       // рядок і доводимо це, і лише тоді чистимо storage — див. lib/dbWrite.ts.
-      const [{ data: photos }, { data: docs }] = await Promise.all([
+      const [{ data: photos, error: photosErr }, { data: docs, error: docsErr }] = await Promise.all([
         supabase.from('property_photos').select('storage_path').eq('property_id', id),
         supabase.from('property_files').select('storage_path').eq('property_id', id),
       ])
+      // Шляхи не прочитались — НЕ видаляємо. Після каскаду їх не дістати, а
+      // бакет фото ПУБЛІЧНИЙ: знімки лишились би доступні за URL, роздані на
+      // /v, без жодного способу їх знайти й прибрати.
+      if (photosErr) throw photosErr
+      if (docsErr) throw docsErr
 
       const { data: deleted, error } = await supabase
         .from('properties')
@@ -393,10 +398,13 @@ export function useProperties(dbId?: string) {
       // Читаємо шляхи → видаляємо рядки й доводимо це → лише тоді чистимо
       // storage. Зворотний порядок знищував фото навіть тоді, коли RLS не дав
       // видалити жодного рядка (див. lib/dbWrite.ts).
-      const [{ data: photos }, { data: docs }] = await Promise.all([
+      const [{ data: photos, error: photosErr }, { data: docs, error: docsErr }] = await Promise.all([
         supabase.from('property_photos').select('storage_path').in('property_id', ids),
         supabase.from('property_files').select('storage_path').in('property_id', ids),
       ])
+      // Див. deleteProperty: без шляхів видалення лишило б фото в публічному бакеті.
+      if (photosErr) throw photosErr
+      if (docsErr) throw docsErr
 
       const { data: deleted, error } = await supabase
         .from('properties')

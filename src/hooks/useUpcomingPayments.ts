@@ -98,12 +98,16 @@ export function useUpcomingPayments() {
       // найближча НЕсплачена дата.
       const from = dueDateStr(0, 1)
       const to   = dueDateStr(2, 1)
-      const { data: recData } = await supabase
+      const { data: recData, error: recErr } = await supabase
         .from('rent_payment_records')
         .select('property_id,due_date,status')
         .in('property_id', active.map((r) => r.property_id))
         .gte('due_date', from)
         .lte('due_date', to)
+      // Без записів кожен УЖЕ оплачений платіж читався б як несплачений, тобто
+      // збій мережі малював би «Прострочено» там, де все сплачено. Мовчазний
+      // пропуск блоку чесніший за хибну тривогу про гроші.
+      if (recErr) { setAlerts([]); return }
 
       const paid = new Set(
         ((recData ?? []) as { property_id: string; due_date: string; status: string }[])
