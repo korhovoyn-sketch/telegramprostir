@@ -379,7 +379,11 @@ test('рієлтор: нова підбірка', async ({ page }) => {
   await page.goto('/')
   await expect(page.getByText('Робочі бази')).toBeVisible({ timeout: 25_000 })
   await page.locator('.tabbar [aria-label="Підбірки"]').click()
-  await page.getByRole('button', { name: 'Створити підбірку' }).first().click()
+  // Поки список вантажиться, видима лише плаваюча кнопка; щойно приходить
+  // порожній стан, вона ховається під таббар, і клік, розпочатий раніше,
+  // чекав би на неї до таймауту. Дія — CTA порожнього стану.
+  await expect(page.getByText('Немає підбірок')).toBeVisible({ timeout: 15_000 })
+  await page.getByRole('button', { name: 'Створити підбірку' }).click()
   await expectHandled(page)
 })
 

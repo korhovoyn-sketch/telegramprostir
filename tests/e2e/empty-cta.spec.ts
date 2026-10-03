@@ -69,3 +69,26 @@ test('порожні підбірки: рівно одна первинна ді
   expect(labels, `на порожньому екрані має бути РІВНО одна первинна дія: ${labels.join(' | ')}`)
     .toHaveLength(1)
 })
+
+/**
+ * Те саме для ЧИТАЛКИ й клавіатури. `pointer-events:none` ховає схований FAB
+ * лише від пальця: він лишався в дереві доступності й у порядку Tab, тож
+ * читалка озвучувала дві «Створити підбірку», а тест, що брав `.first()`,
+ * інколи влучав саме в невидиму (флейк `server-failures`, «нова підбірка»).
+ */
+test('порожні підбірки: схований FAB недосяжний для читалки й Tab', async ({ page }) => {
+  await emptyBackend(page, REALTOR)
+  await page.goto('/')
+  await expect(page.getByText('Робочі бази')).toBeVisible({ timeout: 20_000 })
+  await page.locator('.tabbar [aria-label="Підбірки"]').click()
+  await expect(page.getByText('Немає підбірок')).toBeVisible({ timeout: 15_000 })
+  // Антивакуум: схований FAB справді є в DOM — інакше «одна» нічого не доводить.
+  await expect(page.locator('.fbtn.fab-off')).toHaveCount(1)
+  await expect(page.getByRole('button', { name: 'Створити підбірку' }),
+    'схований FAB лишився в дереві доступності').toHaveCount(1)
+  const focusable = await page.locator('.fbtn.fab-off').evaluate((b) => {
+    b.focus()
+    return document.activeElement === b
+  })
+  expect(focusable, 'схований FAB досяжний з клавіатури').toBe(false)
+})
