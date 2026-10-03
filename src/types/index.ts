@@ -14,8 +14,8 @@ export interface User {
   tg_username?: string
   first_name: string
   last_name?: string
-  email?: string
-  phone?: string
+  email?: string | null
+  phone?: string | null
   role: UserRole
   language_code: string
   currency: string
@@ -41,7 +41,11 @@ export interface Database {
   /** Орендодавець за замовчуванням для всіх обʼєктів бази (064). Обʼєкт може
    *  перевизначити своїм `landlord_name`. */
   landlord_name?: string | null
-  share_token: string
+  /** ПУБЛІЧНИЙ /v-лінк, тобто bearer-креденшл без терміну життя.
+   *  У списку баз його НЕМА свідомо: екран його не рендерить, а через
+   *  SWR-снапшот він осідав би в localStorage. Тягнуть окремо лише
+   *  `ShareSheet` і `RealtorDatabaseScreen` — там він і потрібен. */
+  share_token?: string
   share_expires_at?: string
   created_at: string
   updated_at: string
@@ -120,6 +124,42 @@ export interface PropertyFolder {
   sort_order: number
   created_at: string
   updated_at: string
+}
+
+/**
+ * ОРЕНДА як сутність (міграція 067): рядок ВІДКРИВАЄТЬСЯ, коли обʼєкт стає
+ * зайнятим, і ЗАКРИВАЄТЬСЯ, коли перестає. Факти ЗАМОРОЖЕНІ в самому рядку —
+ * архівна картка мусить читатись і після перейменування обʼєкта, зміни ставки
+ * чи видалення обʼєкта зовсім (`property_id` тоді стає NULL).
+ *
+ * `started_at`/`ended_at` — моменти САМИХ ДІЙ, а не дати договору: `lease_*`
+ * необовʼязкові, тож оренда цілком може не мати жодної договірної дати.
+ */
+export interface Tenancy {
+  id: string
+  owner_id: string
+  db_id: string
+  property_id: string | null
+  property_name: string
+  tenant_name?: string | null
+  landlord_name?: string | null
+  rent_rate?: number | null
+  rent_type?: RentType | null
+  utilities_rate?: number | null
+  area_basis?: AreaBasis | null
+  area_useful?: number | null
+  area_total?: number | null
+  currency?: string | null
+  lease_start_date?: string | null
+  lease_end_date?: string | null
+  started_at: string
+  ended_at?: string | null
+  created_at: string
+  updated_at: string
+  /** Підтверджені платежі, чий `due_date` потрапляє в період оренди. Рахує
+   *  `useTenancies` другим запитом — у БД цього звʼязку немає (див. хук). */
+  _paid_total?: number
+  _paid_count?: number
 }
 
 export interface PropertyFile {
@@ -269,6 +309,7 @@ export type ScreenName =
   | 'db-picker'
   | 'folder-picker'
   | 'rent-property'
+  | 'tenancy-archive'
   | 'delete-account'
 
 export interface RentPayment {

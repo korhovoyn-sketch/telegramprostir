@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<title>prostir · reel 15s</title>
+<style>
+@font-face{font-family:'Inter';src:url('fonts/Inter.ttf') format('truetype');font-weight:100 900;font-display:block}
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--ez:cubic-bezier(.16,1,.3,1)}
+html,body{width:1080px;height:1920px;overflow:hidden;background:#06050e}
+body{font-family:'Inter',sans-serif;color:#fff;-webkit-font-smoothing:antialiased}
+.stage{position:relative;width:1080px;height:1920px;overflow:hidden}
+
+/* Фони — градієнти застосунку, перенесені дослівно з globals.css */
+.bg{position:absolute;inset:0;opacity:0}
+.bg.welcome{background:radial-gradient(95% 70% at 80% 35%,rgba(60,85,255,.32) 0%,transparent 62%),linear-gradient(180deg,#050310 0%,#0a0620 26%,#241555 52%,#4a3296 78%,#6346bc 100%)}
+.bg.ink{background:linear-gradient(180deg,#06050e 0%,#0a0916 60%,#100d20 100%)}
+.bg.pink{background:radial-gradient(90% 60% at 68% 52%,rgba(255,120,210,.4) 0%,transparent 62%),linear-gradient(180deg,#0a0312 0%,#1c0a32 24%,#6e2696 50%,#c050b8 76%,#a846cc 100%)}
+.bg.green{background:radial-gradient(90% 65% at 78% 40%,rgba(90,60,220,.3) 0%,transparent 60%),linear-gradient(180deg,#030a07 0%,#08160e 26%,#1c5e40 54%,#369a68 78%,#46b67d 100%)}
+
+.scene{position:absolute;inset:0;display:flex;flex-direction:column;
+  padding:190px 88px 160px;opacity:0}
+.over{font-size:24px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+  color:rgba(255,255,255,.74)}
+.mid{flex:1;display:flex;flex-direction:column;justify-content:center;gap:46px}
+h1{font-size:112px;font-weight:800;line-height:1.0;letter-spacing:-.045em}
+h2{font-size:82px;font-weight:800;line-height:1.04;letter-spacing:-.04em}
+.sub{font-size:34px;line-height:1.4;color:rgba(255,255,255,.84);font-weight:400}
+
+.mk{display:inline-flex;align-items:center;gap:14px;font-size:32px;font-weight:700;
+  letter-spacing:-.02em}
+.mk i{width:42px;height:42px;border-radius:13px;background:#fff;color:#12091f;
+  display:grid;place-items:center;font-style:normal;font-weight:800;font-size:25px;line-height:1}
+.mk i::before{content:'p'}
+
+/* Скло — рецепт .glass-s застосунку */
+.cg{background:rgba(6,5,14,.22);backdrop-filter:blur(28px) saturate(170%) brightness(.9);
+  -webkit-backdrop-filter:blur(28px) saturate(170%) brightness(.9);
+  border:1px solid rgba(255,255,255,.16);border-radius:40px}
+.bdg{font-size:26px;font-weight:600;padding:10px 22px;border-radius:16px;
+  display:inline-flex;align-items:center;gap:10px}
+/* Пігулка первинної дії — рецепт .btn-glass */
+.cta{display:inline-flex;align-items:center;justify-content:center;gap:18px;align-self:flex-start;
+  height:104px;padding:0 56px;border-radius:999px;font-size:34px;font-weight:700;
+  border:1px solid rgba(255,255,255,.3);
+  background:radial-gradient(120% 130% at 50% 0%,rgba(22,113,158,.46) 0%,rgba(22,113,158,.18) 100%);
+  backdrop-filter:blur(24px) saturate(180%) brightness(.55);
+  -webkit-backdrop-filter:blur(24px) saturate(180%) brightness(.55);
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.22),0 16px 48px rgba(0,0,0,.34)}
+
+/* Фальшива таблиця — метафора Excel, у мові рядків застосунку */
+.xl{width:100%;border-radius:28px;overflow:hidden;border:1px solid rgba(255,255,255,.16);
+  font-size:30px;background:rgba(6,5,14,.22);backdrop-filter:blur(28px) saturate(170%) brightness(.9)}
+.xl div{display:flex;border-bottom:1px solid rgba(255,255,255,.12)}
+.xl div:last-child{border-bottom:0}
+.xl s{flex:1;padding:28px 24px;text-decoration:none;color:rgba(255,255,255,.64);
+  border-right:1px solid rgba(255,255,255,.12)}
+.xl s:last-child{border-right:0}
+.xl div:first-child s{color:#fff;font-weight:600}
+
+.ph{position:absolute;left:50%;bottom:-150px;width:640px;margin-left:-320px;
+  border-radius:56px;overflow:hidden;background:#000;
+  box-shadow:0 0 0 1px rgba(255,255,255,.22),0 70px 130px -40px rgba(0,0,0,.95);opacity:0}
+.ph img{display:block;width:100%}
+
+/* Виносна картка суми — плитка застосунку, збільшена */
+.pull{position:absolute;left:88px;right:88px;top:1220px;padding:44px 52px;
+  border-radius:40px;background:rgba(52,199,89,.18);border:1px solid rgba(52,199,89,.28);
+  backdrop-filter:blur(28px) saturate(170%);
+  box-shadow:0 0 30px rgba(52,199,89,.22),inset 0 2px 0 rgba(52,199,89,.14);
+  display:flex;align-items:center;justify-content:space-between;opacity:0}
+.pull span{font-size:26px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+  color:rgba(255,255,255,.74)}
+.pull b{font-size:82px;font-weight:700;letter-spacing:-.04em;color:#a4f0c1}
+
+/* Орб — персонаж застосунку */
+.orb{position:relative;width:260px;aspect-ratio:1;border-radius:50%;display:grid;
+  place-items:center;overflow:hidden;
+  background:radial-gradient(42% 36% at 34% 26%,rgba(255,255,255,.34) 0%,transparent 60%),
+    radial-gradient(58% 48% at 62% 88%,rgba(150,190,255,.22) 0%,transparent 64%),
+    radial-gradient(circle at 50% 50%,rgba(10,8,22,.30) 0%,rgba(10,8,22,.44) 56%,rgba(10,8,22,.58) 100%);
+  box-shadow:0 0 0 1px rgba(255,255,255,.2),0 0 120px -20px var(--og)}
+.orb::before{content:'';position:absolute;inset:0;border-radius:50%;
+  background:radial-gradient(circle at 50% 50%,var(--og) 0%,transparent 62%);filter:blur(30px);opacity:.8}
+.orb-s{position:relative;width:52%;aspect-ratio:1.42;border-radius:22%;background:var(--os);
+  -webkit-mask-image:radial-gradient(circle at 50% 50%,#000 52%,transparent 100%);
+  mask-image:radial-gradient(circle at 50% 50%,#000 52%,transparent 100%);
+  display:flex;align-items:center;justify-content:center;gap:16%}
+.orb-s::after{content:'';position:absolute;inset:0;
+  background-image:linear-gradient(rgba(0,0,0,.34) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(0,0,0,.34) 1px,transparent 1px);background-size:8px 8px}
+.orb-e{position:relative;z-index:2;width:9%;height:40%;border-radius:999px;
+  background:rgba(255,255,255,.95);box-shadow:0 0 20px rgba(255,255,255,.7)}
+
+/* ── ТАЙМЛАЙН ────────────────────────────────────────────────────
+   Усе на transform/opacity. Заповнення й крива стоять У ШОРТКАТІ
+   кожного правила: інлайновий `animation:` СКИДАЄ animation-fill-mode,
+   тож окреме правило класу не діяло б — саме через це перший рендер
+   цього рілза дав 15 секунд чорноти. Анімація ВХОДУ бере `both`,
+   анімація ВИХОДУ — лише `forwards`: `both` заповнює НАЗАД і тримає
+   сцену видимою ще до свого такту. */
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes fadeOut{from{opacity:1}to{opacity:0}}
+@keyframes up{from{opacity:0;transform:translateY(60px)}to{opacity:1;transform:translateY(0)}}
+@keyframes upOut{from{opacity:1;transform:translateY(0)}to{opacity:0;transform:translateY(-44px)}}
+@keyframes phoneIn{from{opacity:0;transform:translateY(420px) scale(.94)}
+                   to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes phoneUp{from{transform:translateY(0)}to{transform:translateY(-130px)}}
+@keyframes pop{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
+@keyframes strike{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+*,*::before,*::after{animation-play-state:paused}
+</style>
+</head>
+<body>
+<div class="stage">
+
+  <div class="bg welcome" style="animation:fadeIn .35s 0s var(--ez) both,fadeOut .45s 3.2s var(--ez) forwards"></div>
+  <div class="bg ink"     style="animation:fadeIn .45s 3.2s var(--ez) both,fadeOut .45s 6.3s var(--ez) forwards"></div>
+  <div class="bg pink"    style="animation:fadeIn .45s 6.3s var(--ez) both,fadeOut .45s 11.8s var(--ez) forwards"></div>
+  <div class="bg green"   style="animation:fadeIn .45s 11.8s var(--ez) both"></div>
+
+  <!-- S1 · ГАЧОК 0—3.2 -->
+  <div class="scene" style="animation:fadeIn .01s 0s var(--ez) both,fadeOut .35s 3.05s var(--ez) forwards">
+    <div class="over" style="animation:fadeIn .4s .05s var(--ez) both">Питання орендаря</div>
+    <div class="mid">
+      <h1 style="animation:up .6s .3s var(--ez) both,upOut .32s 2.95s var(--ez) forwards">Орендар<br>питає ціну.</h1>
+      <h1 style="animation:up .6s 1.3s var(--ez) both,upOut .32s 2.95s var(--ez) forwards;color:#FF7AB8">У вас<br>10 секунд.</h1>
+    </div>
+    <div class="mk" style="animation:fadeIn .4s .5s var(--ez) both"><i></i>prostir</div>
+  </div>
+
+  <!-- S2 · ПРОБЛЕМА 3.2—6.3 -->
+  <div class="scene" style="animation:fadeIn .01s 3.2s var(--ez) both,fadeOut .35s 6.15s var(--ez) forwards">
+    <div class="over" style="animation:fadeIn .4s 3.25s var(--ez) both">Як зараз</div>
+    <div class="mid">
+      <div style="position:relative;align-self:flex-start">
+        <h2 style="animation:up .5s 3.4s var(--ez) both">Excel цього<br>не надішле.</h2>
+        <div style="animation:strike .45s 4.5s var(--ez) both;transform-origin:left center;
+             position:absolute;left:0;top:51%;width:100%;height:8px;background:#FF3B30;
+             border-radius:999px"></div>
+      </div>
+      <div class="xl" style="animation:pop .5s 3.85s var(--ez) both">
+        <div><s>Приміщення</s><s>м²</s><s>Ставка</s></div>
+        <div><s>Офіс 101</s><s>120</s><s>18</s></div>
+        <div><s>Офіс 102</s><s>90</s><s>20</s></div>
+        <div><s>Офіс 205</s><s>160</s><s>17</s></div>
+      </div>
+      <div class="sub" style="animation:up .5s 5.05s var(--ez) both">
+        Клієнт не читає таблиці. Він дивиться на те,<br>як ви показали обʼєкт.
+      </div>
+    </div>
+    <div class="mk" style="animation:fadeIn .4s 3.5s var(--ez) both"><i></i>prostir</div>
+  </div>
+
+  <!-- S3+S4 · ПРОДУКТ І ВИГОДА 6.3—11.8 -->
+  <div class="scene" style="animation:fadeIn .01s 6.3s var(--ez) both,fadeOut .35s 11.65s var(--ez) forwards;
+       justify-content:flex-start;padding-bottom:0">
+    <div class="over" style="animation:fadeIn .4s 6.35s var(--ez) both">Один обʼєкт · одне посилання</div>
+    <h2 style="animation:up .5s 6.7s var(--ez) both;margin-top:44px">Ось що бачить<br>ваш клієнт</h2>
+  </div>
+
+  <div class="ph" style="animation:phoneIn .85s 7.0s var(--ez) both,phoneUp .75s 9.3s var(--ez) forwards,fadeOut .4s 11.55s var(--ez) forwards">
+    <img src="shots/v-property.png" alt="">
+  </div>
+
+  <div class="pull" style="animation:pop .5s 9.7s var(--ez) both,fadeOut .35s 11.55s var(--ez) forwards">
+    <span>Разом / місяць</span><b>$2 460</b>
+  </div>
+
+  <!-- S5 · ЗАКЛИК 11.8—15.0 -->
+  <div class="scene" style="animation:fadeIn .01s 11.8s var(--ez) both">
+    <div class="over" style="animation:fadeIn .4s 11.85s var(--ez) both">t.me/prostir_app</div>
+    <div class="mid">
+      <div style="animation:pop .6s 11.95s var(--ez) both">
+        <div class="orb" style="--og:rgba(52,199,89,.6);--os:linear-gradient(135deg,#43d9c4,#7b5bff)">
+          <div class="orb-s"><i class="orb-e"></i><i class="orb-e"></i></div>
+        </div>
+      </div>
+      <h2 style="animation:up .6s 12.2s var(--ez) both">Нерухомість,<br>якою керують<br>у Telegram.</h2>
+      <div class="sub" style="animation:up .5s 12.6s var(--ez) both">
+        Обʼєкти, платежі, договори й посилання<br>для клієнта. Без встановлення.
+      </div>
+      <div class="cta" style="animation:pop .5s 13.05s var(--ez) both">Відкрити в Telegram →</div>
+    </div>
+    <div class="mk" style="animation:fadeIn .5s 13.5s var(--ez) both"><i></i>prostir</div>
+  </div>
+
+</div>
+</body>
+</html>

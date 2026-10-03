@@ -105,6 +105,156 @@ describe('validate-upload', () => {
   })
 })
 
+describe('діагностика конфігурації лишається досяжною і бачить ХИБНЕ значення', () => {
+  /**
+   * ЧОМУ ЦЕ ГАРД, А НЕ ДРІБНИЦЯ.
+   *
+   * `ALLOWED_ORIGIN` — єдина змінна, яка гейтить сама себе: `corsHeadersFor`
+   * пінить на неї `Access-Control-Allow-Origin`, тож поки вона ХИБНА, браузер
+   * блокує будь-яку відповідь цієї функції — включно з тією, що мала б про це
+   * сказати. Користувач тоді бачить «Edge Function недоступна» і йде
+   * перевіряти деплой, хоч зламана одна змінна.
+   *
+   * Тому GET-гілка свідомо відбиває Origin запиту (тіло — самі булеві
+   * прапорці, без токенів і даних користувача) і віддає `origin_match`.
+   * Суворе пінування лишається на POST, де у відповіді є сесія.
+   */
+  it('GET ВЖИВАЄ diagCors у самій відповіді, а не лише оголошує', () => {
+    const src = read('telegram-auth')
+    expect(src, "diagCors мусить відбивати Origin запиту, інакше сенс утрачено")
+      .toMatch(/'Access-Control-Allow-Origin':\s*reqOrigin\s*\?\?\s*'\*'/)
+    // ВЖИТОК, а не наявність. Перша редакція вимагала лише підрядка
+    // `diagCors` — і повний відкат фікса (`...diagCors` → `...cors` у
+    // відповіді) лишав гард зеленим: оголошення на місці, ефекту нуль.
+    expect(src, 'відповідь діагностики повернулась на спільний cors — фікс відкочено, оголошення лишилось декорацією')
+      .toMatch(/\{ headers: \{ \.\.\.diagCors, 'Content-Type': 'application\/json' \} \}/)
+  })
+
+  /**
+   * PREFLIGHT — те, на чому провалилась перша редакція, і жоден гард цього
+   * не бачив. `diagCors` жив у гілці GET, а клієнт шле не-safelisted
+   * заголовки, тож браузер спершу робить OPTIONS — і ТОЙ пінився на хибний
+   * ALLOWED_ORIGIN. До GET не доходило НІКОЛИ: досяжність, заради якої все
+   * писалось, не працювала в браузері взагалі.
+   */
+  it('preflight діагностики відбиває Origin, і лише для GET', () => {
+    const src = read('telegram-auth')
+    expect(src, 'OPTIONS знову віддає спільний cors — preflight ріже діагностику до того, як вона відповість')
+      .toMatch(/Access-Control-Request-Method/)
+    expect(src, 'preflight мусить відбивати Origin саме для GET')
+      .toMatch(/wants === 'GET'[\s\S]{0,160}?'Access-Control-Allow-Origin':\s*reqOrigin\s*\?\?\s*'\*'/)
+    // АНТИВАКУУМ: відбиття на preflight POST означало б, що вхід виконується
+    // з будь-якого origin (відповідь прочитати не дадуть, побічні ефекти
+    // стануться).
+    expect(src, 'preflight відбиває Origin беззастережно — POST став виконуваним з будь-якого origin')
+      .toMatch(/:\s*cors\s*\n\s*return new Response\('ok'/)
+  })
+
+  it('клієнт не провокує preflight на діагностиці', () => {
+    const src = readFileSync(resolve(process.cwd(), 'src/screens/WelcomeScreen.tsx'), 'utf8')
+    const call = src.match(/fetch\(`\$\{supabaseUrl\}\/functions\/v1\/telegram-auth`[\s\S]{0,300}?\)\n/)
+    expect(call, 'діагностичний виклик не знайдено — гард осліп').toBeTruthy()
+    // `Authorization`/`apikey` не входять у CORS-safelist: будь-який із них
+    // повертає preflight, тобто весь клас дефекту. Функція задеплоєна з
+    // --no-verify-jwt, тож вони їй і не потрібні.
+    expect(call![0], 'повернувся не-safelisted заголовок — GET знову йде через preflight')
+      .not.toMatch(/apikey|Authorization/)
+  })
+
+  it('перевіряється ЗБІГ, а не лише наявність', () => {
+    const src = read('telegram-auth')
+    expect(src, 'зник originMatch — `!!allowedOrigin` каже лише «щось задано», і хибне значення читається як здорове')
+      .toMatch(/const originMatch\s*=\s*reqOrigin\s*\?\s*allowedOrigin === reqOrigin\s*:\s*null/)
+    expect(src, 'ok мусить падати на розбіжності, інакше клієнт покаже «Конфігурація OK» при мертвому вході')
+      .toMatch(/originMatch !== false/)
+    // Друга половина: обчислити мало — значення мусить ДОЇХАТИ до клієнта.
+    // Без цього видалення рядка в тілі лишало гард зеленим, а клієнтська
+    // гілка не спрацьовувала б ніколи.
+    expect(src, 'origin_match не потрапляє в тіло — клієнт не може про нього дізнатись')
+      .toMatch(/origin_match:\s*originMatch/)
+  })
+
+  /**
+   * АНТИВАКУУМ: суворе пінування МУСИТЬ лишитись там, де відповідь несе сесію.
+   * Без цієї половини «діагностику видно звідусіль» легко перетворюється на
+   * «видно звідусіль усе».
+   */
+  it('POST-шлях суворого пінування НЕ послаблено', () => {
+    const shared = readFileSync(resolve(process.cwd(), 'supabase/functions/_shared/cors.ts'), 'utf8')
+    expect(shared, 'corsHeadersFor перестав пінити на ALLOWED_ORIGIN — це вже не CORS-обмеження')
+      .toMatch(/allowedOrigin \?\? reqOrigin \?\? '\*'/)
+    const src = read('telegram-auth')
+    expect(src, 'diagCors протік за межі GET-гілки')
+      .toMatch(/if \(req\.method === 'GET'\) \{\s*\n\s*const diagCors/)
+    // Головне: ЖОДНА відповідь поза preflight і GET не сміє сама виставляти
+    // ACAO. Попередня версія дивилась лише на оголошення, тож дописаний у
+    // POST `'Access-Control-Allow-Origin': reqOrigin ?? '*'` — тобто видача
+    // сесії будь-якому origin — проходив зеленим.
+    const acao = [...src.matchAll(/'Access-Control-Allow-Origin':/g)].length
+    expect(acao, 'зʼявився зайвий Access-Control-Allow-Origin — перевір, чи не віддає сесію будь-якому origin')
+      .toBe(2)
+  })
+
+  /**
+   * Третє входження класу «перевірено наявність, не правильність»: хибний
+   * токен бота провалює HMAC, тобто вхід мертвий, а `!!` показував здоровий
+   * прапорець.
+   */
+  it('валідність токена бота ПЕРЕВІРЯЄТЬСЯ, а не декларується', () => {
+    const src = read('telegram-auth')
+    expect(src, 'зникла проба getMe — `!!` знову каже лише «задано»')
+      .toMatch(/api\.telegram\.org\/bot\$\{Deno\.env\.get\('TELEGRAM_BOT_TOKEN'\)\}\/getMe/)
+    // ПІДКЛЮЧЕНИЙ таймаут, а не наявний AbortController поруч: зняття
+    // `{ signal: ctl.signal }` лишало контролер у вікні пошуку, гард зеленів,
+    // а health-ендпоінт висів на мертвій мережі безкінечно.
+    expect(src, 'signal не переданий у fetch — таймаут декоративний, ендпоінт може висіти')
+      .toMatch(/getMe`,\s*\n\s*\{ signal: ctl\.signal \},/)
+    expect(src, 'хибний токен мусить валити ok, інакше проба нічого не міняє')
+      .toMatch(/botTokenValid !== false/)
+    expect(src, 'невідомий результат (мережа) НЕ сміє читатись як «зламано»')
+      .toMatch(/let botTokenValid: boolean \| null = null/)
+    // `r.ok` звело б «токен недійсний» і «Telegram зараз відмовляє» в одне
+    // `false`, а ціна помилки несиметрична: оператор іде ротувати РОБОЧИЙ
+    // токен за хибним діагнозом.
+    expect(src, 'відмова Telegram (429/5xx) читається як «токен хибний» — діагноз штовхає ротувати робочий токен')
+      .toMatch(/r\.status === 401 \|\| r\.status === 404/)
+  })
+
+  /**
+   * Воркфлоу секретів — ЄДИНИЙ шлях задати CRON_SECRET, і він же пушить
+   * ALLOWED_ORIGIN. Поки домен був `required`, полагодити сповіщення означало
+   * перевбити прод-origin, а одруківка там кладе вхід УСІМ.
+   */
+  it('воркфлоу секретів не змушує перевбивати origin заради іншого секрета', () => {
+    const wf = readFileSync(resolve(process.cwd(), '.github/workflows/set-supabase-secrets.yml'), 'utf8')
+    expect(wf, 'vercel_domain знову required — фікс сповіщень знову тягне ризик локауту')
+      .toMatch(/vercel_domain:[\s\S]{0,200}?required:\s*false/)
+    // РІВНО одне присвоєння, і саме під гілкою наявності. Попередня версія
+    // перевіряла лише, що безумовного пушу немає поруч зі `secrets set` —
+    // тож дописане вище `extra+=("ALLOWED_ORIGIN=…")` проходило, і порожній
+    // ввід пушив ПОРОЖНЄ значення. Це гірше за вихідний стан: `?? null` не
+    // ловить порожній рядок, ACAO стає '', і фолбек «відбити Origin» не
+    // вмикається — вхід мертвий і нечитабельний.
+    const assigns = [...wf.matchAll(/ALLOWED_ORIGIN=/g)].length
+    expect(assigns, 'ALLOWED_ORIGIN присвоюється не один раз — перевір, чи порожній ввід не затирає робоче значення')
+      .toBe(1)
+    expect(wf, 'немає гілки, що пушить ALLOWED_ORIGIN лише за наявності вводу')
+      .toMatch(/if \[ -n "\$ORIGIN_INPUT" \];\s*then\s*\n\s*extra\+=\("ALLOWED_ORIGIN=\$ORIGIN_INPUT"\)/)
+    // Ввід у тілі `run` = підстановка ТЕКСТОМ, тобто виконання команд у
+    // кроці з секретами. Має йти через env:.
+    const inputUses = wf.split('\n').filter((l) => l.includes('${{ inputs.'))
+    expect(inputUses.length, 'ввід не використовується взагалі — гард осліп').toBeGreaterThan(0)
+    for (const line of inputUses) {
+      expect(line, `ввід підставляється в скрипт ТЕКСТОМ — $(...) у полі виконається в кроці з секретами: ${line.trim()}`)
+        .toMatch(/^\s+[A-Z_]+:\s*\$\{\{\s*inputs\.[a-z_]+\s*\}\}\s*$/)
+    }
+    // Префіксної перевірки не досить: кінцева скісна — гарантований локаут
+    // (ACAO «…/» ніколи не дорівнює origin), і саме вона проходила.
+    expect(wf, 'валідація не перевіряє ФОРМУ origin — кінцева скісна кладе вхід усім')
+      .toMatch(/grep -Eq '\^https:\/\//)
+  })
+})
+
 describe('крон-функції закриті від сторонніх', () => {
   it('send-reminders вимагає секрет константним порівнянням', () => {
     const src = read('send-reminders')

@@ -133,6 +133,8 @@ export default function PaymentCalendarScreen() {
     // Тепер `loadRecordsForIds` КИДАЄ на помилці, тож плаваючий виклик мусить
     // її ловити — інакше зміна горизонту давала б необроблену відмову промісу.
     loadRecordsForIds(properties.map(p => p.id), monthsAhead).catch((e) => {
+      // Без записів нового горизонту кожен його платіж читався б несплаченим.
+      setLoadError(humanizeDbError(e))
       showToast({ type: 'error', title: tr('Не вдалося оновити платежі'), subtitle: humanizeDbError(e) })
     })
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -323,16 +325,16 @@ export default function PaymentCalendarScreen() {
           {/* cap3 на всіх трьох лейблах: «ПРОСТРОЧЕНО» на cap2 не влазить у
               третину 375px-екрана і обрізався б трикрапкою */}
           <div className="stat glass-s stat-pop-anim" style={{ animationDelay: '0s' }}>
-            <div className="stat-n" style={{ color: 'var(--err)' }}>{stats.overdue}</div>
+            <div className="stat-n" style={{ color: 'var(--err)' }}>{loadError ? '—' : stats.overdue}</div>
             <div className="stat-l" style={{ fontSize: 'var(--fs-cap3)' }}>{tr('Прострочено')}</div>
           </div>
           <div className="stat glass-s stat-pop-anim" style={{ animationDelay: '.06s' }}>
-            <div className="stat-n" style={{ color: 'var(--warn)' }}>{stats.upcoming}</div>
+            <div className="stat-n" style={{ color: 'var(--warn)' }}>{loadError ? '—' : stats.upcoming}</div>
             <div className="stat-l" style={{ fontSize: 'var(--fs-cap3)' }}>{tr('Очікується')}</div>
           </div>
           <div className="stat glass-s stat-pop-anim" style={{ animationDelay: '.12s' }}>
             <div className="stat-n" style={{ color: 'var(--ok)', fontSize: stats.paidAmount >= 100000 ? 'var(--fs-note)' : undefined }}>
-              {stats.paidAmount > 0 ? formatPrice(stats.paidAmount, user?.currency) : stats.paid > 0 ? stats.paid : '—'}
+              {!loadError && stats.paidAmount > 0 ? formatPrice(stats.paidAmount, user?.currency) : !loadError && stats.paid > 0 ? stats.paid : '—'}
             </div>
             <div className="stat-l" style={{ fontSize: 'var(--fs-cap3)' }}>{tr('Отримано')}</div>
           </div>
@@ -360,7 +362,11 @@ export default function PaymentCalendarScreen() {
 
         {loading ? (
           <SkeletonList count={3} />
-        ) : loadError && properties.length === 0 ? (
+        ) : loadError ? (
+          // Повтор — на БУДЬ-ЯКИЙ збій, а не лише коли не прийшли обʼєкти.
+          // Обʼєкти без розкладу малювались «Немає розкладу» з кнопкою
+          // «Налаштувати», а лічильники — впевненим «0 прострочено»: збій
+          // мережі видавав себе за відповідь про гроші.
           <RetryState subtitle={loadError} onRetry={loadCurrent} />
         ) : properties.length === 0 ? (
           <div className="empty-state" style={{ paddingTop: 32 }}>
@@ -377,9 +383,10 @@ export default function PaymentCalendarScreen() {
               {([1, 2, 3, 6] as MonthCount[]).map(n => (
                 <button
                   key={n}
+                  className="range-chip"
                   onClick={() => setMonthsAhead(n)}
                   style={{
-                    padding: '4px 10px', borderRadius: 8,
+                    padding: '9px 10px', borderRadius: 8,
                     background: monthsAhead === n ? 'var(--info-bg)' : 'var(--glass-1)',
                     color:      monthsAhead === n ? 'var(--info)' : 'var(--t3)',
                     border:     monthsAhead === n ? '.5px solid rgba(122,179,255,.4)' : 'var(--bd)',
@@ -390,9 +397,10 @@ export default function PaymentCalendarScreen() {
                 </button>
               ))}
               <button
+                className="range-chip"
                 onClick={() => setShowOnlyUnpaid(v => !v)}
                 style={{
-                  marginLeft: 'auto', padding: '4px 10px', borderRadius: 8,
+                  marginLeft: 'auto', padding: '9px 10px', borderRadius: 8,
                   background: showOnlyUnpaid ? 'var(--err-bg)' : 'var(--glass-1)',
                   color:      showOnlyUnpaid ? 'var(--err)'              : 'var(--t3)',
                   border:     showOnlyUnpaid ? '.5px solid rgba(255,107,97,.4)' : 'var(--bd)',
@@ -474,8 +482,15 @@ export default function PaymentCalendarScreen() {
                         {prop.tenant_name && <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 2 }}>{prop.tenant_name}</div>}
                       </div>
                       <button
+                        className="tap-v"
                         onClick={() => navigate('payment-schedule', { propertyId: prop.id, dbId: prop.db_id })}
-                        style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 'var(--r-pill)', background: 'var(--info-bg)', border: '.5px solid rgba(122,179,255,.32)', color: 'var(--info)', fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                        /* Ґрунт ТЕМНИЙ, а не тонований: підпис міряв 2.21:1 —
+                           і це ДІЯ, що починає платіжний розклад, а не капшен.
+                           Альфою тут нічого не взяти (`--info` уже світлий над
+                           градієнтом, що світлішає донизу); лікує щільніша
+                           темна підкладка — той самий рецепт, що підняв
+                           `.obj-tot-*` і первинну кнопку. */
+                        style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 'var(--r-pill)', background: 'var(--glass-off)', border: '.5px solid var(--info-bd)', color: 'var(--info-fg)', fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', cursor: 'pointer', whiteSpace: 'nowrap' }}
                       >
                         <IconPlus size={12} /> {tr('Налаштувати')}
                       </button>

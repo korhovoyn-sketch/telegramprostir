@@ -173,19 +173,43 @@ function classifyError(msg: string): ErrCode {
 }
 
 Deno.serve(async (req) => {
-  const cors = corsHeadersFor(req.headers.get('Origin'), CORS_METHODS)
+  const reqOrigin = req.headers.get('Origin')
+  const cors = corsHeadersFor(reqOrigin, CORS_METHODS)
 
+  // Preflight МУСИТЬ відповідати тим самим ACAO, що й сама відповідь, інакше
+  // браузер ріже запит ще ДО неї. Саме тут провалилась перша редакція
+  // діагностики: `diagCors` жив у гілці GET, а клієнт шле не-safelisted
+  // заголовки, тобто preflight обовʼязковий — і він пінився на ХИБНИЙ
+  // ALLOWED_ORIGIN, тож до GET браузер не доходив НІКОЛИ. Відбиття тут
+  // дозволене лише для preflight САМОЇ діагностики (`GET`): для POST воно
+  // означало б, що вхід виконується з будь-якого origin — читати відповідь
+  // атакувальник не зміг би, але побічні ефекти сталися б.
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: cors })
+    const wants = req.headers.get('Access-Control-Request-Method')
+    const headers = wants === 'GET'
+      ? { ...cors, 'Access-Control-Allow-Origin': reqOrigin ?? '*', 'Vary': 'Origin' }
+      : cors
+    return new Response('ok', { headers })
   }
 
   // ── GET: lightweight health / config check ──────────────────────────────
   // Returns which env vars are configured (not their values).
   // Useful for diagnosing why auth is broken without exposing secrets.
-  // Always reachable — including when ALLOWED_ORIGIN itself is unset — so the
-  // in-app "Діагностика підключення" button can name that exact secret
-  // instead of the caller just seeing a generic connection failure.
+  //
+  // ДОСЯЖНІСТЬ ЦІЄЇ ВІДПОВІДІ — ЧАСТИНА ЇЇ СЕНСУ, і спільний `cors` її ламав.
+  // Він пінить `Access-Control-Allow-Origin` на ALLOWED_ORIGIN, тож коли та
+  // задана ХИБНО, браузер блокує саме ту відповідь, яка мала б це пояснити:
+  // клієнт отримує голу мережеву помилку і показує «Edge Function
+  // недоступна — перевірте, що функцію задеплоєно», тобто відсилає шукати
+  // зламане не туди. Попередній коментар тут стверджував «always reachable»,
+  // і це було правдою лише для ВІДСУТНЬОЇ змінної, не для хибної.
+  //
+  // Відбиття Origin тут нічого не відкриває: тіло — самі булеві прапорці
+  // конфігурації, без токенів і даних користувача, і воно й так доступне
+  // будь-кому з публічним anon-ключем (curl взагалі не шле Origin). Суворе
+  // пінування лишається на POST, тобто там, де у відповіді є сесія.
   if (req.method === 'GET') {
+    const diagCors = { ...cors, 'Access-Control-Allow-Origin': reqOrigin ?? '*', 'Vary': 'Origin' }
     const checks = {
       allowed_origin: !!allowedOrigin,
       bot_token:   !!Deno.env.get('TELEGRAM_BOT_TOKEN'),
@@ -194,6 +218,42 @@ Deno.serve(async (req) => {
       anon_key:     !!Deno.env.get('SUPABASE_ANON_KEY'),
     }
     const allOk = Object.values(checks).every(Boolean)
+
+    // `!!allowedOrigin` каже лише «щось задано» — рівно та сама сліпота, через
+    // яку `-z` у воркфлоу планувальника не побачив розійдений секрет: ловить
+    // ПОРОЖНЄ, не ХИБНЕ. Питання, на яке треба відповісти, інше: чи пустить
+    // CORS саме цей застосунок. `null` — коли Origin не надіслали (curl), і
+    // тоді порівнювати нема з чим, тож у `ok` це не входить.
+    const originMatch = reqOrigin ? allowedOrigin === reqOrigin : null
+
+    // ПРОБА ТОКЕНА БОТА — та сама причина, що й db-проба нижче: `!!` каже
+    // лише «задано». Хибний токен провалює HMAC-перевірку, тобто вхід мертвий,
+    // а діагностика показувала `bot_token: true` — і тост прямо відсилав
+    // користувача «перевірити правильність TELEGRAM_BOT_TOKEN» ВРУЧНУ, тобто
+    // продукт знав про цю дірку і перекладав роботу на людину. `getMe` —
+    // найдешевший спосіб спитати сам Telegram. Best-effort; біжить, коли
+    // токен непорожній — порівнювати нема з чим, поки його немає взагалі.
+    // Повертається САМЕ булеве: тіло `getMe` містить юзернейм бота, і хоч він
+    // публічний, діагностиці він не потрібен.
+    let botTokenValid: boolean | null = null
+    if (checks.bot_token) {
+      const ctl = new AbortController()
+      const t = setTimeout(() => ctl.abort(), 5000)
+      try {
+        const r = await fetch(
+          `https://api.telegram.org/bot${Deno.env.get('TELEGRAM_BOT_TOKEN')}/getMe`,
+          { signal: ctl.signal },
+        )
+        // `r.ok` тут НЕ годиться: воно звело б «Telegram каже, що токен
+        // недійсний» і «Telegram зараз відмовляє» в одне `false`. Ціна
+        // помилки несиметрична — побачивши «токен хибний», оператор іде
+        // РОТУВАТИ робочий токен, тобто ламає вхід за хибним діагнозом.
+        // 429/5xx — це «не знаю», і воно лишається `null`, як мережевий збій.
+        if (r.status === 401 || r.status === 404) botTokenValid = false
+        else if (r.ok) botTokenValid = true
+      } catch { /* мережа/таймаут — не знаємо, лишаємо null (не «зламано») */ }
+      finally { clearTimeout(t) }
+    }
 
     // Optionally probe DB connectivity when config looks good
     let db = false
@@ -209,8 +269,21 @@ Deno.serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ ok: allOk && db, checks: { ...checks, db } }),
-      { headers: { ...cors, 'Content-Type': 'application/json' } },
+      JSON.stringify({
+        ok: allOk && db && originMatch !== false && botTokenValid !== false,
+        checks: {
+          ...checks,
+          db,
+          ...(originMatch === null ? {} : { origin_match: originMatch }),
+          ...(botTokenValid === null ? {} : { bot_token_valid: botTokenValid }),
+        },
+        // НЕ секрет: це публічна адреса застосунку, і вона й так стоїть у
+        // заголовку `Access-Control-Allow-Origin` кожної відповіді. Без неї
+        // клієнт може сказати лише «не збігається», не назвавши з ЧИМ.
+        allowed_origin_value: allowedOrigin,
+        request_origin: reqOrigin,
+      }),
+      { headers: { ...diagCors, 'Content-Type': 'application/json' } },
     )
   }
 

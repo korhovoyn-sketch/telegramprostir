@@ -56,6 +56,16 @@ export function humanizeDbError(e: unknown, fallback = tr('Спробуйте щ
   if (m.includes('duplicate key') || m.includes('23505') || m.includes('already exists')) {
     return tr('Такий запис уже існує.')
   }
+  // Задовге значення (22001). Без цієї гілки воно падало у фолбек «Спробуйте
+  // ще раз» — тобто людина повторювала ТЕ САМЕ введення, не знаючи, що не так.
+  if (m.includes('value too long') || m.includes('22001')) {
+    return tr('Одне з полів задовге. Скоротіть текст і спробуйте ще раз.')
+  }
+  // Некоректний формат значення: дата, число (22P02, 22007, 22008).
+  if (m.includes('invalid input syntax') || m.includes('date/time field value out of range')
+    || m.includes('out of range for type') || m.includes('22p02') || m.includes('22007') || m.includes('22008')) {
+    return tr('Некоректне значення в одному з полів. Перевірте дати й числа.')
+  }
   // Foreign-key / not-null / check violations — bad input shape
   if (m.includes('violates') || m.includes('23503') || m.includes('23502') || m.includes('23514')) {
     return tr('Некоректні дані. Перевірте введене й спробуйте ще раз.')

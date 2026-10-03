@@ -621,7 +621,7 @@ body{
 .fr-seg{display:flex;background:var(--glass-2);border-radius:var(--rc-out);padding:var(--rc-pad);gap:2px;width:100%;border:var(--bd)}
 /* Сегмент — <button>, не <div>: інакше перемикач недосяжний з клавіатури, а в
    модалці його не бачить і фокус-пастка. Звідси скидання UA-стилів кнопки. */
-.fr-seg-b{flex:1;padding:6px 4px;border:none;background:transparent;font-family:inherit;border-radius:var(--rc-in);font-size:var(--fs-cap2);font-weight:600;text-align:center;color:var(--t3);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;transition:all .22s var(--ease);display:flex;align-items:center;justify-content:center;min-height:44px}
+.fr-seg-b{flex:1;padding:6px 4px;border:none;background:transparent;font-family:inherit;border-radius:var(--rc-in);font-size:var(--fs-cap2);font-weight:600;text-align:center;color:var(--t3);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;transition:background .22s var(--ease),color .22s var(--ease),box-shadow .22s var(--ease);display:flex;align-items:center;justify-content:center;min-height:44px}
 .fr-seg-b.on{background:var(--glass-3);color:var(--t1);box-shadow:var(--shadow-seg-on)}
 /* Неактивний — приглушений колір, не opacity (правило проєкту). */
 .fr-seg-b:disabled{cursor:default;color:var(--t4)}
@@ -822,6 +822,21 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 .acc-toggle:active{background:var(--glass-2)}
 .acc-toggle[aria-expanded="true"] .acc-chev{transform:rotate(90deg)}
 .acc-chev{flex-shrink:0;color:var(--t4);transition:transform .22s var(--ease)}
+/* Суми архівної картки оренди. Рядок ПЕРЕНОСИТЬСЯ (`wrap`), бо на 360px
+   «Ставка» і «Отримано» разом не влазять, а обрізати гроші не можна. */
+.ten-prop{font-weight:var(--fw-med);color:var(--t2);margin-bottom:4px}
+.ten-when{display:flex;align-items:center;gap:5px;color:var(--t3)}
+.ten-ll{margin-top:3px;color:var(--t3)}
+.ten-sums{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.ten-sum{display:inline-flex;align-items:center;gap:4px;padding:4px 9px;border-radius:var(--r-pill);background:var(--glass-2);font-size:var(--fs-cap1);color:var(--t3)}
+.ten-sum b{font-weight:var(--fw-semi);color:var(--t2)}
+/* Сума ОТРИМАНОГО — гроші, тож обидва шари беруть ЧИТАБЕЛЬНИЙ `--ok-fg`.
+   Саторований `--ok` (#34C759) на власній заливці `--ok-bg` дає 2.93:1 —
+   знайдено обходом contrast, той самий клас, що вже описаний для `.bdg-busy`
+   («тонований бейдж, foreground на тлі своєї ж заливки»). Різниця лише в
+   тому, що тут це ЦИФРА, а не підпис: політика «правити дані» діє. */
+.ten-sum.ok{background:var(--ok-bg);color:var(--ok-fg)}
+.ten-sum.ok b{color:var(--ok-fg)}
 .cost-row{display:flex;justify-content:space-between;align-items:baseline;padding:3px 0;font-size:var(--fs-foot);color:var(--t2)}
 .cost-row+.cost-row{border-top:.5px solid rgba(255,255,255,.07);padding-top:8px;margin-top:6px}
 .cost-ttl{font-size:var(--fs-t2);font-weight:700;color:var(--t1);letter-spacing:-.02em}
@@ -974,9 +989,10 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
   .orb-body,.orb-blob,.orb-dust i{animation:none}
 }
 
-.obj-hero-bdg{position:absolute;top:10px;left:10px;display:flex;align-items:center;gap:5px;padding:4px 10px 4px 8px;border-radius:var(--r-pill);background:rgba(52,199,89,.85);backdrop-filter:blur(10px);font-size:var(--fs-cap2);font-weight:600;color:#fff;z-index:var(--z-content)}
+.obj-hero-bdg{position:absolute;top:10px;left:10px;display:flex;align-items:center;gap:5px;padding:4px 10px 4px 8px;border-radius:var(--r-pill);background:rgba(52,199,89,.85);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);font-size:var(--fs-cap2);font-weight:600;color:#fff;z-index:var(--z-content)}
+.obj-hero-bdg.on-photo{background:var(--glass-off);color:var(--t1);border:.5px solid rgba(255,255,255,.2)}
 .obj-hero-r{position:absolute;top:10px;right:10px;display:flex;gap:6px;z-index:var(--z-content)}
-.obj-hero-a{width:44px;height:44px;border-radius:50%;background:rgba(0,0,0,.4);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;color:var(--t1);font-size:var(--fs-note);border:.5px solid rgba(255,255,255,.2);cursor:pointer}
+.obj-hero-a{width:44px;height:44px;border-radius:50%;background:rgba(0,0,0,.4);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;color:var(--t1);font-size:var(--fs-note);border:.5px solid rgba(255,255,255,.2);cursor:pointer}
 .obj-hero-meta{position:absolute;bottom:10px;left:12px;right:12px;z-index:var(--z-content);display:flex;justify-content:space-between;align-items:flex-end;color:#fff}
 .obj-hero-name{font-size:var(--fs-lead);font-weight:700;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:calc(100% - 80px)}
 .obj-hero-addr{font-size:var(--fs-cap1);color:rgba(255,255,255,.75);margin-top:2px;display:flex;align-items:center;gap:3px}
@@ -1017,7 +1033,7 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
    і назва типу («Приватне») падала на 4.39:1. Текст тут уже --t1, тобто чисто
    білий — підняти його нікуди, лікується лише ґрунт. Той самий прийом, що вже
    підняв .obj-tot-l/v/sub. */
-.type-card{padding:14px;border-radius:var(--r-md);display:flex;flex-direction:column;gap:7px;cursor:pointer;background:var(--glass-card);border:var(--bd);transition:all var(--dur-sm) var(--ease),transform var(--dur-xs) ease,filter var(--dur-xs) ease,opacity var(--dur-xs) ease;position:relative;overflow:hidden}
+.type-card{padding:14px;border-radius:var(--r-md);display:flex;flex-direction:column;gap:7px;cursor:pointer;background:var(--glass-card);border:var(--bd);transition:background var(--dur-sm) var(--ease),border-color var(--dur-sm) var(--ease),box-shadow var(--dur-sm) var(--ease),transform var(--dur-xs) ease,filter var(--dur-xs) ease,opacity var(--dur-xs) ease;position:relative;overflow:hidden}
 .type-card.sel{border:.5px solid rgba(120,180,255,.55);background:rgba(34,158,217,.18);box-shadow:0 0 0 2px rgba(34,158,217,.18) inset}
 @media (hover: hover){.type-card:hover:not(.sel){background:var(--glass-2);transform:translateY(-1px)}}
 .type-card:active{transform:scale(.97)}
@@ -1036,7 +1052,7 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 
 /* ── FORMAT LIST ── */
 .format-list{padding:0 var(--g3) var(--g3);display:flex;flex-direction:column;gap:7px}
-.format-card{padding:13px;border-radius:var(--r-md);display:flex;align-items:center;gap:12px;cursor:pointer;background:var(--glass-1);border:var(--bd);transition:all var(--dur-sm) var(--ease),transform var(--dur-xs) ease,filter var(--dur-xs) ease,opacity var(--dur-xs) ease;position:relative;overflow:hidden}
+.format-card{padding:13px;border-radius:var(--r-md);display:flex;align-items:center;gap:12px;cursor:pointer;background:var(--glass-1);border:var(--bd);transition:background var(--dur-sm) var(--ease),border-color var(--dur-sm) var(--ease),box-shadow var(--dur-sm) var(--ease),transform var(--dur-xs) ease,filter var(--dur-xs) ease,opacity var(--dur-xs) ease;position:relative;overflow:hidden}
 .format-card.sel{border:.5px solid rgba(120,180,255,.55);background:rgba(34,158,217,.16);box-shadow:0 0 0 2px rgba(34,158,217,.16) inset}
 @media (hover: hover){.format-card:hover:not(.sel){background:var(--glass-2)}}
 .format-ic{width:44px;height:44px;border-radius:var(--r-icon);display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;border:var(--bd)}
@@ -1432,12 +1448,18 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
 .fold-pick-new:active{background:var(--glass-2)}
 
 /* ── SKELETON ── */
-.skel{background:linear-gradient(90deg,var(--glass-1),var(--glass-2),var(--glass-1));background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:var(--r-sm)}
+/* Відблиск скелетона — ПРОХІД смуги (`transform`), а не зсув фону.
+   `background-position` не композитується: кожен кадр перемальовував УСІ
+   заглушки екрана, і так безкінечно, поки йде запит — рівно на LTE, де запит
+   довгий. Смуга на псевдоелементі рухається композитором. */
+.skel{position:relative;overflow:hidden;background:var(--glass-1);border-radius:var(--r-sm)}
+.skel::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.05),transparent);transform:translateX(-100%);animation:skelSweep 1.5s infinite}
+@keyframes skelSweep{to{transform:translateX(100%)}}
 .skel-row{height:48px;margin-bottom:8px}
-.skel:nth-child(2){animation-delay:0.08s}
-.skel:nth-child(3){animation-delay:0.16s}
-.skel:nth-child(4){animation-delay:0.24s}
-.skel:nth-child(n+5){animation-delay:0.32s}
+.skel:nth-child(2)::after{animation-delay:0.08s}
+.skel:nth-child(3)::after{animation-delay:0.16s}
+.skel:nth-child(4)::after{animation-delay:0.24s}
+.skel:nth-child(n+5)::after{animation-delay:0.32s}
 
 /* ── EMPTY STATE ── */
 .empty-state{display:flex;flex-direction:column;align-items:center;text-align:center;padding:60px 32px 20px}
@@ -1448,7 +1470,34 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
 .empty-s{font-size:var(--fs-sub);color:var(--t2);line-height:var(--lh-norm);max-width:260px;margin-bottom:22px}
 
 /* ── FEATURES LIST ── */
-.features-list{padding:0 16px;display:flex;flex-direction:column;gap:10px;position:relative;z-index:var(--z-above)}
+.features-list{padding:0 16px;width:100%;display:flex;flex-direction:column;gap:10px;position:relative;z-index:var(--z-above)}
+/* Степер кількості у формі обʼєкта. Візуально лишається 32×32 (рішення про
+   щільність рядка), а зона дотику розширена до 44 псевдоелементом. Тут це
+   ПРАЦЮЄ, на відміну від `.seg-b`: ±6px лишаються всередині 48px-рядка, тобто
+   `overflow:hidden` на `.fg` їх не клiпає. Доти борг був невидимий узагалі —
+   кнопки не мали класу, а в TAP_DEBT стояло бланкетне `'button'`. */
+/* ЗОНА ДОТИКУ РОСТЕ ЛИШЕ ПО ВЕРТИКАЛІ — для чипів, чия ширина вже ≥44, а
+   висота свідомо мала заради щільності рядка (чипи діапазону в календарі
+   платежів, «Налаштувати» в картці без розкладу).
+   Вбік розширювати НЕ МОЖНА: сусід стоїть через 6px проміжку, тож
+   горизонтальна зона крала б його тапи. Ніщо з цих носіїв не клiпає —
+   звичайний флекс і `.glass-s` без `overflow`, на відміну від `.seg-b`,
+   де власний `overflow:hidden` під ellipsis зʼїдає псевдоелемент. */
+/* Чипи діапазону календаря («1 міс … 6 міс», фільтр). Висота 38px, і 44 тут
+   НЕДОСЯЖНІ: на 360px рядок переноситься, тож вертикальне розширення `::after`
+   крало б тапи сусіднього рядка — заміряно, ефективна висота падала до 34.
+   Тому зона лишається боксом, а борг названий у `TAP_DEBT` як `range-chip`. */
+.range-chip{position:relative}
+.tap-v{position:relative}
+.range-chip:active,.tap-v:active,.step-btn:active,.diag-btn:active{transform:scale(.96)}
+.range-chip,.tap-v,.step-btn,.diag-btn{transition:transform var(--dur-sm) var(--ease-out)}
+.tap-v::after{content:'';position:absolute;left:0;right:0;top:-9px;bottom:-9px}
+.step-btn{position:relative;width:32px;height:32px;border-radius:var(--r-xs);background:var(--glass-2);border:.5px solid var(--glass-bd);color:var(--t1);font-size:var(--fs-lead);line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.step-btn:disabled{color:var(--t4);cursor:default}
+.step-btn::after{content:'';position:absolute;inset:-7px}
+.diag-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:46px;padding:0 16px;background:none;border:none;font-size:var(--fs-cap2);color:var(--t3);cursor:pointer}
+.diag-btn:disabled{color:var(--t4);cursor:default}
+.legal-a{color:var(--t2);text-decoration:underline}
 .feature{display:flex;align-items:center;gap:13px;padding:13px 14px;background:var(--glass-2);backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%);border:var(--bd);border-radius:var(--r-md)}
 .feature-ic{width:40px;height:40px;border-radius:var(--r-icon);display:flex;align-items:center;justify-content:center;font-size:var(--fs-lead);flex-shrink:0;color:#fff}
 /* Feature title — Subhead Semibold */
@@ -1522,6 +1571,20 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
 .drop-zone.dropping,.photos-strip.dropping{background:var(--info-bg);outline-color:var(--info)}
 .photo-t{flex-shrink:0;width:80px;height:80px;border-radius:var(--r-sm);position:relative;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.45);font-size:var(--fs-t2);border:var(--bd);cursor:pointer;overflow:hidden;background:var(--glass-2);transition:border-radius 0.2s ease,filter 0.2s ease}
 .photo-t img{object-fit:cover;width:100%;height:100%}
+/* ── ПОЯВА ФОТО (`components/ui/Photo.tsx`) ─────────────────────────────
+   Знімок проявляється, коли приїхали БАЙТИ, а не коли змонтувався вузол:
+   анімація при монтуванні на LTE програвала на порожньому елементі, і фото
+   потім зʼявлялось ривком. Рух — лише `opacity`/`transform`, тобто
+   композитор; до того ж місце вже займає ґрунт носія, тож лейаут не рухається. */
+.photo-img{opacity:0;transition:opacity var(--dur-md) var(--ease-out),transform var(--dur-lg) var(--ease-out)}
+.photo-img.on{opacity:1}
+.photo-img.zoom{transform:scale(.97)}
+.photo-img.zoom.on{transform:none}
+/* Знімок не завантажився: спокійна заглушка замість гліфа битої картинки. */
+.photo-miss{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--t4);pointer-events:none}
+/* Кнопка-відкривач мініатюри: скидання UA-стилів, геометрія — плитки. */
+.photo-open{position:absolute;inset:0;padding:0;border:none;background:none;cursor:pointer;display:block;color:inherit;font:inherit}
+.photo-open img{object-fit:cover;width:100%;height:100%}
 @media (hover: hover){.photo-t:hover{filter:brightness(1.12)}}
 .media-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;padding:10px var(--pad-card)}
 .media-i{aspect-ratio:1;background:var(--glass-0);border-radius:var(--r-xs);display:flex;align-items:center;justify-content:center;font-size:var(--fs-lead);border:var(--bd);color:#fff;cursor:pointer;position:relative}
@@ -1556,7 +1619,15 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
 .sticker-wrap{position:relative;width:100%;display:flex;justify-content:center;align-items:center;margin:24px 0 16px;height:200px}
 .sticker{width:170px;height:170px;position:relative;z-index:var(--z-above);animation:bounce 3s ease-in-out infinite}
 .sparkle{position:absolute;pointer-events:none;animation:sparkleFloat 4s ease-in-out infinite}
-.shimmer-ring{position:absolute;width:280px;height:280px;border-radius:50%;background:conic-gradient(from 0deg,transparent,rgba(255,255,255,.22),transparent 30%);animation:shimmerSpin 8s linear infinite;z-index:var(--z-raised)}
+/* Обертається ВНУТРІШНІЙ шар, а зовнішній бокс клiпає — і це не стиль.
+   Квадрат 280px під `rotate` має бокс 280×√2 ≈ 396px, тобто на 360px-екрані
+   виходив за край на 16px з кожного боку. Видимого дефекту не було (коло
+   вписане в квадрат, а `.body` має `overflow-x:hidden`), але контейнер
+   ставав прокрутним по горизонталі, і гард пристроїв читав це як
+   переповнення. Кути конічного градієнта й так прозорі, тож клiп нічого не
+   змінює у вигляді. */
+.shimmer-ring{position:absolute;width:280px;height:280px;border-radius:50%;overflow:hidden;z-index:var(--z-raised)}
+.shimmer-ring::before{content:'';position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 0deg,transparent,rgba(255,255,255,.22),transparent 30%);animation:shimmerSpin 8s linear infinite}
 .glow-orb{position:absolute;width:240px;height:240px;border-radius:50%;filter:blur(40px);animation:glowPulse 4s ease-in-out infinite;z-index:var(--z-base)}
 
 /* ── AVATAR GRADIENTS ── */
@@ -1599,7 +1670,7 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
 .gallery-thumbs::-webkit-scrollbar{display:none}
 .gallery-thumb{width:56px;height:56px;border-radius:var(--r-sm);flex-shrink:0;border:2px solid transparent;cursor:pointer;overflow:hidden;background:var(--glass-2);display:flex;align-items:center;justify-content:center;font-size:var(--fs-lead)}
 .gallery-thumb.active{border-color:#fff}
-.gallery-info{position:absolute;bottom:var(--g3);left:50%;transform:translateX(-50%);font-size:var(--fs-cap2);color:rgba(255,255,255,.8);background:rgba(0,0,0,.5);backdrop-filter:blur(10px);padding:4px 10px;border-radius:var(--r-sm);white-space:nowrap}
+.gallery-info{position:absolute;bottom:var(--g3);left:50%;transform:translateX(-50%);font-size:var(--fs-cap2);color:rgba(255,255,255,.8);background:rgba(0,0,0,.5);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);padding:4px 10px;border-radius:var(--r-sm);white-space:nowrap}
 
 /* ── CONFETTI ── */
 .confetti-piece{position:absolute;width:8px;height:8px;border-radius:var(--r-pill);pointer-events:none;z-index:var(--z-confetti)}
@@ -1611,7 +1682,6 @@ svg.ico{overflow:visible}
 /* ── ANIMATIONS ── */
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes pls{0%,100%{transform:scale(1);opacity:.9}50%{transform:scale(1.5);opacity:.3}}
-@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 @keyframes toastSlideIn{from{opacity:0;transform:translateY(-80px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}
 /* ── Блюр НЕ працює, поки шит їде ──
    Замір із реального iPhone (покадровий розбір запису): перші ~60% шляху шит
@@ -1649,7 +1719,6 @@ svg.ico{overflow:visible}
 @keyframes scanLine{0%,100%{transform:translateY(calc(var(--scan-h,240px) * .08))}
   50%{transform:translateY(calc(var(--scan-h,240px) * .88))}}
 @keyframes qrPop{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}
-@keyframes galleryFadeIn{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:scale(1)}}
 @keyframes fpmSlideUp{from{opacity:0;transform:translateY(32px)}to{opacity:1;transform:translateY(0)}}
 @keyframes pingFx{0%{transform:scale(1)}50%{transform:scale(1.16)}100%{transform:scale(1)}}
 
@@ -1799,8 +1868,12 @@ svg.ico{overflow:visible}
 .cmark-root{position:fixed;inset:0;z-index:var(--z-coach);pointer-events:none}
 .cmark-panel{position:absolute;background:rgba(0,0,0,.72);pointer-events:auto;cursor:pointer}
 /* Pulsing glow ring draws the eye to the target element */
-.cmark-ring{position:absolute;border-radius:var(--r-sm);border:1.5px solid rgba(148,214,255,.72);box-shadow:0 0 0 3px rgba(148,214,255,.14),0 0 22px rgba(148,214,255,.38);pointer-events:none;animation:cmarkPulse 2s ease-in-out infinite}
-@keyframes cmarkPulse{0%,100%{box-shadow:0 0 0 3px rgba(148,214,255,.14),0 0 22px rgba(148,214,255,.38)}50%{box-shadow:0 0 0 6px rgba(148,214,255,.24),0 0 38px rgba(148,214,255,.58)}}
+/* Пульс — ПРОЯВ другого шару світіння (`opacity`), а не інтерполяція
+   `box-shadow`: та перемальовувала розмите світіння 38px щокадру весь час, поки
+   користувач читає підказку. Спокійний стан той самий, що й був. */
+.cmark-ring{position:absolute;border-radius:var(--r-sm);border:1.5px solid rgba(148,214,255,.72);box-shadow:0 0 0 3px rgba(148,214,255,.14),0 0 22px rgba(148,214,255,.38);pointer-events:none}
+.cmark-ring::after{content:'';position:absolute;inset:-1.5px;border-radius:inherit;box-shadow:0 0 0 6px rgba(148,214,255,.12),0 0 38px rgba(148,214,255,.3);opacity:0;animation:cmarkGlow 2s ease-in-out infinite}
+@keyframes cmarkGlow{50%{opacity:1}}
 /* Tooltip bubble — Liquid Glass dark glass card */
 .cmark-bubble{background:rgba(16,12,34,.95);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border:.5px solid rgba(255,255,255,.18);border-radius:var(--r-md);padding:14px 16px 12px;box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 16px 44px rgba(0,0,0,.64);pointer-events:auto;animation:cmarkIn .28s var(--ease-spr) both}
 @keyframes cmarkIn{from{opacity:0;transform:scale(.90)}to{opacity:1;transform:scale(1)}}
@@ -2370,7 +2443,7 @@ html[data-tg-client='mobile'] body::after { content: none; }
     scroll-behavior: auto !important;
   }
   .scr { animation: none }
-  .shimmer-ring,.glow-orb,.sticker,.sparkle { animation: none !important }
+  .shimmer-ring::before,.glow-orb,.sticker,.sparkle { animation: none !important }
 }
 
 /* ── LEGAL PAGES (/privacy, /terms) ──────────────────────────────────────────

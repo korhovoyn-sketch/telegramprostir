@@ -8,7 +8,8 @@ import { supabase } from '@/lib/supabase'
 // Явні колонки, а не `*`: `properties.share_token` — це ПУБЛІЧНИЙ /v-лінк, і
 // віддавати його підписаному рієлторові означає дати доступ, що переживе
 // відписку (ротація токенів при відписці не робиться).
-import { PROPERTY_WITH_PHOTOS } from '@/hooks/useProperties'
+import { PROPERTY_WITH_PHOTOS, PROPERTY_WITH_PHOTOS_PRE043 } from '@/hooks/useProperties'
+import { withOptionalColumns } from '@/lib/optionalColumns'
 import Header from '@/components/ui/Header'
 import SearchBar from '@/components/ui/SearchBar'
 import { StatusBadge } from '@/components/ui/Badge'
@@ -39,13 +40,17 @@ export default function RealtorDatabaseScreen() {
         // потрібен саме тут (кнопка «Поділитись» нижче в цьому ж екрані).
         // Це свідоме рішення про рієлтора, НЕ про редактора команди.
         supabase.from('databases').select('id,owner_id,name,address,type,color,share_token,share_expires_at,created_at,updated_at').eq('id', screenParams.dbId).single(),
-        supabase.from('properties').select(PROPERTY_WITH_PHOTOS).eq('db_id', screenParams.dbId).order('created_at', { ascending: false }),
+        // Ретрай без колонок, яких може ще не бути (043/064): без нього база
+        // рієлтора на такому бекенді не відкривалась узагалі.
+        withOptionalColumns((pre) => supabase.from('properties')
+          .select(pre ? PROPERTY_WITH_PHOTOS_PRE043 : PROPERTY_WITH_PHOTOS)
+          .eq('db_id', screenParams.dbId!).order('created_at', { ascending: false })),
       ])
       if (dbRes.error) throw dbRes.error
       if (propsRes.error) throw propsRes.error
       const dbData = dbRes.data as Database
       setDb(dbData)
-      setProperties((propsRes.data ?? []) as Property[])
+      setProperties((propsRes.data ?? []) as unknown as Property[])
 
       // Load owner info for contact card
       if (dbData.owner_id) {
