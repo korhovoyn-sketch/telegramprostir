@@ -11,6 +11,7 @@ import { sanitizeDecimal, scrollFocusedIntoView, humanizeDbError, currencySymbol
 import { RENT_PAYMENT_RECORD_COLUMNS, expectedRent, fmtDueDate } from '@/lib/rentPayments'
 import type { RentPaymentRecord } from '@/types'
 import { tr } from '@/lib/i18n'
+import { useClosingConfirmation } from '@/hooks/useTelegram'
 
 /**
  * Повноекранна форма підтвердження платежу — заміна колишньої `<Modal>` у
@@ -20,6 +21,7 @@ import { tr } from '@/lib/i18n'
  * свіжий стан із сервера — миттєвий фідбек тепер дає сам перехід екрана.
  */
 export default function PaymentConfirmScreen() {
+  useClosingConfirmation()
   const { screenParams, user, showToast, back } = useAppStore()
   const propertyId = screenParams.propertyId as string | undefined
   const dbId = screenParams.dbId as string | undefined

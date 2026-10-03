@@ -15,6 +15,7 @@ import {
   currencySymbol, rentUnitLabel, formatPrice,
 } from '@/lib/utils'
 import { tr } from '@/lib/i18n'
+import { useClosingConfirmation } from '@/hooks/useTelegram'
 
 /**
  * Повноекранна форма «Здати в оренду» — заміна останнього `<Modal>` із полями
@@ -25,6 +26,7 @@ import { tr } from '@/lib/i18n'
  * миттєвий фідбек дає сам перехід екрана — той самий висновок, що у фазі 2.
  */
 export default function RentPropertyScreen() {
+  useClosingConfirmation()
   const { screenParams, user, showToast, back } = useAppStore()
   const propertyId = screenParams.propertyId as string | undefined
   const dbId = screenParams.dbId as string | undefined

@@ -20,6 +20,7 @@ import { currencySymbol, sanitizeDecimal, sanitizeInt, formatPrice, calcRent, ca
 import type { PropertyStatus, RentType, ParkingType, AreaBasis } from '@/types'
 import { tr } from '@/lib/i18n'
 import { lsRemove } from '@/lib/localState'
+import { useClosingConfirmation } from '@/hooks/useTelegram'
 
 const PARKING_TYPES = (): { v: ParkingType; l: string }[] => ([
   { v: 'underground', l: tr('Підземний') },
@@ -129,11 +130,7 @@ export default function PropertyFormScreen() {
     if (screenParams.dbId) loadFolders(screenParams.dbId)
   }, [screenParams.dbId, loadFolders])
 
-  useEffect(() => {
-    const tg = window.Telegram?.WebApp
-    tg?.enableClosingConfirmation()
-    return () => { tg?.disableClosingConfirmation() }
-  }, [])
+  useClosingConfirmation()
 
   // ── Draft autosave (new object only) ────────────────────────────────────────
   // Closing confirmation guards against an accidental swipe-down, but a crash

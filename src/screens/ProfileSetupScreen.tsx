@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { useAuth } from '@/hooks/useAuth'
 import { IconMail, IconPhone, IconTelegram, IconLock } from '@/components/Icons'
 import { scrollFocusedIntoView } from '@/lib/utils'
 import { EMAIL_MAX, PHONE_MAX, isValidEmail, isValidPhone } from '@/lib/contact'
 import { tr } from '@/lib/i18n'
+import { useClosingConfirmation } from '@/hooks/useTelegram'
 
 export default function ProfileSetupScreen() {
   const user = useAppStore((s) => s.user)
@@ -16,11 +17,7 @@ export default function ProfileSetupScreen() {
   const [email, setEmail] = useState(user?.email ?? '')
   const [phone, setPhone] = useState(user?.phone ?? '')
 
-  useEffect(() => {
-    const tg = window.Telegram?.WebApp
-    tg?.enableClosingConfirmation()
-    return () => { tg?.disableClosingConfirmation() }
-  }, [])
+  useClosingConfirmation()
 
   const dest = user?.role === 'owner' ? 'empty-state' : 'realtor-dashboard'
 

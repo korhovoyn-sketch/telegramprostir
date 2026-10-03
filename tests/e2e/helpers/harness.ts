@@ -81,7 +81,10 @@ export async function installTelegram(page: Page, opts: HarnessOptions = {}) {
           safeAreaInset: { top: 0, bottom: 0, left: 0, right: 0 },
           contentSafeAreaInset: { top: 0, bottom: 0, left: 0, right: 0 },
           ready() {}, expand() {}, close() {},
-          enableClosingConfirmation() {}, disableClosingConfirmation() {},
+          // Стан ЗАПАМʼЯТОВУЄТЬСЯ: гард форм читає, чи Telegram спитає перед
+          // закриттям (свайп униз інакше мовчки губить набране).
+          enableClosingConfirmation() { (window as unknown as Record<string, unknown>).__tgClosingConfirm = true },
+          disableClosingConfirmation() { (window as unknown as Record<string, unknown>).__tgClosingConfirm = false },
           // Кольори нативного хрому ЗАПАМʼЯТОВУЮТЬСЯ: чорна смуга під світлим
           // низом градієнта — це рамка навколо клавіатури на реальному iOS
           // (заміряно по запису), тож гард мусить читати останнє значення.

@@ -5,6 +5,7 @@ import { useEffect } from 'react'
 import Toast from '@/components/ui/Toast'
 import ConfirmHost from '@/components/ui/ConfirmHost'
 import { tr } from '@/lib/i18n'
+import { initErrorReporting, reportError } from '@/lib/errorReporting'
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
@@ -29,8 +30,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       } catch { /* старий клієнт / відкинутий параметр — хром лишається типовим */ }
     }
 
-    // Global error capture — logs structured data without exposing PII.
-    // Replace console.error with Sentry.captureException when DSN is configured.
+    // Глобальні збої поза React — той самий шлях звітів, що й ErrorBoundary.
+    // У консоль іде лише структура, без даних; назовні — лише з DSN і після
+    // `scrubEvent` (див. lib/errorReporting.ts).
+    initErrorReporting()
     const handleError = (event: ErrorEvent) => {
       console.error('[GlobalError]', {
         message: event.message,
@@ -38,9 +41,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         line: event.lineno,
         col: event.colno,
       })
+      reportError(event.error ?? new Error(event.message), { tags: { source: 'window.error' } })
     }
     const handleRejection = (event: PromiseRejectionEvent) => {
       console.error('[UnhandledRejection]', String(event.reason))
+      reportError(event.reason, { tags: { source: 'unhandledrejection' } })
     }
     window.addEventListener('error', handleError)
     window.addEventListener('unhandledrejection', handleRejection)

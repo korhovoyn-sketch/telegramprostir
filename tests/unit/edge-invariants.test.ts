@@ -290,3 +290,23 @@ describe('крон-функції закриті від сторонніх', () 
     expect(src).toMatch(/401/)
   })
 })
+
+describe('telegram-bot: обовʼязкові команди', () => {
+  // Бот відповідав ЛИШЕ на /start: /help і /privacy (обидві Telegram вважає
+  // глобальними, а /privacy — обовʼязковою для бота, що обробляє дані) і будь-
+  // який інший текст лишались без відповіді — бот читався як зламаний.
+  const src = readFileSync(resolve(process.cwd(), 'supabase/functions/telegram-bot/index.ts'), 'utf8')
+  it('/privacy веде на політику, а адреса береться лише з https-origin', () => {
+    expect(src).toMatch(/command === '\/privacy'/)
+    expect(src).toMatch(/legalUrl\('privacy'\)/)
+    expect(src, 'адреса політики мусить бути перевіреним https-origin, не сирим env')
+      .toMatch(/\/\^https:\\\/\\\/\[\^\/\\s\?#\]\+\$\/\.test\(origin\)/)
+  })
+  it('на довільний текст бот відповідає довідкою, а не мовчить', () => {
+    expect(src).toMatch(/\} else if \(chatId && text\) \{\s*\n(?:\s*\/\/.*\n)*\s*await sendMessage\(chatId, HELP_TEXT/)
+    expect(src).toMatch(/\/help/)
+  })
+  it('команда з адресою бота (`/start@bot`) розпізнається', () => {
+    expect(src).toMatch(/split\('@'\)\[0\]/)
+  })
+})

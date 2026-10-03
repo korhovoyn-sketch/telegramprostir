@@ -58,7 +58,11 @@ describe('заголовки безпеки', () => {
     // Мережа — лише свій бекенд і Telegram. Поява стороннього домену в
     // connect-src означає, що дані застосунку можуть піти кудись іще.
     const connect = /connect-src ([^;]+)/.exec(csp)?.[1] ?? ''
-    const ALLOWED = ["'self'", 'https://*.supabase.co', 'wss://*.supabase.co', 'https://api.telegram.org']
+    // Sentry — СВІДОМЕ розширення периметра: звіти про збої. Туди йде лише
+    // те, що пропускає `scrubEvent` (без query, токенів, крихт і користувача) —
+    // і це закріплено в `error-reporting.test.ts`, а не лише тут.
+    const ALLOWED = ["'self'", 'https://*.supabase.co', 'wss://*.supabase.co', 'https://api.telegram.org',
+                     'https://*.ingest.sentry.io', 'https://*.ingest.us.sentry.io', 'https://*.ingest.de.sentry.io']
     expect(connect.trim().split(/\s+/).filter((d) => !ALLOWED.includes(d)),
       'у connect-src з\'явився сторонній домен — дані застосунку можуть піти туди').toEqual([])
   })

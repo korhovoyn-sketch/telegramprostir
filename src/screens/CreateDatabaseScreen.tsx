@@ -10,6 +10,7 @@ import { IconCheck, IconMapPin, IconBuilding, IconLayoutGrid, IconAdjustments, I
 import { DB_COLORS, scrollFocusedIntoView } from '@/lib/utils'
 import type { DatabaseType } from '@/types'
 import { tr } from '@/lib/i18n'
+import { useClosingConfirmation } from '@/hooks/useTelegram'
 
 const TYPES = (): { id: DatabaseType; label: string; desc: string; neon: 'blue' | 'green' | 'pink' | 'orange' | 'teal' | 'purple' }[] => ([
   { id: 'business_center', label: tr('Бізнес-центр'), desc: tr('Офіси з нумерацією'), neon: 'blue' },
@@ -34,11 +35,7 @@ export default function CreateDatabaseScreen() {
   const isEdit = !!editId
   const existing = databases.find((d) => d.id === editId)
 
-  useEffect(() => {
-    const tg = window.Telegram?.WebApp
-    tg?.enableClosingConfirmation()
-    return () => { tg?.disableClosingConfirmation() }
-  }, [])
+  useClosingConfirmation()
 
   const [name, setName] = useState('')
   const [address, setAddress] = useState('')
