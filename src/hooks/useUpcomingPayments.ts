@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAppStore } from '@/store/appStore'
 import { basisArea, daysUntil, monthlyRent } from '@/lib/utils'
+import { dueDateFor, isOwedUnderLease, trackedFromOffset, ARREARS_MONTHS_MAX } from '@/lib/rentPayments'
 
 /**
  * Найближчі платежі для екрана сповіщень.
@@ -41,25 +42,16 @@ function levelFor(days: number): PaymentAlert['level'] {
   return 'soon'
 }
 
-/** Дата платежу в місяці зі зсувом `offset` від поточного, у форматі ISO. */
-function dueDateStr(offset: number, dueDay: number): string {
-  const base = new Date()
-  const d = new Date(base.getFullYear(), base.getMonth() + offset, 1)
-  // Обмеження днем місяця: 31-е число в лютому інакше дало б 3 березня, тобто
-  // платіж «поза своїм місяцем» і хибний порядок у списку.
-  const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()
-  const day = Math.min(dueDay, last)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-}
-
 interface ScheduleRow {
   property_id: string
   due_day: number
+  created_at: string | null
   property: {
     id: string
     db_id: string
     name: string
     tenant_name: string | null
+    lease_start_date: string | null
     status: string
     rent_type: string
     rent_rate: number | null
@@ -82,7 +74,7 @@ export function useUpcomingPayments() {
       // перелічені явно — екран малює саме їх (правило «explicit columns»).
       const { data: schedData, error: schedErr } = await supabase
         .from('rent_payments')
-        .select('property_id,due_day,property:properties(id,db_id,name,tenant_name,status,rent_type,rent_rate,area_useful,area_total,area_basis)')
+        .select('property_id,due_day,created_at,property:properties(id,db_id,name,tenant_name,lease_start_date,status,rent_type,rent_rate,area_useful,area_total,area_basis)')
         .eq('owner_id', user.id)
         .eq('is_active', true)
 
@@ -94,10 +86,10 @@ export function useUpcomingPayments() {
       const active = rows.filter((r) => r.property && r.property.status === 'occupied')
       if (active.length === 0) { setAlerts([]); return }
 
-      // Вікно записів — поточний і наступний місяць: саме з них береться
-      // найближча НЕсплачена дата.
-      const from = dueDateStr(0, 1)
-      const to   = dueDateStr(2, 1)
+      // Вікно записів — від найглибшої заборгованості до наступного місяця:
+      // найближча НЕсплачена дата може бути й у минулому, і тоді це борг.
+      const from = dueDateFor(-ARREARS_MONTHS_MAX, 1)
+      const to   = dueDateFor(2, 1)
       const { data: recData, error: recErr } = await supabase
         .from('rent_payment_records')
         .select('property_id,due_date,status')
@@ -117,12 +109,15 @@ export function useUpcomingPayments() {
       const mapped: PaymentAlert[] = []
       for (const row of active) {
         const p = row.property!
-        // Перша НЕсплачена дата: цей місяць, інакше наступний. Прострочений
-        // платіж таким чином лишається на екрані, доки його не підтвердять —
-        // це і є та «незакрита справа», заради якої блок існує.
+        // Перша НЕсплачена дата — від найдавнішого місяця, за який розклад уже
+        // існував, і до наступного. Доти перебирались лише поточний і наступний,
+        // тож борг за минулий місяць 1-го числа ЗНИКАВ, хоча оплати не було, —
+        // рівно всупереч обіцянці «лишається, доки не підтвердять».
         let dueDate: string | null = null
-        for (const offset of [0, 1]) {
-          const d = dueDateStr(offset, row.due_day)
+        for (let offset = trackedFromOffset(row.created_at); offset <= 1; offset++) {
+          const d = dueDateFor(offset, row.due_day)
+          // До початку договору боргу немає — тоді найближчий платіж наступний.
+          if (!isOwedUnderLease(d, p.lease_start_date)) continue
           if (!paid.has(`${row.property_id}|${d}`)) { dueDate = d; break }
         }
         if (!dueDate) continue

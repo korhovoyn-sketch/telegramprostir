@@ -9,15 +9,11 @@ import { supabase } from '@/lib/supabase'
 import { assertAffected } from '@/lib/dbWrite'
 import Header from '@/components/ui/Header'
 import { SkeletonList } from '@/components/ui/SkeletonLoader'
-import { IconCalendar, IconClock, IconPlus, IconTrash, IconFile, IconCheckCircle, IconArchive, IconLayers, IconCheck, IconX, IconEdit } from '@/components/Icons'
+import { IconAlertTriangle, IconCalendar, IconClock, IconPlus, IconTrash, IconFile, IconCheckCircle, IconArchive, IconLayers, IconCheck, IconX, IconEdit } from '@/components/Icons'
 import { formatPrice, humanizeDbError, objectsWord } from '@/lib/utils'
-import { RENT_PAYMENT_COLUMNS, RENT_PAYMENT_RECORD_COLUMNS, expectedRent, fmtDueDate } from '@/lib/rentPayments'
+import { RENT_PAYMENT_COLUMNS, RENT_PAYMENT_RECORD_COLUMNS, ARREARS_MONTHS_MAX, dueDateFor, expectedRent, fmtDueDate, isOwedUnderLease, trackedFromOffset } from '@/lib/rentPayments'
 import type { Property, RentPayment, RentPaymentRecord } from '@/types'
 import { locale, tr } from '@/lib/i18n'
-
-function dueDateStr(year: number, month: number, dueDay: number): string {
-  return `${year}-${String(month + 1).padStart(2, '0')}-${String(dueDay).padStart(2, '0')}`
-}
 
 function daysUntil(dateStr: string): number {
   const today = new Date()
@@ -111,8 +107,11 @@ export default function PaymentCalendarScreen() {
   }, [propertyId, dbId, user?.id])
 
   async function loadRecordsForIds(ids: string[], ahead: number) {
-    const start = new Date(); start.setDate(1)
-    const end   = new Date(); end.setMonth(end.getMonth() + ahead); end.setDate(1)
+    // Назад — на всю глибину заборгованості, інакше оплачений борг минулого
+    // місяця малювався б несплаченим. Межі — ЛОКАЛЬНІ календарні дати, а не
+    // `toISOString()`: той у додатному поясі вночі дає попередній день.
+    const from = dueDateFor(-ARREARS_MONTHS_MAX, 1)
+    const to   = dueDateFor(ahead, 1)
     // `error` НЕ відкидати: без записів кожен item лишається без `record`, тож
     // СПЛАЧЕНА оренда малюється як несплачена/прострочена, смуга місяця дає
     // 0/N, а плитка «Отримано» — нуль. Тобто збій запиту виглядав як «орендар
@@ -120,8 +119,8 @@ export default function PaymentCalendarScreen() {
     const { data, error } = await supabase
       .from('rent_payment_records').select(RENT_PAYMENT_RECORD_COLUMNS)
       .in('property_id', ids)
-      .gte('due_date', start.toISOString().slice(0, 10))
-      .lte('due_date', end.toISOString().slice(0, 10))
+      .gte('due_date', from)
+      .lte('due_date', to)
       .order('due_date', { ascending: false })
     if (error) throw error
     setRecords((data ?? []) as RentPaymentRecord[])
@@ -176,15 +175,29 @@ export default function PaymentCalendarScreen() {
 
   // ── Computed ─────────────────────────────────────────────────────────────────
   const paymentItems = useMemo<PaymentItem[]>(() => {
-    const today = new Date()
     const items: PaymentItem[] = []
+    // Заборгованість: місяці ДО поточного, за які розклад уже існував, а оплати
+    // немає. Без цього борг зникав 1-го числа разом із місяцем (monthOffset < 0
+    // — окрема секція, у місячні вона не потрапляє).
+    for (const prop of properties) {
+      const sched = schedules.find(s => s.property_id === prop.id)
+      if (!sched) continue
+      for (let m = trackedFromOffset(sched.created_at); m < 0; m++) {
+        const dueDate = dueDateFor(m, sched.due_day)
+        const record  = records.find(r => r.property_id === prop.id && r.due_date === dueDate) ?? null
+        if (record?.status === 'paid' || !isOwedUnderLease(dueDate, prop.lease_start_date)) continue
+        items.push({ property: prop, schedule: sched, dueDate, record, daysUntilDue: daysUntil(dueDate), monthOffset: m })
+      }
+    }
     for (let m = 0; m < monthsAhead; m++) {
-      const d = new Date(today.getFullYear(), today.getMonth() + m, 1)
       for (const prop of properties) {
         const sched = schedules.find(s => s.property_id === prop.id)
         if (!sched) continue
-        const dueDate = dueDateStr(d.getFullYear(), d.getMonth(), sched.due_day)
+        const dueDate = dueDateFor(m, sched.due_day)
         const record  = records.find(r => r.property_id === prop.id && r.due_date === dueDate) ?? null
+        // Дата до початку договору — не борг. Запис, якщо він є, лишається
+        // видимим: це вже історія, а не тривога.
+        if (!record && !isOwedUnderLease(dueDate, prop.lease_start_date)) continue
         items.push({ property: prop, schedule: sched, dueDate, record, daysUntilDue: daysUntil(dueDate), monthOffset: m })
       }
     }
@@ -214,16 +227,23 @@ export default function PaymentCalendarScreen() {
     [properties, schedules]
   )
 
+  const arrears = useMemo(
+    () => paymentItems.filter(i => i.monthOffset < 0).sort((a, b) => a.dueDate.localeCompare(b.dueDate)),
+    [paymentItems],
+  )
+
   const stats = useMemo(() => {
     const cur = paymentItems.filter(i => i.monthOffset === 0)
     const paidItems = cur.filter(i => i.record?.status === 'paid')
     return {
-      overdue:    cur.filter(i => i.daysUntilDue < 0  && i.record?.status !== 'paid').length,
+      // Борг минулих місяців — теж «Прострочено»: інакше лічильник обнулявся
+      // 1-го числа, хоча гроші так і не надійшли.
+      overdue:    cur.filter(i => i.daysUntilDue < 0  && i.record?.status !== 'paid').length + arrears.length,
       upcoming:   cur.filter(i => i.daysUntilDue >= 0 && i.record?.status !== 'paid').length,
       paid:       paidItems.length,
       paidAmount: paidItems.reduce((s, i) => s + (i.record?.amount ?? 0), 0),
     }
-  }, [paymentItems])
+  }, [paymentItems, arrears])
 
   const archiveByMonth = useMemo(() => {
     const groups = new Map<string, { label: string; records: RentPaymentRecord[]; total: number }>()
@@ -412,6 +432,37 @@ export default function PaymentCalendarScreen() {
                   : <><IconLayers size={14} />{tr('Всі')}</>}
               </button>
             </div>
+
+            {/* Заборгованість — ПЕРШОЮ: це єдине на екрані, що вимагає дії вже. */}
+            {arrears.length > 0 && (
+              <div>
+                <div className="over">
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <IconAlertTriangle size={14} color="var(--err)" />
+                    {tr('Заборгованість')}
+                  </span>
+                  <span style={{ fontSize: 'var(--fs-cap2)', color: 'var(--err)', fontWeight: 'var(--fw-semi)' }}>
+                    {arrears.length}
+                  </span>
+                </div>
+                <div className="list" style={{ marginBottom: 12 }}>
+                  {arrears.map(item => (
+                    <PaymentItemCard
+                      key={`${item.property.id}-${item.dueDate}`}
+                      item={item}
+                      statusColor={getStatusColor(item)}
+                      label={getStatusLabel(item)}
+                      onMarkPaid={() => navigate('payment-confirm', { propertyId: item.property.id, dbId: item.property.db_id, dueDate: item.dueDate })}
+                      onEdit={() => navigate('payment-schedule', { propertyId: item.property.id, dbId: item.property.db_id })}
+                      onDeleteSchedule={() => handleDeleteSchedule(item.property)}
+                      onEditPaid={() => navigate('payment-confirm', { propertyId: item.property.id, dbId: item.property.db_id, dueDate: item.dueDate })}
+                      onUnpay={() => item.record && handleUnpay(item.record, item.property.name)}
+                      userCurrency={user?.currency}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Month sections */}
             {monthSections.map(section => (

@@ -21,7 +21,7 @@ import Collapsible from '@/components/ui/Collapsible'
 import { IconCheck, IconPlus, IconDots, IconPhoto, IconChevronUp, IconChevronDown, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconCopy, IconUser, IconUsers, IconFile, IconLayers, IconLayoutGrid, IconChartBar, IconKey, IconFileExport, IconCircleCheck, IconAdjustments, IconTrash, IconChevronRight, IconFolder, IconInbox, IconArchive } from '@/components/Icons'
 import DatabaseStatsPanel from '@/components/ui/DatabaseStatsPanel'
 import FloatingButton from '@/components/ui/FloatingButton'
-import { overridesLandlord, formatPrice, calcRent, calcRentUtils, basisArea, floorSortKey, computedRentUnit, rentUnitLabel, objectsWord, DB_TYPE_LABELS, formatLeasePeriod, STATUS_COLORS, matchesQuery } from '@/lib/utils'
+import { overridesLandlord, formatPrice, monthlyRent, calcRentUtils, basisArea, floorSortKey, computedRentUnit, rentUnitLabel, objectsWord, DB_TYPE_LABELS, formatLeasePeriod, STATUS_COLORS, matchesQuery } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import type { Database, Property, PropertyStatus } from '@/types'
 import CoachMark from '@/components/ui/CoachMark'
@@ -264,9 +264,12 @@ export default function DatabaseObjectsScreen() {
         return fa !== fb ? fa - fb : (a.floor ?? '').localeCompare(b.floor ?? '', 'uk')
       })
       case 'area':   return [...base].sort((a, b) => (b.area_useful ?? 0) - (a.area_useful ?? 0))
+      // Порівнюються МІСЯЧНІ суми, а не сирі ставки: `calcRent` для per_day
+      // віддає ДОБОВУ ставку, тож місце за $30/добу ($900/міс) ставало нижче
+      // за оренду $500/міс — у базі паркінга, де змішані обидва типи.
       case 'rent':   return [...base].sort((a, b) => {
-        const aR = calcRent(basisArea(a.area_useful, a.area_total, a.area_basis), a.rent_rate ?? 0, a.rent_type ?? 'per_m2')
-        const bR = calcRent(basisArea(b.area_useful, b.area_total, b.area_basis), b.rent_rate ?? 0, b.rent_type ?? 'per_m2')
+        const aR = monthlyRent(basisArea(a.area_useful, a.area_total, a.area_basis), a.rent_rate ?? 0, a.rent_type ?? 'per_m2')
+        const bR = monthlyRent(basisArea(b.area_useful, b.area_total, b.area_basis), b.rent_rate ?? 0, b.rent_type ?? 'per_m2')
         return bR - aR
       })
       default: return base

@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
-import { humanizeDbError } from '@/lib/utils'
+import { humanizeDbError, localDay } from '@/lib/utils'
 import type { Tenancy } from '@/types'
 
 /** ОДИН літерал, без конкатенації: парсер типів supabase-js не вміє розбирати
@@ -82,8 +82,10 @@ export function useTenancies(dbId?: string) {
 
       setTenancies(rows.map(t => {
         if (!t.property_id) return t
-        const from = t.started_at.slice(0, 10)
-        const to = t.ended_at ? t.ended_at.slice(0, 10) : null
+        // Межі — ЛОКАЛЬНІ дні, як і `due_date`: зріз UTC-мітки зсував межу на
+        // день для дій між північчю й 03:00 за Києвом.
+        const from = localDay(t.started_at)
+        const to = t.ended_at ? localDay(t.ended_at) : null
         let sum = 0
         let count = 0
         for (const r of recs as { property_id: string; due_date: string; amount: number | null }[]) {

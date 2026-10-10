@@ -377,6 +377,7 @@ export const EN: Record<string, string> = {
   "За поверхом": "By floor",
   "За порядком": "By order",
   "Забагато спроб входу. Зачекайте хвилину і спробуйте ще раз.": "Too many sign-in attempts. Wait a minute and try again.",
+  "Заборгованість": "Arrears",
   "Завантаження": "Loading",
   "Завантаження триває довше, ніж зазвичай...": "Loading is taking longer than usual...",
   "Завантаження фото": "Uploading photos",

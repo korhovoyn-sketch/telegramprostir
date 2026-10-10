@@ -1,10 +1,11 @@
 import { nextSortBase } from '@/hooks/useProperties'
 import { describe, it, expect, vi, afterEach } from 'vitest'
+import { loadLang } from '@/lib/i18n'
 import {
   formatPrice, formatLeaseDate, formatLeasePeriod, formatDate,
   calcRent, calcUtilities, calcRentUtils, basisArea, floorSortKey, monthlyRent, rentUnitLabel, parkingTypeLabel,
   getInitials, greeting, withRetry, humanizeDbError, safeFileName, pluralUk, objectsWord,
-  computedRentUnit, nextCopyName, bulkCreateNames, sanitizeDecimal, sanitizeInt, daysUntil,
+  computedRentUnit, nextCopyName, bulkCreateNames, sanitizeDecimal, sanitizeInt, daysUntil, daysSince, localDay,
 } from '@/lib/utils'
 
 describe('daysUntil', () => {
@@ -119,6 +120,28 @@ describe('formatLeaseDate', () => {
     process.env.TZ = 'Europe/Kyiv'
     expect(formatLeaseDate('2026-08-01T21:30:00.000Z')).toBe('02.08.2026')
   })
+
+  /**
+   * Англійська гілка (ISO) мала ДЗЕРКАЛЬНИЙ дефект: `toISOString()` від
+   * локальної півночі в ДОДАТНОМУ поясі дає попередній день — тобто саме в
+   * Україні англомовний експорт писав «2026-07-31» за договір від 1 серпня, а
+   * імпорт читав це назад. Пояси обидва боки нуля: тільки Нью-Йорк проходив би
+   * і зі зламаним кодом.
+   */
+  it.each(['Europe/Kyiv', 'Asia/Tokyo', 'America/Los_Angeles'])(
+    'англійською дата без часу теж лишається собою в поясі %s',
+    async (tz) => {
+      process.env.TZ = tz
+      await loadLang('en')
+      try {
+        expect(formatLeaseDate('2026-08-01')).toBe('2026-08-01')
+        // Повний timestamp — у ЛОКАЛЬНИЙ день, як і в українській гілці.
+        if (tz === 'Europe/Kyiv') expect(formatLeaseDate('2026-08-01T21:30:00.000Z')).toBe('2026-08-02')
+      } finally {
+        await loadLang('uk')
+      }
+    },
+  )
 })
 
 describe('formatDate', () => {
@@ -448,5 +471,48 @@ describe('nextSortBase — від максимуму, не від довжини
 
   it('рядки без порядку не збивають максимум', () => {
     expect(nextSortBase([{ sort_order: null }, { sort_order: 300 }, {}])).toBe(300)
+  })
+})
+
+/**
+ * `daysSince` — КАЛЕНДАРНІ дні, а не 24-годинні вікна. На ньому стоять групи
+ * «Сьогодні»/«Вчора» у сповіщеннях і стовпчики днів тижня в аналітиці, тож
+ * подія вчора о 23:00 мусить лишатись «вчора» і о 08:00 сьогодні.
+ */
+describe('daysSince', () => {
+  const origTZ = process.env.TZ
+  afterEach(() => { process.env.TZ = origTZ; vi.useRealTimers() })
+
+  it('учорашня пізня подія — «вчора», хоч минуло менше 24 годин', () => {
+    process.env.TZ = 'Europe/Kyiv'
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-10T05:00:00Z')) // 08:00 за Києвом
+    expect(daysSince('2026-10-09T20:00:00Z')).toBe(1)   // 23:00 за Києвом учора
+  })
+  it('сьогоднішня рання подія — «сьогодні», хоч минуло понад 0 годин', () => {
+    process.env.TZ = 'Europe/Kyiv'
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-10T20:00:00Z')) // 23:00 за Києвом
+    expect(daysSince('2026-10-09T21:30:00Z')).toBe(0)   // 00:30 за Києвом сьогодні
+  })
+  it('дата без часу і бите значення', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 9, 10, 12))
+    expect(daysSince('2026-10-03')).toBe(7)
+    expect(daysSince('не-дата')).toBeNaN()
+  })
+})
+
+describe('localDay', () => {
+  const origTZ = process.env.TZ
+  afterEach(() => { process.env.TZ = origTZ })
+  it('мітка після північі за Києвом — це вже сьогоднішній день, а не вчорашній за UTC', () => {
+    process.env.TZ = 'Europe/Kyiv'
+    expect(localDay('2026-09-10T21:30:00+00:00')).toBe('2026-09-11')
+  })
+  it('у UTC і для дати без часу — без змін (антивакуум)', () => {
+    process.env.TZ = 'UTC'
+    expect(localDay('2026-09-10T21:30:00+00:00')).toBe('2026-09-10')
+    expect(localDay('2026-09-10')).toBe('2026-09-10')
   })
 })

@@ -1121,5 +1121,6 @@
   "Пропущено (задовге значення):": "Skipped (value too long):",
   "Вийшла нова версія": "A new version is available",
   "Перезапустіть застосунок, щоб її завантажити.": "Restart the app to load it.",
-  "Перезапустіть застосунок. Збережені дані не постраждали.": "Restart the app. Your saved data is not affected."
+  "Перезапустіть застосунок. Збережені дані не постраждали.": "Restart the app. Your saved data is not affected.",
+  "Заборгованість": "Arrears"
 }
