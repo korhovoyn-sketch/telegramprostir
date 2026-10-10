@@ -1,7 +1,7 @@
 import { z } from 'https://esm.sh/zod@3.23.8'
 
 // ── Telegram bot webhook ──────────────────────────────────────────────────────
-// Handles /start (and /start <deep_link_param>) so users who land in the bot
+// Handles /start (and /start <deep_link_param>), /help and /privacy so users who land in the bot
 // chat always get an inline button that launches the Mini App — with the
 // shared object's start_param preserved.
 //
@@ -42,6 +42,21 @@ function buildAppLink(startParam?: string): string {
   const base = app ? `https://t.me/${bot}/${app}` : `https://t.me/${bot}`
   return startParam ? `${base}?startapp=${encodeURIComponent(startParam)}` : base
 }
+
+// Публічна адреса застосунку — та сама, на яку пінить CORS (`ALLOWED_ORIGIN`).
+// Лише https-origin без шляху: будь-що інше дало б кнопку в нікуди.
+function legalUrl(path: 'privacy' | 'terms'): string | null {
+  const origin = (Deno.env.get('ALLOWED_ORIGIN') ?? '').trim()
+  return /^https:\/\/[^/\s?#]+$/.test(origin) ? `${origin}/${path}/` : null
+}
+
+const HELP_TEXT =
+  'PropSpace — облік нерухомості в Telegram: бази обʼєктів, оренда, платежі, ' +
+  'поширення для ріелторів і команди.\n\n' +
+  '/start — відкрити застосунок\n' +
+  '/help — ця довідка\n' +
+  '/privacy — політика конфіденційності\n\n' +
+  'Видалити акаунт і всі дані можна в застосунку: Профіль → «Видалити акаунт».'
 
 async function sendMessage(chatId: number, text: string, buttonLabel: string, buttonUrl: string): Promise<void> {
   const token = Deno.env.get('TELEGRAM_BOT_TOKEN')
@@ -95,8 +110,11 @@ Deno.serve(async (req) => {
     const text = parsed.success ? parsed.data.message?.text : undefined
     const chatId = parsed.success ? parsed.data.message?.chat.id : undefined
 
-    if (chatId && text?.startsWith('/start')) {
-      const rawParam = text.slice('/start'.length).trim()
+    // Команда може прийти з адресою бота (`/help@prostirbot`) — у групах так завжди.
+    const command = text?.startsWith('/') ? text.split(/\s/)[0].split('@')[0] : undefined
+
+    if (chatId && text && command === '/start') {
+      const rawParam = text.slice(text.split(/\s/)[0].length).trim()
       const param = START_PARAM_RE.test(rawParam) ? rawParam : undefined
 
       if (param) {
@@ -119,6 +137,19 @@ Deno.serve(async (req) => {
           buildAppLink(),
         )
       }
+    } else if (chatId && command === '/privacy') {
+      // Telegram вимагає, щоб бот, який обробляє дані, мав політику
+      // конфіденційності і віддавав її на /privacy.
+      const url = legalUrl('privacy')
+      if (url) {
+        await sendMessage(chatId, 'Політика конфіденційності PropSpace: які дані ми обробляємо, навіщо і як їх видалити.', '🔒 Політика конфіденційності', url)
+      } else {
+        await sendMessage(chatId, 'Політика конфіденційності доступна в застосунку: Профіль → «Конфіденційність».', '🚀 Відкрити PropSpace', buildAppLink())
+      }
+    } else if (chatId && text) {
+      // /help і БУДЬ-ЯКИЙ інший текст: бот, що мовчить, читається як зламаний,
+      // а людина, яка пише в чат бота, зазвичай шукає, як відкрити застосунок.
+      await sendMessage(chatId, HELP_TEXT, '🚀 Відкрити PropSpace', buildAppLink())
     }
   } catch (e) {
     // Log server-side only; always return 200 so Telegram doesn't retry-storm.

@@ -9,6 +9,7 @@ import { isDeepLinkStartParam } from '@/lib/telegram'
 import { useAppStore } from '@/store/appStore'
 import type { User } from '@/types'
 import { tr, loadLang, persistLang, getLang } from '@/lib/i18n'
+import { clearSessionState } from '@/lib/localState'
 
 const SESSION_KEY     = 'ps_session'
 export const PROFILE_KEY = 'ps_user'
@@ -103,7 +104,9 @@ function persistProfile(user: User): void {
 }
 
 function clearPersistedSession(): void {
-  try { localStorage.removeItem(PROFILE_KEY) } catch { /* ignore */ }
+  // Не лише профіль: на диску лишались SWR-снапшоти списків (імена орендарів,
+  // ставки, дати договорів) і чернетки форми. Класифікація — у localState.ts.
+  clearSessionState()
   try { cloudStorage()?.removeItem?.(SESSION_KEY, () => {}) } catch { /* unsupported */ }
   try { cloudStorage()?.removeItem?.(PROFILE_CS_KEY, () => {}) } catch { /* unsupported */ }
 }

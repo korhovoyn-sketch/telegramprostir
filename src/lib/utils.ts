@@ -56,6 +56,16 @@ export function humanizeDbError(e: unknown, fallback = tr('Спробуйте щ
   if (m.includes('duplicate key') || m.includes('23505') || m.includes('already exists')) {
     return tr('Такий запис уже існує.')
   }
+  // Задовге значення (22001). Без цієї гілки воно падало у фолбек «Спробуйте
+  // ще раз» — тобто людина повторювала ТЕ САМЕ введення, не знаючи, що не так.
+  if (m.includes('value too long') || m.includes('22001')) {
+    return tr('Одне з полів задовге. Скоротіть текст і спробуйте ще раз.')
+  }
+  // Некоректний формат значення: дата, число (22P02, 22007, 22008).
+  if (m.includes('invalid input syntax') || m.includes('date/time field value out of range')
+    || m.includes('out of range for type') || m.includes('22p02') || m.includes('22007') || m.includes('22008')) {
+    return tr('Некоректне значення в одному з полів. Перевірте дати й числа.')
+  }
   // Foreign-key / not-null / check violations — bad input shape
   if (m.includes('violates') || m.includes('23503') || m.includes('23502') || m.includes('23514')) {
     return tr('Некоректні дані. Перевірте введене й спробуйте ще раз.')
@@ -73,8 +83,33 @@ export function photoUrl(storagePath: string): string {
   return `${SUPABASE_URL}/storage/v1/object/public/photos/${storagePath}`
 }
 
+// Скільки КАЛЕНДАРНИХ днів (у локальному поясі) минуло — а не скільки разів по
+// 24 години. Підписи, що на цьому стоять, календарні: групи «Сьогодні»/«Вчора»
+// у сповіщеннях і стовпчики днів тижня на графіку аналітики. Із 24-годинним
+// вікном подія вчора о 23:00, відкрита сьогодні о 08:00, ставала «сьогоднішньою»
+// і лягала не в той стовпчик.
 export function daysSince(dateStr: string): number {
-  return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000)
+  const d = new Date(DATE_ONLY_RE.test(dateStr) ? `${dateStr}T00:00:00` : dateStr)
+  if (Number.isNaN(d.getTime())) return Number.NaN
+  const day = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return Math.round((today.getTime() - day.getTime()) / 86400000)
+}
+
+const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/
+
+/**
+ * Календарний день мітки часу в ЛОКАЛЬНОМУ поясі (`YYYY-MM-DD`).
+ * `iso.slice(0, 10)` дає день за UTC: дія о 00:30 за Києвом — це ще вчора за
+ * UTC, тож межа періоду зʼїжджала на день і платіж межового дня діставався не
+ * тій оренді. Дату без часу повертає як є.
+ */
+export function localDay(iso: string): string {
+  if (DATE_ONLY_RE.test(iso)) return iso
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return iso.slice(0, 10)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 // dateStr — дата БЕЗ часу (lease_end_date), тож парситься як UTC-північ, а
@@ -156,7 +191,15 @@ export function formatLeaseDate(d: string): string {
   // ISO для англійської — свідомо, і не лише заради кругового рейсу:
   // `mm/dd/yyyy` проти `dd/mm/yyyy` неможливо розрізнити за самим рядком, тож
   // будь-який слеш-формат зробив би дату договору здогадкою.
-  if (getLang() === 'en') return dt.toISOString().slice(0, 10)
+  //
+  // Компоненти ЛОКАЛЬНІ, а не `toISOString()`: `dt` — це локальна північ, і
+  // переведення в UTC у будь-якому ДОДАТНОМУ поясі дає попередній день. Тобто
+  // саме в Україні (UTC+2/+3) англомовний експорт писав «2026-07-31» замість
+  // «2026-08-01», а імпорт читав це назад — зсув осідав у БД.
+  if (getLang() === 'en') {
+    const p2 = (n: number) => String(n).padStart(2, '0')
+    return `${dt.getFullYear()}-${p2(dt.getMonth() + 1)}-${p2(dt.getDate())}`
+  }
   return dt.toLocaleDateString(locale(), { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 

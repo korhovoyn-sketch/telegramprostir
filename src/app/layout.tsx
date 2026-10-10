@@ -5,6 +5,7 @@ import { useEffect } from 'react'
 import Toast from '@/components/ui/Toast'
 import ConfirmHost from '@/components/ui/ConfirmHost'
 import { tr } from '@/lib/i18n'
+import { initErrorReporting, reportError } from '@/lib/errorReporting'
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
@@ -29,8 +30,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       } catch { /* старий клієнт / відкинутий параметр — хром лишається типовим */ }
     }
 
-    // Global error capture — logs structured data without exposing PII.
-    // Replace console.error with Sentry.captureException when DSN is configured.
+    // Глобальні збої поза React — той самий шлях звітів, що й ErrorBoundary.
+    // У консоль іде лише структура, без даних; назовні — лише з DSN і після
+    // `scrubEvent` (див. lib/errorReporting.ts).
+    initErrorReporting()
     const handleError = (event: ErrorEvent) => {
       console.error('[GlobalError]', {
         message: event.message,
@@ -38,9 +41,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         line: event.lineno,
         col: event.colno,
       })
+      reportError(event.error ?? new Error(event.message), { tags: { source: 'window.error' } })
     }
     const handleRejection = (event: PromiseRejectionEvent) => {
       console.error('[UnhandledRejection]', String(event.reason))
+      reportError(event.reason, { tags: { source: 'unhandledrejection' } })
     }
     window.addEventListener('error', handleError)
     window.addEventListener('unhandledrejection', handleRejection)
@@ -63,6 +68,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content, content-safe-area-inset=128" />
         <meta name="theme-color" content="#1a0533" />
+        {/* Не індексувати НІЧОГО. Публічна `/v` несе share-токен у query — це її
+            креденшл, — а сторінка показує назви, ціни, фото й контакт власника.
+            Посилання, опубліковане хоч раз на відкритій сторінці, інакше
+            потрапило б у пошук разом із токеном, і знайти його міг би будь-хто.
+            Дублює `X-Robots-Tag` із vercel.json — на хостингу без нього
+            (превʼю, `serve out`) лишається хоча б цей шар. robots.txt із
+            Disallow тут НЕ годиться: заборонену до обходу сторінку пошуковик
+            не читає, тобто не бачить і noindex, і може проіндексувати саме URL. */}
+        <meta name="robots" content="noindex, nofollow, noarchive" />
         <title>prostir</title>
         <meta name="description" content={tr('prostir — платформа управління нерухомістю в Telegram. Бази обʼєктів, аналітика переглядів, підбірки для ріелторів.')} />
         <meta property="og:title" content="prostir" />

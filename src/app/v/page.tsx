@@ -1,10 +1,10 @@
 'use client'
 
-/* eslint-disable @next/next/no-img-element */
 import { useEffect, useRef, useState } from 'react'
+import { Photo } from '@/components/ui/Photo'
 import { supabase } from '@/lib/supabase'
 import { TG_BOT, buildDeepLink } from '@/lib/telegram'
-import { IconBuilding, IconRuler, IconMapPin, IconBolt } from '@/components/Icons'
+import { IconBuilding, IconRuler, IconMapPin, IconBolt, IconPhoto } from '@/components/Icons'
 import { photoUrl, calcRentUtils, basisArea, rentUnitLabel, parkingTypeLabel, formatPrice, objectsWord, pluralUk, DB_COLORS } from '@/lib/utils'
 import { tr } from '@/lib/i18n'
 
@@ -271,9 +271,7 @@ function GlobalStyles() {
       .v-rise { animation: vRise .38s cubic-bezier(.22,.9,.34,1) both; }
       @keyframes vRise { from { opacity: 0; transform: translateY(12px); } }
 
-      /* Gallery: crossfade on photo switch, thumb hover */
-      .v-fade { animation: vFade .28s ease both; }
-      @keyframes vFade { from { opacity: 0; } }
+      /* Gallery: thumb hover (поява знімка — \`.photo-img\` у globals.css) */
       .v-thumb { transition: transform .16s ease, border-color .16s ease, opacity .16s ease; }
       @media (hover: hover) { .v-thumb:hover { transform: scale(1.07); } }
       .v-thumb:active { transform: scale(.94); }
@@ -289,7 +287,7 @@ function GlobalStyles() {
 
       @media (prefers-reduced-motion: reduce) {
         .v-btn, .v-arr, .v-contact svg, .v-tg svg, .v-thumb { transition: none; }
-        .v-cta::after, .v-rise, .v-fade, .v-float, .v-pulse { animation: none; }
+        .v-cta::after, .v-rise, .v-float, .v-pulse { animation: none; }
         .v-rise { opacity: 1; }
       }
     `}</style>
@@ -342,19 +340,22 @@ function PhotoGallery({ paths }: { paths: string[] }) {
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
-        {/* key remounts the img per photo so the crossfade animation replays */}
-        <img
+        {/* `key` перемонтовує знімок на кожне гортання, і новий проявляється,
+            коли приїдуть БАЙТИ. Доти тут був фейд при монтуванні: на повільній
+            мережі він добігав на порожньому елементі, а фото зʼявлялось ривком. */}
+        <Photo
           key={active}
-          className="v-fade"
           src={photoUrl(paths[active])}
           alt={tr('Фото обʼєкта {0} з {1}', active + 1, paths.length)}
+          eager={active === 0}
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+          fallback={<span className="photo-miss" aria-hidden="true"><IconPhoto size={24} /></span>}
         />
         {paths.length > 1 && (
           <>
             <div style={{
               position: 'absolute', bottom: 10, right: 12,
-              background: 'rgba(0,0,0,.55)', backdropFilter: 'blur(8px)',
+              background: 'rgba(0,0,0,.55)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
               borderRadius: 'var(--r-xs)', padding: '3px 9px',
               fontSize: 'var(--fs-cap1)', fontWeight: 600, color: '#fff',
             }}>
@@ -389,7 +390,7 @@ function PhotoGallery({ paths }: { paths: string[] }) {
               padding: 0, cursor: 'pointer', background: 'none',
               opacity: active === i ? 1 : .7,
             }}>
-              <img src={photoUrl(p)} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <Photo src={photoUrl(p)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </button>
           ))}
         </div>
@@ -707,12 +708,12 @@ function DatabaseView({ rows, token }: { rows: DbRow[]; token: string }) {
             <a key={p.property_id} href={deepLink} className="v-btn v-rise" style={{ ...s.card, display: 'block', textDecoration: 'none', color: 'inherit', animationDelay: `${Math.min(40 + i * 45, 320)}ms` }}>
               <div style={{ display: 'flex', gap: 0, overflow: 'hidden' }}>
                 {p.first_photo && (
-                  <div style={{ width: 90, flexShrink: 0 }}>
-                    <img
+                  <div style={{ width: 90, flexShrink: 0, position: 'relative', background: 'var(--glass-2)' }}>
+                    <Photo
                       src={photoUrl(p.first_photo)}
                       alt=""
-                      loading="lazy"
                       style={{ width: 90, height: '100%', minHeight: 90, objectFit: 'cover', display: 'block' }}
+                      fallback={<span className="photo-miss" aria-hidden="true"><IconPhoto size={18} /></span>}
                     />
                   </div>
                 )}
@@ -812,12 +813,12 @@ function CollectionView({ rows, token }: { rows: ColRow[]; token: string }) {
             <a key={p.property_id} href={deepLink} className="v-btn v-rise" style={{ ...s.card, display: 'block', textDecoration: 'none', color: 'inherit', animationDelay: `${Math.min(40 + i * 45, 320)}ms` }}>
               <div style={{ display: 'flex', gap: 0, overflow: 'hidden' }}>
                 {p.first_photo && (
-                  <div style={{ width: 90, flexShrink: 0 }}>
-                    <img
+                  <div style={{ width: 90, flexShrink: 0, position: 'relative', background: 'var(--glass-2)' }}>
+                    <Photo
                       src={photoUrl(p.first_photo)}
                       alt=""
-                      loading="lazy"
                       style={{ width: 90, height: 90, objectFit: 'cover', display: 'block' }}
+                      fallback={<span className="photo-miss" aria-hidden="true"><IconPhoto size={18} /></span>}
                     />
                   </div>
                 )}

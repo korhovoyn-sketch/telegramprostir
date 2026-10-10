@@ -351,3 +351,125 @@ BEGIN
 
   RAISE NOTICE '  ✓ 065: пороги тримаються, дедуп працює, продовження відкриває нову серію';
 END $$;
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- 067: АРХІВ ОРЕНД — тригер мусить спрацювати на ВСІХ шляхах обнулення
+-- ════════════════════════════════════════════════════════════════════════════
+-- Головне тут — не «рядок створився», а ПОВНОТА: орендаря обнуляють три різні
+-- екрани, і запис в обробнику однієї кнопки покрив би один шлях із трьох.
+-- Тому кожен шлях відтворюється тим самим UPDATE, який робить саме він.
+DO $$
+DECLARE
+  o  UUID := 'bbbbbbbb-0000-0000-0000-000000000067';
+  d  UUID := 'cccccccc-0000-0000-0000-000000000067';
+  p1 UUID := 'dddddddd-0000-0000-0000-000000000671';
+  p2 UUID := 'dddddddd-0000-0000-0000-000000000672';
+  p3 UUID := 'dddddddd-0000-0000-0000-000000000673';
+  n  INT;
+  t  RECORD;
+BEGIN
+  INSERT INTO users (id, tg_id, first_name, role, currency)
+    VALUES (o, 670001, 'Оксана', 'owner', 'UAH') ON CONFLICT DO NOTHING;
+  INSERT INTO databases (id, owner_id, name, type)
+    VALUES (d, o, 'Архівна база', 'business_center') ON CONFLICT DO NOTHING;
+
+  -- ── Здача: рядок мусить ВІДКРИТИСЬ, а не чекати на звільнення ─────────────
+  INSERT INTO properties (id, db_id, owner_id, name, status, tenant_name,
+                          rent_rate, rent_type, area_useful, lease_start_date)
+    VALUES (p1, d, o, 'Офіс 1', 'occupied', 'Орендар Перший',
+            100, 'per_m2', 50, current_date - 30);
+
+  SELECT count(*) INTO n FROM tenancies WHERE property_id = p1 AND ended_at IS NULL;
+  IF n <> 1 THEN
+    RAISE EXCEPTION '067: здача НЕ відкрила оренду (% рядків) — архів побачив би лише минуле, а не поточні відносини', n;
+  END IF;
+
+  -- Заморожені факти мусять доїхати, інакше архівна картка порожня.
+  SELECT * INTO t FROM tenancies WHERE property_id = p1 AND ended_at IS NULL;
+  IF t.tenant_name <> 'Орендар Перший' OR t.rent_rate <> 100 OR t.currency <> 'UAH' THEN
+    RAISE EXCEPTION '067: факти не заморозились (орендар=%, ставка=%, валюта=%)',
+      t.tenant_name, t.rent_rate, t.currency;
+  END IF;
+
+  -- ── ШЛЯХ 1: «Звільнити обʼєкт» (PropertyDetailScreen) ─────────────────────
+  -- Той самий UPDATE, що й у коді: статус І обнулення орендаря ОДНІЄЮ
+  -- операцією. Саме тому тригер бере факти з OLD, а не з NEW.
+  UPDATE properties SET status='free', tenant_name=NULL,
+         lease_start_date=NULL, lease_end_date=NULL WHERE id = p1;
+
+  SELECT * INTO t FROM tenancies WHERE property_id = p1 ORDER BY started_at DESC LIMIT 1;
+  IF t.ended_at IS NULL THEN
+    RAISE EXCEPTION '067/шлях-1: оренда не закрилась — звільнення лишилось безслідним';
+  END IF;
+  IF t.tenant_name IS DISTINCT FROM 'Орендар Перший' THEN
+    RAISE EXCEPTION '067/шлях-1: орендар загубився при закритті (=%) — узято з NEW замість OLD', t.tenant_name;
+  END IF;
+
+  -- ── СКАСУВАННЯ: повертає ТУ САМУ оренду, а не плодить другу ───────────────
+  UPDATE properties SET status='occupied', tenant_name='Орендар Перший',
+         lease_start_date = current_date - 30 WHERE id = p1;
+
+  SELECT count(*) INTO n FROM tenancies WHERE property_id = p1;
+  IF n <> 1 THEN
+    RAISE EXCEPTION '067: «Скасувати» створило ДРУГУ оренду (% всього) — в архіві зʼявилась би трисекундна фантомна оренда', n;
+  END IF;
+  SELECT count(*) INTO n FROM tenancies WHERE property_id = p1 AND ended_at IS NULL;
+  IF n <> 1 THEN
+    RAISE EXCEPTION '067: «Скасувати» не повернуло оренду у відкритий стан';
+  END IF;
+
+  -- АНТИВАКУУМ: вікно скасування не сміє зливати РІЗНІ оренди. Інший орендар
+  -- одразу після звільнення — це НОВІ відносини, і вони мусять бути окремим
+  -- рядком, інакше «повернення» з'їдало б реальну історію.
+  UPDATE properties SET status='free', tenant_name=NULL WHERE id = p1;
+  UPDATE properties SET status='occupied', tenant_name='Орендар Другий' WHERE id = p1;
+  SELECT count(*) INTO n FROM tenancies WHERE property_id = p1;
+  IF n <> 2 THEN
+    RAISE EXCEPTION '067: ІНШИЙ орендар не створив нову оренду (% всього) — вікно скасування зливає різні відносини', n;
+  END IF;
+
+  -- ── ШЛЯХ 2: пакетне «Вільно» (useProperties.batchUpdateStatus) ────────────
+  INSERT INTO properties (id, db_id, owner_id, name, status, tenant_name, rent_rate, rent_type)
+    VALUES (p2, d, o, 'Офіс 2', 'occupied', 'Орендар Пакетний', 200, 'fixed');
+  UPDATE properties SET status='free', tenant_name=NULL,
+         lease_start_date=NULL, lease_end_date=NULL WHERE id IN (p2);
+  SELECT count(*) INTO n FROM tenancies
+    WHERE property_id = p2 AND ended_at IS NOT NULL AND tenant_name = 'Орендар Пакетний';
+  IF n <> 1 THEN
+    RAISE EXCEPTION '067/шлях-2: пакетне звільнення не заархівувало оренду (% рядків)', n;
+  END IF;
+
+  -- ── ШЛЯХ 3: форма обʼєкта зі статусом ≠ «Зайнято» ─────────────────────────
+  -- Тут UPDATE несе ВЕСЬ payload форми, а не лише статус — саме цим він і
+  -- відрізняється від двох попередніх.
+  INSERT INTO properties (id, db_id, owner_id, name, status, tenant_name, rent_rate, rent_type)
+    VALUES (p3, d, o, 'Офіс 3', 'occupied', 'Орендар Формений', 300, 'fixed');
+  UPDATE properties SET status='for_sale', tenant_name=NULL, lease_start_date=NULL,
+         lease_end_date=NULL, name='Офіс 3', rent_rate=300, area_useful=70 WHERE id = p3;
+  SELECT count(*) INTO n FROM tenancies
+    WHERE property_id = p3 AND ended_at IS NOT NULL AND tenant_name = 'Орендар Формений';
+  IF n <> 1 THEN
+    RAISE EXCEPTION '067/шлях-3: збереження форми не заархівувало оренду (% рядків)', n;
+  END IF;
+
+  -- ── Перейменування орендаря НЕ ділить оренду надвоє ───────────────────────
+  -- Виправлення одруківки не сміє фабрикувати неіснуючі правовідносини.
+  UPDATE properties SET tenant_name='Орендар Другий (ФОП)' WHERE id = p1;
+  SELECT count(*) INTO n FROM tenancies WHERE property_id = p1;
+  IF n <> 2 THEN
+    RAISE EXCEPTION '067: перейменування орендаря розділило оренду (% всього)', n;
+  END IF;
+  SELECT tenant_name INTO t FROM tenancies WHERE property_id = p1 AND ended_at IS NULL;
+  IF t.tenant_name <> 'Орендар Другий (ФОП)' THEN
+    RAISE EXCEPTION '067: відкрита оренда не синхронізувалась (=%)', t.tenant_name;
+  END IF;
+
+  -- ── Видалення ОБʼЄКТА не стирає історію, видалення БАЗИ стирає ────────────
+  DELETE FROM properties WHERE id = p2;
+  SELECT count(*) INTO n FROM tenancies WHERE property_name = 'Офіс 2' AND property_id IS NULL;
+  IF n <> 1 THEN
+    RAISE EXCEPTION '067: видалення обʼєкта стерло фінансову історію (% рядків лишилось)', n;
+  END IF;
+
+  RAISE NOTICE '  ✓ 067: усі три шляхи архівують, скасування повертає оренду, історія переживає обʼєкт';
+END $$;

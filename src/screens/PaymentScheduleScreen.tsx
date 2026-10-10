@@ -12,6 +12,7 @@ import { RENT_PAYMENT_COLUMNS } from '@/lib/rentPayments'
 import { IconCalendar, IconBellRing } from '@/components/Icons'
 import type { RentPayment } from '@/types'
 import { tr } from '@/lib/i18n'
+import { useClosingConfirmation } from '@/hooks/useTelegram'
 
 /**
  * Повноекранна форма розкладу платежів — заміна колишньої `<Modal>` у
@@ -20,6 +21,7 @@ import { tr } from '@/lib/i18n'
  * евристики: той самий скелет, що в CreateDatabaseScreen.
  */
 export default function PaymentScheduleScreen() {
+  useClosingConfirmation()
   const { screenParams, user, showToast, back } = useAppStore()
   const propertyId = screenParams.propertyId as string | undefined
   const dbId = screenParams.dbId as string | undefined

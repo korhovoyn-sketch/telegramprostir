@@ -6,6 +6,8 @@
 //
 // Keys are scoped by user id — a different account on the same device never
 // sees someone else's cache. Bump VERSION when a cached shape changes.
+import { sessionActive } from './localState'
+
 const VERSION = 1
 const TTL_MS = 24 * 3600_000
 
@@ -27,6 +29,9 @@ export function readSnapshot<T>(name: string, userId: string): T | null {
 
 export function writeSnapshot(name: string, userId: string, data: unknown): void {
   if (typeof window === 'undefined') return
+  // Хвіст запиту, випущеного ДО виходу з акаунта, інакше повертає дані на
+  // диск уже після того, як їх стерли (див. `sessionActive`).
+  if (!sessionActive()) return
   try {
     localStorage.setItem(keyFor(name, userId), JSON.stringify({ t: Date.now(), data }))
   } catch { /* quota/private mode — cache is best-effort */ }
