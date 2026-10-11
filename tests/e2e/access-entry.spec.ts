@@ -201,13 +201,19 @@ test('prop_ від стороннього: оголошення з контак�
       property_area_basis: 'total', property_rent_type: 'per_m2', property_rent_rate: 18,
       property_sale_price: null, property_description: 'Світлий офіс біля метро',
       db_name: 'БЦ Команди', owner_first_name: 'Микола', owner_last_name: 'К.',
-      owner_tg_username: 'mykola', owner_phone: null, owner_currency: 'USD', photos: [],
+      owner_tg_username: 'mykola', owner_phone: null, owner_currency: 'USD', photos: ['p/1.jpg'],
     }])
   })
 
   await page.goto('/')
   await expect(page.locator('.hdr-t', { hasText: 'Офіс 101' })).toBeVisible({ timeout: 20_000 })
   await expect(page.getByText('Світлий офіс біля метро')).toBeVisible()
+  // Мініатюра справді малює фото. Спільний рецепт підбірок клав поруч
+  // `backgroundImage` і `background: undefined`, і React стирав перше другим —
+  // фото в підбірках не зʼявлялось НІКОЛИ (джерельний гард —
+  // `inline-background.test.ts`).
+  await expect.poll(() => page.locator('.row-ic').first()
+    .evaluate((e) => getComputedStyle(e).backgroundImage)).toContain('p/1.jpg')
   await expect(page.getByRole('button', { name: 'Написати' })).toBeVisible()
   await expect(page.getByText('Обʼєкт не знайдено')).toHaveCount(0)
   expect(previewToken, 'перегляд мусить авторизуватись ТОКЕНОМ лінка').toBe(TOKEN)

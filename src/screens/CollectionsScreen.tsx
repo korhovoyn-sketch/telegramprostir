@@ -18,7 +18,7 @@ import TabBar from '@/components/ui/TabBar'
 import { StatusBadge } from '@/components/ui/Badge'
 import ActionSheet from '@/components/ui/ActionSheet'
 import { IconPlus, IconShare, IconX, IconChevronLeft, IconTrash, IconBuilding, IconChartBar, IconChevronRight } from '@/components/Icons'
-import { formatPrice, calcRent, basisArea, computedRentUnit, objectsWord, formatDate, photoUrl, humanizeDbError, withSortedPhotos } from '@/lib/utils'
+import { formatPrice, calcRent, basisArea, computedRentUnit, objectsWord, formatDate, photoUrl, humanizeDbError, withSortedPhotos, thumbBackground } from '@/lib/utils'
 import ShareSheet from '@/components/ui/ShareSheet'
 import type { Property, Collection } from '@/types'
 import CoachMark from '@/components/ui/CoachMark'
@@ -397,13 +397,7 @@ function CollectionDetail({
                   {/* Thumbnail */}
                   <div
                     className="row-ic"
-                    style={{
-                      backgroundImage: thumbUrl ? `url(${thumbUrl})` : undefined,
-                      backgroundSize: 'cover',
-                      backgroundPosition: 'center',
-                      background: thumbUrl ? undefined : 'var(--purple-bg)',
-                      flexShrink: 0,
-                    }}
+                    style={{ background: thumbBackground(thumbUrl), flexShrink: 0 }}
                   >
                     {!thumbUrl && <IconBuilding size={18} color="#A87CFF" />}
                   </div>
@@ -477,15 +471,7 @@ function CollectionDetail({
                     <div key={p.id} className="row glass-s" style={{ alignItems: 'center', gap: 8 }}>
                       <div
                         className="row-ic"
-                        style={{
-                          backgroundImage: thumbUrl ? `url(${thumbUrl})` : undefined,
-                          backgroundSize: 'cover',
-                          backgroundPosition: 'center',
-                          background: thumbUrl ? undefined : 'var(--purple-bg)',
-                          flexShrink: 0,
-                          width: 36,
-                          height: 36,
-                        }}
+                        style={{ background: thumbBackground(thumbUrl), flexShrink: 0, width: 36, height: 36 }}
                       >
                         {!thumbUrl && <IconBuilding size={16} color="#A87CFF" />}
                       </div>

@@ -83,6 +83,20 @@ export function photoUrl(storagePath: string): string {
   return `${SUPABASE_URL}/storage/v1/object/public/photos/${storagePath}`
 }
 
+/**
+ * Фон мініатюри обʼєкта: фото, а без нього — фірмова підкладка.
+ *
+ * ОДНИМ shorthand-ом, і це не смак. Попередній рецепт клав у style і
+ * `backgroundImage`, і `background: thumbUrl ? undefined : …` — а React для
+ * `undefined` виставляє `style.background = ''`, що СКИДАЄ щойно задані
+ * longhand-и. Заміряно: `getComputedStyle(...).backgroundImage === 'none'`,
+ * тобто мініатюри в підбірках не малювались ніколи — ні в рієлтора, ні в
+ * клієнта, якому він її надіслав.
+ */
+export function thumbBackground(thumbUrl: string | null): string {
+  return thumbUrl ? `center / cover no-repeat url("${thumbUrl}")` : 'var(--purple-bg)'
+}
+
 // Скільки КАЛЕНДАРНИХ днів (у локальному поясі) минуло — а не скільки разів по
 // 24 години. Підписи, що на цьому стоять, календарні: групи «Сьогодні»/«Вчора»
 // у сповіщеннях і стовпчики днів тижня на графіку аналітики. Із 24-годинним

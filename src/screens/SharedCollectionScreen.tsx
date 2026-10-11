@@ -7,7 +7,7 @@ import { StatusBadge } from '@/components/ui/Badge'
 import Header from '@/components/ui/Header'
 import RetryState from '@/components/ui/RetryState'
 import { IconBuilding, IconTelegram } from '@/components/Icons'
-import { formatPrice, calcRent, basisArea, computedRentUnit, photoUrl } from '@/lib/utils'
+import { formatPrice, calcRent, basisArea, computedRentUnit, photoUrl, thumbBackground } from '@/lib/utils'
 import { openTgUrl } from '@/lib/telegram'
 import type { PropertyStatus, RentType } from '@/types'
 import { tr } from '@/lib/i18n'
@@ -260,13 +260,10 @@ export default function SharedCollectionScreen() {
                 <div key={p.id} className="row glass-s" style={{ alignItems: 'flex-start', gap: 10 }}>
                   <div
                     className="row-ic"
-                    style={{
-                      backgroundImage: thumbUrl ? `url(${thumbUrl})` : undefined,
-                      backgroundSize: 'cover',
-                      backgroundPosition: 'center',
-                      background: thumbUrl ? undefined : 'var(--purple-bg)',
-                      flexShrink: 0,
-                    }}
+                    // ОДИН shorthand, а не `backgroundImage` + `background: undefined`:
+                    // React виставляє `background = ''`, і це стирає щойно задані
+                    // longhand-и — фото не малювалось ніколи (див. thumbBackground).
+                    style={{ background: thumbBackground(thumbUrl), flexShrink: 0 }}
                   >
                     {!thumbUrl && <IconBuilding size={18} color="#A87CFF" />}
                   </div>
