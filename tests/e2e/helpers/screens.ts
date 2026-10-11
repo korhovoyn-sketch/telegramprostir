@@ -495,12 +495,52 @@ export const OWNER_SCREENS: ScreenStep[] = [
     },
   },
   {
+    // Секція «Інші доступи» — доступ, який людина МАЄ, але її роль на домашньому
+    // не показує (тут: власник, що підписаний на чужу базу і сам гість на
+    // обʼєкті). Без неї deep link приводив туди рівно один раз, і шлях назад
+    // зникав. Інший СТАН рендера «Моїх баз», а отже окремий крок.
+    //
+    // Підміна ВУЗЬКА: лише запити з фільтром самої секції, решту пропускає
+    // `fallback()` до спільних фікстур — інакше `manage-guests` і `team`
+    // поїхали б разом із нею.
+    label: 'db-list-other-access',
+    go: async (page) => {
+      const SUB_DB = { ...DB, id: '10000000-0000-0000-0000-000000000003', owner_id: OTHER_OWNER, name: 'БЦ Колеги', color: 'green' }
+      await page.route('**/rest/v1/realtor_subscriptions**', (r) => json(r, [{
+        id: '30000000-0000-0000-0000-000000000005', realtor_id: OWNER.id, db_id: SUB_DB.id,
+        created_at: NOW, database: SUB_DB,
+      }]))
+      await page.route('**/rest/v1/guest_links**', (r) => {
+        if (!r.request().url().includes('guest_user_id=eq.')) return r.fallback()
+        return json(r, [{
+          id: '30000000-0000-0000-0000-000000000006', property_id: PROPERTIES[0].id, db_id: null,
+          label: 'Склад на Подолі', status: 'active', owner_id: OTHER_OWNER, guest_user_id: OWNER.id,
+          property: { ...PROPERTIES[0], name: 'Склад 7' }, database: null,
+        }])
+      })
+      await atDbList(page)
+      const section = page.getByRole('region', { name: 'Інші доступи' })
+      await expect(section.getByText('Склад 7')).toBeVisible({ timeout: 15_000 })
+      // Секція стоїть під списком баз, тобто на першому кадрі — під плаваючою
+      // «Створити базу». Це «ще не доскролено», а не вкрадений тап, тож міряємо
+      // те, що бачить людина, яка до секції догорнула.
+      await page.locator('.body').evaluate((b) => { b.scrollTop = b.scrollHeight })
+      await page.waitForTimeout(400)
+    },
+  },
+  {
     // ПЕРШИЙ екран нового власника, і доти поза обходом. Крок ОСТАННІЙ у групі
     // свідомо: він підміняє `databases` порожнім списком, а роути живуть на
     // сторінці до кінця прогону — вище він забрав би дані в усіх сусідів.
     label: 'empty-state',
     go: async (page) => {
       await page.route('**/rest/v1/databases**', (r) => json(r, []))
+      // Новий власник НЕ має нічого — і чужих доступів теж: підміни кроку
+      // `db-list-other-access` живуть на сторінці далі й інакше домалювали б
+      // сюди секцію «Інші доступи».
+      await page.route('**/rest/v1/realtor_subscriptions**', (r) => json(r, []))
+      await page.route('**/rest/v1/guest_links**', (r) =>
+        r.request().url().includes('guest_user_id=eq.') ? json(r, []) : r.fallback())
       await page.goto('/')
       await expect(page.getByText(/Створити.*базу/).first()).toBeVisible({ timeout: 20_000 })
     },
@@ -590,6 +630,29 @@ export const REALTOR_SCREENS: ScreenStep[] = [
     },
   },
   {
+    // Базу, на яку рієлтор був підписаний, у нього забрали (ротація чи
+    // відкликання знімають підписку — 069). Доти екран казав «Перевір
+    // підключення», тобто відправляв лагодити звʼязок там, де повтор не
+    // допоможе ніколи. Інший стан рендера того самого екрана.
+    //
+    // Відмова лише ОДИНИЧНОГО рядка бази: спискові запити йдуть далі до
+    // спільних фікстур, тож сусідні кроки не зачеплені.
+    label: 'realtor-database-gone',
+    go: async (page) => {
+      await page.route('**/rest/v1/databases**', (r) => {
+        if (!(r.request().headers()['accept'] ?? '').includes('object')) return r.fallback()
+        return r.fulfill({
+          status: 406, contentType: 'application/json',
+          body: JSON.stringify({ code: 'PGRST116', details: 'The result contains 0 rows', hint: null,
+            message: 'JSON object requested, multiple (or no) rows returned' }),
+        })
+      })
+      await atRealtorHome(page)
+      await page.getByText('БЦ Рубін').first().click()
+      await expect(page.getByText('Доступу до бази більше немає')).toBeVisible({ timeout: 15_000 })
+    },
+  },
+  {
     // ЄДИНА зовнішня поверхня рієлтора: те, що бачить його КЛІЄНТ за лінком.
     // Доти фікстура `col_` у deeplinks мала ПОРОЖНЮ підбірку («0 обʼєктів»),
     // тобто вміст, заради якого екран існує, не рендерився в жодному тесті —
@@ -626,6 +689,40 @@ export const REALTOR_SCREENS: ScreenStep[] = [
       })
       await page.goto('/')
       await expect(page.getByText('Для клієнта А').first()).toBeVisible({ timeout: 20_000 })
+    },
+  },
+  {
+    // `prop_` від СТОРОННЬОГО — найчастіший шлях цього лінка (головна кнопка
+    // публічної /v). Картка обʼєкта для нього порожня за RLS, тож він бачить
+    // оголошення, авторизоване токеном, з контактом власника. Той самий екран,
+    // що `shared-collection`, але інший стан рендера: опис і картка власника є
+    // лише тут.
+    //
+    // Крок ОСТАННІЙ: його init-скрипт перекриває `start_param` попереднього, а
+    // сам лишається на всі наступні `goto`.
+    label: 'shared-property',
+    go: async (page) => {
+      await page.route('**/rest/v1/rpc/lookup_shared_property', (r) => json(r, [
+        { id: PROPERTIES[0].id, db_id: DB_ID },
+      ]))
+      // Видимість обʼєкта (`maybeSingle` за id): RLS чужого не віддає.
+      await page.route('**/rest/v1/properties**', (r) =>
+        r.request().url().includes('id=eq.') ? json(r, []) : r.fallback())
+      await page.route('**/rest/v1/rpc/get_public_property_preview', (r) => json(r, [{
+        property_id: PROPERTIES[0].id, property_name: 'Офіс 101', property_status: 'free',
+        property_floor: '2', property_area_useful: 45, property_area_total: 52,
+        property_area_basis: 'total', property_rent_type: 'per_m2', property_rent_rate: 18,
+        property_sale_price: null, property_description: 'Світлий офіс з вікнами на дві сторони, поруч метро.',
+        db_name: 'БЦ Рубін', owner_first_name: 'Микола', owner_last_name: 'К.',
+        owner_tg_username: 'mykola', owner_phone: null, owner_currency: 'USD', photos: [PNG_1PX],
+      }]))
+      await page.addInitScript(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const tg = (window as any).Telegram?.WebApp
+        if (tg?.initDataUnsafe) tg.initDataUnsafe.start_param = 'prop_bb0000000000000000000011'
+      })
+      await page.goto('/')
+      await expect(page.getByRole('button', { name: 'Написати' })).toBeVisible({ timeout: 20_000 })
     },
   },
 ]
@@ -666,6 +763,19 @@ export const GUEST_SCREENS: ScreenStep[] = [
       await expect(page.getByText("Мої обʼєкти")).toBeVisible({ timeout: 20_000 })
       await page.getByText('Офіс 101').first().click()
       await expect(page.getByText('Корисна площа')).toBeVisible({ timeout: 15_000 })
+    },
+  },
+  {
+    // Гість, якого водночас взяли в КОМАНДУ: база команди стоїть у «Інших
+    // доступах», бо таббар гостя веде лише на гостьові обʼєкти. Інший стан
+    // рендера домашнього гостя.
+    label: 'guest-home-other-access',
+    go: async (page) => {
+      const TEAM_DB = { ...DB, id: '10000000-0000-0000-0000-000000000004', owner_id: OTHER_OWNER, name: 'БЦ Команди', color: 'green' }
+      await page.route('**/rest/v1/db_members**', (r) => json(r, [{ db_id: TEAM_DB.id, database: TEAM_DB }]))
+      await page.goto('/')
+      await expect(page.getByRole('region', { name: 'Інші доступи' }).getByText('БЦ Команди'))
+        .toBeVisible({ timeout: 20_000 })
     },
   },
   {

@@ -350,6 +350,9 @@ export interface ScreenParams {
   /** Share-токен підбірки. Носити його ДАЛІ обовʼязково: read-only перегляд
    *  авторизується саме токеном, а не UUID підбірки (див. IDOR у 049). */
   colToken?: string
+  /** Share-токен ОБʼЄКТА для read-only оголошення в застосунку — коли
+   *  `prop_`-лінк відкрив той, хто до самого обʼєкта доступу не має. */
+  propToken?: string
   photoIndex?: number
   initialIndex?: number
   editMode?: boolean

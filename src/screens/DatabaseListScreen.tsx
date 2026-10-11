@@ -8,6 +8,7 @@ import { useDatabases } from '@/hooks/useDatabases'
 import { useSlowLoadingToast } from '@/hooks/useSlowLoadingToast'
 import { supabase } from '@/lib/supabase'
 import TabBar from '@/components/ui/TabBar'
+import OtherAccess from '@/components/OtherAccess'
 import SearchBar from '@/components/ui/SearchBar'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import CoachMark from '@/components/ui/CoachMark'
@@ -314,6 +315,10 @@ export default function DatabaseListScreen() {
             ))}
           </div>
         ) : null}
+
+        {/* Підписки й гостьові запрошення власника: ця вкладка сама їх не
+            показує, а інших шляхів до них немає (див. OtherAccess). */}
+        {!loading && !search && <OtherAccess show={['subscriptions', 'guest']} />}
       </div>
 
       <FloatingButton

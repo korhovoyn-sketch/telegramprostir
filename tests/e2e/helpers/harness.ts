@@ -9,7 +9,7 @@ export interface HarnessUser {
   first_name: string
   last_name?: string
   tg_username?: string
-  role: 'owner' | 'realtor' | null
+  role: 'owner' | 'realtor' | 'guest' | null
   language_code: string
   currency: string
   plan: 'free' | 'pro'

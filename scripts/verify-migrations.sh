@@ -123,6 +123,31 @@ if [ "$left" != "0" ]; then
 fi
 echo "✓ 053: уже посаджені підкидні переприсвоєно власнику цілі"
 
+# ── Ремонтна половина 069 ───────────────────────────────────────────────────
+# Той самий клас, що 053: ремонт відпрацьовує ПІД ЧАС міграції, коли
+# знижених ще немає. Знижуємо Алісу (має базу) так, як це робив старий
+# `claim_guest_link` (owner→guest тригер пропускає), і виконуємо 069 ЩЕ РАЗ.
+# Контроль із другого боку: Новачок69 — гість БЕЗ баз (див. verify-rls.sql),
+# і ремонт не сміє зробити його власником.
+$PSQL -d shadow_rls -c "UPDATE users SET role='guest' WHERE id='a0000000-0000-0000-0000-00000000000a';" >/dev/null
+$PSQL -d shadow_rls -f supabase/migrations/069_access_integrity.sql >/dev/null
+roles=$($PSQL -d shadow_rls -At -c "
+SELECT string_agg(role, ',' ORDER BY id) FROM users
+WHERE id IN ('a0000000-0000-0000-0000-00000000000a','a6900000-0000-0000-0000-000000000003');")
+trg=$($PSQL -d shadow_rls -At -c "
+SELECT tgenabled FROM pg_trigger WHERE tgrelid='public.users'::regclass
+  AND tgname='trg_prevent_privilege_escalation';")
+if [ "$roles" != "owner,guest" ]; then
+  echo "✗ 069: ремонт ролей дав «$roles» замість «owner,guest»"
+  echo "  (власник із базою мусить повернутись, гість без баз — лишитись)"
+  exit 1
+fi
+if [ "$trg" != "O" ]; then
+  echo "✗ 069: після ремонту тригер ескалації лишився ВИМКНЕНИМ ($trg) — самопідвищення відкрите"
+  exit 1
+fi
+echo "✓ 069: знижених власників повернуто, гостя без баз не чіпано, тригер увімкнений"
+
 # ── verify_release.sql теж мусить бути живим ────────────────────────────────
 # Це ЄДИНЕ джерело правди для власника про стан живої БД (мережі до Supabase
 # звідси немає). Але його рядки — це підрядкові збіги по `prosrc`, і вони

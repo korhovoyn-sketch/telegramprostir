@@ -524,6 +524,18 @@ BEGIN
     RAISE EXCEPTION 'RPC-свіп: manage_share(rotate) відзвітувала успіх, але токен не змінився';
   END IF;
 
+  -- З 069 ротація забирає доступ у ВЖЕ підписаних (саме це обіцяє шит), тож
+  -- рієлтор свіпу тут втрачає базу — а блок 13 нижче на неї спирається.
+  -- Повторна підписка НОВИМ токеном повертає фікстуру і заодно доводить
+  -- успішну гілку: роздане заново посилання пускає.
+  SET LOCAL ROLE authenticated;
+  PERFORM set_config('request.jwt.claims','{"email":"930001@telegram.propspace.app"}',true);
+  SELECT * INTO r FROM subscribe_to_shared_db(tok);
+  IF r.error IS NOT NULL THEN
+    RAISE EXCEPTION 'RPC-свіп: підписка НОВИМ токеном після ротації відмовила: %', r.error;
+  END IF;
+  RESET ROLE;
+
   RAISE NOTICE '  ✓ RPC-свіп: усі клієнтські функції відпрацьовують на УСПІШНІЙ гілці';
 END $$;
 
@@ -1122,4 +1134,127 @@ BEGIN
 
   PERFORM set_config('request.jwt.claims', '', false);
   RAISE NOTICE '  ✓ 067/068: архів бачать власник і редактор; ніхто з клієнтів не переписує; тригер пише далі';
+END $$;
+
+-- ── 069: роль, яку забирали, і доступ, якого не забирали ─────────────────────
+-- Обидва дефекти — «сервер робить не те, що обіцяє інтерфейс», і обидва
+-- знайдено ВИКОНАННЯМ, а не читанням. Кожна перевірка має три сторони: що
+-- мусить змінитись, що мусить ЛИШИТИСЬ (антигард на надто широкий фікс), і
+-- позитив, без якого «нуль» нічого не доводить.
+INSERT INTO auth.users (id,email) VALUES
+  ('e6900000-0000-0000-0000-000000000001','969001@telegram.propspace.app'),
+  ('e6900000-0000-0000-0000-000000000002','969002@telegram.propspace.app'),
+  ('e6900000-0000-0000-0000-000000000003','969003@telegram.propspace.app'),
+  ('e6900000-0000-0000-0000-000000000004','969004@telegram.propspace.app'),
+  ('e6900000-0000-0000-0000-000000000005','969005@telegram.propspace.app');
+INSERT INTO users (id,tg_id,first_name,role) VALUES
+  ('a6900000-0000-0000-0000-000000000001',969001,'Власник69','owner'),
+  ('a6900000-0000-0000-0000-000000000002',969002,'Рієлтор69','realtor'),
+  ('a6900000-0000-0000-0000-000000000003',969003,'Новачок69','owner'),
+  ('a6900000-0000-0000-0000-000000000004',969004,'Інший69','owner'),
+  ('a6900000-0000-0000-0000-000000000005',969005,'Редактор69','realtor');
+INSERT INTO databases (id,owner_id,name,type,share_token) VALUES
+  ('d6900000-0000-0000-0000-000000000001','a6900000-0000-0000-0000-000000000001','База69','business_center','tok69_live'),
+  ('d6900000-0000-0000-0000-000000000004','a6900000-0000-0000-0000-000000000004','Чужа69','business_center','tok69_other');
+INSERT INTO properties (id,db_id,owner_id,name,status,share_token) VALUES
+  ('f6900000-0000-0000-0000-000000000001','d6900000-0000-0000-0000-000000000001','a6900000-0000-0000-0000-000000000001','Офіс69','free','tok69_p1'),
+  ('f6900000-0000-0000-0000-000000000004','d6900000-0000-0000-0000-000000000004','a6900000-0000-0000-0000-000000000004','Склад69','free','tok69_p4');
+-- Інший69 запрошує гостями двох людей на свій обʼєкт.
+INSERT INTO guest_links (id,owner_id,property_id,invite_token,label,status) VALUES
+  ('c6900000-0000-0000-0000-000000000001','a6900000-0000-0000-0000-000000000004','f6900000-0000-0000-0000-000000000004','gtok69_owner','Власнику з базою','pending'),
+  ('c6900000-0000-0000-0000-000000000002','a6900000-0000-0000-0000-000000000004','f6900000-0000-0000-0000-000000000004','gtok69_new','Новачку','pending');
+-- Редактор команди бази Власника69 — щоб довести, що відкликання ЛІНКА
+-- команди не чіпає (окремий механізм зі своїм відкликанням).
+INSERT INTO db_members (db_id,user_id,role,status) VALUES
+  ('d6900000-0000-0000-0000-000000000001','a6900000-0000-0000-0000-000000000005','editor','active');
+
+DO $$
+DECLARE v JSONB; r RECORD; n INT; tok TEXT;
+BEGIN
+  -- ── 1. Гостьове запрошення не знижує власника, що МАЄ бази ──────────────
+  PERFORM pg_temp.login('969001@telegram.propspace.app');
+  SET LOCAL ROLE authenticated;
+  v := claim_guest_link('gtok69_owner');
+  IF v ? 'error' THEN RAISE EXCEPTION '069: клейм власником із базою відмовив: %', v->>'error'; END IF;
+  -- Позитив: доступ гостя справді надано, інакше «роль лишилась» нічого не варта.
+  SELECT count(*) INTO n FROM properties WHERE id = 'f6900000-0000-0000-0000-000000000004';
+  IF n <> 1 THEN RAISE EXCEPTION '069: прийняте запрошення не дало доступу до обʼєкта (% рядків)', n; END IF;
+  RESET ROLE;
+  IF (SELECT role FROM users WHERE id = 'a6900000-0000-0000-0000-000000000001') <> 'owner' THEN
+    RAISE EXCEPTION '069: власника з базою ЗНИЖЕНО до гостя — його власні бази зникли з таббару, а повернути роль не можна';
+  END IF;
+
+  -- Антигард: дефолтний власник БЕЗ баз (онбординг) гостем стати МУСИТЬ —
+  -- інакше гість після клейму опинився б на порожньому екрані «Мої бази».
+  PERFORM pg_temp.login('969003@telegram.propspace.app');
+  SET LOCAL ROLE authenticated;
+  v := claim_guest_link('gtok69_new');
+  IF v ? 'error' THEN RAISE EXCEPTION '069: клейм новачком відмовив: %', v->>'error'; END IF;
+  RESET ROLE;
+  IF (SELECT role FROM users WHERE id = 'a6900000-0000-0000-0000-000000000003') <> 'guest' THEN
+    RAISE EXCEPTION '069: дефолтний власник без баз НЕ став гостем — фікс надто широкий';
+  END IF;
+
+  -- ── 2. Оновлення й відкликання посилання забирають доступ у ПІДПИСАНИХ ──
+  PERFORM pg_temp.login('969002@telegram.propspace.app');
+  SET LOCAL ROLE authenticated;
+  SELECT * INTO r FROM subscribe_to_shared_db('tok69_live');
+  IF r.error IS NOT NULL THEN RAISE EXCEPTION '069: підписка живим токеном відмовила: %', r.error; END IF;
+  SELECT count(*) INTO n FROM properties WHERE db_id = 'd6900000-0000-0000-0000-000000000001';
+  IF n < 1 THEN RAISE EXCEPTION '069: підписаний рієлтор не бачить базу — перевірки нижче були б вакуумні'; END IF;
+  RESET ROLE;
+
+  -- Термін — про ЛІНК (нові приєднання), а не про тих, хто вже працює.
+  PERFORM pg_temp.login('969001@telegram.propspace.app');
+  SET LOCAL ROLE authenticated;
+  SELECT * INTO r FROM manage_share('db','d6900000-0000-0000-0000-000000000001','set_expiry',7);
+  IF r.error IS NOT NULL THEN RAISE EXCEPTION '069: set_expiry відмовив: %', r.error; END IF;
+  RESET ROLE;
+  PERFORM pg_temp.login('969002@telegram.propspace.app');
+  SET LOCAL ROLE authenticated;
+  SELECT count(*) INTO n FROM properties WHERE db_id = 'd6900000-0000-0000-0000-000000000001';
+  IF n < 1 THEN RAISE EXCEPTION '069: ТЕРМІН дії лінка забрав доступ у вже підписаного рієлтора — так не задумано'; END IF;
+  RESET ROLE;
+
+  -- «Оновити посилання»: «Усі, з ким ви ділились, втратять доступ».
+  PERFORM pg_temp.login('969001@telegram.propspace.app');
+  SET LOCAL ROLE authenticated;
+  SELECT * INTO r FROM manage_share('db','d6900000-0000-0000-0000-000000000001','rotate',NULL);
+  IF r.error IS NOT NULL THEN RAISE EXCEPTION '069: rotate відмовив: %', r.error; END IF;
+  tok := r.share_token;
+  RESET ROLE;
+  PERFORM pg_temp.login('969002@telegram.propspace.app');
+  SET LOCAL ROLE authenticated;
+  SELECT count(*) INTO n FROM properties WHERE db_id = 'd6900000-0000-0000-0000-000000000001';
+  IF n <> 0 THEN RAISE EXCEPTION '069: «Оновити посилання» НЕ забрав доступ у підписаного рієлтора (% обʼєктів)', n; END IF;
+  SELECT count(*) INTO n FROM databases WHERE id = 'd6900000-0000-0000-0000-000000000001';
+  IF n <> 0 THEN RAISE EXCEPTION '069: після оновлення посилання рієлтор і далі бачить саму базу'; END IF;
+  -- Позитив: НОВЕ посилання працює — інакше «нуль» пояснювався б зламаним шарингом.
+  SELECT * INTO r FROM subscribe_to_shared_db(tok);
+  IF r.error IS NOT NULL THEN RAISE EXCEPTION '069: НОВЕ посилання не пускає: %', r.error; END IF;
+  SELECT count(*) INTO n FROM properties WHERE db_id = 'd6900000-0000-0000-0000-000000000001';
+  IF n < 1 THEN RAISE EXCEPTION '069: підписка НОВИМ посиланням не дала доступу'; END IF;
+  RESET ROLE;
+
+  -- «Відкликати доступ».
+  PERFORM pg_temp.login('969001@telegram.propspace.app');
+  SET LOCAL ROLE authenticated;
+  SELECT * INTO r FROM manage_share('db','d6900000-0000-0000-0000-000000000001','revoke',NULL);
+  IF r.error IS NOT NULL THEN RAISE EXCEPTION '069: revoke відмовив: %', r.error; END IF;
+  RESET ROLE;
+  PERFORM pg_temp.login('969002@telegram.propspace.app');
+  SET LOCAL ROLE authenticated;
+  SELECT count(*) INTO n FROM properties WHERE db_id = 'd6900000-0000-0000-0000-000000000001';
+  IF n <> 0 THEN RAISE EXCEPTION '069: «Відкликати доступ» НЕ забрав доступ у підписаного рієлтора (% обʼєктів)', n; END IF;
+  RESET ROLE;
+
+  -- Команда — окремий механізм: відкликання ЛІНКА її не чіпає.
+  PERFORM pg_temp.login('969005@telegram.propspace.app');
+  SET LOCAL ROLE authenticated;
+  SELECT count(*) INTO n FROM properties WHERE db_id = 'd6900000-0000-0000-0000-000000000001';
+  IF n < 1 THEN RAISE EXCEPTION '069: відкликання посилання вигнало редактора КОМАНДИ — це інший механізм'; END IF;
+  RESET ROLE;
+
+  PERFORM set_config('request.jwt.claims', '', false);
+  RAISE NOTICE '  ✓ 069: власник із базами лишається власником; rotate/revoke забирають доступ у підписаних, термін і команду — ні';
 END $$;

@@ -10,6 +10,7 @@ import { confirmAction } from '@/lib/confirm'
 import { useDatabases } from '@/hooks/useDatabases'
 import { useProperties } from '@/hooks/useProperties'
 import { useFolders } from '@/hooks/useFolders'
+import { useMemberAccess } from '@/hooks/useMemberAccess'
 import Header from '@/components/ui/Header'
 import TabBar from '@/components/ui/TabBar'
 import SearchBar from '@/components/ui/SearchBar'
@@ -42,7 +43,6 @@ export default function DatabaseObjectsScreen() {
   const { deleteDatabase } = useDatabases()
   const { properties, loading, error, loadProperties, reorderProperty, batchDeleteProperties, batchUpdateStatus } = useProperties(screenParams.dbId)
   const { folders, unavailable: foldersUnavailable, loadFolders } = useFolders(screenParams.dbId)
-  const memberDbIds = useAppStore(st => st.memberDbIds)
 
   // Дії обʼєкта переїхали з рядка на картці в шит: рядок займав 56px, тобто
   // 25-32% КОЖНОЇ картки (заміряно), а його кнопки були 34px — під 44px HIG,
@@ -195,7 +195,10 @@ export default function DatabaseObjectsScreen() {
   // виглядали живими, а запис блокував лише RLS — тобто користувач бив у стіну
   // вже після тапу. Поки `db` не завантажилась, поверхні немає — і це
   // правильний бік помилки.
-  const isOwner = (!!db && db.owner_id === user?.id) || memberDbIds.includes(screenParams.dbId ?? '')
+  // Членство визначає сам екран: на нього входять і повз домашній, що
+  // наповнює `memberDbIds` (deep link `team_`, гість-редактор) — див. хук.
+  const isMember = useMemberAccess(screenParams.dbId, db?.owner_id)
+  const isOwner = (!!db && db.owner_id === user?.id) || isMember
 
   useEffect(() => {
     if (screenParams.dbId) loadProperties(screenParams.dbId)

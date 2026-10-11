@@ -146,20 +146,24 @@ export function buildPublicUrl(type: 'prop' | 'db' | 'col', token: string): stri
   return `${origin}/v/?${type}=${encodeURIComponent(token)}`
 }
 
+/** Відкрити t.me-посилання: нативно в Telegram, поза ним — у новій вкладці.
+ *  Поза Telegram (веб-превʼю, десктоп-браузер) кнопка з голим `?.` мовчки не
+ *  робила б нічого — той самий клас, що вже ловили на «У Telegram». */
+export function openTgUrl(url: string): void {
+  const tg = window.Telegram?.WebApp
+  if (tg?.openTelegramLink) {
+    tg.openTelegramLink(url)
+    return
+  }
+  window.open(url, '_blank', 'noopener')
+}
+
 /** Open Telegram's native share sheet for any URL. Single home for the
  *  t.me/share/url construction — do not rebuild it inline in screens. */
 export function openTelegramShare(url: string, text?: string): void {
-  const shareUrl = text
+  openTgUrl(text
     ? `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`
-    : `https://t.me/share/url?url=${encodeURIComponent(url)}`
-  const tg = window.Telegram?.WebApp
-  if (tg?.openTelegramLink) {
-    tg.openTelegramLink(shareUrl)
-    return
-  }
-  // Поза Telegram (веб-превʼю, десктоп-браузер) кнопка інакше мовчки не робила
-  // б нічого — відкриваємо t.me/share у новій вкладці.
-  window.open(shareUrl, '_blank', 'noopener')
+    : `https://t.me/share/url?url=${encodeURIComponent(url)}`)
 }
 
 /**

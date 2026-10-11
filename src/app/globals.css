@@ -523,6 +523,21 @@ body{
 .row:active{transform:scale(.985)}
 .row-ic{width:40px;height:40px;border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;font-size:var(--fs-lead);flex-shrink:0;border:var(--bd);color:#fff}
 .row-mn{flex:1;min-width:0}
+/* Рядок-КНОПКА (клікабельний рядок мусить бути <button>, як .sheet-row).
+   Скидаємо лише те, що UA-кнопка ставить інакше за <div>: ширину, шрифт,
+   колір і вирівнювання. Рамку й тло лишає .glass-s — border:none тут
+   перебив би її за специфічністю. */
+button.row{width:100%;font:inherit;color:inherit;text-align:left}
+.oa-key{background:var(--ok-bg)}
+/* Підпис рядка тут — ВИД доступу («Спільна база», «Команда», «Гостьовий
+   доступ»), тобто відповідь на питання «що я тут можу», а не капшен. Секція
+   стоїть під списком, нижче в градієнті, і на `--t3` заміряно 4.45:1. */
+.other-access .row-s{color:var(--t2)}
+/* Оголошення в застосунку (`prop_` для стороннього, SharedCollectionScreen). */
+.shared-desc{margin:12px var(--g3) 0;padding:var(--pad-card);border-radius:var(--r-md);font-size:var(--fs-foot);color:var(--t2);line-height:var(--lh-norm);white-space:pre-wrap;overflow-wrap:anywhere}
+.shared-owner{margin:12px var(--g3) 0;padding:var(--pad-card);border-radius:var(--r-md);display:flex;align-items:center;gap:11px}
+.shared-owner-act{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 16px;flex-shrink:0;border-radius:var(--r-pill);background:var(--info-bg);border:var(--bd);color:var(--t1);font:inherit;font-size:var(--fs-foot);font-weight:var(--fw-semi);text-decoration:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.shared-owner-act:active{transform:scale(.96)}
 /* Row primary name — Subhead Semibold (Apple list item title) */
 .row-t{font-size:var(--fs-sub);font-weight:var(--fw-semi);color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:var(--lh-snug)}
 /* Row secondary metadata — Caption 1 */

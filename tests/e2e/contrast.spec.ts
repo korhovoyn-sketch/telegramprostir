@@ -114,6 +114,10 @@ const FROZEN: Record<string, number> = {
   'photo-upload': 0,
   'guest-database': 0,
   'shared-collection': 0,
+  'shared-property': 0,
+  'realtor-database-gone': 0,
+  'db-list-other-access': 0,
+  'guest-home-other-access': 0,
   // Форма редагування бази несе РІВНО ті самі два блоки, що й create-db (це та
   // сама форма): оверлайн «Колір мітки» і підзаголовок типу «Будинки, ділянки».
   // Обидва — уже прийняті класи, тож крок не знайшов нового дефекту; він зробив
@@ -188,6 +192,9 @@ const MIN_ROWS: Record<string, number> = {
   // міряти: біле поверх ДОВІЛЬНОГО знімка. Решту екрана тримають `devices` і
   // `screen-text-fit`, яким текст не потрібен.
   'photo-gallery': 1,
+  // Порожній стан «Доступу до бази більше немає»: хедер, «Назад», заголовок і
+  // пояснення. Дії тут немає свідомо — повтор не допоможе, доступ дає власник.
+  'realtor-database-gone': 4,
 }
 
 async function auditScreen(page: Page, label: string) {

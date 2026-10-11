@@ -199,7 +199,6 @@
   "Власник надішле вам запрошення-посилання": "The owner will send you an invitation link",
   "Вниз": "Down",
   "Водопостачання": "Water supply",
-  "Воно знову запрацює для ВСІХ, хто його вже має — включно з тими, у кого ви відкликали доступ. Щоб роздати доступ заново, скористайтесь «Оновити посилання».": "It will work again for EVERYONE who already has it — including those whose access you revoked. To hand out access afresh, use “Refresh link”.",
   "Впишіть": "Type",
   "Встановіть орендарів для відстеження платежів": "Set tenants to track payments",
   "Всього отримано за весь час": "Total received all time",
@@ -1122,5 +1121,19 @@
   "Вийшла нова версія": "A new version is available",
   "Перезапустіть застосунок, щоб її завантажити.": "Restart the app to load it.",
   "Перезапустіть застосунок. Збережені дані не постраждали.": "Restart the app. Your saved data is not affected.",
-  "Заборгованість": "Arrears"
+  "Заборгованість": "Arrears",
+  "Власник оновив або відкликав посилання. Попросіть у нього нове.": "The owner updated or revoked the link. Ask them for a new one.",
+  "Воно знову запрацює для ВСІХ, хто його вже має. Відкликане посилання вже замінене новим, тож копії, роздані до відкликання, не оживуть. Щоб роздати доступ заново, скористайтесь «Оновити посилання».": "It will work again for EVERYONE who already has it. A revoked link has already been replaced with a new one, so copies shared before the revoke will not come back. To share access again, use “Refresh link”.",
+  "Гостьовий доступ · {0}": "Guest access · {0}",
+  "Доступу до бази більше немає": "You no longer have access to this database",
+  "Інші доступи": "Other access",
+  "Команда · {0}": "Team · {0}",
+  "Написати": "Message",
+  "Натисніть, щоб повторити": "Tap to retry",
+  "Не вдалося завантажити інші доступи": "Could not load other access",
+  "Оголошення": "Listing",
+  "Оголошення не знайдено": "Listing not found",
+  "Подзвонити": "Call",
+  "Посилання недійсне або власник його відкликав": "The link is invalid or the owner revoked it",
+  "Спільна база · {0}": "Shared database · {0}"
 }

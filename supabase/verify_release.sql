@@ -255,7 +255,28 @@ WITH checks(ord, item, migration, ok) AS (VALUES
           AND COALESCE((SELECT NOT has_table_privilege('authenticated', c.oid, 'DELETE')
                                AND NOT has_table_privilege('authenticated', c.oid, 'UPDATE')
                                AND NOT has_table_privilege('authenticated', c.oid, 'INSERT')
-                          FROM pg_class c WHERE c.relname='tenancies' AND c.relkind='r'), false)))
+                          FROM pg_class c WHERE c.relname='tenancies' AND c.relkind='r'), false))),
+
+  -- 069-1: гостьове запрошення не знижує власника, що МАЄ бази. Без цього
+  -- власник, який прийняв чуже запрошення, втрачає таббар «Бази» назавжди.
+  (53, 'claim_guest_link не знижує власника з базами', '069_access_integrity.sql',
+      (SELECT COUNT(*) >= 1 FROM pg_proc
+        WHERE proname='claim_guest_link'
+          AND prosrc LIKE '%NOT EXISTS (SELECT 1 FROM databases d WHERE d.owner_id = v_uid)%')),
+
+  -- 069-2: «Відкликати доступ» / «Оновити посилання» забирають доступ у вже
+  -- підписаних рієлторів. Без цього шит обіцяв те, чого сервер не робив.
+  (54, 'manage_share: rotate/revoke знімають підписки рієлторів', '069_access_integrity.sql',
+      (SELECT COUNT(*) >= 1 FROM pg_proc
+        WHERE proname='manage_share'
+          AND prosrc LIKE '%DELETE FROM realtor_subscriptions%')),
+
+  -- 069-3: ремонт відпрацював — знижених власників не лишилось. Перевіряє
+  -- ДАНІ, а не код: функцію можна виправити, а людей так і не повернути.
+  (55, 'немає гостей, що володіють базами (ремонт 069)', '069_access_integrity.sql',
+      (SELECT NOT EXISTS (SELECT 1 FROM users u
+                           WHERE u.role='guest'
+                             AND EXISTS (SELECT 1 FROM databases d WHERE d.owner_id = u.id))))
 )
 SELECT
   CASE WHEN ok THEN '✅ OK     ' ELSE '❌ MISSING' END AS status,

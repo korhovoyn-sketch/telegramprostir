@@ -5,6 +5,7 @@ import { useAppStore } from '@/store/appStore'
 import RetryState from '@/components/ui/RetryState'
 import { supabase } from '@/lib/supabase'
 import TabBar from '@/components/ui/TabBar'
+import OtherAccess from '@/components/OtherAccess'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import { IconKey, IconBuilding, IconChevronRight } from '@/components/Icons'
 import { StatusBadge } from '@/components/ui/Badge'
@@ -17,6 +18,11 @@ export default function GuestHomeScreen() {
   const [links, setLinks] = useState<GuestLink[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
+  // Скільки доступів знайшла секція «Інші доступи»: якщо гість водночас
+  // редактор команди чи підписник, «Немає доступних обʼєктів» було б неправдою.
+  // `null` — секція ще не відповіла: тоді порожній стан не малюємо, інакше він
+  // блимав би перед появою доступів.
+  const [otherCount, setOtherCount] = useState<number | null>(null)
 
   async function load() {
     if (!user) return
@@ -78,11 +84,11 @@ export default function GuestHomeScreen() {
           </div>
         </div>
 
-        {loading ? (
+        {loading || (links.length === 0 && !loadError && otherCount === null) ? (
           <SkeletonLoader rowHeight={69} />
         ) : loadError ? (
           <RetryState subtitle={loadError} onRetry={load} />
-        ) : links.length === 0 ? (
+        ) : links.length === 0 && otherCount ? null : links.length === 0 ? (
           <div className="empty-state" style={{ paddingTop: 32 }}>
             <div className="empty-ic">🏠</div>
             <div className="empty-h">{tr('Немає доступних обʼєктів')}</div>
@@ -135,6 +141,8 @@ export default function GuestHomeScreen() {
             })}
           </div>
         )}
+
+        {!loading && <OtherAccess show={['subscriptions', 'team']} onCount={setOtherCount} />}
 
         <div style={{ height: 100 }} />
       </div>

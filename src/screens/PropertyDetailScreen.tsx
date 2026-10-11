@@ -9,6 +9,7 @@ import { hapticImpact, hapticNotify } from '@/lib/telegram'
 import { offlineGuard } from '@/lib/offline'
 import { confirmAction } from '@/lib/confirm'
 import { useProperties } from '@/hooks/useProperties'
+import { useMemberAccess } from '@/hooks/useMemberAccess'
 import Header from '@/components/ui/Header'
 import { StatusBadge } from '@/components/ui/Badge'
 import { IconEdit, IconShare, IconMapPin, IconPhoto, IconX, IconCamera, IconRuler, IconBuildingSkyscraper, IconCircleCheck, IconCurrencyDollar, IconCarGarage, IconUser, IconKey, IconBolt, IconCalendar, IconFile, IconChevronRight, IconBuilding } from '@/components/Icons'
@@ -30,12 +31,11 @@ export default function PropertyDetailScreen() {
   const filesSectionRef = useRef<HTMLDivElement>(null)
 
   const property = properties.find(p => p.id === screenParams.propertyId)
-  const memberDbIds = useAppStore(st => st.memberDbIds)
   // Власність рядка, а не роль акаунта — див. той самий шлюз у
   // DatabaseObjectsScreen. `property` ще може вантажитись: поки його немає,
   // поверхні редагування теж немає.
-  const isOwner = (!!property && property.owner_id === user?.id)
-    || memberDbIds.includes((screenParams.dbId as string) ?? '')
+  const isMember = useMemberAccess((screenParams.dbId as string | undefined) ?? property?.db_id, property?.owner_id)
+  const isOwner = (!!property && property.owner_id === user?.id) || isMember
   const isGuest = user?.role === 'guest'
 
   // Fetch only this property on every mount — avoids loading the entire DB for detail view.

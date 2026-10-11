@@ -5,6 +5,7 @@ import { useAppStore } from '@/store/appStore'
 import RetryState from '@/components/ui/RetryState'
 import { supabase } from '@/lib/supabase'
 import TabBar from '@/components/ui/TabBar'
+import OtherAccess from '@/components/OtherAccess'
 import SearchBar from '@/components/ui/SearchBar'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import { IconChevronRight, GlassDbIcon } from '@/components/Icons'
@@ -199,6 +200,7 @@ export default function RealtorDashboardScreen() {
           </div>
         )}
 
+        {!loading && !search && <OtherAccess show={['guest']} />}
       </div>
 
       <button ref={qrBtnRef} className="mbtn" onClick={() => navigate('qr-scanner')} style={{ bottom: 'calc(92px + var(--safe-bottom))' }}>

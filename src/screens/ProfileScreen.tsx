@@ -165,7 +165,8 @@ export default function ProfileScreen() {
 
   const initials = getInitials(user.first_name, user.last_name)
   const totalProps = databases.reduce((s, d) => s + (d._property_count ?? 0), 0)
-  const roleLabel = user.role === 'owner' ? tr('Власник') : tr('Ріелтор')
+  // Гість мав підпис «Ріелтор» — тернар знав лише дві ролі з трьох.
+  const roleLabel = user.role === 'owner' ? tr('Власник') : user.role === 'guest' ? tr('Гість') : tr('Ріелтор')
 
   return (
     <div className="scr bg-violet">

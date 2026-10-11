@@ -391,6 +391,27 @@ test('screens · owner journey', async ({ page }) => {
     await page.getByRole('button', { name: /Отримано/ }).first().click()
     await page.getByText('Підтвердити платіж').waitFor()
   })
+  // «Інші доступи» — секція, що зʼявляється на «Моїх базах», лише коли власник
+  // сам підписаний на чужу базу чи є гостем. ОСТАННІЙ кадр журналу: підміни
+  // нижче живуть на сторінці до кінця тесту.
+  const SUB_DB = { ...DB, id: '10000000-0000-0000-0000-000000000003', owner_id: '00000000-0000-0000-0000-000000000099', name: 'БЦ Колеги', color: 'green' }
+  await page.route('**/rest/v1/realtor_subscriptions**', (r) => json(r, [{
+    id: '30000000-0000-0000-0000-000000000005', realtor_id: OWNER.id, db_id: SUB_DB.id, created_at: NOW, database: SUB_DB,
+  }]))
+  await page.route('**/rest/v1/guest_links**', (r) => {
+    if (!r.request().url().includes('guest_user_id=eq.')) return r.fallback()
+    return json(r, [{
+      id: '30000000-0000-0000-0000-000000000006', property_id: PROPERTIES[0].id, db_id: null,
+      label: 'Склад на Подолі', status: 'active', owner_id: SUB_DB.owner_id, guest_user_id: OWNER.id,
+      property: { ...PROPERTIES[0], name: 'Склад 7' }, database: null,
+    }])
+  })
+  await snap(page, 'db-list-other-access', async () => {
+    await page.goto('/'); await page.getByText('Мої бази').waitFor()
+    await page.getByRole('region', { name: 'Інші доступи' }).getByText('Склад 7').waitFor({ timeout: 15_000 })
+    await page.locator('.body').evaluate((b) => { b.scrollTop = b.scrollHeight })
+    await page.waitForTimeout(400)
+  })
 })
 
 // ── Realtor ───────────────────────────────────────────────────────────────────
@@ -448,6 +469,43 @@ test('screens · realtor', async ({ page }) => {
     await page.getByText('Для клієнта А').first().click()
     await page.getByText('Аналітика підбірки').click()
     await page.locator('.hdr-t').getByText('Аналітика підбірки').waitFor()
+  })
+  // Рієлтору базу забрали (ротація/відкликання знімають підписку, 069): рядок
+  // бази RLS більше не віддає, і екран каже це прямо, без «перевір звʼязок».
+  await page.route('**/rest/v1/databases**', (r) => {
+    if (!(r.request().headers()['accept'] ?? '').includes('object')) return r.fallback()
+    return r.fulfill({ status: 406, contentType: 'application/json', body: JSON.stringify({
+      code: 'PGRST116', details: 'The result contains 0 rows', hint: null,
+      message: 'JSON object requested, multiple (or no) rows returned' }) })
+  })
+  await snap(page, 'realtor-database-gone', async () => {
+    await page.goto('/'); await page.getByText('Робочі бази').waitFor()
+    await page.getByText('БЦ Рубін').first().click()
+    await page.getByText('Доступу до бази більше немає').waitFor({ timeout: 15_000 })
+  })
+  // `prop_` від стороннього: оголошення за токеном замість «Обʼєкт не
+  // знайдено». ОСТАННІЙ кадр: init-скрипт підміняє `start_param` назавжди.
+  await page.route('**/rest/v1/rpc/lookup_shared_property', (r) => json(r, [
+    { id: PROPERTIES[0].id, db_id: DB_ID },
+  ]))
+  await page.route('**/rest/v1/properties**', (r) =>
+    r.request().url().includes('id=eq.') ? json(r, []) : r.fallback())
+  await page.route('**/rest/v1/rpc/get_public_property_preview', (r) => json(r, [{
+    property_id: PROPERTIES[0].id, property_name: 'Офіс 101', property_status: 'free',
+    property_floor: '2', property_area_useful: 45, property_area_total: 52,
+    property_area_basis: 'total', property_rent_type: 'per_m2', property_rent_rate: 18,
+    property_sale_price: null, property_description: 'Світлий офіс з вікнами на дві сторони, поруч метро.',
+    db_name: 'БЦ Рубін', owner_first_name: 'Микола', owner_last_name: 'К.',
+    owner_tg_username: 'mykola', owner_phone: null, owner_currency: 'USD', photos: ['p/1.jpg'],
+  }]))
+  await page.addInitScript(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const tg = (window as any).Telegram?.WebApp
+    if (tg?.initDataUnsafe) tg.initDataUnsafe.start_param = 'prop_bb0000000000000000000011'
+  })
+  await snap(page, 'shared-property', async () => {
+    await page.goto('/')
+    await page.getByRole('button', { name: 'Написати' }).waitFor({ timeout: 20_000 })
   })
 })
 
