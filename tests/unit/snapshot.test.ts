@@ -7,7 +7,10 @@ import { readSnapshot, writeSnapshot } from '@/lib/snapshot'
 const A = 'user-a'
 const B = 'user-b'
 
-beforeEach(() => localStorage.clear())
+// Снапшот пишеться ЛИШЕ за активної сесії — інакше хвіст запиту, випущеного
+// до виходу, повертав би дані на диск уже після їх стирання. Маркер сесії —
+// `ps_user`, тож тести сідають його, як це робить сам застосунок.
+beforeEach(() => { localStorage.clear(); localStorage.setItem('ps_user', '{"id":"user-a"}') })
 afterEach(() => vi.useRealTimers())
 
 describe('snapshot', () => {
@@ -77,5 +80,18 @@ describe('snapshot', () => {
     })
     expect(() => writeSnapshot('dbs', A, ['x'])).not.toThrow()
     spy.mockRestore()
+  })
+
+  it('БЕЗ сесії запис відмовляє — хвіст запиту не воскрешає стертий кеш', () => {
+    writeSnapshot('dbs', A, [{ id: '1', name: 'до виходу' }])
+    expect(readSnapshot('dbs', A), 'позитивний контроль: із сесією запис працює').not.toBeNull()
+
+    // Вихід: маркер сесії зник разом із рештою сесійних ключів.
+    localStorage.clear()
+    // Хвіст запиту, випущеного ДО виходу, резолвиться зараз:
+    writeSnapshot('dbs', A, [{ id: '1', name: 'повернулось після виходу' }])
+
+    expect(readSnapshot('dbs', A), 'дані повернулись на диск після виходу з акаунта').toBeNull()
+    expect(localStorage.length, 'на диску лишився запис, зроблений після виходу').toBe(0)
   })
 })

@@ -154,3 +154,18 @@ export function useTelegram() {
 
   return { tg, user, isReady }
 }
+
+/**
+ * Свайп униз/хрестик Telegram закриває Mini App МИТТЄВО, разом із тим, що
+ * людина встигла набрати. Поки екран вводу відкритий, Telegram спершу питає.
+ * Один хук на всі форми: доти виклик стояв у трьох екранах із семи, і форми
+ * оренди, платежів і запрошень губили введене мовчки.
+ */
+export function useClosingConfirmation(active = true): void {
+  useEffect(() => {
+    if (!active) return
+    const tg = window.Telegram?.WebApp
+    tg?.enableClosingConfirmation?.()
+    return () => { tg?.disableClosingConfirmation?.() }
+  }, [active])
+}

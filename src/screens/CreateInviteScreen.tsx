@@ -10,6 +10,7 @@ import { modalBtnClass } from '@/components/ui/ActionSheet'
 import { buildDeepLink, openTelegramShare } from '@/lib/telegram'
 import { copyLink } from '@/lib/share'
 import { tr } from '@/lib/i18n'
+import { useClosingConfirmation } from '@/hooks/useTelegram'
 
 interface KindCopy {
   formTitle: string
@@ -64,6 +65,7 @@ export default function CreateInviteScreen() {
   const copy = KIND_COPY()[kind]
 
   const [step, setStep] = useState<'form' | 'created'>('form')
+  useClosingConfirmation(step === 'form')
   const [label, setLabel] = useState('')
   const [saving, setSaving] = useState(false)
   const [link, setLink] = useState('')

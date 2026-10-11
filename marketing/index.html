@@ -1,0 +1,1528 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>prostir · маркетингова стратегія і макети</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════════
+   prostir · маркетинговий дек
+   МОВА ВЗЯТА З ПРОДУКТУ, а не вигадана поруч. Градієнти, скло, радіуси,
+   шкала тексту й компоненти нижче перенесені з `src/app/globals.css`
+   дослівно. Реклама, зроблена з самих деталей застосунку, не може
+   виглядати «як у всіх»: деталі специфічні.
+   Шрифт — Inter: застосунок стоїть на системному стеку (SF Pro / Roboto),
+   і Inter — найближчий вільний відповідник, тож дек малюється так само,
+   як екрани продукту.
+   ═══════════════════════════════════════════════════════════════ */
+@font-face{font-family:'Inter';src:url('fonts/Inter.ttf') format('truetype');font-weight:100 900;font-display:block}
+
+:root{
+  /* радіуси — шкала застосунку */
+  --r-xs:8px;--r-sm:12px;--r-md:16px;--r-lg:20px;--r-xl:24px;--r-pill:999px;
+  --r-phone:42px;
+  /* шкала тексту — застосунку */
+  --t1:#fff;--t2:rgba(255,255,255,.84);--t3:rgba(255,255,255,.74);--t4:rgba(255,255,255,.64);
+  /* скло — рецепти застосунку */
+  --glass-card:rgba(6,5,14,.22);--glass-2:rgba(255,255,255,.08);--glass-3:rgba(255,255,255,.14);
+  --bd:.5px solid rgba(255,255,255,.16);
+  --bd-s:.5px solid rgba(255,255,255,.26);
+  --hair:rgba(255,255,255,.14);
+  /* акценти — застосунку, з тими самими ролями */
+  --ok:#34C759;--ok-bg:rgba(52,199,89,.18);--ok-fg:#a4f0c1;--ok-bd:rgba(52,199,89,.28);
+  --warn:#FF9500;--warn-bg:rgba(255,149,0,.18);--warn-fg:#ffc985;--warn-bd:rgba(255,149,0,.28);
+  --err:#FF3B30;--err-bg:rgba(255,59,48,.16);--err-fg:#ffacac;--err-bd:rgba(255,59,48,.26);
+  --info:#7AB3FF;--info-bg:rgba(122,179,255,.18);--info-fg:#a8d4ff;--info-bd:rgba(122,179,255,.28);
+  --pink:#FF7AB8;--pink-deep:#C42378;--violet:#a78bfa;--purple:#7B30EB;
+  --tg:#2AABEE;--blue-deep:#16719E;
+  --bg:#06050e;
+  --gut:clamp(18px,3.4vw,56px);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{font-family:'Inter',-apple-system,system-ui,sans-serif;font-weight:400;
+  background:var(--bg);color:var(--t1);-webkit-font-smoothing:antialiased;
+  overflow-x:hidden;font-feature-settings:'tnum' 1,'cv11' 1}
+
+/* ── ГРАДІЄНТИ ЗАСТОСУНКУ, перенесені дослівно ───────────────── */
+.bg-purple{background:radial-gradient(95% 75% at 85% 28%,rgba(55,80,255,.42) 0%,transparent 62%),radial-gradient(95% 60% at 22% 96%,rgba(200,135,255,.4) 0%,transparent 66%),linear-gradient(180deg,#050310 0%,#0c0726 24%,#2c1a68 48%,#5e40b8 72%,#7e58d6 100%)}
+.bg-pink{background:radial-gradient(90% 60% at 68% 52%,rgba(255,120,210,.4) 0%,transparent 62%),linear-gradient(180deg,#0a0312 0%,#1c0a32 24%,#6e2696 50%,#c050b8 76%,#a846cc 100%)}
+.bg-green{background:radial-gradient(90% 65% at 78% 40%,rgba(90,60,220,.3) 0%,transparent 60%),linear-gradient(180deg,#030a07 0%,#08160e 26%,#1c5e40 54%,#369a68 78%,#46b67d 100%)}
+.bg-blue{background:radial-gradient(90% 70% at 80% 30%,rgba(120,60,255,.36) 0%,transparent 62%),linear-gradient(180deg,#04060f 0%,#081032 26%,#1c3890 52%,#3a64c8 76%,#5480dc 100%)}
+.bg-teal{background:radial-gradient(90% 60% at 80% 88%,rgba(80,240,150,.42) 0%,transparent 64%),linear-gradient(180deg,#030a07 0%,#071510 26%,#1a5a3c 54%,#329864 80%,#44b87a 100%)}
+.bg-welcome{background:radial-gradient(95% 70% at 80% 35%,rgba(60,85,255,.32) 0%,transparent 62%),linear-gradient(180deg,#050310 0%,#0a0620 26%,#241555 52%,#4a3296 78%,#6346bc 100%)}
+.bg-cyan{background:radial-gradient(85% 55% at 14% 94%,rgba(40,240,230,.5) 0%,transparent 60%),radial-gradient(90% 65% at 85% 50%,rgba(110,100,235,.34) 0%,transparent 62%),linear-gradient(180deg,#03050e 0%,#0a1232 28%,#22368a 54%,#2c6cb4 78%,#36a4cc 100%)}
+.bg-ink{background:linear-gradient(180deg,#06050e 0%,#0a0916 60%,#100d20 100%)}
+
+/* ── СКЛО — рецепти застосунку ──────────────────────────────── */
+.glass{background:var(--glass-2);backdrop-filter:blur(32px) saturate(180%) brightness(1.06);
+  -webkit-backdrop-filter:blur(32px) saturate(180%) brightness(1.06);border:var(--bd)}
+.glass-s{background:var(--glass-card);backdrop-filter:blur(28px) saturate(170%) brightness(.9);
+  -webkit-backdrop-filter:blur(28px) saturate(170%) brightness(.9);border:var(--bd)}
+.glass-d{background:var(--glass-3);backdrop-filter:blur(36px) saturate(190%) brightness(1.08);
+  -webkit-backdrop-filter:blur(36px) saturate(190%) brightness(1.08);border:var(--bd-s)}
+
+/* ── КАРКАС ─────────────────────────────────────────────────── */
+.wrap{max-width:1240px;margin:0 auto;padding:0 var(--gut)}
+section{position:relative;padding:clamp(64px,8vw,132px) 0;overflow:hidden}
+/* Градієнт екрана СВІТЛІШАЄ ДОНИЗУ — це властивість системи. Щоб секції
+   не давали світлого шва на стику, кожна гасне в чорнило на останніх
+   відсотках: у застосунку наступний екран починається зверху заново. */
+section>.wrap{position:relative;z-index:2;width:100%}
+
+/* ── ТИПОГРАФІКА ────────────────────────────────────────────── */
+.over{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;
+  color:var(--t3);line-height:1}
+.dsp{font-size:clamp(36px,6.4vw,84px);font-weight:800;line-height:1.02;letter-spacing:-.04em}
+.h1{font-size:clamp(28px,4vw,54px);font-weight:800;line-height:1.06;letter-spacing:-.035em}
+.h2{font-size:clamp(21px,2.2vw,30px);font-weight:700;line-height:1.14;letter-spacing:-.025em}
+.h3{font-size:18px;font-weight:700;line-height:1.2;letter-spacing:-.015em}
+.lead{font-size:clamp(16px,1.5vw,21px);line-height:1.5;color:var(--t2);max-width:62ch}
+.bd{font-size:16px;line-height:1.55;color:var(--t2)}
+.sm{font-size:14px;line-height:1.5;color:var(--t3)}
+.xs{font-size:12px;line-height:1.45;color:var(--t4)}
+b,strong{font-weight:700;color:var(--t1)}
+mark{background:none;color:var(--ok);font-weight:700}
+em{font-style:normal;color:var(--info);font-weight:600}
+
+/* ── КОМПОНЕНТИ ЗАСТОСУНКУ, збільшені ───────────────────────── */
+.card{border-radius:var(--r-lg);padding:clamp(16px,2vw,26px)}
+.stat{border-radius:var(--r-md);padding:16px 14px;min-width:0}
+.stat-n{font-size:clamp(22px,2.4vw,34px);font-weight:700;letter-spacing:-.035em;line-height:1}
+.stat-l{font-size:11px;color:var(--t3);margin-top:7px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.05em}
+.row{border-radius:var(--r-md);padding:14px;display:flex;align-items:center;gap:12px}
+.bdg{font-size:11px;font-weight:600;padding:3px 9px;border-radius:var(--r-xs);
+  display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.bdg-ok{background:var(--ok-bg);color:var(--ok-fg);border:.5px solid var(--ok-bd);
+  box-shadow:0 0 8px rgba(52,199,89,.25),inset 0 1px 0 rgba(52,199,89,.12)}
+.bdg-busy{background:var(--warn-bg);color:var(--warn-fg);border:.5px solid var(--warn-bd);
+  box-shadow:0 0 8px rgba(255,149,0,.22),inset 0 1px 0 rgba(255,149,0,.12)}
+.bdg-sale{background:var(--info-bg);color:var(--info-fg);border:.5px solid rgba(122,179,255,.32);
+  box-shadow:0 0 8px rgba(122,179,255,.22),inset 0 1px 0 rgba(122,179,255,.12)}
+.bdg-err{background:var(--err-bg);color:var(--err-fg);border:.5px solid var(--err-bd)}
+/* Пігулка первинної дії — рецепт `.btn-glass` застосунку: тонований шар,
+   блюр, верхній відблиск, кольорове світіння. Щільність РАДІАЛЬНА. */
+.pill{display:inline-flex;align-items:center;justify-content:center;gap:10px;
+  height:46px;padding:0 24px;border-radius:var(--r-pill);font-size:13px;font-weight:700;
+  color:#fff;border:.5px solid rgba(255,255,255,.3);
+  background:radial-gradient(120% 130% at 50% 0%,rgba(22,113,158,.44) 0%,rgba(22,113,158,.16) 100%);
+  backdrop-filter:blur(20px) saturate(180%) brightness(.52);
+  -webkit-backdrop-filter:blur(20px) saturate(180%) brightness(.52);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 8px 24px rgba(0,0,0,.3)}
+.pill.ok{background:radial-gradient(120% 130% at 50% 0%,rgba(52,199,89,.31) 0%,rgba(52,199,89,.2) 100%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 8px 24px rgba(52,199,89,.2)}
+.pill.pk{background:radial-gradient(120% 130% at 50% 0%,rgba(196,35,120,.35) 0%,rgba(196,35,120,.23) 100%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 8px 24px rgba(196,35,120,.22)}
+/* Сегментний перемикач — концентричний радіус: --rc-in = --rc-out − падінг */
+.seg{display:inline-flex;background:var(--glass-card);border:var(--bd);border-radius:var(--r-sm);
+  padding:2px;gap:2px}
+.seg b{padding:8px 16px;border-radius:10px;font-size:12px;font-weight:600;color:var(--t3)}
+.seg b.on{background:rgba(255,255,255,.14);color:#fff;
+  box-shadow:inset 0 0 0 .5px rgba(255,255,255,.3)}
+
+/* ── СІТКИ ──────────────────────────────────────────────────── */
+.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(12px,1.6vw,20px)}
+.g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(12px,1.6vw,20px)}
+.g4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:clamp(10px,1.2vw,16px)}
+.split{display:grid;grid-template-columns:minmax(0,var(--sp,380px)) minmax(0,1fr);
+  gap:clamp(20px,3.4vw,52px);align-items:start}
+@media(max-width:880px){.g3,.g4{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .split{grid-template-columns:1fr}}
+@media(max-width:600px){.g2,.g3,.g4{grid-template-columns:1fr}}
+
+/* ── ШАПКА СЕКЦІЇ ───────────────────────────────────────────── */
+.hd{margin-bottom:clamp(30px,4vw,60px)}
+.hd .over{margin-bottom:14px}
+
+/* ── ТАБЛИЦЯ — як рядки списку, а не як таблиця ─────────────── */
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;
+  color:var(--t4);text-align:left;padding:0 12px 11px 0}
+td{padding:13px 12px 13px 0;border-top:.5px solid var(--hair);color:var(--t2);
+  line-height:1.45;vertical-align:top}
+td.k{color:var(--t1);font-weight:600}
+td.n,th.n{font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:600;color:var(--t1)}
+tr.grp td{font-size:11px;text-transform:uppercase;letter-spacing:.07em;font-weight:600;
+  color:var(--t3);padding:16px 12px 7px 0;border-top:.5px solid rgba(255,255,255,.22)}
+.tscroll{overflow-x:auto}
+
+/* ── ЗНАК ───────────────────────────────────────────────────── */
+.mk{display:inline-flex;align-items:center;gap:9px;font-weight:700;letter-spacing:-.02em}
+.mk i{width:26px;height:26px;border-radius:var(--r-icon,8px);background:#fff;color:#12091f;
+  display:grid;place-items:center;font-style:normal;font-weight:800;font-size:15px;line-height:1}
+.mk i::before{content:'p'}
+
+/* ── ПРИСТРІЙ ───────────────────────────────────────────────── */
+.phone{position:relative;border-radius:var(--pr,34px);overflow:hidden;background:#000;
+  box-shadow:0 0 0 .5px rgba(255,255,255,.22),0 30px 70px -26px rgba(0,0,0,.85)}
+.phone img{display:block;width:100%}
+
+/* ── ОРБ — персонаж застосунку (статична редакція) ──────────── */
+.orb{position:relative;border-radius:50%;aspect-ratio:1;
+  background:
+    radial-gradient(42% 36% at 34% 26%,rgba(255,255,255,.34) 0%,transparent 60%),
+    radial-gradient(58% 48% at 62% 88%,rgba(150,190,255,.22) 0%,transparent 64%),
+    radial-gradient(circle at 50% 50%,rgba(10,8,22,.30) 0%,rgba(10,8,22,.44) 56%,rgba(10,8,22,.58) 100%);
+  box-shadow:0 0 0 .5px rgba(255,255,255,.2),0 0 60px -10px var(--og,rgba(120,90,230,.6));
+  display:grid;place-items:center;overflow:hidden}
+.orb::before{content:'';position:absolute;inset:0;border-radius:50%;
+  background:radial-gradient(circle at 50% 50%,var(--og,rgba(120,90,230,.6)) 0%,transparent 62%);
+  filter:blur(18px);opacity:.75}
+.orb-s{position:relative;width:52%;aspect-ratio:1.42;border-radius:22%;
+  background:var(--os,linear-gradient(135deg,#43d9c4,#7b5bff));
+  -webkit-mask-image:radial-gradient(circle at 50% 50%,#000 52%,transparent 100%);
+  mask-image:radial-gradient(circle at 50% 50%,#000 52%,transparent 100%);
+  display:flex;align-items:center;justify-content:center;gap:16%}
+.orb-s::after{content:'';position:absolute;inset:0;
+  background-image:linear-gradient(rgba(0,0,0,.34) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(0,0,0,.34) 1px,transparent 1px);
+  background-size:5px 5px}
+.orb-e{position:relative;z-index:2;width:9%;height:40%;border-radius:var(--r-pill);
+  background:rgba(255,255,255,.95);box-shadow:0 0 12px rgba(255,255,255,.7)}
+
+footer{background:#06050e;border-top:.5px solid var(--hair);
+  padding:clamp(48px,6vw,86px) 0 46px}
+hr{border:0;border-top:.5px solid var(--hair);margin:clamp(26px,3.4vw,48px) 0}
+a{color:inherit}
+.toc{display:grid;grid-template-columns:repeat(4,1fr);gap:0 clamp(14px,2vw,28px)}
+@media(max-width:880px){.toc{grid-template-columns:repeat(2,1fr)}}
+.toc a{display:flex;gap:10px;padding:11px 0;border-top:.5px solid var(--hair);
+  text-decoration:none;color:var(--t2);font-size:14px;align-items:baseline}
+.toc a i{font-style:normal;font-size:11px;color:var(--t4);font-weight:600}
+.toc a:hover{color:#fff}
+</style>
+</head>
+<body>
+
+<!-- ═══════════ ОБКЛАДИНКА ═══════════ -->
+<section class="bg-welcome" style="min-height:100svh;display:flex;flex-direction:column;
+  justify-content:space-between;padding:clamp(22px,3vw,36px) 0 clamp(30px,4vw,54px)">
+  <div class="wrap" style="display:flex;justify-content:space-between;align-items:center;gap:16px">
+    <div class="mk" style="font-size:17px"><i></i>prostir</div>
+    <div class="over" style="text-align:right">Маркетингова стратегія<br>і макети · 2026</div>
+  </div>
+
+  <div class="wrap">
+    <div class="split" style="--sp:300px;align-items:center">
+      <div class="orb" style="--og:rgba(120,90,230,.62);--os:linear-gradient(135deg,#43d9c4,#7b5bff)">
+        <div class="orb-s"><i class="orb-e"></i><i class="orb-e"></i></div>
+      </div>
+      <div>
+        <h1 class="dsp">Простір<br>під контролем</h1>
+        <p class="lead" style="margin-top:clamp(16px,2vw,26px);max-width:46ch">
+          Як продавати застосунок, який живе в чаті, людям, що досі ведуть
+          нерухомість у таблицях.
+        </p>
+        <div style="display:flex;gap:10px;margin-top:clamp(18px,2.4vw,30px);flex-wrap:wrap">
+          <span class="bdg bdg-ok">PropTech · B2B</span>
+          <span class="bdg bdg-sale">Instagram + Telegram</span>
+          <span class="bdg bdg-busy">TTFL &lt; 4 хв</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="g4 glass-s card" style="padding:clamp(12px,1.4vw,18px)">
+      <div class="stat"><div class="stat-n">12</div><div class="stat-l">секцій</div></div>
+      <div class="stat"><div class="stat-n" data-n="all"></div><div class="stat-l">макетів</div></div>
+      <div class="stat"><div class="stat-n">11</div><div class="stat-l">екранів продукту</div></div>
+      <div class="stat"><div class="stat-n">15 с</div><div class="stat-l">рілз</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ ЗМІСТ ═══════════ -->
+<section class="bg-ink" style="padding:clamp(28px,3.4vw,48px) 0">
+  <div class="wrap">
+    <div class="over" style="margin-bottom:14px">Зміст</div>
+    <nav class="toc">
+      <a href="#strategy"><i>01</i>Стратегія</a>
+      <a href="#audience"><i>02</i>Аудиторія</a>
+      <a href="#brand"><i>03</i>Візуальна система</a>
+      <a href="#product"><i>04</i>Продукт у кадрі</a>
+      <a href="#profile"><i>05</i>Профіль</a>
+      <a href="#grid"><i>06</i>Сітка</a>
+      <a href="#carousel"><i>07</i>Карусель</a>
+      <a href="#stories"><i>08</i>Stories</a>
+      <a href="#reels"><i>09</i>Рілз</a>
+      <a href="#ads"><i>10</i>Реклама</a>
+      <a href="#calendar"><i>11</i>Контент-план</a>
+      <a href="#kpi"><i>12</i>Метрики</a>
+    </nav>
+  </div>
+</section>
+
+<!-- ═══════════ 01 · СТРАТЕГІЯ ═══════════ -->
+<section id="strategy" class="bg-purple">
+  <div class="wrap">
+    <div class="hd">
+      <div class="over">01 · Стратегія</div>
+      <h2 class="h1">Ми продаємо не застосунок.<br>Ми продаємо вигляд професіонала.</h2>
+      <p class="lead" style="margin-top:18px">
+        Власник із 18 офісами конкурує не функціями таблиці, а тим, як він
+        виглядає в очах орендаря. Excel цього не дає. Скриншот у Viber — теж.
+      </p>
+    </div>
+
+    <div class="g2" style="align-items:stretch">
+      <div class="glass-s card">
+        <div class="over">Велика ідея</div>
+        <div class="h2" style="margin-top:10px">Простір під контролем</div>
+        <p class="bd" style="margin-top:10px">
+          Назва <b>prostir</b> уже несе сенс — простір. Кампанія забирає
+          друге значення: не лише метри, а <em>контроль</em> над ними.
+          Гроші, строки, доступи, враження клієнта.
+        </p>
+      </div>
+      <div class="glass-s card">
+        <div class="over">Позиціювання · одне речення</div>
+        <p class="bd" style="margin-top:12px;font-size:17px">
+          Для <b>власників комерційної нерухомості та рієлторів</b>, які досі
+          ведуть обʼєкти в Excel і месенджерах, <b>prostir</b> — це застосунок
+          <b>усередині Telegram</b>, що перетворює нерухомість на керовану базу
+          з платежами, доступами й публічними сторінками обʼєктів.
+        </p>
+        <p class="sm" style="margin-top:10px">
+          На відміну від важких CRM, його не треба встановлювати, налаштовувати
+          чи вчити — він відкривається в чаті за три секунди.
+        </p>
+      </div>
+    </div>
+
+    <div class="g3" style="margin-top:clamp(12px,1.6vw,20px)">
+      <div class="glass-s card">
+        <div class="bdg bdg-sale">Опора 01</div>
+        <div class="h3" style="margin-top:12px">Нуль інсталяцій</div>
+        <p class="sm" style="margin-top:8px">
+          Telegram Mini App. Без App Store, без пароля, без онбордингу на
+          12 кроків. Вхід — один тап, особу підтверджує сам Telegram.
+        </p>
+        <div class="over" style="margin-top:14px;color:var(--info)">Бар'єр входу ≈ 0</div>
+      </div>
+      <div class="glass-s card">
+        <div class="bdg bdg-fav" style="background:rgba(255,122,184,.18);color:#ffb8e0;
+             border:.5px solid rgba(255,122,184,.32)">Опора 02</div>
+        <div class="h3" style="margin-top:12px">Посилання, що продає</div>
+        <p class="sm" style="margin-top:8px">
+          Кожен обʼєкт має публічну сторінку: фото, площі, ставка, розрахунок
+          «разом на місяць». Відкриється в будь-якому браузері — клієнту не
+          потрібен ані Telegram, ані акаунт.
+        </p>
+        <div class="over" style="margin-top:14px;color:var(--pink)">Головний диференціатор</div>
+      </div>
+      <div class="glass-s card">
+        <div class="bdg bdg-ok">Опора 03</div>
+        <div class="h3" style="margin-top:12px">Гроші під наглядом</div>
+        <p class="sm" style="margin-top:8px">
+          Календар платежів, нагадування в Telegram, статуси «отримано /
+          очікується / прострочено», експорт у PDF, Excel і CSV.
+        </p>
+        <div class="over" style="margin-top:14px;color:var(--ok)">Утримання</div>
+      </div>
+    </div>
+
+    <div class="glass-s card" style="margin-top:clamp(12px,1.6vw,20px)">
+      <p class="bd">
+        <b>Чому саме ці три.</b> Перша знімає заперечення «мені ніколи
+        розбиратись». Друга створює <em>вірусну петлю</em>: кожне надіслане
+        посилання показує продукт людині, яка про нього не знала. Третя тримає
+        користувача щомісяця, бо платіжний цикл повторюваний за природою.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 02 · АУДИТОРІЯ ═══════════ -->
+<section id="audience" class="bg-blue">
+  <div class="wrap">
+    <div class="hd">
+      <div class="over">02 · Аудиторія</div>
+      <h2 class="h1">Дві людини, дві різні обіцянки</h2>
+      <p class="lead" style="margin-top:18px">
+        Одна креативна стратегія на обох не працює: у власника болить
+        <em>контроль</em>, у рієлтора — <em>швидкість угоди</em>.
+      </p>
+    </div>
+
+    <div class="g2">
+      <div class="glass-s card">
+        <div class="row" style="padding:0;gap:14px">
+          <div class="orb" style="width:58px;--og:rgba(255,149,0,.5);
+               --os:linear-gradient(135deg,#ffb347,#ff6b9d)">
+            <div class="orb-s"><i class="orb-e"></i><i class="orb-e"></i></div>
+          </div>
+          <div style="flex:1;min-width:0">
+            <div class="h2">Богдан, 42</div>
+            <div class="sm">Власник БЦ · 18 офісів, 2 паркінги</div>
+          </div>
+          <span class="bdg bdg-busy">Персона A</span>
+        </div>
+        <table style="margin-top:16px">
+          <tr><td class="k" style="width:34%;border-top:0">Як зараз</td>
+              <td style="border-top:0">Excel на ноутбуці, нотатки в телефоні, фото приміщень
+                  у галереї. Нагадує про оплату вручну, коли згадає.</td></tr>
+          <tr><td class="k">Робота, яку<br>треба зробити</td>
+              <td style="color:var(--t1)">«Коли орендар питає, скільки вийде за 80 м², я хочу за
+                  десять секунд надіслати готову сторінку — щоб виглядати як
+                  компанія, а не як приватник.»</td></tr>
+          <tr><td class="k">Тригери</td>
+              <td>Забув нагадати — отримав оплату на два тижні пізніше<br>
+                  Не памʼятає, коли спливає договір<br>
+                  Соромно надсилати скриншот таблиці</td></tr>
+        </table>
+      </div>
+
+      <div class="glass-s card">
+        <div class="row" style="padding:0;gap:14px">
+          <div class="orb" style="width:58px;--og:rgba(122,179,255,.5);
+               --os:linear-gradient(135deg,#5ec8ff,#a78bfa)">
+            <div class="orb-s"><i class="orb-e"></i><i class="orb-e"></i></div>
+          </div>
+          <div style="flex:1;min-width:0">
+            <div class="h2">Олена, 29</div>
+            <div class="sm">Рієлтор · 6 власників, 40+ обʼєктів</div>
+          </div>
+          <span class="bdg bdg-sale">Персона B</span>
+        </div>
+        <table style="margin-top:16px">
+          <tr><td class="k" style="width:34%;border-top:0">Як зараз</td>
+              <td style="border-top:0">У кожного власника свій формат. Збирає підбірку клієнту
+                  вручну — копіює з листувань у документ.</td></tr>
+          <tr><td class="k">Робота, яку<br>треба зробити</td>
+              <td style="color:var(--t1)">«Коли я надсилаю клієнту пʼять варіантів, я хочу бачити,
+                  який він відкрив — щоб дзвонити не наосліп.»</td></tr>
+          <tr><td class="k">Тригери</td>
+              <td>Клієнт мовчить — незрозуміло, чи взагалі дивився<br>
+                  Підбірка збирається пів години замість двох хвилин<br>
+                  Власник змінив ціну — у підбірці стара</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="g3" style="margin-top:clamp(12px,1.6vw,20px)">
+      <div class="glass-s card">
+        <div class="over">Момент «ага»</div>
+        <div class="h3" style="margin-top:10px">Перше надіслане посилання</div>
+        <p class="sm" style="margin-top:8px">
+          Не реєстрація і не створення бази. Цінність стає відчутною рівно
+          тоді, коли людина бачить, <em>як її обʼєкт виглядає збоку</em>.
+        </p>
+      </div>
+      <div class="glass-s card" style="background:var(--ok-bg);border-color:var(--ok-bd)">
+        <div class="over">Метрика активації</div>
+        <div class="stat-n" style="margin-top:10px;font-size:clamp(26px,2.8vw,38px)">TTFL &lt; 4 хв</div>
+        <p class="sm" style="margin-top:8px">
+          <b>Time To First Link</b> — від входу до першого надісланого посилання.
+          Головне число онбордингу; уся реклама веде саме до нього.
+        </p>
+      </div>
+      <div class="glass-s card">
+        <div class="over">Антиаудиторія</div>
+        <div class="h3" style="margin-top:10px">Житлова оренда, 1–2 квартири</div>
+        <p class="sm" style="margin-top:8px">
+          Свідомо не ціль: платіжний цикл надто простий, цінність не окупає
+          звички. Розмиття меседжу тут дорожче за втрачений трафік.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 03 · ВІЗУАЛЬНА СИСТЕМА ═══════════ -->
+<section id="brand" class="bg-ink">
+  <div class="wrap">
+    <div class="hd">
+      <div class="over">03 · Візуальна система</div>
+      <h2 class="h1">Система вже існує.<br>Маркетинг її не вигадує — успадковує.</h2>
+      <p class="lead" style="margin-top:18px">
+        Кольори, скло, радіуси й шкала тексту нижче взяті з
+        <b>globals.css</b> застосунку <em>дослівно</em>. Реклама, зроблена з
+        деталей самого продукту, не може виглядати «як у всіх»: деталі
+        специфічні. І вона не створює розриву очікувань після переходу.
+      </p>
+    </div>
+
+    <div class="over" style="margin-bottom:12px">Родина градієнтів · пʼять настроїв, один почерк</div>
+    <div class="g3" style="gap:10px">
+      <div class="bg-blue" style="height:132px;border-radius:var(--r-md);padding:14px;
+           display:flex;flex-direction:column;justify-content:flex-end">
+        <div class="h3">Blue</div><div class="xs">Бази й обʼєкти</div></div>
+      <div class="bg-purple" style="height:132px;border-radius:var(--r-md);padding:14px;
+           display:flex;flex-direction:column;justify-content:flex-end">
+        <div class="h3">Purple</div><div class="xs">Бренд, підбірки</div></div>
+      <div class="bg-pink" style="height:132px;border-radius:var(--r-md);padding:14px;
+           display:flex;flex-direction:column;justify-content:flex-end">
+        <div class="h3">Pink</div><div class="xs">Шаринг, аналітика</div></div>
+      <div class="bg-green" style="height:132px;border-radius:var(--r-md);padding:14px;
+           display:flex;flex-direction:column;justify-content:flex-end">
+        <div class="h3">Green</div><div class="xs">Гроші, успіх</div></div>
+      <div class="bg-teal" style="height:132px;border-radius:var(--r-md);padding:14px;
+           display:flex;flex-direction:column;justify-content:flex-end">
+        <div class="h3">Teal</div><div class="xs">Сповіщення, профіль</div></div>
+      <div class="bg-cyan" style="height:132px;border-radius:var(--r-md);padding:14px;
+           display:flex;flex-direction:column;justify-content:flex-end">
+        <div class="h3">Cyan</div><div class="xs">Онбординг, сканер</div></div>
+    </div>
+    <p class="sm" style="margin-top:14px;max-width:80ch">
+      Градієнт <b>світлішає донизу</b> — це властивість системи, а не декор.
+      У макетах із неї випливає одне практичне правило: підпис ніколи не
+      ставиться в найсвітлішу зону без щільнішого ґрунту під ним.
+    </p>
+
+    <hr>
+
+    <div class="g3" style="align-items:start">
+      <div>
+        <div class="over">Скло · три щільності</div>
+        <div style="margin-top:12px;position:relative;border-radius:var(--r-lg);overflow:hidden"
+             class="bg-blue">
+          <div style="padding:16px;display:flex;flex-direction:column;gap:10px">
+            <div class="glass-s" style="border-radius:var(--r-md);padding:12px">
+              <div class="h3">.glass-s</div><div class="xs">картки списків · blur 28</div></div>
+            <div class="glass" style="border-radius:var(--r-md);padding:12px">
+              <div class="h3">.glass</div><div class="xs">модальне, акцентні блоки · blur 32</div></div>
+            <div class="glass-d" style="border-radius:var(--r-md);padding:12px">
+              <div class="h3">.glass-d</div><div class="xs">FAB, важливі кнопки · blur 36</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="over">Радіуси · шкала й концентричність</div>
+        <div class="glass-s card" style="margin-top:12px">
+          <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:14px">
+            <div style="flex:1;height:52px;border-radius:8px;background:rgba(255,255,255,.14)"></div>
+            <div style="flex:1;height:52px;border-radius:12px;background:rgba(255,255,255,.14)"></div>
+            <div style="flex:1;height:52px;border-radius:16px;background:rgba(255,255,255,.14)"></div>
+            <div style="flex:1;height:52px;border-radius:20px;background:rgba(255,255,255,.14)"></div>
+            <div style="flex:1;height:52px;border-radius:24px;background:rgba(255,255,255,.14)"></div>
+            <div style="flex:1;height:52px;border-radius:999px;background:rgba(255,255,255,.14)"></div>
+          </div>
+          <div class="xs">8 · 12 · 16 · 20 · 24 · пігулка</div>
+          <p class="sm" style="margin-top:12px">
+            Проміжних значень немає свідомо: вкладений елемент не обирає собі
+            число, а <b>виводить</b> його — радіус батька мінус відступ між ними.
+            Дуги мають спільний центр, інакше кути читаються як дві різні системи.
+          </p>
+          <div class="seg" style="margin-top:14px"><b class="on">Картки</b><b>Компактно</b></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="over">Акценти · закріплені ролі</div>
+        <div class="glass-s card" style="margin-top:12px;display:flex;flex-direction:column;gap:9px">
+          <div class="row" style="padding:10px 12px;background:var(--ok-bg);
+               border:.5px solid var(--ok-bd)">
+            <b style="color:var(--ok-fg)">$ Гроші</b><span class="xs" style="margin-left:auto">#34C759</span></div>
+          <div class="row" style="padding:10px 12px;background:rgba(42,171,238,.16);
+               border:.5px solid rgba(42,171,238,.3)">
+            <b style="color:#9ad8f7">Telegram</b><span class="xs" style="margin-left:auto">#2AABEE</span></div>
+          <div class="row" style="padding:10px 12px;background:rgba(255,122,184,.16);
+               border:.5px solid rgba(255,122,184,.3)">
+            <b style="color:#ffb8e0">Шаринг</b><span class="xs" style="margin-left:auto">#FF7AB8</span></div>
+          <div class="row" style="padding:10px 12px;background:var(--warn-bg);
+               border:.5px solid var(--warn-bd)">
+            <b style="color:var(--warn-fg)">Очікує</b><span class="xs" style="margin-left:auto">#FF9500</span></div>
+          <div class="row" style="padding:10px 12px;background:rgba(123,48,235,.2);
+               border:.5px solid rgba(123,48,235,.34)">
+            <b style="color:#c9a9ff">Команда</b><span class="xs" style="margin-left:auto">#7B30EB</span></div>
+          <p class="sm" style="margin-top:4px">
+            Зелений закріплений за <mark>грошима</mark> і ніде більше не вживається —
+            це правило продукту, і реклама його дотримує.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <hr>
+
+    <div class="split" style="--sp:1fr">
+      <div class="glass-s card">
+        <div class="over">Типографіка · ієрархія розміром, не накресленнями</div>
+        <div style="margin-top:16px;display:flex;flex-direction:column;gap:12px">
+          <div><div style="font-size:clamp(28px,3.4vw,44px);font-weight:800;letter-spacing:-.04em;
+               line-height:1.04">Нерухомість, якою керують</div>
+            <div class="xs" style="margin-top:4px">Дисплей · 800 · трекінг −4%</div></div>
+          <div><div class="h2">Публічна сторінка обʼєкта</div>
+            <div class="xs" style="margin-top:4px">Заголовок · 700 · трекінг −2,5%</div></div>
+          <div><div class="bd" style="color:var(--t1)">Ставка × площа плюс експлуатаційні — рахує сам.</div>
+            <div class="xs" style="margin-top:4px">Основний текст · 400 · 1,55</div></div>
+          <div><div class="over">Разом на місяць</div>
+            <div class="xs" style="margin-top:6px">Оверлайн · 11 / 600 / .08em uppercase</div></div>
+        </div>
+      </div>
+      <div class="glass-s card">
+        <div class="over">Постійні елементи кадру</div>
+        <table style="margin-top:12px">
+          <tr><td class="k" style="width:40%;border-top:0">Скляна картка</td>
+              <td style="border-top:0">Носій будь-якого змісту. Реклама показує
+                  <b>поверхню застосунку</b>, а не текст на кольорі.</td></tr>
+          <tr><td class="k">Оверлайн</td><td>Рубрика над блоком. 11 px, uppercase, приглушений тон.</td></tr>
+          <tr><td class="k">Бейдж статусу</td><td>Вільно / Зайнято / Продаж — тонований, зі світінням.</td></tr>
+          <tr><td class="k">Пігулка дії</td><td>46 px, радіальна щільність, блюр. Одна на кадр.</td></tr>
+          <tr><td class="k">Волосина .5px</td><td>rgba(255,255,255,.16). Підпис системи.</td></tr>
+        </table>
+        <p class="sm" style="margin-top:14px">
+          <b>Перевірка на власність:</b> якщо зняти логотип і кадр усе одно
+          впізнається — система працює. Саме цього не дає плаский колір із
+          білим заголовком: він належить усім.
+        </p>
+      </div>
+    </div>
+
+    <div class="g3" style="margin-top:clamp(12px,1.6vw,20px)">
+      <div class="glass-s card"><div class="over">Кажемо</div>
+        <p class="sm" style="margin-top:9px">Коротко й конкретно. Цифрами.
+        <mark>«$2 460 на місяць»</mark> замість «зручний розрахунок». Дієслово на
+        початку: <b>Надішли</b>, <b>Порахуй</b>, <b>Побач</b>.</p></div>
+      <div class="glass-s card"><div class="over">Не кажемо</div>
+        <p class="sm" style="margin-top:9px">«Інноваційна платформа», «революція в
+        PropTech», «легко та зручно». Це слова без обіцянки — їх однаково пише
+        кожен конкурент.</p></div>
+      <div class="glass-s card"><div class="over">Перевірка речення</div>
+        <p class="sm" style="margin-top:9px">Якщо фразу можна поставити на сайт
+        будь-якого іншого продукту — вона порожня і йде в кошик.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 04 · ПРОДУКТ У КАДРІ ═══════════ -->
+<section id="product" class="bg-blue">
+  <div class="wrap">
+    <div class="hd">
+      <div class="over">04 · Продукт у кадрі</div>
+      <h2 class="h1">Одинадцять справжніх екранів</h2>
+      <p class="lead" style="margin-top:18px">
+        Жодного намальованого мокапу. Кадри зняті з живого застосунку тим самим
+        інструментом, що ганяє тести, у потрійній щільності — на 1080-пікселевому
+        полотні вони лишаються різкими.
+      </p>
+    </div>
+
+    <div class="g3" style="gap:clamp(14px,2vw,30px)">
+      <div>
+        <div class="phone"><img src="shots/db-list.png" alt="Список баз"></div>
+        <div style="margin-top:14px"><span class="bdg bdg-sale">01 · Головний екран</span>
+          <div class="h3" style="margin-top:9px">Дохід видно одразу</div>
+          <p class="sm" style="margin-top:5px">Скільки приносить портфель і скільки вільно — без жодного тапу.</p></div>
+      </div>
+      <div>
+        <div class="phone"><img src="shots/v-property.png" alt="Публічна сторінка"></div>
+        <div style="margin-top:14px"><span class="bdg" style="background:rgba(255,122,184,.18);
+          color:#ffb8e0;border:.5px solid rgba(255,122,184,.32)">02 · Публічна сторінка</span>
+          <div class="h3" style="margin-top:9px">Посилання, що продає</div>
+          <p class="sm" style="margin-top:5px">Те, що бачить клієнт. Без Telegram, без акаунта, без встановлення.</p></div>
+      </div>
+      <div>
+        <div class="phone"><img src="shots/payment-calendar-full.png" alt="Календар платежів"></div>
+        <div style="margin-top:14px"><span class="bdg bdg-ok">03 · Календар платежів</span>
+          <div class="h3" style="margin-top:9px">Прострочене — червоним</div>
+          <p class="sm" style="margin-top:5px">Нагадування приходить у Telegram, а не лишається в голові.</p></div>
+      </div>
+    </div>
+
+    <div class="g4" style="margin-top:clamp(20px,2.6vw,38px)">
+      <div><div class="phone" style="--pr:24px"><img src="shots/db-objects.png" alt="Обʼєкти бази"></div>
+        <div class="over" style="margin-top:11px;color:var(--t2)">04 · Обʼєкти бази</div>
+        <div class="xs" style="margin-top:3px">Зайнятість, оренда, експлуатаційні</div></div>
+      <div><div class="phone" style="--pr:24px"><img src="shots/sharing-analytics-full.png" alt="Аналітика"></div>
+        <div class="over" style="margin-top:11px;color:var(--t2)">05 · Аналітика</div>
+        <div class="xs" style="margin-top:3px">Хто і коли відкрив посилання</div></div>
+      <div><div class="phone" style="--pr:24px"><img src="shots/export.png" alt="Експорт"></div>
+        <div class="over" style="margin-top:11px;color:var(--t2)">06 · Експорт</div>
+        <div class="xs" style="margin-top:3px">PDF, Excel і CSV одним тапом</div></div>
+      <div><div class="phone" style="--pr:24px"><img src="shots/team.png" alt="Команда"></div>
+        <div class="over" style="margin-top:11px;color:var(--t2)">07 · Команда</div>
+        <div class="xs" style="margin-top:3px">Редактори без доступу до фінансів</div></div>
+      <div><div class="phone" style="--pr:24px"><img src="shots/property-form-new.png" alt="Форма"></div>
+        <div class="over" style="margin-top:11px;color:var(--t2)">08 · Новий обʼєкт</div>
+        <div class="xs" style="margin-top:3px">Ставка, площі, орендодавець</div></div>
+      <div><div class="phone" style="--pr:24px"><img src="shots/db-objects-compact.png" alt="Компактно"></div>
+        <div class="over" style="margin-top:11px;color:var(--t2)">09 · Компактний вигляд</div>
+        <div class="xs" style="margin-top:3px">Папки, поверхи, весь портфель</div></div>
+      <div><div class="phone" style="--pr:24px"><img src="shots/v-database.png" alt="Публічний список"></div>
+        <div class="over" style="margin-top:11px;color:var(--t2)">10 · Публічний список</div>
+        <div class="xs" style="margin-top:3px">Уся база одним посиланням</div></div>
+      <div><div class="phone" style="--pr:24px"><img src="shots/realtor-dashboard.png" alt="Кабінет рієлтора"></div>
+        <div class="over" style="margin-top:11px;color:var(--t2)">11 · Кабінет рієлтора</div>
+        <div class="xs" style="margin-top:3px">Чужі бази, підключені за QR</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 05 · ПРОФІЛЬ ═══════════ -->
+<section id="profile" class="bg-teal">
+  <div class="wrap">
+    <div class="hd">
+      <div class="over">05 · Профіль</div>
+      <h2 class="h1">Профіль — це посадкова сторінка</h2>
+      <p class="lead" style="margin-top:18px">
+        Людина з реклами потрапляє сюди раніше, ніж у застосунок. За три
+        секунди вона має зрозуміти: що це, для кого і що робити далі.
+      </p>
+    </div>
+
+    <div class="split" style="--sp:392px">
+      <div class="glass-s card" style="padding:clamp(12px,1.4vw,18px)"><div id="ig"></div></div>
+      <div class="glass-s card">
+        <table>
+          <tr><td class="k" style="width:30%;border-top:0">Імʼя профілю</td>
+              <td style="border-top:0"><b>prostir · нерухомість у Telegram</b><br>
+              Пошук індексує саме це поле — «нерухомість» і «Telegram» мусять
+              бути тут, а не лише в описі.</td></tr>
+          <tr><td class="k">Перший рядок</td>
+              <td>Категорія без прикметників. «Керуйте обʼєктами, платежами
+                  й доступами» замість «інноваційна платформа».</td></tr>
+          <tr><td class="k">Другий рядок</td>
+              <td>Для кого. Власники БЦ, складів, паркінгів і рієлтори.</td></tr>
+          <tr><td class="k">Третій рядок</td>
+              <td>Дія зі стрілкою вниз. Тут єдине посилання й воно веде
+                  <b>одразу в застосунок</b>, не на проміжну сторінку.</td></tr>
+          <tr><td class="k">Актуальні</td>
+              <td>Пʼять і не більше: <b>Що це · Ціни · Кейси · Оновлення ·
+                  Питання</b>. Обкладинки однакові — скло з номером.</td></tr>
+          <tr><td class="k">Закріплені</td>
+              <td>Три пости: <b>що це</b>, <b>як почати</b>, <b>доказ</b>.
+                  Вони працюють як меню, тож не змінюються місяцями.</td></tr>
+        </table>
+        <p class="sm" style="margin-top:16px">
+          <b>Перевірка:</b> прокрутіть профіль без звуку на телефоні три секунди
+          і спитайте себе, що продукт робить. Якщо відповіді немає — виправляти
+          треба профіль, а не рекламу.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 06 · СІТКА ═══════════ -->
+<section id="grid" class="bg-ink">
+  <div class="wrap">
+    <div class="hd">
+      <div class="over">06 · Сітка</div>
+      <h2 class="h1">Девʼять плиток, три ритми</h2>
+      <p class="lead" style="margin-top:18px">
+        Сітка читається не плиткою, а <em>рядком із трьох</em>. Ритм заданий по
+        горизонталі: <b>екран → цифра → обіцянка</b>. Нова публікація зсуває
+        стрічку на одну позицію, і рисунок лишається цілим — це і є умова,
+        яку більшість сіток не витримує.
+      </p>
+    </div>
+    <div class="g3" id="tiles"></div>
+  </div>
+</section>
+
+<!-- ═══════════ 07 · КАРУСЕЛЬ ═══════════ -->
+<section id="carousel" class="bg-purple">
+  <div class="wrap">
+    <div class="hd">
+      <div class="over">07 · Карусель</div>
+      <h2 class="h1">П'ять помилок орендодавця</h2>
+      <p class="lead" style="margin-top:18px">
+        Формат під <em>збереження</em> — метрику, за якою стрічка зараз вирішує,
+        кому показувати далі. Кожен слайд має ціну помилки в грошах або днях:
+        саме цифра змушує зберегти, а не заголовок.
+      </p>
+    </div>
+    <div class="g3" id="slides"></div>
+    <p class="sm" style="margin-top:22px;max-width:80ch">
+      <b>Перший слайд вирішує все.</b> Він не пояснює — він обіцяє список і
+      показує, що слайдів пʼять. Останній не дякує, а <em>дає дію</em>:
+      посилання в біо.
+    </p>
+  </div>
+</section>
+
+<!-- ═══════════ 08 · STORIES ═══════════ -->
+<section id="stories" class="bg-cyan">
+  <div class="wrap">
+    <div class="hd">
+      <div class="over">08 · Stories</div>
+      <h2 class="h1">Чотири кадри, одна дія</h2>
+      <p class="lead" style="margin-top:18px">
+        Безпечні зони: <b>250 px</b> згори під інтерфейс і <b>320 px</b> знизу
+        під стікер посилання. Усе, що всередині цих смуг, буде перекрито —
+        тому там немає нічого, крім тла.
+      </p>
+    </div>
+    <div class="g4" id="stories-g"></div>
+  </div>
+</section>
+
+<!-- ═══════════ 09 · РІЛЗ ═══════════ -->
+<section id="reels" class="bg-ink">
+  <div class="wrap">
+    <div class="hd">
+      <div class="over">09 · Рілз</div>
+      <h2 class="h1">П'ятнадцять секунд, п'ять тактів</h2>
+      <p class="lead" style="margin-top:18px">
+        Перші <b>1,5 с</b> вирішують долю перегляду, тому заперечення стоїть у
+        першому кадрі, а назва продукту — аж у дванадцятій секунді. Спершу
+        впізнавання болю, потім ім'я.
+      </p>
+    </div>
+
+    <div class="split" style="--sp:300px">
+      <div>
+        <div class="phone" style="--pr:22px">
+          <video src="creatives/reel-15s.webm" poster="creatives/board-1.jpg"
+                 autoplay loop muted playsinline style="display:block;width:100%"></video>
+        </div>
+        <div class="over" style="margin-top:12px">1080×1920 · 30 к/с · 15 с</div>
+      </div>
+      <div class="glass-s card">
+        <table>
+          <tr><th style="width:14%;padding-top:0">Такт</th><th class="n" style="width:17%">Час</th>
+              <th>Що на екрані</th></tr>
+          <tr><td class="k">Гачок</td><td class="n">0,0—3,2</td>
+              <td>«Орендар питає ціну. У вас 10 секунд.» Пауза між рядками — саме вона тримає.</td></tr>
+          <tr><td class="k">Проблема</td><td class="n">3,2—6,3</td>
+              <td>Таблиця перекреслюється. «Excel цього не надішле.»</td></tr>
+          <tr><td class="k">Продукт</td><td class="n">6,3—9,3</td>
+              <td>Телефон виїжджає знизу. Публічна сторінка обʼєкта — те, що бачить клієнт.</td></tr>
+          <tr><td class="k">Вигода</td><td class="n">9,3—11,8</td>
+              <td>Сума «разом на місяць» виноситься карткою поверх кадру.</td></tr>
+          <tr><td class="k">Заклик</td><td class="n">11,8—15,0</td>
+              <td>Знак, обіцянка, пігулка. Юзернейм тримається до кінця.</td></tr>
+        </table>
+        <div class="g2" style="margin-top:18px">
+          <div><div class="over">Звук</div>
+            <p class="sm" style="margin-top:7px">Дивляться без звуку, тому весь сенс — у тексті.
+            Музика — тільки ритм, без голосу за кадром.</p></div>
+          <div><div class="over">Переробка</div>
+            <p class="sm" style="margin-top:7px">Кадри рілза стають каруселлю, а тема —
+            опитуванням у Stories. Одне повідомлення, три звички споживання.</p></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="over" style="margin:clamp(22px,3vw,40px) 0 12px">Сторіборд</div>
+    <div class="g5" id="board" style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));
+         gap:clamp(8px,1.2vw,16px)"></div>
+  </div>
+</section>
+
+<!-- ═══════════ 10 · РЕКЛАМА ═══════════ -->
+<section id="ads" class="bg-green">
+  <div class="wrap">
+    <div class="hd">
+      <div class="over">10 · Реклама</div>
+      <h2 class="h1">Макет, у якому видно, що міняти</h2>
+      <p class="lead" style="margin-top:18px">
+        Рекламний кадр — не картинка, а <em>конструкція з чотирьох зон</em>.
+        Тестується завжди одна зона за раз, інакше переможець нічого не
+        пояснює про причину.
+      </p>
+    </div>
+
+    <div class="split" style="--sp:1fr">
+      <div id="ad-slot"></div>
+      <div class="glass-s card">
+        <table>
+          <tr><th style="width:30%;padding-top:0">Зона</th><th>Правило</th></tr>
+          <tr><td class="k">Заперечення</td><td>Один рядок, до семи слів. Це єдина змінна
+              перших 30 днів — решта кадру не чіпається.</td></tr>
+          <tr><td class="k">Доказ</td><td>Справжній екран, а не ілюстрація. Кадр, що
+              суперечить підпису, гірший за відсутність кадру.</td></tr>
+          <tr><td class="k">Механіка</td><td>Одне речення про те, як саме це працює.
+              Без слова «легко».</td></tr>
+          <tr><td class="k">Дія</td><td>Дієслово. «Спробувати безкоштовно», не «дізнатись більше».</td></tr>
+        </table>
+        <div class="over" style="margin-top:22px">UTM · без цього тест не має сенсу</div>
+        <div class="row glass" style="margin-top:10px;border-radius:var(--r-md);
+             font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;
+             line-height:1.9;display:block;color:var(--t2)">
+          ?utm_source=<b>instagram</b><br>&amp;utm_medium=<b>paid</b><br>
+          &amp;utm_campaign=<b>owner_q4</b><br>&amp;utm_content=<b>obj_late_v3</b>
+        </div>
+        <p class="sm" style="margin-top:12px">
+          <b>utm_content несе версію креативу.</b> Без нього через місяць
+          неможливо сказати, який саме макет привів активації — а це єдине
+          питання, заради якого тест і робиться.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 11 · КОНТЕНТ-ПЛАН ═══════════ -->
+<section id="calendar" class="bg-ink">
+  <div class="wrap">
+    <div class="hd">
+      <div class="over">11 · Контент-план</div>
+      <h2 class="h1">Чотири тижні, чотири опори</h2>
+      <p class="lead" style="margin-top:18px">
+        Пропорція свідома: продукт і біль дають <b>55%</b> дописів, бо саме
+        вони приводять нових. Бренд — лише <b>10%</b>: його купують після
+        довіри, а не до неї.
+      </p>
+    </div>
+
+    <div class="g4" style="margin-bottom:clamp(18px,2.4vw,32px)">
+      <div class="glass-s stat" style="border-radius:var(--r-lg);padding:18px">
+        <div class="stat-n">30%</div><div class="stat-l">Продукт у дії</div>
+        <div class="xs" style="margin-top:8px">Мікро-демо, «3 тапи», нові функції</div>
+        <div style="height:3px;border-radius:var(--r-pill);background:rgba(255,255,255,.1);margin-top:10px">
+          <div style="height:100%;width:100%;border-radius:var(--r-pill);background:var(--info)"></div></div></div>
+      <div class="glass-s stat" style="border-radius:var(--r-lg);padding:18px">
+        <div class="stat-n">25%</div><div class="stat-l">Біль → вихід</div>
+        <div class="xs" style="margin-top:8px">Прострочки, таблиці, втрачені клієнти</div>
+        <div style="height:3px;border-radius:var(--r-pill);background:rgba(255,255,255,.1);margin-top:10px">
+          <div style="height:100%;width:83%;border-radius:var(--r-pill);background:var(--err)"></div></div></div>
+      <div class="glass-s stat" style="border-radius:var(--r-lg);padding:18px">
+        <div class="stat-n">20%</div><div class="stat-l">Експертиза</div>
+        <div class="xs" style="margin-top:8px">Площі, ставки, договори, ринок</div>
+        <div style="height:3px;border-radius:var(--r-pill);background:rgba(255,255,255,.1);margin-top:10px">
+          <div style="height:100%;width:67%;border-radius:var(--r-pill);background:var(--violet)"></div></div></div>
+      <div class="glass-s stat" style="border-radius:var(--r-lg);padding:18px">
+        <div class="stat-n">15%</div><div class="stat-l">Докази</div>
+        <div class="xs" style="margin-top:8px">Кейси, цифри, відгуки</div>
+        <div style="height:3px;border-radius:var(--r-pill);background:rgba(255,255,255,.1);margin-top:10px">
+          <div style="height:100%;width:50%;border-radius:var(--r-pill);background:var(--ok)"></div></div></div>
+    </div>
+
+    <div class="glass-s card tscroll">
+      <table>
+        <tr><th style="width:7%" class="n">День</th><th style="width:12%">Формат</th>
+            <th>Тема</th><th style="width:13%">Опора</th><th style="width:14%">Ціль</th></tr>
+        <tr class="grp"><td colspan="5">Тиждень 1 — знайомство</td></tr>
+        <tr><td class="n">Пн</td><td class="k">Reels</td>
+            <td>«Орендар питає ціну. У вас 10 секунд» — головний рілз</td><td>Біль</td><td>Охоплення</td></tr>
+        <tr><td class="n">Ср</td><td class="k">Карусель</td>
+            <td>П'ять помилок орендодавця</td><td>Експертиза</td><td>Збереження</td></tr>
+        <tr><td class="n">Пт</td><td class="k">Допис</td>
+            <td>Публічна сторінка обʼєкта — що бачить клієнт</td><td>Продукт</td><td>Переходи в біо</td></tr>
+        <tr class="grp"><td colspan="5">Тиждень 2 — довіра</td></tr>
+        <tr><td class="n">Пн</td><td class="k">Reels</td>
+            <td>«$18/м² — це не $18 на місяць». Розбір площ за 20 секунд</td><td>Експертиза</td><td>Коментарі</td></tr>
+        <tr><td class="n">Ср</td><td class="k">Кейс</td>
+            <td>БЦ на 18 приміщень: до і після</td><td>Докази</td><td>Довіра</td></tr>
+        <tr><td class="n">Пт</td><td class="k">Stories</td>
+            <td>Опитування «Як ви ведете обʼєкти?» + відповідь наступного дня</td><td>Біль</td><td>Дані для таргету</td></tr>
+        <tr class="grp"><td colspan="5">Тиждень 3 — функції</td></tr>
+        <tr><td class="n">Пн</td><td class="k">Reels</td>
+            <td>Календар платежів: від «забув» до «нагадало»</td><td>Продукт</td><td>Охоплення</td></tr>
+        <tr><td class="n">Ср</td><td class="k">Карусель</td>
+            <td>Команда і гості: хто що бачить у вашій базі</td><td>Продукт</td><td>Збереження</td></tr>
+        <tr><td class="n">Пт</td><td class="k">Допис</td>
+            <td>Експорт у PDF — звіт власнику за 10 секунд</td><td>Продукт</td><td>Переходи</td></tr>
+        <tr class="grp"><td colspan="5">Тиждень 4 — конверсія</td></tr>
+        <tr><td class="n">Пн</td><td class="k">Reels</td>
+            <td>«Рієлтор надіслав підбірку. Клієнт відкрив о 23:40»</td><td>Докази</td><td>Охоплення</td></tr>
+        <tr><td class="n">Ср</td><td class="k">Ефір</td>
+            <td>Розбір бази підписника наживо</td><td>Докази</td><td>Утримання</td></tr>
+        <tr><td class="n">Пт</td><td class="k">Stories</td>
+            <td>Серія з 5 кадрів: шлях від нуля до першого посилання</td><td>Продукт</td><td>Активації</td></tr>
+      </table>
+    </div>
+
+    <div class="g2" style="margin-top:clamp(12px,1.6vw,20px)">
+      <div class="glass-s card"><div class="over">Ритм</div>
+        <p class="sm" style="margin-top:9px">Три дописи на тиждень і Stories через день. Більше
+        не треба: у B2B-нерухомості аудиторія вузька, і <em>частота вбиває охоплення</em>
+        швидше, ніж нарощує. Один сильний рілз дає більше, ніж пʼять посередніх.</p></div>
+      <div class="glass-s card"><div class="over">Правило переробки</div>
+        <p class="sm" style="margin-top:9px">Кожен рілз живе тричі: <b>відео → карусель із його
+        кадрів → Stories з опитуванням на ту саму тему</b>. Це не економія, а доставка одного
+        повідомлення людям з різною звичкою споживання.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════ 12 · МЕТРИКИ ═══════════ -->
+<section id="kpi" class="bg-green">
+  <div class="wrap">
+    <div class="hd">
+      <div class="over">12 · Метрики і запуск</div>
+      <h2 class="h1">Що вважаємо успіхом</h2>
+      <p class="lead" style="margin-top:18px">
+        Підписники — не мета. Мета — <em>власник, який надіслав перше
+        посилання</em>. Усі цифри нижче ведуть саме до цієї події.
+      </p>
+    </div>
+
+    <div class="split" style="--sp:1fr">
+      <div>
+        <div class="glass-s card" style="background:var(--ok-bg);border-color:var(--ok-bd)">
+          <div class="over">Північна зірка</div>
+          <div class="stat-n" style="font-size:clamp(30px,3.4vw,48px);margin-top:10px">TTFL &lt; 4 хв</div>
+          <p class="sm" style="margin-top:10px">
+            Від першого відкриття до першого надісланого посилання. Якщо метрика
+            росте — проблема в онбордингу, а не в рекламі.
+          </p>
+        </div>
+        <div class="glass-s card" style="margin-top:12px">
+          <div class="over">Вірусна петля</div>
+          <p class="sm" style="margin-top:9px">
+            Кожна публічна сторінка має знак <b>prostir</b> у шапці й кнопку
+            «Відкрити в Telegram». Орендар, що відкрив посилання, — це
+            <em>безкоштовний показ</em> людині з тієї самої галузі.
+          </p>
+          <div class="row" style="margin-top:12px;background:var(--glass-card);border:var(--bd)">
+            <div class="stat-n" style="font-size:24px">k &gt; 0,4</div>
+            <div class="xs" style="margin-left:auto;text-align:right">кожні 10 власників<br>приводять 4 запуски</div>
+          </div>
+        </div>
+      </div>
+      <div class="glass-s card">
+        <div class="over">Воронка</div>
+        <table style="margin-top:12px">
+          <tr><td class="k" style="border-top:0">Показ → перехід</td>
+              <td class="n" style="text-align:right;border-top:0">1,2%</td></tr>
+          <tr><td class="k">Перехід → запуск</td><td class="n" style="text-align:right">35%</td></tr>
+          <tr><td class="k">Запуск → база</td><td class="n" style="text-align:right">55%</td></tr>
+          <tr><td class="k">База → посилання</td><td class="n" style="text-align:right">40%</td></tr>
+          <tr><td class="k">Утримання D30</td><td class="n" style="text-align:right">25%</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="glass-s card tscroll" style="margin-top:clamp(12px,1.6vw,20px)">
+      <div class="over" style="margin-bottom:12px">Запуск · 90 днів</div>
+      <table>
+        <tr><th style="width:12%" class="n">Період</th><th style="width:20%">Фокус</th>
+            <th>Дії</th><th style="width:22%">Критерій переходу</th></tr>
+        <tr><td class="n">01—30</td><td class="k">Знайти повідомлення</td>
+            <td>Три гіпотези заголовків на одному візуалі. Бюджет мінімальний,
+                мета — не продажі, а <em>перемога одного формулювання</em>.</td>
+            <td>CTR &gt; 1,2% хоч на одній</td></tr>
+        <tr><td class="n">31—60</td><td class="k">Масштабувати переможця</td>
+            <td>Переможний заголовок → пʼять візуалів. Паралельно — Telegram-спільноти
+                нерухомості та ріелторські чати.</td>
+            <td>Ціна активації &lt; $3</td></tr>
+        <tr><td class="n">61—90</td><td class="k">Увімкнути петлю</td>
+            <td>Кейси реальних власників, реферальна механіка, партнерство з
+                агенціями як каналом дистрибуції.</td>
+            <td>k &gt; 0,4 і D30 &gt; 25%</td></tr>
+      </table>
+    </div>
+
+    <div class="glass-s card" style="margin-top:clamp(12px,1.6vw,20px)">
+      <p class="bd">
+        <b>Чого свідомо не робимо на старті.</b> Не беремо блогерів широкого
+        профілю (аудиторія не збігається), не запускаємо знижки (вони псують
+        сприйняття ціни до того, як її встановлено) і не пишемо про «інновації» —
+        у цій категорії рішення ухвалює людина, яка рахує гроші, а не шукає новинок.
+      </p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;
+         flex-wrap:wrap;gap:22px;padding-bottom:22px;border-bottom:.5px solid var(--hair)">
+      <div>
+        <div class="mk" style="font-size:22px"><i></i>prostir</div>
+        <div class="h2" style="margin-top:10px">Простір під контролем</div>
+      </div>
+      <div class="over" style="text-align:right">Внутрішній документ<br>Ред. 03</div>
+    </div>
+    <div class="g2" style="margin-top:24px;align-items:start">
+      <div>
+        <div class="over">Готові матеріали</div>
+        <table style="margin-top:10px">
+          <tr><td class="k" style="border-top:0">Плитки сітки</td>
+              <td class="n" style="border-top:0"><b data-n="tiles"></b> × 1080×1080</td></tr>
+          <tr><td class="k">Карусель</td><td class="n"><b data-n="slides"></b> × 1080×1350</td></tr>
+          <tr><td class="k">Stories</td><td class="n"><b data-n="stories"></b> × 1080×1920</td></tr>
+          <tr><td class="k">Реклама</td><td class="n"><b data-n="ads"></b> × 1080×1350</td></tr>
+          <tr><td class="k">Рілз</td><td class="n">15 с · 30 к/с</td></tr>
+        </table>
+      </div>
+      <div>
+        <div class="over">Як це перезібрати</div>
+        <div class="sm" style="margin-top:10px;font-family:ui-monospace,Menlo,monospace;line-height:2">
+          node marketing/export.mjs<br>node marketing/render-reel.mjs<br>
+          node marketing/render-board.mjs<br>node marketing/bundle.mjs
+        </div>
+        <p class="sm" style="margin-top:12px">
+          Усі кадри продукту зняті з живого застосунку в потрійній щільності.
+          Макети експортуються з цього ж файлу — джерело макета і джерело
+          презентації одне, тож розійтись вони не можуть.
+        </p>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<style>
+/* ── КРЕАТИВИ ────────────────────────────────────────────────────
+   Верстаються в справжніх пікселях Instagram і масштабуються для
+   показу трансформом; у `?export=1` трансформ знімається, тож знімок
+   елемента виходить піксель-у-піксель. */
+.ex-wrap{position:relative;width:100%;overflow:hidden;border-radius:var(--r-md)}
+.ex-wrap::before{content:'';display:block;padding-top:calc(var(--h) / var(--w) * 100%)}
+.ex{position:absolute;inset:0;transform-origin:0 0;overflow:hidden}
+body.export .ex-wrap{width:var(--w-px);height:var(--h-px);border-radius:0}
+body.export .ex{transform:none!important}
+body.export .no-export{display:none!important}
+body.export{background:#000}
+body.export section{padding:0;background:none}
+/* У режимі експорту розкладки немає ВЗАГАЛІ: треки minmax(0,1fr) не
+   ростуть під 1080 px, сусідні креативи налазять один на одного — а
+   знімок елемента бере ОБЛАСТЬ вʼюпорта, не вузол. */
+body.export .g2,body.export .g3,body.export .g4,
+body.export .split,body.export #ad-slot{display:block}
+body.export figure{margin:0 0 40px!important}
+
+.cr{position:relative;width:100%;height:100%;overflow:hidden;color:#fff;
+  font-family:'Inter',sans-serif;display:flex;flex-direction:column;padding:64px}
+/* Шапка й підвал креативу — ті самі оверлайн і знак, що в застосунку */
+.cr-hd{display:flex;justify-content:space-between;align-items:center;
+  font-size:22px;font-weight:600;text-transform:uppercase;letter-spacing:.09em;
+  color:rgba(255,255,255,.74)}
+.cr-mk{display:inline-flex;align-items:center;gap:13px;font-size:30px;font-weight:700;
+  letter-spacing:-.02em;text-transform:none;color:#fff}
+.cr-mk i{width:40px;height:40px;border-radius:12px;background:#fff;color:#12091f;
+  display:grid;place-items:center;font-style:normal;font-weight:800;font-size:24px;line-height:1}
+.cr-mk i::before{content:'p'}
+.cr-ft{display:flex;justify-content:space-between;align-items:center;
+  font-size:22px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+  color:rgba(255,255,255,.74)}
+.cr-d{font-weight:800;letter-spacing:-.042em;line-height:1.02}
+/* Скло всередині креативу — ті самі три щільності */
+.cg{background:rgba(6,5,14,.22);backdrop-filter:blur(28px) saturate(170%) brightness(.9);
+  -webkit-backdrop-filter:blur(28px) saturate(170%) brightness(.9);
+  border:1px solid rgba(255,255,255,.16);border-radius:44px}
+.cg-d{background:rgba(255,255,255,.14);backdrop-filter:blur(36px) saturate(190%) brightness(1.08);
+  -webkit-backdrop-filter:blur(36px) saturate(190%) brightness(1.08);
+  border:1px solid rgba(255,255,255,.26)}
+.cbdg{font-size:24px;font-weight:600;padding:9px 20px;border-radius:16px;
+  display:inline-flex;align-items:center;gap:10px}
+.cpill{display:inline-flex;align-items:center;justify-content:center;gap:16px;
+  height:100px;padding:0 52px;border-radius:999px;font-size:32px;font-weight:700;color:#fff;
+  border:1px solid rgba(255,255,255,.3);
+  background:radial-gradient(120% 130% at 50% 0%,rgba(22,113,158,.46) 0%,rgba(22,113,158,.18) 100%);
+  backdrop-filter:blur(24px) saturate(180%) brightness(.55);
+  -webkit-backdrop-filter:blur(24px) saturate(180%) brightness(.55);
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.22),0 16px 48px rgba(0,0,0,.34)}
+.cphone{border-radius:56px;overflow:hidden;background:#000;
+  box-shadow:0 0 0 1px rgba(255,255,255,.22),0 60px 120px -40px rgba(0,0,0,.9)}
+.cphone img{display:block;width:100%}
+.corb{position:relative;border-radius:50%;aspect-ratio:1;display:grid;place-items:center;
+  overflow:hidden;
+  background:radial-gradient(42% 36% at 34% 26%,rgba(255,255,255,.34) 0%,transparent 60%),
+    radial-gradient(58% 48% at 62% 88%,rgba(150,190,255,.22) 0%,transparent 64%),
+    radial-gradient(circle at 50% 50%,rgba(10,8,22,.30) 0%,rgba(10,8,22,.44) 56%,rgba(10,8,22,.58) 100%);
+  box-shadow:0 0 0 1px rgba(255,255,255,.2),0 0 120px -20px var(--og,rgba(120,90,230,.7))}
+.corb::before{content:'';position:absolute;inset:0;border-radius:50%;
+  background:radial-gradient(circle at 50% 50%,var(--og) 0%,transparent 62%);filter:blur(34px);opacity:.8}
+.corb-s{position:relative;width:52%;aspect-ratio:1.42;border-radius:22%;background:var(--os);
+  -webkit-mask-image:radial-gradient(circle at 50% 50%,#000 52%,transparent 100%);
+  mask-image:radial-gradient(circle at 50% 50%,#000 52%,transparent 100%);
+  display:flex;align-items:center;justify-content:center;gap:16%}
+.corb-s::after{content:'';position:absolute;inset:0;
+  background-image:linear-gradient(rgba(0,0,0,.34) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(0,0,0,.34) 1px,transparent 1px);background-size:9px 9px}
+.corb-e{position:relative;z-index:2;width:9%;height:40%;border-radius:999px;
+  background:rgba(255,255,255,.95);box-shadow:0 0 22px rgba(255,255,255,.7)}
+/* Мокап профілю */
+.ig{background:#06050e;border:.5px solid var(--hair);border-radius:var(--r-md);overflow:hidden}
+.ig-t{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:.5px solid var(--hair)}
+.ig-b{padding:16px 14px 12px}
+.ig-av{width:76px;height:76px;border-radius:50%;flex:none;display:grid;place-items:center;
+  background:conic-gradient(from 210deg,#5E40B8,#1C3890,#329864,#C42378,#5E40B8)}
+.ig-av span{width:68px;height:68px;border-radius:50%;background:#06050e;display:grid;
+  place-items:center;font-size:27px;font-weight:800;letter-spacing:-.05em}
+.ig-st{flex:1;display:flex;justify-content:space-around;text-align:center}
+.ig-st b{display:block;font-size:16px}
+.ig-st span{font-size:11.5px;color:var(--t3)}
+.ig-btn{display:flex;gap:6px;margin-top:12px}
+.ig-btn div{flex:1;text-align:center;padding:8px;font-size:12.5px;font-weight:600;
+  border-radius:var(--r-xs);background:rgba(255,255,255,.12)}
+.ig-hl{display:flex;gap:13px;margin-top:14px;overflow:hidden}
+.ig-hl div{text-align:center;flex:none;width:56px}
+.ig-hl i{display:block;width:56px;height:56px;border-radius:50%;
+  border:.5px solid var(--hair);background:rgba(255,255,255,.06);display:grid;
+  place-items:center;font-style:normal;font-size:16px;font-weight:700;color:var(--t2)}
+.ig-hl span{font-size:10.5px;color:var(--t3);display:block;margin-top:5px}
+.ig-tabs{display:flex;border-top:.5px solid var(--hair);margin-top:14px}
+.ig-tabs i{flex:1;text-align:center;padding:9px;font-style:normal;font-size:14px;
+  color:var(--t4)}
+.ig-tabs i:first-child{color:#fff;box-shadow:inset 0 2px 0 #fff}
+.ig-g{display:grid;grid-template-columns:repeat(3,1fr);gap:2px}
+.anat{position:absolute;border:2px dashed #7AB3FF;pointer-events:none;border-radius:20px}
+.anat span{position:absolute;top:-40px;background:#7AB3FF;color:#06050e;font-size:20px;
+  font-weight:700;letter-spacing:.06em;padding:6px 12px;border-radius:10px;
+  text-transform:uppercase;white-space:nowrap}
+</style>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+   КРЕАТИВИ — ОДНЕ ДЖЕРЕЛО.
+   Масиви рендеряться і в мокап профілю, і у великий перегляд, і в PNG.
+   Кожен креатив зібраний із КОМПОНЕНТІВ ЗАСТОСУНКУ: градієнт родини,
+   скло, бейдж статусу, плитка-цифра, пігулка дії, орб. Через це кадр
+   впізнається як цей продукт, а не як «текст на кольорі».
+   ═══════════════════════════════════════════════════════════════ */
+const MK = '<span class="cr-mk"><i></i>prostir</span>'
+const head = (l, r) => `<div class="cr-hd"><span>${l}</span><span>${r}</span></div>`
+const foot = (r) => `<div class="cr-ft">${MK}<span>${r}</span></div>`
+const orb = (og, os, w) => `<div class="corb"
+  style="--og:${og};--os:${os}${w ? `;width:${w}px;flex:none` : ''}">
+  <div class="corb-s"><i class="corb-e"></i><i class="corb-e"></i></div></div>`
+
+/* Кадр продукту в скляній рамці — так само, як застосунок показує вміст */
+const shot = (name, w) => `<div class="cphone" style="width:${w}px;margin:0 auto">
+  <img src="shots/${name}.png" alt=""></div>`
+
+/* ── 9 ПЛИТОК · ритм рядка: екран → цифра → обіцянка ───────────── */
+const TILES = [
+  { k:'Мої бази', html:`<div class="cr bg-blue" style="padding-bottom:0">
+      ${head('Екран 01', 'Головний')}
+      <div class="cr-d" style="font-size:52px;margin-top:34px">Дохід портфеля —<br>без жодного тапу</div>
+      <div style="flex:1;min-height:0;margin-top:40px">${shot('db-list', 560)}</div>
+      <div style="position:absolute;left:64px;bottom:44px">${MK}</div></div>` },
+
+  { k:'$2 460', html:`<div class="cr bg-green">
+      ${head('Разом / місяць', 'Рахує сам')}
+      <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:34px">
+        <div class="cg" style="padding:56px 56px 52px">
+          <div style="font-size:24px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+            color:rgba(255,255,255,.74)">Разом на місяць</div>
+          <div style="font-size:148px;font-weight:700;letter-spacing:-.045em;line-height:1;
+            margin-top:20px;color:#fff">$2 460</div>
+          <div style="display:flex;gap:14px;margin-top:30px;flex-wrap:wrap">
+            <span class="cbdg" style="background:rgba(52,199,89,.18);color:#a4f0c1;
+              border:1px solid rgba(52,199,89,.28)">Оренда $1 800</span>
+            <span class="cbdg" style="background:rgba(255,255,255,.1);color:#fff;
+              border:1px solid rgba(255,255,255,.2)">Експлуатаційні $660</span>
+          </div>
+        </div>
+        <div style="font-size:34px;line-height:1.35;color:rgba(255,255,255,.84)">
+          Ставка × площа плюс послуги.<br>За базою, яку ви обрали — корисна чи розрахункова.</div>
+      </div>
+      ${foot('не $18/м²')}</div>` },
+
+  { k:'Посилання', html:`<div class="cr bg-pink">
+      ${head('Диференціатор', '/v/')}
+      <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:40px">
+        <div class="cr-d" style="font-size:104px">Посилання,<br>що продає</div>
+        <div style="font-size:34px;line-height:1.38;color:rgba(255,255,255,.84);max-width:740px">
+          Відкриється в будь-якому браузері.<br>Клієнту не потрібен ані Telegram, ані акаунт.</div>
+        <div class="cpill" style="align-self:flex-start;
+          background:radial-gradient(120% 130% at 50% 0%,rgba(196,35,120,.4) 0%,rgba(196,35,120,.24) 100%)">
+          Відкрити сторінку →</div>
+      </div>
+      ${foot('публічна сторінка')}</div>` },
+
+  { k:'Публічна', html:`<div class="cr bg-pink" style="padding-bottom:0">
+      ${head('Екран 02', 'Погляд клієнта')}
+      <div class="cr-d" style="font-size:52px;margin-top:34px">Ось що бачить<br>ваш клієнт</div>
+      <div style="flex:1;min-height:0;margin-top:40px">${shot('v-property', 560)}</div>
+      <div style="position:absolute;left:64px;bottom:44px">${MK}</div></div>` },
+
+  { k:'10 секунд', html:`<div class="cr bg-cyan">
+      ${head('Швидкість', 'TTFL')}
+      <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:36px">
+        <div style="display:flex;align-items:baseline;gap:22px">
+          <div style="font-size:236px;font-weight:800;letter-spacing:-.055em;line-height:.86">10</div>
+          <div style="font-size:74px;font-weight:700;letter-spacing:-.03em;
+            color:rgba(255,255,255,.84)">секунд</div>
+        </div>
+        <div class="cg" style="padding:38px 44px;display:flex;align-items:center;gap:26px">
+          <span class="cbdg" style="background:rgba(122,179,255,.18);color:#a8d4ff;
+            border:1px solid rgba(122,179,255,.32)">Питання</span>
+          <div style="font-size:40px;opacity:.6">→</div>
+          <span class="cbdg" style="background:rgba(52,199,89,.18);color:#a4f0c1;
+            border:1px solid rgba(52,199,89,.28)">Надіслана сторінка</span>
+        </div>
+      </div>
+      ${foot('від питання до посилання')}</div>` },
+
+  { k:'Три тапи', html:`<div class="cr bg-purple">
+      ${head('Онбординг', 'Без 12 кроків')}
+      <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:38px">
+        <div class="cr-d" style="font-size:100px">Три тапи —<br>і обʼєкт<br>у базі</div>
+        <div style="display:flex;gap:16px">
+          <span class="cbdg" style="background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2)">Назва</span>
+          <span class="cbdg" style="background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2)">Площа</span>
+          <span class="cbdg" style="background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2)">Ставка</span>
+        </div>
+        <div style="font-size:32px;line-height:1.4;color:rgba(255,255,255,.84);max-width:720px">
+          Форма не питає зайвого. Решта заповнюється тоді, коли знадобиться.</div>
+      </div>
+      ${foot('створення обʼєкта')}</div>` },
+
+  { k:'Платежі', html:`<div class="cr bg-green" style="padding-bottom:0">
+      ${head('Екран 03', 'Календар')}
+      <div class="cr-d" style="font-size:52px;margin-top:34px">Прострочене видно<br>до того, як ви згадали</div>
+      <div style="flex:1;min-height:0;margin-top:40px">${shot('payment-calendar-full', 560)}</div>
+      <div style="position:absolute;left:64px;bottom:44px">${MK}</div></div>` },
+
+  { k:'18 приміщень', html:`<div class="cr bg-blue">
+      ${head('Середній портфель', 'у prostir')}
+      <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:34px">
+        <div class="cg" style="padding:46px;display:flex;align-items:center;gap:38px">
+          ${orb('rgba(84,128,220,.7)', 'linear-gradient(135deg,#43d9c4,#7b5bff)', 330)}
+          <div>
+            <div style="font-size:172px;font-weight:800;letter-spacing:-.05em;line-height:.88">18</div>
+            <div style="font-size:40px;font-weight:700;letter-spacing:-.025em;margin-top:10px;
+              line-height:1.15">приміщень<br>на одного власника</div>
+          </div>
+        </div>
+        <div style="font-size:32px;line-height:1.35;color:rgba(255,255,255,.84)">
+          І жодного, про який забули нагадати вчасно.</div>
+      </div>
+      ${foot('дані застосунку')}</div>` },
+
+  { k:'Заклик', html:`<div class="cr bg-welcome">
+      ${head('Дія', 't.me/prostir_app')}
+      <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:44px">
+        <div class="cr-d" style="font-size:108px">Спробуйте<br>за три<br>секунди</div>
+        <div style="font-size:32px;line-height:1.38;color:rgba(255,255,255,.84);max-width:700px">
+          Telegram Mini App. Без встановлення, без пароля, без онбордингу.</div>
+        <div class="cpill" style="align-self:flex-start">Відкрити в Telegram →</div>
+      </div>
+      ${foot('prostir')}</div>` },
+]
+
+/* ── КАРУСЕЛЬ · 7 слайдів 1080×1350 ─────────────────────────────
+   Заголовок обіцяє пʼять помилок — отже їх пʼять. Ціна кожної названа
+   в грошах або днях: саме цифра змушує ЗБЕРЕГТИ слайд. */
+function mistake(n, title, body, cost) {
+  return `<div class="cr bg-purple">
+    ${head('Помилка ' + n, '{IDX}')}
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:32px">
+      <span class="cbdg" style="align-self:flex-start;background:rgba(255,59,48,.16);
+        color:#ffacac;border:1px solid rgba(255,59,48,.26)">0${n} із 05</span>
+      <div class="cr-d" style="font-size:74px">${title}</div>
+      <div style="font-size:31px;line-height:1.42;color:rgba(255,255,255,.84);max-width:780px">${body}</div>
+      <div class="cg" style="padding:30px 38px;display:flex;align-items:center;
+        justify-content:space-between;border-radius:32px">
+        <span style="font-size:24px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+          color:rgba(255,255,255,.74)">Ціна помилки</span>
+        <span style="font-size:36px;font-weight:700;letter-spacing:-.02em;color:#ffc985">${cost}</span>
+      </div>
+    </div>
+    ${foot('гортайте →')}</div>`
+}
+
+const SLIDES = [
+  { k:'Обкладинка', html:`<div class="cr bg-purple">
+      ${head('Карусель', '{IDX}')}
+      <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:32px;
+        padding-bottom:16px">
+        ${orb('rgba(196,35,120,.6)', 'linear-gradient(135deg,#ffb347,#ff6b9d)', 250)}
+        <div class="cr-d" style="font-size:86px">П'ять помилок<br>орендодавця,<br>які коштують<br>грошей</div>
+        <div style="font-size:31px;line-height:1.35;color:rgba(255,255,255,.84)">
+          Кожна з них має ціну. Ми її порахували.</div>
+      </div>
+      ${foot('гортайте →')}</div>` },
+
+  { k:'Помилка 1', html:mistake(1, 'Рахувати ставку<br>не від тієї площі',
+      '$18/м² за 120 м² — це $2 160. Але якщо ставка йде від корисних 100 м², це $1 800. Різниця живе в договорі, а не в калькуляторі.',
+      'до $300 / міс') },
+  { k:'Помилка 2', html:mistake(2, 'Нагадувати про<br>оплату вручну',
+      'Нагадування, яке тримається на памʼяті, спрацьовує тоді, коли гроші вже потрібні вам, а не коли вручну орендарю.',
+      '7–14 днів') },
+  { k:'Помилка 3', html:mistake(3, 'Надсилати клієнту<br>скриншот таблиці',
+      'Перше враження від обʼєкта складається з того, ЯК ви його показали. Таблиця в месенджері читається як «приватник», а не як «компанія».',
+      'угода, що не почалась') },
+  { k:'Помилка 4', html:mistake(4, 'Не знати,<br>чи клієнт відкрив',
+      'Клієнт мовчить — і незрозуміло, чи він узагалі дивився. Дзвінок наосліп витрачає єдину спробу, яка у вас була.',
+      'втрачений дзвінок') },
+  { k:'Помилка 5', html:mistake(5, 'Не памʼятати,<br>коли спливає договір',
+      'Договір, про який згадали за тиждень до кінця, продовжується на умовах орендаря. Нагадування приходить за 30, 7 і 1 день.',
+      'рік за старою ставкою') },
+
+  { k:'Заклик', html:`<div class="cr bg-welcome">
+      ${head('Карусель', '{IDX}')}
+      <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:34px;
+        padding-bottom:16px">
+        <div class="cr-d" style="font-size:84px">Виправити<br>всі пʼять —<br>за три хвилини</div>
+        <div style="font-size:31px;line-height:1.38;color:rgba(255,255,255,.84);max-width:720px">
+          prostir працює всередині Telegram.<br>Без встановлення й без пароля.</div>
+        <div class="cpill" style="align-self:flex-start">Посилання в біо →</div>
+      </div>
+      ${foot('збережіть, щоб не загубити')}</div>` },
+]
+
+/* ── STORIES · 4 × 1080×1920 ────────────────────────────────────
+   Безпечні зони: 250 px згори під інтерфейс, 320 px знизу під стікер
+   посилання. Усередині них — тільки тло. */
+const SAFE_T = 250, SAFE_B = 320
+const bands = `
+  <div class="no-export" style="position:absolute;left:0;right:0;top:0;height:${SAFE_T}px;
+    background:repeating-linear-gradient(135deg,rgba(255,59,48,.14) 0 14px,transparent 14px 28px);
+    border-bottom:1px dashed rgba(255,59,48,.6)"></div>
+  <div class="no-export" style="position:absolute;left:0;right:0;bottom:0;height:${SAFE_B}px;
+    background:repeating-linear-gradient(135deg,rgba(255,59,48,.14) 0 14px,transparent 14px 28px);
+    border-top:1px dashed rgba(255,59,48,.6)"></div>`
+const st = (bg, inner, rub, idx) =>
+  `<div class="cr ${bg}" style="padding:0">
+    <div style="position:absolute;inset:${SAFE_T}px 72px ${SAFE_B}px 72px;
+      display:flex;flex-direction:column">${head(rub, idx)}${inner}
+      <div style="margin-top:auto;padding-top:30px">${MK}</div></div>${bands}</div>`
+
+const STORIES = [
+  { k:'Опитування', html:st('bg-cyan', `
+      <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:36px">
+        <div class="cr-d" style="font-size:78px">Як ви ведете<br>свої обʼєкти?</div>
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div class="cg" style="padding:30px 34px;font-size:34px;font-weight:600;border-radius:28px">Excel / Google Sheets</div>
+          <div class="cg" style="padding:30px 34px;font-size:34px;font-weight:600;border-radius:28px">Нотатки й памʼять</div>
+          <div class="cg" style="padding:30px 34px;font-size:34px;font-weight:600;border-radius:28px">Повноцінна CRM</div>
+        </div>
+        <div style="font-size:27px;color:rgba(255,255,255,.74)">Відповідь визначає, що показати далі.</div>
+      </div>`, 'Stories 01', 'Опитування') },
+
+  { k:'Ланцюг', html:st('bg-pink', `
+      <div style="margin-top:26px">
+        <div class="cr-d" style="font-size:72px">Обʼєкт →<br>посилання →<br>клієнт</div>
+      </div>
+      <div style="flex:1;min-height:0;margin-top:40px">${shot('v-property', 470)}</div>`,
+      'Stories 02', 'Продукт') },
+
+  { k:'Цифра', html:st('bg-green', `
+      <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:30px">
+        <div class="cg" style="padding:52px 48px">
+          <div style="font-size:24px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;
+            color:rgba(255,255,255,.74)">Середній портфель</div>
+          <div style="font-size:216px;font-weight:800;letter-spacing:-.05em;line-height:.88;
+            margin-top:16px">18</div>
+          <div style="font-size:46px;font-weight:700;letter-spacing:-.025em;line-height:1.14;
+            margin-top:14px">приміщень<br>на одного власника</div>
+        </div>
+        <div style="font-size:29px;line-height:1.38;color:rgba(255,255,255,.84)">
+          І жодного, про який забули нагадати вчасно.</div>
+      </div>`, 'Stories 03', 'Доказ') },
+
+  { k:'Відгук', html:st('bg-welcome', `
+      <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:32px">
+        ${orb('rgba(255,149,0,.55)', 'linear-gradient(135deg,#ffb347,#ff6b9d)', 150)}
+        <div style="font-size:50px;font-weight:700;letter-spacing:-.03em;line-height:1.2">
+          «Надсилаю посилання —<br>і клієнт передзвонює сам.<br>Раніше пояснював<br>цифри голосом.»</div>
+        <div class="cg" style="padding:28px 34px;display:flex;align-items:center;gap:20px;
+          border-radius:28px">
+          <div><div style="font-size:30px;font-weight:700">Богдан</div>
+            <div style="font-size:24px;color:rgba(255,255,255,.74)">власник БЦ, 18 приміщень</div></div>
+        </div>
+      </div>`, 'Stories 04', 'Відгук') },
+]
+
+/* ── РЕКЛАМНИЙ МАКЕТ · 1080×1350 ────────────────────────────── */
+const AD = `<div class="cr bg-green" style="padding-bottom:0">
+  ${head('Реклама', 'obj_late_v3')}
+  <div data-zone="1" style="margin-top:30px">
+    <div class="cr-d" style="font-size:72px">Ви дізнаєтесь<br>про прострочку<br>
+      <span style="color:#ffacac">останнім</span></div>
+  </div>
+  <div data-zone="3" style="font-size:31px;line-height:1.4;color:rgba(255,255,255,.84);
+    margin-top:24px;max-width:760px">
+    prostir нагадає вам і орендарю в Telegram — за три дні до дати.</div>
+  <div data-zone="2" style="flex:1;min-height:0;margin-top:34px">${shot('payment-calendar-full', 480)}</div>
+  <div style="position:absolute;left:0;right:0;bottom:0;height:300px;pointer-events:none;
+    background:linear-gradient(180deg,transparent 0%,#0b2a1c 52%)"></div>
+  <div data-zone="4" style="position:absolute;left:64px;right:64px;bottom:52px;
+    display:flex;align-items:center;gap:26px">
+    <div class="cpill" style="flex:1">Спробувати безкоштовно</div>${MK}
+  </div></div>`
+
+/* ═══════════ РЕНДЕР ═══════════════════════════════════════════ */
+const EXPORT = new URLSearchParams(location.search).has('export')
+if (EXPORT) document.body.classList.add('export')
+
+function box(w, h, inner, cls, id) {
+  return `<div class="ex-wrap ${cls || ''}" ${id ? `data-export="${id}"` : ''}
+    style="--w:${w};--h:${h};--w-px:${w}px;--h-px:${h}px">
+    <div class="ex" style="width:${w}px;height:${h}px">${inner}</div></div>`
+}
+function fit() {
+  if (EXPORT) return
+  document.querySelectorAll('.ex-wrap').forEach((w) => {
+    const el = w.querySelector('.ex')
+    el.style.transform = `scale(${w.clientWidth / parseFloat(w.style.getPropertyValue('--w'))})`
+  })
+}
+const q = (s) => document.querySelector(s)
+/* Позиція в каруселі підставляється З МАСИВУ: вписана руками, вона
+   розходиться на першій же вставці слайда в середину. */
+const slot = (sel, arr, w, h, pre) => {
+  const el = q(sel); if (!el) return
+  el.innerHTML = arr.map((t, i) => `<figure style="margin:0">
+    ${box(w, h, t.html.split('{IDX}').join(`${i + 1} / ${arr.length}`), '',
+          `${pre}-${String(i + 1).padStart(2, '0')}`)}
+    <figcaption class="over" style="margin-top:9px">${String(i + 1).padStart(2, '0')} · ${t.k}</figcaption>
+  </figure>`).join('')
+}
+
+q('#ig').innerHTML = `<div class="ig">
+  <div class="ig-t"><span class="mk" style="font-size:14px"><i style="width:22px;height:22px;
+    font-size:13px;border-radius:7px"></i>prostir</span>
+    <span style="margin-left:auto;color:var(--t4)">⋯</span></div>
+  <div class="ig-b">
+    <div style="display:flex;align-items:center;gap:18px">
+      <div class="ig-av"><span>p</span></div>
+      <div class="ig-st">
+        <div><b>1 248</b><span>дописів</span></div>
+        <div><b>8,4K</b><span>підписників</span></div>
+        <div><b>52</b><span>підписки</span></div>
+      </div>
+    </div>
+    <div style="margin-top:13px;font-size:14px;font-weight:700">prostir · нерухомість у Telegram</div>
+    <div class="sm" style="margin-top:3px;line-height:1.5">Керуйте обʼєктами, платежами й доступами — у чаті.<br>
+      Власникам БЦ, складів, паркінгів і рієлторам.<br>↓ Відкрити застосунок</div>
+    <div style="font-size:12.5px;color:#7AB3FF;margin-top:5px;font-weight:600">t.me/prostir_app</div>
+    <div class="ig-btn"><div>Підписатись</div><div>Написати</div></div>
+    <div class="ig-hl">
+      <div><i>01</i><span>Що це</span></div><div><i>02</i><span>Ціни</span></div>
+      <div><i>03</i><span>Кейси</span></div><div><i>04</i><span>Нове</span></div>
+      <div><i>05</i><span>Питання</span></div>
+    </div>
+    <div class="ig-tabs"><i>▦</i><i>▷</i><i>⌷</i></div>
+  </div>
+  <div class="ig-g">${TILES.map((t) => `<div>${box(1080, 1080, t.html)}</div>`).join('')}</div></div>`
+
+slot('#tiles', TILES, 1080, 1080, 'tile')
+slot('#slides', SLIDES, 1080, 1350, 'car')
+slot('#stories-g', STORIES, 1080, 1920, 'st')
+
+const ZONES = { 1:'Заперечення', 2:'Доказ', 3:'Механіка', 4:'Дія' }
+q('#ad-slot').innerHTML = `
+  <figure style="margin:0">${box(1080, 1350, AD, 'ad-clean', 'ad-01')}
+    <figcaption class="over" style="margin-top:9px">Чистий макет · 1080×1350</figcaption></figure>
+  <figure style="margin:22px 0 0">${box(1080, 1350, AD, 'ad-anat', 'ad-anatomy')}
+    <figcaption class="over" style="margin-top:9px">Розмітка зон</figcaption></figure>`
+
+q('#board').innerHTML = [1, 2, 3, 4, 5].map((i) =>
+  `<img src="creatives/board-${i}.jpg" alt="" style="width:100%;display:block;
+    border-radius:var(--r-sm);border:.5px solid var(--hair)">`).join('')
+
+/* Розмітка зон читає РЕАЛЬНУ геометрію елементів макета, а не повторює
+   її числами — повтор числами і був би тим дрейфом, через який розмітка
+   перестає описувати макет. Сторона підпису залежить від зони: усі над
+   боксом ліворуч налазили б один на одного, бо бокси йдуть упритул. */
+function anatomy() {
+  const host = q('.ad-anat .ex'); if (!host) return
+  host.querySelectorAll('.anat').forEach((n) => n.remove())
+  const base = host.getBoundingClientRect()
+  const k = base.width / 1080
+  host.querySelectorAll('[data-zone]').forEach((z) => {
+    const r = z.getBoundingClientRect(), pad = 10
+    const d = document.createElement('div')
+    d.className = 'anat'
+    d.style.cssText = `left:${(r.left - base.left) / k - pad}px;top:${(r.top - base.top) / k - pad}px;
+      width:${r.width / k + pad * 2}px;height:${r.height / k + pad * 2}px`
+    const right = z.dataset.zone === '2' || z.dataset.zone === '3'
+    d.innerHTML = `<span style="${right ? 'right:0' : 'left:0'}">${z.dataset.zone} · ${ZONES[z.dataset.zone]}</span>`
+    host.appendChild(d)
+  })
+}
+
+/* Лічильники матеріалів — із самих масивів. */
+const COUNT = { tiles: TILES.length, slides: SLIDES.length, stories: STORIES.length, ads: 2 }
+COUNT.all = COUNT.tiles + COUNT.slides + COUNT.stories + COUNT.ads
+document.querySelectorAll('[data-n]').forEach((e) => { e.textContent = COUNT[e.dataset.n] })
+
+fit(); anatomy()
+addEventListener('resize', () => { fit(); anatomy() })
+/* Шрифт міняє метрики вже після першого кадру — без перерахунку
+   розмітка зон описувала б геометрію, якої на екрані вже немає. */
+document.fonts.ready.then(() => { fit(); anatomy() })
+</script>
+</body>
+</html>

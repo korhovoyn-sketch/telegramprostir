@@ -7,6 +7,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { DB_TYPE_LABELS, rentUnitLabel, objectsWord, DB_COLORS, STATUS_BADGE_CLS, formatPrice } from '@/lib/utils'
 import { IconBuilding, IconRuler, IconCurrencyDollar, IconX } from '@/components/Icons'
 import { tr } from '@/lib/i18n'
+import { lsSet } from '@/lib/localState'
 
 // Public DB preview (realtor flow)
 interface PreviewRow {
@@ -139,7 +140,7 @@ export default function GuestDatabaseScreen() {
     setCtaLoading(true)
     if (!guestMode) {
       // Realtor flow: save token to localStorage so useDeepLink picks it up after auth
-      localStorage.setItem('ps_guest_join_token', `db_${token}`)
+      lsSet('ps_guest_join_token', `db_${token}`)
     }
     // Guest flow: start_param is still `guest_<token>` — useDeepLink handles it automatically
     await loginViaTelegram(initData)

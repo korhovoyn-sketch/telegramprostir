@@ -55,6 +55,7 @@ const FolderManageScreen = dynamic(() => import('@/screens/FolderManageScreen'),
 const DbPickerScreen = dynamic(() => import('@/screens/DbPickerScreen'), { loading: () => screenFallback })
 const FolderPickerScreen = dynamic(() => import('@/screens/FolderPickerScreen'), { loading: () => screenFallback })
 const RentPropertyScreen = dynamic(() => import('@/screens/RentPropertyScreen'), { loading: () => screenFallback })
+const TenancyArchiveScreen = dynamic(() => import('@/screens/TenancyArchiveScreen'), { loading: () => screenFallback })
 const DeleteAccountScreen = dynamic(() => import('@/screens/DeleteAccountScreen'), { loading: () => screenFallback })
 
 export default function Page() {
@@ -475,6 +476,7 @@ export default function Page() {
       case 'db-picker': return <DbPickerScreen />
       case 'folder-picker': return <FolderPickerScreen />
       case 'rent-property': return <RentPropertyScreen />
+      case 'tenancy-archive': return <TenancyArchiveScreen />
       case 'delete-account': return <DeleteAccountScreen />
       default: return <SplashScreen />
     }

@@ -419,3 +419,42 @@ test('ГЛОБАЛЬНИЙ лічильник, випущений РАНІШЕ, 
   await expect(page.getByRole('button', { name: 'Прочитано' }),
     'разом із бейджем повернулась і кнопка «Прочитано»').toHaveCount(0)
 })
+
+// ── Заборгованість і початок договору ─────────────────────────────────────────
+//
+// Блок перебирав лише поточний і наступний місяць, тож неоплачений платіж за
+// минулий місяць 1-го числа ЗНИКАВ — усупереч обіцянці «лишається, доки не
+// підтвердять». А платіж за дату ДО початку договору, навпаки, рахувався боргом.
+
+test('борг за минулий місяць лишається в блоці, доки його не підтвердять', async ({ page }) => {
+  // Розклад заведено в липні; липень і серпень не оплачені. Показується
+  // НАЙДАВНІШИЙ борг: 10.09 − 05.07 = 67 днів.
+  await setup(page, [], { schedules: [schedule(5, { created_at: '2025-07-20T09:00:00.000Z' })] })
+  await openNotifications(page)
+  const row = page.locator('.notif-i', { hasText: 'Офіс 101' })
+  await expect(row).toContainText('Прострочено на 67 днів')
+  await expect(row).toHaveClass(/lvl-overdue/)
+})
+
+test('оплачений борг поступається наступному неоплаченому', async ({ page }) => {
+  // Антивакуум до попереднього: записи на минулі місяці справді читаються.
+  // Липень оплачено → найдавніший борг серпневий: 10.09 − 05.08 = 36 днів.
+  await setup(page, [], {
+    schedules: [schedule(5, { created_at: '2025-07-20T09:00:00.000Z' })],
+    records: [{ property_id: '20000000-0000-0000-0000-000000000001', due_date: '2025-07-05', status: 'paid' }],
+  })
+  await openNotifications(page)
+  await expect(page.locator('.notif-i', { hasText: 'Офіс 101' })).toContainText('Прострочено на 36 днів')
+})
+
+test('платіж до початку договору боргом не є', async ({ page }) => {
+  // Здано 08.09 з оплатою 5-го: вересневого платежу немає, жовтневий — поза
+  // вікном 14 днів, тож блоку немає взагалі.
+  const s = schedule(5)
+  await setup(page, [], {
+    schedules: [{ ...s, property: { ...s.property, lease_start_date: '2025-09-08' } }],
+  })
+  await openNotifications(page)
+  await expect(page.getByText('Немає сповіщень')).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText('Найближчі платежі')).toHaveCount(0)
+})

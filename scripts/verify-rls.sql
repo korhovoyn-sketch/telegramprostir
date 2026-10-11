@@ -344,7 +344,7 @@ BEGIN
   -- ── 10. Каскадне видалення бази не лишає сиріт ──────────────────────────
   -- OWASP-таблиця в CLAUDE.md стверджує «Cascade deletes tested» (A08) — але
   -- жоден тест цього не виконував: e2e ганяються проти мока, де FK не існує.
-  -- Тут перевіряється РЕЗУЛЬТАТ по всіх десяти залежних таблицях одразу.
+  -- Тут перевіряється РЕЗУЛЬТАТ по всіх одинадцяти залежних таблицях одразу.
   --
   -- Дві НЕ-каскадні звʼязки лишаються свідомо і перевіряються окремо:
   -- `guest_links.guest_user_id` (SET NULL — лінк переживає видалення гостя) і
@@ -371,6 +371,13 @@ BEGIN
   IF (SELECT count(*) FROM property_views WHERE property_id='f1000000-0000-0000-0000-000000000001') <> 1 THEN
     RAISE EXCEPTION 'каскад: фікстура не посіялась — перевірка була б вакуумною';
   END IF;
+  -- Архів оренд (067) несе імена ОРЕНДАРІВ, тобто дані третіх осіб, і
+  -- зберігає їх ПІСЛЯ звільнення. Видалення бази — єдиний спосіб їх прибрати,
+  -- тож каскад тут не косметика. Обʼєкт у фікстурі зайнятий, отже тригер
+  -- мусив відкрити оренду — без цього «сиріт немає» нічого б не доводило.
+  IF (SELECT count(*) FROM tenancies WHERE db_id='d1000000-0000-0000-0000-000000000001') <> 1 THEN
+    RAISE EXCEPTION 'каскад: тригер не відкрив оренду на зайнятому обʼєкті — перевірка архіву вакуумна';
+  END IF;
 
   DELETE FROM databases WHERE id='d1000000-0000-0000-0000-000000000001';
 
@@ -385,13 +392,14 @@ BEGIN
     UNION ALL SELECT 'db_members', count(*) FROM db_members WHERE db_id='d1000000-0000-0000-0000-000000000001'
     UNION ALL SELECT 'subs', count(*) FROM realtor_subscriptions WHERE db_id='d1000000-0000-0000-0000-000000000001'
     UNION ALL SELECT 'folders', count(*) FROM property_folders WHERE db_id='d1000000-0000-0000-0000-000000000001'
+    UNION ALL SELECT 'tenancies', count(*) FROM tenancies WHERE db_id='d1000000-0000-0000-0000-000000000001'
   ) s WHERE c > 0;
 
   IF bad IS NOT NULL THEN
     RAISE EXCEPTION 'каскад: після видалення бази лишились сироти — %', bad;
   END IF;
 
-  RAISE NOTICE '  ✓ каскад: видалення бази не лишає сиріт у жодній із 10 залежних таблиць';
+  RAISE NOTICE '  ✓ каскад: видалення бази не лишає сиріт у жодній із 11 залежних таблиць (включно з архівом оренд)';
 END $$;
 
 DO $$
@@ -1009,4 +1017,109 @@ BEGIN
 
   PERFORM set_config('request.jwt.claims', '', false);
   RAISE NOTICE '  ✓ 066: гість бачить базу лише коли ціль належить видавцю лінка';
+END $$;
+
+DO $$
+DECLARE n INT; v_open UUID;
+BEGIN
+  -- ── 067/068: архів оренд — хто бачить і хто ПЕРЕПИСУЄ ─────────────────────
+  -- Архів цінний рівно тим, що він правдивий: це історія правовідносин, до якої
+  -- повертаються при спорі з орендарем. Тому питань тут два, а не одне:
+  --   1) хто бачить (власник і редактор — так; чужий, гість, рієлтор, anon — ні);
+  --   2) хто ПЕРЕПИСУЄ — НІХТО з клієнтів. Пише лише тригер (SECURITY DEFINER).
+  -- Друге питання 067 пропускала: політики були FOR ALL, тобто РЕДАКТОР
+  -- команди — принципал, якого запрошують і відкликають, — міг стерти або
+  -- переписати всю історію власника.
+
+  -- Антивакуум: фікстури вставили ЗАЙНЯТІ обʼєкти, тож тригер мусив відкрити
+  -- по оренді в кожній базі. Без цього «бачить 0» нічого б не доводило.
+  SELECT id INTO v_open FROM tenancies
+   WHERE db_id = 'd0000000-0000-0000-0000-00000000000a' AND ended_at IS NULL LIMIT 1;
+  IF v_open IS NULL THEN RAISE EXCEPTION '067: тригер не відкрив оренду на зайнятому обʼєкті — стенд вакуумний'; END IF;
+  SELECT count(*) INTO n FROM tenancies WHERE db_id = 'd0000000-0000-0000-0000-00000000000b';
+  IF n < 1 THEN RAISE EXCEPTION '067: у базі Богдана немає оренди — перевірка «чужого» вакуумна'; END IF;
+
+  -- ── власник: СВОЄ бачить, чуже — ні ──
+  PERFORM pg_temp.login('900001@telegram.propspace.app');
+  SET LOCAL ROLE authenticated;
+  SELECT count(*) INTO n FROM tenancies WHERE db_id = 'd0000000-0000-0000-0000-00000000000a';
+  IF n < 1 THEN RAISE EXCEPTION '067: власник НЕ БАЧИТЬ власного архіву'; END IF;
+  SELECT count(*) INTO n FROM tenancies WHERE db_id = 'd0000000-0000-0000-0000-00000000000b';
+  IF n <> 0 THEN RAISE EXCEPTION '067: Аліса бачить % оренд у базі Богдана', n; END IF;
+
+  -- власник теж НЕ ПЕРЕПИСУЄ: історія, яку можна відредагувати, доказом не є.
+  -- Відмова буває двох форм, і обидві прийнятні: 0 рядків (політика не
+  -- матчить) або `permission denied` (068 відкликала табличне право). Гард
+  -- перевіряє РЕЗУЛЬТАТ, а не механізм — той самий підхід, що для anon вище.
+  BEGIN
+    UPDATE tenancies SET tenant_name = 'ПІДРОБКА' WHERE id = v_open;
+    GET DIAGNOSTICS n = ROW_COUNT;
+    IF n <> 0 THEN RAISE EXCEPTION '068: власник ПЕРЕПИСАВ орендаря в архіві'; END IF;
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    INSERT INTO tenancies (owner_id, db_id, property_name, tenant_name)
+    VALUES ('a0000000-0000-0000-0000-00000000000a','d0000000-0000-0000-0000-00000000000a','Вигадана','Вигаданий');
+    RAISE EXCEPTION '068: клієнт ВСТАВИВ вигадану оренду в архів';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  RESET ROLE;
+
+  -- ── редактор (Богдан, блок 6): БАЧИТЬ, але не стирає й не переписує ──
+  PERFORM pg_temp.login('900002@telegram.propspace.app');
+  SET LOCAL ROLE authenticated;
+  SELECT count(*) INTO n FROM tenancies WHERE db_id = 'd0000000-0000-0000-0000-00000000000a';
+  IF n < 1 THEN RAISE EXCEPTION '067: редактор команди НЕ БАЧИТЬ архіву бази, яку веде'; END IF;
+  BEGIN
+    UPDATE tenancies SET tenant_name = 'ПІДРОБКА' WHERE db_id = 'd0000000-0000-0000-0000-00000000000a';
+    GET DIAGNOSTICS n = ROW_COUNT;
+    IF n <> 0 THEN RAISE EXCEPTION '068: РЕДАКТОР переписав % рядків архіву власника', n; END IF;
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    DELETE FROM tenancies WHERE db_id = 'd0000000-0000-0000-0000-00000000000a';
+    GET DIAGNOSTICS n = ROW_COUNT;
+    IF n <> 0 THEN RAISE EXCEPTION '068: РЕДАКТОР стер % рядків архіву власника', n; END IF;
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  RESET ROLE;
+
+  -- ── гість (Клим, блок 5) і рієлтор-підписник: не бачать нічого ──
+  INSERT INTO realtor_subscriptions (realtor_id, db_id)
+  VALUES ('a0000000-0000-0000-0000-00000000000c','d0000000-0000-0000-0000-00000000000a')
+  ON CONFLICT DO NOTHING;
+  PERFORM pg_temp.login('900003@telegram.propspace.app');
+  SET LOCAL ROLE authenticated;
+  -- позитив поруч: той самий Клим реально має доступ до БАЗИ (як рієлтор),
+  -- тобто «0 оренд» — це відмова саме архіву, а не відсутність будь-якого доступу.
+  SELECT count(*) INTO n FROM databases WHERE id = 'd0000000-0000-0000-0000-00000000000a';
+  IF n < 1 THEN RAISE EXCEPTION '067: фікстура рієлтора не дала доступу до бази — перевірка вакуумна'; END IF;
+  SELECT count(*) INTO n FROM tenancies;
+  IF n <> 0 THEN RAISE EXCEPTION '067: рієлтор/гість бачить % рядків архіву власника', n; END IF;
+  RESET ROLE;
+
+  -- ── anon ──
+  PERFORM set_config('request.jwt.claims', '', false);
+  PERFORM set_config('request.jwt.claim.role', 'anon', false);
+  SET LOCAL ROLE anon;
+  BEGIN
+    SELECT count(*) INTO n FROM tenancies;
+    IF n <> 0 THEN RAISE EXCEPTION '067: anon читає % рядків архіву', n; END IF;
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  RESET ROLE;
+
+  -- ── і головне: без клієнтських прав на запис ТРИГЕР ПИШЕ ДАЛІ ──
+  -- Якби функція виконувалась від імені викликача, прибрані політики тихо
+  -- зупинили б архів — і звільнення знову стирало б правовідносини безслідно.
+  PERFORM pg_temp.login('900001@telegram.propspace.app');
+  SET LOCAL ROLE authenticated;
+  UPDATE properties SET status = 'free', tenant_name = NULL
+   WHERE id = 'f0000000-0000-0000-0000-00000000000a';
+  RESET ROLE;
+  SELECT count(*) INTO n FROM tenancies WHERE id = v_open AND ended_at IS NOT NULL AND tenant_name = 'Орендар А';
+  IF n <> 1 THEN RAISE EXCEPTION '068: після звільнення оренда НЕ ЗАКРИЛАСЬ (або з підробленим орендарем)'; END IF;
+
+  PERFORM set_config('request.jwt.claims', '', false);
+  RAISE NOTICE '  ✓ 067/068: архів бачать власник і редактор; ніхто з клієнтів не переписує; тригер пише далі';
 END $$;

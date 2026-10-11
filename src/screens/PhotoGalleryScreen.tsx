@@ -1,10 +1,10 @@
 'use client'
 
-/* eslint-disable @next/next/no-img-element */
 import { useState, useRef, useEffect } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { hapticImpact } from '@/lib/telegram'
-import { IconX, IconShare, IconDownload, IconChevronLeft, IconChevronRight } from '@/components/Icons'
+import { IconX, IconShare, IconDownload, IconChevronLeft, IconChevronRight, IconAlertTriangle, IconPhoto } from '@/components/Icons'
+import { Photo } from '@/components/ui/Photo'
 import type { PropertyPhoto } from '@/types'
 import { photoUrl } from '@/lib/utils'
 import { tr } from '@/lib/i18n'
@@ -18,13 +18,23 @@ export default function PhotoGalleryScreen() {
   const touchStartX = useRef(0)
   const touchStartY = useRef(0)
   const thumbStripRef = useRef<HTMLDivElement>(null)
-  const thumbRefs = useRef<(HTMLDivElement | null)[]>([])
+  const thumbRefs = useRef<(HTMLButtonElement | null)[]>([])
 
   // Auto-scroll thumbnail strip to keep active thumb visible
   useEffect(() => {
     const el = thumbRefs.current[current]
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
   }, [current])
+
+  // Сусіди тягнуться заздалегідь, тож гортання не показує порожній кадр, поки
+  // їде наступний знімок. Той самий прийом уже стоїть у галереї `/v`.
+  useEffect(() => {
+    for (const p of [photos[current + 1], photos[current - 1]]) {
+      if (p) new window.Image().src = photoUrl(p.storage_path)
+    }
+    // `photos` — новий масив-фолбек щорендеру; знімки визначає `current`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current, photos.length])
 
   function prev() { setCurrent((i) => (i > 0 ? i - 1 : photos.length - 1)) }
   function next() { setCurrent((i) => (i < photos.length - 1 ? i + 1 : 0)) }
@@ -107,7 +117,7 @@ export default function PhotoGalleryScreen() {
           aria-label={tr('Закрити')}
           onClick={back}
           style={{
-            width: 36, height: 36, borderRadius: '50%',
+            width: 44, height: 44, borderRadius: '50%',
             background: 'var(--glass-3)',
             border: '1px solid rgba(255,255,255,.2)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -124,7 +134,7 @@ export default function PhotoGalleryScreen() {
             aria-label={tr('Завантажити фото')}
             onClick={handleDownload}
             style={{
-              width: 36, height: 36, borderRadius: '50%',
+              width: 44, height: 44, borderRadius: '50%',
               background: 'var(--glass-3)',
               border: '1px solid rgba(255,255,255,.2)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -137,7 +147,7 @@ export default function PhotoGalleryScreen() {
             aria-label={tr('Поділитись фото')}
             onClick={handleShare}
             style={{
-              width: 36, height: 36, borderRadius: '50%',
+              width: 44, height: 44, borderRadius: '50%',
               background: 'var(--glass-3)',
               border: '1px solid rgba(255,255,255,.2)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -155,26 +165,32 @@ export default function PhotoGalleryScreen() {
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        {/* Counter badge */}
-        <div style={{
-          position: 'absolute', top: 16, right: 16, zIndex: 'var(--z-above)',
-          background: 'rgba(0,0,0,.55)', backdropFilter: 'blur(8px)',
-          padding: '4px 10px', borderRadius: 'var(--r-pill)',
-          fontSize: 'var(--fs-foot)', fontWeight: 'var(--fw-semi)', color: 'var(--t1)',
-        }}>
-          {current + 1} / {photos.length}
-        </div>
+        {/* Лічильника тут НЕМА, і це фікс, а не спрощення: бейдж стояв на
+            `top:16; right:16` із `--z-above` (5), тобто ПОВЕРХ хедера
+            (`--z-content`, 2), і накривав кнопку «Поділитись фото» рівно на
+            36×36 — тобто цілком. Заміряно: `elementFromPoint` у центрі кнопки
+            віддавав цей `<div>`, отже поділитись фото з галереї було
+            НЕМОЖЛИВО. Той самий «1 / 3» і так стоїть у хедері, тож це був ще
+            й другий лічильник на одному екрані. */}
         {url ? (
-          <img
+          // `key` перемонтовує знімок на кожне гортання, тож новий проявляється
+          // з нуля, коли приїде, а не показується поверх старого наполовину.
+          <Photo
             key={url}
             src={url}
-            alt={`Photo ${current + 1}`}
-            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', animation: 'galleryFadeIn .22s ease both' }}
-            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+            alt={tr('Фото {0} з {1}', current + 1, photos.length)}
+            eager
+            zoom
+            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+            fallback={
+              // Порожня чорна сцена без слова читається як «зависло».
+              <div role="status" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, color: 'var(--t3)', fontSize: 'var(--fs-foot)', padding: '0 32px', textAlign: 'center' }}>
+                <IconAlertTriangle size={24} />
+                {tr('Не вдалося завантажити фото')}
+              </div>
+            }
           />
-        ) : (
-          <div style={{ fontSize: 64, opacity: 0.3 }}>🖼️</div>
-        )}
+        ) : null}
 
         {photos.length > 1 && (
           <>
@@ -183,7 +199,7 @@ export default function PhotoGalleryScreen() {
               onClick={prev}
               style={{
                 position: 'absolute', left: 16,
-                width: 40, height: 40, borderRadius: '50%',
+                width: 44, height: 44, borderRadius: '50%',
                 background: 'var(--glass-3)',
                 border: '1px solid rgba(255,255,255,.2)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -197,7 +213,7 @@ export default function PhotoGalleryScreen() {
               onClick={next}
               style={{
                 position: 'absolute', right: 16,
-                width: 40, height: 40, borderRadius: '50%',
+                width: 44, height: 44, borderRadius: '50%',
                 background: 'var(--glass-3)',
                 border: '1px solid rgba(255,255,255,.2)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -226,23 +242,32 @@ export default function PhotoGalleryScreen() {
           {photos.map((p, i) => {
             const thumbUrl = photoUrl(p.storage_path)
             return (
-              <div
+              <button
+                type="button"
                 key={p.id}
                 ref={(el) => { thumbRefs.current[i] = el }}
                 onClick={() => setCurrent(i)}
+                aria-label={tr('Фото {0} з {1}', i + 1, photos.length)}
+                aria-current={i === current ? 'true' : undefined}
                 style={{
+                  position: 'relative', padding: 0, font: 'inherit', color: 'inherit',
                   width: 56, height: 56, flexShrink: 0,
                   borderRadius: 8,
                   overflow: 'hidden',
-                  border: i === current ? '2px solid #a78bfa' : '2px solid transparent',
+                  border: i === current ? '2px solid var(--violet)' : '2px solid transparent',
                   cursor: 'pointer',
                   background: 'var(--glass-2)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   transition: 'border-color .2s ease',
                 }}
               >
-                <img src={thumbUrl} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = '0' }} />
-              </div>
+                <Photo
+                  src={thumbUrl}
+                  alt=""
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  fallback={<span className="photo-miss" aria-hidden="true"><IconPhoto size={14} /></span>}
+                />
+              </button>
             )
           })}
         </div>

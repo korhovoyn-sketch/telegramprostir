@@ -341,6 +341,40 @@ export const OWNER_SCREENS: ScreenStep[] = [
       await expect(page.getByLabel('Орендар')).toBeVisible({ timeout: 15_000 })
     },
   },
+  {
+    // Архів оренд (067). Крок підміняє `tenancies` ЛОКАЛЬНО: спільні фікстури
+    // лишаються порожніми, тож інші кроки не бачать цих рядків, а тут екран
+    // міряється ЗІ ВМІСТОМ — порожній стан має свої чотири текстові блоки й
+    // не показав би ані карток, ані сум (Playwright бере обробник,
+    // зареєстрований ОСТАННІМ).
+    label: 'tenancy-archive',
+    go: async (page) => {
+      await page.route('**/rest/v1/tenancies**', (r) => json(r, [
+        {
+          id: '70000000-0000-0000-0000-000000000001',
+          owner_id: OWNER.id, db_id: DB_ID, property_id: PROPERTIES[0].id,
+          property_name: 'Офіс 101', tenant_name: 'ТОВ «Альфа Трейд»',
+          landlord_name: 'ФОП Коваленко', rent_rate: 18, rent_type: 'per_m2',
+          utilities_rate: 2.5, area_basis: 'total', area_useful: 45, area_total: 52,
+          currency: 'USD', lease_start_date: '2025-01-10', lease_end_date: '2026-01-10',
+          started_at: '2025-01-10T10:00:00.000Z', ended_at: null,
+          created_at: NOW, updated_at: NOW,
+        },
+        {
+          id: '70000000-0000-0000-0000-000000000002',
+          owner_id: OWNER.id, db_id: DB_ID, property_id: PROPERTIES[1].id,
+          property_name: 'Офіс 102', tenant_name: 'Іваненко Олена',
+          landlord_name: null, rent_rate: 1200, rent_type: 'fixed',
+          utilities_rate: null, area_basis: 'useful', area_useful: 45, area_total: 52,
+          currency: 'USD', lease_start_date: null, lease_end_date: null,
+          started_at: '2024-03-01T10:00:00.000Z', ended_at: '2024-11-20T10:00:00.000Z',
+          created_at: NOW, updated_at: NOW,
+        },
+      ]))
+      await viaDbMenu(page, 'Архів оренд', /Архів оренд/)
+      await expect(page.getByText('ТОВ «Альфа Трейд»')).toBeVisible({ timeout: 15_000 })
+    },
+  },
   { label: 'folder-manage', go: (page) => viaDbMenu(page, 'Папки', /Групуйте|Додати папку/) },
   {
     // Пакетні пікери — окремі екрани з фази 4. Вхід лише через режим виділення,
@@ -667,6 +701,28 @@ export async function onboardingFixtures(page: Page, platform?: string) {
 }
 
 export const ONBOARDING_SCREENS: ScreenStep[] = [
+  {
+    /**
+     * ПЕРШИЙ ЕКРАН, ЯКИЙ БАЧИТЬ КОЖЕН НОВИЙ КОРИСТУВАЧ — і до цього кроку
+     * його не міряв ЖОДЕН гард якості.
+     *
+     * Кадр у `screenshots` він мав, тобто «чи не змінився» перевірялось; а
+     * контраст, зона дотику, пʼять ширин, шкала радіуса/шрифту, обрізаний
+     * текст і десктопна колонка — ні, бо всі вони ходять САМЕ цим списком.
+     * Разом із `splash` це були єдині два екрани поза обходом, і якщо splash
+     * транзитний, то welcome — той, на якому людина ухвалює рішення ввійти.
+     *
+     * `#fromLogout` — документований шлях повз відновлення сесії
+     * (`SplashScreen` дивиться саме на хеш). Наступні кроки роблять
+     * `goto('/')` без хеша, тож стан сюди не протікає.
+     */
+    label: 'welcome',
+    go: async (page) => {
+      await page.goto('/#fromLogout')
+      await expect(page.getByRole('button', { name: /Увійти через Telegram/ }))
+        .toBeVisible({ timeout: 20_000 })
+    },
+  },
   {
     label: 'role-select',
     go: async (page) => {

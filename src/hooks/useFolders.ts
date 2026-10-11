@@ -159,13 +159,22 @@ export function useFolders(dbId?: string) {
       .sort((x, y) => x.sort_order - y.sort_order || x.created_at.localeCompare(y.created_at))
     setFolders(next)
     try {
-      await Promise.all([
-        supabase.from('property_folders').update({ sort_order: b.sort_order }).eq('id', a.id),
-        supabase.from('property_folders').update({ sort_order: a.sort_order }).eq('id', b.id),
+      // supabase-js НЕ кидає винятків — він повертає `{ error }`. Тож голий
+      // `try/catch` навколо цих викликів був мертвим: офлайн чи відмова RLS
+      // проходили мовчки, на екрані лишався новий порядок, а після
+      // перезаходу папки «самі» стрибали назад. Сусідній `reorderProperty`
+      // перевіряє обидва результати — тут те саме.
+      const [swapA, swapB] = await Promise.all([
+        supabase.from('property_folders').update({ sort_order: b.sort_order }).eq('id', a.id).select('id'),
+        supabase.from('property_folders').update({ sort_order: a.sort_order }).eq('id', b.id).select('id'),
       ])
-    } catch {
+      if (swapA.error) throw swapA.error
+      if (swapB.error) throw swapB.error
+      assertAffected(swapA.data, 1, tr('зміну порядку папок'))
+      assertAffected(swapB.data, 1, tr('зміну порядку папок'))
+    } catch (e) {
       setFolders(list)
-      showToast({ type: 'error', title: tr('Не вдалося зберегти порядок') })
+      showToast({ type: 'error', title: tr('Не вдалося зберегти порядок'), subtitle: humanizeDbError(e) })
     }
   }, [showToast])
 

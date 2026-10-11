@@ -10,6 +10,8 @@ import { useDbType } from '@/hooks/useDbType'
 import { useLandlords } from '@/hooks/useLandlords'
 import { useFolders } from '@/hooks/useFolders'
 import Header from '@/components/ui/Header'
+import RetryState from '@/components/ui/RetryState'
+import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import Toggle from '@/components/ui/Toggle'
 import { IconRuler, IconLayers, IconLayoutGrid, IconActivity, IconBuilding, IconCurrencyDollar, IconBolt, IconCarGarage, IconFile, IconUser, IconKey, IconMapPin, IconEdit, IconFolder, IconChevronRight, IconTrash, IconCheck, IconPlus, IconAlertTriangle } from '@/components/Icons'
 import { UTILITY_META } from '@/lib/utilityMeta'
@@ -17,6 +19,8 @@ import FilesList from '@/components/ui/FilesList'
 import { currencySymbol, sanitizeDecimal, sanitizeInt, formatPrice, calcRent, calcUtilities, basisArea, rentUnitLabel, nextCopyName, bulkCreateNames, objectsWord, scrollFocusedIntoView } from '@/lib/utils'
 import type { PropertyStatus, RentType, ParkingType, AreaBasis } from '@/types'
 import { tr } from '@/lib/i18n'
+import { lsRemove } from '@/lib/localState'
+import { useClosingConfirmation } from '@/hooks/useTelegram'
 
 const PARKING_TYPES = (): { v: ParkingType; l: string }[] => ([
   { v: 'underground', l: tr('Підземний') },
@@ -26,7 +30,7 @@ const PARKING_TYPES = (): { v: ParkingType; l: string }[] => ([
 
 export default function PropertyFormScreen() {
   const { screenParams, backThenReplace, back, showToast, user, isOnline, databases } = useAppStore()
-  const { properties, loadProperties, createProperty, createProperties, updateProperty, deleteProperty, loading } = useProperties(screenParams.dbId)
+  const { properties, loadProperties, createProperty, createProperties, updateProperty, deleteProperty, loading, error: loadError } = useProperties(screenParams.dbId)
   const { folders, unavailable: foldersUnavailable, loadFolders, createFolder } = useFolders(screenParams.dbId)
 
   const editId = screenParams.propertyId
@@ -46,6 +50,9 @@ export default function PropertyFormScreen() {
   // Користувач уже щось увів. Тоді переграння префілу СКАСОВУЄТЬСЯ: свіжий рядок
   // не має права затерти введене (саме так виглядає «зміни не зберігаються»).
   const touchedRef = useRef(false)
+  // Спроба завантаження в режимі редагування ЗАВЕРШИЛАСЬ (успішно чи ні).
+  // Без цього «обʼєкта немає в списку» і «список ще їде» нерозрізненні.
+  const [editLoadDone, setEditLoadDone] = useState(false)
 
   // Parking DBs get a spot-oriented field set (number/area/level/type/EV, flat
   // utilities, monthly-or-daily rate) instead of the office/apartment layout.
@@ -123,11 +130,7 @@ export default function PropertyFormScreen() {
     if (screenParams.dbId) loadFolders(screenParams.dbId)
   }, [screenParams.dbId, loadFolders])
 
-  useEffect(() => {
-    const tg = window.Telegram?.WebApp
-    tg?.enableClosingConfirmation()
-    return () => { tg?.disableClosingConfirmation() }
-  }, [])
+  useClosingConfirmation()
 
   // ── Draft autosave (new object only) ────────────────────────────────────────
   // Closing confirmation guards against an accidental swipe-down, but a crash
@@ -169,6 +172,7 @@ export default function PropertyFormScreen() {
       setDescription(String(d.description ?? ''))
       setSalePrice(String(d.salePrice ?? ''))
       setTenantName(String(d.tenantName ?? ''))
+      setLandlordName(String(d.landlordName ?? ''))
       setLeaseStartDate(String(d.leaseStartDate ?? ''))
       setLeaseEndDate(String(d.leaseEndDate ?? ''))
       setAddress(String(d.address ?? ''))
@@ -180,11 +184,11 @@ export default function PropertyFormScreen() {
         subtitle: tr('Незбережений обʼєкт з минулого разу'),
         actionLabel: tr('Очистити'),
         onAction: () => {
-          localStorage.removeItem(draftKey)
+          lsRemove(draftKey)
           setName(''); setFloor(''); setStatus('free'); setAreaUseful(''); setAreaTotal(''); setAreaBasis('total')
           setRentType('per_m2'); setRentRate(''); setUtilitiesRate(''); setHasParking(false)
           setParkingSpaces('1'); setParkingType(''); setEvCharger(false); setDescription('')
-          setSalePrice(''); setTenantName(''); setLeaseStartDate(''); setLeaseEndDate('')
+          setSalePrice(''); setTenantName(''); setLandlordName(''); setLeaseStartDate(''); setLeaseEndDate('')
           setAddress(''); setUtilities([]); setFolderId(null)
         },
       })
@@ -199,7 +203,7 @@ export default function PropertyFormScreen() {
           localStorage.setItem(draftKey, JSON.stringify({
             name, floor, status, areaUseful, areaTotal, areaBasis, rentType, rentRate,
             utilitiesRate, hasParking, parkingSpaces, parkingType, evCharger,
-            description, salePrice, tenantName, leaseStartDate, leaseEndDate,
+            description, salePrice, tenantName, landlordName, leaseStartDate, leaseEndDate,
             address, utilities, folderId,
           }))
         } else {
@@ -210,7 +214,7 @@ export default function PropertyFormScreen() {
     return () => clearTimeout(t)
   }, [isNewBlank, draftKey, name, floor, status, areaUseful, areaTotal, areaBasis, rentType,
       rentRate, utilitiesRate, hasParking, parkingSpaces, parkingType, evCharger,
-      description, salePrice, tenantName, leaseStartDate, leaseEndDate, address, utilities, folderId])
+      description, salePrice, tenantName, landlordName, leaseStartDate, leaseEndDate, address, utilities, folderId])
 
   useEffect(() => {
     // Префіл РІВНО ОДИН раз на обʼєкт. Ефект залежить від `existing`, а це
@@ -250,7 +254,7 @@ export default function PropertyFormScreen() {
       setLeaseEndDate(existing.lease_end_date ?? '')
       setFolderId(existing.folder_id ?? null)
     } else if (isEdit) {
-      loadProperties(screenParams.dbId)
+      void loadProperties(screenParams.dbId).finally(() => setEditLoadDone(true))
     }
   }, [isEdit, existing, screenParams.dbId, loadProperties])
 
@@ -507,12 +511,41 @@ export default function PropertyFormScreen() {
         sort_order: sortBase + (i + 1) * 100,
       })))
       if (ok) hapticNotify('success')
-      if (ok && draftKey) localStorage.removeItem(draftKey)
+      if (ok && draftKey) lsRemove(draftKey)
     } else {
       const ok = await createProperty(payload)
       if (ok) hapticNotify('success')
-      if (ok && draftKey) localStorage.removeItem(draftKey)
+      if (ok && draftKey) lsRemove(draftKey)
     }
+  }
+
+  // РЕДАГУВАННЯ БЕЗ ДАНИХ — НЕ ФОРМА. Доти тут малювались ПОРОЖНІ поля з
+  // плейсхолдерами («Офіс 101», «47»), що виглядали як справжні значення,
+  // статусом «Вільно» і активним «Зберегти зміни». Один дотик слав PATCH, де
+  // кожне незаповнене поле — `null`: площі, ставки, орендар, договір і опис
+  // стирались, а тригер архіву ще й закривав оренду. Видалення з порожньої
+  // форми теж було доступне. Тож поки рядка немає — заглушка, а коли спроба
+  // завантаження завершилась без нього — повтор із поясненням.
+  if (isEdit && !existing) {
+    return (
+      <div className="scr bg-blue">
+        <Header title={tr('Редагування')} backLabel={tr('Назад')} />
+        <div className="body">
+          {editLoadDone && !loading ? (
+            <RetryState
+              title={tr('Не вдалося завантажити обʼєкт')}
+              subtitle={loadError ?? tr('Обʼєкт не знайдено')}
+              onRetry={() => {
+                setEditLoadDone(false)
+                void loadProperties(screenParams.dbId).finally(() => setEditLoadDone(true))
+              }}
+            />
+          ) : (
+            <SkeletonLoader rows={5} />
+          )}
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -566,29 +599,17 @@ export default function PropertyFormScreen() {
               {/* marginLeft:auto — контрол праворуч, як інпути/сегменти сусідніх рядків */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto' }}>
                 <button
+                  className="step-btn"
                   aria-label={tr('Менше обʼєктів')}
                   onClick={() => { hapticSelection(); setCount(c => Math.max(1, c - 1)) }}
                   disabled={count <= 1}
-                  style={{
-                    width: 32, height: 32, borderRadius: 'var(--r-xs)',
-                    background: 'var(--glass-2)', border: '.5px solid var(--glass-bd)',
-                    color: count <= 1 ? 'var(--t4)' : 'var(--t1)',
-                    fontSize: 'var(--fs-lead)', lineHeight: 1, cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}
                 >−</button>
                 <span className="num" style={{ minWidth: 28, textAlign: 'center', fontSize: 'var(--fs-call)', fontWeight: 'var(--fw-semi)', color: 'var(--t1)' }}>{count}</span>
                 <button
+                  className="step-btn"
                   aria-label={tr('Більше обʼєктів')}
                   onClick={() => { hapticSelection(); setCount(c => Math.min(BULK_MAX, c + 1)) }}
                   disabled={count >= BULK_MAX}
-                  style={{
-                    width: 32, height: 32, borderRadius: 'var(--r-xs)',
-                    background: 'var(--glass-2)', border: '.5px solid var(--glass-bd)',
-                    color: count >= BULK_MAX ? 'var(--t4)' : 'var(--t1)',
-                    fontSize: 'var(--fs-lead)', lineHeight: 1, cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}
                 >+</button>
               </div>
             </div>

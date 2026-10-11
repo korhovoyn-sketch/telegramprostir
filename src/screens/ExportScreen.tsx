@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useAppStore } from '@/store/appStore'
 import { offlineGuard } from '@/lib/offline'
 import { supabase } from '@/lib/supabase'
+import { stripOptionalSelect, withOptionalColumns } from '@/lib/optionalColumns'
 import Header from '@/components/ui/Header'
 import Toggle from '@/components/ui/Toggle'
 import { IconFileExport, IconFile, IconAdjustments, IconChartBar, IconCheck } from '@/components/Icons'
@@ -1100,6 +1101,11 @@ async function generateCsv(
 
 // ── Screen component ──────────────────────────────────────────────────────────
 
+// Вибірка експорту живе окремою константою, бо її читає ще й гард колонок
+// (`select-columns.test.ts`), а ретрай без опційних колонок (043/064) мусить
+// знімати їх саме з неї.
+const EXPORT_SELECT = 'id,db_id,owner_id,name,floor,status,area_useful,area_total,area_basis,rent_type,rent_rate,utilities_rate,has_parking,parking_spaces,description,address,utilities,sale_price,tenant_name,landlord_name,lease_start_date,lease_end_date,sort_order,created_at,updated_at,photos:property_photos(id,property_id,storage_path,sort_order,created_at)'
+
 export default function ExportScreen() {
   const { screenParams, showToast, user, databases } = useAppStore()
   const { dbId } = screenParams
@@ -1116,7 +1122,7 @@ export default function ExportScreen() {
     if (offlineGuard(tr('Експорт недоступний офлайн'))) return
     setLoading(true)
     try {
-      const { data: propertiesRaw, error } = await supabase
+      const { data: propertiesRaw, error } = await withOptionalColumns((pre) => supabase
         .from('properties')
         // share_token deliberately NOT selected: exported files travel outside
         // the app and must never carry live share credentials.
@@ -1127,17 +1133,17 @@ export default function ExportScreen() {
         // документі по іншій площі, ніж у застосунку. На 100/120 м² і $18/м²
         // це $1 800 на екрані проти $2 160 у PDF — 20% розбіжності у файлі,
         // який власник надсилає клієнту, без жодного натяку.
-        .select('id,db_id,owner_id,name,floor,status,area_useful,area_total,area_basis,rent_type,rent_rate,utilities_rate,has_parking,parking_spaces,description,address,utilities,sale_price,tenant_name,landlord_name,lease_start_date,lease_end_date,sort_order,created_at,updated_at,photos:property_photos(id,property_id,storage_path,sort_order,created_at)')
+        .select(pre ? stripOptionalSelect(EXPORT_SELECT) : EXPORT_SELECT)
         .eq('db_id', dbId)
         // Порядок мусить збігатися з застосунком (`useProperties` — sort_order),
         // інакше ручний «Змінити порядок» на документ не впливає ВЗАГАЛІ, а
         // лексикографічне сортування ще й ставить «Офіс 10» перед «Офіс 2».
         // Той самий клас міграція 040 вже виправила для публічної /v.
         .order('sort_order', { ascending: true })
-        .order('created_at', { ascending: true })
+        .order('created_at', { ascending: true }))
 
       if (error) throw error
-      const properties = (propertiesRaw ?? []) as Property[]
+      const properties = (propertiesRaw ?? []) as unknown as Property[]
 
       // Nothing to export — a file with 0 rows is pointless. Tell the user
       // instead of downloading an empty PDF/Excel.

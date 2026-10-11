@@ -12,7 +12,8 @@ import { assertAffected } from '@/lib/dbWrite'
 // Явні колонки, а не `*`: `properties.share_token` — це ПУБЛІЧНИЙ /v-лінк, і
 // віддавати його підписаному рієлторові означає дати доступ, що переживе
 // відписку (ротація токенів при відписці не робиться).
-import { PROPERTY_WITH_PHOTOS } from '@/hooks/useProperties'
+import { PROPERTY_WITH_PHOTOS, PROPERTY_WITH_PHOTOS_PRE043 } from '@/hooks/useProperties'
+import { withOptionalColumns } from '@/lib/optionalColumns'
 import TabBar from '@/components/ui/TabBar'
 import { StatusBadge } from '@/components/ui/Badge'
 import ActionSheet from '@/components/ui/ActionSheet'
@@ -124,6 +125,10 @@ function CollectionDetail({
 
   const [collectionProps, setCollectionProps] = useState<CollectionProperty[]>([])
   const [loadingProps, setLoadingProps] = useState(true)
+  // Збій завантаження ≠ «підбірка порожня». Доти catch лишав список порожнім, і
+  // екран упевнено казав «Немає обʼєктів. Додай перший» — про підбірку, у якій
+  // обʼєкти є. Рієлтор міг «додати» їх удруге й отримати помилку дубля.
+  const [propsError, setPropsError] = useState<string | null>(null)
 
   // Available properties to add
   const [availableProps, setAvailableProps] = useState<Property[]>([])
@@ -135,21 +140,22 @@ function CollectionDetail({
 
   const loadCollectionProperties = useCallback(async () => {
     setLoadingProps(true)
+    setPropsError(null)
     try {
-      const { data, error } = await supabase
+      const { data, error } = await withOptionalColumns((pre) => supabase
         .from('collection_properties')
         // Явні колонки: `properties(*, …)` віддавав рієлторові `share_token`
         // ЧУЖИХ обʼєктів — публічний /v-лінк, що переживе видалення підбірки.
-        .select('property_id, property:properties(' + PROPERTY_WITH_PHOTOS + ')')
-        .eq('collection_id', collection.id)
+        .select('property_id, property:properties(' + (pre ? PROPERTY_WITH_PHOTOS_PRE043 : PROPERTY_WITH_PHOTOS) + ')')
+        .eq('collection_id', collection.id))
       if (error) throw error
       setCollectionProps((data ?? []) as unknown as CollectionProperty[])
     } catch (e) {
-      showToast({ type: 'error', title: tr('Помилка завантаження'), subtitle: humanizeDbError(e) })
+      setPropsError(humanizeDbError(e))
     } finally {
       setLoadingProps(false)
     }
-  }, [collection.id, showToast])
+  }, [collection.id])
 
   useEffect(() => {
     loadCollectionProperties()
@@ -172,16 +178,16 @@ function CollectionDetail({
         return
       }
 
-      const { data: props, error: propsErr } = await supabase
+      const { data: props, error: propsErr } = await withOptionalColumns((pre) => supabase
         .from('properties')
-        .select(PROPERTY_WITH_PHOTOS)
+        .select(pre ? PROPERTY_WITH_PHOTOS_PRE043 : PROPERTY_WITH_PHOTOS)
         .in('db_id', dbIds)
-        .order('created_at', { ascending: false })
+        .order('created_at', { ascending: false }))
       if (propsErr) throw propsErr
 
       // Filter out already-added properties
       const addedIds = new Set(collectionProps.map((cp) => cp.property_id))
-      const available = ((props ?? []) as Property[]).filter((p) => !addedIds.has(p.id))
+      const available = ((props ?? []) as unknown as Property[]).filter((p) => !addedIds.has(p.id))
       setAvailableProps(available)
     } catch (e) {
       showToast({ type: 'error', title: tr('Помилка завантаження'), subtitle: humanizeDbError(e) })
@@ -370,6 +376,8 @@ function CollectionDetail({
 
         {loadingProps ? (
           <SkeletonList count={4} />
+        ) : propsError ? (
+          <RetryState subtitle={propsError} onRetry={() => void loadCollectionProperties()} />
         ) : collectionProps.length === 0 ? (
           <div className="empty-state" style={{ paddingTop: 32 }}>
             <div className="empty-ic">🏢</div>

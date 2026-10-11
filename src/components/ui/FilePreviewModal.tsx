@@ -1,9 +1,9 @@
 'use client'
 
-/* eslint-disable @next/next/no-img-element */
 import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { IconX, IconDownload, IconExternalLink, IconFile } from '@/components/Icons'
+import { IconX, IconDownload, IconExternalLink, IconFile, IconAlertTriangle } from '@/components/Icons'
+import { Photo } from '@/components/ui/Photo'
 import { tr } from '@/lib/i18n'
 
 interface FilePreviewModalProps {
@@ -130,16 +130,21 @@ export default function FilePreviewModal({ url, mime, name, onClose }: FilePrevi
             overflow: 'hidden', cursor: 'zoom-out',
           }}
         >
-          <img
-            src={url}
-            alt={name}
-            style={{
-              maxWidth: '100%', maxHeight: '100%',
-              objectFit: 'contain',
-              animation: 'galleryFadeIn .22s ease both',
-            }}
-            onClick={e => e.stopPropagation()}
-          />
+          <span onClick={e => e.stopPropagation()} style={{ display: 'contents' }}>
+            <Photo
+              src={url}
+              alt={name}
+              eager
+              zoom
+              style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+              fallback={
+                <div role="status" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, color: 'var(--t3)', fontSize: 'var(--fs-foot)' }}>
+                  <IconAlertTriangle size={24} />
+                  {tr('Не вдалося завантажити фото')}
+                </div>
+              }
+            />
+          </span>
         </div>
       ) : (
         // PDF / DOC — card with open + download. Tap backdrop to close.

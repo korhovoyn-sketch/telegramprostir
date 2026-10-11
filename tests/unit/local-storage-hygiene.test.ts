@@ -1,0 +1,207 @@
+import { describe, it, expect } from 'vitest'
+import { readFileSync, readdirSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { SESSION_PREFIXES, DEVICE_KEYS, clearSessionState, lsGet, lsSet, lsRemove } from '../../src/lib/localState'
+
+/**
+ * КЛЮЧ, ЯКИЙ НІХТО НЕ КЛАСИФІКУВАВ, ПЕРЕЖИВАЄ ВИХІД З АКАУНТА.
+ *
+ * Дефект, заради якого це написано: `clearPersistedSession()` стирав рівно
+ * один ключ (`ps_user`), а на диску лишались SWR-снапшоти списків — назви
+ * обʼєктів, ІМЕНА ОРЕНДАРІВ, ставки, дати договорів, адреси — плюс
+ * чернетки форми і гостьовий токен. Те саме стосувалось ВИДАЛЕННЯ АКАУНТА,
+ * тобто прямої обіцянки §5 Політики конфіденційності.
+ *
+ * ЧОМУ ЦЬОГО НЕ БАЧИВ ЖОДЕН ІЗ НАЯВНИХ ГАРДІВ. Усі вони питають про доступ
+ * до СЕРВЕРА — RLS, гранти, політики. Локальне сховище лежить по інший бік
+ * мережі, і там немає нікого, хто б питав «а чиї це дані і коли вони мають
+ * зникнути». Клас видно лише з боку КЛІЄНТА.
+ *
+ * Гард читає ту саму класифікацію, з якої працює чистка, тож розійтись вони
+ * не можуть: новий ключ або належить сесії (і стирається), або свідомо
+ * названий ключем ПРИСТРОЮ — третього стану немає.
+ */
+
+const SRC = resolve(process.cwd(), 'src')
+
+function walk(dir: string, acc: string[] = []): string[] {
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    const p = resolve(dir, e.name)
+    if (e.isDirectory()) walk(p, acc)
+    else if (/\.tsx?$/.test(e.name)) acc.push(p)
+  }
+  return acc
+}
+
+const FILES = walk(SRC).map((f) => ({ path: f, src: readFileSync(f, 'utf8') }))
+const ALL = FILES.map((f) => f.src).join('\n')
+
+/**
+ * Ключ, з яким кличуть `setItem`, майже ніколи не літерал — це іменована
+ * константа або шаблон. Тому: літерал беремо як є, ідентифікатор резолвимо
+ * до ПЕРШОГО рядкового/шаблонного літерала в його оголошенні (по всьому src,
+ * бо `PROFILE_KEY` експортується з одного файлу й уживається в іншому).
+ */
+function resolveKey(arg: string): string | null {
+  const lit = arg.match(/^['"`]([^'"`$]+)/)
+  if (lit) return lit[1]
+  const ident = arg.match(/^([A-Za-z_$][\w$]*)/)
+  if (!ident) return null
+  const decl = new RegExp(
+    `(?:const|let|var)\\s+${ident[1]}\\s*(?::[^=]+)?=\\s*[^\\n]*?['"\`]([^'"\`$]+)`,
+  ).exec(ALL)
+  if (decl) return decl[1]
+  // `keyFor(...)` — ключ будує функція; беремо літерал з її тіла
+  const fn = new RegExp(
+    `(?:const|function)\\s+${ident[1]}[^\\n]*?=>?[^\\n]*?['"\`]([^'"\`$]+)`,
+  ).exec(ALL)
+  return fn ? fn[1] : null
+}
+
+function writtenKeys(): { key: string; where: string }[] {
+  const out: { key: string; where: string }[] = []
+  for (const f of FILES) {
+    // Самі обгортки (`lsSet`) пишуть за ПАРАМЕТРОМ, а не за літералом —
+    // класифікувати там нічого, і резолвер брав би імʼя аргументу за ключ.
+    if (f.path.endsWith('localState.ts')) continue
+    for (const m of f.src.matchAll(/localStorage\.setItem\(\s*([^,]+),/g)) {
+      const key = resolveKey(m[1].trim())
+      if (key) out.push({ key, where: f.path.slice(SRC.length + 1) })
+    }
+  }
+  return out
+}
+
+describe('гігієна локального сховища', () => {
+  it('кожен записаний ключ класифіковано: сесія або пристрій', () => {
+    const keys = writtenKeys()
+
+    // АНТИВАКУУМ: якщо витягувач ключів зламався, список порожній — і тест
+    // «проходить», нічого не перевіривши. Нижня межа з поточного стану.
+    expect(keys.length, 'жодного localStorage.setItem не знайдено — витягувач зламався')
+      .toBeGreaterThanOrEqual(8)
+
+    const unknown = keys.filter(({ key }) =>
+      !SESSION_PREFIXES.some((p) => key.startsWith(p)) &&
+      !DEVICE_KEYS.some((d) => key.startsWith(d)))
+
+    expect(unknown.map((u) => `${u.key} (${u.where})`), [
+      'Ключ localStorage не класифіковано в src/lib/localState.ts.',
+      'Він містить дані акаунта → SESSION_PREFIXES (стирається при виході),',
+      'чи це налаштування пристрою → DEVICE_KEYS (переживає вихід свідомо)?',
+    ].join(' ')).toEqual([])
+  })
+
+  it('класифікація однозначна: ключ не може бути і сесійним, і пристроєвим', () => {
+    const both = DEVICE_KEYS.filter((d) => SESSION_PREFIXES.some((p) => d.startsWith(p)))
+    expect(both, 'ключ пристрою збігається з сесійним префіксом — чистка стерла б налаштування')
+      .toEqual([])
+  })
+
+  it('вихід з акаунта справді кличе чистку', () => {
+    const auth = readFileSync(resolve(SRC, 'hooks/useAuth.ts'), 'utf8')
+    const body = auth.slice(auth.indexOf('function clearPersistedSession'))
+    expect(body.slice(0, body.indexOf('}')), 'clearPersistedSession не кличе clearSessionState')
+      .toContain('clearSessionState()')
+    // Видалення акаунта йде тим самим шляхом — інакше обіцянка §5 не виконана
+    expect(auth, 'deleteAccount не чистить локальний стан')
+      .toMatch(/deleteAccount[\s\S]{0,4000}clearPersistedSession\(\)/)
+  })
+
+  /* Джерельні перевірки вище доводять, що ВИКЛИК на місці. Чи дані справді
+     зникають — інше твердження, і воно перевіряється лише виконанням. */
+  it('РАНТАЙМ: сесійне стирається, пристроєве лишається', () => {
+    localStorage.clear()
+    const gone = {
+      'ps_user': '{"id":"u1","phone":"+380..."}',
+      'snap_v1:u1:databases': '[{"id":"d1"}]',
+      'snap_v1:u1:props:d1': '[{"tenant_name":"ФОП Плотко"}]',
+      'snap_v1:u2:props:d9': '[{"tenant_name":"чужий акаунт на цьому ж пристрої"}]',
+      'draft_v1:u1:prop-new:d1': '{"name":"Офіс 101"}',
+      'ps_guest_join_token': 'db_abc123',
+      'ps:foldCollapse:u1:d1': '["__none__"]',
+    }
+    const stays = { 'ps_lang': 'uk', 'ob_v1': '["x"]', 'ps:occCompact': '1', 'kb_h_v1': '{}' }
+    Object.entries({ ...gone, ...stays }).forEach(([k, v]) => localStorage.setItem(k, v))
+
+    clearSessionState()
+
+    expect(Object.keys(gone).filter((k) => localStorage.getItem(k) !== null),
+      'дані акаунта лишились на диску після виходу').toEqual([])
+    // Антивакуум із другого боку: «стерло все» — теж провал, це налаштування
+    // пристрою, і вихід з акаунта не має їх скидати.
+    expect(Object.keys(stays).filter((k) => localStorage.getItem(k) === null),
+      'чистка знесла налаштування пристрою').toEqual([])
+  })
+
+  it('чистка стирає ВСІ сесійні ключі, включно з ключами інших акаунтів', () => {
+    const mod = readFileSync(resolve(SRC, 'lib/localState.ts'), 'utf8')
+    // Ключі снапшотів і чернеток містять userId, тобто поіменно їх не знати:
+    // перебір мусить іти по САМОМУ сховищу, а не по відомому списку імен.
+    expect(mod, 'чистка не перебирає localStorage — ключі з userId лишаться')
+      .toMatch(/localStorage\.key\(/)
+  })
+
+  it('жоден доступ до localStorage не лишається голим', () => {
+    // ЧОМУ ЦЕ ВЗАГАЛІ ГАРД. `localStorage` кидає не лише на записі при
+    // переповненні квоти: у сторонньому iframe із заблокованим сховищем
+    // кидає САМ ГЕТТЕР `window.localStorage` (`SecurityError`). Для цього
+    // застосунку це штатний режим — Telegram Web показує Mini App саме в
+    // iframe на web.telegram.org.
+    //
+    // Найдорожче місце було в `DatabaseObjectsScreen`: читання
+    // `ps:occCompact` стояло в ІНІЦІАЛІЗАТОРІ `useState`, тобто виняток
+    // стався б під час РЕНДЕРА — ErrorBoundary на головному робочому
+    // екрані. Сім місць лишались голими при бездоганній дисципліні в
+    // решті проєкту, тобто це був дрейф, а не компроміс.
+    const offenders: string[] = []
+    for (const { path, src } of FILES) {
+      if (path.endsWith('localState.ts')) continue // тут і живуть самі обгортки
+      const lines = src.split('\n')
+      lines.forEach((line, i) => {
+        // Блоковий коментар теж треба вирізати: перша редакція цього гарда
+        // репортувала три ХИБНІ спрацювання на рядках, де слово
+        // `localStorage` лише згадане в описі.
+        const t = line.trim()
+        if (t.startsWith('*') || t.startsWith('/*')) return
+        const code = line.split('//')[0]
+        if (!/\blocalStorage\s*\./.test(code)) return
+        // Вікно ВКЛЮЧАЄ поточний рядок: `try { localStorage.setItem(...) }`
+        // в один рядок — звичайний тут стиль, і без цього зонд називав би
+        // захищений код голим.
+        const near = lines.slice(Math.max(0, i - 12), i + 1).join('\n')
+        if (!near.includes('try')) {
+          offenders.push(`${path.slice(path.indexOf('src'))}:${i + 1}  ${code.trim().slice(0, 60)}`)
+        }
+      })
+    }
+    expect(offenders, `голий доступ до сховища:\n${offenders.join('\n')}`).toEqual([])
+  })
+
+  it('АНТИВАКУУМ: обгортки справді ковтають виняток сховища', () => {
+    // Підміняється САМ ГЕТТЕР `window.localStorage`, а не його метод, і це
+    // не педантизм із двох причин. По-перше, це і є реальний випадок:
+    // у сторонньому iframe із заблокованим сховищем кидає саме звернення до
+    // властивості, ще до будь-якого виклику. По-друге, перша редакція цього
+    // тесту робила `vi.spyOn(window.localStorage, 'getItem')` — і НЕ ПАДАЛА
+    // на обгортці з прибраним `try`: у jsdom `Storage` схований за проксі,
+    // тож шпигун на метод до модуля просто не доїжджав. Тобто антивакуум
+    // сам був вакуумним, і показала це власна фальсифікація.
+    const real = Object.getOwnPropertyDescriptor(window, 'localStorage')
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      get() { throw new DOMException('denied', 'SecurityError') },
+    })
+    try {
+      expect(() => lsGet('ps:occCompact')).not.toThrow()
+      expect(lsGet('ps:occCompact')).toBeNull()
+      expect(() => lsSet('ps_lang', 'en')).not.toThrow()
+      expect(() => lsRemove('ps_lang')).not.toThrow()
+      // Чистка теж мусить пережити недоступне сховище: вона біжить на
+      // виході з акаунта, тобто в момент, коли падати найдорожче.
+      expect(() => clearSessionState()).not.toThrow()
+    } finally {
+      if (real) Object.defineProperty(window, 'localStorage', real)
+    }
+  })
+})

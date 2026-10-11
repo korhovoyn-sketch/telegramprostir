@@ -5,13 +5,14 @@ import { supabase } from '@/lib/supabase'
 import { useAppStore } from '@/store/appStore'
 import { monthlyRent, basisArea, calcRentUtils, humanizeDbError } from '@/lib/utils'
 import { assertAffected } from '@/lib/dbWrite'
+import { stripOptionalKeys, withOptionalColumns } from '@/lib/optionalColumns'
 import { readSnapshot, writeSnapshot } from '@/lib/snapshot'
 import type { Database } from '@/types'
 import { tr } from '@/lib/i18n'
 
 // Single source of truth for the databases column list — keeps loadDatabases,
 // createDatabase and updateDatabase from drifting apart.
-const DB_COLUMNS = 'id,owner_id,name,address,type,color,landlord_name,share_token,share_expires_at,created_at,updated_at'
+const DB_COLUMNS = 'id,owner_id,name,address,type,color,landlord_name,created_at,updated_at'
 /**
  * Те саме БЕЗ токена шарингу — для баз, де користувач лише РЕДАКТОР.
  *
@@ -31,7 +32,7 @@ const DB_COLUMNS_MEMBER = 'id,owner_id,name,address,type,color,landlord_name,cre
  * екран. Тобто фронт, задеплоєний раніше за міграцію, показав би не «без
  * орендодавця», а порожній застосунок.
  */
-const DB_COLUMNS_PRE064 = 'id,owner_id,name,address,type,color,share_token,share_expires_at,created_at,updated_at'
+const DB_COLUMNS_PRE064 = 'id,owner_id,name,address,type,color,created_at,updated_at'
 const DB_COLUMNS_MEMBER_PRE064 = 'id,owner_id,name,address,type,color,created_at,updated_at'
 // `utilities_rate` тут потрібен для другої грошової цифри на екрані списку.
 // Колонка з `001_schema.sql`, тобто є в КОЖНІЙ розгорнутій базі — ризику 400 на
@@ -221,18 +222,25 @@ export function useDatabases() {
     if (!user) return null
     setLoading(true)
     try {
-      const { data, error } = await supabase
-        .from('databases')
-        .insert({ ...payload, owner_id: user.id })
-        .select(DB_COLUMNS)
-        .single()
+      // Ретрай без `landlord_name` — той самий, що вже стояв на ЧИТАННІ списку
+      // баз. Без нього бекенд без 064 не давав створити ЖОДНОЇ бази.
+      const { data, error } = await withOptionalColumns((pre) => {
+        const row = { ...payload, owner_id: user.id }
+        return supabase
+          .from('databases')
+          .insert(pre ? stripOptionalKeys(row) : row)
+          .select(pre ? DB_COLUMNS_PRE064 : DB_COLUMNS)
+          .single()
+      })
 
       if (error) throw error
+      // Через `unknown`: умовний `select` парсер типів supabase-js не розбирає.
+      const created = data as unknown as Database
 
-      setDatabases([data as Database, ...databases])
+      setDatabases([created, ...databases])
       showToast({ type: 'success', title: tr('Базу створено') })
-      if (opts?.navigate !== false) backThenReplace('db-objects', { dbId: data.id })
-      return data as Database
+      if (opts?.navigate !== false) backThenReplace('db-objects', { dbId: created.id })
+      return created
     } catch (e) {
       showToast({ type: 'error', title: tr('Помилка'), subtitle: humanizeDbError(e) })
       return null
@@ -246,16 +254,19 @@ export function useDatabases() {
     try {
       // `.single()` уже сам падає, коли рядків нуль (PGRST116), тож окремий
       // assertAffected тут зайвий — мовчазного провалу на цьому шляху немає.
-      const { data, error } = await supabase
-        .from('databases')
-        .update({ ...payload, updated_at: new Date().toISOString() })
-        .eq('id', id)
-        .select(DB_COLUMNS)
-        .single()
+      const { data, error } = await withOptionalColumns((pre) => {
+        const body = { ...payload, updated_at: new Date().toISOString() }
+        return supabase
+          .from('databases')
+          .update(pre ? stripOptionalKeys(body) : body)
+          .eq('id', id)
+          .select(pre ? DB_COLUMNS_PRE064 : DB_COLUMNS)
+          .single()
+      })
 
       if (error) throw error
 
-      setDatabases(databases.map((d) => (d.id === id ? { ...d, ...data } : d)))
+      setDatabases(databases.map((d) => (d.id === id ? { ...d, ...(data as unknown as Database) } : d)))
       showToast({ type: 'success', title: tr('Базу оновлено') })
       return true
     } catch (e) {
@@ -280,18 +291,24 @@ export function useDatabases() {
       // видалено», база лишалась жива — а всі її фото були вже стерті.
       // Осиротілий файл при цьому не є витоком (політики читання привʼязані до
       // рядків, яких уже немає), тож новий порядок строго безпечніший.
-      const { data: props } = await supabase
+      // Будь-яке читання тут, що не вдалося, ЗУПИНЯЄ видалення: після каскаду
+      // шляхів уже не дістати, а бакет фото публічний — знімки лишились би
+      // доступні за URL, роздані на /v, назавжди й без способу їх прибрати.
+      const { data: props, error: propsErr } = await supabase
         .from('properties')
         .select('id')
         .eq('db_id', id)
+      if (propsErr) throw propsErr
 
       let paths: { photos: string[]; docs: string[] } = { photos: [], docs: [] }
       if (props && props.length > 0) {
         const propIds = props.map((p) => p.id)
-        const [{ data: photos }, { data: docs }] = await Promise.all([
+        const [{ data: photos, error: photosErr }, { data: docs, error: docsErr }] = await Promise.all([
           supabase.from('property_photos').select('storage_path').in('property_id', propIds),
           supabase.from('property_files').select('storage_path').in('property_id', propIds),
         ])
+        if (photosErr) throw photosErr
+        if (docsErr) throw docsErr
         paths = {
           photos: (photos ?? []).map((p) => p.storage_path),
           docs: (docs ?? []).map((d) => d.storage_path),

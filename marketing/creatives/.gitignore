@@ -1,0 +1,3 @@
+# Повносторінкове превʼю деку — суто інструмент для очного огляду (5+ МБ),
+# повністю похідне від index.html. Перезняти: node marketing/export.mjs --preview
+_deck-preview.png

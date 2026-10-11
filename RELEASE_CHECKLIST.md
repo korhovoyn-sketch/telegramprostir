@@ -108,7 +108,10 @@ SELECT proname,
 
 ### Найпростіший шлях: ОДИН файл
 
-`supabase/RELEASE.sql` — усі невикочені міграції (048–061) в одному файлі.
+`supabase/RELEASE.sql` — усі невикочені міграції (048–068) в одному файлі.
+Якщо частину з них уже накочено — не страшно: файл ідемпотентний, повторний
+накат нічого не ламає, а 068 окремо ремонтує базу, де 067 стоїть у ранній
+редакції (з правом запису в архів).
 Вставити в Dashboard → SQL Editor і виконати. Далі — `verify_release.sql`,
 де всі рядки мають бути `✅ OK`.
 
@@ -254,9 +257,14 @@ Secrets не дорівнює тому, що Supabase інжектить у фу
 
 - [ ] `openssl rand -hex 32` — згенеровано довгий випадковий рядок
 - [ ] GitHub → Settings → Secrets and variables → Actions → **`CRON_SECRET`** = цей рядок
-- [ ] Actions → **Set Supabase Edge Function Secrets** → Run workflow
-      (кладе ТОЙ САМИЙ рядок у Supabase; у логу має бути
-      `CRON_SECRET will be pushed`)
+- [ ] Actions → **Set Supabase Edge Function Secrets** → Run workflow,
+      **поле домену лишити ПОРОЖНІМ** (порожнє = «не чіпати ALLOWED_ORIGIN»).
+      У логу має бути `CRON_SECRET will be pushed` і
+      `ALLOWED_ORIGIN left untouched`.
+
+      > Поле було обовʼязковим, і це був капкан: щоб полагодити сповіщення,
+      > доводилось перевбивати прод-origin, а одруківка там пінить CORS на
+      > чужу адресу і кладе вхід **усім**. Тепер порожнє значення безпечне.
 - [ ] Actions → **Send rent reminders** → Run workflow — відповідь `200`,
       а не `401`
 - [ ] Створено тестовий розклад платежу з `due_day` = сьогодні + `notify_days_before`
@@ -353,6 +361,12 @@ Secrets не дорівнює тому, що Supabase інжектить у фу
 - [ ] Vercel: деплой merge-коміту `READY`, `target: production`, sha == `origin/main`
 - [ ] Штамп білда у Профілі відповідає останньому коміту
 - [ ] `deploy-edge-function.yml` пройшов після змін у `supabase/functions/**`
+- [ ] `verify_release.sql` — рядок 52 `✅ OK`: архів оренд лише для читання
+      (без нього редактор команди може стерти історію власника)
+- [ ] Відповідь проду несе `X-Robots-Tag: noindex` — публічна `/v` з токеном
+      не мусить потрапити в пошук. Перевірити: `curl -sI https://<домен>/v/ | grep -i robots`
+- [ ] Воркфлоу «Set Supabase Edge Function Secrets» запускається (з `66edaa8`
+      файл знову розбирається GitHub-ом) — і `Send rent reminders` після нього зелений
 
 ---
 

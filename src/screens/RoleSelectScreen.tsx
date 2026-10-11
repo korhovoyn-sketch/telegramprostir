@@ -62,7 +62,7 @@ export default function RoleSelectScreen() {
             border: role === 'owner' ? '.5px solid rgba(120,180,255,.55)' : undefined,
             background: role === 'owner' ? 'var(--info-bg)' : undefined,
             boxShadow: role === 'owner' ? '0 0 0 2px rgba(34,158,217,.18) inset' : undefined,
-            transition: 'all .18s var(--ease)',
+            transition: 'background .18s var(--ease), border-color .18s var(--ease), box-shadow .18s var(--ease)',
           }}
           onClick={() => setRole('owner')}
         >
@@ -113,7 +113,7 @@ export default function RoleSelectScreen() {
             border: role === 'realtor' ? '.5px solid rgba(255,122,184,.55)' : undefined,
             background: role === 'realtor' ? 'var(--pink-bg)' : undefined,
             boxShadow: role === 'realtor' ? '0 0 0 2px rgba(255,80,180,.14) inset' : undefined,
-            transition: 'all .18s var(--ease)',
+            transition: 'background .18s var(--ease), border-color .18s var(--ease), box-shadow .18s var(--ease)',
           }}
           onClick={() => setRole('realtor')}
         >

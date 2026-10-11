@@ -47,6 +47,14 @@ const FloatingButton = forwardRef<HTMLButtonElement, FloatingButtonProps>(
         onClick={onClick}
         disabled={disabled}
         aria-busy={disabled}
+        // Схована кнопка лишається в DOM заради анімації виходу, але
+        // `pointer-events:none` ховає її лише від пальця: читалка озвучувала
+        // другу «Створити підбірку» поруч із CTA порожнього стану, а Tab
+        // заходив у невидиму кнопку. `inert` прибирає її з обох; `aria-hidden`
+        // поруч — для читалок і рушіїв, що `inert` ще не враховують у дереві
+        // доступності (фокусу при цьому немає, тож це не «прихований фокус»).
+        inert={hidden || undefined}
+        aria-hidden={hidden || undefined}
       >
         {icon}
         {label}

@@ -18,16 +18,17 @@ import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import ActionSheet from '@/components/ui/ActionSheet'
 import { useLatch } from '@/lib/useLatch'
 import Collapsible from '@/components/ui/Collapsible'
-import { IconCheck, IconPlus, IconDots, IconPhoto, IconChevronUp, IconChevronDown, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconCopy, IconUser, IconUsers, IconFile, IconLayers, IconLayoutGrid, IconChartBar, IconKey, IconFileExport, IconCircleCheck, IconAdjustments, IconTrash, IconChevronRight, IconFolder, IconInbox } from '@/components/Icons'
+import { IconCheck, IconPlus, IconDots, IconPhoto, IconChevronUp, IconChevronDown, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconCopy, IconUser, IconUsers, IconFile, IconLayers, IconLayoutGrid, IconChartBar, IconKey, IconFileExport, IconCircleCheck, IconAdjustments, IconTrash, IconChevronRight, IconFolder, IconInbox, IconArchive } from '@/components/Icons'
 import DatabaseStatsPanel from '@/components/ui/DatabaseStatsPanel'
 import FloatingButton from '@/components/ui/FloatingButton'
-import { overridesLandlord, formatPrice, calcRent, calcRentUtils, basisArea, floorSortKey, computedRentUnit, rentUnitLabel, objectsWord, DB_TYPE_LABELS, formatLeasePeriod, STATUS_COLORS, matchesQuery } from '@/lib/utils'
+import { overridesLandlord, formatPrice, monthlyRent, calcRentUtils, basisArea, floorSortKey, computedRentUnit, rentUnitLabel, objectsWord, DB_TYPE_LABELS, formatLeasePeriod, STATUS_COLORS, matchesQuery } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import type { Database, Property, PropertyStatus } from '@/types'
 import CoachMark from '@/components/ui/CoachMark'
 import { useOnboarding } from '@/hooks/useOnboarding'
 import { useHideOnScrollDown } from '@/hooks/useHideOnScrollDown'
 import { tr } from '@/lib/i18n'
+import { lsGet } from '@/lib/localState'
 
 /**
  * Порція рендера списку. На модульному рівні, а не в тілі компонента: значення
@@ -100,8 +101,7 @@ export default function DatabaseObjectsScreen() {
   }
   // Одне вподобання «компактно» на обидві статусні вкладки (зайняті + вільні).
   // Ключ лишається історичним 'ps:occCompact', щоб не скидати вибір користувачам.
-  const [statusCompact, setStatusCompact] = useState(() =>
-    typeof window !== 'undefined' && localStorage.getItem('ps:occCompact') === '1')
+  const [statusCompact, setStatusCompact] = useState(() => lsGet('ps:occCompact') === '1')
 
   function toggleStatusCompact(next: boolean) {
     hapticSelection()
@@ -264,9 +264,12 @@ export default function DatabaseObjectsScreen() {
         return fa !== fb ? fa - fb : (a.floor ?? '').localeCompare(b.floor ?? '', 'uk')
       })
       case 'area':   return [...base].sort((a, b) => (b.area_useful ?? 0) - (a.area_useful ?? 0))
+      // Порівнюються МІСЯЧНІ суми, а не сирі ставки: `calcRent` для per_day
+      // віддає ДОБОВУ ставку, тож місце за $30/добу ($900/міс) ставало нижче
+      // за оренду $500/міс — у базі паркінга, де змішані обидва типи.
       case 'rent':   return [...base].sort((a, b) => {
-        const aR = calcRent(basisArea(a.area_useful, a.area_total, a.area_basis), a.rent_rate ?? 0, a.rent_type ?? 'per_m2')
-        const bR = calcRent(basisArea(b.area_useful, b.area_total, b.area_basis), b.rent_rate ?? 0, b.rent_type ?? 'per_m2')
+        const aR = monthlyRent(basisArea(a.area_useful, a.area_total, a.area_basis), a.rent_rate ?? 0, a.rent_type ?? 'per_m2')
+        const bR = monthlyRent(basisArea(b.area_useful, b.area_total, b.area_basis), b.rent_rate ?? 0, b.rent_type ?? 'per_m2')
         return bR - aR
       })
       default: return base
@@ -941,6 +944,10 @@ export default function DatabaseObjectsScreen() {
                 { Icon: IconChartBar,  label: tr('Аналітика і поширення'), nav: true,  danger: false, action: () => { setShowMenu(false); navigate('sharing-analytics', { dbId: db.id }) } },
               ] : []),
               { Icon: IconCalendar,    label: tr('Календар платежів'),     nav: true,  danger: false, action: () => { setShowMenu(false); navigate('payment-calendar', { dbId: db.id }) } },
+              // НЕ owner-only: RLS архіву (067) покриває і власника, і редактора
+              // команди — він створює ті самі оренди, тож ховати від нього
+              // історію було б брехнею про те, хто що зробив.
+              { Icon: IconArchive,     label: tr('Архів оренд'),           nav: true,  danger: false, action: () => { setShowMenu(false); navigate('tenancy-archive', { dbId: db.id }) } },
               ...(db.owner_id === user?.id ? [
                 { Icon: IconKey,       label: tr('Управління гостями'),    nav: true,  danger: false, action: () => { setShowMenu(false); navigate('manage-guests', { dbId: db.id }) } },
                 { Icon: IconUsers,     label: tr('Команда'),               nav: true,  danger: false, action: () => { setShowMenu(false); navigate('team', { dbId: db.id }) } },

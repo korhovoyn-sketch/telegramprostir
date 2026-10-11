@@ -43,6 +43,16 @@ type Field =
 const MAX_ROWS = 500
 const MAX_FILE_MB = 5
 
+/**
+ * Межі довжини — з КОЛОНОК `properties` (VARCHAR у 014/064). Рядок файлу, що
+ * їх перевищує, ВІДСІЮЄТЬСЯ з поясненням, а не обрізається: обрізаний орендар
+ * чи опис — тиха втрата даних, а задовга клітинка, пропущена до БД, валила
+ * УВЕСЬ пакет одним 400 («Спробуйте ще раз»), не кажучи, який рядок винен.
+ */
+const MAX_LEN: Partial<Record<Field, number>> = {
+  name: 200, floor: 32, tenant_name: 200, landlord_name: 200, description: 4000,
+}
+
 
 const FIELDS = (): { id: Field; label: string; aliases: string[] }[] => ([
   { id: 'name',           label: tr('Назва'),                 aliases: ['назва', 'name', 'обʼєкт', 'обєкт', 'объект', 'номер місця'] },
@@ -201,9 +211,10 @@ export default function ImportObjectsScreen() {
   )
 
   const parsed = useMemo(() => {
-    if (nameCol < 0) return { ok: [] as NewProperty[], skipped: [] as string[], noName: 0 }
+    if (nameCol < 0) return { ok: [] as NewProperty[], skipped: [] as string[], tooLong: [] as string[], noName: 0 }
     const ok: NewProperty[] = []
     const skipped: string[] = []
+    const tooLong: string[] = []
     const seen = new Set<string>()
     let noName = 0
     for (const r of body) {
@@ -217,6 +228,8 @@ export default function ImportObjectsScreen() {
         const i = mapping.indexOf(f)
         return i >= 0 ? (r[i] ?? '').trim() : ''
       }
+      const over = (Object.keys(MAX_LEN) as Field[]).find((f) => val(f).length > MAX_LEN[f]!)
+      if (over) { tooLong.push(name.length > 40 ? `${name.slice(0, 40)}…` : name); continue }
       const rawStatus = val('status').toLowerCase()
       const status: PropertyStatus = STATUS_ALIAS[rawStatus] ?? 'free'
       ok.push({
@@ -247,7 +260,7 @@ export default function ImportObjectsScreen() {
         sort_order: 0,
       })
     }
-    return { ok, skipped, noName }
+    return { ok, skipped, tooLong, noName }
   }, [body, mapping, nameCol, dbId, existing, dbType])
 
   // Той самий шлях, що в інпута: `handleFile` — єдина точка розбору CSV.
@@ -297,8 +310,9 @@ export default function ImportObjectsScreen() {
     // вклинювались би в середину списку.
     const base = nextSortBase(properties)
     const payloads = parsed.ok.map((p, i) => ({ ...p, sort_order: (base + i + 1) * 100 }))
-    hapticNotify('success')
-    await createProperties(payloads)
+    // Хаптик — ПІСЛЯ відповіді, не до: інакше рука відчуває «імпортовано» і
+    // на пакеті, який сервер відхилив.
+    if (await createProperties(payloads)) hapticNotify('success')
   }
 
   const busy = loading
@@ -379,6 +393,12 @@ export default function ImportObjectsScreen() {
                     <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 6 }}>
                       {tr('Пропущено (назва вже є):')}{' '}{parsed.skipped.slice(0, 8).join(', ')}
                       {parsed.skipped.length > 8 ? tr(' та ще {0}', parsed.skipped.length - 8) : ''}
+                    </div>
+                  )}
+                  {parsed.tooLong.length > 0 && (
+                    <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 4 }}>
+                      {tr('Пропущено (задовге значення):')}{' '}{parsed.tooLong.slice(0, 8).join(', ')}
+                      {parsed.tooLong.length > 8 ? tr(' та ще {0}', parsed.tooLong.length - 8) : ''}
                     </div>
                   )}
                   {parsed.noName > 0 && (

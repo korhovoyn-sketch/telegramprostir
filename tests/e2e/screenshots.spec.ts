@@ -113,6 +113,27 @@ async function ownerRoutes(page: Page) {
     }
     return json(r, PROPERTIES)
   })
+  // Архів оренд (067): одна відкрита й одна закрита — картка «Триває» і картка
+  // «Завершено» виглядають по-різному, тож бейслайн мусить нести обидві.
+  await page.route('**/rest/v1/tenancies**', (r) => json(r, [
+    {
+      id: '70000000-0000-0000-0000-000000000001', owner_id: OWNER.id, db_id: DB_ID,
+      property_id: PROPERTIES[0].id, property_name: 'Офіс 101', tenant_name: 'ТОВ «Ромашка»',
+      landlord_name: 'ФОП Коваленко', rent_rate: 18, rent_type: 'per_m2', utilities_rate: 2.5,
+      area_basis: 'total', area_useful: 100, area_total: 120, currency: 'USD',
+      lease_start_date: '2025-01-01', lease_end_date: '2026-01-01',
+      started_at: '2025-01-01T10:00:00.000Z', ended_at: null, created_at: NOW, updated_at: NOW,
+    },
+    {
+      id: '70000000-0000-0000-0000-000000000002', owner_id: OWNER.id, db_id: DB_ID,
+      property_id: PROPERTIES[1].id, property_name: 'Офіс 102', tenant_name: 'Іваненко Олена',
+      landlord_name: null, rent_rate: 1200, rent_type: 'fixed', utilities_rate: null,
+      area_basis: 'useful', area_useful: 80, area_total: 90, currency: 'USD',
+      lease_start_date: null, lease_end_date: null,
+      started_at: '2024-03-01T10:00:00.000Z', ended_at: '2024-11-20T10:00:00.000Z',
+      created_at: NOW, updated_at: NOW,
+    },
+  ]))
   await page.route('**/rest/v1/guest_links**', (r) => json(r, [{
     id: '30000000-0000-0000-0000-000000000001', owner_id: OWNER.id, property_id: null,
     db_id: DB_ID, invite_token: 'cc00112233445566778899aa', label: 'Орендар А',
@@ -240,6 +261,14 @@ test('screens · owner journey', async ({ page }) => {
 
   // Повноекранні маршрути з фази 4 (три колишні пікери). Той самий обовʼязок,
   // що для фаз 2-3: новий екран = новий кадр тим самим дифом.
+  await snap(page, 'tenancy-archive', async () => {
+    await page.getByLabel('Меню бази').click()
+    await page.getByText('Архів оренд', { exact: true }).click()
+    await page.getByText('Іваненко Олена').waitFor()
+  })
+  await page.goto('/'); await page.getByText('Мої бази').waitFor()
+  await page.getByText('БЦ Рубін').first().click(); await page.getByText('Всі (3)').waitFor()
+
   await snap(page, 'folder-manage', async () => {
     await page.getByLabel('Меню бази').click()
     await page.getByText('Папки', { exact: true }).click()
