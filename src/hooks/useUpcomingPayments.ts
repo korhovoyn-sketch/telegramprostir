@@ -64,10 +64,10 @@ interface ScheduleRow {
 export function useUpcomingPayments() {
   const [alerts, setAlerts] = useState<PaymentAlert[]>([])
   const [loading, setLoading] = useState(false)
-  const user = useAppStore((s) => s.user)
+  const userId = useAppStore((s) => s.user?.id)
 
   const loadUpcomingPayments = useCallback(async () => {
-    if (!user) return
+    if (!userId) return
     setLoading(true)
     try {
       // Один запит замість двох: обʼєкт приходить вкладеним у розклад. Колонки
@@ -75,7 +75,7 @@ export function useUpcomingPayments() {
       const { data: schedData, error: schedErr } = await supabase
         .from('rent_payments')
         .select('property_id,due_day,created_at,property:properties(id,db_id,name,tenant_name,lease_start_date,status,rent_type,rent_rate,area_useful,area_total,area_basis)')
-        .eq('owner_id', user.id)
+        .eq('owner_id', userId)
         .eq('is_active', true)
 
       // Тихо: екран сповіщень не має падати через цю додаткову вибірку — так
@@ -141,7 +141,7 @@ export function useUpcomingPayments() {
     } finally {
       setLoading(false)
     }
-  }, [user])
+  }, [userId])
 
   return { alerts, loading, loadUpcomingPayments }
 }

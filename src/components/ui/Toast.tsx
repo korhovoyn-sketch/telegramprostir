@@ -1,10 +1,10 @@
 'use client'
 
-import { useAppStore } from '@/store/appStore'
+import { useAppSlice } from '@/store/appStore'
 import { IconCheck, IconX, IconAlertTriangle } from '@/components/Icons'
 
 export default function Toast() {
-  const { toast, hideToast } = useAppStore()
+  const { toast, hideToast } = useAppSlice('toast', 'hideToast')
   if (!toast) return null
 
   const isErr = toast.type === 'error'

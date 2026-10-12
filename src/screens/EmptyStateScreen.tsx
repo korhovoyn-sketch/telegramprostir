@@ -1,13 +1,13 @@
 'use client'
 
-import { useAppStore } from '@/store/appStore'
+import { useAppSlice } from '@/store/appStore'
 import ProxMascot from '@/components/ProxMascot'
 import { GlassDbIcon, GlassPhoto, GlassShare } from '@/components/Icons'
 import { tx } from '@/lib/tx'
 import { tr } from '@/lib/i18n'
 
 export default function EmptyStateScreen() {
-  const { navigate, user } = useAppStore()
+  const { navigate, user } = useAppSlice('navigate', 'user')
   const isRealtor = user?.role === 'realtor'
 
   if (isRealtor) {

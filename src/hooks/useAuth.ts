@@ -1,12 +1,11 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { z } from 'zod'
 import { supabase, getSessionUngated, USER_COLUMNS } from '@/lib/supabase'
 import { humanizeDbError } from '@/lib/utils'
 import { openSessionGate, closeSessionGate } from '@/lib/sessionGate'
 import { isDeepLinkStartParam } from '@/lib/telegram'
-import { useAppStore } from '@/store/appStore'
+import { useAppStore, useAppSlice } from '@/store/appStore'
 import type { User } from '@/types'
 import { tr, loadLang, persistLang, getLang } from '@/lib/i18n'
 import { clearSessionState } from '@/lib/localState'
@@ -113,7 +112,7 @@ function clearPersistedSession(): void {
 
 export function useAuth() {
   const [loading, setLoading] = useState(false)
-  const { setUser, navigateRoot, showToast } = useAppStore()
+  const { setUser, navigateRoot, showToast } = useAppSlice('setUser', 'navigateRoot', 'showToast')
 
   const setupAuthListener = useCallback(() => {
     if (!supabase.auth) return { unsubscribe: () => {} }
@@ -393,6 +392,13 @@ export function useAuth() {
     try {
       const me = useAppStore.getState().user
       if (!me) throw new Error('Not authenticated')
+
+      // zod (~14 КБ gz) потрібен у цьому хуку РІВНО тут, а сам хук живе на
+      // критичному шляху кожного старту — статичний імпорт тягнув схеми в
+      // початковий бандл заради дії, яку роблять раз у житті. Імпорт стоїть
+      // ДО виклику: збій завантаження чанка (застарілий деплой) мусить
+      // зупинити видалення, а не лишити видалений акаунт із тостом про помилку.
+      const { z } = await import('zod')
 
       // Файли, профіль і auth-акаунт зносить САМА функція, атомарно.
       const { data, error } = await supabase.rpc('delete_my_account')

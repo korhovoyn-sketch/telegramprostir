@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
-import { useAppStore } from '@/store/appStore'
+import { useAppStore, useAppSlice } from '@/store/appStore'
 import RetryState from '@/components/ui/RetryState'
 import { supabase } from '@/lib/supabase'
 import TabBar from '@/components/ui/TabBar'
@@ -17,7 +17,7 @@ import { useSlowLoadingToast } from '@/hooks/useSlowLoadingToast'
 import { tr } from '@/lib/i18n'
 
 export default function RealtorDashboardScreen() {
-  const { user, navigate, showToast } = useAppStore()
+  const { user, navigate, showToast } = useAppSlice('user', 'navigate', 'showToast')
   const setMemberDbIds = useAppStore(st => st.setMemberDbIds)
   const [subscriptions, setSubscriptions] = useState<RealtorSubscription[]>([])
   // Бази, куди user запрошений як редактор команди (db_members, migration 041) —
@@ -100,7 +100,7 @@ export default function RealtorDashboardScreen() {
   useEffect(() => {
     load()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user])
+  }, [user?.id])
 
   const filtered = subscriptions.filter((s) =>
     matchesQuery(search, s.database?.name, s.database?.address)
@@ -200,7 +200,7 @@ export default function RealtorDashboardScreen() {
           </div>
         )}
 
-        {!loading && !search && <OtherAccess show={['guest']} />}
+        <OtherAccess show={['guest']} hidden={loading || !!search} />
       </div>
 
       <button ref={qrBtnRef} className="mbtn" onClick={() => navigate('qr-scanner')} style={{ bottom: 'calc(92px + var(--safe-bottom))' }}>

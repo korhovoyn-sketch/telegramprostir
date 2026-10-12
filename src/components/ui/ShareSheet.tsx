@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { z } from 'zod'
 import QRCode from 'react-qr-code'
-import { useAppStore } from '@/store/appStore'
+import { useAppStore, useAppSlice } from '@/store/appStore'
 import { offlineGuard } from '@/lib/offline'
 import { confirmAction as confirmDestructive } from '@/lib/confirm'
 import { supabase } from '@/lib/supabase'
@@ -41,7 +41,7 @@ interface ShareSheetProps {
  * token rotation and revocation via the manage_share RPC.
  */
 export default function ShareSheet({ open, kind, id, name, shareText, onClose }: ShareSheetProps) {
-  const { showToast } = useAppStore()
+  const { showToast } = useAppSlice('showToast')
   const latchedId = useLatch(id) ?? ''
   const latchedName = useLatch(name) ?? ''
   const latchedShareText = useLatch(shareText) ?? ''

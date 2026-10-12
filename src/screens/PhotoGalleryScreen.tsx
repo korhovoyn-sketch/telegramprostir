@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { useAppStore } from '@/store/appStore'
+import { useAppSlice } from '@/store/appStore'
 import { hapticImpact } from '@/lib/telegram'
 import { IconX, IconShare, IconDownload, IconChevronLeft, IconChevronRight, IconAlertTriangle, IconPhoto } from '@/components/Icons'
 import { Photo } from '@/components/ui/Photo'
@@ -10,7 +10,7 @@ import { photoUrl } from '@/lib/utils'
 import { tr } from '@/lib/i18n'
 
 export default function PhotoGalleryScreen() {
-  const { back, screenParams } = useAppStore()
+  const { back, screenParams } = useAppSlice('back', 'screenParams')
   const photos = (screenParams.photos as PropertyPhoto[]) ?? []
   const initialIndex = (screenParams.initialIndex as number) ?? 0
   const [current, setCurrent] = useState(initialIndex)

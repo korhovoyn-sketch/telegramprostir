@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useAppStore } from '@/store/appStore'
+import { useAppSlice } from '@/store/appStore'
 import RetryState from '@/components/ui/RetryState'
 import { supabase } from '@/lib/supabase'
 import TabBar from '@/components/ui/TabBar'
@@ -14,7 +14,7 @@ import type { GuestLink } from '@/types'
 import { tr } from '@/lib/i18n'
 
 export default function GuestHomeScreen() {
-  const { user, navigate } = useAppStore()
+  const { user, navigate } = useAppSlice('user', 'navigate')
   const [links, setLinks] = useState<GuestLink[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -51,7 +51,7 @@ export default function GuestHomeScreen() {
   useEffect(() => {
     load()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user])
+  }, [user?.id])
 
   const greet = greeting()
 
@@ -142,7 +142,7 @@ export default function GuestHomeScreen() {
           </div>
         )}
 
-        {!loading && <OtherAccess show={['subscriptions', 'team']} onCount={setOtherCount} />}
+        <OtherAccess show={['subscriptions', 'team']} onCount={setOtherCount} hidden={loading} />
 
         <div style={{ height: 100 }} />
       </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useAppStore } from '@/store/appStore'
+import { useAppSlice } from '@/store/appStore'
 import { IconTabHome, IconTabBookmark, IconTabBell, IconTabUser } from '@/components/Icons'
 import type { ScreenName } from '@/types'
 import { tr } from '@/lib/i18n'
@@ -32,7 +32,7 @@ const GUEST_TABS = (): Tab[] => ([
 ])
 
 export default function TabBar() {
-  const { screen, navigateRoot, user, unreadCount } = useAppStore()
+  const { screen, navigateRoot, user, unreadCount } = useAppSlice('screen', 'navigateRoot', 'user', 'unreadCount')
 
   const tabs = user?.role === 'realtor' ? REALTOR_TABS() : user?.role === 'guest' ? GUEST_TABS() : OWNER_TABS()
 

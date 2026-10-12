@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { useAppStore } from '@/store/appStore'
+import { useAppSlice } from '@/store/appStore'
 import { useFileDrop } from '@/hooks/useFileDrop'
 import { isImage } from '@/lib/fileType'
 import RetryState from '@/components/ui/RetryState'
@@ -25,7 +25,7 @@ import { tr } from '@/lib/i18n'
 
 
 export default function PropertyDetailScreen() {
-  const { screenParams, navigate, user, showToast, databases } = useAppStore()
+  const { screenParams, navigate, user, showToast, databases } = useAppSlice('screenParams', 'navigate', 'user', 'showToast', 'databases')
   const { properties, loading, error, loadSingleProperty, deletePhoto, updateProperty } = useProperties(screenParams.dbId)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const filesSectionRef = useRef<HTMLDivElement>(null)

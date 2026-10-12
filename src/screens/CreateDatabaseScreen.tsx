@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useAppStore } from '@/store/appStore'
+import { useAppSlice } from '@/store/appStore'
 import { hapticSelection, hapticNotify } from '@/lib/telegram'
 import { offlineGuard } from '@/lib/offline'
 import { useDatabases } from '@/hooks/useDatabases'
@@ -28,7 +28,7 @@ const COLOR_LABELS = (): Record<string, string> => ({
 })
 
 export default function CreateDatabaseScreen() {
-  const { screenParams, databases, backThenReplace } = useAppStore()
+  const { screenParams, databases, backThenReplace } = useAppSlice('screenParams', 'databases', 'backThenReplace')
   const { createDatabase, updateDatabase, loading } = useDatabases()
 
   const editId = screenParams.dbId

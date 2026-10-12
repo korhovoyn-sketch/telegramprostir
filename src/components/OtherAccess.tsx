@@ -45,8 +45,15 @@ interface DbLite { id: string; name: string; type: DatabaseType; color: string }
 /** Таблиці ще немає (бекенд без міграції) — цей вид доступу просто вимкнений. */
 const isMissingTable = (e: { code?: string } | null) => e?.code === '42P01'
 
-export default function OtherAccess({ show, onCount }: { show: AccessKind[]; onCount?: (n: number) => void }) {
-  const user = useAppStore((s) => s.user)
+/**
+ * `hidden` ховає секцію, НЕ розмонтовуючи її. Хости раніше писали
+ * `{!loading && <OtherAccess/>}`, а `useDatabases` стартує з `loading:false` —
+ * тож секція монтувалась на першому кадрі, слала запити, за мить зникала й
+ * після даних слала їх удруге (заміряно `_optimize`: ×2 на теплому старті).
+ * Заодно запити йдуть паралельно зі списком хоста, а не після нього.
+ */
+export default function OtherAccess({ show, onCount, hidden = false }: { show: AccessKind[]; onCount?: (n: number) => void; hidden?: boolean }) {
+  const userId = useAppStore((s) => s.user?.id)
   const navigate = useAppStore((s) => s.navigate)
   const [items, setItems] = useState<Item[]>([])
   const [failed, setFailed] = useState(false)
@@ -56,25 +63,25 @@ export default function OtherAccess({ show, onCount }: { show: AccessKind[]; onC
   const key = show.join(',')
 
   const load = useCallback(async () => {
-    if (!user) return
+    if (!userId) return
     setFailed(false)
     const want = new Set(key.split(',') as AccessKind[])
     const [subs, guest, team] = await Promise.all([
       want.has('subscriptions')
         ? supabase.from('realtor_subscriptions')
           .select('id,db_id,database:databases(id,name,type,color)')
-          .eq('realtor_id', user.id)
+          .eq('realtor_id', userId)
         : null,
       want.has('guest')
         ? supabase.from('guest_links')
           .select('id,property_id,db_id,label,property:properties(id,db_id,name),database:databases(id,name,type,color)')
-          .eq('guest_user_id', user.id)
+          .eq('guest_user_id', userId)
           .eq('status', 'active')
         : null,
       want.has('team')
         ? supabase.from('db_members')
           .select('db_id,database:databases(id,name,type,color)')
-          .eq('user_id', user.id)
+          .eq('user_id', userId)
           .eq('status', 'active')
           .eq('role', 'editor')
         : null,
@@ -147,13 +154,13 @@ export default function OtherAccess({ show, onCount }: { show: AccessKind[]; onC
     setItems(next)
     setFailed(err)
     setLoaded(true)
-  }, [user, key, navigate])
+  }, [userId, key, navigate])
 
   useEffect(() => { void load() }, [load])
   // Хосту, чий порожній стан інакше казав би «нічого немає», хоча доступи є.
   useEffect(() => { if (loaded) onCount?.(items.length) }, [loaded, items.length, onCount])
 
-  if (items.length === 0 && !failed) return null
+  if (hidden || (items.length === 0 && !failed)) return null
 
   return (
     <section aria-label={tr('Інші доступи')} className="other-access">

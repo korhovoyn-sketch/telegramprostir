@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useAppStore } from '@/store/appStore'
+import { useAppStore, useAppSlice } from '@/store/appStore'
 import { useAuth } from '@/hooks/useAuth'
 import { IconMail, IconPhone, IconTelegram, IconLock } from '@/components/Icons'
 import { scrollFocusedIntoView } from '@/lib/utils'
@@ -11,7 +11,7 @@ import { useClosingConfirmation } from '@/hooks/useTelegram'
 
 export default function ProfileSetupScreen() {
   const user = useAppStore((s) => s.user)
-  const { navigateRoot, showToast } = useAppStore()
+  const { navigateRoot, showToast } = useAppSlice('navigateRoot', 'showToast')
   const { updateProfile, loading } = useAuth()
 
   const [email, setEmail] = useState(user?.email ?? '')

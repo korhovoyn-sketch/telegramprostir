@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useMemo, useCallback } from 'react'
-import { useAppStore } from '@/store/appStore'
+import { useAppSlice } from '@/store/appStore'
 import RetryState from '@/components/ui/RetryState'
 import { confirmAction } from '@/lib/confirm'
 import { offlineGuard } from '@/lib/offline'
@@ -34,7 +34,7 @@ interface PaymentItem {
 type MonthCount = 1 | 2 | 3 | 6
 
 export default function PaymentCalendarScreen() {
-  const { screenParams, user, showToast, navigate } = useAppStore()
+  const { screenParams, user, showToast, navigate } = useAppSlice('screenParams', 'user', 'showToast', 'navigate')
   const [properties, setProperties]   = useState<Property[]>([])
   const [schedules, setSchedules]     = useState<RentPayment[]>([])
   const [records, setRecords]         = useState<RentPaymentRecord[]>([])
@@ -58,8 +58,9 @@ export default function PaymentCalendarScreen() {
   const dbId       = screenParams.dbId       as string | undefined
 
   // ── Initial load ────────────────────────────────────────────────────────────
+  const userId = user?.id
   const loadCurrent = useCallback(async () => {
-    if (!user) return
+    if (!userId) return
     setLoading(true)
     setLoadError(null)
     try {
@@ -96,7 +97,7 @@ export default function PaymentCalendarScreen() {
       setLoading(false)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, propertyId, dbId, showToast])
+  }, [userId, propertyId, dbId, showToast])
 
   useEffect(() => {
     loadCurrent()
@@ -104,7 +105,7 @@ export default function PaymentCalendarScreen() {
     setArchiveLoaded(false)
     setArchiveRecords([])
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [propertyId, dbId, user?.id])
+  }, [propertyId, dbId, userId])
 
   async function loadRecordsForIds(ids: string[], ahead: number) {
     // Назад — на всю глибину заборгованості, інакше оплачений борг минулого

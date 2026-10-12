@@ -262,5 +262,6 @@ export function useDeepLink() {
     }
 
     process()
+  // user-dep-ok: перезапуск на свіжому профілі тут потрібен (обробник читає роль), а повтор гасить `handled`
   }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
 }

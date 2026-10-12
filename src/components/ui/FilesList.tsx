@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useFileDrop } from '@/hooks/useFileDrop'
 import { isDoc } from '@/lib/fileType'
 import { usePropertyFiles } from '@/hooks/usePropertyFiles'
-import { useAppStore } from '@/store/appStore'
+import { useAppSlice } from '@/store/appStore'
 import { confirmAction } from '@/lib/confirm'
 import FilePreviewModal from '@/components/ui/FilePreviewModal'
 import RetryState from '@/components/ui/RetryState'
@@ -48,7 +48,7 @@ function FileBadge({ mime }: { mime: string }) {
 export default function FilesList({ propertyId, isOwner }: FilesListProps) {
   const { files, loading, loadError, uploading, uploadProgress, currentUploadFile, fetchFiles, uploadFiles, deleteFile, getSignedUrl, maxFiles } =
     usePropertyFiles(propertyId)
-  const { showToast } = useAppStore()
+  const { showToast } = useAppSlice('showToast')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [openingId, setOpeningId]   = useState<string | null>(null)
   const [previewFile, setPreviewFile] = useState<{ url: string; mime: string; name: string } | null>(null)

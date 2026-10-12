@@ -4,7 +4,7 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { humanizeDbError } from '@/lib/utils'
 import { assertAffected } from '@/lib/dbWrite'
-import { useAppStore } from '@/store/appStore'
+import { useAppStore, useAppSlice } from '@/store/appStore'
 import type { PropertyFolder } from '@/types'
 import { tr } from '@/lib/i18n'
 
@@ -33,7 +33,8 @@ export function useFolders(dbId?: string) {
    * створює папку, яка вже існує.
    */
   const [error, setError] = useState<string | null>(null)
-  const { user, showToast } = useAppStore()
+  const { showToast } = useAppSlice('showToast')
+  const userId = useAppStore((s) => s.user?.id)
 
   const foldersRef = useRef(folders)
   useEffect(() => { foldersRef.current = folders }, [folders])
@@ -66,7 +67,7 @@ export function useFolders(dbId?: string) {
 
   const createFolder = useCallback(async (name: string): Promise<PropertyFolder | null> => {
     const targetDbId = dbId
-    if (!targetDbId || !user) return null
+    if (!targetDbId || !userId) return null
     const trimmed = name.trim()
     if (!trimmed) return null
     // Дублікати імен збивають з пантелику (дві однакові папки в списку) — не даємо.
@@ -81,7 +82,7 @@ export function useFolders(dbId?: string) {
       const maxOrder = foldersRef.current.reduce((m, f) => Math.max(m, f.sort_order), 0)
       const { data, error } = await supabase
         .from('property_folders')
-        .insert({ db_id: targetDbId, owner_id: dbOwner ?? user.id, name: trimmed, sort_order: maxOrder + 100 })
+        .insert({ db_id: targetDbId, owner_id: dbOwner ?? userId, name: trimmed, sort_order: maxOrder + 100 })
         .select(FOLDER_COLUMNS)
         .single()
 
@@ -93,7 +94,7 @@ export function useFolders(dbId?: string) {
       showToast({ type: 'error', title: tr('Помилка'), subtitle: humanizeDbError(e) })
       return null
     }
-  }, [dbId, user, showToast])
+  }, [dbId, userId, showToast])
 
   const renameFolder = useCallback(async (id: string, name: string) => {
     const trimmed = name.trim()

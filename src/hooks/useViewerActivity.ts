@@ -37,10 +37,10 @@ export interface ViewerActivity {
 export function useViewerActivity() {
   const [viewers, setViewers] = useState<ViewerActivity[]>([])
   const [loading, setLoading] = useState(false)
-  const user = useAppStore((s) => s.user)
+  const userId = useAppStore((s) => s.user?.id)
 
   const loadViewerActivity = useCallback(async () => {
-    if (!user) return
+    if (!userId) return
     setLoading(true)
     try {
       const since = new Date(Date.now() - VIEWER_ACTIVITY_DAYS * 86400000).toISOString()
@@ -57,7 +57,7 @@ export function useViewerActivity() {
         // сорока обʼєктами набирає стелю за кілька днів, і блок «Хто
         // переглядав» показував порожньо, хоч активність рієлторів у таблиці
         // була. Тобто дефект тим гірший, чим активніше користуються базою.
-        .neq('viewer_id', user.id)
+        .neq('viewer_id', userId)
         .gte('created_at', since)
         .order('created_at', { ascending: false })
         .limit(500)
@@ -74,7 +74,7 @@ export function useViewerActivity() {
           property_id: string | null; db_id: string | null
           viewer_id: string | null; viewer_name: string | null; created_at: string
         }
-        if (!row.viewer_id || row.viewer_id === user.id) continue
+        if (!row.viewer_id || row.viewer_id === userId) continue
         const cur = byViewer.get(row.viewer_id)
           ?? { name: row.viewer_name?.trim() || tr('Учасник'), props: new Set<string>(), dbs: 0, last: row.created_at }
         if (row.property_id) cur.props.add(row.property_id)
@@ -95,7 +95,7 @@ export function useViewerActivity() {
     } finally {
       setLoading(false)
     }
-  }, [user])
+  }, [userId])
 
   return { viewers, loading, loadViewerActivity }
 }

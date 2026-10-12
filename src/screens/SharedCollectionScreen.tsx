@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { useAppStore } from '@/store/appStore'
+import { useAppSlice } from '@/store/appStore'
 import { StatusBadge } from '@/components/ui/Badge'
 import Header from '@/components/ui/Header'
 import RetryState from '@/components/ui/RetryState'
@@ -79,7 +79,7 @@ interface PreviewRow {
 }
 
 export default function SharedCollectionScreen() {
-  const { screenParams } = useAppStore()
+  const { screenParams } = useAppSlice('screenParams')
   const collectionId = screenParams.collectionId as string | undefined
   const colToken = screenParams.colToken as string | undefined
   // Оголошення: `prop_`-лінк відкрив той, хто до обʼєкта доступу НЕ має

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { useAppStore } from '@/store/appStore'
+import { useAppStore, useAppSlice } from '@/store/appStore'
 import RetryState from '@/components/ui/RetryState'
 import { SkeletonList } from '@/components/ui/SkeletonLoader'
 import { hapticNotify } from '@/lib/telegram'
@@ -120,7 +120,7 @@ function CollectionDetail({
   onUpdate: (updated: CollectionWithCount) => void
   onDelete: (id: string) => void
 }) {
-  const { user, showToast, isOnline, navigate } = useAppStore()
+  const { user, showToast, isOnline, navigate } = useAppSlice('user', 'showToast', 'isOnline', 'navigate')
   const fabHidden = useHideOnScrollDown()
 
   const [collectionProps, setCollectionProps] = useState<CollectionProperty[]>([])
@@ -516,7 +516,8 @@ function CollectionDetail({
 
 export default function CollectionsScreen() {
   const fabHidden = useHideOnScrollDown()
-  const { user, showToast, screenParams } = useAppStore()
+  const { showToast, screenParams } = useAppSlice('showToast', 'screenParams')
+  const userId = useAppStore((s) => s.user?.id)
   const [collections, setCollections] = useState<CollectionWithCount[]>([])
   const [loading, setLoading] = useState(true)
   /** Порожній стан малює власну CTA — плаваюча дублювала б її підпис. */
@@ -530,7 +531,7 @@ export default function CollectionsScreen() {
   const { isDone: fabSeen, markDone: markFabSeen } = useOnboarding('col-fab')
 
   const loadCollections = useCallback(async () => {
-    if (!user) return
+    if (!userId) return
     setLoading(true)
     setLoadError(null)
     try {
@@ -540,8 +541,8 @@ export default function CollectionsScreen() {
         // idor-ok: ВЛАСНІ підбірки рієлтора (.eq('realtor_id', user.id)) —
         // `share_token` тут його власний і потрібен, щоб ділитись. Витік — це
         // чужий токен, а не свій.
-        .select('*, collection_properties(count)')
-        .eq('realtor_id', user.id)
+        .select('id,realtor_id,name,is_draft,share_token,share_expires_at,created_at,updated_at,collection_properties(count)')
+        .eq('realtor_id', userId)
         .order('created_at', { ascending: false })
       if (error) throw error
 
@@ -582,7 +583,7 @@ export default function CollectionsScreen() {
     } finally {
       setLoading(false)
     }
-  }, [user, showToast])
+  }, [userId, showToast])
 
   useEffect(() => {
     loadCollections()
@@ -597,7 +598,7 @@ export default function CollectionsScreen() {
   }, [screenParams.collectionId, collections, selectedCollection])
 
   async function createCollection() {
-    if (!user) return
+    if (!userId) return
     // Гард СИНХРОННИЙ (ref), бо стан оновлюється асинхронно і два швидкі тапи
     // проскакували обидва — а між ними ще й читалась та сама `collections
     // .length`, тобто зʼявлялись ДВІ підбірки з ОДНАКОВОЮ назвою. Це рівно те
@@ -615,7 +616,7 @@ export default function CollectionsScreen() {
     try {
       const { data, error } = await supabase
         .from('collections')
-        .insert({ realtor_id: user.id, name, is_draft: true })
+        .insert({ realtor_id: userId, name, is_draft: true })
         // idor-ok: рієлтор СТВОРЮЄ власну підбірку (realtor_id = user.id у
         // самому insert) — токен у відповіді його власний, ним він і ділиться
         .select('id,realtor_id,name,is_draft,share_token,share_expires_at,created_at,updated_at')

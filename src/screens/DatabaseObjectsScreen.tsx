@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useMemo, useRef } from 'react'
-import { useAppStore } from '@/store/appStore'
+import { useAppStore, useAppSlice } from '@/store/appStore'
 import { recordDbView } from '@/lib/viewTracking'
 import RetryState from '@/components/ui/RetryState'
 import { hapticSelection } from '@/lib/telegram'
@@ -39,7 +39,7 @@ const PAGE = 40
 
 export default function DatabaseObjectsScreen() {
   const fabHidden = useHideOnScrollDown()
-  const { screenParams, navigate, databases, user } = useAppStore()
+  const { screenParams, navigate, databases, user } = useAppSlice('screenParams', 'navigate', 'databases', 'user')
   const { deleteDatabase } = useDatabases()
   const { properties, loading, error, loadProperties, reorderProperty, batchDeleteProperties, batchUpdateStatus } = useProperties(screenParams.dbId)
   const { folders, unavailable: foldersUnavailable, loadFolders } = useFolders(screenParams.dbId)

@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { humanizeDbError } from '@/lib/utils'
 import { assertAffected } from '@/lib/dbWrite'
-import { useAppStore } from '@/store/appStore'
+import { useAppStore, useAppSlice } from '@/store/appStore'
 import type { Notification } from '@/types'
 import { tr } from '@/lib/i18n'
 
@@ -28,10 +28,11 @@ let loadTicket = 0
 export function useNotifications() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const { user, setNotifications, notifications, markAllRead, showToast } = useAppStore()
+  const { setNotifications, notifications, markAllRead, showToast } = useAppSlice('setNotifications', 'notifications', 'markAllRead', 'showToast')
+  const userId = useAppStore((s) => s.user?.id)
 
   const loadNotifications = useCallback(async () => {
-    if (!user) return
+    if (!userId) return
     const ticket = ++loadTicket
     setLoading(true)
     setError(null)
@@ -39,7 +40,7 @@ export function useNotifications() {
       const { data, error } = await supabase
         .from('notifications')
         .select('id,user_id,type,title,body,is_read,data,created_at')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(50)
 
@@ -62,7 +63,7 @@ export function useNotifications() {
     } finally {
       setLoading(false)
     }
-  }, [user, setNotifications, showToast])
+  }, [userId, setNotifications, showToast])
 
   const markRead = useCallback(async (id: string) => {
     try {
@@ -78,14 +79,14 @@ export function useNotifications() {
   }, [setNotifications, showToast])
 
   const markAllAsRead = useCallback(async () => {
-    if (!user) return
+    if (!userId) return
     try {
       const { error } = await supabase
         // rls-ok: пакетне «прочитати все» — похідний стан; заблокована відмова
         // видно вже на наступному завантаженні, дані при цьому не втрачаються
         .from('notifications')
         .update({ is_read: true })
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .eq('is_read', false)
       if (error) throw error
       loadTicket++
@@ -93,7 +94,7 @@ export function useNotifications() {
     } catch (e) {
       showToast({ type: 'error', title: tr('Помилка'), subtitle: humanizeDbError(e) })
     }
-  }, [user, markAllRead, showToast])
+  }, [userId, markAllRead, showToast])
 
   const deleteNotification = useCallback(async (id: string) => {
     const snapshot = useAppStore.getState().notifications
@@ -151,16 +152,16 @@ export function useNotifications() {
   }, [setNotifications, showToast])
 
   const subscribeToNotifications = useCallback(() => {
-    if (!user) return () => {}
+    if (!userId) return () => {}
     const channel = supabase
-      .channel('notifications_' + user.id)
+      .channel('notifications_' + userId)
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
           table: 'notifications',
-          filter: `user_id=eq.${user.id}`,
+          filter: `user_id=eq.${userId}`,
         },
         (payload) => {
           const newNotif = payload.new as Notification
@@ -198,7 +199,7 @@ export function useNotifications() {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [user, loadNotifications])
+  }, [userId, loadNotifications])
 
   return { loading, error, notifications, loadNotifications, markRead, markAllAsRead, deleteNotification, deleteAllNotifications, subscribeToNotifications }
 }

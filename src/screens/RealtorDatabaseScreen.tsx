@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useMemo } from 'react'
-import { useAppStore } from '@/store/appStore'
+import { useAppSlice } from '@/store/appStore'
 import { recordDbView } from '@/lib/viewTracking'
 import RetryState from '@/components/ui/RetryState'
 import { supabase } from '@/lib/supabase'
@@ -21,7 +21,7 @@ import type { Database, Property, PropertyStatus, User } from '@/types'
 import { tr } from '@/lib/i18n'
 
 export default function RealtorDatabaseScreen() {
-  const { screenParams, navigate, showToast, user } = useAppStore()
+  const { screenParams, navigate, showToast, user } = useAppSlice('screenParams', 'navigate', 'showToast', 'user')
   const [db, setDb] = useState<Database | null>(null)
   const [owner, setOwner] = useState<User | null>(null)
   const [properties, setProperties] = useState<Property[]>([])

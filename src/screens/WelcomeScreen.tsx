@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '@/hooks/useAuth'
-import { useAppStore } from '@/store/appStore'
+import { useAppStore, useAppSlice } from '@/store/appStore'
 import { useTelegram } from '@/hooks/useTelegram'
 import { isDeepLinkStartParam } from '@/lib/telegram'
 import ProxMascot from '@/components/ProxMascot'
@@ -19,7 +19,7 @@ const AUTH_STEPS = () => ([
 
 export default function WelcomeScreen() {
   const { loginViaTelegram, loading } = useAuth()
-  const { showToast, screenParams, user, navigateRoot } = useAppStore()
+  const { showToast, screenParams, user, navigateRoot } = useAppSlice('showToast', 'screenParams', 'user', 'navigateRoot')
   const { tg, user: tgUser } = useTelegram()
   const [diagLoading, setDiagLoading] = useState(false)
   const [stepIdx, setStepIdx] = useState(0)
@@ -41,21 +41,25 @@ export default function WelcomeScreen() {
     return () => { clearInterval(stepTimer); clearInterval(elapsedTimer) }
   }, [loading])
 
-  // Navigate when user is set (from restore finishing after splash timed out)
+  // Navigate when user is set (from restore finishing after splash timed out).
+  // Залежність — особа й роль, а не обʼєкт: теплий старт кладе в стор кешований
+  // профіль, а за мить свіжий, і ефект на обʼєкті навігував би вдруге.
+  const userId = user?.id
+  const role = user?.role
   useEffect(() => {
-    if (!user) return
+    if (!userId) return
     const startParam = window.Telegram?.WebApp?.initDataUnsafe?.start_param
     if (isDeepLinkStartParam(startParam)) return
-    if (!user.role) {
+    if (!role) {
       navigateRoot('role-select')
-    } else if (user.role === 'owner') {
+    } else if (role === 'owner') {
       navigateRoot('db-list')
-    } else if (user.role === 'realtor') {
+    } else if (role === 'realtor') {
       navigateRoot('realtor-dashboard')
     } else {
       navigateRoot('guest-home')
     }
-  }, [user, navigateRoot])
+  }, [userId, role, navigateRoot])
 
   // Silent auto-login: 200 ms grace so an in-flight restore can finish first.
   // Deps МУСЯТЬ бути стабільними значеннями (рядок initData, не обʼєкт tg, і

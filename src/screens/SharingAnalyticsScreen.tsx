@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useAppStore } from '@/store/appStore'
+import { useAppSlice } from '@/store/appStore'
 import { supabase } from '@/lib/supabase'
 import Header from '@/components/ui/Header'
 import RetryState from '@/components/ui/RetryState'
@@ -24,7 +24,7 @@ function last7DayLabels(): string[] {
 }
 
 export default function SharingAnalyticsScreen() {
-  const { screenParams } = useAppStore()
+  const { screenParams } = useAppSlice('screenParams')
   const [views, setViews] = useState<PropertyView[]>([])
   const [loading, setLoading] = useState(true)
   const [reloadKey, setReloadKey] = useState(0)

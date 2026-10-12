@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { useAppStore } from '@/store/appStore'
+import { useAppSlice } from '@/store/appStore'
 import { useTenancies } from '@/hooks/useTenancies'
 import { useDbType } from '@/hooks/useDbType'
 import Header from '@/components/ui/Header'
@@ -25,7 +25,7 @@ import type { Tenancy } from '@/types'
  * архів не можна «забути оновити» з якогось шляху клієнта.
  */
 export default function TenancyArchiveScreen() {
-  const { screenParams, back, databases, user } = useAppStore()
+  const { screenParams, back, databases, user } = useAppSlice('screenParams', 'back', 'databases', 'user')
   const dbId = screenParams.dbId as string | undefined
 
   const { tenancies, loading, unavailable, error, loadTenancies } = useTenancies(dbId)

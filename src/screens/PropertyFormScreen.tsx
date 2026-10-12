@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { useAppStore } from '@/store/appStore'
+import { useAppStore, useAppSlice } from '@/store/appStore'
 import { hapticSelection, hapticNotify } from '@/lib/telegram'
 import { offlineGuard } from '@/lib/offline'
 import { confirmAction } from '@/lib/confirm'
@@ -29,7 +29,7 @@ const PARKING_TYPES = (): { v: ParkingType; l: string }[] => ([
 ])
 
 export default function PropertyFormScreen() {
-  const { screenParams, backThenReplace, back, showToast, user, isOnline, databases } = useAppStore()
+  const { screenParams, backThenReplace, back, showToast, user, isOnline, databases } = useAppSlice('screenParams', 'backThenReplace', 'back', 'showToast', 'user', 'isOnline', 'databases')
   const { properties, loadProperties, createProperty, createProperties, updateProperty, deleteProperty, loading, error: loadError } = useProperties(screenParams.dbId)
   const { folders, unavailable: foldersUnavailable, loadFolders, createFolder } = useFolders(screenParams.dbId)
 
