@@ -1510,6 +1510,37 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
 .step-btn{position:relative;width:32px;height:32px;border-radius:var(--r-xs);background:var(--glass-2);border:.5px solid var(--glass-bd);color:var(--t1);font-size:var(--fs-lead);line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .step-btn:disabled{color:var(--t4);cursor:default}
 .step-btn::after{content:'';position:absolute;inset:-7px}
+/* ПЛАТІЖНІ КАРТКИ. Календар стоїть на `.bg-teal`, який донизу стає
+   світло-зеленим, а картки були `.glass-s` — тобто майже прозорі. На кадрі з
+   розкладом (доти його не міряв ЖОДЕН гард: обхід мав лише стан «немає
+   розкладу») сума платежу дала 3.54:1, статус «Прострочено 40д» — 2.87, а
+   підпис дії «Отримано» — 2.23. Альфою не лікується: текст уже світлий.
+   Рецепт `.obj-card` (.52) не вистачив саме для архіву — він довший, і нижні
+   картки лягають на найсвітліше («Скасувати платіж» 4.18), тож ґрунт — токен
+   `--glass-off` (.62). */
+.pay-card{background:var(--glass-off);border-radius:var(--r-md);overflow:hidden}
+/* Дії картки: було `padding:2px 0` — зона дотику ~16px, і саме на «Видалити
+   розклад», що стоїть упритул до краю. Висота тепер РЕАЛЬНА (не `::after`:
+   картка клiпає, див. урок `.seg-b`), а рядок компенсує її меншим падінгом. */
+.pay-acts{display:flex;gap:8px;padding:0 14px;border-top:.5px solid rgba(255,255,255,.06)}
+.pay-act{min-height:44px;display:flex;align-items:center;gap:4px;padding:0;background:none;border:none;font-size:var(--fs-cap2);color:var(--t3);cursor:pointer;font-family:inherit}
+.pay-act.danger{color:var(--err-fg);margin-left:auto}
+/* Лічильник «сплачено/усього» в заголовку місяця і сума місяця в архіві
+   лежать ПРЯМО на градієнті, а не на картці: зелене на світло-зеленому низу
+   давало 1.44:1 і 2.27:1. Це ЦИФРИ (скільки отримано), тож їм темна пігулка,
+   а не капшенова приглушеність — підпис місяця поруч лишається капшеном. */
+.pay-count{display:flex;align-items:center;gap:6px;padding:3px 8px;border-radius:var(--r-pill);background:var(--glass-off);font-size:var(--fs-cap2);font-weight:var(--fw-semi)}
+/* Пігулки «Отримано»/«Сплачено»: темний ґрунт із зеленою рамкою, а не
+   тонований зелений — тонований над світлим низом градієнта давав 2.23:1. */
+.pay-pill{position:relative;flex-shrink:0;display:flex;align-items:center;gap:5px;min-height:36px;padding:0 12px;border-radius:var(--r-pill);background:var(--glass-off);border:.5px solid var(--ok-bd);color:var(--ok-fg);font-size:var(--fs-cap1);font-weight:var(--fw-semi);cursor:pointer;white-space:nowrap;font-family:inherit}
+/* −5, а не −4: `::after` міряється від ПАДІНГ-боксу, тобто без рамки .5px —
+   36 − 1 + 8 давало 43, і зонд фактичної зони чесно сказав «42». */
+.pay-pill::after{content:'';position:absolute;left:0;right:0;top:-5px;bottom:-5px}
+/* Скасувати платіж: коло 28px, зона дотику — повні 44 самої кнопки. */
+.pay-x{width:44px;height:44px;margin:-4px -8px -4px 0;display:flex;align-items:center;justify-content:center;background:none;border:none;padding:0;cursor:pointer;flex-shrink:0}
+.pay-x>span{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--err-bg);border:.5px solid rgba(255,59,48,.25);color:var(--err)}
+.pay-pill:active,.pay-x:active{transform:scale(.96)}
+.pay-pill,.pay-x{transition:transform var(--dur-sm) var(--ease-out)}
 .diag-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:46px;padding:0 16px;background:none;border:none;font-size:var(--fs-cap2);color:var(--t3);cursor:pointer}
 .diag-btn:disabled{color:var(--t4);cursor:default}
 .legal-a{color:var(--t2);text-decoration:underline}

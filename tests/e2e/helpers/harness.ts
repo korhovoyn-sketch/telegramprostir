@@ -284,7 +284,7 @@ export async function setupApp(page: Page, opts: HarnessOptions = {}) {
  * віддаємо як є. Гард має ловити пропущені колонки, а не ламати спеки, що
  * мокають RPC чи storage.
  */
-export const jsonRoute = (route: Route, body: unknown, status = 200) => {
+export const jsonRoute = (route: Route, body: unknown, status = 200, page?: { total: number; offset: number }) => {
   let out = body
   try {
     const sel = new URL(route.request().url()).searchParams.get('select')
@@ -294,7 +294,7 @@ export const jsonRoute = (route: Route, body: unknown, status = 200) => {
   } catch {
     // Невідома форма URL — краще віддати фікстуру цілком, ніж завалити спек.
   }
-  return route.fulfill({ status, headers: countHeaders(route, out), body: JSON.stringify(out) })
+  return route.fulfill({ status, headers: countHeaders(route, out, page), body: JSON.stringify(out) })
 }
 
 /**
@@ -316,12 +316,17 @@ export const jsonRoute = (route: Route, body: unknown, status = 200) => {
  * CORS-safelist — без цього рядка JS прочитав би заголовок як відсутній, тобто
  * фікс виглядав би зробленим і не працював.
  */
-function countHeaders(route: Route, out: unknown): Record<string, string> {
+function countHeaders(route: Route, out: unknown, page?: { total: number; offset: number }): Record<string, string> {
   const h: Record<string, string> = { 'content-type': 'application/json' }
   const prefer = route.request().headers()['prefer'] ?? ''
   if (!/count=(exact|planned|estimated)/.test(prefer)) return h
-  const total = Array.isArray(out) ? out.length : out == null ? 0 : 1
-  h['content-range'] = `${total > 0 ? `0-${total - 1}` : '*'}/${total}`
+  // Без `page` тіло і є вся вибірка. З `page` (мок, що моделює пагінацію й
+  // серверну межу) повна кількість інша, ніж довжина цієї сторінки — саме за
+  // нею клієнт дочитує решту, як із справжнім PostgREST.
+  const len = Array.isArray(out) ? out.length : out == null ? 0 : 1
+  const total = page?.total ?? len
+  const from = page?.offset ?? 0
+  h['content-range'] = `${len > 0 ? `${from}-${from + len - 1}` : '*'}/${total}`
   h['access-control-expose-headers'] = 'content-range'
   return h
 }

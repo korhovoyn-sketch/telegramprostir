@@ -1135,5 +1135,11 @@
   "Оголошення не знайдено": "Listing not found",
   "Подзвонити": "Call",
   "Посилання недійсне або власник його відкликав": "The link is invalid or the owner revoked it",
-  "Спільна база · {0}": "Shared database · {0}"
+  "Спільна база · {0}": "Shared database · {0}",
+  "Видалити розклад": "Delete schedule",
+  "Дата отримання": "Date received",
+  "міс.": "mo.",
+  "платежі": "payments",
+  "платежів": "payments",
+  "платіж": "payment"
 }

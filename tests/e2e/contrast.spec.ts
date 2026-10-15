@@ -147,9 +147,18 @@ const FROZEN: Record<string, number> = {
   'property-form-edit': 1,
   'create-db': 2,
   'sharing-analytics': 2,
-  'payment-calendar': 3,
+  // Було 3, поки календар брав у «Немає розкладу» ВСІ обʼєкти (мок ігнорував
+  // фільтр статусу, а клієнт йому довіряв). Тепер зайняті відбирає сам екран.
+  'payment-calendar': 0,
   'payment-schedule': 0,
   'payment-confirm': 0,
+  // Підпис ДРУГОГО місяця («жовтень 2026 р.», 2.99) — вже прийнятий клас
+  // `over>span`: секція стоїть нижче за борг і поточний місяць, тобто на
+  // найсвітлішій частині `.bg-teal`. Самі картки — ЦИФРИ й дії — вище AA.
+  'payment-calendar-items': 1,
+  // Підпис місяця групи («квітень 2026 р.», 2.87) — той самий прийнятий
+  // `over>span`; сума групи поруч — ЦИФРА, і вона вище AA на темній пігулці.
+  'payment-calendar-archive': 1,
   'manage-guests': 0,
   'create-invite': 0,
   'create-invite-created': 0,

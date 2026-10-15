@@ -276,7 +276,16 @@ WITH checks(ord, item, migration, ok) AS (VALUES
   (55, 'немає гостей, що володіють базами (ремонт 069)', '069_access_integrity.sql',
       (SELECT NOT EXISTS (SELECT 1 FROM users u
                            WHERE u.role='guest'
-                             AND EXISTS (SELECT 1 FROM databases d WHERE d.owner_id = u.id))))
+                             AND EXISTS (SELECT 1 FROM databases d WHERE d.owner_id = u.id)))),
+
+  -- 070: нагадування НЕ йде про вже підтверджений платіж. Обидві функції —
+  -- власницька й гостьова: орендар-гість отримував те саме хибне «оплата
+  -- через 3 дні», хоч сам уже заплатив.
+  (56, 'нагадування пропускають підтверджені платежі (власник і гість)', '070_reminders_skip_paid.sql',
+      (SELECT COUNT(*) = 2 FROM pg_proc
+        WHERE proname IN ('get_due_reminders_today','get_due_guest_reminders')
+          AND prosrc LIKE '%FROM rent_payment_records r%'
+          AND prosrc LIKE '%r.status = ''paid''%'))
 )
 SELECT
   CASE WHEN ok THEN '✅ OK     ' ELSE '❌ MISSING' END AS status,

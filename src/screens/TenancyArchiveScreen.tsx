@@ -70,7 +70,8 @@ export default function TenancyArchiveScreen() {
     const { total } = calcRentUtils(
       t.area_useful, t.area_total, t.rent_rate, t.rent_type, t.utilities_rate, t.area_basis, isParking,
     )
-    const paid = t._paid_total ?? 0
+    // Невизначено — платежі не завантажились; це не те саме, що «нуль».
+    const paid = t._paid_total
     return (
       <div key={t.id} className="glass-s acc-card">
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
@@ -112,7 +113,7 @@ export default function TenancyArchiveScreen() {
                   відповідь, тож блок малюється навіть із нулем. */}
               <span className="ten-sum ok">
                 <IconCurrencyDollar size={12} color="var(--ok-fg)" />
-                {tr('Отримано')}<b>{formatPrice(paid, t.currency || currency)}</b>
+                {tr('Отримано')}<b>{paid === undefined ? '—' : formatPrice(paid, t.currency || currency)}</b>
               </span>
             </div>
           </div>

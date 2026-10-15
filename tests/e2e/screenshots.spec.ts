@@ -1,6 +1,7 @@
 import { test, expect, type Page, type Route, type Locator } from '@playwright/test'
 import { setupApp, DEFAULT_USER, type HarnessUser, jsonRoute as json } from './helpers/harness'
 import { IN_SANDBOX } from './helpers/env'
+import { filterRows } from './helpers/rowFilter'
 
 // ─── Візуальний бейслайн кожного досяжного екрана ─────────────────────────────
 //
@@ -390,6 +391,43 @@ test('screens · owner journey', async ({ page }) => {
     await page.getByText(/Календар платежів|Прострочено/).first().waitFor()
     await page.getByRole('button', { name: /Отримано/ }).first().click()
     await page.getByText('Підтвердити платіж').waitFor()
+  })
+
+  // Календар із ДАНИМИ і його архів. Кадр `payment-calendar` вище — це стан
+  // «розкладу немає», тобто картки платежів, заборгованість і архів не мав
+  // жоден бейслайн. Розклад заведено в серпні, тож серпень — борг, вересень
+  // сплачено, жовтень попереду. Старий платіж Офісу 102 лежить у закритій
+  // оренді — архів мусить підписати його ТОДІШНІМ орендарем, а не нинішнім.
+  await page.route('**/rest/v1/rent_payments**', (r) => {
+    const row = {
+      id: '60000000-0000-0000-0000-000000000001', property_id: PROPERTIES[0].id,
+      owner_id: OWNER.id, due_day: 5, notify_days_before: 3, is_active: true,
+      created_at: '2025-08-01T09:00:00.000Z', updated_at: NOW,
+    }
+    return json(r, (r.request().headers()['accept'] ?? '').includes('object') ? row : [row])
+  })
+  const paid = (id: string, propertyId: string, due: string, amount: number, notes: string | null) => ({
+    id, property_id: propertyId, owner_id: OWNER.id, due_date: due, paid_at: `${due}T10:00:00.000Z`,
+    amount, status: 'paid', notes, created_at: NOW, updated_at: NOW,
+  })
+  const RECORDS = [
+    paid('71000000-0000-0000-0000-000000000001', PROPERTIES[0].id, '2025-09-05', 2250, 'Переказ на рахунок'),
+    paid('71000000-0000-0000-0000-000000000002', PROPERTIES[1].id, '2024-06-05', 1200, null),
+  ]
+  await page.route('**/rest/v1/rent_payment_records**', (r) => {
+    const rows = filterRows(r.request().url(), RECORDS)
+    return json(r, (r.request().headers()['accept'] ?? '').includes('object') ? (rows[0] ?? null) : rows)
+  })
+  await snap(page, 'payment-calendar-items', async () => {
+    await page.goto('/'); await page.getByText('Мої бази').waitFor()
+    await page.getByText('БЦ Рубін').first().click(); await page.getByText('Всі (3)').waitFor()
+    await page.getByLabel('Меню бази').click()
+    await page.getByText('Календар платежів').click()
+    await page.locator('.over', { hasText: 'Заборгованість' }).waitFor({ timeout: 15_000 })
+  })
+  await snap(page, 'payment-calendar-archive', async () => {
+    await page.locator('.seg-b', { hasText: 'Архів' }).click()
+    await page.getByText('Всього отримано за весь час').waitFor({ timeout: 15_000 })
   })
   // «Інші доступи» — секція, що зʼявляється на «Моїх базах», лише коли власник
   // сам підписаний на чужу базу чи є гостем. ОСТАННІЙ кадр журналу: підміни

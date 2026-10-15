@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { humanizeDbError, localDay } from '@/lib/utils'
+import { fetchAllRows } from '@/lib/fetchAll'
 import type { Tenancy } from '@/types'
 
 /** ОДИН літерал, без конкатенації: парсер типів supabase-js не вміє розбирати
@@ -48,21 +49,24 @@ export function useTenancies(dbId?: string) {
     setLoading(true)
     setError(null)
     try {
-      const { data, error: err } = await supabase
-        .from('tenancies')
-        .select(TENANCY_COLUMNS)
-        .eq('db_id', targetDbId)
-        // Відкриті першими (`ended_at IS NULL` → NULLS FIRST), далі найсвіжіші.
-        .order('ended_at', { ascending: false, nullsFirst: true })
-        .order('started_at', { ascending: false })
-        .limit(500)
-
-      if (err) {
+      // Усі сторінки, а не `limit(500)`: обрізаний архів правовідносин — це
+      // «оренд було менше», тобто неправда саме на екрані історії.
+      let rows: Tenancy[]
+      try {
+        rows = await fetchAllRows<Tenancy>((from, to, first) => supabase
+          .from('tenancies')
+          .select(TENANCY_COLUMNS, first ? { count: 'exact' } : undefined)
+          .eq('db_id', targetDbId)
+          // Відкриті першими (`ended_at IS NULL` → NULLS FIRST), далі найсвіжіші.
+          .order('ended_at', { ascending: false, nullsFirst: true })
+          .order('started_at', { ascending: false })
+          .order('id', { ascending: true })
+          .range(from, to))
+      } catch (err) {
         if (isMissingTable(err)) { setUnavailable(true); setTenancies([]); return }
         throw err
       }
 
-      const rows = (data ?? []) as Tenancy[]
       setTenancies(rows)
       if (rows.length === 0) return
 
@@ -71,14 +75,24 @@ export function useTenancies(dbId?: string) {
       // їх в один PostgREST-предикат не можна без `or=(...)` на кожну пару.
       const propIds = [...new Set(rows.map(t => t.property_id).filter((v): v is string => !!v))]
       if (propIds.length === 0) return
-      const { data: recs, error: recErr } = await supabase
-        .from('rent_payment_records')
-        .select('property_id,due_date,amount,status')
-        .in('property_id', propIds)
-        .eq('status', 'paid')
-        .limit(2000)
-      // Платежі — ДОДАТКОВА інформація: їхній збій не сміє забирати архів.
-      if (recErr || !recs) return
+      // `limit(2000)` тут нічого не гарантував: сервер віддає максимум
+      // `max_rows` (1000), тобто суми «Отримано» тихо недораховувались у
+      // власника з найдовшою історією. Дочитуємо всі сторінки.
+      let recs: { property_id: string; due_date: string; amount: number | null }[]
+      try {
+        recs = await fetchAllRows<{ property_id: string; due_date: string; amount: number | null }>((from, to, first) => supabase
+          .from('rent_payment_records')
+          .select('id,property_id,due_date,amount,status', first ? { count: 'exact' } : undefined)
+          .in('property_id', propIds)
+          .eq('status', 'paid')
+          .order('id', { ascending: true })
+          .range(from, to))
+      } catch {
+        // Платежі — ДОДАТКОВА інформація: їхній збій не сміє забирати архів.
+        // `_paid_total` лишається НЕВИЗНАЧЕНИМ, і картка малює «—», а не $0:
+        // нуль — це відповідь «не платили», якої ми не маємо.
+        return
+      }
 
       setTenancies(rows.map(t => {
         if (!t.property_id) return t
@@ -88,7 +102,7 @@ export function useTenancies(dbId?: string) {
         const to = t.ended_at ? localDay(t.ended_at) : null
         let sum = 0
         let count = 0
-        for (const r of recs as { property_id: string; due_date: string; amount: number | null }[]) {
+        for (const r of recs) {
           if (r.property_id !== t.property_id) continue
           if (r.due_date < from) continue
           if (to && r.due_date >= to) continue

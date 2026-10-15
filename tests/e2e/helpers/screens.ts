@@ -1,5 +1,6 @@
 import { expect, type Page, type Route } from '@playwright/test'
 import { setupApp, seedSession, DEFAULT_USER, jsonRoute, type HarnessUser } from './harness'
+import { filterRows } from './rowFilter'
 
 /**
  * ЄДИНИЙ обхід усіх досяжних екранів — для гардів, які міряють РЕНДЕР.
@@ -73,6 +74,40 @@ const PROPERTIES = [
   prop(2),
   prop(3, { status: 'for_sale', sale_price: 250_000 }),
 ]
+
+/** День `day` місяця зі зсувом `offset` від СПРАВЖНЬОГО сьогодні (ISO). */
+function monthDay(offset: number, day: number): string {
+  const n = new Date()
+  const d = new Date(n.getFullYear(), n.getMonth() + offset, day)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/**
+ * Розклад на зайнятий обʼєкт, заведений МИНУЛОГО місяця: тоді календар має
+ * рівно один борг (минулий місяць), сплачений поточний і майбутній наступний.
+ * Плюс старий платіж уже звільненого обʼєкта — архів показує й його.
+ */
+async function paymentFixtures(page: Page) {
+  const schedule = {
+    id: '60000000-0000-0000-0000-000000000001', property_id: PROPERTIES[0].id, owner_id: OWNER.id,
+    due_day: 5, notify_days_before: 3, is_active: true,
+    created_at: `${monthDay(-1, 1)}T09:00:00.000Z`, updated_at: NOW,
+  }
+  const record = (id: string, propertyId: string, due: string, amount: number, notes: string | null) => ({
+    id, property_id: propertyId, owner_id: OWNER.id, due_date: due, paid_at: `${due}T10:00:00.000Z`,
+    amount, status: 'paid', notes, created_at: NOW, updated_at: NOW,
+  })
+  const records = [
+    record('70000000-0000-0000-0000-000000000001', PROPERTIES[0].id, monthDay(0, 5), 2250, 'Переказ на рахунок'),
+    record('70000000-0000-0000-0000-000000000002', PROPERTIES[1].id, monthDay(-6, 5), 1800, null),
+  ]
+  const wantsObject = (r: Route) => (r.request().headers()['accept'] ?? '').includes('object')
+  await page.route('**/rest/v1/rent_payments**', (r) => json(r, wantsObject(r) ? schedule : [schedule]))
+  await page.route('**/rest/v1/rent_payment_records**', (r) => {
+    const rows = filterRows(r.request().url(), records)
+    return json(r, wantsObject(r) ? (rows[0] ?? null) : rows)
+  })
+}
 
 const FOLDERS = [{
   id: '40000000-0000-0000-0000-0000000000a1', db_id: DB_ID, owner_id: OWNER.id,
@@ -526,6 +561,31 @@ export const OWNER_SCREENS: ScreenStep[] = [
       // те, що бачить людина, яка до секції догорнула.
       await page.locator('.body').evaluate((b) => { b.scrollTop = b.scrollHeight })
       await page.waitForTimeout(400)
+    },
+  },
+  {
+    // ПЛАТІЖНІ КАРТКИ. Крок `payment-calendar` вище міряє календар БЕЗ розкладу
+    // (блок «Немає розкладу»), тобто саме те, заради чого екран існує, —
+    // картки платежів із діями, борг, сплачений платіж із кнопкою скасування —
+    // не міряв ЖОДЕН гард контрасту, зони дотику, ширин чи обрізаного тексту.
+    // Дати рахуються від СПРАВЖНЬОГО сьогодні: обхід годинника не морозить, а
+    // календар будує місяці від нього (Node і браузер тут ділять один час).
+    label: 'payment-calendar-items',
+    go: async (page) => {
+      await paymentFixtures(page)
+      await viaDbMenu(page, 'Календар платежів', /Календар платежів|Платежі —/)
+      await expect(page.locator('.over', { hasText: 'Заборгованість' })).toBeVisible({ timeout: 15_000 })
+    },
+  },
+  {
+    // Архів — інший СТАН рендера того самого екрана, і в ньому власні дії
+    // (редагувати й скасувати платіж), яких на вкладці «Поточні» може не бути.
+    label: 'payment-calendar-archive',
+    go: async (page) => {
+      await paymentFixtures(page)
+      await viaDbMenu(page, 'Календар платежів', /Календар платежів|Платежі —/)
+      await page.locator('.seg-b', { hasText: 'Архів' }).click()
+      await expect(page.getByText('Всього отримано за весь час')).toBeVisible({ timeout: 15_000 })
     },
   },
   {

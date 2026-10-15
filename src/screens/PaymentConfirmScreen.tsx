@@ -7,7 +7,7 @@ import Header from '@/components/ui/Header'
 import RetryState from '@/components/ui/RetryState'
 import { offlineGuard } from '@/lib/offline'
 import { supabase } from '@/lib/supabase'
-import { sanitizeDecimal, scrollFocusedIntoView, humanizeDbError, currencySymbol } from '@/lib/utils'
+import { sanitizeDecimal, scrollFocusedIntoView, humanizeDbError, currencySymbol, localDay } from '@/lib/utils'
 import { RENT_PAYMENT_RECORD_COLUMNS, expectedRent, fmtDueDate } from '@/lib/rentPayments'
 import type { RentPaymentRecord } from '@/types'
 import { tr } from '@/lib/i18n'
@@ -40,6 +40,14 @@ export default function PaymentConfirmScreen() {
   const [recordError, setRecordError] = useState<string | null>(null)
   const [amount, setAmount] = useState('')
   const [notes, setNotes] = useState('')
+  // Дата ОТРИМАННЯ — окремий факт від дати платежу за розкладом, і від миті
+  // натискання теж: гроші приходять готівкою чи переказом раніше, ніж власник
+  // доходить до застосунку. Доти `paid_at` ставився «зараз» ЗАВЖДИ, тож і
+  // нове підтвердження фіксувало день запису, а не день грошей, і —
+  // гірше — виправлення суми в березневому платежі переписувало його дату
+  // отримання на сьогодні.
+  const today = localDay(new Date().toISOString())
+  const [paidDay, setPaidDay] = useState(today)
   const [saving, setSaving] = useState(false)
 
   const loadRecord = useCallback(async () => {
@@ -67,25 +75,38 @@ export default function PaymentConfirmScreen() {
     if (record?.status === 'paid') {
       setAmount(String(record.amount ?? ''))
       setNotes(record.notes ?? '')
+      setPaidDay(record.paid_at ? localDay(record.paid_at) : today)
     } else {
       const expected = expectedRent(property)
       setAmount(expected > 0 ? String(expected) : '')
       setNotes('')
+      setPaidDay(today)
     }
-  }, [record, recordLoading, property])
+  }, [record, recordLoading, property, today])
 
-  const amountInvalid = amount.trim() !== '' &&
-    !(isFinite(parseFloat(amount)) && parseFloat(amount) > 0)
+  // Порожня сума — НЕ «візьми очікувану». Доти порожнє поле мовчки зберігало
+  // очікувану суму (а без ставки — NULL), тобто «Отримано» без грошей: запис
+  // в архіві є, а в «Всього отримано» його немає. Сума — сама суть запису.
+  const amountInvalid = !(isFinite(parseFloat(amount)) && parseFloat(amount) > 0)
+  // Майбутня дата отримання — описка, а не факт.
+  const dayInvalid = !/^\d{4}-\d{2}-\d{2}$/.test(paidDay) || paidDay > today
 
   async function handleConfirm() {
     if (!property || !user || !dueDate) return
     if (offlineGuard()) return
-    const amt = parseFloat(amount)
-    const finalAmount = isFinite(amt) && amt > 0 ? amt : (expectedRent(property) || null)
+    if (amountInvalid || dayInvalid) return
+    const finalAmount = parseFloat(amount)
     const trimmedNotes = notes.trim() || null
     setSaving(true)
     try {
       const now = new Date().toISOString()
+      // Мітка часу з обраного ЛОКАЛЬНОГО дня. Незмінений день наявного запису
+      // лишає його мітку точно; сьогодні — це «зараз»; інший день — полудень,
+      // щоб ±11 год поясу не зсунули його на сусідню дату при показі.
+      const [y, m, d] = paidDay.split('-').map(Number)
+      const paidAt = record?.paid_at && localDay(record.paid_at) === paidDay
+        ? record.paid_at
+        : paidDay === today ? now : new Date(y, m - 1, d, 12).toISOString()
       const { error } = await supabase
         .from('rent_payment_records')
         .upsert(
@@ -93,7 +114,7 @@ export default function PaymentConfirmScreen() {
             property_id: property.id,
             owner_id: property.owner_id,
             due_date: dueDate,
-            paid_at: now,
+            paid_at: paidAt,
             amount: finalAmount,
             notes: trimmedNotes,
             status: 'paid' as const,
@@ -180,6 +201,16 @@ export default function PaymentConfirmScreen() {
             </div>
           </div>
           <div className="fld" style={{ marginTop: 10 }}>
+            <div className="fld-l">{tr('Дата отримання')}</div>
+            <input
+              aria-label={tr('Дата отримання')}
+              type="date"
+              value={paidDay}
+              max={today}
+              onChange={e => setPaidDay(e.target.value)}
+            />
+          </div>
+          <div className="fld" style={{ marginTop: 10 }}>
             <div className="fld-l">{tr('Нотатка (необовʼязково)')}</div>
             <input
               aria-label={tr('Нотатка до платежу')}
@@ -193,9 +224,9 @@ export default function PaymentConfirmScreen() {
         </div>
 
         <button
-          className={`mbtn success mbtn-flow ${amountInvalid || saving ? 'disabled' : ''} ${saving ? 'is-loading' : ''}`}
+          className={`mbtn success mbtn-flow ${amountInvalid || dayInvalid || saving ? 'disabled' : ''} ${saving ? 'is-loading' : ''}`}
           onClick={handleConfirm}
-          disabled={amountInvalid || saving}
+          disabled={amountInvalid || dayInvalid || saving}
           aria-busy={saving}
         >
           {isPaid ? tr('Зберегти зміни') : tr('Підтвердити')}

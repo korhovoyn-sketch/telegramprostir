@@ -264,6 +264,59 @@ BEGIN
   RAISE NOTICE '  ✓ 052/058: нагадування повертають рядки; без tg_id — ні; anon не має службових функцій';
 END $$;
 
+-- ── 070: нагадування НЕ йде про вже підтверджений платіж ────────────────────
+-- Функція питала лише «чи настав день» і «чи не нагадували цього місяця», тож
+-- орендар, що заплатив раніше, однаково породжував «оплата через 3 дні». Плюс
+-- дата ДО початку договору — платежу тоді немає взагалі.
+-- Два позитиви, без яких «0 рядків» не доводить нічого: непідтверджений запис
+-- (`pending`) нагадування НЕ гасить, а без дати договору воно повертається.
+DO $$
+DECLARE n INT; due DATE;
+  v_pid CONSTANT UUID := 'dddddddd-0000-0000-0000-000000000052';
+  v_owner CONSTANT UUID := 'bbbbbbbb-0000-0000-0000-000000000052';
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM rent_payments WHERE property_id = v_pid) THEN
+    RAISE NOTICE '  · 070: день платежу сьогодні поза 1..28 — перевірку пропущено';
+    RETURN;
+  END IF;
+  SELECT r.due_date INTO due FROM get_due_reminders_today() r WHERE r.property_id = v_pid;
+  IF due IS NULL THEN
+    RAISE EXCEPTION '070: законне нагадування зникло — фільтр ховає все';
+  END IF;
+
+  INSERT INTO rent_payment_records (property_id, owner_id, due_date, paid_at, amount, status)
+  VALUES (v_pid, v_owner, due, now(), 1000, 'paid');
+  SELECT count(*) INTO n FROM get_due_reminders_today() r WHERE r.property_id = v_pid;
+  IF n <> 0 THEN
+    RAISE EXCEPTION '070: нагадування про ВЖЕ підтверджений платіж (% рядків)', n;
+  END IF;
+
+  UPDATE rent_payment_records SET status = 'pending' WHERE property_id = v_pid AND due_date = due;
+  SELECT count(*) INTO n FROM get_due_reminders_today() r WHERE r.property_id = v_pid;
+  IF n <> 1 THEN
+    RAISE EXCEPTION '070: НЕпідтверджений запис погасив нагадування (% рядків)', n;
+  END IF;
+  DELETE FROM rent_payment_records WHERE property_id = v_pid AND due_date = due;
+
+  UPDATE properties SET lease_start_date = due + 1 WHERE id = v_pid;
+  SELECT count(*) INTO n FROM get_due_reminders_today() r WHERE r.property_id = v_pid;
+  IF n <> 0 THEN
+    RAISE EXCEPTION '070: нагадування про дату ДО початку договору (% рядків)', n;
+  END IF;
+  UPDATE properties SET lease_start_date = NULL WHERE id = v_pid;
+  SELECT count(*) INTO n FROM get_due_reminders_today() r WHERE r.property_id = v_pid;
+  IF n <> 1 THEN
+    RAISE EXCEPTION '070: без дати договору нагадування не повернулось (% рядків)', n;
+  END IF;
+
+  -- Гостьова функція — той самий предикат; тут доводимо, що вона ВИКОНУЄТЬСЯ
+  -- після переписування (тип результату, LATERAL), бо гостьових фікстур у
+  -- цьому блоці немає.
+  PERFORM count(*) FROM get_due_guest_reminders();
+
+  RAISE NOTICE '  ✓ 070: сплачене й до-договірне не нагадується; pending і без договору — так';
+END $$;
+
 -- ── 065: нагадування про КІНЕЦЬ ДОГОВОРУ ────────────────────────────────────
 -- Три властивості, і кожна ламається окремо:
 --   • ПОРІГ — рядок віддається рівно на {30,7,1,0} днях, а не щодня все вікно

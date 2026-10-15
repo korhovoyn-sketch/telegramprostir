@@ -1,4 +1,4 @@
-import { basisArea, monthlyRent } from '@/lib/utils'
+import { basisArea, localDay, monthlyRent } from '@/lib/utils'
 import type { Property } from '@/types'
 import { locale } from './i18n'
 
@@ -88,4 +88,65 @@ export function trackedFromOffset(scheduleCreatedAt: string | null | undefined, 
   if (Number.isNaN(c.getTime())) return 0
   const diff = (c.getFullYear() - now.getFullYear()) * 12 + (c.getMonth() - now.getMonth())
   return Math.max(-ARREARS_MONTHS_MAX, Math.min(0, diff))
+}
+
+/** Період оренди — рівно те, що потрібно платежам із `tenancies` (067). */
+export interface TenancySpan {
+  property_id: string | null
+  tenant_name?: string | null
+  started_at: string
+  ended_at?: string | null
+}
+
+export const TENANCY_SPAN_COLUMNS = 'id,property_id,tenant_name,started_at,ended_at'
+
+/**
+ * З якої дати платежі обʼєкта — борг ЦІЄЇ оренди.
+ *
+ * Дата договору — головне джерело, але вона НЕОБОВʼЯЗКОВА. Без неї межі не
+ * було взагалі, а розклад звільнення не прибирає: обʼєкт, зданий повторно
+ * 10.09 без дати договору, діставав «Заборгованість» за всі місяці ПРОСТОЮ —
+ * від дня, коли розклад заводили для ПОПЕРЕДНЬОГО орендаря. Тобто новому
+ * орендарю приписувались чужі місяці, коли обʼєкт стояв порожній.
+ *
+ * Тому без дати договору межею стає ФАКТИЧНИЙ початок відкритої оренди з
+ * архіву (067): тригер відкриває рядок саме в мить здачі. Немає архіву
+ * (міграція не накочена, збій запиту) — межі немає, як і було: сховати борг
+ * за вигаданою датою гірше, ніж показати сумнівний.
+ */
+export function owedFrom(
+  leaseStart: string | null | undefined,
+  propertyId: string,
+  spans: TenancySpan[] | null,
+): string | null {
+  if (leaseStart) return leaseStart.slice(0, 10)
+  const open = spans?.find((t) => t.property_id === propertyId && !t.ended_at)
+  return open ? localDay(open.started_at) : null
+}
+
+/**
+ * Хто платив за дату — орендар тієї оренди, чий період її покриває.
+ *
+ * Архів платежів підписував КОЖЕН запис поточним орендарем обʼєкта, тож після
+ * зміни орендаря торішні гроші ФОП Іванова читались як платежі нового ТОВ.
+ * Для обліку оренди це не косметика: це відповідь на «хто мені платив».
+ *
+ * Межі — ті самі, що в `useTenancies`: `[started_at, ended_at)` у ЛОКАЛЬНИХ
+ * днях. Без архіву оренд (null) — поточний орендар, але лише для дат від
+ * початку його договору: решта невідома, і чесніше не підписати нічого.
+ */
+export function tenantOnDate(
+  propertyId: string,
+  dueDate: string,
+  spans: TenancySpan[] | null,
+  current: { status?: string | null; tenant_name?: string | null; lease_start_date?: string | null } | undefined,
+): string | null {
+  if (spans) {
+    const hit = spans.find((t) => t.property_id === propertyId
+      && localDay(t.started_at) <= dueDate
+      && (!t.ended_at || dueDate < localDay(t.ended_at)))
+    return hit?.tenant_name ?? null
+  }
+  if (!current || current.status !== 'occupied') return null
+  return isOwedUnderLease(dueDate, current.lease_start_date) ? (current.tenant_name ?? null) : null
 }
