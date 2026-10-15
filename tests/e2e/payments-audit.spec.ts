@@ -127,8 +127,8 @@ test('архів не приписує старий платіж ПОТОЧНО�
     ],
   }))
   await openArchive(page)
-  const nov = page.locator('.glass-s', { hasText: '5 листопада' })
-  const sep = page.locator('.glass-s', { hasText: '5 вересня' })
+  const nov = page.locator('.pay-card', { hasText: '5 листопада' })
+  const sep = page.locator('.pay-card', { hasText: '5 вересня' })
   await expect(nov).toContainText('ФОП Іванов', { timeout: 10_000 })
   await expect(nov).not.toContainText('Ромашка')
   // Антивакуум: свіжий платіж — справді поточного орендаря.
@@ -171,7 +171,7 @@ test('редагування підтвердженого платежу НЕ п
     posts,
   }))
   await openArchive(page)
-  await page.locator('.glass-s', { hasText: '5 березня' }).getByRole('button', { name: /Редагувати/ }).click()
+  await page.locator('.pay-card', { hasText: '5 березня' }).getByRole('button', { name: /Редагувати/ }).click()
   await expect(page.getByText('Редагувати платіж')).toBeVisible({ timeout: 10_000 })
   const amount = page.getByLabel('Сума отриманого платежу')
   await amount.fill('2200')

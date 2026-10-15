@@ -1539,8 +1539,8 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
 /* Скасувати платіж: коло 28px, зона дотику — повні 44 самої кнопки. */
 .pay-x{width:44px;height:44px;margin:-4px -8px -4px 0;display:flex;align-items:center;justify-content:center;background:none;border:none;padding:0;cursor:pointer;flex-shrink:0}
 .pay-x>span{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--err-bg);border:.5px solid rgba(255,59,48,.25);color:var(--err)}
-.pay-pill:active,.pay-x:active{transform:scale(.96)}
-.pay-pill,.pay-x{transition:transform var(--dur-sm) var(--ease-out)}
+.pay-pill:active,.pay-x:active,.pay-act:active{transform:scale(.96)}
+.pay-pill,.pay-x,.pay-act{transition:transform var(--dur-sm) var(--ease-out)}
 .diag-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:46px;padding:0 16px;background:none;border:none;font-size:var(--fs-cap2);color:var(--t3);cursor:pointer}
 .diag-btn:disabled{color:var(--t4);cursor:default}
 .legal-a{color:var(--t2);text-decoration:underline}
