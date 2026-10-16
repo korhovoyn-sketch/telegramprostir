@@ -6,7 +6,7 @@ import { useAppSlice } from '@/store/appStore'
 import { useProperties } from '@/hooks/useProperties'
 import Header from '@/components/ui/Header'
 import RetryState from '@/components/ui/RetryState'
-import { IconPlus, IconTrash } from '@/components/Icons'
+import { IconCheckCircle, IconPlus, IconTrash } from '@/components/Icons'
 import { offlineGuard } from '@/lib/offline'
 import { confirmAction } from '@/lib/confirm'
 import { assertAffected } from '@/lib/dbWrite'
@@ -365,57 +365,6 @@ export default function PaymentConfirmScreen() {
           </div>
         )}
 
-        {!legacy && (parts!.length > 0 || legacyReceived) && (
-          <>
-            <div className="over">{tr('Надходження')}</div>
-            <div className="pay-card" style={{ margin: '0 12px 16px' }}>
-              {legacyReceived && (
-                <div className="part-row">
-                  <div className="part-main" style={{ cursor: 'default' }}>
-                    <PartText
-                      day={record?.paid_at ? new Date(record.paid_at).toLocaleDateString(locale(), { day: 'numeric', month: 'long' }) : '—'}
-                      note={record?.notes ?? null}
-                      amount={formatPrice(received, user?.currency)}
-                    />
-                  </div>
-                </div>
-              )}
-              {parts!.map(p => (
-                <div key={p.id} className="part-row">
-                  <button
-                    type="button"
-                    className="part-main"
-                    aria-pressed={p.id === editingId}
-                    onClick={() => (p.id === editingId ? fillForAdd() : fillForEdit(p))}
-                  >
-                    <PartText
-                      day={new Date(p.paid_at).toLocaleDateString(locale(), { day: 'numeric', month: 'long' })}
-                      note={p.notes ?? null}
-                      amount={formatPrice(p.amount, user?.currency)}
-                    />
-                  </button>
-                  <button
-                    type="button"
-                    className="part-del"
-                    onClick={() => handleDeletePart(p)}
-                    disabled={deletingId != null || saving}
-                    aria-label={tr('Видалити надходження {0}', formatPrice(p.amount, user?.currency))}
-                  >
-                    <IconTrash size={16} />
-                  </button>
-                </div>
-              ))}
-              {editingPart && (
-                <div className="pay-acts">
-                  <button type="button" className="pay-act" onClick={fillForAdd}>
-                    <IconPlus size={14} /> {tr('Нове надходження')}
-                  </button>
-                </div>
-              )}
-            </div>
-          </>
-        )}
-
         {/* `.fld` (підпис НАД полем), а не `.fr` (підпис і поле в один рядок), і
             це не смак: у рядковому варіанті довгий підпис зʼїдає ширину, і
             плейсхолдер обрізається — заміряно 287px потрібно проти 116px
@@ -475,6 +424,61 @@ export default function PaymentConfirmScreen() {
         >
           {cta}
         </button>
+        {/* Історія надходжень — ПІД кнопкою, і це замір, а не смак. Над формою
+            вона зсувала поля й первинну дію вниз по градієнту, що світлішає
+            донизу: зелена «Додати оплату» падала до 3.81:1, підпис нотатки —
+            до 3.55:1. Підсумок (головна відповідь екрана) лишається вгорі. */}
+        {!legacy && (parts!.length > 0 || legacyReceived) && (
+          <>
+            <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconCheckCircle size={14} color="var(--ok)" />{tr('Надходження')}</span></div>
+            <div className="pay-card" style={{ margin: '0 12px 16px' }}>
+              {legacyReceived && (
+                <div className="part-row">
+                  <div className="part-main" style={{ cursor: 'default' }}>
+                    <PartText
+                      day={record?.paid_at ? new Date(record.paid_at).toLocaleDateString(locale(), { day: 'numeric', month: 'long' }) : '—'}
+                      note={record?.notes ?? null}
+                      amount={formatPrice(received, user?.currency)}
+                    />
+                  </div>
+                </div>
+              )}
+              {parts!.map(p => (
+                <div key={p.id} className="part-row">
+                  <button
+                    type="button"
+                    className="part-main"
+                    aria-pressed={p.id === editingId}
+                    onClick={() => (p.id === editingId ? fillForAdd() : fillForEdit(p))}
+                  >
+                    <PartText
+                      day={new Date(p.paid_at).toLocaleDateString(locale(), { day: 'numeric', month: 'long' })}
+                      note={p.notes ?? null}
+                      amount={formatPrice(p.amount, user?.currency)}
+                    />
+                  </button>
+                  <button
+                    type="button"
+                    className="part-del"
+                    onClick={() => handleDeletePart(p)}
+                    disabled={deletingId != null || saving}
+                    aria-label={tr('Видалити надходження {0}', formatPrice(p.amount, user?.currency))}
+                  >
+                    <IconTrash size={16} />
+                  </button>
+                </div>
+              ))}
+              {editingPart && (
+                <div className="pay-acts">
+                  <button type="button" className="pay-act" onClick={fillForAdd}>
+                    <IconPlus size={14} /> {tr('Нове надходження')}
+                  </button>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
       </div>
     </div>
   )
