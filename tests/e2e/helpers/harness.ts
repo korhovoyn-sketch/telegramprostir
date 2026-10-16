@@ -3,6 +3,9 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseSelect, project } from './selectProjection'
 
+/** Таблиці міграцій, яких у проді ще немає (071–073). Спек фічі вмикає свою. */
+export const PENDING_TABLES = ['rent_payment_parts', 'property_rent_terms', 'db_activity'] as const
+
 export interface HarnessUser {
   id: string
   tg_id: number
@@ -246,15 +249,17 @@ export async function mockBackend(page: Page, opts: HarnessOptions = {}) {
   // (last-registered wins when multiple patterns match).
   await page.route('**/rest/v1/**', (route) => {
     if (route.request().url().includes('/rest/v1/users')) return // let the specific handler below run
-    // Таблиця надходжень (071) за замовчуванням ВІДСУТНЯ — рівно так, як
-    // відповідає PostgREST на бекенді без міграції. Це і є стан проду, доки
-    // 071 не накочено, тож решта набору перевіряє старий шлях «лише повна
-    // оплата», а новий вмикає `partial-payments.spec.ts` власним роутом.
-    if (route.request().url().includes('/rest/v1/rent_payment_parts')) {
+    // Таблиці ще не накочених міграцій за замовчуванням ВІДСУТНІ — рівно так,
+    // як відповідає PostgREST на бекенді без них. Це і є стан проду, тож
+    // решта набору перевіряє старий шлях, а новий вмикають спеки фічі власним
+    // роутом: надходження (071) — `partial-payments`, історія умов (072) —
+    // `rent-terms`, журнал змін (073) — `db-activity`.
+    const missing = PENDING_TABLES.find((t) => route.request().url().includes(`/rest/v1/${t}`))
+    if (missing) {
       return route.fulfill({
         status: 404,
         contentType: 'application/json',
-        body: JSON.stringify({ code: 'PGRST205', message: "Could not find the table 'public.rent_payment_parts' in the schema cache" }),
+        body: JSON.stringify({ code: 'PGRST205', message: `Could not find the table 'public.${missing}' in the schema cache` }),
       })
     }
     return json(route, [])

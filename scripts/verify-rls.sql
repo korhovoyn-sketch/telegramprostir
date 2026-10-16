@@ -1364,3 +1364,203 @@ BEGIN
   PERFORM set_config('request.jwt.claims', '', false);
   RAISE NOTICE '  ✓ 071: надходження пишуть власник і редактор; чужий, гість і anon — ні';
 END $$;
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- 072: ІСТОРІЯ УМОВ — бачать власник і редактор, ПИСАТИ не може ніхто з
+-- клієнтів; суму періоду міняє той, хто веде платежі
+-- ════════════════════════════════════════════════════════════════════════════
+-- Позитив на кожну відмову: «історію не змінити» нічого не варте, якщо тригер
+-- теж перестав її писати (той клас 068 перевіряв окремо — тут так само).
+INSERT INTO auth.users (id,email) VALUES
+  ('e7200000-0000-0000-0000-000000000001','972001@telegram.propspace.app'),
+  ('e7200000-0000-0000-0000-000000000002','972002@telegram.propspace.app'),
+  ('e7200000-0000-0000-0000-000000000003','972003@telegram.propspace.app'),
+  ('e7200000-0000-0000-0000-000000000004','972004@telegram.propspace.app');
+INSERT INTO users (id,tg_id,first_name,role) VALUES
+  ('a7200000-0000-0000-0000-000000000001',972001,'Власник72','owner'),
+  ('a7200000-0000-0000-0000-000000000002',972002,'Чужий72','owner'),
+  ('a7200000-0000-0000-0000-000000000003',972003,'Редактор72','realtor'),
+  ('a7200000-0000-0000-0000-000000000004',972004,'Гість72','guest');
+INSERT INTO databases (id,owner_id,name,type,share_token) VALUES
+  ('d7200000-0000-0000-0000-000000000001','a7200000-0000-0000-0000-000000000001','База72','business_center','tok72_db');
+INSERT INTO properties (id,db_id,owner_id,name,status,tenant_name,rent_type,rent_rate,share_token) VALUES
+  ('f7200000-0000-0000-0000-000000000001','d7200000-0000-0000-0000-000000000001','a7200000-0000-0000-0000-000000000001','Офіс72','occupied','ТОВ72','fixed',1800,'tok72_p1');
+INSERT INTO db_members (db_id,user_id,role,status) VALUES
+  ('d7200000-0000-0000-0000-000000000001','a7200000-0000-0000-0000-000000000003','editor','active');
+INSERT INTO guest_links (owner_id,property_id,invite_token,label,status,guest_user_id) VALUES
+  ('a7200000-0000-0000-0000-000000000001','f7200000-0000-0000-0000-000000000001','gtok72','Орендар','active','a7200000-0000-0000-0000-000000000004');
+
+DO $$
+DECLARE v JSONB; n INT;
+  pid CONSTANT UUID := 'f7200000-0000-0000-0000-000000000001';
+BEGIN
+  -- ── Власник міняє ставку під RLS → тригер пише (позитив) ────────────────
+  PERFORM pg_temp.login('972001@telegram.propspace.app');
+  SET LOCAL ROLE authenticated;
+  UPDATE properties SET rent_rate = 2000 WHERE id = pid;
+  SELECT count(*) INTO n FROM property_rent_terms WHERE property_id = pid;
+  IF n <> 1 THEN RAISE EXCEPTION '072: власник змінив ставку, а історії не видно (%)', n; END IF;
+  -- …але сам історію не пише й не править: інакше «ставка тоді» — це те, що
+  -- власник захотів заднім числом.
+  BEGIN
+    INSERT INTO property_rent_terms (property_id, rent_rate, valid_until) VALUES (pid, 1, now());
+    RAISE EXCEPTION '072: власник ВПИСАВ рядок в історію умов';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    UPDATE property_rent_terms SET rent_rate = 1 WHERE property_id = pid;
+    RAISE EXCEPTION '072: власник ПЕРЕПИСАВ історію умов';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    DELETE FROM property_rent_terms WHERE property_id = pid;
+    RAISE EXCEPTION '072: власник СТЕР історію умов';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  v := set_rent_amount_due(pid, DATE '2026-09-05', 900);
+  IF v->>'error' IS NOT NULL THEN RAISE EXCEPTION '072: власник НЕ МОЖЕ змінити суму свого періоду (%)', v; END IF;
+  RESET ROLE;
+
+  -- ── Редактор: бачить історію, його зміна теж пишеться, суму міняє ───────
+  PERFORM pg_temp.login('972003@telegram.propspace.app');
+  SET LOCAL ROLE authenticated;
+  UPDATE properties SET rent_rate = 2100 WHERE id = pid;
+  SELECT count(*) INTO n FROM property_rent_terms WHERE property_id = pid;
+  IF n <> 2 THEN RAISE EXCEPTION '072: редактор не бачить історію своєї бази або його зміна не записалась (%)', n; END IF;
+  v := set_rent_amount_due(pid, DATE '2026-09-05', 950);
+  IF v->>'error' IS NOT NULL THEN RAISE EXCEPTION '072: редактор НЕ МОЖЕ змінити суму періоду бази команди (%)', v; END IF;
+  RESET ROLE;
+
+  -- ── Чужий власник: не бачить і не міняє ──────────────────────────────────
+  PERFORM pg_temp.login('972002@telegram.propspace.app');
+  SET LOCAL ROLE authenticated;
+  SELECT count(*) INTO n FROM property_rent_terms;
+  IF n <> 0 THEN RAISE EXCEPTION '072: чужий власник бачить % рядків історії умов', n; END IF;
+  v := set_rent_amount_due(pid, DATE '2026-09-05', 1);
+  IF v->>'error' IS DISTINCT FROM 'not_found' THEN RAISE EXCEPTION '072: чужий власник змінив суму періоду (%)', v; END IF;
+  RESET ROLE;
+
+  -- ── Гість (орендар): ні історії, ні зміни суми собі ─────────────────────
+  PERFORM pg_temp.login('972004@telegram.propspace.app');
+  SET LOCAL ROLE authenticated;
+  SELECT count(*) INTO n FROM property_rent_terms;
+  IF n <> 0 THEN RAISE EXCEPTION '072: гість бачить % рядків історії умов', n; END IF;
+  BEGIN
+    v := set_rent_amount_due(pid, DATE '2026-10-05', 1);
+    IF v->>'error' IS NULL THEN RAISE EXCEPTION '072: гість ЗМЕНШИВ собі суму до сплати (%)', v; END IF;
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  RESET ROLE;
+
+  -- Сума періоду після всіх спроб — та, яку поставив редактор.
+  SELECT count(*) INTO n FROM rent_payment_records
+   WHERE property_id = pid AND due_date = DATE '2026-09-05' AND amount_due = 950;
+  IF n <> 1 THEN RAISE EXCEPTION '072: сума періоду змінилась після спроб чужого/гостя'; END IF;
+  SELECT count(*) INTO n FROM rent_payment_records WHERE property_id = pid AND due_date = DATE '2026-10-05';
+  IF n <> 0 THEN RAISE EXCEPTION '072: спроба гостя лишила період'; END IF;
+
+  -- ── anon ──────────────────────────────────────────────────────────────────
+  IF has_function_privilege('anon', 'public.set_rent_amount_due(uuid,date,numeric)', 'EXECUTE') THEN
+    RAISE EXCEPTION '072: anon має EXECUTE на set_rent_amount_due — дефолтний PUBLIC не знято';
+  END IF;
+  IF NOT has_function_privilege('authenticated', 'public.set_rent_amount_due(uuid,date,numeric)', 'EXECUTE') THEN
+    RAISE EXCEPTION '072: authenticated не може викликати set_rent_amount_due — фіча мертва';
+  END IF;
+  IF has_table_privilege('anon', 'public.property_rent_terms', 'SELECT') THEN
+    RAISE EXCEPTION '072: anon має SELECT на property_rent_terms';
+  END IF;
+
+  PERFORM set_config('request.jwt.claims', '', false);
+  RAISE NOTICE '  ✓ 072: історію умов пише лише тригер; бачать власник і редактор; суму періоду міняють вони ж';
+END $$;
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- 073: ЖУРНАЛ ЗМІН — бачать власник і редактор; ПИСАТИ не може ніхто з
+-- клієнтів; дії редактора під RLS записуються з його іменем
+-- ════════════════════════════════════════════════════════════════════════════
+INSERT INTO auth.users (id,email) VALUES
+  ('e7300000-0000-0000-0000-000000000001','973001@telegram.propspace.app'),
+  ('e7300000-0000-0000-0000-000000000002','973002@telegram.propspace.app'),
+  ('e7300000-0000-0000-0000-000000000003','973003@telegram.propspace.app'),
+  ('e7300000-0000-0000-0000-000000000004','973004@telegram.propspace.app');
+INSERT INTO users (id,tg_id,first_name,role) VALUES
+  ('a7300000-0000-0000-0000-000000000001',973001,'Власник73','owner'),
+  ('a7300000-0000-0000-0000-000000000002',973002,'Чужий73','owner'),
+  ('a7300000-0000-0000-0000-000000000003',973003,'Редактор73','realtor'),
+  ('a7300000-0000-0000-0000-000000000004',973004,'Гість73','guest');
+INSERT INTO databases (id,owner_id,name,type,share_token) VALUES
+  ('d7300000-0000-0000-0000-000000000001','a7300000-0000-0000-0000-000000000001','База73','business_center','tok73_db');
+INSERT INTO properties (id,db_id,owner_id,name,status,tenant_name,rent_type,rent_rate,share_token) VALUES
+  ('f7300000-0000-0000-0000-000000000001','d7300000-0000-0000-0000-000000000001','a7300000-0000-0000-0000-000000000001','Офіс73','occupied','ТОВ73','fixed',1800,'tok73_p1');
+INSERT INTO db_members (db_id,user_id,role,status) VALUES
+  ('d7300000-0000-0000-0000-000000000001','a7300000-0000-0000-0000-000000000003','editor','active');
+INSERT INTO guest_links (owner_id,property_id,invite_token,label,status,guest_user_id) VALUES
+  ('a7300000-0000-0000-0000-000000000001','f7300000-0000-0000-0000-000000000001','gtok73','Орендар','active','a7300000-0000-0000-0000-000000000004');
+
+DO $$
+DECLARE v JSONB; n INT; who TEXT;
+  pid CONSTANT UUID := 'f7300000-0000-0000-0000-000000000001';
+  did CONSTANT UUID := 'd7300000-0000-0000-0000-000000000001';
+BEGIN
+  -- ── Редактор під RLS: дія записується, ім'я — його (позитив) ────────────
+  PERFORM pg_temp.login('973003@telegram.propspace.app');
+  SET LOCAL ROLE authenticated;
+  UPDATE properties SET rent_rate = 1900 WHERE id = pid;
+  v := record_rent_payment(pid, DATE '2026-09-05', 500, now(), NULL, 1900);
+  IF v->>'error' IS NOT NULL THEN RAISE EXCEPTION '073: фікстура: %', v; END IF;
+  SELECT count(*) INTO n FROM db_activity WHERE db_id = did AND actor_name = 'Редактор73';
+  IF n <> 2 THEN RAISE EXCEPTION '073: редактор не бачить своїх дій у журналі бази або вони не записались (%)', n; END IF;
+  SELECT created_by_name INTO who FROM rent_payment_parts WHERE id = (v->>'part_id')::UUID;
+  IF who IS DISTINCT FROM 'Редактор73' THEN RAISE EXCEPTION '073: автор надходження під RLS — %', who; END IF;
+  -- Журнал не переписати ні йому…
+  BEGIN
+    INSERT INTO db_activity (db_id, kind, actor_name) VALUES (did, 'property_created', 'Власник73');
+    RAISE EXCEPTION '073: редактор ВПИСАВ подію від імені власника';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    DELETE FROM db_activity WHERE db_id = did;
+    RAISE EXCEPTION '073: редактор СТЕР журнал змін';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  RESET ROLE;
+
+  -- ── …ні власнику, хоча той бачить усе ────────────────────────────────────
+  PERFORM pg_temp.login('973001@telegram.propspace.app');
+  SET LOCAL ROLE authenticated;
+  SELECT count(*) INTO n FROM db_activity WHERE db_id = did;
+  IF n < 2 THEN RAISE EXCEPTION '073: власник не бачить дій редактора у своїй базі (%)', n; END IF;
+  BEGIN
+    UPDATE db_activity SET actor_name = 'Хтось' WHERE db_id = did;
+    RAISE EXCEPTION '073: власник ПЕРЕПИСАВ журнал змін';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    PERFORM log_db_activity(did, pid, 'x', 'property_created', '{}'::jsonb);
+    RAISE EXCEPTION '073: клієнт викликав log_db_activity напряму — журнал можна наповнити вигадкою';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  RESET ROLE;
+
+  -- ── Чужий власник і гість — нуль ─────────────────────────────────────────
+  PERFORM pg_temp.login('973002@telegram.propspace.app');
+  SET LOCAL ROLE authenticated;
+  SELECT count(*) INTO n FROM db_activity;
+  IF n <> 0 THEN RAISE EXCEPTION '073: чужий власник бачить % подій чужої бази', n; END IF;
+  RESET ROLE;
+  PERFORM pg_temp.login('973004@telegram.propspace.app');
+  SET LOCAL ROLE authenticated;
+  SELECT count(*) INTO n FROM db_activity;
+  IF n <> 0 THEN RAISE EXCEPTION '073: гість бачить % подій бази власника', n; END IF;
+  RESET ROLE;
+
+  IF has_table_privilege('anon', 'public.db_activity', 'SELECT') THEN
+    RAISE EXCEPTION '073: anon має SELECT на db_activity';
+  END IF;
+  IF has_function_privilege('authenticated', 'public.log_db_activity(uuid,uuid,text,text,jsonb)', 'EXECUTE') THEN
+    RAISE EXCEPTION '073: authenticated має EXECUTE на log_db_activity';
+  END IF;
+
+  PERFORM set_config('request.jwt.claims', '', false);
+  RAISE NOTICE '  ✓ 073: журнал пишуть лише тригери з іменем того, хто діяв; бачать власник і редактор';
+END $$;

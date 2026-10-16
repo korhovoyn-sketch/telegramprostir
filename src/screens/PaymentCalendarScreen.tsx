@@ -11,7 +11,7 @@ import Header from '@/components/ui/Header'
 import { SkeletonList } from '@/components/ui/SkeletonLoader'
 import { IconAlertTriangle, IconCalendar, IconClock, IconPlus, IconTrash, IconFile, IconCheckCircle, IconArchive, IconLayers, IconCheck, IconX, IconEdit } from '@/components/Icons'
 import { formatPrice, humanizeDbError, objectsWord, pluralUk } from '@/lib/utils'
-import { RENT_PAYMENT_COLUMNS, ARREARS_MONTHS_MAX, TENANCY_SPAN_COLUMNS, dueDateFor, expectedRent, fmtDueDate, isOwedUnderLease, isPartialRecord, owedFrom, RENT_PAYMENT_RECORD_COLUMNS, RENT_PAYMENT_RECORD_COLUMNS_PRE, remainingFor, tenantOnDate, trackedFromOffset, type TenancySpan } from '@/lib/rentPayments'
+import { RENT_PAYMENT_COLUMNS, RENT_TERMS_COLUMNS, ARREARS_MONTHS_MAX, TENANCY_SPAN_COLUMNS, dueDateFor, expectedRentAt, fmtDueDate, isOwedUnderLease, isPartialRecord, owedFrom, RENT_PAYMENT_RECORD_COLUMNS, RENT_PAYMENT_RECORD_COLUMNS_PRE, remainingFor, tenantOnDate, trackedFromOffset, type RentTermsRow, type TenancySpan } from '@/lib/rentPayments'
 import { fetchAllRows, fetchAllRowsOptional } from '@/lib/fetchAll'
 import type { Property, RentPayment, RentPaymentRecord } from '@/types'
 import { locale, tr } from '@/lib/i18n'
@@ -28,6 +28,8 @@ interface PaymentItem {
   schedule: RentPayment
   dueDate: string
   record: RentPaymentRecord | null
+  /** Очікувана сума ЗА ЦЕЙ період — за умовами, що діяли тоді (072). */
+  expected: number
   daysUntilDue: number
   monthOffset: number
 }
@@ -46,6 +48,9 @@ export default function PaymentCalendarScreen() {
   // Періоди оренд з архіву правовідносин (067). `null` — архіву немає або він
   // не відповів: тоді межі й підписи працюють як до нього, без вигаданих дат.
   const [spans, setSpans]             = useState<TenancySpan[] | null>(null)
+  // Історія умов оренди (072). `null` — історії немає: очікувана сума
+  // береться з поточних умов, як і доти.
+  const [terms, setTerms]             = useState<RentTermsRow[] | null>(null)
   const [schedules, setSchedules]     = useState<RentPayment[]>([])
   const [records, setRecords]         = useState<RentPaymentRecord[]>([])
   const [loading, setLoading]         = useState(true)
@@ -89,6 +94,7 @@ export default function PaymentCalendarScreen() {
       const props = (propsData ?? []) as unknown as Property[]
       setProperties(props)
       setSpans(null)
+      setTerms(null)
       if (props.length === 0) { setSchedules([]); setRecords([]); setLoading(false); return }
 
       const allIds = props.map(p => p.id)
@@ -100,6 +106,13 @@ export default function PaymentCalendarScreen() {
         .from('tenancies').select(TENANCY_SPAN_COLUMNS, first ? { count: 'exact' } : undefined)
         .in('property_id', allIds)
         .order('started_at', { ascending: true }).order('id', { ascending: true })
+        .range(from, to)).then((rows) => rows, () => null)
+      // Так само додатково: без історії умов борг рахується з поточної ставки,
+      // як до 072, — це гірше, але не привід ховати календар.
+      const termsP = occIds.length === 0 ? Promise.resolve(null) : fetchAllRows<RentTermsRow>((from, to, first) => supabase
+        .from('property_rent_terms').select(RENT_TERMS_COLUMNS, first ? { count: 'exact' } : undefined)
+        .in('property_id', occIds)
+        .order('valid_until', { ascending: true }).order('id', { ascending: true })
         .range(from, to)).then((rows) => rows, () => null)
 
       if (occIds.length > 0) {
@@ -113,6 +126,7 @@ export default function PaymentCalendarScreen() {
         setRecords([])
       }
       setSpans(await spansP)
+      setTerms(await termsP)
     } catch (e) {
       const msg = humanizeDbError(e)
       setLoadError(msg)
@@ -221,7 +235,7 @@ export default function PaymentCalendarScreen() {
         const dueDate = dueDateFor(m, sched.due_day)
         const record  = records.find(r => r.property_id === prop.id && r.due_date === dueDate) ?? null
         if (record?.status === 'paid' || !isOwedUnderLease(dueDate, from)) continue
-        items.push({ property: prop, schedule: sched, dueDate, record, daysUntilDue: daysUntil(dueDate), monthOffset: m })
+        items.push({ property: prop, schedule: sched, dueDate, record, expected: expectedRentAt(prop, terms, dueDate), daysUntilDue: daysUntil(dueDate), monthOffset: m })
       }
     }
     for (let m = 0; m < monthsAhead; m++) {
@@ -233,11 +247,11 @@ export default function PaymentCalendarScreen() {
         // Дата до початку оренди — не борг. Запис, якщо він є, лишається
         // видимим: це вже історія, а не тривога.
         if (!record && !isOwedUnderLease(dueDate, owedFrom(prop.lease_start_date, prop.id, spans))) continue
-        items.push({ property: prop, schedule: sched, dueDate, record, daysUntilDue: daysUntil(dueDate), monthOffset: m })
+        items.push({ property: prop, schedule: sched, dueDate, record, expected: expectedRentAt(prop, terms, dueDate), daysUntilDue: daysUntil(dueDate), monthOffset: m })
       }
     }
     return items
-  }, [occupied, spans, schedules, records, monthsAhead])
+  }, [occupied, spans, terms, schedules, records, monthsAhead])
 
   const monthSections = useMemo(() => {
     const today = new Date()
@@ -682,7 +696,7 @@ export default function PaymentCalendarScreen() {
                                 </div>
                                 {partial && (
                                   <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--warn-fg)', fontWeight: 'var(--fw-semi)', marginTop: 3 }}>
-                                    {tr('Частково · залишок {0}', formatPrice(remainingFor(rec, prop ? expectedRent(prop) : 0), user?.currency))}
+                                    {tr('Частково · залишок {0}', formatPrice(remainingFor(rec, prop ? expectedRentAt(prop, terms, rec.due_date) : 0), user?.currency))}
                                   </div>
                                 )}
                                 {rec.notes && (
@@ -766,16 +780,16 @@ function PaymentItemCard({ item, statusColor, textColor, label, onMarkPaid, onEd
   const isPaid     = item.record?.status === 'paid'
   const isPartial  = isPartialRecord(item.record)
   // rent_rate — сира ставка ($/м² чи $/добу для per_m2/per_day), не сума до
-  // сплати. expectedRent() нормалізує до місяця — той самий шлях, що вже дає
-  // дефолт у модалці підтвердження платежу (рядок вище, expectedRent виклик).
-  // Без цього картка «Офіс, $18» показувала ставку замість реальних $1 800.
+  // сплати. `item.expected` нормалізована до місяця (`expectedRentAt`) — той
+  // самий шлях, що дає дефолт у формі підтвердження платежу. Без цього картка
+  // «Офіс, $18» показувала ставку замість реальних $1 800.
   // Частково оплачений — показуємо ЗАЛИШОК: саме його ще чекають, а повна
-  // сума поруч з «отримано $1 000» читалась би як борг у $1 800.
+  // сума поруч з «отримано $1 000» читалась би як борг у $1 800. Очікувана —
+  // за умовами СВОГО періоду, а якщо суму періоду задали руками (072:
+  // неповний місяць, знижка) — саме вона: `remainingFor` бере `amount_due`.
   const displayAmt = isPaid
     ? (item.record?.amount ?? null)
-    : isPartial
-      ? remainingFor(item.record, expectedRent(item.property)) || null
-      : (expectedRent(item.property) || null)
+    : remainingFor(item.record, item.expected) || null
 
   return (
     <div className="pay-card">
@@ -800,7 +814,7 @@ function PaymentItemCard({ item, statusColor, textColor, label, onMarkPaid, onEd
           </div>
           {isPartial && (
             <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--warn-fg)', fontWeight: 'var(--fw-semi)', marginTop: 3 }}>
-              {tr('Отримано {0} з {1}', formatPrice(item.record?.amount ?? 0, userCurrency), formatPrice(item.record?.amount_due ?? expectedRent(item.property), userCurrency))}
+              {tr('Отримано {0} з {1}', formatPrice(item.record?.amount ?? 0, userCurrency), formatPrice(item.record?.amount_due ?? item.expected, userCurrency))}
             </div>
           )}
           {isPaid && item.record?.notes && (

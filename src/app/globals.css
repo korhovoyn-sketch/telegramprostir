@@ -1556,11 +1556,33 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
 /* Підсумок періоду — три цифри поруч на темному ґрунті `.pay-card`: це
    ВІДПОВІДЬ екрана (скільки ще винні), а не капшен. */
 .pay-sum{display:flex}
-.pay-sum>div{flex:1;min-width:0;padding:12px 14px}
-.pay-sum>div+div{border-left:.5px solid rgba(255,255,255,.06)}
+.pay-sum>*{flex:1;min-width:0;padding:12px 14px}
+.pay-sum>*+*{border-left:.5px solid rgba(255,255,255,.06)}
+/* «Очікується» — вхід у суму за період (072). Кнопка, а не <div onClick>:
+   досяжна з клавіатури й читалкою; натиск — фоном, бо геометрія підсумку
+   (три рівні клітинки) рухатись не сміє. */
+.pay-sum-edit{display:block;background:none;border:0;border-radius:inherit;color:inherit;font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background var(--dur-xs) var(--ease-out)}
+.pay-sum-edit:active{background:var(--glass-2)}
+.pay-sum-edit .pay-sum-l{display:flex;align-items:center;gap:4px}
+.pay-sum-edit .pay-sum-v{display:block}
 .pay-sum-l{font-size:var(--fs-cap2);color:var(--t2);margin-bottom:3px}
 .pay-sum-v{font-size:var(--fs-sub);font-weight:var(--fw-bold);color:var(--t1);overflow-wrap:anywhere}
 .pay-hint{margin-top:6px;font-size:var(--fs-cap1);font-weight:var(--fw-semi)}
+.part-who{display:inline-flex;align-items:center;gap:3px;margin-left:6px;font-weight:var(--fw-reg);color:var(--t2);vertical-align:baseline}
+.pay-note{margin:10px 2px 0;font-size:var(--fs-cap1);line-height:1.45;color:var(--t2)}
+.act-list{margin:0 12px 12px}
+.act-row{display:flex;align-items:flex-start;gap:10px;padding:12px 14px}
+.act-row+.act-row{border-top:.5px solid rgba(255,255,255,.06)}
+.act-ic{flex-shrink:0;width:28px;height:28px;border-radius:var(--r-sm);background:var(--glass-2);display:flex;align-items:center;justify-content:center}
+.act-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+/* Назви обʼєктів, орендарів і документів — дані користувача: посилання й
+   коди без пробілів інакше рвали б рядок за край (див. «Нерозривний рядок»). */
+.act-t{font-size:var(--fs-note);font-weight:var(--fw-semi);color:var(--t1);line-height:1.35;overflow-wrap:anywhere}
+.act-s{font-size:var(--fs-cap1);color:var(--t2);overflow-wrap:anywhere}
+/* «Показати ще» — вторинна дія: скло, повні 44px, неактивність — кольором. */
+.act-more{display:block;margin:4px auto 16px;min-height:44px;padding:0 22px;border-radius:var(--r-pill);border:var(--bd);background:var(--glass-off);color:var(--t1);font:inherit;font-size:var(--fs-foot);font-weight:var(--fw-semi);cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform var(--dur-sm) var(--ease-out)}
+.act-more:active{transform:scale(.96);transition-duration:var(--dur-xs)}
+.act-more:disabled{color:var(--t4);cursor:default}
 .diag-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:46px;padding:0 16px;background:none;border:none;font-size:var(--fs-cap2);color:var(--t3);cursor:pointer}
 .diag-btn:disabled{color:var(--t4);cursor:default}
 .legal-a{color:var(--t2);text-decoration:underline}

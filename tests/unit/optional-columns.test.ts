@@ -4,7 +4,7 @@ import { join, relative } from 'node:path'
 import {
   isMissingOptionalColumn, stripOptionalKeys, stripOptionalSelect, withOptionalColumns,
 } from '@/lib/optionalColumns'
-import { RENT_PAYMENT_RECORD_COLUMNS, RENT_PAYMENT_RECORD_COLUMNS_PRE } from '@/lib/rentPayments'
+import { RENT_PAYMENT_PART_COLUMNS, RENT_PAYMENT_PART_COLUMNS_PRE, RENT_PAYMENT_RECORD_COLUMNS, RENT_PAYMENT_RECORD_COLUMNS_PRE } from '@/lib/rentPayments'
 
 /**
  * Ретрай без колонок, яких може ще не бути в базі (043 `folder_id`,
@@ -98,7 +98,7 @@ describe('джерельне правило', () => {
     let sites = 0
     for (const f of walk(SRC)) {
       const text = readFileSync(f, 'utf8')
-      const re = /\.select\(\s*(?:pre\s*\?[^:]+:\s*)?(?:'[^']*\(' \+ )?\(?\s*(?:pre\s*\?\s*\w+\s*:\s*)?(PROPERTY_WITH_PHOTOS|PROPERTY_SELECT|EXPORT_SELECT|DB_COLUMNS|RENT_PAYMENT_RECORD_COLUMNS)\b/g
+      const re = /\.select\(\s*(?:pre\s*\?[^:]+:\s*)?(?:'[^']*\(' \+ )?\(?\s*(?:pre\s*\?\s*\w+\s*:\s*)?(PROPERTY_WITH_PHOTOS|PROPERTY_SELECT|EXPORT_SELECT|DB_COLUMNS|RENT_PAYMENT_RECORD_COLUMNS|RENT_PAYMENT_PART_COLUMNS)\b/g
       for (const m of text.matchAll(re)) {
         sites++
         // Вікно навколо виклику: ретрай-обгортка стоїть ДО нього (часто за
@@ -121,5 +121,13 @@ describe('платіжні записи (071)', () => {
     // тихо зникла б із ретраю — або гірше, лишилась би там і дала 400.
     expect(RENT_PAYMENT_RECORD_COLUMNS_PRE).toBe(stripOptionalSelect(RENT_PAYMENT_RECORD_COLUMNS))
     expect(RENT_PAYMENT_RECORD_COLUMNS).toContain('amount_due')
+  })
+
+  it('надходження (073): автор — опційний, і «без 073» — рівно повний мінус опційні', () => {
+    // На бекенді з 071, але без 073, повний список дав би 400 на ВСЮ форму
+    // платежу — тобто часткова оплата зламалась би рівно від того, що
+    // журнал змін ще не накочено.
+    expect(RENT_PAYMENT_PART_COLUMNS_PRE).toBe(stripOptionalSelect(RENT_PAYMENT_PART_COLUMNS))
+    expect(RENT_PAYMENT_PART_COLUMNS).toContain('created_by_name')
   })
 })

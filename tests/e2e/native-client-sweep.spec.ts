@@ -180,6 +180,9 @@ test('нативний клієнт: усі екрани власника жив
     ['Аналітика і поширення', /Аналітика|Поділитись/],
     ['Календар платежів', /Календар платежів|Прострочено|Платежі/],
     ['Архів оренд', /Архів оренд|Оренд ще не було/],
+    // Харнес за замовчуванням не має таблиці журналу (073 не накочена) —
+    // екран мусить пояснити це, а не впасти.
+    ['Журнал змін', /Журнал ще не увімкнено|Змін ще не було/],
     ['Управління гостями', /Гості|Запросити/],
     ['Команда', /Команда|Запросити/],
     ['Експорт', /Формат файлу|Завантажити/],
@@ -317,6 +320,19 @@ test('нативний клієнт: усі екрани власника жив
   await alive(page, 'payment-confirm-partial')
   await expect(cta).toHaveText('Додати оплату')
   expect((await bar(page)).main.isVisible, 'payment-confirm-partial — нативна смуга вимкнена').toBe(false)
+
+  // ── Сума за період (072): власна первинна дія. Вхід є лише з історією умов,
+  // тож таблиця вмикається тут.
+  await page.route('**/rest/v1/property_rent_terms**', (r) => json(r, []))
+  await toObjects(page)
+  await page.getByLabel('Меню бази').click()
+  await page.getByText('Календар платежів', { exact: true }).click()
+  await page.getByRole('button', { name: /Доплата/ }).first().click({ timeout: 15_000 })
+  await page.getByRole('button', { name: /Змінити суму за період/ }).click({ timeout: 15_000 })
+  await expect(page.locator('.hdr')).toContainText('Сума за період', { timeout: 15_000 })
+  await alive(page, 'payment-due')
+  await expect(cta).toHaveText('Зберегти')
+  expect((await bar(page)).main.isVisible, 'payment-due — нативна смуга вимкнена').toBe(false)
 
   // ── Таби
   await page.goto('/')

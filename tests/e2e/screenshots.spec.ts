@@ -454,6 +454,48 @@ test('screens · owner journey', async ({ page }) => {
     await page.getByRole('button', { name: /Доплата/ }).first().click()
     await page.getByLabel('Підсумок платежу').waitFor({ timeout: 15_000 })
   })
+  // СУМА ЗА ПЕРІОД і АВТОР надходження (072/073): обидві таблиці вмикаються
+  // тут, після кадрів «без них». Надходження вписав редактор — його імʼя видно.
+  await page.route('**/rest/v1/property_rent_terms**', (r) => json(r, []))
+  await page.route('**/rest/v1/rent_payment_parts**', (r) => json(r, [{
+    id: '72000000-0000-0000-0000-000000000001', record_id: PARTIAL_AUG.id, amount: 1000,
+    paid_at: PARTIAL_AUG.paid_at, notes: 'Готівка', created_at: NOW,
+    created_by: '00000000-0000-0000-0000-0000000000e1', created_by_name: 'Оля Редакторка',
+  }]))
+  await snap(page, 'payment-confirm-due', async () => {
+    await page.goto('/'); await page.getByText('Мої бази').waitFor()
+    await page.getByText('БЦ Рубін').first().click(); await page.getByText('Всі (3)').waitFor()
+    await page.getByLabel('Меню бази').click()
+    await page.getByText('Календар платежів').click()
+    await page.getByRole('button', { name: /Доплата/ }).first().click({ timeout: 15_000 })
+    await page.locator('.part-who').waitFor({ timeout: 15_000 })
+  })
+  await snap(page, 'payment-due', async () => {
+    await page.getByRole('button', { name: /Змінити суму за період/ }).click()
+    await page.getByLabel('Сума до сплати за період').waitFor({ timeout: 15_000 })
+  })
+  // ЖУРНАЛ ЗМІН (073): події двох днів і двох людей — групи й підписи «хто».
+  await page.route('**/rest/v1/db_activity**', (r) => json(r, [
+    { id: '75000000-0000-0000-0000-000000000001', db_id: DB_ID, property_id: PROPERTIES[0].id, property_name: 'Офіс 101',
+      actor_id: '00000000-0000-0000-0000-0000000000e1', actor_name: 'Оля Редакторка', kind: 'payment_received',
+      details: { due_date: '2025-08-05', amount: 1000 }, created_at: '2025-09-15T08:10:00.000Z' },
+    { id: '75000000-0000-0000-0000-000000000002', db_id: DB_ID, property_id: PROPERTIES[0].id, property_name: 'Офіс 101',
+      actor_id: OWNER.id, actor_name: 'Микола', kind: 'terms_changed',
+      details: { from: { rent_rate: 16, rent_type: 'per_m2' }, to: { rent_rate: 18, rent_type: 'per_m2' } }, created_at: '2025-09-15T07:40:00.000Z' },
+    { id: '75000000-0000-0000-0000-000000000003', db_id: DB_ID, property_id: PROPERTIES[1].id, property_name: 'Офіс 102',
+      actor_id: '00000000-0000-0000-0000-0000000000e1', actor_name: 'Оля Редакторка', kind: 'property_rented',
+      details: { tenant: 'ФОП Іванов' }, created_at: '2025-09-14T15:20:00.000Z' },
+    { id: '75000000-0000-0000-0000-000000000004', db_id: DB_ID, property_id: PROPERTIES[1].id, property_name: 'Офіс 102',
+      actor_id: OWNER.id, actor_name: 'Микола', kind: 'file_deleted',
+      details: { name: 'Договір оренди 2024.pdf' }, created_at: '2025-09-14T11:05:00.000Z' },
+  ]))
+  await snap(page, 'db-activity', async () => {
+    await page.goto('/'); await page.getByText('Мої бази').waitFor()
+    await page.getByText('БЦ Рубін').first().click(); await page.getByText('Всі (3)').waitFor()
+    await page.getByLabel('Меню бази').click()
+    await page.getByText('Журнал змін', { exact: true }).click()
+    await page.locator('.act-row').first().waitFor({ timeout: 15_000 })
+  })
   // «Інші доступи» — секція, що зʼявляється на «Моїх базах», лише коли власник
   // сам підписаний на чужу базу чи є гостем. ОСТАННІЙ кадр журналу: підміни
   // нижче живуть на сторінці до кінця тесту.

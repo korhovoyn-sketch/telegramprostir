@@ -6,7 +6,7 @@ import { useAppSlice } from '@/store/appStore'
 import { useProperties } from '@/hooks/useProperties'
 import Header from '@/components/ui/Header'
 import RetryState from '@/components/ui/RetryState'
-import { IconCheckCircle, IconPlus, IconTrash } from '@/components/Icons'
+import { IconCheckCircle, IconEdit, IconPlus, IconTrash, IconUser } from '@/components/Icons'
 import { offlineGuard } from '@/lib/offline'
 import { confirmAction } from '@/lib/confirm'
 import { assertAffected } from '@/lib/dbWrite'
@@ -14,8 +14,8 @@ import { supabase } from '@/lib/supabase'
 import { withOptionalColumns } from '@/lib/optionalColumns'
 import { sanitizeDecimal, scrollFocusedIntoView, humanizeDbError, currencySymbol, formatPrice, localDay } from '@/lib/utils'
 import {
-  RENT_PAYMENT_RECORD_COLUMNS, RENT_PAYMENT_RECORD_COLUMNS_PRE, RENT_PAYMENT_PART_COLUMNS,
-  expectedRent, fmtDueDate, isPartsUnavailable, remainingFor,
+  RENT_PAYMENT_RECORD_COLUMNS, RENT_PAYMENT_RECORD_COLUMNS_PRE, RENT_PAYMENT_PART_COLUMNS, RENT_PAYMENT_PART_COLUMNS_PRE, RENT_TERMS_COLUMNS,
+  expectedRentAt, fmtDueDate, isPartsUnavailable, remainingFor, type RentTermsRow,
 } from '@/lib/rentPayments'
 import type { RentPaymentPart, RentPaymentRecord } from '@/types'
 import { locale, tr } from '@/lib/i18n'
@@ -55,7 +55,7 @@ function rpcErrorText(code: string): string {
  */
 export default function PaymentConfirmScreen() {
   useClosingConfirmation()
-  const { screenParams, user, showToast, back } = useAppSlice('screenParams', 'user', 'showToast', 'back')
+  const { screenParams, user, showToast, back, navigate } = useAppSlice('screenParams', 'user', 'showToast', 'back', 'navigate')
   const propertyId = screenParams.propertyId as string | undefined
   const dbId = screenParams.dbId as string | undefined
   const dueDate = screenParams.dueDate as string | undefined
@@ -71,6 +71,9 @@ export default function PaymentConfirmScreen() {
   const [record, setRecord] = useState<RentPaymentRecord | null>(null)
   // `null` — таблиці надходжень немає (071 не накочена), тобто старий режим.
   const [parts, setParts] = useState<RentPaymentPart[] | null>(null)
+  // Історія умов (072). `null` — її немає: очікувана сума з поточних умов,
+  // і змінити суму періоду ніде (RPC теж із 072).
+  const [terms, setTerms] = useState<RentTermsRow[] | null>(null)
   const [recordLoading, setRecordLoading] = useState(true)
   const [recordError, setRecordError] = useState<string | null>(null)
   // Надходження, яке зараз виправляють. `null` — форма додає НОВЕ.
@@ -93,6 +96,11 @@ export default function PaymentConfirmScreen() {
     setRecordLoading(true)
     setRecordError(null)
     try {
+      // Паралельно і без throw: збій історії не забирає форму, лише лишає
+      // очікувану суму на поточних умовах (як до 072).
+      const termsP = supabase.from('property_rent_terms').select(RENT_TERMS_COLUMNS)
+        .eq('property_id', propertyId)
+        .then(({ data, error }) => (error ? null : (data ?? []) as RentTermsRow[]), () => null)
       const { data, error } = await withOptionalColumns((pre) => supabase
         .from('rent_payment_records').select(pre ? RENT_PAYMENT_RECORD_COLUMNS_PRE : RENT_PAYMENT_RECORD_COLUMNS)
         .eq('property_id', propertyId).eq('due_date', dueDate).maybeSingle())
@@ -102,9 +110,10 @@ export default function PaymentConfirmScreen() {
       // Надходження — і заразом перевірка, чи є 071 узагалі. Без періоду
       // питаємо порожньо (`limit(1)`): відповідь потрібна лише як «таблиця є».
       const res = rec
-        ? await supabase.from('rent_payment_parts').select(RENT_PAYMENT_PART_COLUMNS)
+        ? await withOptionalColumns((pre) => supabase.from('rent_payment_parts')
+            .select(pre ? RENT_PAYMENT_PART_COLUMNS_PRE : RENT_PAYMENT_PART_COLUMNS)
             .eq('record_id', rec.id)
-            .order('paid_at', { ascending: true }).order('id', { ascending: true })
+            .order('paid_at', { ascending: true }).order('id', { ascending: true }))
         : await supabase.from('rent_payment_parts').select('id').limit(1)
       let list: RentPaymentPart[] | null
       if (res.error) {
@@ -115,6 +124,7 @@ export default function PaymentConfirmScreen() {
       }
       setRecord(rec)
       setParts(list)
+      setTerms(await termsP)
     } catch (e) {
       setRecordError(humanizeDbError(e))
     } finally {
@@ -125,7 +135,10 @@ export default function PaymentConfirmScreen() {
   useEffect(() => { loadRecord() }, [loadRecord])
 
   const legacy = parts === null
-  const expected = property ? expectedRent(property) : 0
+  // За умовами, що діяли на дату ЦЬОГО платежу (072): серпневий борг —
+  // за серпневою ставкою, навіть якщо в жовтні оренду підняли. Саме ця сума
+  // заморожується в періоді при першому надходженні.
+  const expected = property && dueDate ? expectedRentAt(property, terms, dueDate) : 0
   const received = record?.amount ?? 0
   // Скільки ще чекаємо — від ЗАМОРОЖЕНОЇ суми періоду, не від поточної ставки.
   const remaining = remainingFor(record, expected)
@@ -314,7 +327,13 @@ export default function PaymentConfirmScreen() {
   // Показуємо її рядком без дій — RPC сам перенесе її в надходження при
   // першій доплаті, і гроші не зникнуть із підсумку.
   const legacyReceived = !legacy && parts!.length === 0 && received > 0
-  const showSummary = !legacy && !!record && received > 0
+  // Змінити суму періоду можна лише з 072 (історія умов і RPC приходять
+  // разом): без неї кнопка вела б у відмову сервера.
+  const canEditDue = !legacy && terms !== null
+  // Підсумок — коли гроші вже є, або коли через нього можна змінити суму
+  // періоду: неповний перший місяць правлять саме ДО першого платежу. Тоді
+  // лише клітинка очікуваної — «Отримано $0 / Залишок» нічого не додали б.
+  const showSummary = !legacy && (received > 0 || canEditDue)
   const overpaid = due != null && received > due ? Math.round((received - due) * 100) / 100 : 0
 
   // Підказка лише для НОВОГО надходження: власник має бачити, що запише
@@ -348,10 +367,24 @@ export default function PaymentConfirmScreen() {
       <div className="body has-flow-cta" onFocusCapture={scrollFocusedIntoView}>
         {showSummary && (
           <div className="pay-card pay-sum" style={{ margin: '0 12px 12px' }} aria-label={tr('Підсумок платежу')}>
-            <div>
-              <div className="pay-sum-l">{tr('Очікується')}</div>
-              <div className="pay-sum-v">{due != null ? formatPrice(due, user?.currency) : '—'}</div>
-            </div>
+            {canEditDue ? (
+              <button
+                type="button"
+                className="pay-sum-edit"
+                onClick={() => navigate('payment-due', { propertyId, dbId, dueDate })}
+                aria-label={tr('Змінити суму за період: {0}', due != null ? formatPrice(due, user?.currency) : '—')}
+              >
+                {/* span, а не div: вміст кнопки — лише фразовий за специфікацією. */}
+                <span className="pay-sum-l">{tr('Очікується')}<IconEdit size={12} /></span>
+                <span className="pay-sum-v">{due != null ? formatPrice(due, user?.currency) : '—'}</span>
+              </button>
+            ) : (
+              <div>
+                <div className="pay-sum-l">{tr('Очікується')}</div>
+                <div className="pay-sum-v">{due != null ? formatPrice(due, user?.currency) : '—'}</div>
+              </div>
+            )}
+            {received > 0 && (<>
             <div>
               <div className="pay-sum-l">{tr('Отримано')}</div>
               <div className="pay-sum-v" style={{ color: 'var(--ok-fg)' }}>{formatPrice(received, user?.currency)}</div>
@@ -362,6 +395,7 @@ export default function PaymentConfirmScreen() {
                 {formatPrice(overpaid > 0 ? overpaid : remaining, user?.currency)}
               </div>
             </div>
+            </>)}
           </div>
         )}
 
@@ -453,6 +487,10 @@ export default function PaymentConfirmScreen() {
                   >
                     <PartText
                       day={new Date(p.paid_at).toLocaleDateString(locale(), { day: 'numeric', month: 'long' })}
+                      // Хто вписав (073) — лише коли це НЕ ти: власнику важливо
+                      // бачити гроші, записані редактором, а «ви, ви, ви» під
+                      // кожним власним надходженням — шум.
+                      who={p.created_by && p.created_by !== user?.id ? (p.created_by_name ?? null) : null}
                       note={p.notes ?? null}
                       amount={formatPrice(p.amount, user?.currency)}
                     />
@@ -484,11 +522,15 @@ export default function PaymentConfirmScreen() {
   )
 }
 
-function PartText({ day, note, amount }: { day: string; note: string | null; amount: string }) {
+function PartText({ day, who, note, amount }: { day: string; who?: string | null; note: string | null; amount: string }) {
   return (
     <>
       <span style={{ flex: 1, minWidth: 0 }}>
-        <span style={{ display: 'block', fontSize: 'var(--fs-note)', fontWeight: 'var(--fw-semi)', color: 'var(--t1)' }}>{day}</span>
+        <span style={{ display: 'block', fontSize: 'var(--fs-note)', fontWeight: 'var(--fw-semi)', color: 'var(--t1)' }}>
+          {day}
+          {/* Імʼя без дієслова: «вписав/вписала» вимагало б статі, якої ми не знаємо. */}
+          {who && <span className="part-who"><IconUser size={12} />{who}</span>}
+        </span>
         {note && (
           <span style={{ display: 'block', fontSize: 'var(--fs-cap1)', color: 'var(--t2)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{note}</span>
         )}

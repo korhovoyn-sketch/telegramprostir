@@ -619,6 +619,65 @@ export const OWNER_SCREENS: ScreenStep[] = [
     },
   },
   {
+    // СУМА ЗА ПЕРІОД і АВТОР надходження (072/073) — ще один стан форми:
+    // клітинка «Очікується» стає кнопкою, а надходження, вписане редактором,
+    // несе його імʼя. Обидві таблиці харнес вважає відсутніми (стан проду до
+    // накату), тож крок вмикає їх сам.
+    label: 'payment-confirm-due',
+    go: async (page) => {
+      await paymentFixtures(page)
+      await page.route('**/rest/v1/rent_payment_parts**', (r) => json(r, [{
+        id: '72000000-0000-0000-0000-000000000001', record_id: PARTIAL_RECORD_ID,
+        amount: 1000, paid_at: `${monthDay(-1, 6)}T10:00:00.000Z`, notes: 'Готівка', created_at: NOW,
+        created_by: '00000000-0000-0000-0000-0000000000e1', created_by_name: 'Оля Редакторка',
+      }]))
+      await page.route('**/rest/v1/property_rent_terms**', (r) => json(r, []))
+      await viaDbMenu(page, 'Календар платежів', /Календар платежів|Платежі —/)
+      await page.getByRole('button', { name: /Доплата/ }).first().click()
+      await expect(page.getByRole('button', { name: /Змінити суму за період/ })).toBeVisible({ timeout: 15_000 })
+      await expect(page.locator('.part-who')).toContainText('Оля Редакторка')
+    },
+  },
+  {
+    // Сам екран суми за період; менша за отримане сума показує наслідок
+    // («період стане оплаченим») — його колір теж треба міряти.
+    label: 'payment-due',
+    go: async (page) => {
+      await paymentFixtures(page)
+      await page.route('**/rest/v1/rent_payment_parts**', (r) => json(r, []))
+      await page.route('**/rest/v1/property_rent_terms**', (r) => json(r, []))
+      await viaDbMenu(page, 'Календар платежів', /Календар платежів|Платежі —/)
+      await page.getByRole('button', { name: /Доплата/ }).first().click()
+      await page.getByRole('button', { name: /Змінити суму за період/ }).click({ timeout: 15_000 })
+      const field = page.getByLabel('Сума до сплати за період')
+      await expect(field).toBeVisible({ timeout: 15_000 })
+      await field.fill('900')
+      await field.blur()
+      await expect(page.locator('.pay-hint')).toBeVisible()
+    },
+  },
+  {
+    // ЖУРНАЛ ЗМІН (073) — зі вмістом: порожній стан не показав би ані рядків
+    // подій, ані груп днів. Час — від справжнього сьогодні (обхід годинника
+    // не морозить), тож групи «Сьогодні» і «Вчора» існують завжди.
+    label: 'db-activity',
+    go: async (page) => {
+      const at = (hoursAgo: number) => new Date(Date.now() - hoursAgo * 3_600_000).toISOString()
+      const ev = (i: number, kind: string, details: Record<string, unknown>, hoursAgo: number, actor: string | null, actorName: string | null) => ({
+        id: `75000000-0000-0000-0000-00000000000${i}`, db_id: DB_ID, property_id: PROPERTIES[0].id,
+        property_name: 'Офіс 101', actor_id: actor, actor_name: actorName, kind, details, created_at: at(hoursAgo),
+      })
+      await page.route('**/rest/v1/db_activity**', (r) => json(r, [
+        ev(1, 'payment_received', { due_date: monthDay(-1, 5), amount: 1000 }, 1, '00000000-0000-0000-0000-0000000000e1', 'Оля Редакторка'),
+        ev(2, 'terms_changed', { from: { rent_rate: 16, rent_type: 'per_m2' }, to: { rent_rate: 18, rent_type: 'per_m2' } }, 2, OWNER.id, 'Микола'),
+        ev(3, 'property_rented', { tenant: 'ТОВ «Альфа Трейд»' }, 30, '00000000-0000-0000-0000-0000000000e1', 'Оля Редакторка'),
+        ev(4, 'file_deleted', { name: 'Договір оренди 2025.pdf' }, 31, OWNER.id, 'Микола'),
+      ]))
+      await viaDbMenu(page, 'Журнал змін', /Журнал змін/)
+      await expect(page.locator('.act-row').first()).toBeVisible({ timeout: 15_000 })
+    },
+  },
+  {
     // ПЕРШИЙ екран нового власника, і доти поза обходом. Крок ОСТАННІЙ у групі
     // свідомо: він підміняє `databases` порожнім списком, а роути живуть на
     // сторінці до кінця прогону — вище він забрав би дані в усіх сусідів.

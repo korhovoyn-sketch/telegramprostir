@@ -19,7 +19,7 @@ import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import ActionSheet from '@/components/ui/ActionSheet'
 import { useLatch } from '@/lib/useLatch'
 import Collapsible from '@/components/ui/Collapsible'
-import { IconCheck, IconPlus, IconDots, IconPhoto, IconChevronUp, IconChevronDown, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconCopy, IconUser, IconUsers, IconFile, IconLayers, IconLayoutGrid, IconChartBar, IconKey, IconFileExport, IconCircleCheck, IconAdjustments, IconTrash, IconChevronRight, IconFolder, IconInbox, IconArchive } from '@/components/Icons'
+import { IconCheck, IconPlus, IconDots, IconPhoto, IconChevronUp, IconChevronDown, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconCopy, IconUser, IconUsers, IconFile, IconLayers, IconLayoutGrid, IconChartBar, IconKey, IconFileExport, IconCircleCheck, IconAdjustments, IconTrash, IconChevronRight, IconFolder, IconInbox, IconArchive, IconClock } from '@/components/Icons'
 import DatabaseStatsPanel from '@/components/ui/DatabaseStatsPanel'
 import FloatingButton from '@/components/ui/FloatingButton'
 import { overridesLandlord, formatPrice, monthlyRent, calcRentUtils, basisArea, floorSortKey, computedRentUnit, rentUnitLabel, objectsWord, DB_TYPE_LABELS, formatLeasePeriod, STATUS_COLORS, matchesQuery } from '@/lib/utils'
@@ -951,6 +951,9 @@ export default function DatabaseObjectsScreen() {
               // команди — він створює ті самі оренди, тож ховати від нього
               // історію було б брехнею про те, хто що зробив.
               { Icon: IconArchive,     label: tr('Архів оренд'),           nav: true,  danger: false, action: () => { setShowMenu(false); navigate('tenancy-archive', { dbId: db.id }) } },
+              // Так само не owner-only (073): журнал і є відповіддю власнику на
+              // «хто це зробив», а редактору — що зробили інші в тій самій базі.
+              { Icon: IconClock,       label: tr('Журнал змін'),           nav: true,  danger: false, action: () => { setShowMenu(false); navigate('db-activity', { dbId: db.id }) } },
               ...(db.owner_id === user?.id ? [
                 { Icon: IconKey,       label: tr('Управління гостями'),    nav: true,  danger: false, action: () => { setShowMenu(false); navigate('manage-guests', { dbId: db.id }) } },
                 { Icon: IconUsers,     label: tr('Команда'),               nav: true,  danger: false, action: () => { setShowMenu(false); navigate('team', { dbId: db.id }) } },

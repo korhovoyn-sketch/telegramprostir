@@ -3,8 +3,8 @@
 import { useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAppStore } from '@/store/appStore'
-import { basisArea, daysUntil, monthlyRent } from '@/lib/utils'
-import { dueDateFor, isOwedUnderLease, isPartialRecord, owedFrom, remainingFor, trackedFromOffset, ARREARS_MONTHS_MAX, TENANCY_SPAN_COLUMNS, type TenancySpan } from '@/lib/rentPayments'
+import { daysUntil } from '@/lib/utils'
+import { dueDateFor, expectedRentAt, isOwedUnderLease, isPartialRecord, owedFrom, remainingFor, trackedFromOffset, ARREARS_MONTHS_MAX, RENT_TERMS_COLUMNS, TENANCY_SPAN_COLUMNS, type RentTermsFields, type RentTermsRow, type TenancySpan } from '@/lib/rentPayments'
 import { fetchAllRowsOptional } from '@/lib/fetchAll'
 
 /**
@@ -101,6 +101,12 @@ export function useUpcomingPayments() {
         .from('tenancies').select(TENANCY_SPAN_COLUMNS)
         .in('property_id', ids).is('ended_at', null)
         .then(({ data, error }) => (error ? null : (data ?? []) as TenancySpan[]), () => null)
+      // Історія умов (072): борг рахується за ставкою, що діяла ТОДІ. Без неї —
+      // поточна ставка, як і доти.
+      const termsP = supabase
+        .from('property_rent_terms').select(RENT_TERMS_COLUMNS)
+        .in('property_id', ids)
+        .then(({ data, error }) => (error ? null : (data ?? []) as RentTermsRow[]), () => null)
       type Rec = { property_id: string; due_date: string; status: string; amount: number | null; amount_due?: number | null }
       let recData: Rec[]
       try {
@@ -122,6 +128,7 @@ export function useUpcomingPayments() {
         setAlerts([]); return
       }
       const spans = await spansP
+      const terms = await termsP
 
       const paid = new Set(
         recData
@@ -149,7 +156,8 @@ export function useUpcomingPayments() {
         if (!Number.isFinite(days) || days > PAYMENT_ALERT_DAYS) continue
         // Та сама нормалізація, що в календарі: сира `rent_rate` для per_m2 —
         // це ставка за метр, і показувати її як суму до сплати було б брехнею.
-        const expected = p.rent_rate ? monthlyRent(basisArea(p.area_useful, p.area_total, p.area_basis), p.rent_rate, p.rent_type) : 0
+        // І за умовами СВОГО періоду: борг за серпень — за серпневою ставкою.
+        const expected = expectedRentAt({ ...(p as RentTermsFields), id: p.id }, terms, dueDate)
         const rec = byKey.get(`${row.property_id}|${dueDate}`)
         const partial = isPartialRecord(rec)
         mapped.push({
@@ -159,8 +167,9 @@ export function useUpcomingPayments() {
           tenantName: p.tenant_name,
           dueDate,
           // Частково оплачений чекає ЗАЛИШКУ: «$1 800» поруч із вже отриманою
-          // тисячею — це вдвічі більший борг, ніж є насправді.
-          amount: partial ? remainingFor(rec, expected) : expected,
+          // тисячею — це вдвічі більший борг, ніж є насправді. Суму періоду,
+          // задану руками (072), `remainingFor` бере з `amount_due`.
+          amount: remainingFor(rec, expected),
           partial,
           days,
           level: levelFor(days),

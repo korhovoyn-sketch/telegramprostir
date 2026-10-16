@@ -315,7 +315,60 @@ WITH checks(ord, item, migration, ok) AS (VALUES
   (60, 'record_rent_payment: authenticated так, anon ні', '071_partial_payments.sql',
       (SELECT COALESCE((SELECT has_function_privilege('authenticated', p.oid, 'EXECUTE')
                                AND NOT has_function_privilege('anon', p.oid, 'EXECUTE')
-                          FROM pg_proc p WHERE p.proname='record_rent_payment' LIMIT 1), false)))
+                          FROM pg_proc p WHERE p.proname='record_rent_payment' LIMIT 1), false))),
+
+  -- 072-1: історія умов — лише ЧИТАННЯ для клієнтів (урок 068). Друга
+  -- половина важливіша за першу: без неї «політика за зразком» відкрила б
+  -- запис мовчки, і «ставка, що діяла тоді» стала б тим, що захотіли.
+  (61, 'property_rent_terms: RLS, лише SELECT, запис клієнтам закритий', '072_rent_terms_history.sql',
+      (SELECT COALESCE((SELECT c.relrowsecurity FROM pg_class c
+                          WHERE c.relname='property_rent_terms' AND c.relkind='r'), false)
+          AND (SELECT COUNT(*) = 2 FROM pg_policies
+                WHERE tablename='property_rent_terms' AND cmd='SELECT'
+                  AND policyname IN ('rent_terms_owner_select','rent_terms_editor_select'))
+          AND (SELECT COUNT(*) = 0 FROM pg_policies
+                WHERE tablename='property_rent_terms' AND cmd <> 'SELECT')
+          AND CASE WHEN to_regclass('public.property_rent_terms') IS NULL THEN false
+                   ELSE NOT has_table_privilege('authenticated', 'public.property_rent_terms', 'INSERT') END)),
+
+  -- 072-2: ТРИГЕР, а не лише функція — без нього історія лишається порожньою
+  -- назавжди, і борг рахується з поточної ставки БЕЗ жодного сигналу.
+  (62, 'trg_record_rent_terms висить на properties', '072_rent_terms_history.sql',
+      (SELECT COUNT(*) = 1 FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
+        WHERE c.relname='properties' AND t.tgname='trg_record_rent_terms' AND NOT t.tgisinternal)),
+
+  -- 072-3: сума за період — authenticated так, anon ні (правило 12).
+  (63, 'set_rent_amount_due: authenticated так, anon ні', '072_rent_terms_history.sql',
+      (SELECT COALESCE((SELECT has_function_privilege('authenticated', p.oid, 'EXECUTE')
+                               AND NOT has_function_privilege('anon', p.oid, 'EXECUTE')
+                          FROM pg_proc p WHERE p.proname='set_rent_amount_due' LIMIT 1), false))),
+
+  -- 073-1: журнал змін — лише ЧИТАННЯ для клієнтів (урок 068): журнал, який
+  -- редактор може підправити, не відповідає на «хто це зробив».
+  (64, 'db_activity: RLS, лише SELECT, запис клієнтам закритий', '073_db_activity.sql',
+      (SELECT COALESCE((SELECT c.relrowsecurity FROM pg_class c
+                          WHERE c.relname='db_activity' AND c.relkind='r'), false)
+          AND (SELECT COUNT(*) = 2 FROM pg_policies
+                WHERE tablename='db_activity' AND cmd='SELECT'
+                  AND policyname IN ('activity_owner_select','activity_editor_select'))
+          AND (SELECT COUNT(*) = 0 FROM pg_policies
+                WHERE tablename='db_activity' AND cmd <> 'SELECT')
+          AND CASE WHEN to_regclass('public.db_activity') IS NULL THEN false
+                   ELSE NOT has_table_privilege('authenticated', 'public.db_activity', 'INSERT') END)),
+
+  -- 073-2: ТРИГЕРИ на всіх пʼяти таблицях. Таблиця без тригерів — це журнал,
+  -- що мовчить завжди, тобто «змін не було», яке читається як правда.
+  (65, 'журнал: тригери на properties, надходженнях, періодах, розкладі, документах, фото', '073_db_activity.sql',
+      (SELECT COUNT(*) = 6 FROM pg_trigger t
+        WHERE NOT t.tgisinternal AND t.tgname IN (
+          'trg_activity_property', 'trg_activity_rent_part', 'trg_activity_rent_record',
+          'trg_activity_rent_schedule', 'trg_activity_property_files', 'trg_activity_property_photos'))),
+
+  -- 073-3: автора надходження ставить сервер — інакше редактор міг би
+  -- «записати» гроші від імені власника.
+  (66, 'rent_payment_parts: автор ставиться тригером', '073_db_activity.sql',
+      (SELECT COUNT(*) = 1 FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
+        WHERE c.relname='rent_payment_parts' AND t.tgname='trg_stamp_rent_part_author' AND NOT t.tgisinternal))
 )
 SELECT
   CASE WHEN ok THEN '✅ OK     ' ELSE '❌ MISSING' END AS status,

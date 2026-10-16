@@ -639,3 +639,274 @@ BEGIN
 
   RAISE NOTICE '  ✓ 071: частково → оплачено → назад; сума заморожена; каскад; старий клієнт не губить грошей';
 END $$;
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- 072: УМОВИ ОРЕНДИ В ЧАСІ — історія ставок і сума за конкретний період
+-- ════════════════════════════════════════════════════════════════════════════
+-- Тригер мусить писати СТАРІ умови рівно тоді, коли вони змінились, — і
+-- мовчати, коли форма просто перезберегла ті самі значення (вона шле всі
+-- поля щоразу). Обидва боки тут, бо гард лише на «пише» пройшов би і на
+-- тригері, що пише ЗАВЖДИ, тобто вигадує зміни, яких не було.
+DO $$
+DECLARE
+  o  UUID := 'bbbbbbbb-0000-0000-0000-000000000072';
+  d  UUID := 'cccccccc-0000-0000-0000-000000000072';
+  p  UUID := 'dddddddd-0000-0000-0000-000000000721';
+  pl UUID := 'dddddddd-0000-0000-0000-000000000722';
+  v  JSONB;
+  r  RECORD;
+  n  INT;
+BEGIN
+  INSERT INTO users (id, tg_id, first_name, role) VALUES (o, 720001, 'Ставка', 'owner');
+  INSERT INTO databases (id, owner_id, name, type) VALUES (d, o, 'База 072', 'business_center');
+  INSERT INTO properties (id, db_id, owner_id, name, status, tenant_name, rent_type, rent_rate, area_total, area_basis) VALUES
+    (p,  d, o, 'Офіс 72', 'occupied', 'ТОВ Ставка', 'fixed', 1800, 50, 'total'),
+    (pl, d, o, 'Офіс 73', 'occupied', 'ФОП Легасі', 'fixed', 1800, 50, 'total');
+
+  -- ── Перейменування і перезбереження тих самих умов — НЕ зміна умов ──────
+  UPDATE properties SET name = 'Офіс 72а' WHERE id = p;
+  UPDATE properties SET rent_rate = 1800, rent_type = 'fixed', area_total = 50, area_basis = 'total' WHERE id = p;
+  SELECT count(*) INTO n FROM property_rent_terms WHERE property_id = p;
+  IF n <> 0 THEN RAISE EXCEPTION '072: перезбереження тих самих умов записало % «змін»', n; END IF;
+
+  -- ── Підняв ставку → в історії СТАРІ умови з міткою зміни ─────────────────
+  UPDATE properties SET rent_rate = 2000 WHERE id = p;
+  SELECT * INTO r FROM property_rent_terms WHERE property_id = p;
+  IF NOT FOUND THEN RAISE EXCEPTION '072: зміна ставки не записалась в історію'; END IF;
+  IF r.rent_rate <> 1800 OR r.rent_type <> 'fixed' OR r.area_total <> 50 THEN
+    RAISE EXCEPTION '072: в історію лягли НЕ старі умови (% / % / %)', r.rent_rate, r.rent_type, r.area_total;
+  END IF;
+  IF r.valid_until < now() - INTERVAL '1 minute' THEN
+    RAISE EXCEPTION '072: мітка зміни не «зараз» (%)', r.valid_until;
+  END IF;
+
+  -- Площа теж міняє суму для $/м² — і теж записується.
+  UPDATE properties SET area_total = 60 WHERE id = p;
+  SELECT count(*) INTO n FROM property_rent_terms WHERE property_id = p;
+  IF n <> 2 THEN RAISE EXCEPTION '072: зміна площі не записалась (% рядків)', n; END IF;
+
+  -- ── Сума за період: неоплачений період отримує свою суму ─────────────────
+  v := set_rent_amount_due(p, DATE '2026-08-05', 900);
+  IF v->>'error' IS NOT NULL OR v->>'status' IS DISTINCT FROM 'pending' OR (v->>'amount_due')::NUMERIC <> 900 THEN
+    RAISE EXCEPTION '072: сума неоплаченого періоду дала %', v;
+  END IF;
+
+  -- ── Із надходженнями: зміна суми ПЕРЕРАХОВУЄ стан ────────────────────────
+  v := record_rent_payment(p, DATE '2026-09-05', 1000, now(), NULL, 1800);
+  IF v->>'status' IS DISTINCT FROM 'partial' THEN RAISE EXCEPTION '072: фікстура: %', v; END IF;
+  -- Неповний місяць: домовились на $1 000 — період закритий.
+  v := set_rent_amount_due(p, DATE '2026-09-05', 1000);
+  IF v->>'status' IS DISTINCT FROM 'paid' THEN
+    RAISE EXCEPTION '072: сума, рівна отриманому, не закрила період (%)', v;
+  END IF;
+  SELECT * INTO r FROM rent_payment_records WHERE property_id = p AND due_date = DATE '2026-09-05';
+  IF r.status <> 'paid' OR r.amount <> 1000 OR r.amount_due <> 1000 THEN
+    RAISE EXCEPTION '072: період після зміни суми % / % / %', r.status, r.amount, r.amount_due;
+  END IF;
+  -- І назад: більша сума знову робить період частковим, гроші не губляться.
+  v := set_rent_amount_due(p, DATE '2026-09-05', 1500);
+  SELECT * INTO r FROM rent_payment_records WHERE property_id = p AND due_date = DATE '2026-09-05';
+  IF r.status <> 'partial' OR r.amount <> 1000 THEN
+    RAISE EXCEPTION '072: збільшена сума дала % / % (очікувано partial / 1000)', r.status, r.amount;
+  END IF;
+  -- Наступне надходження рахується від НОВОЇ суми, а не від старої ставки.
+  v := record_rent_payment(p, DATE '2026-09-05', 500, now(), NULL, 2000);
+  IF v->>'status' IS DISTINCT FROM 'paid' OR (v->>'amount_due')::NUMERIC <> 1500 THEN
+    RAISE EXCEPTION '072: доплата після зміни суми дала %', v;
+  END IF;
+
+  -- ── Період старого клієнта (сума без надходжень) не губить грошей ────────
+  INSERT INTO rent_payment_records (property_id, owner_id, due_date, paid_at, amount, status)
+  VALUES (pl, o, DATE '2026-08-05', now() - INTERVAL '20 day', 1800, 'paid');
+  v := set_rent_amount_due(pl, DATE '2026-08-05', 2000);
+  IF v->>'status' IS DISTINCT FROM 'partial' THEN
+    RAISE EXCEPTION '072: старе підтвердження не врахувалось у перерахунку (%)', v;
+  END IF;
+  SELECT amount INTO r FROM rent_payment_records WHERE property_id = pl AND due_date = DATE '2026-08-05';
+  IF r.amount <> 1800 THEN RAISE EXCEPTION '072: отримані $1 800 старого клієнта стали %', r.amount; END IF;
+
+  -- ── Ввід, якого не буває ──────────────────────────────────────────────────
+  v := set_rent_amount_due(p, DATE '2026-10-05', 0);
+  IF v->>'error' IS DISTINCT FROM 'invalid_amount' THEN RAISE EXCEPTION '072: нульова сума пройшла (%)', v; END IF;
+  v := set_rent_amount_due('dddddddd-0000-0000-0000-00000000ffff', DATE '2026-10-05', 100);
+  IF v->>'error' IS DISTINCT FROM 'not_found' THEN RAISE EXCEPTION '072: неіснуючий обʼєкт: %', v; END IF;
+  SELECT count(*) INTO n FROM rent_payment_records WHERE property_id = p AND due_date = DATE '2026-10-05';
+  IF n <> 0 THEN RAISE EXCEPTION '072: відхилений ввід лишив період'; END IF;
+
+  -- ── Історія йде разом з обʼєктом ─────────────────────────────────────────
+  DELETE FROM properties WHERE id = p;
+  SELECT count(*) INTO n FROM property_rent_terms WHERE property_id = p;
+  IF n <> 0 THEN RAISE EXCEPTION '072: історія умов пережила обʼєкт (% рядків)', n; END IF;
+
+  RAISE NOTICE '  ✓ 072: історія пише лише справжні зміни; сума періоду перераховує стан і не губить грошей';
+END $$;
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- 073: ХТО ЩО ЗРОБИВ — автор надходження і журнал змін бази
+-- ════════════════════════════════════════════════════════════════════════════
+-- Від postgres, але З особою в JWT: тригери питають `current_app_user_id()`,
+-- а RLS тут не предмет (вона — у verify-rls.sql). Кожна подія перевіряється
+-- разом із тим, ЧИЄЮ вона записана, а «тиша» — разом із позитивом поруч:
+-- журнал, що мовчить завжди, пройшов би всі «не записав зайвого».
+CREATE OR REPLACE FUNCTION pg_temp.as_user(p_tg BIGINT) RETURNS VOID
+LANGUAGE plpgsql AS $$ BEGIN
+  PERFORM set_config('request.jwt.claims',
+    CASE WHEN p_tg IS NULL THEN '' ELSE json_build_object('email', p_tg || '@telegram.propspace.app')::TEXT END,
+    false);
+END $$;
+
+DO $$
+DECLARE
+  o  UUID := 'bbbbbbbb-0000-0000-0000-000000000073';
+  e  UUID := 'bbbbbbbb-0000-0000-0000-000000000731';
+  d  UUID := 'cccccccc-0000-0000-0000-000000000073';
+  p  UUID := 'dddddddd-0000-0000-0000-000000000731';
+  pl UUID := 'dddddddd-0000-0000-0000-000000000732';
+  v  JSONB;
+  r  RECORD;
+  n  INT;
+  n0 INT;
+  part UUID;
+  f  UUID;
+BEGIN
+  INSERT INTO users (id, tg_id, first_name, last_name, role) VALUES
+    (o, 730001, 'Власник', 'Журналу', 'owner'),
+    (e, 730002, 'Редактор', NULL, 'realtor');
+  INSERT INTO databases (id, owner_id, name, type) VALUES (d, o, 'База 073', 'business_center');
+  INSERT INTO db_members (db_id, user_id, role, status) VALUES (d, e, 'editor', 'active');
+
+  -- ── Створення — подія з автором ───────────────────────────────────────────
+  PERFORM pg_temp.as_user(730001);
+  INSERT INTO properties (id, db_id, owner_id, name, status, rent_type, rent_rate) VALUES
+    (p, d, o, 'Офіс 73', 'free', 'fixed', 1800);
+  SELECT * INTO r FROM db_activity WHERE db_id = d AND kind = 'property_created';
+  IF NOT FOUND OR r.actor_id <> o OR r.actor_name <> 'Власник Журналу' OR r.property_name <> 'Офіс 73' THEN
+    RAISE EXCEPTION '073: створення обʼєкта не записалось або без автора (%)', r;
+  END IF;
+
+  -- ── Шум без змісту — не подія ─────────────────────────────────────────────
+  SELECT count(*) INTO n0 FROM db_activity WHERE db_id = d;
+  UPDATE properties SET sort_order = 500, description = 'ремонт' WHERE id = p;
+  SELECT count(*) INTO n FROM db_activity WHERE db_id = d;
+  IF n <> n0 THEN RAISE EXCEPTION '073: порядок/опис записали % подій', n - n0; END IF;
+
+  -- ── Здано, змінено орендаря, змінено ставку ───────────────────────────────
+  UPDATE properties SET status = 'occupied', tenant_name = 'ТОВ Перший' WHERE id = p;
+  SELECT * INTO r FROM db_activity WHERE db_id = d AND kind = 'property_rented';
+  IF r.details->>'tenant' IS DISTINCT FROM 'ТОВ Перший' THEN RAISE EXCEPTION '073: здача без орендаря (%)', r.details; END IF;
+  UPDATE properties SET tenant_name = 'ТОВ Другий' WHERE id = p;
+  SELECT * INTO r FROM db_activity WHERE db_id = d AND kind = 'tenant_changed';
+  IF r.details->>'from' IS DISTINCT FROM 'ТОВ Перший' OR r.details->>'to' IS DISTINCT FROM 'ТОВ Другий' THEN
+    RAISE EXCEPTION '073: зміна орендаря %', r.details;
+  END IF;
+  UPDATE properties SET rent_rate = 2000 WHERE id = p;
+  SELECT * INTO r FROM db_activity WHERE db_id = d AND kind = 'terms_changed';
+  IF (r.details->'from'->>'rent_rate')::NUMERIC <> 1800 OR (r.details->'to'->>'rent_rate')::NUMERIC <> 2000 THEN
+    RAISE EXCEPTION '073: зміна ставки %', r.details;
+  END IF;
+
+  -- ── Гроші вписує РЕДАКТОР: автор — він, і підробити не може ───────────────
+  PERFORM pg_temp.as_user(730002);
+  v := record_rent_payment(p, DATE '2026-09-05', 1000, now(), NULL, 2000);
+  SELECT * INTO r FROM rent_payment_parts WHERE id = (v->>'part_id')::UUID;
+  IF r.created_by IS DISTINCT FROM e OR r.created_by_name IS DISTINCT FROM 'Редактор' THEN
+    RAISE EXCEPTION '073: автор надходження % / % (очікувано редактор)', r.created_by, r.created_by_name;
+  END IF;
+  INSERT INTO rent_payment_parts (record_id, amount, paid_at, created_by, created_by_name)
+  VALUES ((v->>'record_id')::UUID, 100, now(), o, 'Власник Журналу') RETURNING id INTO part;
+  SELECT * INTO r FROM rent_payment_parts WHERE id = part;
+  IF r.created_by IS DISTINCT FROM e THEN
+    RAISE EXCEPTION '073: редактор ЗАПИСАВ гроші від імені власника (автор %)', r.created_by_name;
+  END IF;
+  -- Виправлення суми — подія, але автор лишається тим, хто вписав.
+  PERFORM pg_temp.as_user(730001);
+  UPDATE rent_payment_parts SET amount = 150, created_by = o WHERE id = part;
+  SELECT * INTO r FROM rent_payment_parts WHERE id = part;
+  IF r.created_by IS DISTINCT FROM e THEN RAISE EXCEPTION '073: виправлення переписало автора надходження'; END IF;
+  SELECT * INTO r FROM db_activity WHERE db_id = d AND kind = 'payment_edited';
+  IF NOT FOUND OR r.actor_id <> o OR (r.details->>'to')::NUMERIC <> 150 THEN
+    RAISE EXCEPTION '073: виправлення надходження не записалось (%)', r;
+  END IF;
+  SELECT count(*) INTO n FROM db_activity WHERE db_id = d AND kind = 'payment_received' AND actor_id = e;
+  IF n <> 2 THEN RAISE EXCEPTION '073: надходження редактора записались % раз (очікувано 2)', n; END IF;
+
+  -- ── Сума за період (072) — подія навіть для НОВОГО періоду ────────────────
+  v := set_rent_amount_due(p, DATE '2026-10-05', 900);
+  SELECT * INTO r FROM db_activity WHERE db_id = d AND kind = 'due_changed';
+  IF NOT FOUND OR (r.details->>'to')::NUMERIC <> 900 THEN RAISE EXCEPTION '073: сума за період не записалась (%)', r; END IF;
+
+  -- ── Скасування платежу — ОДНА подія, без каскаду «видалено надходження» ──
+  SELECT count(*) INTO n0 FROM db_activity WHERE db_id = d;
+  DELETE FROM rent_payment_records WHERE property_id = p AND due_date = DATE '2026-09-05';
+  SELECT count(*) INTO n FROM db_activity WHERE db_id = d;
+  IF n - n0 <> 1 THEN RAISE EXCEPTION '073: скасування платежу дало % подій (очікувано 1)', n - n0; END IF;
+  SELECT * INTO r FROM db_activity WHERE db_id = d AND kind = 'payment_cancelled';
+  IF (r.details->>'amount')::NUMERIC <> 1150 THEN RAISE EXCEPTION '073: скасовано не ту суму (%)', r.details; END IF;
+
+  -- ── Розклад: створення — подія, перезбереження тих самих значень — ні ────
+  INSERT INTO rent_payments (property_id, owner_id, due_day) VALUES (p, o, 5);
+  SELECT count(*) INTO n0 FROM db_activity WHERE db_id = d AND kind = 'schedule_set';
+  UPDATE rent_payments SET due_day = 5, is_active = true WHERE property_id = p;
+  SELECT count(*) INTO n FROM db_activity WHERE db_id = d AND kind = 'schedule_set';
+  IF n0 <> 1 OR n <> 1 THEN RAISE EXCEPTION '073: розклад: % подій після створення, % після перезбереження', n0, n; END IF;
+
+  -- ── Документи ─────────────────────────────────────────────────────────────
+  INSERT INTO property_files (property_id, owner_id, storage_path, file_name, mime_type)
+  VALUES (p, o, p || '/1_a.pdf', 'Договір.pdf', 'application/pdf') RETURNING id INTO f;
+  DELETE FROM property_files WHERE id = f;
+  SELECT count(*) INTO n FROM db_activity WHERE db_id = d AND kind IN ('file_added', 'file_deleted')
+    AND details->>'name' = 'Договір.pdf';
+  IF n <> 2 THEN RAISE EXCEPTION '073: документ: % подій (очікувано додано + видалено)', n; END IF;
+
+  -- ── Звільнення: орендар — з OLD, бо NEW його вже обнулив ─────────────────
+  UPDATE properties SET status = 'free', tenant_name = NULL WHERE id = p;
+  SELECT * INTO r FROM db_activity WHERE db_id = d AND kind = 'property_vacated';
+  IF r.details->>'tenant' IS DISTINCT FROM 'ТОВ Другий' THEN RAISE EXCEPTION '073: звільнення без орендаря (%)', r.details; END IF;
+
+  -- ── Без особи (крон, міграція) — не «хтось зробив» ───────────────────────
+  PERFORM pg_temp.as_user(NULL);
+  SELECT count(*) INTO n0 FROM db_activity WHERE db_id = d;
+  UPDATE properties SET name = 'Офіс 73 (крон)' WHERE id = p;
+  SELECT count(*) INTO n FROM db_activity WHERE db_id = d;
+  IF n <> n0 THEN RAISE EXCEPTION '073: дія без особи записалась у журнал'; END IF;
+
+  -- ── Перенесене підтвердження старого клієнта: без автора і без події ─────
+  PERFORM pg_temp.as_user(730001);
+  INSERT INTO properties (id, db_id, owner_id, name, status, tenant_name, rent_type, rent_rate)
+  VALUES (pl, d, o, 'Офіс 74', 'occupied', 'ФОП Легасі', 'fixed', 1800);
+  INSERT INTO rent_payment_records (property_id, owner_id, due_date, paid_at, amount, status)
+  VALUES (pl, o, DATE '2026-08-05', now() - INTERVAL '20 day', 1800, 'paid');
+  SELECT count(*) INTO n0 FROM db_activity WHERE db_id = d AND kind = 'payment_received';
+  v := record_rent_payment(pl, DATE '2026-08-05', 200, now(), NULL, NULL);
+  SELECT count(*) INTO n FROM rent_payment_parts pp JOIN rent_payment_records rr ON rr.id = pp.record_id
+   WHERE rr.property_id = pl AND pp.created_by IS NULL;
+  IF n <> 1 THEN RAISE EXCEPTION '073: перенесене підтвердження приписано тому, хто доплатив (% без автора)', n; END IF;
+  SELECT count(*) INTO n FROM db_activity WHERE db_id = d AND kind = 'payment_received';
+  IF n - n0 <> 1 THEN RAISE EXCEPTION '073: перенос старого підтвердження записав % подій «отримано»', n - n0; END IF;
+
+  -- ── Журнал НЕ СМІЄ ламати дію: збій запису події — лише WARNING ──────────
+  ALTER TABLE db_activity ADD CONSTRAINT zz_probe_fail CHECK (false) NOT VALID;
+  UPDATE properties SET name = 'Офіс 74а' WHERE id = pl;
+  SELECT name INTO r FROM properties WHERE id = pl;
+  IF r.name <> 'Офіс 74а' THEN RAISE EXCEPTION '073: збій журналу зламав саму дію'; END IF;
+  ALTER TABLE db_activity DROP CONSTRAINT zz_probe_fail;
+
+  -- ── Видалення обʼєкта — ОДНА подія, а не десять каскадних ───────────────
+  v := record_rent_payment(pl, DATE '2026-09-05', 300, now(), NULL, NULL);
+  SELECT count(*) INTO n0 FROM db_activity WHERE db_id = d;
+  DELETE FROM properties WHERE id = pl;
+  SELECT count(*) INTO n FROM db_activity WHERE db_id = d;
+  IF n - n0 <> 1 THEN RAISE EXCEPTION '073: видалення обʼєкта дало % подій (очікувано 1)', n - n0; END IF;
+  SELECT * INTO r FROM db_activity WHERE db_id = d AND kind = 'property_deleted';
+  IF r.property_name IS DISTINCT FROM 'Офіс 74а' OR r.property_id IS NOT NULL THEN
+    RAISE EXCEPTION '073: подія видалення без назви або з висячим id (%)', r;
+  END IF;
+
+  -- ── Видалення БАЗИ не падає на журналі ───────────────────────────────────
+  DELETE FROM databases WHERE id = d;
+  SELECT count(*) INTO n FROM db_activity WHERE db_id = d;
+  IF n <> 0 THEN RAISE EXCEPTION '073: журнал пережив базу (% рядків)', n; END IF;
+
+  PERFORM pg_temp.as_user(NULL);
+  RAISE NOTICE '  ✓ 073: подія — з автором; шум, каскад і система не пишуться; підробити автора не можна; журнал не ламає дію';
+END $$;

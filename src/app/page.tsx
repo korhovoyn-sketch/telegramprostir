@@ -51,12 +51,14 @@ const SharedCollectionScreen = dynamic(() => import('@/screens/SharedCollectionS
 const PaymentCalendarScreen = dynamic(() => import('@/screens/PaymentCalendarScreen'), { loading: () => screenFallback })
 const PaymentScheduleScreen = dynamic(() => import('@/screens/PaymentScheduleScreen'), { loading: () => screenFallback })
 const PaymentConfirmScreen = dynamic(() => import('@/screens/PaymentConfirmScreen'), { loading: () => screenFallback })
+const PaymentDueScreen = dynamic(() => import('@/screens/PaymentDueScreen'), { loading: () => screenFallback })
 const CreateInviteScreen = dynamic(() => import('@/screens/CreateInviteScreen'), { loading: () => screenFallback })
 const FolderManageScreen = dynamic(() => import('@/screens/FolderManageScreen'), { loading: () => screenFallback })
 const DbPickerScreen = dynamic(() => import('@/screens/DbPickerScreen'), { loading: () => screenFallback })
 const FolderPickerScreen = dynamic(() => import('@/screens/FolderPickerScreen'), { loading: () => screenFallback })
 const RentPropertyScreen = dynamic(() => import('@/screens/RentPropertyScreen'), { loading: () => screenFallback })
 const TenancyArchiveScreen = dynamic(() => import('@/screens/TenancyArchiveScreen'), { loading: () => screenFallback })
+const DbActivityScreen = dynamic(() => import('@/screens/DbActivityScreen'), { loading: () => screenFallback })
 const DeleteAccountScreen = dynamic(() => import('@/screens/DeleteAccountScreen'), { loading: () => screenFallback })
 
 /**
@@ -100,12 +102,14 @@ function screenFor(screen: ScreenName) {
     case 'payment-calendar': return <PaymentCalendarScreen />
     case 'payment-schedule': return <PaymentScheduleScreen />
     case 'payment-confirm': return <PaymentConfirmScreen />
+    case 'payment-due': return <PaymentDueScreen />
     case 'create-invite': return <CreateInviteScreen />
     case 'folder-manage': return <FolderManageScreen />
     case 'db-picker': return <DbPickerScreen />
     case 'folder-picker': return <FolderPickerScreen />
     case 'rent-property': return <RentPropertyScreen />
     case 'tenancy-archive': return <TenancyArchiveScreen />
+    case 'db-activity': return <DbActivityScreen />
     case 'delete-account': return <DeleteAccountScreen />
     default: return <SplashScreen />
   }

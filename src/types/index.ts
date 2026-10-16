@@ -304,12 +304,14 @@ export type ScreenName =
   | 'payment-calendar'
   | 'payment-schedule'
   | 'payment-confirm'
+  | 'payment-due'
   | 'create-invite'
   | 'folder-manage'
   | 'db-picker'
   | 'folder-picker'
   | 'rent-property'
   | 'tenancy-archive'
+  | 'db-activity'
   | 'delete-account'
 
 export interface RentPayment {
@@ -347,6 +349,9 @@ export interface RentPaymentPart {
   paid_at: string
   notes?: string | null
   created_at: string
+  /** Хто вписав (073). Ставить сервер; NULL — невідомо (перенесене старе). */
+  created_by?: string | null
+  created_by_name?: string | null
 }
 
 export interface ScreenParams {
@@ -376,4 +381,17 @@ export interface ScreenParams {
   photos?: unknown[]
   files?: unknown[]
   [key: string]: unknown
+}
+
+/** Подія журналу змін бази (073). Пишуть лише тригери сервера. */
+export interface DbActivity {
+  id: string
+  db_id: string
+  property_id: string | null
+  property_name: string | null
+  actor_id: string | null
+  actor_name: string | null
+  kind: string
+  details: Record<string, unknown>
+  created_at: string
 }
