@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { useAppStore } from '@/store/appStore'
+import { useAppSlice } from '@/store/appStore'
 import { useAuth } from '@/hooks/useAuth'
 import { DB_TYPE_LABELS, rentUnitLabel, objectsWord, DB_COLORS, STATUS_BADGE_CLS, formatPrice } from '@/lib/utils'
 import { IconBuilding, IconRuler, IconCurrencyDollar, IconX } from '@/components/Icons'
@@ -70,7 +70,7 @@ const STATUS_LABELS = (): Record<string, string> => ({
 
 
 export default function GuestDatabaseScreen() {
-  const { screenParams, back } = useAppStore()
+  const { screenParams, back } = useAppSlice('screenParams', 'back')
   const { loginViaTelegram } = useAuth()
   const token = (screenParams.token as string | undefined) ?? ''
   const guestMode = !!(screenParams.guestMode as boolean | undefined)

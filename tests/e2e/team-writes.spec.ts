@@ -204,24 +204,16 @@ test('холодний вхід без списку баз не збиває own
   // Рятує self-heal у `DatabaseObjectsScreen`: екран сам довантажує СВІЙ рядок
   // бази і кладе його в стор. Тест доводить, що ланцюг тримається, і падатиме,
   // якщо self-heal колись приберуть як «зайвий запит».
+  //
+  // Вхід — через дашборд рієлтора, і саме це робить його «холодним» для стору:
+  // дашборд тримає бази команди у ВЛАСНОМУ стані, а `databases` у сторі не
+  // наповнює, тож рядок бази для `owner_id` екран мусить дістати сам. (Доти тут
+  // стояла спроба зайти через `sessionStorage['ps_nav']` — такого механізму в
+  // застосунку немає, і тест щоразу мовчки йшов у фолбек. Холодний вхід deep
+  // link-ом покриває `access-entry.spec.ts`.)
   const sent: Sent[] = []
   await editorInMemberDb(page, sent, { emptyDbList: true })
-
-  await page.goto('/#')
-  await page.evaluate((id) => {
-    sessionStorage.setItem('ps_nav', JSON.stringify({ screen: 'db-objects', params: { dbId: id } }))
-  }, DB_ID)
-  await page.goto('/')
-  await expect(page.getByText('БЦ Рубін').first()).toBeVisible({ timeout: 20_000 }).catch(() => {})
-
-  // Якщо навігація через sessionStorage не підтримується — доходимо звичайним
-  // шляхом; сенс тесту в порожньому СПИСКОВОМУ запиті, а не в способі входу.
-  if (await page.getByLabel("Додати обʼєкт").count() === 0) {
-    await page.goto('/')
-    await expect(page.getByText('БЦ Рубін').first()).toBeVisible({ timeout: 20_000 })
-    await page.getByText('БЦ Рубін').first().click()
-    await expect(page.getByText(/Всі \(/)).toBeVisible({ timeout: 15_000 })
-  }
+  await openMemberDb(page)
 
   await page.getByLabel("Додати обʼєкт").click()
   await expect(page.getByText("Новий обʼєкт")).toBeVisible({ timeout: 15_000 })

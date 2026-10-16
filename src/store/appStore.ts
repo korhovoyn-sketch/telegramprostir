@@ -1,6 +1,7 @@
 'use client'
 
 import { create } from 'zustand'
+import { useShallow } from 'zustand/react/shallow'
 import type { User, Toast, ScreenName, ScreenParams, Database, Notification, ConfirmRequest } from '@/types'
 
 interface NavEntry {
@@ -174,3 +175,21 @@ export const useAppStore = create<AppState>((set, get) => ({
     })
   },
 }))
+
+/**
+ * Підписка лише на ПЕРЕЛІЧЕНІ поля стору: `const { user, navigate } =
+ * useAppSlice('user', 'navigate')`.
+ *
+ * Голий `useAppStore()` підписує компонент на ВЕСЬ стор, тож кожен тост,
+ * кожна зміна `isOnline` чи лічильника непрочитаних перемальовувала поточний
+ * екран разом з усіма його хуками — заміряно на списку з 200 обʼєктів. Порівняння
+ * поверхневе (`useShallow`): дії стору стабільні, тож компонент реагує лише на
+ * зміну даних, які справді читає. Гард — `store-subscriptions.test.ts`.
+ */
+export function useAppSlice<K extends keyof AppState>(...keys: K[]): Pick<AppState, K> {
+  return useAppStore(useShallow((s: AppState) => {
+    const out = {} as Pick<AppState, K>
+    for (const k of keys) out[k] = s[k]
+    return out
+  }))
+}

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { useAppStore } from '@/store/appStore'
+import { useAppSlice } from '@/store/appStore'
 import { offlineGuard } from '@/lib/offline'
 import { confirmAction } from '@/lib/confirm'
 import { useAuth } from '@/hooks/useAuth'
@@ -15,7 +15,7 @@ import { EMAIL_MAX, PHONE_MAX, isValidEmail, isValidPhone } from '@/lib/contact'
 import { tr, loadLang, persistLang, getLang } from '@/lib/i18n'
 
 export default function ProfileScreen() {
-  const { user, databases, setUser, navigate, showToast } = useAppStore()
+  const { user, databases, setUser, navigate, showToast } = useAppSlice('user', 'databases', 'setUser', 'navigate', 'showToast')
   const { logout, updateProfile } = useAuth()
 
   const [pushEnabled, setPushEnabled] = useState(user?.notification_push ?? true)
@@ -165,7 +165,8 @@ export default function ProfileScreen() {
 
   const initials = getInitials(user.first_name, user.last_name)
   const totalProps = databases.reduce((s, d) => s + (d._property_count ?? 0), 0)
-  const roleLabel = user.role === 'owner' ? tr('Власник') : tr('Ріелтор')
+  // Гість мав підпис «Ріелтор» — тернар знав лише дві ролі з трьох.
+  const roleLabel = user.role === 'owner' ? tr('Власник') : user.role === 'guest' ? tr('Гість') : tr('Ріелтор')
 
   return (
     <div className="scr bg-violet">

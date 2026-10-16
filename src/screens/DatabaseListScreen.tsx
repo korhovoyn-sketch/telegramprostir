@@ -1,13 +1,14 @@
 'use client'
 
 import { useEffect, useState, useMemo, useRef } from 'react'
-import { useAppStore } from '@/store/appStore'
+import { useAppSlice } from '@/store/appStore'
 import RetryState from '@/components/ui/RetryState'
 import { hapticImpact } from '@/lib/telegram'
 import { useDatabases } from '@/hooks/useDatabases'
 import { useSlowLoadingToast } from '@/hooks/useSlowLoadingToast'
 import { supabase } from '@/lib/supabase'
 import TabBar from '@/components/ui/TabBar'
+import OtherAccess from '@/components/OtherAccess'
 import SearchBar from '@/components/ui/SearchBar'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import CoachMark from '@/components/ui/CoachMark'
@@ -30,7 +31,7 @@ interface PropSearchResult {
 
 export default function DatabaseListScreen() {
   const fabHidden = useHideOnScrollDown()
-  const { user, navigate } = useAppStore()
+  const { user, navigate } = useAppSlice('user', 'navigate')
   const { databases, loading, error, loadDatabases } = useDatabases()
   useSlowLoadingToast(loading)
   // Саме перехід true→false, а не «зараз не вантажимо»: на першому кадрі
@@ -60,9 +61,10 @@ export default function DatabaseListScreen() {
   useEffect(() => { loadDatabases() }, [loadDatabases])
 
   // Debounced cross-db property search when query ≥ 3 chars
+  const userId = user?.id
   useEffect(() => {
     const pattern = searchPattern(search)
-    if (pattern.length < 3 || !user) { setPropResults([]); return }
+    if (pattern.length < 3 || !userId) { setPropResults([]); return }
     setPropSearching(true)
     const timer = setTimeout(async () => {
       try {
@@ -110,7 +112,7 @@ export default function DatabaseListScreen() {
       }
     }, 320)
     return () => clearTimeout(timer)
-  }, [search, user, databases])
+  }, [search, userId, databases])
 
   const filtered = useMemo(() =>
     databases.filter(db => matchesQuery(search, db.name, db.address)),
@@ -314,6 +316,10 @@ export default function DatabaseListScreen() {
             ))}
           </div>
         ) : null}
+
+        {/* Підписки й гостьові запрошення власника: ця вкладка сама їх не
+            показує, а інших шляхів до них немає (див. OtherAccess). */}
+        <OtherAccess show={['subscriptions', 'guest']} hidden={loading || !!search} />
       </div>
 
       <FloatingButton

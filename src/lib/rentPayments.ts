@@ -1,5 +1,5 @@
-import { basisArea, monthlyRent } from '@/lib/utils'
-import type { Property } from '@/types'
+import { basisArea, localDay, monthlyRent } from '@/lib/utils'
+import type { Property, RentPaymentRecord } from '@/types'
 import { locale } from './i18n'
 
 /**
@@ -14,13 +14,56 @@ import { locale } from './i18n'
 export const RENT_PAYMENT_COLUMNS =
   'id,property_id,owner_id,due_day,notify_days_before,is_active,created_at,updated_at'
 
+// `amount_due` — з 071, тож кожен запит із цим списком іде з ретраєм без неї
+// (`recordColumns(pre)`): фронт деплоїться раніше, ніж міграцію накочено.
 export const RENT_PAYMENT_RECORD_COLUMNS =
+  'id,property_id,owner_id,due_date,paid_at,amount,amount_due,status,notes,created_at,updated_at'
+
+// Літералом, а не `stripOptionalSelect(...)`: парсер типів supabase-js не
+// розбирає список колонок, зібраний у рантаймі (ParserError) — та сама пастка,
+// що з `landlord_name`. Що вони не розійшлись, тримає unit-гард.
+export const RENT_PAYMENT_RECORD_COLUMNS_PRE =
   'id,property_id,owner_id,due_date,paid_at,amount,status,notes,created_at,updated_at'
+
+// Автор (073) — опційний: на бекенді з 071, але без 073, повний список дав
+// би 400 на ВСЮ форму платежу, тож запит іде з ретраєм без нього.
+export const RENT_PAYMENT_PART_COLUMNS = 'id,record_id,amount,paid_at,notes,created_at,created_by,created_by_name'
+export const RENT_PAYMENT_PART_COLUMNS_PRE = 'id,record_id,amount,paid_at,notes,created_at'
+
+/**
+ * Таблиці надходжень немає — 071 не накочена. Тоді форма працює як доти:
+ * підтверджує лише ПОВНУ оплату. PostgREST віддає 404 з `PGRST205` (новіші
+ * версії) або `42P01` (старші); імʼя таблиці в повідомленні — запасний шлях.
+ */
+export function isPartsUnavailable(e: unknown): boolean {
+  const err = e as { code?: string; message?: string } | null
+  return err?.code === 'PGRST205' || err?.code === '42P01'
+    || /rent_payment_parts/i.test(err?.message ?? '')
+}
+
+/** Період отримав частину грошей, але не всі (071). */
+export function isPartialRecord(r: { status: string; amount?: number | null } | null | undefined): boolean {
+  return r?.status === 'partial' && (r.amount ?? 0) > 0
+}
+
+/**
+ * Скільки ще лишилось отримати за період. Очікувана — ЗАМОРОЖЕНА в періоді
+ * (`amount_due`), а не поточна ставка: ставку могли підняти після першого
+ * надходження, і старий борг не сміє рости заднім числом. Без заморожених
+ * даних (бекенд без 071) — поточна очікувана.
+ */
+export function remainingFor(r: Pick<RentPaymentRecord, 'amount' | 'amount_due'> | null | undefined, expected: number): number {
+  const due = r?.amount_due ?? expected
+  return Math.max(0, Math.round((due - (r?.amount ?? 0)) * 100) / 100)
+}
+
+/** Поля обʼєкта, з яких рахується очікувана сума. */
+export type RentTermsFields = Pick<Property, 'rent_rate' | 'rent_type' | 'area_useful' | 'area_total' | 'area_basis'>
 
 // Expected monthly rent for a property. rent_rate alone is WRONG for per_m2
 // (it's the $/m² rate) and for per_day (daily) — monthlyRent normalises every
 // unit to a month so the confirm-payment default matches the other screens.
-export function expectedRent(p: Property): number {
+export function expectedRent(p: RentTermsFields): number {
   if (!p.rent_rate) return 0
   // Площа — через `basisArea`, а не сира `area_useful`. Міграція 042 зробила
   // `area_basis` тим, що ВИРІШУЄ, на яку площу множиться $/м²-ставка, і всі
@@ -29,6 +72,66 @@ export function expectedRent(p: Property): number {
   // решта застосунку, — а вона потрапляє в `rent_payment_records.amount`, тобто
   // стає архівним записом про те, скільки нібито отримали.
   return monthlyRent(basisArea(p.area_useful, p.area_total, p.area_basis), p.rent_rate, p.rent_type)
+}
+
+/** Рядок історії умов (072): СТАРІ умови і мить, до якої вони діяли. */
+export interface RentTermsRow {
+  property_id: string
+  rent_rate: number | null
+  rent_type: string | null
+  area_basis: string | null
+  area_useful: number | null
+  area_total: number | null
+  valid_until: string
+}
+
+export const RENT_TERMS_COLUMNS = 'id,property_id,rent_rate,rent_type,area_basis,area_useful,area_total,valid_until'
+
+/**
+ * Умови, що діяли на дату платежу.
+ *
+ * Без цього очікувана сума неоплаченого періоду бралась із ПОТОЧНОЇ ставки:
+ * підняв оренду в жовтні — і серпневий борг ріс заднім числом. Історія (072)
+ * зберігає СТАРІ умови з міткою, до якої вони діяли, тож умови на дату D —
+ * це найраніший рядок, що діяв ПІСЛЯ D, а без такого — поточні.
+ *
+ * Зміна в САМ день платежу діє на цей платіж: власник, що вписує нову ставку
+ * 5 листопада, має на увазі листопад. Порівняння — у ЛОКАЛЬНИХ днях, як і
+ * решта платіжних дат.
+ *
+ * Рядок без ставки пропускається: «ставки ще не було» означає, що її не
+ * вписали, а не що оренда коштувала нуль. Інакше борг за місяць до того, як
+ * власник заповнив ставку, показувався б без суми зовсім.
+ */
+export function termsAt<T extends RentTermsFields & { id: string }>(
+  p: T,
+  history: RentTermsRow[] | null,
+  dueDate: string,
+): RentTermsFields {
+  if (!history) return p
+  let hit: RentTermsRow | null = null
+  for (const h of history) {
+    if (h.property_id !== p.id || !(h.rent_rate && h.rent_rate > 0)) continue
+    if (localDay(h.valid_until) <= dueDate) continue
+    if (!hit || Date.parse(h.valid_until) < Date.parse(hit.valid_until)) hit = h
+  }
+  if (!hit) return p
+  return {
+    rent_rate: hit.rent_rate,
+    rent_type: (hit.rent_type ?? p.rent_type) as Property['rent_type'],
+    area_basis: (hit.area_basis ?? null) as Property['area_basis'],
+    area_useful: hit.area_useful,
+    area_total: hit.area_total,
+  }
+}
+
+/** Очікувана сума за конкретний період — за умовами, що діяли тоді. */
+export function expectedRentAt<T extends RentTermsFields & { id: string }>(
+  p: T,
+  history: RentTermsRow[] | null,
+  dueDate: string,
+): number {
+  return expectedRent(termsAt(p, history, dueDate))
 }
 
 export function fmtDueDate(dateStr: string): string {
@@ -88,4 +191,65 @@ export function trackedFromOffset(scheduleCreatedAt: string | null | undefined, 
   if (Number.isNaN(c.getTime())) return 0
   const diff = (c.getFullYear() - now.getFullYear()) * 12 + (c.getMonth() - now.getMonth())
   return Math.max(-ARREARS_MONTHS_MAX, Math.min(0, diff))
+}
+
+/** Період оренди — рівно те, що потрібно платежам із `tenancies` (067). */
+export interface TenancySpan {
+  property_id: string | null
+  tenant_name?: string | null
+  started_at: string
+  ended_at?: string | null
+}
+
+export const TENANCY_SPAN_COLUMNS = 'id,property_id,tenant_name,started_at,ended_at'
+
+/**
+ * З якої дати платежі обʼєкта — борг ЦІЄЇ оренди.
+ *
+ * Дата договору — головне джерело, але вона НЕОБОВʼЯЗКОВА. Без неї межі не
+ * було взагалі, а розклад звільнення не прибирає: обʼєкт, зданий повторно
+ * 10.09 без дати договору, діставав «Заборгованість» за всі місяці ПРОСТОЮ —
+ * від дня, коли розклад заводили для ПОПЕРЕДНЬОГО орендаря. Тобто новому
+ * орендарю приписувались чужі місяці, коли обʼєкт стояв порожній.
+ *
+ * Тому без дати договору межею стає ФАКТИЧНИЙ початок відкритої оренди з
+ * архіву (067): тригер відкриває рядок саме в мить здачі. Немає архіву
+ * (міграція не накочена, збій запиту) — межі немає, як і було: сховати борг
+ * за вигаданою датою гірше, ніж показати сумнівний.
+ */
+export function owedFrom(
+  leaseStart: string | null | undefined,
+  propertyId: string,
+  spans: TenancySpan[] | null,
+): string | null {
+  if (leaseStart) return leaseStart.slice(0, 10)
+  const open = spans?.find((t) => t.property_id === propertyId && !t.ended_at)
+  return open ? localDay(open.started_at) : null
+}
+
+/**
+ * Хто платив за дату — орендар тієї оренди, чий період її покриває.
+ *
+ * Архів платежів підписував КОЖЕН запис поточним орендарем обʼєкта, тож після
+ * зміни орендаря торішні гроші ФОП Іванова читались як платежі нового ТОВ.
+ * Для обліку оренди це не косметика: це відповідь на «хто мені платив».
+ *
+ * Межі — ті самі, що в `useTenancies`: `[started_at, ended_at)` у ЛОКАЛЬНИХ
+ * днях. Без архіву оренд (null) — поточний орендар, але лише для дат від
+ * початку його договору: решта невідома, і чесніше не підписати нічого.
+ */
+export function tenantOnDate(
+  propertyId: string,
+  dueDate: string,
+  spans: TenancySpan[] | null,
+  current: { status?: string | null; tenant_name?: string | null; lease_start_date?: string | null } | undefined,
+): string | null {
+  if (spans) {
+    const hit = spans.find((t) => t.property_id === propertyId
+      && localDay(t.started_at) <= dueDate
+      && (!t.ended_at || dueDate < localDay(t.ended_at)))
+    return hit?.tenant_name ?? null
+  }
+  if (!current || current.status !== 'occupied') return null
+  return isOwedUnderLease(dueDate, current.lease_start_date) ? (current.tenant_name ?? null) : null
 }

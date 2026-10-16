@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
-import { useAppStore } from '@/store/appStore'
+import { useAppSlice } from '@/store/appStore'
 import { supabase } from '@/lib/supabase'
 import { offlineGuard } from '@/lib/offline'
 import { isImage, MAX_INPUT_MB } from '@/lib/fileType'
@@ -22,7 +22,7 @@ interface UploadItem {
 }
 
 export default function PhotoUploadScreen() {
-  const { screenParams, back, showToast } = useAppStore()
+  const { screenParams, back, showToast } = useAppSlice('screenParams', 'back', 'showToast')
   const propertyId = screenParams.propertyId as string
   // МЕЖА НА ОБʼЄКТ, не на партію. Доти 20 обмежувало рівно один захід, а
   // `existingCount` читався лише заради нумерації — тобто 20 + 20 + 20 клалось

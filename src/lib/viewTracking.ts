@@ -67,6 +67,3 @@ export function recordPropertyView(propertyId: string, user: User | null) {
     action: 'view',
   }).then(() => {})
 }
-
-/** Лише для тестів: скинути вікно дедупу між кейсами. */
-export function __resetViewThrottle() { lastWrite.clear() }

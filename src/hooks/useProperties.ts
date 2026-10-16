@@ -6,7 +6,7 @@ import { humanizeDbError, objectsWord, withSortedPhotos } from '@/lib/utils'
 import { assertAffected } from '@/lib/dbWrite'
 import { isMissingOptionalColumn, stripOptionalKeys, stripOptionalSelect, withOptionalColumns } from '@/lib/optionalColumns'
 import { readSnapshot, writeSnapshot } from '@/lib/snapshot'
-import { useAppStore } from '@/store/appStore'
+import { useAppStore, useAppSlice } from '@/store/appStore'
 import type { Property, PropertyStatus } from '@/types'
 import { tr } from '@/lib/i18n'
 
@@ -77,7 +77,8 @@ export function useProperties(dbId?: string) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [properties, setProperties] = useState<Property[]>([])
-  const { user, showToast, navigate, backThenReplace } = useAppStore()
+  const { showToast, navigate, backThenReplace } = useAppSlice('showToast', 'navigate', 'backThenReplace')
+  const userId = useAppStore((s) => s.user?.id)
 
   // Mirror of `properties` for reading inside stable callbacks — screens
   // re-run their load effect off the callback identity, so loadProperties
@@ -95,23 +96,23 @@ export function useProperties(dbId?: string) {
   // «зміни не зберігаються». Ефект тримає кеш синхронним з будь-якою мутацією,
   // тож новий мутатор не може про це забути.
   useEffect(() => {
-    if (!user || properties.some((p) => p._stale)) return
+    if (!userId || properties.some((p) => p._stale)) return
     const full = fullListDbIdRef.current
-    if (full) { writeSnapshot(`props:${full}`, user.id, properties); return }
+    if (full) { writeSnapshot(`props:${full}`, userId, properties); return }
     // Екран деталей тримає ОДИН рядок (loadSingleProperty), але теж його мутує
     // (здати/звільнити, ставки). Вливаємо рядок у кеш списку його бази, щоб
     // список не намалював стару картку.
     for (const p of properties) {
       if (!p.db_id) continue
       const key = `props:${p.db_id}`
-      const cached = readSnapshot<Property[]>(key, user.id)
+      const cached = readSnapshot<Property[]>(key, userId)
       const i = cached?.findIndex((c) => c.id === p.id) ?? -1
       if (!cached || i === -1) continue
       const next = [...cached]
       next[i] = { ...cached[i], ...p }
-      writeSnapshot(key, user.id, next)
+      writeSnapshot(key, userId, next)
     }
-  }, [properties, user])
+  }, [properties, userId])
 
   const loadProperties = useCallback(async (id?: string) => {
     const targetDbId = id || dbId
@@ -121,8 +122,8 @@ export function useProperties(dbId?: string) {
     // this every visit opens on a skeleton. Paint the last known list
     // instantly and refresh silently in the background.
     let painted = propertiesRef.current.length > 0
-    if (!painted && user) {
-      const cached = readSnapshot<Property[]>(`props:${targetDbId}`, user.id)
+    if (!painted && userId) {
+      const cached = readSnapshot<Property[]>(`props:${targetDbId}`, userId)
       if (cached?.length) {
         fullListDbIdRef.current = targetDbId
         setProperties(cached.map((p) => ({ ...p, _stale: true })))
@@ -165,7 +166,7 @@ export function useProperties(dbId?: string) {
     } finally {
       setLoading(false)
     }
-  }, [dbId, user, showToast])
+  }, [dbId, userId, showToast])
 
   const loadSingleProperty = useCallback(async (propertyId: string) => {
     setLoading(true)
@@ -206,7 +207,7 @@ export function useProperties(dbId?: string) {
   const createProperty = useCallback(async (
     payload: Omit<Property, 'id' | 'owner_id' | 'created_at' | 'updated_at' | 'photos'>
   ) => {
-    if (!user) return
+    if (!userId) return
     setLoading(true)
     try {
       // Дані належать власнику БАЗИ: коли створює член команди, owner_id має
@@ -214,7 +215,7 @@ export function useProperties(dbId?: string) {
       // почнуть «губити» обʼєкт (і WITH CHECK редакторської політики це
       // однаково вимагає).
       const dbOwner = useAppStore.getState().databases.find(d => d.id === payload.db_id)?.owner_id
-      const row = { ...payload, owner_id: dbOwner ?? user.id }
+      const row = { ...payload, owner_id: dbOwner ?? userId }
       const primary = await supabase
         .from('properties')
         .insert(row)
@@ -244,18 +245,18 @@ export function useProperties(dbId?: string) {
     } finally {
       setLoading(false)
     }
-  }, [user, showToast, backThenReplace])
+  }, [userId, showToast, backThenReplace])
 
   // Bulk create — one INSERT for the whole batch (e.g. 10 parking spots at
   // once), so it's a single round-trip and either all rows land or none.
   const createProperties = useCallback(async (
     payloads: Omit<Property, 'id' | 'owner_id' | 'created_at' | 'updated_at' | 'photos'>[]
   ): Promise<boolean> => {
-    if (!user || payloads.length === 0) return false
+    if (!userId || payloads.length === 0) return false
     setLoading(true)
     try {
       const dbOwner = useAppStore.getState().databases.find(d => d.id === payloads[0].db_id)?.owner_id
-      const rows = payloads.map(p => ({ ...p, owner_id: dbOwner ?? user.id }))
+      const rows = payloads.map(p => ({ ...p, owner_id: dbOwner ?? userId }))
       const primary = await supabase
         .from('properties')
         .insert(rows)
@@ -287,7 +288,7 @@ export function useProperties(dbId?: string) {
     } finally {
       setLoading(false)
     }
-  }, [user, showToast, backThenReplace])
+  }, [userId, showToast, backThenReplace])
 
   const updateProperty = useCallback(async (
     id: string,

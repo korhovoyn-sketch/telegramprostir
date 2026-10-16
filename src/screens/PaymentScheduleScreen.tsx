@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { useAppStore } from '@/store/appStore'
+import { useAppSlice } from '@/store/appStore'
 import { useProperties } from '@/hooks/useProperties'
 import Header from '@/components/ui/Header'
 import RetryState from '@/components/ui/RetryState'
@@ -22,7 +22,7 @@ import { useClosingConfirmation } from '@/hooks/useTelegram'
  */
 export default function PaymentScheduleScreen() {
   useClosingConfirmation()
-  const { screenParams, user, showToast, back } = useAppStore()
+  const { screenParams, user, showToast, back } = useAppSlice('screenParams', 'user', 'showToast', 'back')
   const propertyId = screenParams.propertyId as string | undefined
   const dbId = screenParams.dbId as string | undefined
 

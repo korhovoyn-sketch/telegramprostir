@@ -304,12 +304,14 @@ export type ScreenName =
   | 'payment-calendar'
   | 'payment-schedule'
   | 'payment-confirm'
+  | 'payment-due'
   | 'create-invite'
   | 'folder-manage'
   | 'db-picker'
   | 'folder-picker'
   | 'rent-property'
   | 'tenancy-archive'
+  | 'db-activity'
   | 'delete-account'
 
 export interface RentPayment {
@@ -330,10 +332,26 @@ export interface RentPaymentRecord {
   due_date: string
   paid_at?: string | null
   amount?: number | null
-  status: 'pending' | 'paid' | 'overdue'
+  /** Заморожена очікувана сума періоду (071). NULL — невідома, або бекенд без 071. */
+  amount_due?: number | null
+  /** `partial` — є надходження, але менше за `amount_due` (071). */
+  status: 'pending' | 'paid' | 'overdue' | 'partial'
   notes?: string | null
   created_at: string
   updated_at: string
+}
+
+/** Одне надходження грошей за період (071). Підсумок періоду рахує сервер. */
+export interface RentPaymentPart {
+  id: string
+  record_id: string
+  amount: number
+  paid_at: string
+  notes?: string | null
+  created_at: string
+  /** Хто вписав (073). Ставить сервер; NULL — невідомо (перенесене старе). */
+  created_by?: string | null
+  created_by_name?: string | null
 }
 
 export interface ScreenParams {
@@ -350,6 +368,9 @@ export interface ScreenParams {
   /** Share-токен підбірки. Носити його ДАЛІ обовʼязково: read-only перегляд
    *  авторизується саме токеном, а не UUID підбірки (див. IDOR у 049). */
   colToken?: string
+  /** Share-токен ОБʼЄКТА для read-only оголошення в застосунку — коли
+   *  `prop_`-лінк відкрив той, хто до самого обʼєкта доступу не має. */
+  propToken?: string
   photoIndex?: number
   initialIndex?: number
   editMode?: boolean
@@ -360,4 +381,17 @@ export interface ScreenParams {
   photos?: unknown[]
   files?: unknown[]
   [key: string]: unknown
+}
+
+/** Подія журналу змін бази (073). Пишуть лише тригери сервера. */
+export interface DbActivity {
+  id: string
+  db_id: string
+  property_id: string | null
+  property_name: string | null
+  actor_id: string | null
+  actor_name: string | null
+  kind: string
+  details: Record<string, unknown>
+  created_at: string
 }

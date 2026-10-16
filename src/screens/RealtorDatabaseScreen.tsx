@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useMemo } from 'react'
-import { useAppStore } from '@/store/appStore'
+import { useAppSlice } from '@/store/appStore'
 import { recordDbView } from '@/lib/viewTracking'
 import RetryState from '@/components/ui/RetryState'
 import { supabase } from '@/lib/supabase'
@@ -21,12 +21,15 @@ import type { Database, Property, PropertyStatus, User } from '@/types'
 import { tr } from '@/lib/i18n'
 
 export default function RealtorDatabaseScreen() {
-  const { screenParams, navigate, showToast, user } = useAppStore()
+  const { screenParams, navigate, showToast, user } = useAppSlice('screenParams', 'navigate', 'showToast', 'user')
   const [db, setDb] = useState<Database | null>(null)
   const [owner, setOwner] = useState<User | null>(null)
   const [properties, setProperties] = useState<Property[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
+  // Два РІЗНІ стани, і злиті вони давали тупик: `gone` — рядка бази RLS
+  // більше не віддає (власник оновив чи відкликав посилання, 069 знімає
+  // підписку), тож «Перевір підключення» й «Повторити» не допоможуть ніколи.
+  const [error, setError] = useState<false | 'net' | 'gone'>(false)
   const [search, setSearch] = useState('')
   const [tab, setTab] = useState<'all' | PropertyStatus>('all')
 
@@ -46,7 +49,10 @@ export default function RealtorDatabaseScreen() {
           .select(pre ? PROPERTY_WITH_PHOTOS_PRE043 : PROPERTY_WITH_PHOTOS)
           .eq('db_id', screenParams.dbId!).order('created_at', { ascending: false })),
       ])
-      if (dbRes.error) throw dbRes.error
+      if (dbRes.error) {
+        if (dbRes.error.code === 'PGRST116') { setError('gone'); return }
+        throw dbRes.error
+      }
       if (propsRes.error) throw propsRes.error
       const dbData = dbRes.data as Database
       setDb(dbData)
@@ -59,7 +65,7 @@ export default function RealtorDatabaseScreen() {
         if (ownerData) setOwner(ownerData as User)
       }
     } catch (e) {
-      setError(true)
+      setError('net')
       showToast({ type: 'error', title: tr('Помилка завантаження'), subtitle: humanizeDbError(e) })
     } finally {
       setLoading(false)
@@ -94,7 +100,17 @@ export default function RealtorDatabaseScreen() {
   if (!db) return (
     <div className="scr bg-cyan">
       <Header title={tr('База')} backLabel={tr('Бази')} />
-      {error ? (
+      {error === 'gone' ? (
+        // У `.body`, а не просто в `.scr`: на десктопі саме вона ставить
+        // колонку читання, без неї текст лягав би від лівого краю рамки.
+        <div className="body">
+          <div className="empty-state" style={{ paddingTop: 48 }}>
+            <div className="empty-ic">🔒</div>
+            <div className="empty-h">{tr('Доступу до бази більше немає')}</div>
+            <div className="empty-s">{tr('Власник оновив або відкликав посилання. Попросіть у нього нове.')}</div>
+          </div>
+        </div>
+      ) : error ? (
         <RetryState title={tr('Помилка завантаження')} subtitle={tr('Перевір підключення і спробуй ще раз')} onRetry={load} />
       ) : (
         <div className="loader-wrap"><div className="loader" /></div>

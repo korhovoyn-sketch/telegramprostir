@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useAppStore } from '@/store/appStore'
+import { useAppSlice } from '@/store/appStore'
 import { offlineGuard } from '@/lib/offline'
 import { supabase } from '@/lib/supabase'
 import { stripOptionalSelect, withOptionalColumns } from '@/lib/optionalColumns'
@@ -1107,7 +1107,7 @@ async function generateCsv(
 const EXPORT_SELECT = 'id,db_id,owner_id,name,floor,status,area_useful,area_total,area_basis,rent_type,rent_rate,utilities_rate,has_parking,parking_spaces,description,address,utilities,sale_price,tenant_name,landlord_name,lease_start_date,lease_end_date,sort_order,created_at,updated_at,photos:property_photos(id,property_id,storage_path,sort_order,created_at)'
 
 export default function ExportScreen() {
-  const { screenParams, showToast, user, databases } = useAppStore()
+  const { screenParams, showToast, user, databases } = useAppSlice('screenParams', 'showToast', 'user', 'databases')
   const { dbId } = screenParams
   const [format, setFormat]           = useState('pdf')
   const [template, setTemplate]       = useState('classic')

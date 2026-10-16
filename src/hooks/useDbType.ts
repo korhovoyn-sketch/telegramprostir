@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useAppStore } from '@/store/appStore'
+import { useAppSlice } from '@/store/appStore'
 import { supabase } from '@/lib/supabase'
 
 /**
@@ -27,7 +27,7 @@ import { supabase } from '@/lib/supabase'
  * `OPTIONAL_COLUMNS` у `useProperties`).
  */
 export function useDbType(dbId: string | null | undefined) {
-  const { databases } = useAppStore()
+  const { databases } = useAppSlice('databases')
   const storedRow = databases.find((d) => d.id === dbId)
   const storedType = storedRow?.type
   const [fetched, setFetched] = useState<{ type: string; landlord_name?: string | null } | null>(null)

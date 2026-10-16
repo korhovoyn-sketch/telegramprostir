@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useMemo, useCallback } from 'react'
-import { useAppStore } from '@/store/appStore'
+import { useAppSlice } from '@/store/appStore'
 import RetryState from '@/components/ui/RetryState'
 import { confirmAction } from '@/lib/confirm'
 import { offlineGuard } from '@/lib/offline'
@@ -10,8 +10,9 @@ import { assertAffected } from '@/lib/dbWrite'
 import Header from '@/components/ui/Header'
 import { SkeletonList } from '@/components/ui/SkeletonLoader'
 import { IconAlertTriangle, IconCalendar, IconClock, IconPlus, IconTrash, IconFile, IconCheckCircle, IconArchive, IconLayers, IconCheck, IconX, IconEdit } from '@/components/Icons'
-import { formatPrice, humanizeDbError, objectsWord } from '@/lib/utils'
-import { RENT_PAYMENT_COLUMNS, RENT_PAYMENT_RECORD_COLUMNS, ARREARS_MONTHS_MAX, dueDateFor, expectedRent, fmtDueDate, isOwedUnderLease, trackedFromOffset } from '@/lib/rentPayments'
+import { formatPrice, humanizeDbError, objectsWord, pluralUk } from '@/lib/utils'
+import { RENT_PAYMENT_COLUMNS, RENT_TERMS_COLUMNS, ARREARS_MONTHS_MAX, TENANCY_SPAN_COLUMNS, dueDateFor, expectedRentAt, fmtDueDate, isOwedUnderLease, isPartialRecord, owedFrom, RENT_PAYMENT_RECORD_COLUMNS, RENT_PAYMENT_RECORD_COLUMNS_PRE, remainingFor, tenantOnDate, trackedFromOffset, type RentTermsRow, type TenancySpan } from '@/lib/rentPayments'
+import { fetchAllRows, fetchAllRowsOptional } from '@/lib/fetchAll'
 import type { Property, RentPayment, RentPaymentRecord } from '@/types'
 import { locale, tr } from '@/lib/i18n'
 
@@ -27,6 +28,8 @@ interface PaymentItem {
   schedule: RentPayment
   dueDate: string
   record: RentPaymentRecord | null
+  /** Очікувана сума ЗА ЦЕЙ період — за умовами, що діяли тоді (072). */
+  expected: number
   daysUntilDue: number
   monthOffset: number
 }
@@ -34,8 +37,20 @@ interface PaymentItem {
 type MonthCount = 1 | 2 | 3 | 6
 
 export default function PaymentCalendarScreen() {
-  const { screenParams, user, showToast, navigate } = useAppStore()
+  const { screenParams, user, showToast, navigate } = useAppSlice('screenParams', 'user', 'showToast', 'navigate')
+  // УСІ обʼєкти області (бази чи одного обʼєкта), а не лише зайняті. Поточні
+  // платежі рахуються по зайнятих, але АРХІВ — це історія, і обʼєкт, який
+  // звільнили, у ній лишається: доти його платежі зникали з архіву й із
+  // «Всього отримано за весь час», а без жодного зайнятого обʼєкта архів був
+  // недосяжний узагалі.
   const [properties, setProperties]   = useState<Property[]>([])
+  const occupied = useMemo(() => properties.filter(p => p.status === 'occupied'), [properties])
+  // Періоди оренд з архіву правовідносин (067). `null` — архіву немає або він
+  // не відповів: тоді межі й підписи працюють як до нього, без вигаданих дат.
+  const [spans, setSpans]             = useState<TenancySpan[] | null>(null)
+  // Історія умов оренди (072). `null` — історії немає: очікувана сума
+  // береться з поточних умов, як і доти.
+  const [terms, setTerms]             = useState<RentTermsRow[] | null>(null)
   const [schedules, setSchedules]     = useState<RentPayment[]>([])
   const [records, setRecords]         = useState<RentPaymentRecord[]>([])
   const [loading, setLoading]         = useState(true)
@@ -58,15 +73,15 @@ export default function PaymentCalendarScreen() {
   const dbId       = screenParams.dbId       as string | undefined
 
   // ── Initial load ────────────────────────────────────────────────────────────
+  const userId = user?.id
   const loadCurrent = useCallback(async () => {
-    if (!user) return
+    if (!userId) return
     setLoading(true)
     setLoadError(null)
     try {
       let propsQuery = supabase
         .from('properties')
         .select('id, db_id, owner_id, name, floor, status, rent_type, rent_rate, utilities_rate, tenant_name, lease_start_date, lease_end_date, area_useful, area_total, area_basis, sort_order, has_parking, parking_spaces, created_at, updated_at')
-        .eq('status', 'occupied')
       // Видимість обмежує RLS (власник / член команди / гість) — клієнтський
       // owner_id-фільтр ховав би бази команди від редактора.
 
@@ -78,16 +93,40 @@ export default function PaymentCalendarScreen() {
       if (propsErr) throw propsErr
       const props = (propsData ?? []) as unknown as Property[]
       setProperties(props)
-      if (props.length === 0) { setLoading(false); return }
+      setSpans(null)
+      setTerms(null)
+      if (props.length === 0) { setSchedules([]); setRecords([]); setLoading(false); return }
 
-      const ids = props.map(p => p.id)
+      const allIds = props.map(p => p.id)
+      const occIds = props.filter(p => p.status === 'occupied').map(p => p.id)
 
-      const { data: schedData, error: schedErr } = await supabase
-        .from('rent_payments').select(RENT_PAYMENT_COLUMNS).in('property_id', ids).eq('is_active', true)
-      if (schedErr) throw schedErr
-      setSchedules((schedData ?? []) as RentPayment[])
+      // Архів оренд — ДОДАТКОВЕ джерело: його збій чи відсутність (067 не
+      // накочена) не сміє забирати календар, тож він іде паралельно і без throw.
+      const spansP = fetchAllRows<TenancySpan>((from, to, first) => supabase
+        .from('tenancies').select(TENANCY_SPAN_COLUMNS, first ? { count: 'exact' } : undefined)
+        .in('property_id', allIds)
+        .order('started_at', { ascending: true }).order('id', { ascending: true })
+        .range(from, to)).then((rows) => rows, () => null)
+      // Так само додатково: без історії умов борг рахується з поточної ставки,
+      // як до 072, — це гірше, але не привід ховати календар.
+      const termsP = occIds.length === 0 ? Promise.resolve(null) : fetchAllRows<RentTermsRow>((from, to, first) => supabase
+        .from('property_rent_terms').select(RENT_TERMS_COLUMNS, first ? { count: 'exact' } : undefined)
+        .in('property_id', occIds)
+        .order('valid_until', { ascending: true }).order('id', { ascending: true })
+        .range(from, to)).then((rows) => rows, () => null)
 
-      await loadRecordsForIds(ids, monthsAhead)
+      if (occIds.length > 0) {
+        const { data: schedData, error: schedErr } = await supabase
+          .from('rent_payments').select(RENT_PAYMENT_COLUMNS).in('property_id', occIds).eq('is_active', true)
+        if (schedErr) throw schedErr
+        setSchedules((schedData ?? []) as RentPayment[])
+        await loadRecordsForIds(occIds, monthsAhead)
+      } else {
+        setSchedules([])
+        setRecords([])
+      }
+      setSpans(await spansP)
+      setTerms(await termsP)
     } catch (e) {
       const msg = humanizeDbError(e)
       setLoadError(msg)
@@ -96,7 +135,7 @@ export default function PaymentCalendarScreen() {
       setLoading(false)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, propertyId, dbId, showToast])
+  }, [userId, propertyId, dbId, showToast])
 
   useEffect(() => {
     loadCurrent()
@@ -104,7 +143,7 @@ export default function PaymentCalendarScreen() {
     setArchiveLoaded(false)
     setArchiveRecords([])
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [propertyId, dbId, user?.id])
+  }, [propertyId, dbId, userId])
 
   async function loadRecordsForIds(ids: string[], ahead: number) {
     // Назад — на всю глибину заборгованості, інакше оплачений борг минулого
@@ -116,22 +155,26 @@ export default function PaymentCalendarScreen() {
     // СПЛАЧЕНА оренда малюється як несплачена/прострочена, смуга місяця дає
     // 0/N, а плитка «Отримано» — нуль. Тобто збій запиту виглядав як «орендар
     // не заплатив» — найдорожча з можливих неправд на грошовому екрані.
-    const { data, error } = await supabase
-      .from('rent_payment_records').select(RENT_PAYMENT_RECORD_COLUMNS)
+    //
+    // Усі сторінки, а не першу: сервер обрізає відповідь межею `max_rows`
+    // МОВЧКИ, і на базі в сотню обʼєктів вікно в 14 місяців її перевищує —
+    // тобто сплачені платежі за хвостом сторінки малювались би боргом.
+    const rows = await fetchAllRowsOptional<RentPaymentRecord>((pre, pFrom, pTo, first) => supabase
+      .from('rent_payment_records').select(pre ? RENT_PAYMENT_RECORD_COLUMNS_PRE : RENT_PAYMENT_RECORD_COLUMNS, first ? { count: 'exact' } : undefined)
       .in('property_id', ids)
       .gte('due_date', from)
       .lte('due_date', to)
-      .order('due_date', { ascending: false })
-    if (error) throw error
-    setRecords((data ?? []) as RentPaymentRecord[])
+      .order('due_date', { ascending: false }).order('id', { ascending: true })
+      .range(pFrom, pTo))
+    setRecords(rows)
   }
 
   // Reload records when horizon changes (properties already loaded)
   useEffect(() => {
-    if (loading || properties.length === 0) return
+    if (loading || occupied.length === 0) return
     // Тепер `loadRecordsForIds` КИДАЄ на помилці, тож плаваючий виклик мусить
     // її ловити — інакше зміна горизонту давала б необроблену відмову промісу.
-    loadRecordsForIds(properties.map(p => p.id), monthsAhead).catch((e) => {
+    loadRecordsForIds(occupied.map(p => p.id), monthsAhead).catch((e) => {
       // Без записів нового горизонту кожен його платіж читався б несплаченим.
       setLoadError(humanizeDbError(e))
       showToast({ type: 'error', title: tr('Не вдалося оновити платежі'), subtitle: humanizeDbError(e) })
@@ -141,29 +184,34 @@ export default function PaymentCalendarScreen() {
 
   // Load archive lazily on tab switch — all paid records regardless of month
   useEffect(() => {
-    if (activeTab !== 'archive' || archiveLoaded || archiveLoading || properties.length === 0) return
+    // `archiveLoading` СВІДОМО не в гарді: запит, перерваний зміною залежностей
+    // (повтор завантаження екрана), скасовується прибиранням, і наступний прогін
+    // мусить почати новий — інакше прапорець «вантажиться» лишався б назавжди.
+    if (activeTab !== 'archive' || archiveLoaded || loading) return
+    // Обʼєктів немає зовсім — архів законно порожній, а не «ще вантажиться».
+    if (properties.length === 0) { setArchiveRecords([]); setArchiveLoaded(true); return }
     let cancelled = false
     const ids = properties.map(p => p.id)
     setArchiveLoading(true)
-    supabase
-      .from('rent_payment_records').select(RENT_PAYMENT_RECORD_COLUMNS)
+    // Усі сторінки: «Всього отримано за весь час» — це сума ВСІЄЇ історії, а
+    // сервер мовчки обрізає відповідь на 1000 рядках. Перша сторінка давала
+    // впевнену, але неповну суму саме у власника з найбільшою історією.
+    // Частково оплачені — теж: гроші, що вже прийшли, — це історія отриманого,
+    // і без них «Всього отримано» недораховувало б саме незакриті періоди.
+    fetchAllRowsOptional<RentPaymentRecord>((pre, from, to, first) => supabase
+      .from('rent_payment_records').select(pre ? RENT_PAYMENT_RECORD_COLUMNS_PRE : RENT_PAYMENT_RECORD_COLUMNS, first ? { count: 'exact' } : undefined)
       .in('property_id', ids)
-      .eq('status', 'paid')
-      .order('due_date', { ascending: false })
-      .then(({ data, error }) => {
+      .in('status', ['paid', 'partial'])
+      .order('due_date', { ascending: false }).order('id', { ascending: true })
+      .range(from, to))
+      .then((rows) => {
         if (cancelled) return
-        // Без цієї гілки збій малював «Архів порожній / Підтверджені платежі
-        // зʼявляться тут» — впевнену заяву, що орендар не платив ЖОДНОГО разу.
-        if (error) {
-          setArchiveLoading(false)
-          setArchiveError(true)
-          showToast({ type: 'error', title: tr('Не вдалося завантажити архів') })
-          return
-        }
-        setArchiveRecords((data ?? []) as RentPaymentRecord[])
+        setArchiveRecords(rows)
         setArchiveLoaded(true)
         setArchiveLoading(false)
       }, () => {
+        // Без цієї гілки збій малював «Архів порожній / Підтверджені платежі
+        // зʼявляться тут» — впевнену заяву, що орендар не платив ЖОДНОГО разу.
         if (cancelled) return
         setArchiveLoading(false)
         setArchiveError(true)
@@ -171,7 +219,7 @@ export default function PaymentCalendarScreen() {
       })
     return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, archiveLoaded, properties])
+  }, [activeTab, archiveLoaded, properties, loading])
 
   // ── Computed ─────────────────────────────────────────────────────────────────
   const paymentItems = useMemo<PaymentItem[]>(() => {
@@ -179,30 +227,31 @@ export default function PaymentCalendarScreen() {
     // Заборгованість: місяці ДО поточного, за які розклад уже існував, а оплати
     // немає. Без цього борг зникав 1-го числа разом із місяцем (monthOffset < 0
     // — окрема секція, у місячні вона не потрапляє).
-    for (const prop of properties) {
+    for (const prop of occupied) {
       const sched = schedules.find(s => s.property_id === prop.id)
       if (!sched) continue
+      const from = owedFrom(prop.lease_start_date, prop.id, spans)
       for (let m = trackedFromOffset(sched.created_at); m < 0; m++) {
         const dueDate = dueDateFor(m, sched.due_day)
         const record  = records.find(r => r.property_id === prop.id && r.due_date === dueDate) ?? null
-        if (record?.status === 'paid' || !isOwedUnderLease(dueDate, prop.lease_start_date)) continue
-        items.push({ property: prop, schedule: sched, dueDate, record, daysUntilDue: daysUntil(dueDate), monthOffset: m })
+        if (record?.status === 'paid' || !isOwedUnderLease(dueDate, from)) continue
+        items.push({ property: prop, schedule: sched, dueDate, record, expected: expectedRentAt(prop, terms, dueDate), daysUntilDue: daysUntil(dueDate), monthOffset: m })
       }
     }
     for (let m = 0; m < monthsAhead; m++) {
-      for (const prop of properties) {
+      for (const prop of occupied) {
         const sched = schedules.find(s => s.property_id === prop.id)
         if (!sched) continue
         const dueDate = dueDateFor(m, sched.due_day)
         const record  = records.find(r => r.property_id === prop.id && r.due_date === dueDate) ?? null
-        // Дата до початку договору — не борг. Запис, якщо він є, лишається
+        // Дата до початку оренди — не борг. Запис, якщо він є, лишається
         // видимим: це вже історія, а не тривога.
-        if (!record && !isOwedUnderLease(dueDate, prop.lease_start_date)) continue
-        items.push({ property: prop, schedule: sched, dueDate, record, daysUntilDue: daysUntil(dueDate), monthOffset: m })
+        if (!record && !isOwedUnderLease(dueDate, owedFrom(prop.lease_start_date, prop.id, spans))) continue
+        items.push({ property: prop, schedule: sched, dueDate, record, expected: expectedRentAt(prop, terms, dueDate), daysUntilDue: daysUntil(dueDate), monthOffset: m })
       }
     }
     return items
-  }, [properties, schedules, records, monthsAhead])
+  }, [occupied, spans, terms, schedules, records, monthsAhead])
 
   const monthSections = useMemo(() => {
     const today = new Date()
@@ -223,8 +272,8 @@ export default function PaymentCalendarScreen() {
   }, [paymentItems, monthsAhead, showOnlyUnpaid])
 
   const propsWithoutSchedule = useMemo(
-    () => properties.filter(p => !schedules.find(s => s.property_id === p.id)),
-    [properties, schedules]
+    () => occupied.filter(p => !schedules.find(s => s.property_id === p.id)),
+    [occupied, schedules]
   )
 
   const arrears = useMemo(
@@ -241,7 +290,10 @@ export default function PaymentCalendarScreen() {
       overdue:    cur.filter(i => i.daysUntilDue < 0  && i.record?.status !== 'paid').length + arrears.length,
       upcoming:   cur.filter(i => i.daysUntilDue >= 0 && i.record?.status !== 'paid').length,
       paid:       paidItems.length,
-      paidAmount: paidItems.reduce((s, i) => s + (i.record?.amount ?? 0), 0),
+      // Сума — УСЕ, що прийшло цього місяця, включно з частковими: $1 000 із
+      // $1 800 уже в кишені, і плитка «Отримано» без них брехала б. Лічильник
+      // закритих (`paid`) — лише повні.
+      paidAmount: cur.reduce((s, i) => s + (i.record?.status === 'paid' || isPartialRecord(i.record) ? (i.record?.amount ?? 0) : 0), 0),
     }
   }, [paymentItems, arrears])
 
@@ -324,6 +376,16 @@ export default function PaymentCalendarScreen() {
     return 'var(--t3)'
   }
 
+  // Колір ПІДПИСУ статусу — `-fg`-тон, а не той, що на крапці. Насичений
+  // `--err`/`--ok` читається як мітка, але текстом дає 4.05 і 4.18 над темною
+  // карткою: «Прострочено 40д» — це відповідь екрана, а не капшен.
+  function getStatusTextColor(item: PaymentItem): string {
+    if (item.record?.status === 'paid') return 'var(--ok-fg)'
+    if (item.daysUntilDue < 0)          return 'var(--err-fg)'
+    if (item.daysUntilDue <= 3)         return 'var(--warn-fg)'
+    return 'var(--t2)'
+  }
+
   function getStatusLabel(item: PaymentItem): string {
     if (item.record?.status === 'paid') return tr('Отримано')
     if (item.daysUntilDue < 0)  return tr('Прострочено {0}д', Math.abs(item.daysUntilDue))
@@ -388,7 +450,9 @@ export default function PaymentCalendarScreen() {
           // «Налаштувати», а лічильники — впевненим «0 прострочено»: збій
           // мережі видавав себе за відповідь про гроші.
           <RetryState subtitle={loadError} onRetry={loadCurrent} />
-        ) : properties.length === 0 ? (
+        ) : activeTab === 'current' && occupied.length === 0 ? (
+          // Лише на вкладці «Поточні»: архів — історія, і він лишається
+          // досяжним, навіть коли зараз не здано нічого.
           <div className="empty-state" style={{ paddingTop: 32 }}>
             <div className="empty-ic">📅</div>
             <div className="empty-h">{tr('Немає орендованих обʼєктів')}</div>
@@ -451,6 +515,7 @@ export default function PaymentCalendarScreen() {
                       key={`${item.property.id}-${item.dueDate}`}
                       item={item}
                       statusColor={getStatusColor(item)}
+                      textColor={getStatusTextColor(item)}
                       label={getStatusLabel(item)}
                       onMarkPaid={() => navigate('payment-confirm', { propertyId: item.property.id, dbId: item.property.db_id, dueDate: item.dueDate })}
                       onEdit={() => navigate('payment-schedule', { propertyId: item.property.id, dbId: item.property.db_id })}
@@ -477,13 +542,13 @@ export default function PaymentCalendarScreen() {
                       {section.label}
                     </span>
                     {section.totalCount > 0 && (
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ fontSize: 'var(--fs-cap2)', color: section.paidCount === section.totalCount ? 'var(--ok)' : 'var(--t3)', fontWeight: 'var(--fw-semi)' }}>
+                      <span className="pay-count">
+                        <span style={{ color: section.paidCount === section.totalCount ? 'var(--ok-fg)' : 'var(--t1)' }}>
                           {section.paidCount}/{section.totalCount}
                         </span>
                         <span style={{ display: 'flex', gap: 2 }}>
                           {Array.from({ length: section.totalCount }, (_, k) => (
-                            <span key={k} style={{ width: 14, height: 4, borderRadius: 2, background: k < section.paidCount ? 'var(--ok)' : 'var(--glass-3)', transition: 'background .35s ease' }} />
+                            <span key={k} style={{ width: 14, height: 4, borderRadius: 'var(--r-pill)', background: k < section.paidCount ? 'var(--ok)' : 'var(--glass-3)', transition: 'background .35s ease' }} />
                           ))}
                         </span>
                       </span>
@@ -495,6 +560,7 @@ export default function PaymentCalendarScreen() {
                         key={`${item.property.id}-${item.dueDate}`}
                         item={item}
                         statusColor={getStatusColor(item)}
+                        textColor={getStatusTextColor(item)}
                         label={getStatusLabel(item)}
                         onMarkPaid={() => navigate('payment-confirm', { propertyId: item.property.id, dbId: item.property.db_id, dueDate: item.dueDate })}
                         onEdit={() => navigate('payment-schedule', { propertyId: item.property.id, dbId: item.property.db_id })}
@@ -505,7 +571,7 @@ export default function PaymentCalendarScreen() {
                       />
                     ))}
                     {section.items.length === 0 && section.paidCount === section.totalCount && section.totalCount > 0 && (
-                      <div style={{ padding: '12px 14px', textAlign: 'center', fontSize: 'var(--fs-foot)', color: 'var(--ok)', fontWeight: 'var(--fw-semi)' }}>
+                      <div className="pay-card" style={{ padding: '12px 14px', textAlign: 'center', fontSize: 'var(--fs-foot)', color: 'var(--ok-fg)', fontWeight: 'var(--fw-semi)' }}>
                         <IconCheck size={14} /> {tr('Всі платежі за цей місяць підтверджено')}
                       </div>
                     )}
@@ -586,7 +652,7 @@ export default function PaymentCalendarScreen() {
                       {formatPrice(archiveTotal, user?.currency)}
                     </div>
                     <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 3 }}>
-                      {tr('{0} платежів · {1} міс.', archiveRecords.length, archiveByMonth.length)}
+                      {archiveRecords.length} {pluralUk(archiveRecords.length, tr('платіж'), tr('платежі'), tr('платежів'))} · {archiveByMonth.length} {tr('міс.')}
                     </div>
                   </div>
                 )}
@@ -597,7 +663,7 @@ export default function PaymentCalendarScreen() {
                     <div className="over">
                       <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconCalendar size={14} color="var(--info)" />{group.label}</span>
                       {group.total > 0 && (
-                        <span style={{ fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-bold)', color: 'var(--ok-fg)' }}>
+                        <span className="pay-count" style={{ fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-bold)', color: 'var(--ok-fg)' }}>
                           {formatPrice(group.total, user?.currency)}
                         </span>
                       )}
@@ -605,16 +671,20 @@ export default function PaymentCalendarScreen() {
                     <div className="list" style={{ marginBottom: 12 }}>
                       {group.records.map(rec => {
                         const prop = properties.find(p => p.id === rec.property_id)
+                        const payer = tenantOnDate(rec.property_id, rec.due_date, spans, prop)
+                        const partial = isPartialRecord(rec)
+                        const dot = partial ? 'var(--warn)' : 'var(--ok)'
                         return (
-                          <div key={rec.id} className="glass-s" style={{ borderRadius: 'var(--r-md)', padding: '12px 14px' }}>
+                          <div key={rec.id} className="pay-card">
+                            <div style={{ padding: '12px 14px' }}>
                             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                              <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--ok)', marginTop: 5, flexShrink: 0, boxShadow: '0 0 6px var(--ok)' }} />
+                              <div style={{ width: 8, height: 8, borderRadius: '50%', background: dot, marginTop: 5, flexShrink: 0, boxShadow: `0 0 6px ${dot}` }} />
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ fontSize: 'var(--fs-note)', fontWeight: 'var(--fw-semi)', color: 'var(--t1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                   {prop?.name ?? '—'}
                                 </div>
-                                {prop?.tenant_name && (
-                                  <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 1 }}>{prop.tenant_name}</div>
+                                {payer && (
+                                  <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 1 }}>{payer}</div>
                                 )}
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 5, flexWrap: 'wrap' }}>
                                   <span style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)' }}>{tr('за')}{' '}{fmtDueDate(rec.due_date)}</span>
@@ -624,6 +694,11 @@ export default function PaymentCalendarScreen() {
                                     </span>
                                   )}
                                 </div>
+                                {partial && (
+                                  <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--warn-fg)', fontWeight: 'var(--fw-semi)', marginTop: 3 }}>
+                                    {tr('Частково · залишок {0}', formatPrice(remainingFor(rec, prop ? expectedRentAt(prop, terms, rec.due_date) : 0), user?.currency))}
+                                  </div>
+                                )}
                                 {rec.notes && (
                                   <div style={{ fontSize: 'var(--fs-cap2)', color: 'var(--t3)', marginTop: 3, fontStyle: 'italic' }}>{rec.notes}</div>
                                 )}
@@ -649,17 +724,20 @@ export default function PaymentCalendarScreen() {
                                 Дії гейтяться наявністю `prop`: обʼєкт міг бути
                                 видалений, і тоді «Редагувати» вело б в екран без
                                 даних. */}
+                            </div>
                             {prop && (
-                              <div style={{ marginTop: 10, paddingTop: 8, display: 'flex', gap: 8, borderTop: '.5px solid rgba(255,255,255,.06)' }}>
+                              <div className="pay-acts">
                                 <button
+                                  type="button"
+                                  className="pay-act"
                                   onClick={() => navigate('payment-confirm', { propertyId: prop.id, dbId: prop.db_id, dueDate: rec.due_date })}
-                                  style={{ fontSize: 'var(--fs-cap2)', color: 'var(--t3)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0', display: 'flex', alignItems: 'center', gap: 4 }}
                                 >
                                   <IconEdit size={14} /> {tr('Редагувати')}
                                 </button>
                                 <button
+                                  type="button"
+                                  className="pay-act danger"
                                   onClick={() => handleUnpay(rec, prop.name)}
-                                  style={{ fontSize: 'var(--fs-cap2)', color: 'var(--err)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0', marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}
                                 >
                                   <IconX size={12} /> {tr('Скасувати платіж')}
                                 </button>
@@ -688,6 +766,7 @@ export default function PaymentCalendarScreen() {
 interface PaymentItemCardProps {
   item: PaymentItem
   statusColor: string
+  textColor: string
   label: string
   onMarkPaid: () => void
   onEdit: () => void
@@ -697,16 +776,23 @@ interface PaymentItemCardProps {
   userCurrency?: string
 }
 
-function PaymentItemCard({ item, statusColor, label, onMarkPaid, onEdit, onDeleteSchedule, onEditPaid, onUnpay, userCurrency }: PaymentItemCardProps) {
+function PaymentItemCard({ item, statusColor, textColor, label, onMarkPaid, onEdit, onDeleteSchedule, onEditPaid, onUnpay, userCurrency }: PaymentItemCardProps) {
   const isPaid     = item.record?.status === 'paid'
+  const isPartial  = isPartialRecord(item.record)
   // rent_rate — сира ставка ($/м² чи $/добу для per_m2/per_day), не сума до
-  // сплати. expectedRent() нормалізує до місяця — той самий шлях, що вже дає
-  // дефолт у модалці підтвердження платежу (рядок вище, expectedRent виклик).
-  // Без цього картка «Офіс, $18» показувала ставку замість реальних $1 800.
-  const displayAmt = isPaid ? (item.record?.amount ?? null) : (expectedRent(item.property) || null)
+  // сплати. `item.expected` нормалізована до місяця (`expectedRentAt`) — той
+  // самий шлях, що дає дефолт у формі підтвердження платежу. Без цього картка
+  // «Офіс, $18» показувала ставку замість реальних $1 800.
+  // Частково оплачений — показуємо ЗАЛИШОК: саме його ще чекають, а повна
+  // сума поруч з «отримано $1 000» читалась би як борг у $1 800. Очікувана —
+  // за умовами СВОГО періоду, а якщо суму періоду задали руками (072:
+  // неповний місяць, знижка) — саме вона: `remainingFor` бере `amount_due`.
+  const displayAmt = isPaid
+    ? (item.record?.amount ?? null)
+    : remainingFor(item.record, item.expected) || null
 
   return (
-    <div className="glass-s" style={{ borderRadius: 'var(--r-md)', overflow: 'hidden' }}>
+    <div className="pay-card">
       <div style={{ padding: '12px 14px', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
         <div style={{ width: 8, height: 8, borderRadius: '50%', background: statusColor, marginTop: 5, flexShrink: 0, boxShadow: `0 0 6px ${statusColor}` }} />
 
@@ -718,7 +804,7 @@ function PaymentItemCard({ item, statusColor, label, onMarkPaid, onEdit, onDelet
             <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 1 }}>{item.property.tenant_name}</div>
           )}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 5, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', color: statusColor }}>{label}</span>
+            <span style={{ fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', color: textColor }}>{label}</span>
             <span style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)' }}>{fmtDueDate(item.dueDate)}</span>
             {displayAmt != null && displayAmt > 0 && (
               <span style={{ fontSize: 'var(--fs-cap1)', fontWeight: isPaid ? 700 : 400, color: isPaid ? 'var(--ok-fg)' : 'var(--t2)' }}>
@@ -726,29 +812,31 @@ function PaymentItemCard({ item, statusColor, label, onMarkPaid, onEdit, onDelet
               </span>
             )}
           </div>
+          {isPartial && (
+            <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--warn-fg)', fontWeight: 'var(--fw-semi)', marginTop: 3 }}>
+              {tr('Отримано {0} з {1}', formatPrice(item.record?.amount ?? 0, userCurrency), formatPrice(item.record?.amount_due ?? item.expected, userCurrency))}
+            </div>
+          )}
           {isPaid && item.record?.notes && (
             <div style={{ fontSize: 'var(--fs-cap2)', color: 'var(--t3)', marginTop: 3, fontStyle: 'italic' }}>{item.record.notes}</div>
           )}
         </div>
 
         {!isPaid ? (
-          <button
-            onClick={onMarkPaid}
-            style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 'var(--r-pill)', background: 'var(--ok-bg)', border: '.5px solid var(--ok-bd)', color: 'var(--ok-fg)', fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', cursor: 'pointer', whiteSpace: 'nowrap' }}
-          >
-            <IconCheckCircle size={12} /> {tr('Отримано')}
+          <button type="button" className="pay-pill" onClick={onMarkPaid}>
+            {isPartial
+              ? <><IconPlus size={12} /> {tr('Доплата')}</>
+              : <><IconCheckCircle size={12} /> {tr('Отримано')}</>}
           </button>
         ) : (
           <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4 }}>
-            <button
-              onClick={onEditPaid}
-              style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '6px 10px', borderRadius: 'var(--r-pill)', background: 'var(--ok-bg)', border: '.5px solid var(--ok-bd)', color: 'var(--ok-fg)', fontSize: 'var(--fs-cap1)', fontWeight: 'var(--fw-semi)', cursor: 'pointer', whiteSpace: 'nowrap' }}
-            >
+            <button type="button" className="pay-pill" onClick={onEditPaid}>
               <IconCheck size={14} /> {tr('Сплачено')}
             </button>
             <button
+              type="button"
+              className="pay-x"
               onClick={onUnpay}
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: '50%', background: 'var(--err-bg)', border: '.5px solid rgba(255,59,48,.25)', color: 'var(--err)', fontSize: 'var(--fs-note)', cursor: 'pointer', flexShrink: 0 }}
               title={tr('Скасувати платіж')}
               // Явна назва, а не лише `title`: після переходу з «×» на іконку
               // текстового вузла в кнопки немає, тож імʼя бралося б із `title`
@@ -756,25 +844,19 @@ function PaymentItemCard({ item, statusColor, label, onMarkPaid, onEdit, onDelet
               // рішення — дві різні дії з однаковим імʼям для читалки.
               aria-label={tr('Скасувати цей платіж')}
             >
-              <IconX size={14} />
+              <span><IconX size={14} /></span>
             </button>
           </div>
         )}
       </div>
 
       {/* Bottom action row */}
-      <div style={{ padding: '6px 14px 10px', display: 'flex', gap: 8, borderTop: '.5px solid rgba(255,255,255,.06)' }}>
-        <button
-          onClick={onEdit}
-          style={{ fontSize: 'var(--fs-cap2)', color: 'var(--t3)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0' }}
-        >
+      <div className="pay-acts">
+        <button type="button" className="pay-act" onClick={onEdit}>
           <IconEdit size={14} /> {tr('Редагувати розклад')}
         </button>
-        <button
-          onClick={onDeleteSchedule}
-          style={{ fontSize: 'var(--fs-cap2)', color: 'var(--err)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0', marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}
-        >
-          <IconTrash size={12} /> {tr('Видалити')}
+        <button type="button" className="pay-act danger" onClick={onDeleteSchedule}>
+          <IconTrash size={12} /> {tr('Видалити розклад')}
         </button>
       </div>
     </div>

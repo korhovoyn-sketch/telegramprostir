@@ -523,6 +523,21 @@ body{
 .row:active{transform:scale(.985)}
 .row-ic{width:40px;height:40px;border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;font-size:var(--fs-lead);flex-shrink:0;border:var(--bd);color:#fff}
 .row-mn{flex:1;min-width:0}
+/* Рядок-КНОПКА (клікабельний рядок мусить бути <button>, як .sheet-row).
+   Скидаємо лише те, що UA-кнопка ставить інакше за <div>: ширину, шрифт,
+   колір і вирівнювання. Рамку й тло лишає .glass-s — border:none тут
+   перебив би її за специфічністю. */
+button.row{width:100%;font:inherit;color:inherit;text-align:left}
+.oa-key{background:var(--ok-bg)}
+/* Підпис рядка тут — ВИД доступу («Спільна база», «Команда», «Гостьовий
+   доступ»), тобто відповідь на питання «що я тут можу», а не капшен. Секція
+   стоїть під списком, нижче в градієнті, і на `--t3` заміряно 4.45:1. */
+.other-access .row-s{color:var(--t2)}
+/* Оголошення в застосунку (`prop_` для стороннього, SharedCollectionScreen). */
+.shared-desc{margin:12px var(--g3) 0;padding:var(--pad-card);border-radius:var(--r-md);font-size:var(--fs-foot);color:var(--t2);line-height:var(--lh-norm);white-space:pre-wrap;overflow-wrap:anywhere}
+.shared-owner{margin:12px var(--g3) 0;padding:var(--pad-card);border-radius:var(--r-md);display:flex;align-items:center;gap:11px}
+.shared-owner-act{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 16px;flex-shrink:0;border-radius:var(--r-pill);background:var(--info-bg);border:var(--bd);color:var(--t1);font:inherit;font-size:var(--fs-foot);font-weight:var(--fw-semi);text-decoration:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.shared-owner-act:active{transform:scale(.96)}
 /* Row primary name — Subhead Semibold (Apple list item title) */
 .row-t{font-size:var(--fs-sub);font-weight:var(--fw-semi);color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:var(--lh-snug)}
 /* Row secondary metadata — Caption 1 */
@@ -1495,6 +1510,79 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
 .step-btn{position:relative;width:32px;height:32px;border-radius:var(--r-xs);background:var(--glass-2);border:.5px solid var(--glass-bd);color:var(--t1);font-size:var(--fs-lead);line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .step-btn:disabled{color:var(--t4);cursor:default}
 .step-btn::after{content:'';position:absolute;inset:-7px}
+/* ПЛАТІЖНІ КАРТКИ. Календар стоїть на `.bg-teal`, який донизу стає
+   світло-зеленим, а картки були `.glass-s` — тобто майже прозорі. На кадрі з
+   розкладом (доти його не міряв ЖОДЕН гард: обхід мав лише стан «немає
+   розкладу») сума платежу дала 3.54:1, статус «Прострочено 40д» — 2.87, а
+   підпис дії «Отримано» — 2.23. Альфою не лікується: текст уже світлий.
+   Рецепт `.obj-card` (.52) не вистачив саме для архіву — він довший, і нижні
+   картки лягають на найсвітліше («Скасувати платіж» 4.18), тож ґрунт — токен
+   `--glass-off` (.62). */
+.pay-card{background:var(--glass-off);border-radius:var(--r-md);overflow:hidden}
+/* Дії картки: було `padding:2px 0` — зона дотику ~16px, і саме на «Видалити
+   розклад», що стоїть упритул до краю. Висота тепер РЕАЛЬНА (не `::after`:
+   картка клiпає, див. урок `.seg-b`), а рядок компенсує її меншим падінгом. */
+.pay-acts{display:flex;gap:8px;padding:0 14px;border-top:.5px solid rgba(255,255,255,.06)}
+.pay-act{min-height:44px;display:flex;align-items:center;gap:4px;padding:0;background:none;border:none;font-size:var(--fs-cap2);color:var(--t3);cursor:pointer;font-family:inherit}
+.pay-act.danger{color:var(--err-fg);margin-left:auto}
+/* Лічильник «сплачено/усього» в заголовку місяця і сума місяця в архіві
+   лежать ПРЯМО на градієнті, а не на картці: зелене на світло-зеленому низу
+   давало 1.44:1 і 2.27:1. Це ЦИФРИ (скільки отримано), тож їм темна пігулка,
+   а не капшенова приглушеність — підпис місяця поруч лишається капшеном. */
+.pay-count{display:flex;align-items:center;gap:6px;padding:3px 8px;border-radius:var(--r-pill);background:var(--glass-off);font-size:var(--fs-cap2);font-weight:var(--fw-semi)}
+/* Пігулки «Отримано»/«Сплачено»: темний ґрунт із зеленою рамкою, а не
+   тонований зелений — тонований над світлим низом градієнта давав 2.23:1. */
+.pay-pill{position:relative;flex-shrink:0;display:flex;align-items:center;gap:5px;min-height:36px;padding:0 12px;border-radius:var(--r-pill);background:var(--glass-off);border:.5px solid var(--ok-bd);color:var(--ok-fg);font-size:var(--fs-cap1);font-weight:var(--fw-semi);cursor:pointer;white-space:nowrap;font-family:inherit}
+/* −5, а не −4: `::after` міряється від ПАДІНГ-боксу, тобто без рамки .5px —
+   36 − 1 + 8 давало 43, і зонд фактичної зони чесно сказав «42». */
+.pay-pill::after{content:'';position:absolute;left:0;right:0;top:-5px;bottom:-5px}
+/* Скасувати платіж: коло 28px, зона дотику — повні 44 самої кнопки. */
+.pay-x{width:44px;height:44px;margin:-4px -8px -4px 0;display:flex;align-items:center;justify-content:center;background:none;border:none;padding:0;cursor:pointer;flex-shrink:0}
+.pay-x>span{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--err-bg);border:.5px solid rgba(255,59,48,.25);color:var(--err)}
+.pay-pill:active,.pay-x:active,.pay-act:active{transform:scale(.96)}
+.pay-pill,.pay-x,.pay-act{transition:transform var(--dur-sm) var(--ease-out)}
+/* Надходження за період (071). Рядок — ДВІ кнопки поруч, а не кнопка в
+   кнопці (невалідна розмітка, та сама причина, що для рядків сповіщень):
+   основна вибирає надходження для виправлення, іконка видаляє. Обидві мають
+   повні 44px — рядок не лежить над тілом картки, красти тапи нема в кого. */
+.part-row{display:flex;align-items:stretch;border-top:.5px solid rgba(255,255,255,.06)}
+.part-row:first-child{border-top:none}
+.part-main{flex:1;min-width:0;min-height:52px;display:flex;align-items:center;gap:10px;padding:8px 6px 8px 14px;background:none;border:none;text-align:left;cursor:pointer;font-family:inherit;color:inherit}
+.part-main[aria-pressed="true"]{box-shadow:inset 3px 0 0 var(--info)}
+.part-del{width:44px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:none;border:none;padding:0;cursor:pointer;color:var(--err-fg)}
+.part-del:disabled{color:var(--t4);cursor:default}
+.part-main:active,.part-del:active{transform:scale(.98)}
+.part-main,.part-del{transition:transform var(--dur-sm) var(--ease-out)}
+/* Підсумок періоду — три цифри поруч на темному ґрунті `.pay-card`: це
+   ВІДПОВІДЬ екрана (скільки ще винні), а не капшен. */
+.pay-sum{display:flex}
+.pay-sum>*{flex:1;min-width:0;padding:12px 14px}
+.pay-sum>*+*{border-left:.5px solid rgba(255,255,255,.06)}
+/* «Очікується» — вхід у суму за період (072). Кнопка, а не <div onClick>:
+   досяжна з клавіатури й читалкою; натиск — фоном, бо геометрія підсумку
+   (три рівні клітинки) рухатись не сміє. */
+.pay-sum-edit{display:block;background:none;border:0;border-radius:inherit;color:inherit;font:inherit;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background var(--dur-xs) var(--ease-out)}
+.pay-sum-edit:active{background:var(--glass-2)}
+.pay-sum-edit .pay-sum-l{display:flex;align-items:center;gap:4px}
+.pay-sum-edit .pay-sum-v{display:block}
+.pay-sum-l{font-size:var(--fs-cap2);color:var(--t2);margin-bottom:3px}
+.pay-sum-v{font-size:var(--fs-sub);font-weight:var(--fw-bold);color:var(--t1);overflow-wrap:anywhere}
+.pay-hint{margin-top:6px;font-size:var(--fs-cap1);font-weight:var(--fw-semi)}
+.part-who{display:inline-flex;align-items:center;gap:3px;margin-left:6px;font-weight:var(--fw-reg);color:var(--t2);vertical-align:baseline}
+.pay-note{margin:10px 2px 0;font-size:var(--fs-cap1);line-height:1.45;color:var(--t2)}
+.act-list{margin:0 12px 12px}
+.act-row{display:flex;align-items:flex-start;gap:10px;padding:12px 14px}
+.act-row+.act-row{border-top:.5px solid rgba(255,255,255,.06)}
+.act-ic{flex-shrink:0;width:28px;height:28px;border-radius:var(--r-sm);background:var(--glass-2);display:flex;align-items:center;justify-content:center}
+.act-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+/* Назви обʼєктів, орендарів і документів — дані користувача: посилання й
+   коди без пробілів інакше рвали б рядок за край (див. «Нерозривний рядок»). */
+.act-t{font-size:var(--fs-note);font-weight:var(--fw-semi);color:var(--t1);line-height:1.35;overflow-wrap:anywhere}
+.act-s{font-size:var(--fs-cap1);color:var(--t2);overflow-wrap:anywhere}
+/* «Показати ще» — вторинна дія: скло, повні 44px, неактивність — кольором. */
+.act-more{display:block;margin:4px auto 16px;min-height:44px;padding:0 22px;border-radius:var(--r-pill);border:var(--bd);background:var(--glass-off);color:var(--t1);font:inherit;font-size:var(--fs-foot);font-weight:var(--fw-semi);cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform var(--dur-sm) var(--ease-out)}
+.act-more:active{transform:scale(.96);transition-duration:var(--dur-xs)}
+.act-more:disabled{color:var(--t4);cursor:default}
 .diag-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:46px;padding:0 16px;background:none;border:none;font-size:var(--fs-cap2);color:var(--t3);cursor:pointer}
 .diag-btn:disabled{color:var(--t4);cursor:default}
 .legal-a{color:var(--t2);text-decoration:underline}

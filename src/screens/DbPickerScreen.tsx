@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useAppStore } from '@/store/appStore'
+import { useAppSlice } from '@/store/appStore'
 import { useDatabases } from '@/hooks/useDatabases'
 import { useProperties } from '@/hooks/useProperties'
 import Header from '@/components/ui/Header'
@@ -24,7 +24,7 @@ import { tr } from '@/lib/i18n'
  * не потрібно (той самий висновок, що у фазі 2 про оптимістичний апдейт).
  */
 export default function DbPickerScreen() {
-  const { screenParams, back } = useAppStore()
+  const { screenParams, back } = useAppSlice('screenParams', 'back')
   const dbId = screenParams.dbId as string | undefined
   const ids = (screenParams.propertyIds as string[] | undefined) ?? []
 

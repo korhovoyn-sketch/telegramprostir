@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useAppStore } from '@/store/appStore'
+import { useAppSlice } from '@/store/appStore'
 import { offlineGuard } from '@/lib/offline'
 import { supabase } from '@/lib/supabase'
 import { humanizeDbError, scrollFocusedIntoView } from '@/lib/utils'
@@ -55,7 +55,7 @@ const KIND_COPY = (): Record<'team' | 'guest', KindCopy> => ({
  * те, що раніше малював дочірній CreatedLinkSheet.
  */
 export default function CreateInviteScreen() {
-  const { screenParams, user, showToast, back } = useAppStore()
+  const { screenParams, user, showToast, back } = useAppSlice('screenParams', 'user', 'showToast', 'back')
   const kind = (screenParams.kind as 'team' | 'guest' | undefined) ?? 'guest'
   const dbId = screenParams.dbId as string | undefined
   const propertyId = screenParams.propertyId as string | undefined

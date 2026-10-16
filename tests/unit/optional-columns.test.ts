@@ -4,6 +4,7 @@ import { join, relative } from 'node:path'
 import {
   isMissingOptionalColumn, stripOptionalKeys, stripOptionalSelect, withOptionalColumns,
 } from '@/lib/optionalColumns'
+import { RENT_PAYMENT_PART_COLUMNS, RENT_PAYMENT_PART_COLUMNS_PRE, RENT_PAYMENT_RECORD_COLUMNS, RENT_PAYMENT_RECORD_COLUMNS_PRE } from '@/lib/rentPayments'
 
 /**
  * Ретрай без колонок, яких може ще не бути в базі (043 `folder_id`,
@@ -97,17 +98,36 @@ describe('джерельне правило', () => {
     let sites = 0
     for (const f of walk(SRC)) {
       const text = readFileSync(f, 'utf8')
-      const re = /\.select\(\s*(?:pre\s*\?[^:]+:\s*)?(?:'[^']*\(' \+ )?\(?\s*(?:pre\s*\?\s*\w+\s*:\s*)?(PROPERTY_WITH_PHOTOS|PROPERTY_SELECT|EXPORT_SELECT|DB_COLUMNS)\b/g
+      const re = /\.select\(\s*(?:pre\s*\?[^:]+:\s*)?(?:'[^']*\(' \+ )?\(?\s*(?:pre\s*\?\s*\w+\s*:\s*)?(PROPERTY_WITH_PHOTOS|PROPERTY_SELECT|EXPORT_SELECT|DB_COLUMNS|RENT_PAYMENT_RECORD_COLUMNS|RENT_PAYMENT_PART_COLUMNS)\b/g
       for (const m of text.matchAll(re)) {
         sites++
         // Вікно навколо виклику: ретрай-обгортка стоїть ДО нього (часто за
         // довгим коментарем), явна гілка фолбека — одразу ПІСЛЯ.
         const around = text.slice(Math.max(0, m.index! - 1200), m.index! + 700)
-        const guarded = /withOptionalColumns|isMissingOptionalColumn|isMissingLandlordColumn/.test(around)
+        const guarded = /withOptionalColumns|isMissingOptionalColumn|isMissingLandlordColumn|fetchAllRowsOptional/.test(around)
         if (!guarded) bad.push(`${relative(SRC, f)}: ${m[0]}`)
       }
     }
     expect(sites, 'антивакуум: гард мусить бачити реальні запити').toBeGreaterThan(8)
     expect(bad).toEqual([])
+  })
+})
+
+describe('платіжні записи (071)', () => {
+  it('список «без 071» — рівно повний мінус опційні, а не окрема копія, що розійдеться', () => {
+    // Літерал існує лише тому, що парсер типів supabase-js не розбирає
+    // зібраний у рантаймі рядок. Тут доводимо, що дві копії — одна правда:
+    // колонка, додана в повний список і забута в «pre», на бекенді без 071
+    // тихо зникла б із ретраю — або гірше, лишилась би там і дала 400.
+    expect(RENT_PAYMENT_RECORD_COLUMNS_PRE).toBe(stripOptionalSelect(RENT_PAYMENT_RECORD_COLUMNS))
+    expect(RENT_PAYMENT_RECORD_COLUMNS).toContain('amount_due')
+  })
+
+  it('надходження (073): автор — опційний, і «без 073» — рівно повний мінус опційні', () => {
+    // На бекенді з 071, але без 073, повний список дав би 400 на ВСЮ форму
+    // платежу — тобто часткова оплата зламалась би рівно від того, що
+    // журнал змін ще не накочено.
+    expect(RENT_PAYMENT_PART_COLUMNS_PRE).toBe(stripOptionalSelect(RENT_PAYMENT_PART_COLUMNS))
+    expect(RENT_PAYMENT_PART_COLUMNS).toContain('created_by_name')
   })
 })
