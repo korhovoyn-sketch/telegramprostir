@@ -165,6 +165,10 @@ const FROZEN: Record<string, number> = {
   // тобто ціною підпису ми тримаємо над порогом ДІЮ. Цифри й дати надходжень
   // лежать на темному `.pay-card` і поріг беруть.
   'payment-confirm-partial': 1,
+  // Поки ЗАМІР: числа нижче — з першого прогону, причина кожного — поруч.
+  'payment-confirm-due': 0,
+  'payment-due': 0,
+  'db-activity': 0,
   'manage-guests': 0,
   'create-invite': 0,
   'create-invite-created': 0,
