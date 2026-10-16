@@ -1,6 +1,7 @@
 /**
  * Колонки, яких може ще не бути в базі, бо їхню міграцію не накочено:
- * `folder_id` (043) і `landlord_name` (064).
+ * `folder_id` (043), `landlord_name` (064) і `amount_due` (071 — заморожена
+ * очікувана сума періоду оплати).
  *
  * PostgREST на невідому колонку відповідає 400 на ВЕСЬ запит — і в `select=`,
  * і в `columns=` масової вставки, і в тілі запису. Тож кожен запит, що згадує
@@ -11,7 +12,7 @@
  * Ретрай знімає ВСІ опційні колонки одразу, а не ту, на яку впав запит:
  * на бекенді без обох міграцій зняття однієї дало б другий 400.
  */
-export const OPTIONAL_COLUMNS = ['folder_id', 'landlord_name'] as const
+export const OPTIONAL_COLUMNS = ['folder_id', 'landlord_name', 'amount_due'] as const
 
 export function isMissingOptionalColumn(e: unknown): boolean {
   const err = e as { code?: string; message?: string } | null

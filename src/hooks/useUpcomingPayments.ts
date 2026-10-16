@@ -4,8 +4,8 @@ import { useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAppStore } from '@/store/appStore'
 import { basisArea, daysUntil, monthlyRent } from '@/lib/utils'
-import { dueDateFor, isOwedUnderLease, owedFrom, trackedFromOffset, ARREARS_MONTHS_MAX, TENANCY_SPAN_COLUMNS, type TenancySpan } from '@/lib/rentPayments'
-import { fetchAllRows } from '@/lib/fetchAll'
+import { dueDateFor, isOwedUnderLease, isPartialRecord, owedFrom, remainingFor, trackedFromOffset, ARREARS_MONTHS_MAX, TENANCY_SPAN_COLUMNS, type TenancySpan } from '@/lib/rentPayments'
+import { fetchAllRowsOptional } from '@/lib/fetchAll'
 
 /**
  * Найближчі платежі для екрана сповіщень.
@@ -32,7 +32,10 @@ export interface PaymentAlert {
   name: string
   tenantName: string | null
   dueDate: string
+  /** До сплати: для частково оплаченого — ЗАЛИШОК, а не повна сума. */
   amount: number
+  /** Частину вже отримано (071). */
+  partial: boolean
   days: number                       // <0 — прострочено
   level: 'overdue' | 'critical' | 'soon'
 }
@@ -98,13 +101,15 @@ export function useUpcomingPayments() {
         .from('tenancies').select(TENANCY_SPAN_COLUMNS)
         .in('property_id', ids).is('ended_at', null)
         .then(({ data, error }) => (error ? null : (data ?? []) as TenancySpan[]), () => null)
-      let recData: { property_id: string; due_date: string; status: string }[]
+      type Rec = { property_id: string; due_date: string; status: string; amount: number | null; amount_due?: number | null }
+      let recData: Rec[]
       try {
         // Усі сторінки: сервер мовчки обрізає на 1000, а оплачений платіж за
-        // межею сторінки читався б несплаченим.
-        recData = await fetchAllRows<{ property_id: string; due_date: string; status: string }>((pFrom, pTo, first) => supabase
+        // межею сторінки читався б несплаченим. `amount_due` — з 071, тож із
+        // ретраєм без неї.
+        recData = await fetchAllRowsOptional<Rec>((pre, pFrom, pTo, first) => supabase
           .from('rent_payment_records')
-          .select('property_id,due_date,status', first ? { count: 'exact' } : undefined)
+          .select(pre ? 'property_id,due_date,status,amount' : 'property_id,due_date,status,amount,amount_due', first ? { count: 'exact' } : undefined)
           .in('property_id', ids)
           .gte('due_date', from)
           .lte('due_date', to)
@@ -122,6 +127,7 @@ export function useUpcomingPayments() {
         recData
           .filter((r) => r.status === 'paid')
           .map((r) => `${r.property_id}|${r.due_date}`))
+      const byKey = new Map(recData.map((r) => [`${r.property_id}|${r.due_date}`, r]))
 
       const mapped: PaymentAlert[] = []
       for (const row of active) {
@@ -141,15 +147,21 @@ export function useUpcomingPayments() {
         if (!dueDate) continue
         const days = daysUntil(dueDate)
         if (!Number.isFinite(days) || days > PAYMENT_ALERT_DAYS) continue
+        // Та сама нормалізація, що в календарі: сира `rent_rate` для per_m2 —
+        // це ставка за метр, і показувати її як суму до сплати було б брехнею.
+        const expected = p.rent_rate ? monthlyRent(basisArea(p.area_useful, p.area_total, p.area_basis), p.rent_rate, p.rent_type) : 0
+        const rec = byKey.get(`${row.property_id}|${dueDate}`)
+        const partial = isPartialRecord(rec)
         mapped.push({
           propertyId: p.id,
           dbId: p.db_id,
           name: p.name,
           tenantName: p.tenant_name,
           dueDate,
-          // Та сама нормалізація, що в календарі: сира `rent_rate` для per_m2 —
-          // це ставка за метр, і показувати її як суму до сплати було б брехнею.
-          amount: p.rent_rate ? monthlyRent(basisArea(p.area_useful, p.area_total, p.area_basis), p.rent_rate, p.rent_type) : 0,
+          // Частково оплачений чекає ЗАЛИШКУ: «$1 800» поруч із вже отриманою
+          // тисячею — це вдвічі більший борг, ніж є насправді.
+          amount: partial ? remainingFor(rec, expected) : expected,
+          partial,
           days,
           level: levelFor(days),
         })

@@ -283,6 +283,41 @@ test('нативний клієнт: усі екрани власника жив
   await expect(cta).toHaveText('Здати в оренду')
   expect((await bar(page)).main.isVisible, 'rent-property — нативна смуга вимкнена').toBe(false)
 
+  // ── Підтвердження платежу і ДОПЛАТА (071): одна форма, дві первинні дії.
+  // Екран досяжний лише з розкладом, тож розклад і частковий період
+  // підміняються тут, наприкінці — сусідні кроки вище їх не бачать.
+  const due = (() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-05` })()
+  await page.route('**/rest/v1/rent_payments**', (r) => {
+    const row = { id: '60000000-0000-0000-0000-000000000001', property_id: PROPERTIES[0].id, owner_id: OWNER.id,
+      due_day: 5, notify_days_before: 3, is_active: true, created_at: NOW, updated_at: NOW }
+    return json(r, (r.request().headers()['accept'] ?? '').includes('object') ? row : [row])
+  })
+  await toObjects(page)
+  await page.getByLabel('Меню бази').click()
+  await page.getByText('Календар платежів', { exact: true }).click()
+  await page.getByRole('button', { name: /Отримано/ }).first().click({ timeout: 15_000 })
+  await expect(page.locator('.hdr')).toContainText('Підтвердити платіж', { timeout: 15_000 })
+  await alive(page, 'payment-confirm')
+  await expect(cta).toHaveText('Підтвердити')
+  expect((await bar(page)).main.isVisible, 'payment-confirm — нативна смуга вимкнена').toBe(false)
+
+  const partial = { id: '70000000-0000-0000-0000-000000000003', property_id: PROPERTIES[0].id, owner_id: OWNER.id,
+    due_date: due, paid_at: `${due}T10:00:00.000Z`, amount: 1000, amount_due: 2250, status: 'partial',
+    notes: null, created_at: NOW, updated_at: NOW }
+  await page.route('**/rest/v1/rent_payment_records**', (r) =>
+    json(r, (r.request().headers()['accept'] ?? '').includes('object') ? partial : [partial]))
+  await page.route('**/rest/v1/rent_payment_parts**', (r) => json(r, [{
+    id: '72000000-0000-0000-0000-000000000001', record_id: partial.id, amount: 1000,
+    paid_at: partial.paid_at, notes: null, created_at: NOW }]))
+  await toObjects(page)
+  await page.getByLabel('Меню бази').click()
+  await page.getByText('Календар платежів', { exact: true }).click()
+  await page.getByRole('button', { name: /Доплата/ }).first().click({ timeout: 15_000 })
+  await expect(page.getByLabel('Підсумок платежу')).toBeVisible({ timeout: 15_000 })
+  await alive(page, 'payment-confirm-partial')
+  await expect(cta).toHaveText('Додати оплату')
+  expect((await bar(page)).main.isVisible, 'payment-confirm-partial — нативна смуга вимкнена').toBe(false)
+
   // ── Таби
   await page.goto('/')
   await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })

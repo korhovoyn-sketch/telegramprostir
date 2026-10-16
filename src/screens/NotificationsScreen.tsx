@@ -204,7 +204,7 @@ export default function NotificationsScreen() {
                   <div className="notif-mn">
                     <div className="notif-n">{a.name}</div>
                     <div className="notif-s">
-                      {a.tenantName ? `${a.tenantName} · ` : ''}{payText(a)}
+                      {a.tenantName ? `${a.tenantName} · ` : ''}{payText(a)}{a.partial ? ` · ${tr('частково')}` : ''}
                     </div>
                   </div>
                   {a.amount > 0 && (

@@ -1,5 +1,5 @@
 import { basisArea, localDay, monthlyRent } from '@/lib/utils'
-import type { Property } from '@/types'
+import type { Property, RentPaymentRecord } from '@/types'
 import { locale } from './i18n'
 
 /**
@@ -14,8 +14,45 @@ import { locale } from './i18n'
 export const RENT_PAYMENT_COLUMNS =
   'id,property_id,owner_id,due_day,notify_days_before,is_active,created_at,updated_at'
 
+// `amount_due` — з 071, тож кожен запит із цим списком іде з ретраєм без неї
+// (`recordColumns(pre)`): фронт деплоїться раніше, ніж міграцію накочено.
 export const RENT_PAYMENT_RECORD_COLUMNS =
+  'id,property_id,owner_id,due_date,paid_at,amount,amount_due,status,notes,created_at,updated_at'
+
+// Літералом, а не `stripOptionalSelect(...)`: парсер типів supabase-js не
+// розбирає список колонок, зібраний у рантаймі (ParserError) — та сама пастка,
+// що з `landlord_name`. Що вони не розійшлись, тримає unit-гард.
+export const RENT_PAYMENT_RECORD_COLUMNS_PRE =
   'id,property_id,owner_id,due_date,paid_at,amount,status,notes,created_at,updated_at'
+
+export const RENT_PAYMENT_PART_COLUMNS = 'id,record_id,amount,paid_at,notes,created_at'
+
+/**
+ * Таблиці надходжень немає — 071 не накочена. Тоді форма працює як доти:
+ * підтверджує лише ПОВНУ оплату. PostgREST віддає 404 з `PGRST205` (новіші
+ * версії) або `42P01` (старші); імʼя таблиці в повідомленні — запасний шлях.
+ */
+export function isPartsUnavailable(e: unknown): boolean {
+  const err = e as { code?: string; message?: string } | null
+  return err?.code === 'PGRST205' || err?.code === '42P01'
+    || /rent_payment_parts/i.test(err?.message ?? '')
+}
+
+/** Період отримав частину грошей, але не всі (071). */
+export function isPartialRecord(r: { status: string; amount?: number | null } | null | undefined): boolean {
+  return r?.status === 'partial' && (r.amount ?? 0) > 0
+}
+
+/**
+ * Скільки ще лишилось отримати за період. Очікувана — ЗАМОРОЖЕНА в періоді
+ * (`amount_due`), а не поточна ставка: ставку могли підняти після першого
+ * надходження, і старий борг не сміє рости заднім числом. Без заморожених
+ * даних (бекенд без 071) — поточна очікувана.
+ */
+export function remainingFor(r: Pick<RentPaymentRecord, 'amount' | 'amount_due'> | null | undefined, expected: number): number {
+  const due = r?.amount_due ?? expected
+  return Math.max(0, Math.round((due - (r?.amount ?? 0)) * 100) / 100)
+}
 
 // Expected monthly rent for a property. rent_rate alone is WRONG for per_m2
 // (it's the $/m² rate) and for per_day (daily) — monthlyRent normalises every

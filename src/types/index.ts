@@ -330,10 +330,23 @@ export interface RentPaymentRecord {
   due_date: string
   paid_at?: string | null
   amount?: number | null
-  status: 'pending' | 'paid' | 'overdue'
+  /** Заморожена очікувана сума періоду (071). NULL — невідома, або бекенд без 071. */
+  amount_due?: number | null
+  /** `partial` — є надходження, але менше за `amount_due` (071). */
+  status: 'pending' | 'paid' | 'overdue' | 'partial'
   notes?: string | null
   created_at: string
   updated_at: string
+}
+
+/** Одне надходження грошей за період (071). Підсумок періоду рахує сервер. */
+export interface RentPaymentPart {
+  id: string
+  record_id: string
+  amount: number
+  paid_at: string
+  notes?: string | null
+  created_at: string
 }
 
 export interface ScreenParams {

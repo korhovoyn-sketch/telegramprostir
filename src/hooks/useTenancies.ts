@@ -84,7 +84,9 @@ export function useTenancies(dbId?: string) {
           .from('rent_payment_records')
           .select('id,property_id,due_date,amount,status', first ? { count: 'exact' } : undefined)
           .in('property_id', propIds)
-          .eq('status', 'paid')
+          // Часткові (071) — теж отримані гроші; без них «Отримано» за оренду
+          // недораховувало б саме незакриті місяці.
+          .in('status', ['paid', 'partial'])
           .order('id', { ascending: true })
           .range(from, to))
       } catch {

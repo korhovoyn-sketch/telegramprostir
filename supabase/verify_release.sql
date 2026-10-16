@@ -285,7 +285,37 @@ WITH checks(ord, item, migration, ok) AS (VALUES
       (SELECT COUNT(*) = 2 FROM pg_proc
         WHERE proname IN ('get_due_reminders_today','get_due_guest_reminders')
           AND prosrc LIKE '%FROM rent_payment_records r%'
-          AND prosrc LIKE '%r.status = ''paid''%'))
+          AND prosrc LIKE '%r.status = ''paid''%')),
+
+  -- 071-1: надходження — окрема таблиця з RLS, і обидві політики питають про
+  -- ЦІЛЬ (обʼєкт власника чи бази команди), а не лише «чи це мій рядок».
+  (57, 'rent_payment_parts: RLS увімкнена, власник і редактор', '071_partial_payments.sql',
+      (SELECT COALESCE((SELECT c.relrowsecurity FROM pg_class c
+                          WHERE c.relname='rent_payment_parts' AND c.relkind='r'), false)
+          AND (SELECT COUNT(*) = 2 FROM pg_policies
+                WHERE tablename='rent_payment_parts'
+                  AND policyname IN ('parts_owner_all','parts_editor_all')
+                  AND with_check LIKE '%property_ids%'))),
+
+  -- 071-2: ТРИГЕР, а не лише функція — інакше надходження пишуться, а
+  -- підсумок періоду (сума, статус) лишається старим, і календар бреше.
+  (58, 'trg_sync_rent_record_from_parts висить на rent_payment_parts', '071_partial_payments.sql',
+      (SELECT COUNT(*) = 1 FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
+        WHERE c.relname='rent_payment_parts' AND t.tgname='trg_sync_rent_record_from_parts' AND NOT t.tgisinternal)),
+
+  -- 071-3: статус «частково» легальний. Без нового CHECK тригер падав би на
+  -- КОЖНОМУ неповному надходженні, тобто фіча працювала б лише для повних.
+  (59, 'rent_payment_records.status приймає partial', '071_partial_payments.sql',
+      (SELECT COUNT(*) >= 1 FROM pg_constraint
+        WHERE conrelid = 'public.rent_payment_records'::regclass AND contype='c'
+          AND pg_get_constraintdef(oid) LIKE '%partial%')),
+
+  -- 071-4: RPC є, автентифікованому доступна, анонімові — ні (правило 12:
+  -- без явного REVOKE дефолтний PUBLIC лишився б).
+  (60, 'record_rent_payment: authenticated так, anon ні', '071_partial_payments.sql',
+      (SELECT COALESCE((SELECT has_function_privilege('authenticated', p.oid, 'EXECUTE')
+                               AND NOT has_function_privilege('anon', p.oid, 'EXECUTE')
+                          FROM pg_proc p WHERE p.proname='record_rent_payment' LIMIT 1), false)))
 )
 SELECT
   CASE WHEN ok THEN '✅ OK     ' ELSE '❌ MISSING' END AS status,

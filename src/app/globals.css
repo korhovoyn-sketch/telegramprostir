@@ -1541,6 +1541,26 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
 .pay-x>span{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--err-bg);border:.5px solid rgba(255,59,48,.25);color:var(--err)}
 .pay-pill:active,.pay-x:active,.pay-act:active{transform:scale(.96)}
 .pay-pill,.pay-x,.pay-act{transition:transform var(--dur-sm) var(--ease-out)}
+/* Надходження за період (071). Рядок — ДВІ кнопки поруч, а не кнопка в
+   кнопці (невалідна розмітка, та сама причина, що для рядків сповіщень):
+   основна вибирає надходження для виправлення, іконка видаляє. Обидві мають
+   повні 44px — рядок не лежить над тілом картки, красти тапи нема в кого. */
+.part-row{display:flex;align-items:stretch;border-top:.5px solid rgba(255,255,255,.06)}
+.part-row:first-child{border-top:none}
+.part-main{flex:1;min-width:0;min-height:52px;display:flex;align-items:center;gap:10px;padding:8px 6px 8px 14px;background:none;border:none;text-align:left;cursor:pointer;font-family:inherit;color:inherit}
+.part-main[aria-pressed="true"]{box-shadow:inset 3px 0 0 var(--info)}
+.part-del{width:44px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:none;border:none;padding:0;cursor:pointer;color:var(--err-fg)}
+.part-del:disabled{color:var(--t4);cursor:default}
+.part-main:active,.part-del:active{transform:scale(.98)}
+.part-main,.part-del{transition:transform var(--dur-sm) var(--ease-out)}
+/* Підсумок періоду — три цифри поруч на темному ґрунті `.pay-card`: це
+   ВІДПОВІДЬ екрана (скільки ще винні), а не капшен. */
+.pay-sum{display:flex}
+.pay-sum>div{flex:1;min-width:0;padding:12px 14px}
+.pay-sum>div+div{border-left:.5px solid rgba(255,255,255,.06)}
+.pay-sum-l{font-size:var(--fs-cap2);color:var(--t2);margin-bottom:3px}
+.pay-sum-v{font-size:var(--fs-sub);font-weight:var(--fw-bold);color:var(--t1);overflow-wrap:anywhere}
+.pay-hint{margin-top:6px;font-size:var(--fs-cap1);font-weight:var(--fw-semi)}
 .diag-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:46px;padding:0 16px;background:none;border:none;font-size:var(--fs-cap2);color:var(--t3);cursor:pointer}
 .diag-btn:disabled{color:var(--t4);cursor:default}
 .legal-a{color:var(--t2);text-decoration:underline}

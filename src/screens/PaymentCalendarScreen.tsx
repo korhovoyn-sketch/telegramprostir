@@ -11,8 +11,8 @@ import Header from '@/components/ui/Header'
 import { SkeletonList } from '@/components/ui/SkeletonLoader'
 import { IconAlertTriangle, IconCalendar, IconClock, IconPlus, IconTrash, IconFile, IconCheckCircle, IconArchive, IconLayers, IconCheck, IconX, IconEdit } from '@/components/Icons'
 import { formatPrice, humanizeDbError, objectsWord, pluralUk } from '@/lib/utils'
-import { RENT_PAYMENT_COLUMNS, RENT_PAYMENT_RECORD_COLUMNS, ARREARS_MONTHS_MAX, TENANCY_SPAN_COLUMNS, dueDateFor, expectedRent, fmtDueDate, isOwedUnderLease, owedFrom, tenantOnDate, trackedFromOffset, type TenancySpan } from '@/lib/rentPayments'
-import { fetchAllRows } from '@/lib/fetchAll'
+import { RENT_PAYMENT_COLUMNS, ARREARS_MONTHS_MAX, TENANCY_SPAN_COLUMNS, dueDateFor, expectedRent, fmtDueDate, isOwedUnderLease, isPartialRecord, owedFrom, RENT_PAYMENT_RECORD_COLUMNS, RENT_PAYMENT_RECORD_COLUMNS_PRE, remainingFor, tenantOnDate, trackedFromOffset, type TenancySpan } from '@/lib/rentPayments'
+import { fetchAllRows, fetchAllRowsOptional } from '@/lib/fetchAll'
 import type { Property, RentPayment, RentPaymentRecord } from '@/types'
 import { locale, tr } from '@/lib/i18n'
 
@@ -145,8 +145,8 @@ export default function PaymentCalendarScreen() {
     // Усі сторінки, а не першу: сервер обрізає відповідь межею `max_rows`
     // МОВЧКИ, і на базі в сотню обʼєктів вікно в 14 місяців її перевищує —
     // тобто сплачені платежі за хвостом сторінки малювались би боргом.
-    const rows = await fetchAllRows<RentPaymentRecord>((pFrom, pTo, first) => supabase
-      .from('rent_payment_records').select(RENT_PAYMENT_RECORD_COLUMNS, first ? { count: 'exact' } : undefined)
+    const rows = await fetchAllRowsOptional<RentPaymentRecord>((pre, pFrom, pTo, first) => supabase
+      .from('rent_payment_records').select(pre ? RENT_PAYMENT_RECORD_COLUMNS_PRE : RENT_PAYMENT_RECORD_COLUMNS, first ? { count: 'exact' } : undefined)
       .in('property_id', ids)
       .gte('due_date', from)
       .lte('due_date', to)
@@ -182,10 +182,12 @@ export default function PaymentCalendarScreen() {
     // Усі сторінки: «Всього отримано за весь час» — це сума ВСІЄЇ історії, а
     // сервер мовчки обрізає відповідь на 1000 рядках. Перша сторінка давала
     // впевнену, але неповну суму саме у власника з найбільшою історією.
-    fetchAllRows<RentPaymentRecord>((from, to, first) => supabase
-      .from('rent_payment_records').select(RENT_PAYMENT_RECORD_COLUMNS, first ? { count: 'exact' } : undefined)
+    // Частково оплачені — теж: гроші, що вже прийшли, — це історія отриманого,
+    // і без них «Всього отримано» недораховувало б саме незакриті періоди.
+    fetchAllRowsOptional<RentPaymentRecord>((pre, from, to, first) => supabase
+      .from('rent_payment_records').select(pre ? RENT_PAYMENT_RECORD_COLUMNS_PRE : RENT_PAYMENT_RECORD_COLUMNS, first ? { count: 'exact' } : undefined)
       .in('property_id', ids)
-      .eq('status', 'paid')
+      .in('status', ['paid', 'partial'])
       .order('due_date', { ascending: false }).order('id', { ascending: true })
       .range(from, to))
       .then((rows) => {
@@ -274,7 +276,10 @@ export default function PaymentCalendarScreen() {
       overdue:    cur.filter(i => i.daysUntilDue < 0  && i.record?.status !== 'paid').length + arrears.length,
       upcoming:   cur.filter(i => i.daysUntilDue >= 0 && i.record?.status !== 'paid').length,
       paid:       paidItems.length,
-      paidAmount: paidItems.reduce((s, i) => s + (i.record?.amount ?? 0), 0),
+      // Сума — УСЕ, що прийшло цього місяця, включно з частковими: $1 000 із
+      // $1 800 уже в кишені, і плитка «Отримано» без них брехала б. Лічильник
+      // закритих (`paid`) — лише повні.
+      paidAmount: cur.reduce((s, i) => s + (i.record?.status === 'paid' || isPartialRecord(i.record) ? (i.record?.amount ?? 0) : 0), 0),
     }
   }, [paymentItems, arrears])
 
@@ -653,11 +658,13 @@ export default function PaymentCalendarScreen() {
                       {group.records.map(rec => {
                         const prop = properties.find(p => p.id === rec.property_id)
                         const payer = tenantOnDate(rec.property_id, rec.due_date, spans, prop)
+                        const partial = isPartialRecord(rec)
+                        const dot = partial ? 'var(--warn)' : 'var(--ok)'
                         return (
                           <div key={rec.id} className="pay-card">
                             <div style={{ padding: '12px 14px' }}>
                             <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                              <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--ok)', marginTop: 5, flexShrink: 0, boxShadow: '0 0 6px var(--ok)' }} />
+                              <div style={{ width: 8, height: 8, borderRadius: '50%', background: dot, marginTop: 5, flexShrink: 0, boxShadow: `0 0 6px ${dot}` }} />
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ fontSize: 'var(--fs-note)', fontWeight: 'var(--fw-semi)', color: 'var(--t1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                   {prop?.name ?? '—'}
@@ -673,6 +680,11 @@ export default function PaymentCalendarScreen() {
                                     </span>
                                   )}
                                 </div>
+                                {partial && (
+                                  <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--warn-fg)', fontWeight: 'var(--fw-semi)', marginTop: 3 }}>
+                                    {tr('Частково · залишок {0}', formatPrice(remainingFor(rec, prop ? expectedRent(prop) : 0), user?.currency))}
+                                  </div>
+                                )}
                                 {rec.notes && (
                                   <div style={{ fontSize: 'var(--fs-cap2)', color: 'var(--t3)', marginTop: 3, fontStyle: 'italic' }}>{rec.notes}</div>
                                 )}
@@ -752,11 +764,18 @@ interface PaymentItemCardProps {
 
 function PaymentItemCard({ item, statusColor, textColor, label, onMarkPaid, onEdit, onDeleteSchedule, onEditPaid, onUnpay, userCurrency }: PaymentItemCardProps) {
   const isPaid     = item.record?.status === 'paid'
+  const isPartial  = isPartialRecord(item.record)
   // rent_rate — сира ставка ($/м² чи $/добу для per_m2/per_day), не сума до
   // сплати. expectedRent() нормалізує до місяця — той самий шлях, що вже дає
   // дефолт у модалці підтвердження платежу (рядок вище, expectedRent виклик).
   // Без цього картка «Офіс, $18» показувала ставку замість реальних $1 800.
-  const displayAmt = isPaid ? (item.record?.amount ?? null) : (expectedRent(item.property) || null)
+  // Частково оплачений — показуємо ЗАЛИШОК: саме його ще чекають, а повна
+  // сума поруч з «отримано $1 000» читалась би як борг у $1 800.
+  const displayAmt = isPaid
+    ? (item.record?.amount ?? null)
+    : isPartial
+      ? remainingFor(item.record, expectedRent(item.property)) || null
+      : (expectedRent(item.property) || null)
 
   return (
     <div className="pay-card">
@@ -779,6 +798,11 @@ function PaymentItemCard({ item, statusColor, textColor, label, onMarkPaid, onEd
               </span>
             )}
           </div>
+          {isPartial && (
+            <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--warn-fg)', fontWeight: 'var(--fw-semi)', marginTop: 3 }}>
+              {tr('Отримано {0} з {1}', formatPrice(item.record?.amount ?? 0, userCurrency), formatPrice(item.record?.amount_due ?? expectedRent(item.property), userCurrency))}
+            </div>
+          )}
           {isPaid && item.record?.notes && (
             <div style={{ fontSize: 'var(--fs-cap2)', color: 'var(--t3)', marginTop: 3, fontStyle: 'italic' }}>{item.record.notes}</div>
           )}
@@ -786,7 +810,9 @@ function PaymentItemCard({ item, statusColor, textColor, label, onMarkPaid, onEd
 
         {!isPaid ? (
           <button type="button" className="pay-pill" onClick={onMarkPaid}>
-            <IconCheckCircle size={12} /> {tr('Отримано')}
+            {isPartial
+              ? <><IconPlus size={12} /> {tr('Доплата')}</>
+              : <><IconCheckCircle size={12} /> {tr('Отримано')}</>}
           </button>
         ) : (
           <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4 }}>

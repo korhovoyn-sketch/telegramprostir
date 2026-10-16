@@ -1958,6 +1958,22 @@ This sandboxed environment has **no outbound network** to Vercel/Supabase previe
 > Сама 024 не критична: `status='overdue'` у БД застосунок не читає, він
 > рахує прострочення на клієнті (`daysUntilDue < 0`).
 
+### 0zb. Часткова оплата (071) — ЧЕКАЄ
+
+Файл: `supabase/migrations/071_partial_payments.sql`. Не безпекова — фіча.
+Накочується тим самим `supabase/RELEASE.sql` (048–071).
+
+Таблиця надходжень `rent_payment_parts`, стан періоду `partial`, заморожена
+очікувана сума `amount_due`, RPC `record_rent_payment` і тригер, що рахує
+підсумок періоду. Наявні підтвердження міграція сама переносить у
+надходження (по одному на період). Перевірка — рядки 57–60 у
+`verify_release.sql`.
+
+**Порядок деплою НЕ критичний.** Клієнт питає таблицю надходжень і на
+`PGRST205`/`42P01` лишається у старому режимі «лише повна оплата» — форма,
+календар і архів працюють як доти; `amount_due` читається з ретраєм без неї
+(`OPTIONAL_COLUMNS`). Без 071 записати частину суми просто немає як.
+
 ### 0za. Нагадування не про вже сплачений платіж (070) — ЧЕКАЄ
 
 Файл: `supabase/migrations/070_reminders_skip_paid.sql`. Не безпекова — про
@@ -1973,7 +1989,7 @@ This sandboxed environment has **no outbound network** to Vercel/Supabase previe
 ### 0z. Цілісність доступів (069) — ЧЕКАЄ, ПРІОРИТЕТ
 
 Файл: `supabase/migrations/069_access_integrity.sql`. **Безпекова й про дані.**
-Накочується тим самим `supabase/RELEASE.sql` (ідемпотентний, 048–070).
+Накочується тим самим `supabase/RELEASE.sql` (ідемпотентний, 048–071).
 
 | дефект | наслідок, поки 069 немає |
 |---|---|

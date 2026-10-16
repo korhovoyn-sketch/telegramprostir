@@ -1,3 +1,5 @@
+import { isMissingOptionalColumn } from './optionalColumns'
+
 /**
  * Дочитати ВСІ сторінки вибірки.
  *
@@ -38,4 +40,28 @@ export async function fetchAllRows<T>(
     last = rows.length
   }
   return out
+}
+
+/**
+ * Те саме, але з ретраєм без опційних колонок (див. `optionalColumns.ts`).
+ * Окремо, а не прапорцем у `fetchAllRows`: невідома колонка падає вже на
+ * ПЕРШІЙ сторінці, і повторювати треба весь обхід, а не одну сторінку.
+ */
+//
+// `data: unknown` — свідомо: список колонок тут ДВОВАРІАНТНИЙ (`pre ? A : B`),
+// і парсер типів supabase-js на обʼєднанні двох літералів дає ParserError.
+// Форму рядка задає викликач через `T`, як і в `fetchAllRows`.
+type LoosePage = { data: unknown; error: unknown; count?: number | null }
+
+export async function fetchAllRowsOptional<T>(
+  page: (pre: boolean, from: number, to: number, first: boolean) => PromiseLike<LoosePage>,
+): Promise<T[]> {
+  const run = (pre: boolean) => fetchAllRows<T>((from, to, first) =>
+    page(pre, from, to, first) as PromiseLike<Page<T>>)
+  try {
+    return await run(false)
+  } catch (e) {
+    if (!isMissingOptionalColumn(e)) throw e
+    return run(true)
+  }
 }

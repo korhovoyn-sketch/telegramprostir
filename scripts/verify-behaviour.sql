@@ -526,3 +526,116 @@ BEGIN
 
   RAISE NOTICE '  ✓ 067: усі три шляхи архівують, скасування повертає оренду, історія переживає обʼєкт';
 END $$;
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- 071: ЧАСТКОВА ОПЛАТА — підсумок періоду рахує СЕРВЕР із надходжень
+-- ════════════════════════════════════════════════════════════════════════════
+-- Тут — арифметика й життєвий цикл (від postgres, тобто без RLS); хто що
+-- може — у verify-rls.sql. Кожен перехід стану перевіряється разом із сумою:
+-- «статус правильний, сума ні» — це рівно той клас, що в обліку найдорожчий.
+DO $$
+DECLARE
+  o  UUID := 'bbbbbbbb-0000-0000-0000-000000000071';
+  d  UUID := 'cccccccc-0000-0000-0000-000000000071';
+  p  UUID := 'dddddddd-0000-0000-0000-000000000711';
+  pl UUID := 'dddddddd-0000-0000-0000-000000000712';
+  v  JSONB;
+  r  RECORD;
+  part2 UUID;
+  n  INT;
+BEGIN
+  INSERT INTO users (id, tg_id, first_name, role) VALUES (o, 710001, 'Платник', 'owner');
+  INSERT INTO databases (id, owner_id, name, type) VALUES (d, o, 'База 071', 'business_center');
+  INSERT INTO properties (id, db_id, owner_id, name, status, tenant_name) VALUES
+    (p,  d, o, 'Офіс 71',  'occupied', 'ТОВ Частковий'),
+    (pl, d, o, 'Офіс 72',  'occupied', 'ФОП Легасі');
+
+  -- ── Перше надходження менше за очікуване → «частково» ─────────────────────
+  v := record_rent_payment(p, DATE '2026-09-05', 1000, now() - INTERVAL '2 day', 'Готівка', 1800);
+  IF v->>'error' IS NOT NULL THEN RAISE EXCEPTION '071: RPC відмовив: %', v->>'error'; END IF;
+  IF v->>'status' IS DISTINCT FROM 'partial' OR (v->>'amount')::NUMERIC <> 1000
+     OR (v->>'amount_due')::NUMERIC <> 1800 THEN
+    RAISE EXCEPTION '071: перше надходження дало %', v;
+  END IF;
+
+  -- ── Доплата закриває період; ЗАМОРОЖЕНА сума не рухається ─────────────────
+  -- Ставка за цей час «зросла» до 2500: передаємо нову очікувану, і вона НЕ
+  -- сміє застосуватись до вже відкритого періоду — інакше вересень став би
+  -- частковим заднім числом.
+  v := record_rent_payment(p, DATE '2026-09-05', 800, now(), NULL, 2500);
+  IF v->>'status' IS DISTINCT FROM 'paid' OR (v->>'amount')::NUMERIC <> 1800
+     OR (v->>'amount_due')::NUMERIC <> 1800 THEN
+    RAISE EXCEPTION '071: доплата дала % (очікувано paid, 1800, due 1800)', v;
+  END IF;
+  part2 := (v->>'part_id')::UUID;
+  SELECT * INTO r FROM rent_payment_records WHERE property_id = p AND due_date = DATE '2026-09-05';
+  IF r.paid_at IS NULL OR r.paid_at < now() - INTERVAL '1 minute' THEN
+    RAISE EXCEPTION '071: дата періоду — не дата ОСТАННЬОГО надходження (%)', r.paid_at;
+  END IF;
+
+  -- ── Видалення надходження повертає борг ───────────────────────────────────
+  DELETE FROM rent_payment_parts WHERE id = part2;
+  SELECT * INTO r FROM rent_payment_records WHERE property_id = p AND due_date = DATE '2026-09-05';
+  IF r.status <> 'partial' OR r.amount <> 1000 THEN
+    RAISE EXCEPTION '071: після видалення доплати період % / % (очікувано partial / 1000)', r.status, r.amount;
+  END IF;
+
+  -- ── Виправлення суми надходження перераховує період ───────────────────────
+  UPDATE rent_payment_parts SET amount = 2000
+   WHERE record_id = r.id;
+  SELECT * INTO r FROM rent_payment_records WHERE id = r.id;
+  IF r.status <> 'paid' OR r.amount <> 2000 THEN
+    RAISE EXCEPTION '071: виправлена сума не перерахувала період (% / %)', r.status, r.amount;
+  END IF;
+
+  -- ── Без жодного надходження період знову НЕоплачений, а не «$0 отримано» ──
+  DELETE FROM rent_payment_parts WHERE record_id = r.id;
+  SELECT * INTO r FROM rent_payment_records WHERE id = r.id;
+  IF r.status = 'paid' OR r.status = 'partial' OR r.amount IS NOT NULL OR r.paid_at IS NOT NULL THEN
+    RAISE EXCEPTION '071: період без надходжень лишився % / % / %', r.status, r.amount, r.paid_at;
+  END IF;
+
+  -- ── Каскад: «Скасувати платіж» видаляє період разом із надходженнями ──────
+  v := record_rent_payment(p, DATE '2026-09-05', 500, now(), NULL, NULL);
+  DELETE FROM rent_payment_records WHERE property_id = p AND due_date = DATE '2026-09-05';
+  SELECT count(*) INTO n FROM rent_payment_parts pp
+    LEFT JOIN rent_payment_records rr ON rr.id = pp.record_id WHERE rr.id IS NULL;
+  IF n <> 0 THEN RAISE EXCEPTION '071: каскад лишив % осиротілих надходжень', n; END IF;
+
+  -- ── Без очікуваної суми (обʼєкт без ставки) будь-яке надходження закриває ──
+  v := record_rent_payment(p, DATE '2026-10-05', 300, now(), NULL, NULL);
+  IF v->>'status' IS DISTINCT FROM 'paid' THEN
+    RAISE EXCEPTION '071: без очікуваної суми період не закрився (%)', v;
+  END IF;
+
+  -- ── Ввід, якого не буває ──────────────────────────────────────────────────
+  v := record_rent_payment(p, DATE '2026-11-05', 0, now(), NULL, 1800);
+  IF v->>'error' IS DISTINCT FROM 'invalid_amount' THEN RAISE EXCEPTION '071: нульова сума пройшла (%)', v; END IF;
+  v := record_rent_payment(p, DATE '2026-11-05', 100, now() + INTERVAL '10 day', NULL, 1800);
+  IF v->>'error' IS DISTINCT FROM 'invalid_date' THEN RAISE EXCEPTION '071: дата з майбутнього пройшла (%)', v; END IF;
+  -- Відмова не сміє лишати порожній період.
+  SELECT count(*) INTO n FROM rent_payment_records WHERE property_id = p AND due_date = DATE '2026-11-05';
+  IF n <> 0 THEN RAISE EXCEPTION '071: відхилений ввід лишив період'; END IF;
+
+  -- ── Період, підтверджений СТАРИМ клієнтом, не губить своїх грошей ─────────
+  -- Кешована вкладка пише `paid` + суму напряму, без надходжень. Нове
+  -- надходження мусить ДОДАТИСЬ до цієї суми, а не замінити її.
+  INSERT INTO rent_payment_records (property_id, owner_id, due_date, paid_at, amount, status, notes)
+  VALUES (pl, o, DATE '2026-08-05', now() - INTERVAL '30 day', 1800, 'paid', 'Переказ');
+  v := record_rent_payment(pl, DATE '2026-08-05', 200, now(), 'Переплата', NULL);
+  IF (v->>'amount')::NUMERIC <> 2000 THEN
+    RAISE EXCEPTION '071: нове надходження затерло суму старого клієнта (%)', v;
+  END IF;
+  SELECT count(*) INTO n FROM rent_payment_parts pp JOIN rent_payment_records rr ON rr.id = pp.record_id
+   WHERE rr.property_id = pl AND rr.due_date = DATE '2026-08-05';
+  IF n <> 2 THEN RAISE EXCEPTION '071: старе підтвердження не стало надходженням (% частин)', n; END IF;
+
+  -- ── Статус «частково» — легальне значення, а не обхід CHECK ───────────────
+  BEGIN
+    UPDATE rent_payment_records SET status = 'bogus' WHERE property_id = pl;
+    RAISE EXCEPTION '071: CHECK статусу пропускає довільні значення';
+  EXCEPTION WHEN check_violation THEN NULL;
+  END;
+
+  RAISE NOTICE '  ✓ 071: частково → оплачено → назад; сума заморожена; каскад; старий клієнт не губить грошей';
+END $$;

@@ -429,6 +429,31 @@ test('screens · owner journey', async ({ page }) => {
     await page.locator('.seg-b', { hasText: 'Архів' }).click()
     await page.getByText('Всього отримано за весь час').waitFor({ timeout: 15_000 })
   })
+  // ДОПЛАТА (071): серпневий борг частково оплачено — картка з рядком
+  // «Отримано … з …» і пігулкою «Доплата», а форма з підсумком і рядком
+  // надходження. Таблицю надходжень харнес за замовчуванням вважає відсутньою,
+  // тож вона вмикається тут, після кадрів «без 071».
+  const PARTIAL_AUG = { ...paid('71000000-0000-0000-0000-000000000003', PROPERTIES[0].id, '2025-08-05', 1000, null),
+    status: 'partial', amount_due: 2250, paid_at: '2025-08-07T10:00:00.000Z' }
+  await page.route('**/rest/v1/rent_payment_records**', (r) => {
+    const rows = filterRows(r.request().url(), [...RECORDS, PARTIAL_AUG])
+    return json(r, (r.request().headers()['accept'] ?? '').includes('object') ? (rows[0] ?? null) : rows)
+  })
+  await page.route('**/rest/v1/rent_payment_parts**', (r) => json(r, [{
+    id: '72000000-0000-0000-0000-000000000001', record_id: PARTIAL_AUG.id, amount: 1000,
+    paid_at: PARTIAL_AUG.paid_at, notes: 'Готівка', created_at: NOW,
+  }]))
+  await snap(page, 'payment-calendar-partial', async () => {
+    await page.goto('/'); await page.getByText('Мої бази').waitFor()
+    await page.getByText('БЦ Рубін').first().click(); await page.getByText('Всі (3)').waitFor()
+    await page.getByLabel('Меню бази').click()
+    await page.getByText('Календар платежів').click()
+    await page.getByRole('button', { name: /Доплата/ }).first().waitFor({ timeout: 15_000 })
+  })
+  await snap(page, 'payment-confirm-partial', async () => {
+    await page.getByRole('button', { name: /Доплата/ }).first().click()
+    await page.getByLabel('Підсумок платежу').waitFor({ timeout: 15_000 })
+  })
   // «Інші доступи» — секція, що зʼявляється на «Моїх базах», лише коли власник
   // сам підписаний на чужу базу чи є гостем. ОСТАННІЙ кадр журналу: підміни
   // нижче живуть на сторінці до кінця тесту.

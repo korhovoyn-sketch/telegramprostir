@@ -246,6 +246,17 @@ export async function mockBackend(page: Page, opts: HarnessOptions = {}) {
   // (last-registered wins when multiple patterns match).
   await page.route('**/rest/v1/**', (route) => {
     if (route.request().url().includes('/rest/v1/users')) return // let the specific handler below run
+    // Таблиця надходжень (071) за замовчуванням ВІДСУТНЯ — рівно так, як
+    // відповідає PostgREST на бекенді без міграції. Це і є стан проду, доки
+    // 071 не накочено, тож решта набору перевіряє старий шлях «лише повна
+    // оплата», а новий вмикає `partial-payments.spec.ts` власним роутом.
+    if (route.request().url().includes('/rest/v1/rent_payment_parts')) {
+      return route.fulfill({
+        status: 404,
+        contentType: 'application/json',
+        body: JSON.stringify({ code: 'PGRST205', message: "Could not find the table 'public.rent_payment_parts' in the schema cache" }),
+      })
+    }
     return json(route, [])
   })
 

@@ -159,6 +159,7 @@ const FROZEN: Record<string, number> = {
   // Підпис місяця групи («квітень 2026 р.», 2.87) — той самий прийнятий
   // `over>span`; сума групи поруч — ЦИФРА, і вона вище AA на темній пігулці.
   'payment-calendar-archive': 1,
+  'payment-confirm-partial': 0,
   'manage-guests': 0,
   'create-invite': 0,
   'create-invite-created': 0,

@@ -1258,3 +1258,109 @@ BEGIN
   PERFORM set_config('request.jwt.claims', '', false);
   RAISE NOTICE '  ✓ 069: власник із базами лишається власником; rotate/revoke забирають доступ у підписаних, термін і команду — ні';
 END $$;
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- 071: НАДХОДЖЕННЯ — пише лише той, хто володіє обʼєктом або редагує базу
+-- ════════════════════════════════════════════════════════════════════════════
+-- Правило 11 на новій таблиці: знати `record_id` чужого періоду НЕ досить.
+-- Кожна відмова має пару-позитив — без неї «нуль» означав би й «відмовили
+-- всім» (той клас уже коштував раунду на storage, 054).
+INSERT INTO auth.users (id,email) VALUES
+  ('e7100000-0000-0000-0000-000000000001','971001@telegram.propspace.app'),
+  ('e7100000-0000-0000-0000-000000000002','971002@telegram.propspace.app'),
+  ('e7100000-0000-0000-0000-000000000003','971003@telegram.propspace.app'),
+  ('e7100000-0000-0000-0000-000000000004','971004@telegram.propspace.app');
+INSERT INTO users (id,tg_id,first_name,role) VALUES
+  ('a7100000-0000-0000-0000-000000000001',971001,'Власник71','owner'),
+  ('a7100000-0000-0000-0000-000000000002',971002,'Чужий71','owner'),
+  ('a7100000-0000-0000-0000-000000000003',971003,'Редактор71','realtor'),
+  ('a7100000-0000-0000-0000-000000000004',971004,'Гість71','guest');
+INSERT INTO databases (id,owner_id,name,type,share_token) VALUES
+  ('d7100000-0000-0000-0000-000000000001','a7100000-0000-0000-0000-000000000001','База71','business_center','tok71_db');
+INSERT INTO properties (id,db_id,owner_id,name,status,tenant_name,share_token) VALUES
+  ('f7100000-0000-0000-0000-000000000001','d7100000-0000-0000-0000-000000000001','a7100000-0000-0000-0000-000000000001','Офіс71','occupied','ТОВ71','tok71_p1');
+INSERT INTO db_members (db_id,user_id,role,status) VALUES
+  ('d7100000-0000-0000-0000-000000000001','a7100000-0000-0000-0000-000000000003','editor','active');
+INSERT INTO guest_links (owner_id,property_id,invite_token,label,status,guest_user_id) VALUES
+  ('a7100000-0000-0000-0000-000000000001','f7100000-0000-0000-0000-000000000001','gtok71','Орендар','active','a7100000-0000-0000-0000-000000000004');
+
+DO $$
+DECLARE v JSONB; n INT; rid UUID; amt FLOAT;
+  pid CONSTANT UUID := 'f7100000-0000-0000-0000-000000000001';
+BEGIN
+  -- ── Власник: повний цикл під RLS ────────────────────────────────────────
+  PERFORM pg_temp.login('971001@telegram.propspace.app');
+  SET LOCAL ROLE authenticated;
+  v := record_rent_payment(pid, DATE '2026-09-05', 1000, now(), 'Готівка', 1800);
+  IF v->>'error' IS NOT NULL OR v->>'status' IS DISTINCT FROM 'partial' THEN
+    RAISE EXCEPTION '071: власник НЕ МОЖЕ вписати надходження у свій обʼєкт (%)', v;
+  END IF;
+  rid := (v->>'record_id')::UUID;
+  SELECT count(*) INTO n FROM rent_payment_parts WHERE record_id = rid;
+  IF n <> 1 THEN RAISE EXCEPTION '071: власник не бачить власного надходження (%)', n; END IF;
+  RESET ROLE;
+
+  -- ── Чужий власник: не бачить, не вписує, не править, не видаляє ─────────
+  PERFORM pg_temp.login('971002@telegram.propspace.app');
+  SET LOCAL ROLE authenticated;
+  SELECT count(*) INTO n FROM rent_payment_parts;
+  IF n <> 0 THEN RAISE EXCEPTION '071: чужий власник бачить % надходжень', n; END IF;
+  BEGIN
+    INSERT INTO rent_payment_parts (record_id, amount, paid_at) VALUES (rid, 999, now());
+    RAISE EXCEPTION '071: чужий власник ВПИСАВ надходження в чужий період — сума жертви зміниться';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  UPDATE rent_payment_parts SET amount = 1 WHERE record_id = rid;
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n <> 0 THEN RAISE EXCEPTION '071: чужий власник змінив % надходжень', n; END IF;
+  DELETE FROM rent_payment_parts WHERE record_id = rid;
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n <> 0 THEN RAISE EXCEPTION '071: чужий власник видалив % надходжень', n; END IF;
+  -- RPC іде під RLS: обʼєкт невидимий → «не знайдено», а не запис.
+  v := record_rent_payment(pid, DATE '2026-09-05', 999, now(), NULL, NULL);
+  IF v->>'error' IS DISTINCT FROM 'not_found' THEN
+    RAISE EXCEPTION '071: RPC пустив чужого власника (%)', v;
+  END IF;
+  RESET ROLE;
+  SELECT amount INTO amt FROM rent_payment_records WHERE id = rid;
+  IF amt <> 1000 THEN RAISE EXCEPTION '071: сума жертви змінилась на % після спроб чужого', amt; END IF;
+
+  -- ── Редактор команди: працює з базою, яку редагує (позитив) ─────────────
+  PERFORM pg_temp.login('971003@telegram.propspace.app');
+  SET LOCAL ROLE authenticated;
+  v := record_rent_payment(pid, DATE '2026-09-05', 800, now(), NULL, NULL);
+  IF v->>'error' IS NOT NULL OR v->>'status' IS DISTINCT FROM 'paid' THEN
+    RAISE EXCEPTION '071: редактор НЕ МОЖЕ вписати надходження в базу команди (%)', v;
+  END IF;
+  SELECT count(*) INTO n FROM rent_payment_parts WHERE record_id = rid;
+  IF n <> 2 THEN RAISE EXCEPTION '071: редактор не бачить надходжень своєї бази (%)', n; END IF;
+  RESET ROLE;
+
+  -- ── Гість (орендар): період бачить (027), надходжень — ні, писати — ні ──
+  PERFORM pg_temp.login('971004@telegram.propspace.app');
+  SET LOCAL ROLE authenticated;
+  SELECT count(*) INTO n FROM rent_payment_records WHERE id = rid;
+  IF n <> 1 THEN RAISE EXCEPTION '071: гість перестав бачити свій період — фікстура не та, «нуль» нижче нічого не доведе'; END IF;
+  SELECT count(*) INTO n FROM rent_payment_parts;
+  IF n <> 0 THEN RAISE EXCEPTION '071: гість бачить % надходжень', n; END IF;
+  BEGIN
+    v := record_rent_payment(pid, DATE '2026-10-05', 5000, now(), NULL, NULL);
+    RAISE EXCEPTION '071: гість ВПИСАВ платіж собі сам (%)', v;
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  RESET ROLE;
+
+  -- ── anon: ні таблиці, ні функції ──────────────────────────────────────────
+  IF has_function_privilege('anon', 'public.record_rent_payment(uuid,date,numeric,timestamptz,text,numeric)', 'EXECUTE') THEN
+    RAISE EXCEPTION '071: anon має EXECUTE на record_rent_payment — дефолтний PUBLIC не знято';
+  END IF;
+  IF NOT has_function_privilege('authenticated', 'public.record_rent_payment(uuid,date,numeric,timestamptz,text,numeric)', 'EXECUTE') THEN
+    RAISE EXCEPTION '071: authenticated не може викликати record_rent_payment — фіча мертва';
+  END IF;
+  IF has_table_privilege('anon', 'public.rent_payment_parts', 'INSERT') THEN
+    RAISE EXCEPTION '071: anon має INSERT на rent_payment_parts';
+  END IF;
+
+  PERFORM set_config('request.jwt.claims', '', false);
+  RAISE NOTICE '  ✓ 071: надходження пишуть власник і редактор; чужий, гість і anon — ні';
+END $$;

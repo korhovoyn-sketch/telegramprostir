@@ -86,7 +86,13 @@ function monthDay(offset: number, day: number): string {
  * Розклад на зайнятий обʼєкт, заведений МИНУЛОГО місяця: тоді календар має
  * рівно один борг (минулий місяць), сплачений поточний і майбутній наступний.
  * Плюс старий платіж уже звільненого обʼєкта — архів показує й його.
+ *
+ * Борг — ЧАСТКОВО оплачений (071): $1 000 із $2 250. Без цього картка з
+ * рядком «Отримано … з …», пігулка «Доплата» і підпис залишку в архіві не
+ * мірялись би ЖОДНИМ гардом контрасту, ширин чи обрізаного тексту.
  */
+const PARTIAL_RECORD_ID = '70000000-0000-0000-0000-000000000003'
+
 async function paymentFixtures(page: Page) {
   const schedule = {
     id: '60000000-0000-0000-0000-000000000001', property_id: PROPERTIES[0].id, owner_id: OWNER.id,
@@ -100,6 +106,7 @@ async function paymentFixtures(page: Page) {
   const records = [
     record('70000000-0000-0000-0000-000000000001', PROPERTIES[0].id, monthDay(0, 5), 2250, 'Переказ на рахунок'),
     record('70000000-0000-0000-0000-000000000002', PROPERTIES[1].id, monthDay(-6, 5), 1800, null),
+    { ...record(PARTIAL_RECORD_ID, PROPERTIES[0].id, monthDay(-1, 5), 1000, null), status: 'partial', amount_due: 2250 },
   ]
   const wantsObject = (r: Route) => (r.request().headers()['accept'] ?? '').includes('object')
   await page.route('**/rest/v1/rent_payments**', (r) => json(r, wantsObject(r) ? schedule : [schedule]))
@@ -586,6 +593,29 @@ export const OWNER_SCREENS: ScreenStep[] = [
       await viaDbMenu(page, 'Календар платежів', /Календар платежів|Платежі —/)
       await page.locator('.seg-b', { hasText: 'Архів' }).click()
       await expect(page.getByText('Всього отримано за весь час')).toBeVisible({ timeout: 15_000 })
+    },
+  },
+  {
+    // ДОПЛАТА (071) — інший стан форми підтвердження: підсумок «очікується /
+    // отримано / залишок», рядки надходжень із кнопкою видалення і підказка
+    // про залишок під сумою. Таблицю надходжень харнес за замовчуванням
+    // вважає відсутньою (стан проду до 071), тож крок вмикає її сам.
+    label: 'payment-confirm-partial',
+    go: async (page) => {
+      await paymentFixtures(page)
+      await page.route('**/rest/v1/rent_payment_parts**', (r) => json(r, [{
+        id: '72000000-0000-0000-0000-000000000001', record_id: PARTIAL_RECORD_ID,
+        amount: 1000, paid_at: `${monthDay(-1, 6)}T10:00:00.000Z`, notes: 'Готівка', created_at: NOW,
+      }]))
+      await viaDbMenu(page, 'Календар платежів', /Календар платежів|Платежі —/)
+      await page.getByRole('button', { name: /Доплата/ }).first().click()
+      await expect(page.getByLabel('Підсумок платежу')).toBeVisible({ timeout: 15_000 })
+      // Менша сума — щоб на екрані була й підказка «залишиться …»: її колір
+      // теж треба міряти. Без фокуса — див. пастку `kbFallback` в CLAUDE.md.
+      const amount = page.getByLabel('Сума отриманого платежу')
+      await amount.fill('500')
+      await amount.blur()
+      await expect(page.locator('.pay-hint')).toBeVisible()
     },
   },
   {
