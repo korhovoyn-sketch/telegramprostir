@@ -10,6 +10,7 @@ import { IconShare, IconEye, IconChartLine } from '@/components/Icons'
 import { formatDate, daysSince, humanizeDbError } from '@/lib/utils'
 import type { PropertyView } from '@/types'
 import { tr } from '@/lib/i18n'
+import { viewerLabel } from '@/lib/viewTracking'
 
 const WEEKDAY = () => ([tr('Нд'), tr('Пн'), tr('Вт'), tr('Ср'), tr('Чт'), tr('Пт'), tr('Сб')])
 
@@ -254,10 +255,10 @@ export default function SharingAnalyticsScreen() {
             {views.slice(0, 15).map((v) => (
               <div key={v.id} className="view-i">
                 <div className="view-av av-grad-2">
-                  {(v.viewer_name ?? '?').charAt(0).toUpperCase()}
+                  {(v.viewer_name ? viewerLabel(v.viewer_name) : '?').charAt(0).toUpperCase()}
                 </div>
                 <div className="view-mn">
-                  <div className="view-n">{v.viewer_name ?? tr('Анонім')}</div>
+                  <div className="view-n">{viewerLabel(v.viewer_name)}</div>
                   <div className="view-a">
                     {v.action === 'photo' ? tr('переглянув фото') :
                      v.action === 'document' ? tr('завантажив документ') :

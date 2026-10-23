@@ -232,8 +232,8 @@ export async function mockBackend(page: Page, opts: HarnessOptions = {}) {
   const authUser = { id: user.id, email: `${user.tg_id}@telegram.propspace.app`, aud: 'authenticated', role: 'authenticated' }
   const sessionBody = { access_token: jwt, refresh_token: 'refresh-xyz', token_type: 'bearer', expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, user: authUser }
 
-  // Edge Function login (POST) + diagnostics (GET)
-  await page.route('**/functions/v1/telegram-auth', async (route) => {
+  // Edge Function login (POST) + diagnostics (GET) + прогрів зі сплешу (GET ?warm)
+  await page.route('**/functions/v1/telegram-auth**', async (route) => {
     if (route.request().method() === 'GET') return json(route, { ok: true, checks: {} })
     if (opts.loginDelayMs) await new Promise((r) => setTimeout(r, opts.loginDelayMs))
     return json(route, { access_token: jwt, refresh_token: 'refresh-xyz', user, is_new: user.role === null })

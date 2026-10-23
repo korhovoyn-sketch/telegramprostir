@@ -129,7 +129,11 @@ export default function DbActivityScreen() {
                   {g.items.map(a => {
                     const v = describeActivity(a, user?.currency)
                     const Icon = ICONS[v.icon]
-                    const who = a.actor_id && a.actor_id === user?.id ? tr('Ви') : (a.actor_name || tr('Невідомо'))
+                    // Подію без особи сервер не пише взагалі, тож порожнє посилання
+                    // тут означає рівно одне: людина видалила акаунт, і 074 стерла
+                    // разом із ним імʼя. «Невідомо» сказало б менше, ніж відомо.
+                    const who = a.actor_id && a.actor_id === user?.id ? tr('Ви')
+                      : a.actor_name || (a.actor_id ? tr('Невідомо') : tr('Видалений акаунт'))
                     return (
                       <div key={a.id} className="act-row">
                         <span className="act-ic" style={{ color: TONE[v.tone] }}><Icon size={16} /></span>

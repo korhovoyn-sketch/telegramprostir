@@ -368,7 +368,23 @@ WITH checks(ord, item, migration, ok) AS (VALUES
   -- «записати» гроші від імені власника.
   (66, 'rent_payment_parts: автор ставиться тригером', '073_db_activity.sql',
       (SELECT COUNT(*) = 1 FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
-        WHERE c.relname='rent_payment_parts' AND t.tgname='trg_stamp_rent_part_author' AND NOT t.tgisinternal))
+        WHERE c.relname='rent_payment_parts' AND t.tgname='trg_stamp_rent_part_author' AND NOT t.tgisinternal)),
+
+  -- 074-1: автор надходження звільняється, коли акаунт видалено. Без винятку
+  -- тригер 073 скасовував каскад `SET NULL`, і ключ лишався на неіснуючому
+  -- користувачі — логічний бекап на такому обмеженні не відновлюється.
+  (67, 'автор надходження не висне після видалення акаунта', '074_account_erasure.sql',
+      (SELECT COALESCE(bool_or(p.prosrc LIKE '%NOT EXISTS (SELECT 1 FROM users u WHERE u.id = OLD.created_by)%'), false)
+         FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND p.proname = 'stamp_rent_part_author')),
+
+  -- 074-2: імʼя йде слідом за посиланням — у журналі, переглядах і гостьових
+  -- лінках. Без тригерів «видалити акаунт і всі повʼязані дані» з Політики
+  -- лишається неправдою щодо чужих баз.
+  (68, 'видалений акаунт: імʼя стирається з журналу, переглядів і гостьових лінків', '074_account_erasure.sql',
+      (SELECT COUNT(*) = 3 FROM pg_trigger t
+        WHERE NOT t.tgisinternal
+          AND t.tgname IN ('trg_erase_viewer_name', 'trg_erase_guest_name', 'trg_erase_actor_name')))
 )
 SELECT
   CASE WHEN ok THEN '✅ OK     ' ELSE '❌ MISSING' END AS status,

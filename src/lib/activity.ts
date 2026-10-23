@@ -28,12 +28,16 @@ const num = (v: unknown): number | null => {
   return typeof n === 'number' && Number.isFinite(n) ? n : null
 }
 
-/** «за серпень 2026» — місяць ПЕРІОДУ платежу, а не день запису. */
+/** «за серпень 2026» — місяць ПЕРІОДУ платежу, а не день запису.
+ *  Пробіл перед «р.» нерозривний: ICU ставить звичайний, і на 375px «р.»
+ *  відривалось на окремий рядок. */
 function periodOf(dueDate: unknown): string {
   const d = str(dueDate)
   if (!d) return '—'
   const date = new Date(`${d.slice(0, 10)}T00:00:00`)
-  return Number.isNaN(date.getTime()) ? d : date.toLocaleDateString(locale(), { month: 'long', year: 'numeric' })
+  return Number.isNaN(date.getTime())
+    ? d
+    : date.toLocaleDateString(locale(), { month: 'long', year: 'numeric' }).replace(/ р\.$/, ' р.')
 }
 
 function rateOf(t: Record<string, unknown> | null, currency?: string): string {

@@ -71,6 +71,24 @@ test('журнал своєї бази: що сталось, з чим і хто
   expect(wire.asked.some((u) => u.includes(`db_id=eq.${DB_ID}`) && u.includes('order=created_at.desc'))).toBe(true)
 })
 
+test('подія людини, що видалила акаунт, — «Видалений акаунт», а не «Невідомо»', async ({ page }) => {
+  // 074 стирає імʼя разом із посиланням; подію без особи сервер не пише
+  // взагалі, тож порожнє посилання означає саме видалений акаунт.
+  const wire: Wire = { asked: [] }
+  await setup(page, null, (p) => journal(p, [
+    ev(9, 'property_renamed', { from: 'Офіс 101', to: 'Офіс 101А' }, '2026-09-15T08:00:00.000Z', null, null),
+    ev(10, 'photo_deleted', {}, '2026-09-15T07:00:00.000Z', EDITOR, null),
+  ], wire))
+  await openJournal(page)
+
+  const rows = page.locator('.act-row')
+  await expect(rows).toHaveCount(2, { timeout: 10_000 })
+  await expect(rows.nth(0).locator('.act-s')).toContainText('Видалений акаунт')
+  // Антивакуум: особа є, імені немає — це НЕ видалений акаунт.
+  await expect(rows.nth(1).locator('.act-s')).toContainText('Невідомо')
+  await expect(rows.nth(1).locator('.act-s')).not.toContainText('Видалений акаунт')
+})
+
 test('журнал росте без меж — вантажиться порціями, «Показати ще» дочитує наступну', async ({ page }) => {
   const wire: Wire = { asked: [] }
   const many = Array.from({ length: 60 }, (_, i) =>

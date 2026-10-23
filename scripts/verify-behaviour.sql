@@ -910,3 +910,105 @@ BEGIN
   PERFORM pg_temp.as_user(NULL);
   RAISE NOTICE '  ✓ 073: подія — з автором; шум, каскад і система не пишуться; підробити автора не можна; журнал не ламає дію';
 END $$;
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- 074: ВИДАЛЕННЯ АКАУНТА — імʼя зникає з чужих баз, автор не висне
+-- ════════════════════════════════════════════════════════════════════════════
+-- Сценарій той, на якому це знайшлось: РЕДАКТОР вписав гроші в базу
+-- власника, правив обʼєкт, переглядав його, мав гостьовий доступ — і видалив
+-- акаунт. Перевіряється і стирання (імені ніде немає), і те, що облік
+-- власника ЛИШИВСЯ: стирання, що прибрало б надходження разом з автором,
+-- пройшло б «імені немає» так само.
+--
+-- ДВА блоки, тобто ДВІ транзакції, — і це не стиль. Для рядка, вставленого
+-- ТІЄЮ САМОЮ транзакцією, Postgres перевірку ключа не пропускає, тож в
+-- одному блоці дефект проявлявся б ПОМИЛКОЮ видалення. У проді надходження
+-- вписують задовго до видалення акаунта, і там той самий дефект ТИХИЙ:
+-- видалення «успішне», ключ висить. Стенд мусить бачити саме цей варіант.
+DO $$
+DECLARE
+  o  UUID := 'bbbbbbbb-0000-0000-0000-000000000074';
+  e  UUID := 'bbbbbbbb-0000-0000-0000-000000000741';
+  d  UUID := 'cccccccc-0000-0000-0000-000000000074';
+  p  UUID := 'dddddddd-0000-0000-0000-000000000741';
+  v  JSONB;
+  r  RECORD;
+  n  INT;
+BEGIN
+  INSERT INTO auth.users (id, email) VALUES
+    ('aaaaaaaa-0000-0000-0000-000000000741', '740002@telegram.propspace.app');
+  INSERT INTO users (id, tg_id, first_name, last_name, role) VALUES
+    (o, 740001, 'Власник', 'Сімдесятчотири', 'owner'),
+    (e, 740002, 'Олена', 'Стерта', 'realtor');
+  INSERT INTO databases (id, owner_id, name, type) VALUES (d, o, 'База 074', 'business_center');
+  INSERT INTO db_members (db_id, user_id, role, status, member_name) VALUES (d, e, 'editor', 'active', 'Олена Стерта');
+
+  PERFORM pg_temp.as_user(740001);
+  INSERT INTO properties (id, db_id, owner_id, name, status, tenant_name, rent_type, rent_rate)
+  VALUES (p, d, o, 'Офіс 740', 'occupied', 'ТОВ Орендар', 'fixed', 1000);
+
+  -- Сліди редактора в чужій базі: гроші, правка (подія журналу), перегляд,
+  -- гостьовий доступ від того ж власника.
+  PERFORM pg_temp.as_user(740002);
+  v := record_rent_payment(p, DATE '2026-09-05', 400, now(), NULL, NULL);
+  UPDATE properties SET name = 'Офіс 740А' WHERE id = p;
+  INSERT INTO property_views (property_id, viewer_id, viewer_name, action) VALUES (p, e, 'Олена Стерта', 'view');
+  INSERT INTO guest_links (owner_id, property_id, invite_token, status, guest_user_id, guest_name)
+  VALUES (o, p, 'tok_074_guest', 'active', e, 'Олена Стерта');
+  -- Службовий підпис публічного відкриття — НЕ імʼя людини, і він мусить вижити.
+  INSERT INTO property_views (property_id, viewer_id, viewer_name, action) VALUES (p, NULL, 'Веб-перегляд', 'view');
+
+  -- ── Поки людина є, автора не стирає й не підміняє НІХТО (захист 073) ─────
+  -- Без цього позитиву виняток для каскаду міг би відкрити стирання будь-кому.
+  UPDATE rent_payment_parts pp SET created_by = NULL, created_by_name = 'Хтось'
+    FROM rent_payment_records rr WHERE rr.id = pp.record_id AND rr.property_id = p;
+  SELECT pp.created_by, pp.created_by_name INTO r
+    FROM rent_payment_parts pp JOIN rent_payment_records rr ON rr.id = pp.record_id WHERE rr.property_id = p;
+  IF r.created_by IS DISTINCT FROM e OR r.created_by_name IS DISTINCT FROM 'Олена Стерта' THEN
+    RAISE EXCEPTION '074: виняток для каскаду відкрив стирання автора живої людини (%)', r;
+  END IF;
+  PERFORM pg_temp.as_user(NULL);
+END $$;
+
+DO $$
+DECLARE
+  d  UUID := 'cccccccc-0000-0000-0000-000000000074';
+  p  UUID := 'dddddddd-0000-0000-0000-000000000741';
+  r  RECORD;
+  n  INT;
+BEGIN
+  -- ── Видалення акаунта — окремою транзакцією, як у проді ───────────────────
+  PERFORM pg_temp.as_user(740002);
+  SELECT * INTO r FROM delete_my_account();
+  IF NOT r.deleted THEN RAISE EXCEPTION '074: видалення акаунта редактора відмовило (%)', r.error; END IF;
+
+  -- Ключ не висить: інакше логічний бекап не відновить обмеження.
+  SELECT count(*) INTO n FROM rent_payment_parts pp
+   WHERE pp.created_by IS NOT NULL AND NOT EXISTS (SELECT 1 FROM users u WHERE u.id = pp.created_by);
+  IF n <> 0 THEN
+    RAISE EXCEPTION '074: % надходжень посилаються на видаленого користувача — дамп не відновить обмеження', n;
+  END IF;
+
+  -- Імені немає НІДЕ.
+  SELECT (SELECT count(*) FROM rent_payment_parts WHERE created_by_name = 'Олена Стерта')
+       + (SELECT count(*) FROM db_activity        WHERE actor_name      = 'Олена Стерта')
+       + (SELECT count(*) FROM property_views     WHERE viewer_name     = 'Олена Стерта')
+       + (SELECT count(*) FROM guest_links        WHERE guest_name      = 'Олена Стерта')
+    INTO n;
+  IF n <> 0 THEN RAISE EXCEPTION '074: імʼя видаленого акаунта лишилось у % рядках чужих баз', n; END IF;
+
+  -- Облік власника — на місці: гроші, події, перегляди.
+  SELECT count(*) INTO n FROM rent_payment_parts pp JOIN rent_payment_records rr ON rr.id = pp.record_id
+   WHERE rr.property_id = p AND pp.amount = 400;
+  IF n <> 1 THEN RAISE EXCEPTION '074: стирання забрало надходження власника разом з автором'; END IF;
+  SELECT count(*) INTO n FROM db_activity WHERE db_id = d AND actor_id IS NULL;
+  IF n < 2 THEN RAISE EXCEPTION '074: події редактора зникли з журналу (лишилось %)', n; END IF;
+  -- Стирання, що чистило б УСІ імена, пройшло б перевірку «імені немає» вище.
+  SELECT count(*) INTO n FROM db_activity WHERE db_id = d AND actor_name = 'Власник Сімдесятчотири';
+  IF n < 1 THEN RAISE EXCEPTION '074: стирання зачепило імʼя ВЛАСНИКА'; END IF;
+  SELECT count(*) INTO n FROM property_views WHERE property_id = p AND viewer_name = 'Веб-перегляд';
+  IF n <> 1 THEN RAISE EXCEPTION '074: стерто службовий підпис публічного перегляду'; END IF;
+
+  PERFORM pg_temp.as_user(NULL);
+  RAISE NOTICE '  ✓ 074: видалений акаунт не лишає ні імені, ні висячого ключа; гроші й події власника на місці';
+END $$;

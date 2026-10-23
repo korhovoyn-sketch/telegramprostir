@@ -192,6 +192,16 @@ Deno.serve(async (req) => {
     return new Response('ok', { headers })
   }
 
+  // ── GET ?warm: ПРОГРІВ зі сплешу — БЕЗ жодної проби ─────────────────────
+  // Сплеш будить функцію на КОЖНОМУ запуску застосунку, щоб вхід не чекав
+  // холодного старту. Доки він ходив у діагностику нижче, кожен запуск
+  // кожного користувача робив запит до Telegram `getMe` і запит у БД
+  // службовим ключем — заради відповіді, яку ніхто не читає. Щоб розбудити
+  // функцію, досить того, що запит до неї дійшов.
+  if (req.method === 'GET' && new URL(req.url).searchParams.has('warm')) {
+    return new Response(null, { status: 204 })
+  }
+
   // ── GET: lightweight health / config check ──────────────────────────────
   // Returns which env vars are configured (not their values).
   // Useful for diagnosing why auth is broken without exposing secrets.

@@ -13,6 +13,13 @@ describe('describeActivity', () => {
       .toMatch(/^Отримано \$1[\s ,]?000 за серпень 2026/)
   })
 
+  it('«р.» не відривається від року: пробіл перед ним нерозривний', () => {
+    // ICU ставить звичайний пробіл, і на 375px «р.» стояло окремим рядком.
+    const t = view('payment_received', { due_date: '2026-08-05', amount: 1000 }).title
+    expect(t).toMatch(/2026\u00a0р\.$/)
+    expect(t).not.toMatch(/2026 р\./)
+  })
+
   it('виправлення: сума змінилась — «було → стало»; змінилась лише дата — так і сказано', () => {
     expect(view('payment_edited', { due_date: '2026-09-05', from: 1000, to: 1500 }).title).toMatch(/1[\s ,]?000 → \$1[\s ,]?500/)
     expect(view('payment_edited', { due_date: '2026-09-05', from: 1000, to: 1000 }).title).toMatch(/^Змінено дату надходження/)
