@@ -255,7 +255,136 @@ WITH checks(ord, item, migration, ok) AS (VALUES
           AND COALESCE((SELECT NOT has_table_privilege('authenticated', c.oid, 'DELETE')
                                AND NOT has_table_privilege('authenticated', c.oid, 'UPDATE')
                                AND NOT has_table_privilege('authenticated', c.oid, 'INSERT')
-                          FROM pg_class c WHERE c.relname='tenancies' AND c.relkind='r'), false)))
+                          FROM pg_class c WHERE c.relname='tenancies' AND c.relkind='r'), false))),
+
+  -- 069-1: гостьове запрошення не знижує власника, що МАЄ бази. Без цього
+  -- власник, який прийняв чуже запрошення, втрачає таббар «Бази» назавжди.
+  (53, 'claim_guest_link не знижує власника з базами', '069_access_integrity.sql',
+      (SELECT COUNT(*) >= 1 FROM pg_proc
+        WHERE proname='claim_guest_link'
+          AND prosrc LIKE '%NOT EXISTS (SELECT 1 FROM databases d WHERE d.owner_id = v_uid)%')),
+
+  -- 069-2: «Відкликати доступ» / «Оновити посилання» забирають доступ у вже
+  -- підписаних рієлторів. Без цього шит обіцяв те, чого сервер не робив.
+  (54, 'manage_share: rotate/revoke знімають підписки рієлторів', '069_access_integrity.sql',
+      (SELECT COUNT(*) >= 1 FROM pg_proc
+        WHERE proname='manage_share'
+          AND prosrc LIKE '%DELETE FROM realtor_subscriptions%')),
+
+  -- 069-3: ремонт відпрацював — знижених власників не лишилось. Перевіряє
+  -- ДАНІ, а не код: функцію можна виправити, а людей так і не повернути.
+  (55, 'немає гостей, що володіють базами (ремонт 069)', '069_access_integrity.sql',
+      (SELECT NOT EXISTS (SELECT 1 FROM users u
+                           WHERE u.role='guest'
+                             AND EXISTS (SELECT 1 FROM databases d WHERE d.owner_id = u.id)))),
+
+  -- 070: нагадування НЕ йде про вже підтверджений платіж. Обидві функції —
+  -- власницька й гостьова: орендар-гість отримував те саме хибне «оплата
+  -- через 3 дні», хоч сам уже заплатив.
+  (56, 'нагадування пропускають підтверджені платежі (власник і гість)', '070_reminders_skip_paid.sql',
+      (SELECT COUNT(*) = 2 FROM pg_proc
+        WHERE proname IN ('get_due_reminders_today','get_due_guest_reminders')
+          AND prosrc LIKE '%FROM rent_payment_records r%'
+          AND prosrc LIKE '%r.status = ''paid''%')),
+
+  -- 071-1: надходження — окрема таблиця з RLS, і обидві політики питають про
+  -- ЦІЛЬ (обʼєкт власника чи бази команди), а не лише «чи це мій рядок».
+  (57, 'rent_payment_parts: RLS увімкнена, власник і редактор', '071_partial_payments.sql',
+      (SELECT COALESCE((SELECT c.relrowsecurity FROM pg_class c
+                          WHERE c.relname='rent_payment_parts' AND c.relkind='r'), false)
+          AND (SELECT COUNT(*) = 2 FROM pg_policies
+                WHERE tablename='rent_payment_parts'
+                  AND policyname IN ('parts_owner_all','parts_editor_all')
+                  AND with_check LIKE '%property_ids%'))),
+
+  -- 071-2: ТРИГЕР, а не лише функція — інакше надходження пишуться, а
+  -- підсумок періоду (сума, статус) лишається старим, і календар бреше.
+  (58, 'trg_sync_rent_record_from_parts висить на rent_payment_parts', '071_partial_payments.sql',
+      (SELECT COUNT(*) = 1 FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
+        WHERE c.relname='rent_payment_parts' AND t.tgname='trg_sync_rent_record_from_parts' AND NOT t.tgisinternal)),
+
+  -- 071-3: статус «частково» легальний. Без нового CHECK тригер падав би на
+  -- КОЖНОМУ неповному надходженні, тобто фіча працювала б лише для повних.
+  (59, 'rent_payment_records.status приймає partial', '071_partial_payments.sql',
+      (SELECT COUNT(*) >= 1 FROM pg_constraint
+        WHERE conrelid = 'public.rent_payment_records'::regclass AND contype='c'
+          AND pg_get_constraintdef(oid) LIKE '%partial%')),
+
+  -- 071-4: RPC є, автентифікованому доступна, анонімові — ні (правило 12:
+  -- без явного REVOKE дефолтний PUBLIC лишився б).
+  (60, 'record_rent_payment: authenticated так, anon ні', '071_partial_payments.sql',
+      (SELECT COALESCE((SELECT has_function_privilege('authenticated', p.oid, 'EXECUTE')
+                               AND NOT has_function_privilege('anon', p.oid, 'EXECUTE')
+                          FROM pg_proc p WHERE p.proname='record_rent_payment' LIMIT 1), false))),
+
+  -- 072-1: історія умов — лише ЧИТАННЯ для клієнтів (урок 068). Друга
+  -- половина важливіша за першу: без неї «політика за зразком» відкрила б
+  -- запис мовчки, і «ставка, що діяла тоді» стала б тим, що захотіли.
+  (61, 'property_rent_terms: RLS, лише SELECT, запис клієнтам закритий', '072_rent_terms_history.sql',
+      (SELECT COALESCE((SELECT c.relrowsecurity FROM pg_class c
+                          WHERE c.relname='property_rent_terms' AND c.relkind='r'), false)
+          AND (SELECT COUNT(*) = 2 FROM pg_policies
+                WHERE tablename='property_rent_terms' AND cmd='SELECT'
+                  AND policyname IN ('rent_terms_owner_select','rent_terms_editor_select'))
+          AND (SELECT COUNT(*) = 0 FROM pg_policies
+                WHERE tablename='property_rent_terms' AND cmd <> 'SELECT')
+          AND CASE WHEN to_regclass('public.property_rent_terms') IS NULL THEN false
+                   ELSE NOT has_table_privilege('authenticated', 'public.property_rent_terms', 'INSERT') END)),
+
+  -- 072-2: ТРИГЕР, а не лише функція — без нього історія лишається порожньою
+  -- назавжди, і борг рахується з поточної ставки БЕЗ жодного сигналу.
+  (62, 'trg_record_rent_terms висить на properties', '072_rent_terms_history.sql',
+      (SELECT COUNT(*) = 1 FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
+        WHERE c.relname='properties' AND t.tgname='trg_record_rent_terms' AND NOT t.tgisinternal)),
+
+  -- 072-3: сума за період — authenticated так, anon ні (правило 12).
+  (63, 'set_rent_amount_due: authenticated так, anon ні', '072_rent_terms_history.sql',
+      (SELECT COALESCE((SELECT has_function_privilege('authenticated', p.oid, 'EXECUTE')
+                               AND NOT has_function_privilege('anon', p.oid, 'EXECUTE')
+                          FROM pg_proc p WHERE p.proname='set_rent_amount_due' LIMIT 1), false))),
+
+  -- 073-1: журнал змін — лише ЧИТАННЯ для клієнтів (урок 068): журнал, який
+  -- редактор може підправити, не відповідає на «хто це зробив».
+  (64, 'db_activity: RLS, лише SELECT, запис клієнтам закритий', '073_db_activity.sql',
+      (SELECT COALESCE((SELECT c.relrowsecurity FROM pg_class c
+                          WHERE c.relname='db_activity' AND c.relkind='r'), false)
+          AND (SELECT COUNT(*) = 2 FROM pg_policies
+                WHERE tablename='db_activity' AND cmd='SELECT'
+                  AND policyname IN ('activity_owner_select','activity_editor_select'))
+          AND (SELECT COUNT(*) = 0 FROM pg_policies
+                WHERE tablename='db_activity' AND cmd <> 'SELECT')
+          AND CASE WHEN to_regclass('public.db_activity') IS NULL THEN false
+                   ELSE NOT has_table_privilege('authenticated', 'public.db_activity', 'INSERT') END)),
+
+  -- 073-2: ТРИГЕРИ на всіх пʼяти таблицях. Таблиця без тригерів — це журнал,
+  -- що мовчить завжди, тобто «змін не було», яке читається як правда.
+  (65, 'журнал: тригери на properties, надходженнях, періодах, розкладі, документах, фото', '073_db_activity.sql',
+      (SELECT COUNT(*) = 6 FROM pg_trigger t
+        WHERE NOT t.tgisinternal AND t.tgname IN (
+          'trg_activity_property', 'trg_activity_rent_part', 'trg_activity_rent_record',
+          'trg_activity_rent_schedule', 'trg_activity_property_files', 'trg_activity_property_photos'))),
+
+  -- 073-3: автора надходження ставить сервер — інакше редактор міг би
+  -- «записати» гроші від імені власника.
+  (66, 'rent_payment_parts: автор ставиться тригером', '073_db_activity.sql',
+      (SELECT COUNT(*) = 1 FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
+        WHERE c.relname='rent_payment_parts' AND t.tgname='trg_stamp_rent_part_author' AND NOT t.tgisinternal)),
+
+  -- 074-1: автор надходження звільняється, коли акаунт видалено. Без винятку
+  -- тригер 073 скасовував каскад `SET NULL`, і ключ лишався на неіснуючому
+  -- користувачі — логічний бекап на такому обмеженні не відновлюється.
+  (67, 'автор надходження не висне після видалення акаунта', '074_account_erasure.sql',
+      (SELECT COALESCE(bool_or(p.prosrc LIKE '%NOT EXISTS (SELECT 1 FROM users u WHERE u.id = OLD.created_by)%'), false)
+         FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND p.proname = 'stamp_rent_part_author')),
+
+  -- 074-2: імʼя йде слідом за посиланням — у журналі, переглядах і гостьових
+  -- лінках. Без тригерів «видалити акаунт і всі повʼязані дані» з Політики
+  -- лишається неправдою щодо чужих баз.
+  (68, 'видалений акаунт: імʼя стирається з журналу, переглядів і гостьових лінків', '074_account_erasure.sql',
+      (SELECT COUNT(*) = 3 FROM pg_trigger t
+        WHERE NOT t.tgisinternal
+          AND t.tgname IN ('trg_erase_viewer_name', 'trg_erase_guest_name', 'trg_erase_actor_name')))
 )
 SELECT
   CASE WHEN ok THEN '✅ OK     ' ELSE '❌ MISSING' END AS status,

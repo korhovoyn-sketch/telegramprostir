@@ -1,10 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useAppStore } from '@/store/appStore'
+import { useAppSlice } from '@/store/appStore'
 import RetryState from '@/components/ui/RetryState'
 import { supabase } from '@/lib/supabase'
 import TabBar from '@/components/ui/TabBar'
+import OtherAccess from '@/components/OtherAccess'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import { IconKey, IconBuilding, IconChevronRight } from '@/components/Icons'
 import { StatusBadge } from '@/components/ui/Badge'
@@ -13,10 +14,15 @@ import type { GuestLink } from '@/types'
 import { tr } from '@/lib/i18n'
 
 export default function GuestHomeScreen() {
-  const { user, navigate } = useAppStore()
+  const { user, navigate } = useAppSlice('user', 'navigate')
   const [links, setLinks] = useState<GuestLink[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
+  // Скільки доступів знайшла секція «Інші доступи»: якщо гість водночас
+  // редактор команди чи підписник, «Немає доступних обʼєктів» було б неправдою.
+  // `null` — секція ще не відповіла: тоді порожній стан не малюємо, інакше він
+  // блимав би перед появою доступів.
+  const [otherCount, setOtherCount] = useState<number | null>(null)
 
   async function load() {
     if (!user) return
@@ -45,7 +51,7 @@ export default function GuestHomeScreen() {
   useEffect(() => {
     load()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user])
+  }, [user?.id])
 
   const greet = greeting()
 
@@ -78,11 +84,11 @@ export default function GuestHomeScreen() {
           </div>
         </div>
 
-        {loading ? (
+        {loading || (links.length === 0 && !loadError && otherCount === null) ? (
           <SkeletonLoader rowHeight={69} />
         ) : loadError ? (
           <RetryState subtitle={loadError} onRetry={load} />
-        ) : links.length === 0 ? (
+        ) : links.length === 0 && otherCount ? null : links.length === 0 ? (
           <div className="empty-state" style={{ paddingTop: 32 }}>
             <div className="empty-ic">🏠</div>
             <div className="empty-h">{tr('Немає доступних обʼєктів')}</div>
@@ -135,6 +141,8 @@ export default function GuestHomeScreen() {
             })}
           </div>
         )}
+
+        <OtherAccess show={['subscriptions', 'team']} onCount={setOtherCount} hidden={loading} />
 
         <div style={{ height: 100 }} />
       </div>

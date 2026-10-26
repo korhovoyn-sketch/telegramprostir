@@ -1,5 +1,6 @@
 import { expect, type Page, type Route } from '@playwright/test'
 import { setupApp, seedSession, DEFAULT_USER, jsonRoute, type HarnessUser } from './harness'
+import { filterRows } from './rowFilter'
 
 /**
  * ЄДИНИЙ обхід усіх досяжних екранів — для гардів, які міряють РЕНДЕР.
@@ -73,6 +74,47 @@ const PROPERTIES = [
   prop(2),
   prop(3, { status: 'for_sale', sale_price: 250_000 }),
 ]
+
+/** День `day` місяця зі зсувом `offset` від СПРАВЖНЬОГО сьогодні (ISO). */
+function monthDay(offset: number, day: number): string {
+  const n = new Date()
+  const d = new Date(n.getFullYear(), n.getMonth() + offset, day)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/**
+ * Розклад на зайнятий обʼєкт, заведений МИНУЛОГО місяця: тоді календар має
+ * рівно один борг (минулий місяць), сплачений поточний і майбутній наступний.
+ * Плюс старий платіж уже звільненого обʼєкта — архів показує й його.
+ *
+ * Борг — ЧАСТКОВО оплачений (071): $1 000 із $2 250. Без цього картка з
+ * рядком «Отримано … з …», пігулка «Доплата» і підпис залишку в архіві не
+ * мірялись би ЖОДНИМ гардом контрасту, ширин чи обрізаного тексту.
+ */
+const PARTIAL_RECORD_ID = '70000000-0000-0000-0000-000000000003'
+
+async function paymentFixtures(page: Page) {
+  const schedule = {
+    id: '60000000-0000-0000-0000-000000000001', property_id: PROPERTIES[0].id, owner_id: OWNER.id,
+    due_day: 5, notify_days_before: 3, is_active: true,
+    created_at: `${monthDay(-1, 1)}T09:00:00.000Z`, updated_at: NOW,
+  }
+  const record = (id: string, propertyId: string, due: string, amount: number, notes: string | null) => ({
+    id, property_id: propertyId, owner_id: OWNER.id, due_date: due, paid_at: `${due}T10:00:00.000Z`,
+    amount, status: 'paid', notes, created_at: NOW, updated_at: NOW,
+  })
+  const records = [
+    record('70000000-0000-0000-0000-000000000001', PROPERTIES[0].id, monthDay(0, 5), 2250, 'Переказ на рахунок'),
+    record('70000000-0000-0000-0000-000000000002', PROPERTIES[1].id, monthDay(-6, 5), 1800, null),
+    { ...record(PARTIAL_RECORD_ID, PROPERTIES[0].id, monthDay(-1, 5), 1000, null), status: 'partial', amount_due: 2250 },
+  ]
+  const wantsObject = (r: Route) => (r.request().headers()['accept'] ?? '').includes('object')
+  await page.route('**/rest/v1/rent_payments**', (r) => json(r, wantsObject(r) ? schedule : [schedule]))
+  await page.route('**/rest/v1/rent_payment_records**', (r) => {
+    const rows = filterRows(r.request().url(), records)
+    return json(r, wantsObject(r) ? (rows[0] ?? null) : rows)
+  })
+}
 
 const FOLDERS = [{
   id: '40000000-0000-0000-0000-0000000000a1', db_id: DB_ID, owner_id: OWNER.id,
@@ -495,12 +537,159 @@ export const OWNER_SCREENS: ScreenStep[] = [
     },
   },
   {
+    // Секція «Інші доступи» — доступ, який людина МАЄ, але її роль на домашньому
+    // не показує (тут: власник, що підписаний на чужу базу і сам гість на
+    // обʼєкті). Без неї deep link приводив туди рівно один раз, і шлях назад
+    // зникав. Інший СТАН рендера «Моїх баз», а отже окремий крок.
+    //
+    // Підміна ВУЗЬКА: лише запити з фільтром самої секції, решту пропускає
+    // `fallback()` до спільних фікстур — інакше `manage-guests` і `team`
+    // поїхали б разом із нею.
+    label: 'db-list-other-access',
+    go: async (page) => {
+      const SUB_DB = { ...DB, id: '10000000-0000-0000-0000-000000000003', owner_id: OTHER_OWNER, name: 'БЦ Колеги', color: 'green' }
+      await page.route('**/rest/v1/realtor_subscriptions**', (r) => json(r, [{
+        id: '30000000-0000-0000-0000-000000000005', realtor_id: OWNER.id, db_id: SUB_DB.id,
+        created_at: NOW, database: SUB_DB,
+      }]))
+      await page.route('**/rest/v1/guest_links**', (r) => {
+        if (!r.request().url().includes('guest_user_id=eq.')) return r.fallback()
+        return json(r, [{
+          id: '30000000-0000-0000-0000-000000000006', property_id: PROPERTIES[0].id, db_id: null,
+          label: 'Склад на Подолі', status: 'active', owner_id: OTHER_OWNER, guest_user_id: OWNER.id,
+          property: { ...PROPERTIES[0], name: 'Склад 7' }, database: null,
+        }])
+      })
+      await atDbList(page)
+      const section = page.getByRole('region', { name: 'Інші доступи' })
+      await expect(section.getByText('Склад 7')).toBeVisible({ timeout: 15_000 })
+      // Секція стоїть під списком баз, тобто на першому кадрі — під плаваючою
+      // «Створити базу». Це «ще не доскролено», а не вкрадений тап, тож міряємо
+      // те, що бачить людина, яка до секції догорнула.
+      await page.locator('.body').evaluate((b) => { b.scrollTop = b.scrollHeight })
+      await page.waitForTimeout(400)
+    },
+  },
+  {
+    // ПЛАТІЖНІ КАРТКИ. Крок `payment-calendar` вище міряє календар БЕЗ розкладу
+    // (блок «Немає розкладу»), тобто саме те, заради чого екран існує, —
+    // картки платежів із діями, борг, сплачений платіж із кнопкою скасування —
+    // не міряв ЖОДЕН гард контрасту, зони дотику, ширин чи обрізаного тексту.
+    // Дати рахуються від СПРАВЖНЬОГО сьогодні: обхід годинника не морозить, а
+    // календар будує місяці від нього (Node і браузер тут ділять один час).
+    label: 'payment-calendar-items',
+    go: async (page) => {
+      await paymentFixtures(page)
+      await viaDbMenu(page, 'Календар платежів', /Календар платежів|Платежі —/)
+      await expect(page.locator('.over', { hasText: 'Заборгованість' })).toBeVisible({ timeout: 15_000 })
+    },
+  },
+  {
+    // Архів — інший СТАН рендера того самого екрана, і в ньому власні дії
+    // (редагувати й скасувати платіж), яких на вкладці «Поточні» може не бути.
+    label: 'payment-calendar-archive',
+    go: async (page) => {
+      await paymentFixtures(page)
+      await viaDbMenu(page, 'Календар платежів', /Календар платежів|Платежі —/)
+      await page.locator('.seg-b', { hasText: 'Архів' }).click()
+      await expect(page.getByText('Всього отримано за весь час')).toBeVisible({ timeout: 15_000 })
+    },
+  },
+  {
+    // ДОПЛАТА (071) — інший стан форми підтвердження: підсумок «очікується /
+    // отримано / залишок», рядки надходжень із кнопкою видалення і підказка
+    // про залишок під сумою. Таблицю надходжень харнес за замовчуванням
+    // вважає відсутньою (стан проду до 071), тож крок вмикає її сам.
+    label: 'payment-confirm-partial',
+    go: async (page) => {
+      await paymentFixtures(page)
+      await page.route('**/rest/v1/rent_payment_parts**', (r) => json(r, [{
+        id: '72000000-0000-0000-0000-000000000001', record_id: PARTIAL_RECORD_ID,
+        amount: 1000, paid_at: `${monthDay(-1, 6)}T10:00:00.000Z`, notes: 'Готівка', created_at: NOW,
+      }]))
+      await viaDbMenu(page, 'Календар платежів', /Календар платежів|Платежі —/)
+      await page.getByRole('button', { name: /Доплата/ }).first().click()
+      await expect(page.getByLabel('Підсумок платежу')).toBeVisible({ timeout: 15_000 })
+      // Менша сума — щоб на екрані була й підказка «залишиться …»: її колір
+      // теж треба міряти. Без фокуса — див. пастку `kbFallback` в CLAUDE.md.
+      const amount = page.getByLabel('Сума отриманого платежу')
+      await amount.fill('500')
+      await amount.blur()
+      await expect(page.locator('.pay-hint')).toBeVisible()
+    },
+  },
+  {
+    // СУМА ЗА ПЕРІОД і АВТОР надходження (072/073) — ще один стан форми:
+    // клітинка «Очікується» стає кнопкою, а надходження, вписане редактором,
+    // несе його імʼя. Обидві таблиці харнес вважає відсутніми (стан проду до
+    // накату), тож крок вмикає їх сам.
+    label: 'payment-confirm-due',
+    go: async (page) => {
+      await paymentFixtures(page)
+      await page.route('**/rest/v1/rent_payment_parts**', (r) => json(r, [{
+        id: '72000000-0000-0000-0000-000000000001', record_id: PARTIAL_RECORD_ID,
+        amount: 1000, paid_at: `${monthDay(-1, 6)}T10:00:00.000Z`, notes: 'Готівка', created_at: NOW,
+        created_by: '00000000-0000-0000-0000-0000000000e1', created_by_name: 'Оля Редакторка',
+      }]))
+      await page.route('**/rest/v1/property_rent_terms**', (r) => json(r, []))
+      await viaDbMenu(page, 'Календар платежів', /Календар платежів|Платежі —/)
+      await page.getByRole('button', { name: /Доплата/ }).first().click()
+      await expect(page.getByRole('button', { name: /Змінити суму за період/ })).toBeVisible({ timeout: 15_000 })
+      await expect(page.locator('.part-who')).toContainText('Оля Редакторка')
+    },
+  },
+  {
+    // Сам екран суми за період; менша за отримане сума показує наслідок
+    // («період стане оплаченим») — його колір теж треба міряти.
+    label: 'payment-due',
+    go: async (page) => {
+      await paymentFixtures(page)
+      await page.route('**/rest/v1/rent_payment_parts**', (r) => json(r, []))
+      await page.route('**/rest/v1/property_rent_terms**', (r) => json(r, []))
+      await viaDbMenu(page, 'Календар платежів', /Календар платежів|Платежі —/)
+      await page.getByRole('button', { name: /Доплата/ }).first().click()
+      await page.getByRole('button', { name: /Змінити суму за період/ }).click({ timeout: 15_000 })
+      const field = page.getByLabel('Сума до сплати за період')
+      await expect(field).toBeVisible({ timeout: 15_000 })
+      await field.fill('900')
+      await field.blur()
+      await expect(page.locator('.pay-hint')).toBeVisible()
+    },
+  },
+  {
+    // ЖУРНАЛ ЗМІН (073) — зі вмістом: порожній стан не показав би ані рядків
+    // подій, ані груп днів. Час — від справжнього сьогодні (обхід годинника
+    // не морозить), тож групи «Сьогодні» і «Вчора» існують завжди.
+    label: 'db-activity',
+    go: async (page) => {
+      const at = (hoursAgo: number) => new Date(Date.now() - hoursAgo * 3_600_000).toISOString()
+      const ev = (i: number, kind: string, details: Record<string, unknown>, hoursAgo: number, actor: string | null, actorName: string | null) => ({
+        id: `75000000-0000-0000-0000-00000000000${i}`, db_id: DB_ID, property_id: PROPERTIES[0].id,
+        property_name: 'Офіс 101', actor_id: actor, actor_name: actorName, kind, details, created_at: at(hoursAgo),
+      })
+      await page.route('**/rest/v1/db_activity**', (r) => json(r, [
+        ev(1, 'payment_received', { due_date: monthDay(-1, 5), amount: 1000 }, 1, '00000000-0000-0000-0000-0000000000e1', 'Оля Редакторка'),
+        ev(2, 'terms_changed', { from: { rent_rate: 16, rent_type: 'per_m2' }, to: { rent_rate: 18, rent_type: 'per_m2' } }, 2, OWNER.id, 'Микола'),
+        ev(3, 'property_rented', { tenant: 'ТОВ «Альфа Трейд»' }, 30, '00000000-0000-0000-0000-0000000000e1', 'Оля Редакторка'),
+        ev(4, 'file_deleted', { name: 'Договір оренди 2025.pdf' }, 31, OWNER.id, 'Микола'),
+      ]))
+      await viaDbMenu(page, 'Журнал змін', /Журнал змін/)
+      await expect(page.locator('.act-row').first()).toBeVisible({ timeout: 15_000 })
+    },
+  },
+  {
     // ПЕРШИЙ екран нового власника, і доти поза обходом. Крок ОСТАННІЙ у групі
     // свідомо: він підміняє `databases` порожнім списком, а роути живуть на
     // сторінці до кінця прогону — вище він забрав би дані в усіх сусідів.
     label: 'empty-state',
     go: async (page) => {
       await page.route('**/rest/v1/databases**', (r) => json(r, []))
+      // Новий власник НЕ має нічого — і чужих доступів теж: підміни кроку
+      // `db-list-other-access` живуть на сторінці далі й інакше домалювали б
+      // сюди секцію «Інші доступи».
+      await page.route('**/rest/v1/realtor_subscriptions**', (r) => json(r, []))
+      await page.route('**/rest/v1/guest_links**', (r) =>
+        r.request().url().includes('guest_user_id=eq.') ? json(r, []) : r.fallback())
       await page.goto('/')
       await expect(page.getByText(/Створити.*базу/).first()).toBeVisible({ timeout: 20_000 })
     },
@@ -590,6 +779,29 @@ export const REALTOR_SCREENS: ScreenStep[] = [
     },
   },
   {
+    // Базу, на яку рієлтор був підписаний, у нього забрали (ротація чи
+    // відкликання знімають підписку — 069). Доти екран казав «Перевір
+    // підключення», тобто відправляв лагодити звʼязок там, де повтор не
+    // допоможе ніколи. Інший стан рендера того самого екрана.
+    //
+    // Відмова лише ОДИНИЧНОГО рядка бази: спискові запити йдуть далі до
+    // спільних фікстур, тож сусідні кроки не зачеплені.
+    label: 'realtor-database-gone',
+    go: async (page) => {
+      await page.route('**/rest/v1/databases**', (r) => {
+        if (!(r.request().headers()['accept'] ?? '').includes('object')) return r.fallback()
+        return r.fulfill({
+          status: 406, contentType: 'application/json',
+          body: JSON.stringify({ code: 'PGRST116', details: 'The result contains 0 rows', hint: null,
+            message: 'JSON object requested, multiple (or no) rows returned' }),
+        })
+      })
+      await atRealtorHome(page)
+      await page.getByText('БЦ Рубін').first().click()
+      await expect(page.getByText('Доступу до бази більше немає')).toBeVisible({ timeout: 15_000 })
+    },
+  },
+  {
     // ЄДИНА зовнішня поверхня рієлтора: те, що бачить його КЛІЄНТ за лінком.
     // Доти фікстура `col_` у deeplinks мала ПОРОЖНЮ підбірку («0 обʼєктів»),
     // тобто вміст, заради якого екран існує, не рендерився в жодному тесті —
@@ -626,6 +838,40 @@ export const REALTOR_SCREENS: ScreenStep[] = [
       })
       await page.goto('/')
       await expect(page.getByText('Для клієнта А').first()).toBeVisible({ timeout: 20_000 })
+    },
+  },
+  {
+    // `prop_` від СТОРОННЬОГО — найчастіший шлях цього лінка (головна кнопка
+    // публічної /v). Картка обʼєкта для нього порожня за RLS, тож він бачить
+    // оголошення, авторизоване токеном, з контактом власника. Той самий екран,
+    // що `shared-collection`, але інший стан рендера: опис і картка власника є
+    // лише тут.
+    //
+    // Крок ОСТАННІЙ: його init-скрипт перекриває `start_param` попереднього, а
+    // сам лишається на всі наступні `goto`.
+    label: 'shared-property',
+    go: async (page) => {
+      await page.route('**/rest/v1/rpc/lookup_shared_property', (r) => json(r, [
+        { id: PROPERTIES[0].id, db_id: DB_ID },
+      ]))
+      // Видимість обʼєкта (`maybeSingle` за id): RLS чужого не віддає.
+      await page.route('**/rest/v1/properties**', (r) =>
+        r.request().url().includes('id=eq.') ? json(r, []) : r.fallback())
+      await page.route('**/rest/v1/rpc/get_public_property_preview', (r) => json(r, [{
+        property_id: PROPERTIES[0].id, property_name: 'Офіс 101', property_status: 'free',
+        property_floor: '2', property_area_useful: 45, property_area_total: 52,
+        property_area_basis: 'total', property_rent_type: 'per_m2', property_rent_rate: 18,
+        property_sale_price: null, property_description: 'Світлий офіс з вікнами на дві сторони, поруч метро.',
+        db_name: 'БЦ Рубін', owner_first_name: 'Микола', owner_last_name: 'К.',
+        owner_tg_username: 'mykola', owner_phone: null, owner_currency: 'USD', photos: [PNG_1PX],
+      }]))
+      await page.addInitScript(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const tg = (window as any).Telegram?.WebApp
+        if (tg?.initDataUnsafe) tg.initDataUnsafe.start_param = 'prop_bb0000000000000000000011'
+      })
+      await page.goto('/')
+      await expect(page.getByRole('button', { name: 'Написати' })).toBeVisible({ timeout: 20_000 })
     },
   },
 ]
@@ -666,6 +912,19 @@ export const GUEST_SCREENS: ScreenStep[] = [
       await expect(page.getByText("Мої обʼєкти")).toBeVisible({ timeout: 20_000 })
       await page.getByText('Офіс 101').first().click()
       await expect(page.getByText('Корисна площа')).toBeVisible({ timeout: 15_000 })
+    },
+  },
+  {
+    // Гість, якого водночас взяли в КОМАНДУ: база команди стоїть у «Інших
+    // доступах», бо таббар гостя веде лише на гостьові обʼєкти. Інший стан
+    // рендера домашнього гостя.
+    label: 'guest-home-other-access',
+    go: async (page) => {
+      const TEAM_DB = { ...DB, id: '10000000-0000-0000-0000-000000000004', owner_id: OTHER_OWNER, name: 'БЦ Команди', color: 'green' }
+      await page.route('**/rest/v1/db_members**', (r) => json(r, [{ db_id: TEAM_DB.id, database: TEAM_DB }]))
+      await page.goto('/')
+      await expect(page.getByRole('region', { name: 'Інші доступи' }).getByText('БЦ Команди'))
+        .toBeVisible({ timeout: 20_000 })
     },
   },
   {

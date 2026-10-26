@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useAppStore } from '@/store/appStore'
+import { useAppSlice } from '@/store/appStore'
 import { useFolders } from '@/hooks/useFolders'
 import { useProperties } from '@/hooks/useProperties'
 import Header from '@/components/ui/Header'
@@ -23,7 +23,7 @@ import { tr } from '@/lib/i18n'
  * шита. На екрані висота не рухається, тож ховати нема від чого.
  */
 export default function FolderManageScreen() {
-  const { screenParams, back } = useAppStore()
+  const { screenParams, back } = useAppSlice('screenParams', 'back')
   const dbId = screenParams.dbId as string | undefined
 
   const { folders, error: loadErr, loadFolders, createFolder, renameFolder, deleteFolder, reorderFolder } = useFolders(dbId)

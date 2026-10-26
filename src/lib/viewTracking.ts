@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { tr } from '@/lib/i18n'
 import type { User } from '@/types'
 
 /**
@@ -68,5 +69,19 @@ export function recordPropertyView(propertyId: string, user: User | null) {
   }).then(() => {})
 }
 
-/** Лише для тестів: скинути вікно дедупу між кейсами. */
-export function __resetViewThrottle() { lastWrite.clear() }
+/**
+ * Підпис рядка перегляду для показу.
+ *
+ * Публічне відкриття `/v` анонімне, тож `record_public_view` (059) пише
+ * замість імені СЛУЖБОВИЙ підпис — українською, бо це дані сервера, а не
+ * інтерфейс. Показаний як є, він давав англомовному власнику «Веб-перегляд»
+ * у НАЙЧАСТІШОМУ рядку аналітики. Імʼя людини не перекладається.
+ */
+export function viewerLabel(name: string | null | undefined): string {
+  switch (name) {
+    case 'Веб-перегляд': return tr('Веб-перегляд')
+    case 'Веб-перегляд бази': return tr('Веб-перегляд бази')
+    case 'Веб-перегляд підбірки': return tr('Веб-перегляд підбірки')
+    default: return name || tr('Анонім')
+  }
+}

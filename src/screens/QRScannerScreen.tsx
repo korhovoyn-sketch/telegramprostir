@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { z } from 'zod'
-import { useAppStore } from '@/store/appStore'
+import { useAppStore, useAppSlice } from '@/store/appStore'
 import { offlineGuard } from '@/lib/offline'
 import { supabase, USER_COLUMNS } from '@/lib/supabase'
 import { IconCamera } from '@/components/Icons'
@@ -45,7 +45,7 @@ export function extractDbToken(raw: string): string | null {
 }
 
 export default function QRScannerScreen() {
-  const { user, navigate, showToast } = useAppStore()
+  const { user, navigate, showToast } = useAppSlice('user', 'navigate', 'showToast')
   const [scanning, setScanning] = useState(false)
   const [manualToken, setManualToken] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -115,7 +115,7 @@ export default function QRScannerScreen() {
         )
       }
     }
-  }, [user, navigate, showToast]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleManualSubmit() {
     if (!manualToken.trim() || !user) return

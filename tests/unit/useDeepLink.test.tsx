@@ -120,9 +120,16 @@ describe('useDeepLink — db_ database share links', () => {
   })
 })
 
+/** Перевірка видимості обʼєкта: RLS віддає рядок лише тому, хто має доступ. */
+function visibilityQuery(visible: boolean) {
+  return { select: () => ({ eq: () => ({ maybeSingle: () =>
+    Promise.resolve({ data: visible ? { id: 'prop-1' } : null, error: null }) }) }) }
+}
+
 describe('useDeepLink — prop_ property share links', () => {
-  it('opens property-detail for a valid token', async () => {
+  it('opens property-detail for a valid token when the property is visible', async () => {
     rpcMock.mockResolvedValueOnce({ data: [{ id: 'prop-1', db_id: 'db-1' }], error: null })
+    fromMock.mockImplementation(() => visibilityQuery(true))
     installTelegramMock({ user: { id: OWNER.tg_id, first_name: 'Test' }, startParam: 'prop_TOKEN2' })
     useAppStore.setState({ user: OWNER })
 
@@ -130,6 +137,19 @@ describe('useDeepLink — prop_ property share links', () => {
 
     await waitFor(() => expect(useAppStore.getState().screen).toBe('property-detail'))
     expect(useAppStore.getState().screenParams).toMatchObject({ propertyId: 'prop-1', dbId: 'db-1' })
+  })
+
+  it('a stranger (RLS hides the row) gets the token-authorized listing, not «not found»', async () => {
+    rpcMock.mockResolvedValueOnce({ data: [{ id: 'prop-1', db_id: 'db-1' }], error: null })
+    fromMock.mockImplementation(() => visibilityQuery(false))
+    installTelegramMock({ user: { id: REALTOR.tg_id, first_name: 'Realtor' }, startParam: 'prop_TOKEN2' })
+    useAppStore.setState({ user: REALTOR })
+
+    renderHook(() => useDeepLink())
+
+    await waitFor(() => expect(useAppStore.getState().screen).toBe('shared-collection'))
+    expect(useAppStore.getState().screenParams).toMatchObject({ propToken: 'TOKEN2' })
+    expect(useAppStore.getState().toast?.title).not.toBe('Обʼєкт не знайдено')
   })
 
   it('shows an error toast when the property is not found', async () => {

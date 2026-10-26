@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { useAppStore } from '@/store/appStore'
+import { useAppSlice } from '@/store/appStore'
 import { useTenancies } from '@/hooks/useTenancies'
 import { useDbType } from '@/hooks/useDbType'
 import Header from '@/components/ui/Header'
@@ -25,7 +25,7 @@ import type { Tenancy } from '@/types'
  * архів не можна «забути оновити» з якогось шляху клієнта.
  */
 export default function TenancyArchiveScreen() {
-  const { screenParams, back, databases, user } = useAppStore()
+  const { screenParams, back, databases, user } = useAppSlice('screenParams', 'back', 'databases', 'user')
   const dbId = screenParams.dbId as string | undefined
 
   const { tenancies, loading, unavailable, error, loadTenancies } = useTenancies(dbId)
@@ -70,7 +70,8 @@ export default function TenancyArchiveScreen() {
     const { total } = calcRentUtils(
       t.area_useful, t.area_total, t.rent_rate, t.rent_type, t.utilities_rate, t.area_basis, isParking,
     )
-    const paid = t._paid_total ?? 0
+    // Невизначено — платежі не завантажились; це не те саме, що «нуль».
+    const paid = t._paid_total
     return (
       <div key={t.id} className="glass-s acc-card">
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
@@ -112,7 +113,7 @@ export default function TenancyArchiveScreen() {
                   відповідь, тож блок малюється навіть із нулем. */}
               <span className="ten-sum ok">
                 <IconCurrencyDollar size={12} color="var(--ok-fg)" />
-                {tr('Отримано')}<b>{formatPrice(paid, t.currency || currency)}</b>
+                {tr('Отримано')}<b>{paid === undefined ? '—' : formatPrice(paid, t.currency || currency)}</b>
               </span>
             </div>
           </div>

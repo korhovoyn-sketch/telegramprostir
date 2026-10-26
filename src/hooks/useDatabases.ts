@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
-import { useAppStore } from '@/store/appStore'
+import { useAppStore, useAppSlice } from '@/store/appStore'
 import { monthlyRent, basisArea, calcRentUtils, humanizeDbError } from '@/lib/utils'
 import { assertAffected } from '@/lib/dbWrite'
 import { stripOptionalKeys, withOptionalColumns } from '@/lib/optionalColumns'
@@ -83,11 +83,12 @@ export function dbMonthlyUtils(props: DbPropRow[], dbType: string | undefined): 
 export function useDatabases() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const { user, setDatabases, databases, showToast, backThenReplace } = useAppStore()
+  const { setDatabases, databases, showToast, backThenReplace } = useAppSlice('setDatabases', 'databases', 'showToast', 'backThenReplace')
+  const userId = useAppStore((s) => s.user?.id)
   const setMemberDbIds = useAppStore(st => st.setMemberDbIds)
 
   const loadDatabases = useCallback(async () => {
-    if (!user) return
+    if (!userId) return
 
     // Stale-while-revalidate: on a cold start paint the last known list
     // immediately and refresh silently — the skeleton shows only when there
@@ -95,7 +96,7 @@ export function useDatabases() {
     // identity stays stable (screens re-run their effect off it).
     let painted = useAppStore.getState().databases.length > 0
     if (!painted) {
-      const cached = readSnapshot<Database[]>('databases', user.id)
+      const cached = readSnapshot<Database[]>('databases', userId)
       if (cached?.length) {
         setDatabases(cached)
         painted = true
@@ -111,12 +112,12 @@ export function useDatabases() {
         supabase
           .from('databases')
           .select(`${DB_COLUMNS}, ${DB_REL}`)
-          .eq('owner_id', user.id)
+          .eq('owner_id', userId)
           .order('created_at', { ascending: false }),
         supabase
           .from('db_members')
           .select('db_id')
-          .eq('user_id', user.id)
+          .eq('user_id', userId)
           .eq('status', 'active'),
       ])
 
@@ -126,7 +127,7 @@ export function useDatabases() {
         const fb = await supabase
           .from('databases')
           .select(`${DB_COLUMNS_PRE064}, ${DB_REL}`)
-          .eq('owner_id', user.id)
+          .eq('owner_id', userId)
           .order('created_at', { ascending: false })
         // Рядок фолбека не має `landlord_name` — і це коректно: у типі
         // `Database` колонка ОПЦІЙНА, тож споживач нижче з нею й так працює
@@ -202,7 +203,7 @@ export function useDatabases() {
       })
 
       setDatabases(dbs as unknown as Database[])
-      writeSnapshot('databases', user.id, dbs)
+      writeSnapshot('databases', userId, dbs)
     } catch (e) {
       const msg = humanizeDbError(e)
       setError(msg)
@@ -210,7 +211,7 @@ export function useDatabases() {
     } finally {
       setLoading(false)
     }
-  }, [user, setDatabases, setMemberDbIds, showToast])
+  }, [userId, setDatabases, setMemberDbIds, showToast])
 
   // `opts.navigate: false` — коли база створюється ЯК КРОК іншої дії (перенос
   // обраних обʼєктів у нову базу): тоді екран лишається на місці, а викликач
@@ -219,13 +220,13 @@ export function useDatabases() {
     payload: Omit<Database, 'id' | 'owner_id' | 'share_token' | 'created_at' | 'updated_at'>,
     opts?: { navigate?: boolean },
   ): Promise<Database | null> => {
-    if (!user) return null
+    if (!userId) return null
     setLoading(true)
     try {
       // Ретрай без `landlord_name` — той самий, що вже стояв на ЧИТАННІ списку
       // баз. Без нього бекенд без 064 не давав створити ЖОДНОЇ бази.
       const { data, error } = await withOptionalColumns((pre) => {
-        const row = { ...payload, owner_id: user.id }
+        const row = { ...payload, owner_id: userId }
         return supabase
           .from('databases')
           .insert(pre ? stripOptionalKeys(row) : row)
@@ -247,7 +248,7 @@ export function useDatabases() {
     } finally {
       setLoading(false)
     }
-  }, [user, databases, setDatabases, showToast, backThenReplace])
+  }, [userId, databases, setDatabases, showToast, backThenReplace])
 
   const updateDatabase = useCallback(async (id: string, payload: Partial<Database>) => {
     setLoading(true)

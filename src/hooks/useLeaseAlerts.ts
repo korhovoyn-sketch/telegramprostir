@@ -31,10 +31,10 @@ function levelFor(days: number): LeaseAlert['level'] {
 export function useLeaseAlerts() {
   const [alerts, setAlerts] = useState<LeaseAlert[]>([])
   const [loading, setLoading] = useState(false)
-  const user = useAppStore((s) => s.user)
+  const userId = useAppStore((s) => s.user?.id)
 
   const loadLeaseAlerts = useCallback(async () => {
-    if (!user) return
+    if (!userId) return
     setLoading(true)
     try {
       // Межа порівняння — календарна дата, тож рахуємо в ISO 'YYYY-MM-DD'.
@@ -44,7 +44,7 @@ export function useLeaseAlerts() {
       const { data, error } = await supabase
         .from('properties')
         .select('id, db_id, name, tenant_name, lease_end_date')
-        .eq('owner_id', user.id)
+        .eq('owner_id', userId)
         .eq('status', 'occupied')
         .not('lease_end_date', 'is', null)
         .lte('lease_end_date', limit)
@@ -76,7 +76,7 @@ export function useLeaseAlerts() {
     } finally {
       setLoading(false)
     }
-  }, [user])
+  }, [userId])
 
   return { alerts, loading, loadLeaseAlerts }
 }

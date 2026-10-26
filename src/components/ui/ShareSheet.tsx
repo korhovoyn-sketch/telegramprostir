@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { z } from 'zod'
 import QRCode from 'react-qr-code'
-import { useAppStore } from '@/store/appStore'
+import { useAppStore, useAppSlice } from '@/store/appStore'
 import { offlineGuard } from '@/lib/offline'
 import { confirmAction as confirmDestructive } from '@/lib/confirm'
 import { supabase } from '@/lib/supabase'
@@ -41,7 +41,7 @@ interface ShareSheetProps {
  * token rotation and revocation via the manage_share RPC.
  */
 export default function ShareSheet({ open, kind, id, name, shareText, onClose }: ShareSheetProps) {
-  const { showToast } = useAppStore()
+  const { showToast } = useAppSlice('showToast')
   const latchedId = useLatch(id) ?? ''
   const latchedName = useLatch(name) ?? ''
   const latchedShareText = useLatch(shareText) ?? ''
@@ -150,13 +150,16 @@ export default function ShareSheet({ open, kind, id, name, shareText, onClose }:
     if (ok) await runManage(action)
   }
 
-  // Реактивація мертвого лінка пресетом терміну — тільки через підтвердження:
-  // revoke лишає токен, тож set_expiry/clear_expiry повернули б доступ УСІМ,
-  // хто зберіг старе посилання, непомітно для власника.
+  // Реактивація мертвого лінка пресетом терміну — тільки через підтвердження.
+  // Ризик лишився рівно в ОДНОМУ з двох випадків, а клієнт їх не розрізняє:
+  // посилання, що СПЛИВЛО за терміном, має той самий токен — оживлення
+  // повертає доступ усім, хто його зберіг. Відкликане ж з 060 уже має НОВИЙ
+  // токен (тобто нікому не відомий), а з 069 ще й без підписок — колишній
+  // текст «включно з тими, у кого ви відкликали доступ» став неправдою.
   async function askRevive(action: 'set_expiry' | 'clear_expiry', days?: number) {
     const ok = await confirmDestructive({
       title: tr('Активувати старе посилання?'),
-      message: tr('Воно знову запрацює для ВСІХ, хто його вже має — включно з тими, у кого ви відкликали доступ. Щоб роздати доступ заново, скористайтесь «Оновити посилання».'),
+      message: tr('Воно знову запрацює для ВСІХ, хто його вже має. Відкликане посилання вже замінене новим, тож копії, роздані до відкликання, не оживуть. Щоб роздати доступ заново, скористайтесь «Оновити посилання».'),
       confirmLabel: tr('Активувати старе'),
       destructive: true,
     })

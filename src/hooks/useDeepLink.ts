@@ -112,13 +112,22 @@ export function useDeepLink() {
           // Прозорість саме ТУТ, а не на екрані команди: той екран owner-only
           // (`db.owner_id === user?.id`), тобто редактор його не бачить ніколи.
           // Момент клейму — єдина точка, де людина читає повідомлення саме про
-          // своє членство, і єдина, де це ще її вибір.
+          // своє членство, і єдина, де це ще її вибір. Обидва сліди названо:
+          // зміни підписуються в журналі бази (073, бачить уся команда),
+          // перегляди — лише власнику (063).
           showToast({
             type: 'success',
             title: tr('Ви в команді! 🎉'),
-            subtitle: tr('Редагування доступне. Власник бачить, які обʼєкти ви відкривали.'),
+            subtitle: tr('Редагування доступне. Ваші зміни підписуються імʼям у журналі бази, а перегляди бачить власник.'),
           })
-          // db-list підтягне member-бази через useDatabases (roles не змінюються)
+          // Членство кладемо в стор ОДРАЗУ: `navigateRoot` + `navigate` йдуть в
+          // одному тіку, тож список баз (єдиний, хто наповнює `memberDbIds`)
+          // не встигає змонтуватись — і редактор, щойно почувши «Редагування
+          // доступне», бачив екран без жодної кнопки редагування.
+          if (result.db_id) {
+            const st = useAppStore.getState()
+            if (!st.memberDbIds.includes(result.db_id)) st.setMemberDbIds([...st.memberDbIds, result.db_id])
+          }
           useAppStore.getState().navigateRoot('db-list')
           if (result.db_id) {
             navigate('db-objects', { dbId: result.db_id })
@@ -144,8 +153,17 @@ export function useDeepLink() {
             return
           }
 
+          // Картка обʼєкта — лише для тих, кому RLS його ВІДДАЄ (власник,
+          // редактор, підписаний рієлтор, гість). `prop_` же веде з головної
+          // кнопки публічної /v, тобто найчастіше його відкриває СТОРОННІЙ — і
+          // отримував «Обʼєкт не знайдено» замість оголошення, яке щойно бачив.
+          // Йому — те саме оголошення, авторизоване токеном (прецедент `col_`).
+          // Збій перевірки веде туди ж: токенний перегляд працює для всіх.
+          const { data: visible } = await supabase
+            .from('properties').select('id').eq('id', prop.id).maybeSingle()
           useAppStore.getState().navigateRoot(homeScreen)
-          navigate('property-detail', { propertyId: prop.id, dbId: prop.db_id })
+          if (visible) navigate('property-detail', { propertyId: prop.id, dbId: prop.db_id })
+          else navigate('shared-collection', { propToken: token })
           return
         }
 
@@ -246,5 +264,6 @@ export function useDeepLink() {
     }
 
     process()
+  // user-dep-ok: перезапуск на свіжому профілі тут потрібен (обробник читає роль), а повтор гасить `handled`
   }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
 }

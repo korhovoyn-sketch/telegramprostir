@@ -161,6 +161,31 @@ describe('діагностика конфігурації лишається д�
       .not.toMatch(/apikey|Authorization/)
   })
 
+  /**
+   * ПРОГРІВ ЗІ СПЛЕШУ біжить на КОЖНОМУ запуску кожного користувача, тож мусить
+   * бути дешевим. Доки він ходив у діагностичний GET, кожен старт коштував
+   * запит до Telegram `getMe` і запит у БД службовим ключем, а не-safelisted
+   * заголовки ще й подвоювали його preflight-ом — при тому, що коментар у
+   * сплеші називав цей GET «cheap». Твердження протухло, коли діагностика
+   * обросла пробами.
+   */
+  it('прогрів відповідає ДО будь-якої проби і без preflight', () => {
+    const src = read('telegram-auth')
+    const warm = src.indexOf("searchParams.has('warm')")
+    const diag = src.search(/if \(req\.method === 'GET'\) \{/)
+    expect(warm, 'гілки прогріву немає — сплеш знову ходить у повну діагностику').toBeGreaterThan(-1)
+    expect(warm, 'прогрів стоїть ПІСЛЯ діагностики — проби встигнуть виконатись').toBeLessThan(diag)
+    const branch = src.slice(warm, src.indexOf('\n  }\n', warm))
+    expect(branch, 'гілка прогріву мусить лише відповісти').toMatch(/return new Response\(null, \{ status: 204 \}\)/)
+    expect(branch, 'у гілці прогріву зʼявилась проба — вона біжить на кожен запуск').not.toMatch(/fetch|createClient|getMe/)
+
+    const splash = readFileSync(resolve(process.cwd(), 'src/screens/SplashScreen.tsx'), 'utf8')
+    const call = splash.match(/fetch\(`\$\{url\}\/functions\/v1\/telegram-auth[^`]*`[^)]*\)/)
+    expect(call, 'прогрів у сплеші не знайдено — гард осліп').toBeTruthy()
+    expect(call![0], 'сплеш прогріває через діагностику — getMe і запит у БД на кожен старт').toMatch(/\?warm=1/)
+    expect(call![0], 'повернувся заголовок — прогрів знову йде через preflight').not.toMatch(/apikey|Authorization|headers/)
+  })
+
   it('перевіряється ЗБІГ, а не лише наявність', () => {
     const src = read('telegram-auth')
     expect(src, 'зник originMatch — `!!allowedOrigin` каже лише «щось задано», і хибне значення читається як здорове')

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useAppStore } from '@/store/appStore'
+import { useAppSlice } from '@/store/appStore'
 import { offlineGuard } from '@/lib/offline'
 import { confirmAction } from '@/lib/confirm'
 import { supabase } from '@/lib/supabase'
@@ -104,7 +104,7 @@ const STATUS_COLOR: Record<string, string> = {
 }
 
 export default function AccessList({ kind }: { kind: AccessKind }) {
-  const { screenParams, showToast, navigate } = useAppStore()
+  const { screenParams, showToast, navigate } = useAppSlice('screenParams', 'showToast', 'navigate')
   const c = COPY()[kind]
 
   const isProperty = kind === 'guest' && !!screenParams.propertyId

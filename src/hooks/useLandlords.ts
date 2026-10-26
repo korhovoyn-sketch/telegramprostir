@@ -22,15 +22,15 @@ import { useAppStore } from '@/store/appStore'
  */
 export function useLandlords() {
   const [names, setNames] = useState<string[]>([])
-  const user = useAppStore((s) => s.user)
+  const userId = useAppStore((s) => s.user?.id)
 
   useEffect(() => {
-    if (!user) return
+    if (!userId) return
     let stale = false
     ;(async () => {
       const [props, dbs] = await Promise.all([
-        supabase.from('properties').select('landlord_name').eq('owner_id', user.id).limit(500),
-        supabase.from('databases').select('landlord_name').eq('owner_id', user.id).limit(200),
+        supabase.from('properties').select('landlord_name').eq('owner_id', userId).limit(500),
+        supabase.from('databases').select('landlord_name').eq('owner_id', userId).limit(200),
       ])
       if (stale) return
       const all = [...(props.data ?? []), ...(dbs.data ?? [])]
@@ -39,7 +39,7 @@ export function useLandlords() {
       setNames([...new Set(all)].sort((a, b) => a.localeCompare(b, 'uk')))
     })()
     return () => { stale = true }
-  }, [user])
+  }, [userId])
 
   return { landlords: names }
 }

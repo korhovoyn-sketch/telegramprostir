@@ -3,8 +3,9 @@
 import { useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAppStore } from '@/store/appStore'
-import { basisArea, daysUntil, monthlyRent } from '@/lib/utils'
-import { dueDateFor, isOwedUnderLease, trackedFromOffset, ARREARS_MONTHS_MAX } from '@/lib/rentPayments'
+import { daysUntil } from '@/lib/utils'
+import { dueDateFor, expectedRentAt, isOwedUnderLease, isPartialRecord, owedFrom, remainingFor, trackedFromOffset, ARREARS_MONTHS_MAX, RENT_TERMS_COLUMNS, TENANCY_SPAN_COLUMNS, type RentTermsFields, type RentTermsRow, type TenancySpan } from '@/lib/rentPayments'
+import { fetchAllRowsOptional } from '@/lib/fetchAll'
 
 /**
  * Найближчі платежі для екрана сповіщень.
@@ -31,7 +32,10 @@ export interface PaymentAlert {
   name: string
   tenantName: string | null
   dueDate: string
+  /** До сплати: для частково оплаченого — ЗАЛИШОК, а не повна сума. */
   amount: number
+  /** Частину вже отримано (071). */
+  partial: boolean
   days: number                       // <0 — прострочено
   level: 'overdue' | 'critical' | 'soon'
 }
@@ -64,10 +68,10 @@ interface ScheduleRow {
 export function useUpcomingPayments() {
   const [alerts, setAlerts] = useState<PaymentAlert[]>([])
   const [loading, setLoading] = useState(false)
-  const user = useAppStore((s) => s.user)
+  const userId = useAppStore((s) => s.user?.id)
 
   const loadUpcomingPayments = useCallback(async () => {
-    if (!user) return
+    if (!userId) return
     setLoading(true)
     try {
       // Один запит замість двох: обʼєкт приходить вкладеним у розклад. Колонки
@@ -75,7 +79,7 @@ export function useUpcomingPayments() {
       const { data: schedData, error: schedErr } = await supabase
         .from('rent_payments')
         .select('property_id,due_day,created_at,property:properties(id,db_id,name,tenant_name,lease_start_date,status,rent_type,rent_rate,area_useful,area_total,area_basis)')
-        .eq('owner_id', user.id)
+        .eq('owner_id', userId)
         .eq('is_active', true)
 
       // Тихо: екран сповіщень не має падати через цю додаткову вибірку — так
@@ -90,21 +94,47 @@ export function useUpcomingPayments() {
       // найближча НЕсплачена дата може бути й у минулому, і тоді це борг.
       const from = dueDateFor(-ARREARS_MONTHS_MAX, 1)
       const to   = dueDateFor(2, 1)
-      const { data: recData, error: recErr } = await supabase
-        .from('rent_payment_records')
-        .select('property_id,due_date,status')
-        .in('property_id', active.map((r) => r.property_id))
-        .gte('due_date', from)
-        .lte('due_date', to)
-      // Без записів кожен УЖЕ оплачений платіж читався б як несплачений, тобто
-      // збій мережі малював би «Прострочено» там, де все сплачено. Мовчазний
-      // пропуск блоку чесніший за хибну тривогу про гроші.
-      if (recErr) { setAlerts([]); return }
+      const ids = active.map((r) => r.property_id)
+      // Відкриті оренди — межа боргу для обʼєкта БЕЗ дати договору (див.
+      // `owedFrom`). Додаткове джерело: збій чи відсутність 067 не прибирає блок.
+      const spansP = supabase
+        .from('tenancies').select(TENANCY_SPAN_COLUMNS)
+        .in('property_id', ids).is('ended_at', null)
+        .then(({ data, error }) => (error ? null : (data ?? []) as TenancySpan[]), () => null)
+      // Історія умов (072): борг рахується за ставкою, що діяла ТОДІ. Без неї —
+      // поточна ставка, як і доти.
+      const termsP = supabase
+        .from('property_rent_terms').select(RENT_TERMS_COLUMNS)
+        .in('property_id', ids)
+        .then(({ data, error }) => (error ? null : (data ?? []) as RentTermsRow[]), () => null)
+      type Rec = { property_id: string; due_date: string; status: string; amount: number | null; amount_due?: number | null }
+      let recData: Rec[]
+      try {
+        // Усі сторінки: сервер мовчки обрізає на 1000, а оплачений платіж за
+        // межею сторінки читався б несплаченим. `amount_due` — з 071, тож із
+        // ретраєм без неї.
+        recData = await fetchAllRowsOptional<Rec>((pre, pFrom, pTo, first) => supabase
+          .from('rent_payment_records')
+          .select(pre ? 'property_id,due_date,status,amount' : 'property_id,due_date,status,amount,amount_due', first ? { count: 'exact' } : undefined)
+          .in('property_id', ids)
+          .gte('due_date', from)
+          .lte('due_date', to)
+          .order('property_id', { ascending: true }).order('due_date', { ascending: true })
+          .range(pFrom, pTo))
+      } catch {
+        // Без записів кожен УЖЕ оплачений платіж читався б як несплачений, тобто
+        // збій мережі малював би «Прострочено» там, де все сплачено. Мовчазний
+        // пропуск блоку чесніший за хибну тривогу про гроші.
+        setAlerts([]); return
+      }
+      const spans = await spansP
+      const terms = await termsP
 
       const paid = new Set(
-        ((recData ?? []) as { property_id: string; due_date: string; status: string }[])
+        recData
           .filter((r) => r.status === 'paid')
           .map((r) => `${r.property_id}|${r.due_date}`))
+      const byKey = new Map(recData.map((r) => [`${r.property_id}|${r.due_date}`, r]))
 
       const mapped: PaymentAlert[] = []
       for (const row of active) {
@@ -114,24 +144,33 @@ export function useUpcomingPayments() {
         // тож борг за минулий місяць 1-го числа ЗНИКАВ, хоча оплати не було, —
         // рівно всупереч обіцянці «лишається, доки не підтвердять».
         let dueDate: string | null = null
+        const owed = owedFrom(p.lease_start_date, p.id, spans)
         for (let offset = trackedFromOffset(row.created_at); offset <= 1; offset++) {
           const d = dueDateFor(offset, row.due_day)
-          // До початку договору боргу немає — тоді найближчий платіж наступний.
-          if (!isOwedUnderLease(d, p.lease_start_date)) continue
+          // До початку оренди боргу немає — тоді найближчий платіж наступний.
+          if (!isOwedUnderLease(d, owed)) continue
           if (!paid.has(`${row.property_id}|${d}`)) { dueDate = d; break }
         }
         if (!dueDate) continue
         const days = daysUntil(dueDate)
         if (!Number.isFinite(days) || days > PAYMENT_ALERT_DAYS) continue
+        // Та сама нормалізація, що в календарі: сира `rent_rate` для per_m2 —
+        // це ставка за метр, і показувати її як суму до сплати було б брехнею.
+        // І за умовами СВОГО періоду: борг за серпень — за серпневою ставкою.
+        const expected = expectedRentAt({ ...(p as RentTermsFields), id: p.id }, terms, dueDate)
+        const rec = byKey.get(`${row.property_id}|${dueDate}`)
+        const partial = isPartialRecord(rec)
         mapped.push({
           propertyId: p.id,
           dbId: p.db_id,
           name: p.name,
           tenantName: p.tenant_name,
           dueDate,
-          // Та сама нормалізація, що в календарі: сира `rent_rate` для per_m2 —
-          // це ставка за метр, і показувати її як суму до сплати було б брехнею.
-          amount: p.rent_rate ? monthlyRent(basisArea(p.area_useful, p.area_total, p.area_basis), p.rent_rate, p.rent_type) : 0,
+          // Частково оплачений чекає ЗАЛИШКУ: «$1 800» поруч із вже отриманою
+          // тисячею — це вдвічі більший борг, ніж є насправді. Суму періоду,
+          // задану руками (072), `remainingFor` бере з `amount_due`.
+          amount: remainingFor(rec, expected),
+          partial,
           days,
           level: levelFor(days),
         })
@@ -141,7 +180,7 @@ export function useUpcomingPayments() {
     } finally {
       setLoading(false)
     }
-  }, [user])
+  }, [userId])
 
   return { alerts, loading, loadUpcomingPayments }
 }

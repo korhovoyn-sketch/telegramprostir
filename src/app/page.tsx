@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import dynamic from 'next/dynamic'
 import { useAppStore } from '@/store/appStore'
 import { hapticNotify, layoutShrunkByKeyboard, telegramSafeArea } from '@/lib/telegram'
@@ -12,6 +12,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { IconWifiOff } from '@/components/Icons'
 import SplashScreen from '@/screens/SplashScreen'
 import { tr } from '@/lib/i18n'
+import type { ScreenName } from '@/types'
 
 /** Мусить дорівнювати --bg у globals.css (нативний хром Telegram — не CSS). */
 const TG_CHROME_BG = '#040408'
@@ -50,13 +51,69 @@ const SharedCollectionScreen = dynamic(() => import('@/screens/SharedCollectionS
 const PaymentCalendarScreen = dynamic(() => import('@/screens/PaymentCalendarScreen'), { loading: () => screenFallback })
 const PaymentScheduleScreen = dynamic(() => import('@/screens/PaymentScheduleScreen'), { loading: () => screenFallback })
 const PaymentConfirmScreen = dynamic(() => import('@/screens/PaymentConfirmScreen'), { loading: () => screenFallback })
+const PaymentDueScreen = dynamic(() => import('@/screens/PaymentDueScreen'), { loading: () => screenFallback })
 const CreateInviteScreen = dynamic(() => import('@/screens/CreateInviteScreen'), { loading: () => screenFallback })
 const FolderManageScreen = dynamic(() => import('@/screens/FolderManageScreen'), { loading: () => screenFallback })
 const DbPickerScreen = dynamic(() => import('@/screens/DbPickerScreen'), { loading: () => screenFallback })
 const FolderPickerScreen = dynamic(() => import('@/screens/FolderPickerScreen'), { loading: () => screenFallback })
 const RentPropertyScreen = dynamic(() => import('@/screens/RentPropertyScreen'), { loading: () => screenFallback })
 const TenancyArchiveScreen = dynamic(() => import('@/screens/TenancyArchiveScreen'), { loading: () => screenFallback })
+const DbActivityScreen = dynamic(() => import('@/screens/DbActivityScreen'), { loading: () => screenFallback })
 const DeleteAccountScreen = dynamic(() => import('@/screens/DeleteAccountScreen'), { loading: () => screenFallback })
+
+/**
+ * Екран — ЧИСТА функція від `screen`, і це не стиль, а межа ре-рендерів.
+ *
+ * Корінь підписаний на `isOnline`, `userId`, глибину історії. Поки елемент
+ * екрана створювався в тілі кореня, КОЖНА така зміна перемальовувала весь
+ * поточний екран: тост «Зʼєднання відновлено» перебудовував список на 200
+ * обʼєктів, хоч у ньому не мінялось нічого. Мемоізований елемент має ту саму
+ * ідентичність між рендерами кореня, і React пропускає піддерево цілком.
+ */
+function screenFor(screen: ScreenName) {
+  switch (screen) {
+    case 'splash': return <SplashScreen />
+    case 'welcome': return <WelcomeScreen />
+    case 'role-select': return <RoleSelectScreen />
+    case 'profile-setup': return <ProfileSetupScreen />
+    case 'empty-state': return <EmptyStateScreen />
+    case 'db-list': return <DatabaseListScreen />
+    case 'create-db': return <CreateDatabaseScreen />
+    case 'edit-db': return <CreateDatabaseScreen />
+    case 'db-objects': return <DatabaseObjectsScreen />
+    case 'property-form': return <PropertyFormScreen />
+    case 'property-detail': return <PropertyDetailScreen />
+    case 'sharing-analytics': return <SharingAnalyticsScreen />
+    case 'export': return <ExportScreen />
+    case 'import-objects': return <ImportObjectsScreen />
+    case 'realtor-dashboard': return <RealtorDashboardScreen />
+    case 'realtor-database': return <RealtorDatabaseScreen />
+    case 'collections': return <CollectionsScreen />
+    case 'profile': return <ProfileScreen />
+    case 'notifications': return <NotificationsScreen />
+    case 'photo-upload': return <PhotoUploadScreen />
+    case 'photo-gallery': return <PhotoGalleryScreen />
+    case 'qr-scanner': return <QRScannerScreen />
+    case 'guest-database': return <GuestDatabaseScreen />
+    case 'guest-home': return <GuestHomeScreen />
+    case 'manage-guests': return <ManageGuestsScreen />
+    case 'team': return <TeamScreen />
+    case 'shared-collection': return <SharedCollectionScreen />
+    case 'payment-calendar': return <PaymentCalendarScreen />
+    case 'payment-schedule': return <PaymentScheduleScreen />
+    case 'payment-confirm': return <PaymentConfirmScreen />
+    case 'payment-due': return <PaymentDueScreen />
+    case 'create-invite': return <CreateInviteScreen />
+    case 'folder-manage': return <FolderManageScreen />
+    case 'db-picker': return <DbPickerScreen />
+    case 'folder-picker': return <FolderPickerScreen />
+    case 'rent-property': return <RentPropertyScreen />
+    case 'tenancy-archive': return <TenancyArchiveScreen />
+    case 'db-activity': return <DbActivityScreen />
+    case 'delete-account': return <DeleteAccountScreen />
+    default: return <SplashScreen />
+  }
+}
 
 export default function Page() {
   const screen = useAppStore((s) => s.screen)
@@ -439,48 +496,7 @@ export default function Page() {
     }
   }, [setOnline, showToast])
 
-  function renderScreen() {
-    switch (screen) {
-      case 'splash': return <SplashScreen />
-      case 'welcome': return <WelcomeScreen />
-      case 'role-select': return <RoleSelectScreen />
-      case 'profile-setup': return <ProfileSetupScreen />
-      case 'empty-state': return <EmptyStateScreen />
-      case 'db-list': return <DatabaseListScreen />
-      case 'create-db': return <CreateDatabaseScreen />
-      case 'edit-db': return <CreateDatabaseScreen />
-      case 'db-objects': return <DatabaseObjectsScreen />
-      case 'property-form': return <PropertyFormScreen />
-      case 'property-detail': return <PropertyDetailScreen />
-      case 'sharing-analytics': return <SharingAnalyticsScreen />
-      case 'export': return <ExportScreen />
-      case 'import-objects': return <ImportObjectsScreen />
-      case 'realtor-dashboard': return <RealtorDashboardScreen />
-      case 'realtor-database': return <RealtorDatabaseScreen />
-      case 'collections': return <CollectionsScreen />
-      case 'profile': return <ProfileScreen />
-      case 'notifications': return <NotificationsScreen />
-      case 'photo-upload': return <PhotoUploadScreen />
-      case 'photo-gallery': return <PhotoGalleryScreen />
-      case 'qr-scanner': return <QRScannerScreen />
-      case 'guest-database': return <GuestDatabaseScreen />
-      case 'guest-home': return <GuestHomeScreen />
-      case 'manage-guests': return <ManageGuestsScreen />
-      case 'team': return <TeamScreen />
-      case 'shared-collection': return <SharedCollectionScreen />
-      case 'payment-calendar': return <PaymentCalendarScreen />
-      case 'payment-schedule': return <PaymentScheduleScreen />
-      case 'payment-confirm': return <PaymentConfirmScreen />
-      case 'create-invite': return <CreateInviteScreen />
-      case 'folder-manage': return <FolderManageScreen />
-      case 'db-picker': return <DbPickerScreen />
-      case 'folder-picker': return <FolderPickerScreen />
-      case 'rent-property': return <RentPropertyScreen />
-      case 'tenancy-archive': return <TenancyArchiveScreen />
-      case 'delete-account': return <DeleteAccountScreen />
-      default: return <SplashScreen />
-    }
-  }
+  const screenEl = useMemo(() => screenFor(screen), [screen])
 
   return (
     <ErrorBoundary>
@@ -491,7 +507,7 @@ export default function Page() {
         </div>
       )}
       <div key={navKey} className={`nav-wrap nav-${navDirection}`}>
-        {renderScreen()}
+        {screenEl}
       </div>
     </ErrorBoundary>
   )

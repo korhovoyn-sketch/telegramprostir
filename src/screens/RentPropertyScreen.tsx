@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useAppStore } from '@/store/appStore'
+import { useAppSlice } from '@/store/appStore'
 import { useProperties } from '@/hooks/useProperties'
 import { useDbType } from '@/hooks/useDbType'
 import Header from '@/components/ui/Header'
@@ -27,7 +27,7 @@ import { useClosingConfirmation } from '@/hooks/useTelegram'
  */
 export default function RentPropertyScreen() {
   useClosingConfirmation()
-  const { screenParams, user, showToast, back } = useAppStore()
+  const { screenParams, user, showToast, back } = useAppSlice('screenParams', 'user', 'showToast', 'back')
   const propertyId = screenParams.propertyId as string | undefined
   const dbId = screenParams.dbId as string | undefined
 

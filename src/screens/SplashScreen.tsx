@@ -94,16 +94,18 @@ export default function SplashScreen() {
   // Pre-warm the Edge Function immediately so it isn't cold when session restore
   // fails and WelcomeScreen falls back to loginViaTelegram. Cold start is 10-30s,
   // the single biggest latency source in the auth flow — start warming it as
-  // early as possible rather than waiting, since the fire-and-forget GET is cheap
-  // even on the (less common) path where a cached session makes it unnecessary.
+  // early as possible rather than waiting.
+  //
+  // `?warm` — and no headers — is what keeps this cheap on EVERY start. The bare
+  // GET is the diagnostics endpoint: it probes Telegram `getMe` and the DB, so
+  // warming through it cost every user a Bot API call and a service-key query
+  // per launch. `Authorization`/`apikey` aren't CORS-safelisted, so they also
+  // doubled it with a preflight; the function runs with --no-verify-jwt and
+  // doesn't need them. `no-cors`: the response is never read.
   useEffect(() => {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    if (!url || !key) return
-    fetch(`${url}/functions/v1/telegram-auth`, {
-      method: 'GET',
-      headers: { 'Authorization': `Bearer ${key}`, 'apikey': key },
-    }).catch(() => {})
+    if (!url) return
+    fetch(`${url}/functions/v1/telegram-auth?warm=1`, { mode: 'no-cors' }).catch(() => {})
   }, [])
 
   useEffect(() => {

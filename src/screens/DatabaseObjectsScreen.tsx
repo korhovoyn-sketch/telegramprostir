@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useMemo, useRef } from 'react'
-import { useAppStore } from '@/store/appStore'
+import { useAppStore, useAppSlice } from '@/store/appStore'
 import { recordDbView } from '@/lib/viewTracking'
 import RetryState from '@/components/ui/RetryState'
 import { hapticSelection } from '@/lib/telegram'
@@ -10,6 +10,7 @@ import { confirmAction } from '@/lib/confirm'
 import { useDatabases } from '@/hooks/useDatabases'
 import { useProperties } from '@/hooks/useProperties'
 import { useFolders } from '@/hooks/useFolders'
+import { useMemberAccess } from '@/hooks/useMemberAccess'
 import Header from '@/components/ui/Header'
 import TabBar from '@/components/ui/TabBar'
 import SearchBar from '@/components/ui/SearchBar'
@@ -18,7 +19,7 @@ import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import ActionSheet from '@/components/ui/ActionSheet'
 import { useLatch } from '@/lib/useLatch'
 import Collapsible from '@/components/ui/Collapsible'
-import { IconCheck, IconPlus, IconDots, IconPhoto, IconChevronUp, IconChevronDown, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconCopy, IconUser, IconUsers, IconFile, IconLayers, IconLayoutGrid, IconChartBar, IconKey, IconFileExport, IconCircleCheck, IconAdjustments, IconTrash, IconChevronRight, IconFolder, IconInbox, IconArchive } from '@/components/Icons'
+import { IconCheck, IconPlus, IconDots, IconPhoto, IconChevronUp, IconChevronDown, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconCopy, IconUser, IconUsers, IconFile, IconLayers, IconLayoutGrid, IconChartBar, IconKey, IconFileExport, IconCircleCheck, IconAdjustments, IconTrash, IconChevronRight, IconFolder, IconInbox, IconArchive, IconClock } from '@/components/Icons'
 import DatabaseStatsPanel from '@/components/ui/DatabaseStatsPanel'
 import FloatingButton from '@/components/ui/FloatingButton'
 import { overridesLandlord, formatPrice, monthlyRent, calcRentUtils, basisArea, floorSortKey, computedRentUnit, rentUnitLabel, objectsWord, DB_TYPE_LABELS, formatLeasePeriod, STATUS_COLORS, matchesQuery } from '@/lib/utils'
@@ -38,11 +39,10 @@ const PAGE = 40
 
 export default function DatabaseObjectsScreen() {
   const fabHidden = useHideOnScrollDown()
-  const { screenParams, navigate, databases, user } = useAppStore()
+  const { screenParams, navigate, databases, user } = useAppSlice('screenParams', 'navigate', 'databases', 'user')
   const { deleteDatabase } = useDatabases()
   const { properties, loading, error, loadProperties, reorderProperty, batchDeleteProperties, batchUpdateStatus } = useProperties(screenParams.dbId)
   const { folders, unavailable: foldersUnavailable, loadFolders } = useFolders(screenParams.dbId)
-  const memberDbIds = useAppStore(st => st.memberDbIds)
 
   // Дії обʼєкта переїхали з рядка на картці в шит: рядок займав 56px, тобто
   // 25-32% КОЖНОЇ картки (заміряно), а його кнопки були 34px — під 44px HIG,
@@ -195,7 +195,10 @@ export default function DatabaseObjectsScreen() {
   // виглядали живими, а запис блокував лише RLS — тобто користувач бив у стіну
   // вже після тапу. Поки `db` не завантажилась, поверхні немає — і це
   // правильний бік помилки.
-  const isOwner = (!!db && db.owner_id === user?.id) || memberDbIds.includes(screenParams.dbId ?? '')
+  // Членство визначає сам екран: на нього входять і повз домашній, що
+  // наповнює `memberDbIds` (deep link `team_`, гість-редактор) — див. хук.
+  const isMember = useMemberAccess(screenParams.dbId, db?.owner_id)
+  const isOwner = (!!db && db.owner_id === user?.id) || isMember
 
   useEffect(() => {
     if (screenParams.dbId) loadProperties(screenParams.dbId)
@@ -948,6 +951,9 @@ export default function DatabaseObjectsScreen() {
               // команди — він створює ті самі оренди, тож ховати від нього
               // історію було б брехнею про те, хто що зробив.
               { Icon: IconArchive,     label: tr('Архів оренд'),           nav: true,  danger: false, action: () => { setShowMenu(false); navigate('tenancy-archive', { dbId: db.id }) } },
+              // Так само не owner-only (073): журнал і є відповіддю власнику на
+              // «хто це зробив», а редактору — що зробили інші в тій самій базі.
+              { Icon: IconClock,       label: tr('Журнал змін'),           nav: true,  danger: false, action: () => { setShowMenu(false); navigate('db-activity', { dbId: db.id }) } },
               ...(db.owner_id === user?.id ? [
                 { Icon: IconKey,       label: tr('Управління гостями'),    nav: true,  danger: false, action: () => { setShowMenu(false); navigate('manage-guests', { dbId: db.id }) } },
                 { Icon: IconUsers,     label: tr('Команда'),               nav: true,  danger: false, action: () => { setShowMenu(false); navigate('team', { dbId: db.id }) } },

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useAppStore } from '@/store/appStore'
+import { useAppSlice } from '@/store/appStore'
 import { useFileDrop } from '@/hooks/useFileDrop'
 import { useProperties, nextSortBase } from '@/hooks/useProperties'
 import { offlineGuard } from '@/lib/offline'
@@ -167,7 +167,7 @@ const num = (v: string | undefined): number | null => {
 }
 
 export default function ImportObjectsScreen() {
-  const { screenParams, databases, showToast } = useAppStore()
+  const { screenParams, databases, showToast } = useAppSlice('screenParams', 'databases', 'showToast')
   const dbId = screenParams.dbId as string
   const db = databases.find((d) => d.id === dbId)
 

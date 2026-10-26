@@ -62,6 +62,10 @@ describe('поверхня вразливих залежностей лишає�
    * У статичному експорті з `images.unoptimized` вона вимкнена, тобто sharp не
    * викликається взагалі — і в `out/` його немає. Обидві умови мусять
    * лишатись, інакше вразлива обробка зображень оживає.
+   *
+   * Та сама умова тримає й залишок advisory самого `next` (DoS через Server
+   * Actions, фікс лише в 16.x): у статичному експорті сервера немає взагалі,
+   * тож немає й ендпоінта, куди слати такий запит.
    */
   it('статичний експорт із вимкненою оптимізацією — Next не обробляє зображення', () => {
     const cfg = readFileSync(resolve(process.cwd(), 'next.config.ts'), 'utf8')
@@ -72,18 +76,56 @@ describe('поверхня вразливих залежностей лишає�
   })
 
   /**
-   * `vitest`/`@vitest/mocker` — Path Traversal через redirect-мок. Фікс лише
-   * мажорний (vitest 5). Недосяжність тут ІНШОГО роду, ніж у решти: це
-   * devDependency, тобто в `out/` її немає за побудовою, а вектор вимагає
-   * підконтрольного зловмиснику мок-шляху — тобто вже права писати в наші ж
-   * тести. Умова, яку тут стережемо, рівно одна: вітест лишається DEV-
-   * залежністю і не переповзає в рантайм.
+   * ІНСТРУМЕНТИ ЗБІРКИ Й ТЕСТІВ — недосяжність ІНШОГО роду, ніж у решти: вони
+   * devDependencies, тобто в `out/` їх немає за побудовою, а кожен вектор
+   * живиться НАШИМ ЖЕ вводом (конфіг, CSS, тести). Дістати його означає вже
+   * мати право писати в репозиторій. Фікс у всіх лише мажорний:
+   *
+   * | пакет | advisory | фікс |
+   * |---|---|---|
+   * | `vitest` (+ `tinypool`, `@vitest/mocker`) | Path Traversal у redirect-моку; **critical**: Prototype Pollution → RCE в опціях воркера | vitest 5 |
+   * | `tailwindcss` (+ `braces`, `micromatch`, `chokidar`, `postcss-selector-parser`, `postcss-nested`) | ReDoS/stack exhaustion на глобах `content`, квадратичний парс селекторів | tailwind 4 |
+   * | `eslint-config-next` (+ `fast-glob`, `@next/eslint-plugin-next`) | ті самі глоби — лише під час лінту | 14 → мажор |
+   *
+   * `tinypool` позначений critical, і саме тому тут стоїть таблиця, а не
+   * «dev — отже байдуже»: RCE-гаджет вимагає підконтрольних опцій воркера, а
+   * їх задає раннер із наших тестів. Умов, на яких це тримається, дві: пакет
+   * НЕ переповзає в `dependencies` і `src/` НЕ імпортує його — інакше код
+   * інструмента опиняється в бандлі.
+   *
+   * Пастка заміру, наступана при першому ж аудиті після мерджу: npm 10 (Node
+   * 22 у пісочниці) звітує `postcss-nested` як `fixAvailable: true`, хоч
+   * `npm audit fix` не міняє lockfile — 8.x поза діапазоном `tailwindcss@3`
+   * (`^6.2.0`). npm 11 (Node 24, як у CI) це не бреше. Крок у CI правий; на
+   * локальний `npm audit` під іншою мажорною Node не спиратися.
    */
-  it('vitest лишається dev-залежністю — у рантайм не потрапляє', () => {
-    const pkg = JSON.parse(readFileSync(resolve(process.cwd(), 'package.json'), 'utf8'))
+  const DEV_ONLY = [/^vitest$/, /^@vitest\//, /^tailwindcss$/, /^eslint-config-next$/]
+  const pkg = JSON.parse(readFileSync(resolve(process.cwd(), 'package.json'), 'utf8'))
+
+  it('інструменти з advisory лишаються dev-залежностями', () => {
     const runtime = Object.keys(pkg.dependencies ?? {})
-    expect(runtime.filter((d) => /^(vitest|@vitest\/)/.test(d)),
-      'vitest опинився серед dependencies — advisory стає частиною поставки')
+    expect(runtime.filter((d) => DEV_ONLY.some((re) => re.test(d))),
+      'інструмент збірки/тестів опинився серед dependencies — advisory стає частиною поставки')
+      .toEqual([])
+    // Антивакуум: список описує те, що СПРАВДІ стоїть. Пакет, якого вже немає,
+    // мусить піти й з таблиці вище — інакше обґрунтування знову протухне мовчки.
+    const dev = Object.keys(pkg.devDependencies ?? {})
+    for (const re of DEV_ONLY) {
+      expect(dev.some((d) => re.test(d)), `${re} більше немає в devDependencies — прибери з DEV_ONLY і з таблиці`)
+        .toBe(true)
+    }
+  })
+
+  it('src/ не імпортує інструменти збірки — їхній код не потрапляє в бандл', () => {
+    const offenders: string[] = []
+    for (const f of walk(SRC)) {
+      const src = readFileSync(f, 'utf8')
+      for (const m of src.matchAll(/(?:from\s+|import\s*\(\s*|require\s*\(\s*)['"]([^'"]+)['"]/g)) {
+        const name = m[1].startsWith('@') ? m[1].split('/').slice(0, 2).join('/') : m[1].split('/')[0]
+        if (DEV_ONLY.some((re) => re.test(name))) offenders.push(`${f.replace(SRC + '/', '')} → ${m[1]}`)
+      }
+    }
+    expect(offenders, 'рантайм-код тягне інструмент збірки — він опиниться в out/ разом зі своїми advisory')
       .toEqual([])
   })
 })

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useAppStore } from '@/store/appStore'
+import { useAppSlice } from '@/store/appStore'
 import { useAuth } from '@/hooks/useAuth'
 import Header from '@/components/ui/Header'
 import { IconTrash } from '@/components/Icons'
@@ -21,7 +21,7 @@ const PHRASE = () => (tr('ВИДАЛИТИ'))
  * Це те саме рішення, що діяло й у шиті, — переїзд на екран його не міняє.
  */
 export default function DeleteAccountScreen() {
-  const { back } = useAppStore()
+  const { back } = useAppSlice('back')
   const { deleteAccount } = useAuth()
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)

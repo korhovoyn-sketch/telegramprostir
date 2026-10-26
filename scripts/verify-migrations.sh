@@ -123,6 +123,76 @@ if [ "$left" != "0" ]; then
 fi
 echo "✓ 053: уже посаджені підкидні переприсвоєно власнику цілі"
 
+# ── Ремонтна половина 069 ───────────────────────────────────────────────────
+# Той самий клас, що 053: ремонт відпрацьовує ПІД ЧАС міграції, коли
+# знижених ще немає. Знижуємо Алісу (має базу) так, як це робив старий
+# `claim_guest_link` (owner→guest тригер пропускає), і виконуємо 069 ЩЕ РАЗ.
+# Контроль із другого боку: Новачок69 — гість БЕЗ баз (див. verify-rls.sql),
+# і ремонт не сміє зробити його власником.
+$PSQL -d shadow_rls -c "UPDATE users SET role='guest' WHERE id='a0000000-0000-0000-0000-00000000000a';" >/dev/null
+$PSQL -d shadow_rls -f supabase/migrations/069_access_integrity.sql >/dev/null
+roles=$($PSQL -d shadow_rls -At -c "
+SELECT string_agg(role, ',' ORDER BY id) FROM users
+WHERE id IN ('a0000000-0000-0000-0000-00000000000a','a6900000-0000-0000-0000-000000000003');")
+trg=$($PSQL -d shadow_rls -At -c "
+SELECT tgenabled FROM pg_trigger WHERE tgrelid='public.users'::regclass
+  AND tgname='trg_prevent_privilege_escalation';")
+if [ "$roles" != "owner,guest" ]; then
+  echo "✗ 069: ремонт ролей дав «$roles» замість «owner,guest»"
+  echo "  (власник із базою мусить повернутись, гість без баз — лишитись)"
+  exit 1
+fi
+if [ "$trg" != "O" ]; then
+  echo "✗ 069: після ремонту тригер ескалації лишився ВИМКНЕНИМ ($trg) — самопідвищення відкрите"
+  exit 1
+fi
+echo "✓ 069: знижених власників повернуто, гостя без баз не чіпано, тригер увімкнений"
+
+# ── 074: ремонт залишків, що встигли статись ДО міграції ────────────────────
+# Якщо 073 уже накотили і хтось видалив акаунт, у базі лежать висячий автор
+# надходження й імена без посилання. Посадити такий залишок можна лише В ОБХІД
+# тригерів і ключів (replica) — рівно так він і виникав: каскад скасовувався
+# тригером, а перевірку ключа Postgres пропускав. Поруч — службовий підпис
+# публічного перегляду: блокова чистка «імʼя без посилання» стерла б і його.
+$PSQL -d shadow_rls -c "
+SET session_replication_role = replica;
+INSERT INTO databases (id,owner_id,name,type) VALUES
+  ('d0740000-0000-0000-0000-000000000001','a0000000-0000-0000-0000-00000000000a','Ремонт 074','business_center');
+INSERT INTO properties (id,db_id,owner_id,name,status) VALUES
+  ('d0740000-0000-0000-0000-000000000002','d0740000-0000-0000-0000-000000000001','a0000000-0000-0000-0000-00000000000a','Обʼєкт 074','occupied');
+INSERT INTO rent_payment_records (id,property_id,owner_id,due_date,status,amount) VALUES
+  ('d0740000-0000-0000-0000-000000000003','d0740000-0000-0000-0000-000000000002','a0000000-0000-0000-0000-00000000000a','2026-09-05','partial',100);
+INSERT INTO rent_payment_parts (record_id,amount,paid_at,created_by,created_by_name) VALUES
+  ('d0740000-0000-0000-0000-000000000003',100,now(),'d0740000-dead-0000-0000-000000000074','Залишок');
+INSERT INTO db_activity (db_id,kind,actor_id,actor_name) VALUES
+  ('d0740000-0000-0000-0000-000000000001','photo_deleted',NULL,'Залишок');
+INSERT INTO property_views (property_id,viewer_id,viewer_name,action) VALUES
+  ('d0740000-0000-0000-0000-000000000002',NULL,'Залишок','view'),
+  ('d0740000-0000-0000-0000-000000000002',NULL,'Веб-перегляд','view');
+INSERT INTO guest_links (owner_id,property_id,invite_token,status,guest_user_id,guest_name) VALUES
+  ('a0000000-0000-0000-0000-00000000000a','d0740000-0000-0000-0000-000000000002','tok_074_repair','revoked',NULL,'Залишок');
+SET session_replication_role = origin;" >/dev/null
+$PSQL -d shadow_rls -f supabase/migrations/074_account_erasure.sql >/dev/null
+left=$($PSQL -d shadow_rls -At -c "
+SELECT (SELECT count(*) FROM rent_payment_parts pp
+         WHERE pp.created_by IS NOT NULL AND NOT EXISTS (SELECT 1 FROM users u WHERE u.id = pp.created_by))
+     + (SELECT count(*) FROM rent_payment_parts WHERE created_by_name = 'Залишок')
+     + (SELECT count(*) FROM db_activity        WHERE actor_name      = 'Залишок')
+     + (SELECT count(*) FROM property_views     WHERE viewer_name     = 'Залишок')
+     + (SELECT count(*) FROM guest_links        WHERE guest_name      = 'Залишок');")
+kept=$($PSQL -d shadow_rls -At -c "
+SELECT count(*) FROM property_views
+ WHERE property_id = 'd0740000-0000-0000-0000-000000000002' AND viewer_name = 'Веб-перегляд';")
+if [ "$left" != "0" ]; then
+  echo "✗ 074: ремонт лишив $left залишків видаленого акаунта (висячий автор або імʼя без посилання)"
+  exit 1
+fi
+if [ "$kept" != "1" ]; then
+  echo "✗ 074: ремонт стер службовий підпис публічного перегляду — аналітика втратить «Веб-перегляд»"
+  exit 1
+fi
+echo "✓ 074: висячого автора й імен без посилання не лишилось; службовий підпис цілий"
+
 # ── verify_release.sql теж мусить бути живим ────────────────────────────────
 # Це ЄДИНЕ джерело правди для власника про стан живої БД (мережі до Supabase
 # звідси немає). Але його рядки — це підрядкові збіги по `prosrc`, і вони

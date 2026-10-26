@@ -5,7 +5,7 @@
 -- Джерело правди — supabase/migrations/; CI звіряє, що цей файл їм
 -- відповідає (робота `migrations`, крок «RELEASE.sql не розійшовся»).
 --
--- Містить міграції 21 шт., від 48 і далі:
+-- Містить міграції 27 шт., від 48 і далі:
 --   * 048_guest_name.sql
 --   * 049_drop_idor_get_shared_collection.sql
 --   * 050_guest_preview_owner_check.sql
@@ -27,6 +27,12 @@
 --   * 066_identity_anchor_storage_enum_guest_target.sql
 --   * 067_tenancies.sql
 --   * 068_tenancies_read_only.sql
+--   * 069_access_integrity.sql
+--   * 070_reminders_skip_paid.sql
+--   * 071_partial_payments.sql
+--   * 072_rent_terms_history.sql
+--   * 073_db_activity.sql
+--   * 074_account_erasure.sql
 --
 -- ЯК НАКОЧУВАТИ: вставити цілком і виконати ОДИН раз.
 --   * усе загорнуте в BEGIN/COMMIT — при будь-якій помилці НІЧОГО не
@@ -2796,5 +2802,1492 @@ CREATE POLICY "tenancies_editor_select" ON tenancies
   USING (db_id IN (SELECT get_editor_db_ids(current_app_user_id())));
 
 REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON tenancies FROM anon, authenticated;
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 069_access_integrity.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- ═══════════════════════════════════════════════════════════════════════════
+-- 069 — цілісність доступів: хто що отримує і що справді забирається
+-- ═══════════════════════════════════════════════════════════════════════════
+--
+-- Два дефекти, обидва знайдені ВИКОНАННЯМ на живому Postgres (не читанням),
+-- обидва — сервер робить не те, що обіцяє інтерфейс.
+--
+-- ── 1. Гостьове запрошення ЗНИЖУВАЛО власника до гостя — назавжди ──────────
+-- `claim_guest_link` робив `UPDATE users SET role = 'guest' … AND role = 'owner'`
+-- для БУДЬ-якого власника. Захист стояв лише від клейму ВЛАСНОГО запрошення,
+-- тож власник, що має бази і прийняв чуже запрошення (він же орендар деінде —
+-- цілком звичайна ситуація), ставав `guest`. Таббар будує вкладки за роллю, а
+-- в гостя їх три: «Обʼєкти», «Сповіщення», «Профіль». Тобто ВЛАСНІ бази
+-- зникали з інтерфейсу — дані цілі (RLS не залежить від ролі), але дійти до
+-- них нема як. Повернути роль не можна навіть самому:
+-- `prevent_privilege_escalation` блокує guest→owner за будь-якого контексту
+-- (заміряно: `role_escalation_blocked: guest→owner not allowed`).
+--
+-- Сусідній `subscribe_to_shared_db` (037/055) цю умову вже має:
+-- `AND NOT EXISTS (SELECT 1 FROM databases d2 WHERE d2.owner_id = v_uid)`.
+-- Правило знали — його просто не застосували в другій функції тієї ж родини.
+--
+-- Тіло нижче — точна копія 048, змінено РІВНО один предикат (урок 050:
+-- контракт відповіді не чіпаємо, бо його читає перший екран запрошеного).
+--
+-- ── 2. «Відкликати доступ» не забирав доступу в тих, хто ВЖЕ підписався ────
+-- Шит поширення обіцяє: «Усі, з ким ви ділились, втратять доступ». А
+-- `manage_share(revoke|rotate)` міняв лише токен і термін. Доступ рієлтора ж
+-- тримається не на токені, а на рядку `realtor_subscriptions`
+-- (`get_realtor_db_ids` читає саме його), і цей рядок лишався. Заміряно:
+-- рієлтор, що підписався до відкликання, після нього бачив і базу, і обʼєкти.
+--
+-- Гард `share-handoff` цього не бачив за побудовою: він перевіряв, що СТАРИЙ
+-- токен не дає НОВОЇ підписки, а не те, що наявна підписка зникає.
+--
+-- Тепер rotate/revoke бази видаляють її підписки в тій самій транзакції.
+-- СВІДОМО НЕ чіпає: `set_expiry` (термін — про ЛІНК, тобто про нові
+-- приєднання; хто вже працює з базою, лишається) і команду (`db_members` —
+-- окремий механізм із власним відкликанням). Обидва рішення закріплені
+-- стендом, щоб зміна була видимою, а не випадковою.
+--
+-- ── Ремонт ─────────────────────────────────────────────────────────────────
+-- Ті, кого вже знизило, лишились би гостями назавжди: виправлення функції
+-- нікого не повертає. Ознака однозначна — роль `guest` при ≥1 ВЛАСНІЙ базі:
+-- гостьовий інтерфейс створити базу не дає, тож іншого шляху в такий стан
+-- немає. Тригер ескалації блокує й це оновлення, тож його вимикаємо на час
+-- одного UPDATE — УМОВНО: якщо тригера в базі немає, ALTER інакше повалив би
+-- весь RELEASE.sql (урок 024: прод має прогалини всередині 001-047).
+--
+-- Підписки на бази, відкликані ДО цієї міграції, НЕ чистяться: відкликання й
+-- закінчення терміну в базі нерозрізненні (обидва — минулий
+-- `share_expires_at`), а друге забирати доступ не повинно. Таких власників
+-- варто попросити натиснути «Оновити посилання» ще раз.
+--
+-- Ідемпотентна.
+
+
+CREATE OR REPLACE FUNCTION claim_guest_link(p_token TEXT)
+RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_uid  UUID := current_app_user_id();
+  v_link RECORD;
+  v_name TEXT;
+BEGIN
+  IF v_uid IS NULL THEN
+    RAISE EXCEPTION 'not authenticated';
+  END IF;
+
+  SELECT id, property_id, db_id, guest_user_id, status, owner_id
+  INTO v_link
+  FROM guest_links
+  WHERE invite_token = p_token
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('error', 'not_found');
+  END IF;
+
+  IF v_link.status = 'revoked' THEN
+    RETURN jsonb_build_object('error', 'revoked');
+  END IF;
+
+  -- Owner must never claim their own invite: it would demote them to guest role,
+  -- locking them out of all their databases with no client-side recovery path.
+  IF v_uid = v_link.owner_id THEN
+    RETURN jsonb_build_object('error', 'cannot_claim_own_link');
+  END IF;
+
+  -- Already claimed by this user → idempotent success
+  IF v_link.status = 'active' AND v_link.guest_user_id = v_uid THEN
+    RETURN jsonb_build_object(
+      'property_id', v_link.property_id,
+      'db_id',       v_link.db_id
+    );
+  END IF;
+
+  -- Already claimed by someone else
+  IF v_link.status = 'active' AND v_link.guest_user_id IS DISTINCT FROM v_uid THEN
+    RETURN jsonb_build_object('error', 'already_claimed');
+  END IF;
+
+  SELECT NULLIF(trim(concat(u.first_name, ' ', coalesce(u.last_name, ''))), '')
+  INTO v_name
+  FROM users u WHERE u.id = v_uid;
+
+  UPDATE guest_links
+  SET guest_user_id = v_uid,
+      status        = 'active',
+      claimed_at    = now(),
+      guest_name    = v_name
+  WHERE id = v_link.id;
+
+  -- Гостем стає лише ДЕФОЛТНИЙ власник — той, хто жодної бази не створював
+  -- (онбординг лишає `owner` за замовчуванням). Власника з базами не чіпаємо:
+  -- гостьовий таббар не має «Баз», а назад роль не повертає ніщо (069).
+  UPDATE users SET role = 'guest'
+  WHERE id = v_uid
+    AND role = 'owner'
+    AND NOT EXISTS (SELECT 1 FROM databases d WHERE d.owner_id = v_uid);
+
+  RETURN jsonb_build_object(
+    'property_id', v_link.property_id,
+    'db_id',       v_link.db_id
+  );
+END;
+$$;
+REVOKE ALL ON FUNCTION claim_guest_link(TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION claim_guest_link(TEXT) TO authenticated;
+
+CREATE OR REPLACE FUNCTION manage_share(
+  p_kind   TEXT,
+  p_id     UUID,
+  p_action TEXT,
+  p_days   INT DEFAULT NULL
+)
+RETURNS TABLE (share_token TEXT, share_expires_at TIMESTAMPTZ, error TEXT)
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_uid   UUID;
+  v_owner UUID;
+  v_tok   TEXT;
+  v_exp   TIMESTAMPTZ;
+BEGIN
+  v_uid := current_app_user_id();
+  IF v_uid IS NULL THEN
+    RETURN QUERY SELECT NULL::TEXT, NULL::TIMESTAMPTZ, 'not_authenticated'::TEXT; RETURN;
+  END IF;
+  IF p_kind NOT IN ('db','prop','col') OR p_action NOT IN ('rotate','set_expiry','clear_expiry','revoke') THEN
+    RETURN QUERY SELECT NULL::TEXT, NULL::TIMESTAMPTZ, 'bad_request'::TEXT; RETURN;
+  END IF;
+  IF p_action = 'set_expiry' AND (p_days IS NULL OR p_days < 1 OR p_days > 365) THEN
+    RETURN QUERY SELECT NULL::TEXT, NULL::TIMESTAMPTZ, 'bad_request'::TEXT; RETURN;
+  END IF;
+
+  IF p_kind = 'db' THEN
+    SELECT owner_id INTO v_owner FROM databases WHERE id = p_id FOR UPDATE;
+  ELSIF p_kind = 'prop' THEN
+    SELECT owner_id INTO v_owner FROM properties WHERE id = p_id FOR UPDATE;
+  ELSE
+    SELECT realtor_id INTO v_owner FROM collections WHERE id = p_id FOR UPDATE;
+  END IF;
+
+  IF v_owner IS NULL OR v_owner <> v_uid THEN
+    RETURN QUERY SELECT NULL::TEXT, NULL::TIMESTAMPTZ, 'forbidden'::TEXT; RETURN;
+  END IF;
+
+  -- 060: `revoke` тепер у списку дій, що ротують токен, поруч із `rotate`.
+  IF p_kind = 'db' THEN
+    UPDATE databases SET
+      share_token      = CASE WHEN p_action IN ('rotate','revoke')
+                              THEN encode(gen_random_bytes(12),'hex')
+                              ELSE databases.share_token END,
+      share_expires_at = CASE p_action
+                           WHEN 'set_expiry'   THEN now() + make_interval(days => p_days)
+                           WHEN 'clear_expiry' THEN NULL
+                           WHEN 'revoke'       THEN now()
+                           ELSE databases.share_expires_at
+                         END
+    WHERE id = p_id
+    RETURNING databases.share_token, databases.share_expires_at INTO v_tok, v_exp;
+
+    -- 069: доступ рієлтора тримається на підписці, а не на токені, тож без
+    -- цього рядка «Усі, з ким ви ділились, втратять доступ» було неправдою.
+    -- `set_expiry` підписок свідомо не чіпає — див. шапку.
+    IF p_action IN ('rotate','revoke') THEN
+      DELETE FROM realtor_subscriptions rs WHERE rs.db_id = p_id;
+    END IF;
+  ELSIF p_kind = 'prop' THEN
+    UPDATE properties SET
+      share_token      = CASE WHEN p_action IN ('rotate','revoke')
+                              THEN encode(gen_random_bytes(12),'hex')
+                              ELSE properties.share_token END,
+      share_expires_at = CASE p_action
+                           WHEN 'set_expiry'   THEN now() + make_interval(days => p_days)
+                           WHEN 'clear_expiry' THEN NULL
+                           WHEN 'revoke'       THEN now()
+                           ELSE properties.share_expires_at
+                         END
+    WHERE id = p_id
+    RETURNING properties.share_token, properties.share_expires_at INTO v_tok, v_exp;
+  ELSE
+    UPDATE collections SET
+      share_token      = CASE WHEN p_action IN ('rotate','revoke')
+                              THEN encode(gen_random_bytes(12),'hex')
+                              ELSE collections.share_token END,
+      share_expires_at = CASE p_action
+                           WHEN 'set_expiry'   THEN now() + make_interval(days => p_days)
+                           WHEN 'clear_expiry' THEN NULL
+                           WHEN 'revoke'       THEN now()
+                           ELSE collections.share_expires_at
+                         END
+    WHERE id = p_id
+    RETURNING collections.share_token, collections.share_expires_at INTO v_tok, v_exp;
+  END IF;
+
+  RETURN QUERY SELECT v_tok, v_exp, NULL::TEXT;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION manage_share(TEXT, UUID, TEXT, INT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION manage_share(TEXT, UUID, TEXT, INT) TO authenticated, service_role;
+
+-- ── Ремонт: повернути роль тим, кого вже знизило ───────────────────────────
+-- Ознака — `guest` при ≥1 власній базі (див. шапку). Тригер ескалації вимкнено
+-- рівно на один UPDATE і лише якщо він є: інакше ALTER повалив би файл.
+DO $$
+DECLARE
+  has_trg BOOLEAN;
+  n INT;
+BEGIN
+  SELECT EXISTS (
+    SELECT 1 FROM pg_trigger
+    WHERE tgrelid = 'public.users'::regclass
+      AND tgname  = 'trg_prevent_privilege_escalation'
+      AND NOT tgisinternal
+  ) INTO has_trg;
+
+  IF has_trg THEN
+    EXECUTE 'ALTER TABLE public.users DISABLE TRIGGER trg_prevent_privilege_escalation';
+  END IF;
+
+  UPDATE public.users u SET role = 'owner'
+  WHERE u.role = 'guest'
+    AND EXISTS (SELECT 1 FROM public.databases d WHERE d.owner_id = u.id);
+  GET DIAGNOSTICS n = ROW_COUNT;
+
+  IF has_trg THEN
+    EXECUTE 'ALTER TABLE public.users ENABLE TRIGGER trg_prevent_privilege_escalation';
+  END IF;
+
+  IF n > 0 THEN
+    RAISE NOTICE '069: повернуто роль власника % користувачам, яких знизило гостьове запрошення', n;
+  END IF;
+END $$;
+
+NOTIFY pgrst, 'reload schema';
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 070_reminders_skip_paid.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- ============================================================================
+-- 070 — нагадування про оплату НЕ йде, коли платіж уже підтверджено
+-- ============================================================================
+-- Знайдено аудитом розділу платежів. `get_due_reminders_today()` питає лише
+-- «чи настав день нагадування» і «чи не нагадували цього місяця», але НЕ
+-- питає, чи гроші вже прийшли. Орендар, що заплатив на тиждень раніше, а
+-- власник це підтвердив, — і за три дні до дати власник однаково отримує в
+-- Telegram «оплата через 3 дні». Гість (орендар) — те саме від гостьової
+-- функції. Нагадування, що бреше про стан грошей, вчить їх ігнорувати.
+--
+-- Друга умова того самого класу: дата ДО початку договору. Обʼєкт, зданий
+-- 10-го з днем оплати 5-го, у перший місяць не винен нічого (`isOwedUnderLease`
+-- на клієнті це вже знає), а нагадування про «оплату 5-го» приходило.
+--
+-- Тіла перенесені з 058 ДОСЛІВНО (включно з 053-м `rp.owner_id = p.owner_id`,
+-- 058-м `tg_id IS NOT NULL` і клампом дня місяця). Змінено одне: дата платежу
+-- рахується РАЗ у `LATERAL`, бо тепер вона потрібна в трьох місцях, і
+-- додано два предикати. Контракт результату той самий — `CREATE OR REPLACE`
+-- без зміни типу (урок 42P13 з 044).
+--
+-- Посилання на колонки КВАЛІФІКОВАНІ: `due_date`, `property_id`, `owner_id` —
+-- це ще й OUT-параметри функції, і неякісний `due_date` був би неоднозначним
+-- (урок 055).
+-- ============================================================================
+
+
+CREATE OR REPLACE FUNCTION get_due_reminders_today()
+RETURNS TABLE (
+  owner_id      UUID,
+  tg_id         BIGINT,
+  property_id   UUID,
+  property_name TEXT,
+  due_day       INT,
+  tenant_name   TEXT,
+  due_date      DATE
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE v_today DATE := current_date;
+BEGIN
+  RETURN QUERY
+  SELECT rp.owner_id, u.tg_id, rp.property_id,
+         p.name::TEXT,
+         rp.due_day::INT,
+         p.tenant_name::TEXT,
+         d.due
+  FROM rent_payments rp
+  JOIN properties p ON p.id = rp.property_id
+  JOIN users u ON u.id = rp.owner_id
+  CROSS JOIN LATERAL (
+    SELECT make_date(
+      EXTRACT(YEAR  FROM (v_today + rp.notify_days_before * INTERVAL '1 day'))::INT,
+      EXTRACT(MONTH FROM (v_today + rp.notify_days_before * INTERVAL '1 day'))::INT,
+      LEAST(
+        rp.due_day,
+        EXTRACT(DAY FROM (
+          DATE_TRUNC('month', (v_today + rp.notify_days_before * INTERVAL '1 day'))
+          + INTERVAL '1 month' - INTERVAL '1 day'
+        ))::INT
+      )
+    ) AS due
+  ) d
+  WHERE rp.is_active = true
+    AND p.status = 'occupied'
+    AND rp.owner_id = p.owner_id   -- 053: не розсилати чужі дані власнику розкладу
+    AND u.tg_id IS NOT NULL        -- 058: інакше вічний щоденний ретрай
+    AND EXTRACT(DAY FROM (v_today + rp.notify_days_before * INTERVAL '1 day'))::INT = rp.due_day
+    -- 070: до початку договору платежу немає.
+    AND (p.lease_start_date IS NULL OR d.due >= p.lease_start_date)
+    -- 070: гроші вже прийшли — нагадувати нема про що.
+    AND NOT EXISTS (
+      SELECT 1 FROM rent_payment_records r
+      WHERE r.property_id = rp.property_id
+        AND r.due_date = d.due
+        AND r.status = 'paid'
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM notifications n
+      WHERE n.user_id = rp.owner_id
+        AND n.type = 'rent_reminder'
+        AND (n.data->>'property_id')::UUID = rp.property_id
+        AND DATE_TRUNC('month', n.created_at) = DATE_TRUNC('month', v_today::TIMESTAMPTZ)
+    );
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION get_due_guest_reminders()
+RETURNS TABLE (
+  guest_id      UUID,
+  tg_id         BIGINT,
+  property_id   UUID,
+  property_name TEXT,
+  due_day       INT,
+  due_date      DATE
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE v_today DATE := current_date;
+BEGIN
+  RETURN QUERY
+  SELECT DISTINCT ON (u.id, rp.property_id)
+    u.id, u.tg_id, rp.property_id,
+    p.name::TEXT,
+    rp.due_day::INT,
+    d.due
+  FROM rent_payments rp
+  JOIN properties p ON p.id = rp.property_id
+  JOIN guest_links gl ON (gl.property_id = rp.property_id OR gl.db_id = p.db_id)
+                      AND gl.status = 'active'
+  JOIN users u ON u.id = gl.guest_user_id
+  CROSS JOIN LATERAL (
+    SELECT make_date(
+      EXTRACT(YEAR  FROM (v_today + rp.notify_days_before * INTERVAL '1 day'))::INT,
+      EXTRACT(MONTH FROM (v_today + rp.notify_days_before * INTERVAL '1 day'))::INT,
+      LEAST(
+        rp.due_day,
+        EXTRACT(DAY FROM (
+          DATE_TRUNC('month', (v_today + rp.notify_days_before * INTERVAL '1 day'))
+          + INTERVAL '1 month' - INTERVAL '1 day'
+        ))::INT
+      )
+    ) AS due
+  ) d
+  WHERE rp.is_active = true
+    AND p.status = 'occupied'
+    AND u.tg_id IS NOT NULL        -- 058: див. вище
+    AND EXTRACT(DAY FROM (v_today + rp.notify_days_before * INTERVAL '1 day'))::INT = rp.due_day
+    AND (p.lease_start_date IS NULL OR d.due >= p.lease_start_date)   -- 070
+    AND NOT EXISTS (                                                   -- 070
+      SELECT 1 FROM rent_payment_records r
+      WHERE r.property_id = rp.property_id
+        AND r.due_date = d.due
+        AND r.status = 'paid'
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM notifications n
+      WHERE n.user_id = u.id
+        AND n.type = 'rent_reminder'
+        AND (n.data->>'property_id')::UUID = rp.property_id
+        AND DATE_TRUNC('month', n.created_at) = DATE_TRUNC('month', v_today::TIMESTAMPTZ)
+    )
+  ORDER BY u.id, rp.property_id;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION get_due_reminders_today()  FROM PUBLIC;
+REVOKE ALL ON FUNCTION get_due_guest_reminders()  FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION get_due_reminders_today() TO service_role;
+GRANT EXECUTE ON FUNCTION get_due_guest_reminders() TO service_role;
+
+
+NOTIFY pgrst, 'reload schema';
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 071_partial_payments.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- ============================================================================
+-- 071 — ЧАСТКОВА ОПЛАТА: платіж за період складається з НАДХОДЖЕНЬ
+-- ============================================================================
+-- Доти `rent_payment_records` мав рівно один стан «отримано»: рядок на
+-- (обʼєкт, дату платежу) зі статусом `paid` і сумою. Орендар, що заплатив
+-- $1 000 із $1 800, давав власнику два погані варіанти: підтвердити як
+-- `paid` (і борг $800 зникав з календаря, лічильника й нагадувань) або не
+-- підтверджувати (і $1 000, які вже в кишені, не існували для архіву).
+--
+-- МОДЕЛЬ: рядок `rent_payment_records` лишається ПЕРІОДОМ (нарахуванням), а
+-- гроші, що прийшли, — окремі НАДХОДЖЕННЯ в `rent_payment_parts`, кожне зі
+-- своєю датою й приміткою. Підсумок періоду (`amount`, `paid_at`, `status`)
+-- рахує СЕРВЕР тригером, а не клієнт:
+--   * сума надходжень ≥ `amount_due`  → `paid`;
+--   * більше нуля, але менше          → `partial`;
+--   * надходжень немає                → `pending` (024 зробить `overdue`).
+--
+-- ЧОМУ ТАК, А НЕ «ОДНА СУМА, ЯКУ ДОПИСУЮТЬ». Дописування втрачає ДАТИ
+-- надходжень («коли він доплатив?» — перше питання будь-якої суперечки), а
+-- читання-зміна-запис з двох пристроїв (власник і редактор) губить одне з
+-- надходжень. Тут сума — агрегат під блокуванням рядка періоду.
+--
+-- ЧОМУ ВСІ НАЯВНІ СПОЖИВАЧІ НЕ ЛАМАЮТЬСЯ. `amount` лишається «скільки
+-- отримано за період», `status = 'paid'` лишається «закрито повністю». Тобто
+-- календар, нагадування (070 пропускає лише `paid`), архів оренд — усі
+-- читають той самий контракт; частковий період для них просто НЕ закритий.
+--
+-- `amount_due` — ЗАМОРОЖЕНА очікувана сума. Ставка оренди змінюється, і
+-- старий період, порахований за новою ставкою, раптом ставав би «частковим»
+-- (або «закритим») заднім числом. Тому сума фіксується в мить ПЕРШОГО
+-- надходження і далі не рухається. NULL — очікуване невідоме (обʼєкт без
+-- ставки): тоді будь-яке надходження закриває період, як і доти.
+-- ============================================================================
+
+
+-- ── 1. Період: заморожена очікувана сума і стан «частково» ─────────────────
+ALTER TABLE rent_payment_records ADD COLUMN IF NOT EXISTS amount_due NUMERIC(12,2);
+
+-- Імʼя CHECK-обмеження автозгенероване (021/023 оголошували його інлайном),
+-- тож шукаємо за ВИЗНАЧЕННЯМ, а не за назвою: у базі, накоченій вручну, воно
+-- могло назватись інакше (урок 055 — не покладатись на автоімена).
+DO $$
+DECLARE c RECORD;
+BEGIN
+  FOR c IN
+    SELECT conname FROM pg_constraint
+    WHERE conrelid = 'public.rent_payment_records'::regclass
+      AND contype = 'c'
+      AND pg_get_constraintdef(oid) ~* 'status'
+  LOOP
+    EXECUTE format('ALTER TABLE public.rent_payment_records DROP CONSTRAINT %I', c.conname);
+  END LOOP;
+END $$;
+
+ALTER TABLE rent_payment_records ADD CONSTRAINT rent_payment_records_status_check
+  CHECK (status IN ('pending', 'paid', 'overdue', 'partial'));
+
+-- ── 2. Надходження ─────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS rent_payment_parts (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  -- CASCADE: «Скасувати платіж» у календарі видаляє ПЕРІОД, і надходження
+  -- без періоду не мають сенсу — їх ніде показати.
+  record_id   UUID NOT NULL REFERENCES rent_payment_records(id) ON DELETE CASCADE,
+  amount      NUMERIC(12,2) NOT NULL CHECK (amount > 0 AND amount <= 10000000000),
+  paid_at     TIMESTAMPTZ NOT NULL,
+  notes       TEXT CHECK (notes IS NULL OR char_length(notes) <= 200),
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_rent_payment_parts_record ON rent_payment_parts(record_id, paid_at);
+
+ALTER TABLE rent_payment_parts ENABLE ROW LEVEL SECURITY;
+
+-- Ціль перевіряється на ОБОХ боках (правило 11): надходження можна вписати
+-- лише в період обʼєкта, яким ти володієш або який редагуєш. Знати
+-- `record_id` чужого платежу недостатньо — підзапит іде під RLS періодів і
+-- ще й явно фільтрується по власних обʼєктах.
+--
+-- Гостя й рієлтора тут свідомо НЕМАЄ: жоден клієнтський екран не показує їм
+-- надходжень, а найменші права — ті, яких не видали.
+DROP POLICY IF EXISTS "parts_owner_all"  ON rent_payment_parts;
+DROP POLICY IF EXISTS "parts_editor_all" ON rent_payment_parts;
+
+CREATE POLICY "parts_owner_all" ON rent_payment_parts
+  FOR ALL
+  USING (record_id IN (
+    SELECT r.id FROM rent_payment_records r
+    WHERE r.property_id IN (SELECT get_owner_property_ids(current_app_user_id()))
+  ))
+  WITH CHECK (record_id IN (
+    SELECT r.id FROM rent_payment_records r
+    WHERE r.property_id IN (SELECT get_owner_property_ids(current_app_user_id()))
+  ));
+
+CREATE POLICY "parts_editor_all" ON rent_payment_parts
+  FOR ALL
+  USING (record_id IN (
+    SELECT r.id FROM rent_payment_records r
+    WHERE r.property_id IN (SELECT get_editor_property_ids(current_app_user_id()))
+  ))
+  WITH CHECK (record_id IN (
+    SELECT r.id FROM rent_payment_records r
+    WHERE r.property_id IN (SELECT get_editor_property_ids(current_app_user_id()))
+  ));
+
+-- Анонімові таблиця не потрібна ні для чого; RLS його й так не пустить, але
+-- дефолтні права Supabase видають запис УСІМ ролям — знімаємо явно, щоб
+-- рішення було видно в дифі (той самий хід, що 068).
+REVOKE ALL ON rent_payment_parts FROM anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON rent_payment_parts TO authenticated;
+
+-- ── 3. Підсумок періоду рахує сервер ───────────────────────────────────────
+-- SECURITY INVOKER — і це свідомо, на відміну від тригера оренд (067). Сюди
+-- потрапляє лише той, кого вже пропустила політика надходжень, а вона
+-- вимагає права на обʼєкт; оновлення періоду під ТИМИ САМИМИ правами не
+-- розширює нічого. Definer тут був би зайвим периметром.
+--
+-- Логіка ВБУДОВАНА в тригер, а не винесена в окрему функцію: вкладений виклик
+-- перевіряє EXECUTE у ПОТОЧНОГО користувача, тобто окрему функцію довелось би
+-- видати `authenticated` — ще одна точка входу, якої ніхто не просив.
+CREATE OR REPLACE FUNCTION public.sync_rent_record_from_parts()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_ids  UUID[];
+  v_rid  UUID;
+  v_due  NUMERIC;
+  v_n    INT;
+  v_sum  NUMERIC;
+  v_last TIMESTAMPTZ;
+BEGIN
+  -- Перенесене надходження міняє ДВА періоди: той, звідки, і той, куди.
+  IF TG_OP = 'INSERT' THEN v_ids := ARRAY[NEW.record_id];
+  ELSIF TG_OP = 'DELETE' THEN v_ids := ARRAY[OLD.record_id];
+  ELSIF NEW.record_id IS DISTINCT FROM OLD.record_id THEN v_ids := ARRAY[OLD.record_id, NEW.record_id];
+  ELSE v_ids := ARRAY[NEW.record_id];
+  END IF;
+
+  FOREACH v_rid IN ARRAY v_ids LOOP
+    -- БЛОКУВАННЯ ПЕРІОДУ ПЕРЕД АГРЕГАТОМ. Два надходження з двох пристроїв
+    -- (власник і редактор) інакше рахували б суму кожен у своєму знімку, і
+    -- той, хто записав ОСТАННІМ, затер би чуже надходження з підсумку. Після
+    -- блокування наступний SELECT у READ COMMITTED бере свіжий знімок і
+    -- бачить уже закомічене.
+    SELECT amount_due INTO v_due FROM rent_payment_records WHERE id = v_rid FOR UPDATE;
+    -- Періоду немає — його саме видаляють (каскад «Скасувати платіж»), і
+    -- оновлювати нічого.
+    CONTINUE WHEN NOT FOUND;
+
+    SELECT count(*), COALESCE(sum(amount), 0), max(paid_at)
+      INTO v_n, v_sum, v_last
+      FROM rent_payment_parts WHERE record_id = v_rid;
+
+    IF v_n = 0 THEN
+      UPDATE rent_payment_records
+         SET amount = NULL, paid_at = NULL, status = 'pending', updated_at = now()
+       WHERE id = v_rid;
+    ELSE
+      UPDATE rent_payment_records
+         SET amount = v_sum, paid_at = v_last,
+             status = CASE WHEN v_due IS NULL OR v_sum >= v_due THEN 'paid' ELSE 'partial' END,
+             updated_at = now()
+       WHERE id = v_rid;
+    END IF;
+  END LOOP;
+
+  RETURN NULL;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.sync_rent_record_from_parts() FROM PUBLIC;
+
+DROP TRIGGER IF EXISTS trg_sync_rent_record_from_parts ON rent_payment_parts;
+CREATE TRIGGER trg_sync_rent_record_from_parts
+  AFTER INSERT OR UPDATE OR DELETE ON rent_payment_parts
+  FOR EACH ROW EXECUTE FUNCTION public.sync_rent_record_from_parts();
+
+-- ── 4. Одна дія клієнта — один виклик ──────────────────────────────────────
+-- «Отримав гроші» = створити період, якщо його ще немає (із ЗАМОРОЖЕНОЮ
+-- очікуваною сумою), і вписати надходження. Двома запитами з клієнта це не
+-- атомарно: збій другого лишав би порожній період. Тут обидва кроки — одна
+-- транзакція.
+--
+-- SECURITY INVOKER: усі права перевіряє RLS (періоду — політики 041/053,
+-- надходження — політики вище). UUID обʼєкта тут НЕ є ключем доступу, тож
+-- IDOR-клас (§5 Audit playbook) не виникає; anon не має EXECUTE узагалі.
+--
+-- Наявний період свою `amount_due` НЕ міняє: заморожена сума — це сенс
+-- заморожування. Тому `p_amount_due` діє лише на НОВИЙ період.
+CREATE OR REPLACE FUNCTION public.record_rent_payment(
+  p_property_id UUID,
+  p_due_date    DATE,
+  p_amount      NUMERIC,
+  p_paid_at     TIMESTAMPTZ,
+  p_notes       TEXT DEFAULT NULL,
+  p_amount_due  NUMERIC DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_owner UUID;
+  v_rid   UUID;
+  v_part  UUID;
+  v_rec   RECORD;
+BEGIN
+  IF p_amount IS NULL OR p_amount <= 0 OR p_amount > 10000000000 THEN
+    RETURN jsonb_build_object('error', 'invalid_amount');
+  END IF;
+  -- День наперед — запас на пояс: локальна північ Києва — це ще вчора в UTC.
+  IF p_paid_at IS NULL OR p_paid_at > now() + INTERVAL '1 day' THEN
+    RETURN jsonb_build_object('error', 'invalid_date');
+  END IF;
+
+  SELECT p.owner_id INTO v_owner FROM properties p WHERE p.id = p_property_id;
+  IF v_owner IS NULL THEN
+    RETURN jsonb_build_object('error', 'not_found');
+  END IF;
+
+  INSERT INTO rent_payment_records (property_id, owner_id, due_date, amount_due, status)
+  VALUES (p_property_id, v_owner, p_due_date,
+          CASE WHEN p_amount_due > 0 THEN round(p_amount_due, 2) END, 'pending')
+  ON CONFLICT (property_id, due_date) DO NOTHING;
+
+  SELECT r.id INTO v_rid FROM rent_payment_records r
+   WHERE r.property_id = p_property_id AND r.due_date = p_due_date;
+  IF v_rid IS NULL THEN
+    RETURN jsonb_build_object('error', 'not_found');
+  END IF;
+
+  -- Період, підтверджений СТАРИМ клієнтом уже після міграції (кешована
+  -- вкладка в Telegram пише `status='paid'` + суму напряму, без надходжень).
+  -- Без цього кроку перше ж нове надходження перерахувало б суму з нуля, і
+  -- отримані раніше гроші зникли б із підсумку. Той самий перенос, що й
+  -- бекфіл нижче, — лише для одного періоду й у тій самій транзакції.
+  INSERT INTO rent_payment_parts (record_id, amount, paid_at, notes)
+  SELECT r.id, round(r.amount::NUMERIC, 2),
+         COALESCE(r.paid_at, r.updated_at, r.created_at, now()),
+         NULLIF(btrim(left(r.notes, 200)), '')
+    FROM rent_payment_records r
+   WHERE r.id = v_rid AND r.status IN ('paid', 'partial') AND r.amount > 0
+     AND NOT EXISTS (SELECT 1 FROM rent_payment_parts pp WHERE pp.record_id = r.id);
+
+  INSERT INTO rent_payment_parts (record_id, amount, paid_at, notes)
+  VALUES (v_rid, round(p_amount, 2), p_paid_at, NULLIF(btrim(p_notes), ''))
+  RETURNING id INTO v_part;
+
+  SELECT r.status, r.amount, r.amount_due INTO v_rec
+    FROM rent_payment_records r WHERE r.id = v_rid;
+
+  RETURN jsonb_build_object(
+    'record_id',  v_rid,
+    'part_id',    v_part,
+    'status',     v_rec.status,
+    'amount',     v_rec.amount,
+    'amount_due', v_rec.amount_due,
+    'error',      NULL
+  );
+END;
+$$;
+
+-- Правило 12: дефолтний PUBLIC знімається ДО гранту, інакше функція
+-- лишається викликабельною з anon-ключа.
+REVOKE ALL ON FUNCTION public.record_rent_payment(UUID, DATE, NUMERIC, TIMESTAMPTZ, TEXT, NUMERIC) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.record_rent_payment(UUID, DATE, NUMERIC, TIMESTAMPTZ, TEXT, NUMERIC) TO authenticated;
+
+-- ── 5. Наявні підтвердження стають надходженнями ───────────────────────────
+-- Без цього кожен уже підтверджений платіж виглядав би «отриманим без
+-- жодного надходження», а перше ж редагування (додати частину) перерахувало
+-- б суму з нуля. Очікувана сума такого періоду = отримана: він уже був
+-- закритий, і заднім числом робити його частковим не можна.
+--
+-- Ідемпотентно: лише періоди без жодного надходження.
+UPDATE rent_payment_records r
+   SET amount_due = round(r.amount::NUMERIC, 2)
+ WHERE r.status = 'paid' AND r.amount > 0 AND r.amount_due IS NULL
+   AND NOT EXISTS (SELECT 1 FROM rent_payment_parts pp WHERE pp.record_id = r.id);
+
+INSERT INTO rent_payment_parts (record_id, amount, paid_at, notes)
+SELECT r.id, round(r.amount::NUMERIC, 2),
+       COALESCE(r.paid_at, r.updated_at, r.created_at, now()),
+       NULLIF(btrim(left(r.notes, 200)), '')
+  FROM rent_payment_records r
+ WHERE r.status = 'paid' AND r.amount > 0
+   AND NOT EXISTS (SELECT 1 FROM rent_payment_parts pp WHERE pp.record_id = r.id);
+
+NOTIFY pgrst, 'reload schema';
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 072_rent_terms_history.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- ============================================================================
+-- 072 — УМОВИ ОРЕНДИ В ЧАСІ: борг рахується за ставкою, що ДІЯЛА тоді
+-- ============================================================================
+-- ЩО ЛІКУЄ. Очікувана сума неоплаченого періоду рахувалась із ПОТОЧНОЇ
+-- ставки обʼєкта. Підняв оренду з $1 800 до $2 000 у жовтні — і серпневий
+-- борг, якого ще не сплатили, теж ставав $2 000. Тобто зміна ставки
+-- переписувала минулі борги заднім числом, і саме в ту суму, про яку
+-- сперечаються з орендарем. 071 заморожує суму лише в мить ПЕРШОГО
+-- надходження — до нього період був беззахисним.
+--
+-- ДВІ РЕЧІ, і друга — не «заодно»:
+--
+--   1. ІСТОРІЯ УМОВ. Тригер записує СТАРІ умови (ставка, тип, площі, база
+--      розрахунку) в мить, коли вони змінились, з міткою `valid_until`.
+--      Умови на дату D = найраніший рядок, що діяв після D; якщо такого
+--      немає — поточні умови обʼєкта. Формула грошей при цьому лишається В
+--      ОДНОМУ МІСЦІ (клієнтська `expectedRent`): сервер зберігає ФАКТИ, а не
+--      рахує суми, тож дрейфу між двома реалізаціями формули бути не може.
+--
+--   2. СУМА ЗА КОНКРЕТНИЙ ПЕРІОД (`set_rent_amount_due`). Історія НЕ
+--      розрізняє «підняв ставку» і «виправив описку»: обидва — зміна. Без
+--      виходу виправлена описка ($18 000 → $1 800) лишила б серпень із
+--      очікуваними $18 000, тобто вічним «частковим» боргом — і навіть
+--      «Скасувати платіж» не допоміг би, бо повторний запис знову взяв би
+--      ставку з історії. Той самий вихід потрібен і без описок: неповний
+--      перший місяць (заїхав 18-го), знижка, домовленість — сума періоду
+--      відрізняється від ставки законно.
+--
+-- ЧЕСНА МЕЖА. Історія починається з цієї міграції: як змінювалась ставка
+-- ДОТИ, ніде не записано, тож для старих періодів діє поточна ставка — як і
+-- було. Вигадувати минуле з архіву оренд не можна: він фіксує ставку на
+-- кінець ОРЕНДИ, а не на кожну дату.
+-- ============================================================================
+
+
+-- ── 1. Історія ─────────────────────────────────────────────────────────────
+-- CASCADE: історія умов має сенс лише разом із платежами обʼєкта, а ті
+-- видаляються з ним (021). Архів правовідносин живе окремо (067) і власну
+-- ставку на момент закриття оренди зберігає сам.
+CREATE TABLE IF NOT EXISTS property_rent_terms (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  property_id    UUID NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+  rent_rate      DOUBLE PRECISION,
+  rent_type      TEXT,
+  utilities_rate DOUBLE PRECISION,
+  area_basis     TEXT,
+  area_useful    DOUBLE PRECISION,
+  area_total     DOUBLE PRECISION,
+  -- Мить, до якої ці умови ДІЯЛИ (тобто мить зміни).
+  valid_until    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE property_rent_terms ENABLE ROW LEVEL SECURITY;
+
+CREATE INDEX IF NOT EXISTS idx_property_rent_terms_prop
+  ON property_rent_terms (property_id, valid_until);
+
+-- ── RLS: бачать ті, хто бачить платежі; писати не може НІХТО з клієнтів ───
+-- Урок 068: історія цінна тим, що правдива. Запис, який власник чи редактор
+-- може «підправити», доказом при суперечці не є, а редактор — принципал,
+-- якого запрошують і відкликають. Рядки пише лише тригер (SECURITY DEFINER).
+DROP POLICY IF EXISTS "rent_terms_owner_select"  ON property_rent_terms;
+CREATE POLICY "rent_terms_owner_select" ON property_rent_terms
+  FOR SELECT
+  USING (property_id IN (SELECT get_owner_property_ids(current_app_user_id())));
+
+DROP POLICY IF EXISTS "rent_terms_editor_select" ON property_rent_terms;
+CREATE POLICY "rent_terms_editor_select" ON property_rent_terms
+  FOR SELECT
+  USING (property_id IN (SELECT get_editor_property_ids(current_app_user_id())));
+
+-- Другий шар (068): без явного GRANT майбутня «політика за зразком» не
+-- відкриє запис мовчки.
+REVOKE ALL ON property_rent_terms FROM anon;
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON property_rent_terms FROM authenticated;
+GRANT SELECT ON property_rent_terms TO authenticated;
+
+-- ── Тригер ───────────────────────────────────────────────────────────────
+-- SECURITY DEFINER — той самий випадок, що 067: службовий облік, усі
+-- значення з OLD, вводу ззовні немає. Редактор міняє ставку під своїми
+-- правами на `properties`, а запис в історію не впирається в його політику
+-- (якої для запису й немає).
+CREATE OR REPLACE FUNCTION public.record_rent_terms_change()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  INSERT INTO property_rent_terms (
+    property_id, rent_rate, rent_type, utilities_rate,
+    area_basis, area_useful, area_total, valid_until
+  ) VALUES (
+    OLD.id, OLD.rent_rate, OLD.rent_type, OLD.utilities_rate,
+    OLD.area_basis, OLD.area_useful, OLD.area_total, now()
+  );
+  RETURN NULL;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.record_rent_terms_change() FROM PUBLIC;
+
+-- `WHEN`, а не лише `UPDATE OF`: форма шле ВСІ поля при кожному збереженні,
+-- тож `UPDATE OF` спрацьовує і тоді, коли ставку ніхто не чіпав. Без умови
+-- кожне перейменування обʼєкта плодило б рядок «змін», яких не було.
+DROP TRIGGER IF EXISTS trg_record_rent_terms ON properties;
+CREATE TRIGGER trg_record_rent_terms
+  AFTER UPDATE OF rent_rate, rent_type, utilities_rate, area_basis, area_useful, area_total
+  ON properties
+  FOR EACH ROW
+  WHEN (
+       OLD.rent_rate      IS DISTINCT FROM NEW.rent_rate
+    OR OLD.rent_type      IS DISTINCT FROM NEW.rent_type
+    OR OLD.utilities_rate IS DISTINCT FROM NEW.utilities_rate
+    OR OLD.area_basis     IS DISTINCT FROM NEW.area_basis
+    OR OLD.area_useful    IS DISTINCT FROM NEW.area_useful
+    OR OLD.area_total     IS DISTINCT FROM NEW.area_total
+  )
+  EXECUTE FUNCTION public.record_rent_terms_change();
+
+-- ── 2. Сума за конкретний період ───────────────────────────────────────────
+-- SECURITY INVOKER, як і `record_rent_payment` (071): права перевіряє RLS
+-- періодів і надходжень, тож чужий обʼєкт тут просто невидимий. UUID обʼєкта
+-- не є ключем доступу — IDOR-клас (§5) не виникає; anon EXECUTE не має.
+--
+-- Підсумок рахується тут же, а не тригером: тригер 071 висить на
+-- НАДХОДЖЕННЯХ, а тут міняється сам період. Логіка та сама — сума
+-- надходжень проти очікуваної — під блокуванням рядка періоду.
+CREATE OR REPLACE FUNCTION public.set_rent_amount_due(
+  p_property_id UUID,
+  p_due_date    DATE,
+  p_amount_due  NUMERIC
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_owner  UUID;
+  v_rid    UUID;
+  v_due    NUMERIC := round(p_amount_due, 2);
+  v_n      INT;
+  v_sum    NUMERIC;
+  v_status TEXT;
+BEGIN
+  IF p_amount_due IS NULL OR p_amount_due <= 0 OR p_amount_due > 10000000000 THEN
+    RETURN jsonb_build_object('error', 'invalid_amount');
+  END IF;
+
+  SELECT p.owner_id INTO v_owner FROM properties p WHERE p.id = p_property_id;
+  IF v_owner IS NULL THEN
+    RETURN jsonb_build_object('error', 'not_found');
+  END IF;
+
+  -- Сума ставиться ОКРЕМИМ UPDATE нижче, а не тут, навіть для нового
+  -- періоду: так зміна суми — завжди зміна рядка, і журнал змін (073) бачить
+  -- її однаково, був період до того чи ні.
+  INSERT INTO rent_payment_records (property_id, owner_id, due_date, status)
+  VALUES (p_property_id, v_owner, p_due_date, 'pending')
+  ON CONFLICT (property_id, due_date) DO NOTHING;
+
+  SELECT r.id INTO v_rid FROM rent_payment_records r
+   WHERE r.property_id = p_property_id AND r.due_date = p_due_date
+   FOR UPDATE;
+  IF v_rid IS NULL THEN
+    RETURN jsonb_build_object('error', 'not_found');
+  END IF;
+
+  -- Період, підтверджений СТАРИМ клієнтом (сума без надходжень), — той самий
+  -- перенос, що в `record_rent_payment`: інакше перерахунок нижче не побачив
+  -- би отриманих грошей і назвав би оплачений період неоплаченим.
+  INSERT INTO rent_payment_parts (record_id, amount, paid_at, notes)
+  SELECT r.id, round(r.amount::NUMERIC, 2),
+         COALESCE(r.paid_at, r.updated_at, r.created_at, now()),
+         NULLIF(btrim(left(r.notes, 200)), '')
+    FROM rent_payment_records r
+   WHERE r.id = v_rid AND r.status IN ('paid', 'partial') AND r.amount > 0
+     AND NOT EXISTS (SELECT 1 FROM rent_payment_parts pp WHERE pp.record_id = r.id);
+
+  SELECT count(*), COALESCE(sum(amount), 0) INTO v_n, v_sum
+    FROM rent_payment_parts WHERE record_id = v_rid;
+
+  v_status := CASE WHEN v_n = 0 THEN 'pending'
+                   WHEN v_sum >= v_due THEN 'paid'
+                   ELSE 'partial' END;
+
+  UPDATE rent_payment_records
+     SET amount_due = v_due, status = v_status, updated_at = now()
+   WHERE id = v_rid;
+
+  RETURN jsonb_build_object(
+    'record_id',  v_rid,
+    'status',     v_status,
+    'amount_due', v_due,
+    'error',      NULL
+  );
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.set_rent_amount_due(UUID, DATE, NUMERIC) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.set_rent_amount_due(UUID, DATE, NUMERIC) TO authenticated;
+
+NOTIFY pgrst, 'reload schema';
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 073_db_activity.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- ============================================================================
+-- 073 — ХТО ЩО ЗРОБИВ: автор надходження і журнал змін бази
+-- ============================================================================
+-- ЩО ЛІКУЄ. Команда (041) дала редакторам право писати в базу власника:
+-- обʼєкти, ставки, орендарів, гроші. Але жоден рядок не відповідав на
+-- питання «хто це зробив». Власник бачив, що ставку змінили, обʼєкт
+-- видалили, а надходження $1 000 «записане» — і не мав як дізнатись, ким.
+-- Для обліку грошей у команді це перше питання будь-якої розбіжності.
+--
+-- ДВІ ЧАСТИНИ:
+--
+--   1. АВТОР НАДХОДЖЕННЯ — колонки на самому `rent_payment_parts`. Ставить
+--      ТРИГЕР, а не клієнт: значення з тіла запиту — це те, що клієнт
+--      захотів написати, і редактор міг би «записати» гроші від імені
+--      власника. Тригер перезаписує будь-що з тіла, а на UPDATE тримає
+--      старе — автор не міняється від виправлення суми.
+--
+--   2. ЖУРНАЛ ЗМІН БАЗИ — `db_activity`. Пишуть ЛИШЕ тригери (SECURITY
+--      DEFINER), клієнтам — лише читання (урок 068: журнал, який можна
+--      підправити, доказом не є). Подія ПІДСУМКОВА, а не сирий діф: «Здано
+--      в оренду: ТОВ Х» замість семи змінених колонок, і ім'я дійової особи
+--      заморожене в рядку — переживає вихід людини з команди.
+--
+-- ЩО СВІДОМО НЕ ПИШЕТЬСЯ:
+--   * дії без особи (крон, міграції, service-role) — це не «хтось зробив»;
+--   * каскади: видалили обʼєкт — це ОДНА подія, а не ще десять «видалено
+--     надходження / документ / розклад» під ним;
+--   * шум без змісту: порядок, папки, опис, додавання фото (пакет із 20
+--     знімків дав би 20 рядків). Видалення фото — пишеться: воно незворотне.
+--
+-- ЖУРНАЛ НЕ СМІЄ ЛАМАТИ ДІЮ. Будь-яка помилка запису події ковтається з
+-- WARNING: втрачений рядок журналу — прикро, а «не вдалося зберегти
+-- платіж» через журнал — неприпустимо. Це журнал змін, а не механізм
+-- безпеки; права, як і доти, тримає RLS.
+-- ============================================================================
+
+
+-- ── 1. Автор надходження ───────────────────────────────────────────────────
+ALTER TABLE rent_payment_parts
+  ADD COLUMN IF NOT EXISTS created_by      UUID REFERENCES users(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS created_by_name TEXT;
+
+CREATE OR REPLACE FUNCTION public.stamp_rent_part_author()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  IF TG_OP = 'UPDATE' THEN
+    NEW.created_by      := OLD.created_by;
+    NEW.created_by_name := OLD.created_by_name;
+    RETURN NEW;
+  END IF;
+
+  -- Перенесене підтвердження СТАРОГО клієнта (071: сума на періоді без
+  -- надходжень стає першим надходженням). Гроші вписав хтось раніше, і
+  -- приписати їх тому, чия дія спричинила перенос, було б неправдою.
+  -- Звичайний перший платіж періоду так не виглядає: період без надходжень
+  -- має порожню суму (її обнуляє тригер 071).
+  IF EXISTS (SELECT 1 FROM rent_payment_records r
+              WHERE r.id = NEW.record_id AND r.amount > 0
+                AND r.status IN ('paid', 'partial'))
+     AND NOT EXISTS (SELECT 1 FROM rent_payment_parts pp WHERE pp.record_id = NEW.record_id) THEN
+    NEW.created_by      := NULL;
+    NEW.created_by_name := NULL;
+    RETURN NEW;
+  END IF;
+
+  NEW.created_by      := NULL;
+  NEW.created_by_name := NULL;
+  SELECT u.id, NULLIF(trim(concat(u.first_name, ' ', coalesce(u.last_name, ''))), '')
+    INTO NEW.created_by, NEW.created_by_name
+    FROM users u WHERE u.id = current_app_user_id();
+  RETURN NEW;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.stamp_rent_part_author() FROM PUBLIC;
+
+DROP TRIGGER IF EXISTS trg_stamp_rent_part_author ON rent_payment_parts;
+CREATE TRIGGER trg_stamp_rent_part_author
+  BEFORE INSERT OR UPDATE ON rent_payment_parts
+  FOR EACH ROW EXECUTE FUNCTION public.stamp_rent_part_author();
+
+-- ── 2. Журнал ──────────────────────────────────────────────────────────────
+-- `db_id` CASCADE: журнал живе в базі. `property_id` SET NULL: подія про
+-- видалений обʼєкт лишається — назва заморожена в рядку.
+CREATE TABLE IF NOT EXISTS db_activity (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  db_id         UUID NOT NULL REFERENCES databases(id)  ON DELETE CASCADE,
+  property_id   UUID          REFERENCES properties(id) ON DELETE SET NULL,
+  property_name TEXT,
+  actor_id      UUID          REFERENCES users(id)      ON DELETE SET NULL,
+  actor_name    TEXT,
+  kind          TEXT NOT NULL CHECK (kind IN (
+    'property_created', 'property_deleted', 'property_renamed', 'property_moved',
+    'property_rented', 'property_vacated', 'property_status', 'tenant_changed',
+    'terms_changed',
+    'payment_received', 'payment_edited', 'payment_deleted', 'payment_cancelled',
+    'due_changed', 'schedule_set', 'schedule_deleted',
+    'file_added', 'file_deleted', 'photo_deleted'
+  )),
+  details       JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE db_activity ENABLE ROW LEVEL SECURITY;
+
+CREATE INDEX IF NOT EXISTS idx_db_activity_db ON db_activity (db_id, created_at DESC, id DESC);
+
+-- Бачать ті, хто веде базу: власник і редактор. Редактор бачить і чужі
+-- дії, і власні — журнал, у якому видно лише себе, нічого не пояснює.
+-- Рієлтор і гість — ні: це внутрішня кухня власника.
+DROP POLICY IF EXISTS "activity_owner_select"  ON db_activity;
+CREATE POLICY "activity_owner_select" ON db_activity
+  FOR SELECT
+  USING (db_id IN (SELECT get_owner_db_ids(current_app_user_id())));
+
+DROP POLICY IF EXISTS "activity_editor_select" ON db_activity;
+CREATE POLICY "activity_editor_select" ON db_activity
+  FOR SELECT
+  USING (db_id IN (SELECT get_editor_db_ids(current_app_user_id())));
+
+REVOKE ALL ON db_activity FROM anon;
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON db_activity FROM authenticated;
+GRANT SELECT ON db_activity TO authenticated;
+
+-- Один запис події. Не видається НІКОМУ: його кличуть лише тригери нижче,
+-- які є SECURITY DEFINER і виконуються від власника функцій.
+CREATE OR REPLACE FUNCTION public.log_db_activity(
+  p_db_id         UUID,
+  p_property_id   UUID,
+  p_property_name TEXT,
+  p_kind          TEXT,
+  p_details       JSONB
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_uid  UUID;
+  v_name TEXT;
+BEGIN
+  SELECT u.id, NULLIF(trim(concat(u.first_name, ' ', coalesce(u.last_name, ''))), '')
+    INTO v_uid, v_name
+    FROM users u WHERE u.id = current_app_user_id();
+  -- Без особи — не «хтось зробив», а система: крон, міграція, service-role.
+  IF v_uid IS NULL OR p_db_id IS NULL THEN RETURN; END IF;
+  -- Базу саме видаляють (каскад) — писати нікуди, і вставка впала б на FK.
+  IF NOT EXISTS (SELECT 1 FROM databases d WHERE d.id = p_db_id) THEN RETURN; END IF;
+
+  INSERT INTO db_activity (db_id, property_id, property_name, actor_id, actor_name, kind, details)
+  VALUES (
+    p_db_id,
+    CASE WHEN p_property_id IS NOT NULL
+          AND EXISTS (SELECT 1 FROM properties p WHERE p.id = p_property_id)
+         THEN p_property_id END,
+    p_property_name, v_uid, v_name, p_kind, COALESCE(p_details, '{}'::jsonb)
+  );
+EXCEPTION WHEN OTHERS THEN
+  RAISE WARNING 'db_activity: подію % не записано (%)', p_kind, SQLERRM;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.log_db_activity(UUID, UUID, TEXT, TEXT, JSONB) FROM PUBLIC;
+
+-- ── Обʼєкти ────────────────────────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION public.activity_on_property()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_terms_old JSONB;
+  v_terms_new JSONB;
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    PERFORM log_db_activity(NEW.db_id, NEW.id, NEW.name, 'property_created',
+      jsonb_build_object('status', NEW.status));
+    RETURN NULL;
+  END IF;
+
+  IF TG_OP = 'DELETE' THEN
+    PERFORM log_db_activity(OLD.db_id, NULL, OLD.name, 'property_deleted',
+      jsonb_build_object('tenant', OLD.tenant_name));
+    RETURN NULL;
+  END IF;
+
+  -- Переміщення — подія в ОБОХ базах: у старій обʼєкт зник, у новій зʼявився.
+  IF NEW.db_id IS DISTINCT FROM OLD.db_id THEN
+    PERFORM log_db_activity(OLD.db_id, NEW.id, NEW.name, 'property_moved',
+      jsonb_build_object('direction', 'out', 'db', (SELECT d.name FROM databases d WHERE d.id = NEW.db_id)));
+    PERFORM log_db_activity(NEW.db_id, NEW.id, NEW.name, 'property_moved',
+      jsonb_build_object('direction', 'in', 'db', (SELECT d.name FROM databases d WHERE d.id = OLD.db_id)));
+  END IF;
+
+  IF NEW.name IS DISTINCT FROM OLD.name THEN
+    PERFORM log_db_activity(NEW.db_id, NEW.id, NEW.name, 'property_renamed',
+      jsonb_build_object('from', OLD.name, 'to', NEW.name));
+  END IF;
+
+  IF NEW.status IS DISTINCT FROM OLD.status THEN
+    IF NEW.status = 'occupied' THEN
+      PERFORM log_db_activity(NEW.db_id, NEW.id, NEW.name, 'property_rented',
+        jsonb_build_object('tenant', NEW.tenant_name, 'lease_start', NEW.lease_start_date, 'lease_end', NEW.lease_end_date));
+    ELSIF OLD.status = 'occupied' THEN
+      -- Орендар — з OLD: та сама операція обнуляє його в NEW (той самий
+      -- урок, що в тригері оренд 067).
+      PERFORM log_db_activity(NEW.db_id, NEW.id, NEW.name, 'property_vacated',
+        jsonb_build_object('tenant', OLD.tenant_name, 'to', NEW.status));
+    ELSE
+      PERFORM log_db_activity(NEW.db_id, NEW.id, NEW.name, 'property_status',
+        jsonb_build_object('from', OLD.status, 'to', NEW.status));
+    END IF;
+  ELSIF NEW.status = 'occupied' AND NEW.tenant_name IS DISTINCT FROM OLD.tenant_name THEN
+    PERFORM log_db_activity(NEW.db_id, NEW.id, NEW.name, 'tenant_changed',
+      jsonb_build_object('from', OLD.tenant_name, 'to', NEW.tenant_name));
+  END IF;
+
+  v_terms_old := jsonb_build_object('rent_rate', OLD.rent_rate, 'rent_type', OLD.rent_type,
+    'utilities_rate', OLD.utilities_rate, 'area_basis', OLD.area_basis,
+    'area_useful', OLD.area_useful, 'area_total', OLD.area_total);
+  v_terms_new := jsonb_build_object('rent_rate', NEW.rent_rate, 'rent_type', NEW.rent_type,
+    'utilities_rate', NEW.utilities_rate, 'area_basis', NEW.area_basis,
+    'area_useful', NEW.area_useful, 'area_total', NEW.area_total);
+  IF v_terms_old IS DISTINCT FROM v_terms_new THEN
+    PERFORM log_db_activity(NEW.db_id, NEW.id, NEW.name, 'terms_changed',
+      jsonb_build_object('from', v_terms_old, 'to', v_terms_new));
+  END IF;
+
+  RETURN NULL;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.activity_on_property() FROM PUBLIC;
+
+-- Список колонок обовʼязковий: перестановка порядку (`sort_order`) і папки
+-- міняють десятки рядків за раз, і тригер на кожен з них був би марною
+-- роботою — подій там немає.
+DROP TRIGGER IF EXISTS trg_activity_property ON properties;
+CREATE TRIGGER trg_activity_property
+  AFTER INSERT OR DELETE OR UPDATE OF
+    db_id, name, status, tenant_name,
+    rent_rate, rent_type, utilities_rate, area_basis, area_useful, area_total
+  ON properties
+  FOR EACH ROW EXECUTE FUNCTION public.activity_on_property();
+
+-- ── Надходження ────────────────────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION public.activity_on_rent_part()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_rec RECORD;
+BEGIN
+  SELECT r.due_date, p.id AS property_id, p.db_id, p.name INTO v_rec
+    FROM rent_payment_records r JOIN properties p ON p.id = r.property_id
+   WHERE r.id = COALESCE(NEW.record_id, OLD.record_id);
+  -- Періоду чи обʼєкта вже немає — це каскад, і його подію вже записано
+  -- вище («Скасовано платіж», «Видалено обʼєкт»).
+  IF NOT FOUND THEN RETURN NULL; END IF;
+
+  IF TG_OP = 'INSERT' THEN
+    -- Без автора — перенесене підтвердження старого клієнта (див. штамп):
+    -- це не нова дія, а запис про гроші, які прийшли раніше.
+    IF NEW.created_by IS NULL THEN RETURN NULL; END IF;
+    PERFORM log_db_activity(v_rec.db_id, v_rec.property_id, v_rec.name, 'payment_received',
+      jsonb_build_object('due_date', v_rec.due_date, 'amount', NEW.amount, 'paid_at', NEW.paid_at));
+  ELSIF TG_OP = 'UPDATE' THEN
+    IF NEW.amount IS DISTINCT FROM OLD.amount OR NEW.paid_at IS DISTINCT FROM OLD.paid_at THEN
+      PERFORM log_db_activity(v_rec.db_id, v_rec.property_id, v_rec.name, 'payment_edited',
+        jsonb_build_object('due_date', v_rec.due_date, 'from', OLD.amount, 'to', NEW.amount,
+                           'from_paid_at', OLD.paid_at, 'to_paid_at', NEW.paid_at));
+    END IF;
+  ELSE
+    PERFORM log_db_activity(v_rec.db_id, v_rec.property_id, v_rec.name, 'payment_deleted',
+      jsonb_build_object('due_date', v_rec.due_date, 'amount', OLD.amount));
+  END IF;
+  RETURN NULL;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.activity_on_rent_part() FROM PUBLIC;
+
+DROP TRIGGER IF EXISTS trg_activity_rent_part ON rent_payment_parts;
+CREATE TRIGGER trg_activity_rent_part
+  AFTER INSERT OR UPDATE OR DELETE ON rent_payment_parts
+  FOR EACH ROW EXECUTE FUNCTION public.activity_on_rent_part();
+
+-- ── Періоди: скасування платежу і сума за період ──────────────────────────
+CREATE OR REPLACE FUNCTION public.activity_on_rent_record()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_prop RECORD;
+BEGIN
+  SELECT p.id, p.db_id, p.name INTO v_prop
+    FROM properties p WHERE p.id = COALESCE(NEW.property_id, OLD.property_id);
+  IF NOT FOUND THEN RETURN NULL; END IF;
+
+  IF TG_OP = 'UPDATE' THEN
+    IF NEW.amount_due IS DISTINCT FROM OLD.amount_due THEN
+      PERFORM log_db_activity(v_prop.db_id, v_prop.id, v_prop.name, 'due_changed',
+        jsonb_build_object('due_date', NEW.due_date, 'from', OLD.amount_due, 'to', NEW.amount_due));
+    END IF;
+  ELSIF OLD.status IN ('paid', 'partial') AND OLD.amount > 0 THEN
+    PERFORM log_db_activity(v_prop.db_id, v_prop.id, v_prop.name, 'payment_cancelled',
+      jsonb_build_object('due_date', OLD.due_date, 'amount', OLD.amount));
+  END IF;
+  RETURN NULL;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.activity_on_rent_record() FROM PUBLIC;
+
+DROP TRIGGER IF EXISTS trg_activity_rent_record ON rent_payment_records;
+CREATE TRIGGER trg_activity_rent_record
+  AFTER DELETE OR UPDATE OF amount_due ON rent_payment_records
+  FOR EACH ROW EXECUTE FUNCTION public.activity_on_rent_record();
+
+-- ── Розклад платежів ───────────────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION public.activity_on_rent_schedule()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_prop RECORD;
+BEGIN
+  SELECT p.id, p.db_id, p.name INTO v_prop
+    FROM properties p WHERE p.id = COALESCE(NEW.property_id, OLD.property_id);
+  IF NOT FOUND THEN RETURN NULL; END IF;
+
+  IF TG_OP = 'DELETE' THEN
+    PERFORM log_db_activity(v_prop.db_id, v_prop.id, v_prop.name, 'schedule_deleted', '{}'::jsonb);
+  ELSIF TG_OP = 'INSERT'
+     OR NEW.due_day IS DISTINCT FROM OLD.due_day
+     OR NEW.is_active IS DISTINCT FROM OLD.is_active THEN
+    PERFORM log_db_activity(v_prop.db_id, v_prop.id, v_prop.name, 'schedule_set',
+      jsonb_build_object('due_day', NEW.due_day, 'active', NEW.is_active,
+                         'from', CASE WHEN TG_OP = 'UPDATE' THEN OLD.due_day END));
+  END IF;
+  RETURN NULL;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.activity_on_rent_schedule() FROM PUBLIC;
+
+DROP TRIGGER IF EXISTS trg_activity_rent_schedule ON rent_payments;
+CREATE TRIGGER trg_activity_rent_schedule
+  AFTER INSERT OR UPDATE OF due_day, is_active OR DELETE ON rent_payments
+  FOR EACH ROW EXECUTE FUNCTION public.activity_on_rent_schedule();
+
+-- ── Документи і фото ───────────────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION public.activity_on_property_media()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_prop RECORD;
+BEGIN
+  SELECT p.id, p.db_id, p.name INTO v_prop
+    FROM properties p WHERE p.id = COALESCE(NEW.property_id, OLD.property_id);
+  IF NOT FOUND THEN RETURN NULL; END IF;
+
+  IF TG_TABLE_NAME = 'property_files' THEN
+    IF TG_OP = 'INSERT' THEN
+      PERFORM log_db_activity(v_prop.db_id, v_prop.id, v_prop.name, 'file_added',
+        jsonb_build_object('name', NEW.file_name));
+    ELSE
+      PERFORM log_db_activity(v_prop.db_id, v_prop.id, v_prop.name, 'file_deleted',
+        jsonb_build_object('name', OLD.file_name));
+    END IF;
+  ELSE
+    PERFORM log_db_activity(v_prop.db_id, v_prop.id, v_prop.name, 'photo_deleted', '{}'::jsonb);
+  END IF;
+  RETURN NULL;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.activity_on_property_media() FROM PUBLIC;
+
+DROP TRIGGER IF EXISTS trg_activity_property_files ON property_files;
+CREATE TRIGGER trg_activity_property_files
+  AFTER INSERT OR DELETE ON property_files
+  FOR EACH ROW EXECUTE FUNCTION public.activity_on_property_media();
+
+DROP TRIGGER IF EXISTS trg_activity_property_photos ON property_photos;
+CREATE TRIGGER trg_activity_property_photos
+  AFTER DELETE ON property_photos
+  FOR EACH ROW EXECUTE FUNCTION public.activity_on_property_media();
+
+NOTIFY pgrst, 'reload schema';
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 074_account_erasure.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- ============================================================================
+-- 074 — ВИДАЛЕННЯ АКАУНТА: імʼя зникає з чужих баз, автор не висне
+-- ============================================================================
+-- ЩО ЛІКУЄ. Знайдено ВИКОНАННЯМ на живому Postgres, а не читанням: редактор
+-- вписав надходження в базу власника і видалив свій акаунт.
+-- `delete_my_account()` звітує успіх, але:
+--
+--   1. ВИСЯЧИЙ КЛЮЧ. `rent_payment_parts.created_by` лишався на НЕІСНУЮЧОМУ
+--      користувачі. Каскад `ON DELETE SET NULL` — це UPDATE, а тригер 073 на
+--      кожному UPDATE повертає автора з OLD («автора не переписує ніхто»),
+--      тож каскад мовчки скасовувався. Postgres цього не помічає: для нього
+--      ключ «не змінився», і перевірка обмеження пропускається. Наслідок не
+--      косметичний — логічний бекап відновлює обмеження ПІСЛЯ даних і падає
+--      саме на ньому (заміряно: «violates foreign key constraint»). Тобто
+--      одне видалення акаунта робило базу невідновлюваною з дампу.
+--
+--   2. ІМʼЯ ЛИШАЛОСЬ. Політика обіцяє «видалити акаунт і всі повʼязані
+--      дані», а заморожені копії імені — їх тримають саме для того, щоб
+--      бачили інші, — переживали видалення в ЧОТИРЬОХ місцях: журнал змін і
+--      автор надходження (073), аналітика переглядів (`viewer_name`, її
+--      показують 063 і екран аналітики) і гостьові лінки (048). 051
+--      знеособлювала лише КЛЮЧІ.
+--
+-- ПРАВИЛО: заморожена копія імені живе рівно доки живе посилання на людину.
+-- Посилання перерізали — імʼя йде слідом. Тримає це ТРИГЕР, а не
+-- `delete_my_account`: так правило діє на БУДЬ-ЯКОМУ шляху видалення
+-- користувача, а не лише на кнопці в профілі.
+--
+-- ЗАПИСИ ЛИШАЮТЬСЯ. Надходження з сумою, подія журналу, перегляд — це облік
+-- ВЛАСНИКА бази, і гроші не зникають через те, що їх вписав той, хто пішов.
+-- Зникає лише «хто». Вихід із команди (без видалення акаунта) імені НЕ
+-- стирає: людина є, і запис про те, що вона робила, правдивий.
+-- ============================================================================
+
+
+-- ── 1. Автор надходження: виняток для каскаду ──────────────────────────────
+-- Тіло — з 073 дослівно, крім гілки UPDATE. Розрізнити каскад і підробку
+-- можна лише одним способом, який клієнт не здатен підробити: автора вже не
+-- існує. Каскад біжить ПІСЛЯ видалення рядка `users`, тож у ньому
+-- `NOT EXISTS` істинне; клієнт, що пробує стерти чи підмінити автора живої
+-- людини, і далі дістає старе значення.
+CREATE OR REPLACE FUNCTION public.stamp_rent_part_author()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  IF TG_OP = 'UPDATE' THEN
+    IF NEW.created_by IS NULL AND OLD.created_by IS NOT NULL
+       AND NOT EXISTS (SELECT 1 FROM users u WHERE u.id = OLD.created_by) THEN
+      NEW.created_by_name := NULL;
+      RETURN NEW;
+    END IF;
+    NEW.created_by      := OLD.created_by;
+    NEW.created_by_name := OLD.created_by_name;
+    RETURN NEW;
+  END IF;
+
+  -- Перенесене підтвердження СТАРОГО клієнта (071: сума на періоді без
+  -- надходжень стає першим надходженням). Гроші вписав хтось раніше, і
+  -- приписати їх тому, чия дія спричинила перенос, було б неправдою.
+  -- Звичайний перший платіж періоду так не виглядає: період без надходжень
+  -- має порожню суму (її обнуляє тригер 071).
+  IF EXISTS (SELECT 1 FROM rent_payment_records r
+              WHERE r.id = NEW.record_id AND r.amount > 0
+                AND r.status IN ('paid', 'partial'))
+     AND NOT EXISTS (SELECT 1 FROM rent_payment_parts pp WHERE pp.record_id = NEW.record_id) THEN
+    NEW.created_by      := NULL;
+    NEW.created_by_name := NULL;
+    RETURN NEW;
+  END IF;
+
+  NEW.created_by      := NULL;
+  NEW.created_by_name := NULL;
+  SELECT u.id, NULLIF(trim(concat(u.first_name, ' ', coalesce(u.last_name, ''))), '')
+    INTO NEW.created_by, NEW.created_by_name
+    FROM users u WHERE u.id = current_app_user_id();
+  RETURN NEW;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.stamp_rent_part_author() FROM PUBLIC;
+
+-- ── 2. Решта копій імені ────────────────────────────────────────────────────
+-- Один тригер на три таблиці: аргументи — колонка посилання і колонка імені.
+-- Спрацьовує лише на ПЕРЕХОДІ «було посилання → немає», тож службові рядки,
+-- що від початку без посилання (публічні «Веб-перегляд»), не зачіпає.
+-- Посилання тут обнуляє лише видалення акаунта: явний UPDATE у 051
+-- (перегляди — їхній ключ `NO ACTION`, і гостьові лінки) і каскад
+-- `SET NULL` (журнал). Інших записів, що рвуть ці посилання, у схемі немає.
+CREATE OR REPLACE FUNCTION public.erase_frozen_name()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  IF to_jsonb(NEW) ->> TG_ARGV[0] IS NULL AND to_jsonb(OLD) ->> TG_ARGV[0] IS NOT NULL THEN
+    NEW := jsonb_populate_record(NEW, jsonb_build_object(TG_ARGV[1], NULL));
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.erase_frozen_name() FROM PUBLIC;
+
+DROP TRIGGER IF EXISTS trg_erase_viewer_name ON property_views;
+CREATE TRIGGER trg_erase_viewer_name
+  BEFORE UPDATE OF viewer_id ON property_views
+  FOR EACH ROW EXECUTE FUNCTION public.erase_frozen_name('viewer_id', 'viewer_name');
+
+DROP TRIGGER IF EXISTS trg_erase_guest_name ON guest_links;
+CREATE TRIGGER trg_erase_guest_name
+  BEFORE UPDATE OF guest_user_id ON guest_links
+  FOR EACH ROW EXECUTE FUNCTION public.erase_frozen_name('guest_user_id', 'guest_name');
+
+DROP TRIGGER IF EXISTS trg_erase_actor_name ON db_activity;
+CREATE TRIGGER trg_erase_actor_name
+  BEFORE UPDATE OF actor_id ON db_activity
+  FOR EACH ROW EXECUTE FUNCTION public.erase_frozen_name('actor_id', 'actor_name');
+
+-- ── 3. Ремонт того, що вже встигло статись ──────────────────────────────────
+-- Порядок важливий: тригери вище МУСЯТЬ стояти раніше, інакше перший UPDATE
+-- скасував би сам себе тим самим тригером 073, який тут лагодиться.
+UPDATE rent_payment_parts pp SET created_by = NULL
+ WHERE pp.created_by IS NOT NULL
+   AND NOT EXISTS (SELECT 1 FROM users u WHERE u.id = pp.created_by);
+
+-- Подію журналу без дійової особи записати неможливо (073 пише лише з
+-- особою), тож порожнє посилання тут означає рівно видалений акаунт.
+UPDATE db_activity SET actor_name = NULL
+ WHERE actor_id IS NULL AND actor_name IS NOT NULL;
+
+-- Гостьовий лінк дістає імʼя лише разом із посиланням на того, хто його
+-- прийняв (048), тож імʼя без посилання — залишок видаленого акаунта.
+UPDATE guest_links SET guest_name = NULL
+ WHERE guest_user_id IS NULL AND guest_name IS NOT NULL;
+
+-- Перегляди — обережно: публічні відкриття пишуться БЕЗ посилання, але зі
+-- СЛУЖБОВИМ підписом (059), і екран аналітики його показує. Стирати можна
+-- лише те, що не є цим підписом.
+UPDATE property_views SET viewer_name = NULL
+ WHERE viewer_id IS NULL AND viewer_name IS NOT NULL
+   AND viewer_name NOT IN ('Веб-перегляд', 'Веб-перегляд бази', 'Веб-перегляд підбірки');
+
+NOTIFY pgrst, 'reload schema';
+
 
 COMMIT;

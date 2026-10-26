@@ -3,13 +3,16 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseSelect, project } from './selectProjection'
 
+/** Таблиці міграцій, яких у проді ще немає (071–073). Спек фічі вмикає свою. */
+export const PENDING_TABLES = ['rent_payment_parts', 'property_rent_terms', 'db_activity'] as const
+
 export interface HarnessUser {
   id: string
   tg_id: number
   first_name: string
   last_name?: string
   tg_username?: string
-  role: 'owner' | 'realtor' | null
+  role: 'owner' | 'realtor' | 'guest' | null
   language_code: string
   currency: string
   plan: 'free' | 'pro'
@@ -229,8 +232,8 @@ export async function mockBackend(page: Page, opts: HarnessOptions = {}) {
   const authUser = { id: user.id, email: `${user.tg_id}@telegram.propspace.app`, aud: 'authenticated', role: 'authenticated' }
   const sessionBody = { access_token: jwt, refresh_token: 'refresh-xyz', token_type: 'bearer', expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600, user: authUser }
 
-  // Edge Function login (POST) + diagnostics (GET)
-  await page.route('**/functions/v1/telegram-auth', async (route) => {
+  // Edge Function login (POST) + diagnostics (GET) + прогрів зі сплешу (GET ?warm)
+  await page.route('**/functions/v1/telegram-auth**', async (route) => {
     if (route.request().method() === 'GET') return json(route, { ok: true, checks: {} })
     if (opts.loginDelayMs) await new Promise((r) => setTimeout(r, opts.loginDelayMs))
     return json(route, { access_token: jwt, refresh_token: 'refresh-xyz', user, is_new: user.role === null })
@@ -246,6 +249,19 @@ export async function mockBackend(page: Page, opts: HarnessOptions = {}) {
   // (last-registered wins when multiple patterns match).
   await page.route('**/rest/v1/**', (route) => {
     if (route.request().url().includes('/rest/v1/users')) return // let the specific handler below run
+    // Таблиці ще не накочених міграцій за замовчуванням ВІДСУТНІ — рівно так,
+    // як відповідає PostgREST на бекенді без них. Це і є стан проду, тож
+    // решта набору перевіряє старий шлях, а новий вмикають спеки фічі власним
+    // роутом: надходження (071) — `partial-payments`, історія умов (072) —
+    // `rent-terms`, журнал змін (073) — `db-activity`.
+    const missing = PENDING_TABLES.find((t) => route.request().url().includes(`/rest/v1/${t}`))
+    if (missing) {
+      return route.fulfill({
+        status: 404,
+        contentType: 'application/json',
+        body: JSON.stringify({ code: 'PGRST205', message: `Could not find the table 'public.${missing}' in the schema cache` }),
+      })
+    }
     return json(route, [])
   })
 
@@ -284,7 +300,7 @@ export async function setupApp(page: Page, opts: HarnessOptions = {}) {
  * віддаємо як є. Гард має ловити пропущені колонки, а не ламати спеки, що
  * мокають RPC чи storage.
  */
-export const jsonRoute = (route: Route, body: unknown, status = 200) => {
+export const jsonRoute = (route: Route, body: unknown, status = 200, page?: { total: number; offset: number }) => {
   let out = body
   try {
     const sel = new URL(route.request().url()).searchParams.get('select')
@@ -294,7 +310,7 @@ export const jsonRoute = (route: Route, body: unknown, status = 200) => {
   } catch {
     // Невідома форма URL — краще віддати фікстуру цілком, ніж завалити спек.
   }
-  return route.fulfill({ status, headers: countHeaders(route, out), body: JSON.stringify(out) })
+  return route.fulfill({ status, headers: countHeaders(route, out, page), body: JSON.stringify(out) })
 }
 
 /**
@@ -316,12 +332,17 @@ export const jsonRoute = (route: Route, body: unknown, status = 200) => {
  * CORS-safelist — без цього рядка JS прочитав би заголовок як відсутній, тобто
  * фікс виглядав би зробленим і не працював.
  */
-function countHeaders(route: Route, out: unknown): Record<string, string> {
+function countHeaders(route: Route, out: unknown, page?: { total: number; offset: number }): Record<string, string> {
   const h: Record<string, string> = { 'content-type': 'application/json' }
   const prefer = route.request().headers()['prefer'] ?? ''
   if (!/count=(exact|planned|estimated)/.test(prefer)) return h
-  const total = Array.isArray(out) ? out.length : out == null ? 0 : 1
-  h['content-range'] = `${total > 0 ? `0-${total - 1}` : '*'}/${total}`
+  // Без `page` тіло і є вся вибірка. З `page` (мок, що моделює пагінацію й
+  // серверну межу) повна кількість інша, ніж довжина цієї сторінки — саме за
+  // нею клієнт дочитує решту, як із справжнім PostgREST.
+  const len = Array.isArray(out) ? out.length : out == null ? 0 : 1
+  const total = page?.total ?? len
+  const from = page?.offset ?? 0
+  h['content-range'] = `${len > 0 ? `${from}-${from + len - 1}` : '*'}/${total}`
   h['access-control-expose-headers'] = 'content-range'
   return h
 }
