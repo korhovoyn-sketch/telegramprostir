@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { readFileSync, existsSync } from 'node:fs'
+import { readFileSync, existsSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 /**
@@ -333,5 +333,36 @@ describe('telegram-bot: обовʼязкові команди', () => {
   })
   it('команда з адресою бота (`/start@bot`) розпізнається', () => {
     expect(src).toMatch(/split\('@'\)\[0\]/)
+  })
+})
+
+describe('деплой: шлюз не стоїть між функцією і її власною автентифікацією', () => {
+  /**
+   * Кожна функція автентифікує виклик САМА: HMAC initData, secret_token
+   * Telegram, CRON_SECRET, власник обʼєкта. Перевірка JWT на шлюзі Supabase
+   * тут не додає захисту, зате ламає шлях, де ключ — не JWT.
+   *
+   * Так і сталось: `send-reminders` деплоїлась БЕЗ `--no-verify-jwt`, а
+   * планувальник шле `Bearer <CRON_SECRET>` — випадковий рядок. Шлюз відкидав
+   * його з 401 ще до функції, тож фікс «секрет із одного місця» не міг
+   * спрацювати НІКОЛИ, хоч секрет на обох боках і збігався б. Видно це лише в
+   * проді (`verify_jwt: true` у списку функцій), а не в коді функції.
+   */
+  const wf = readFileSync(resolve(process.cwd(), '.github/workflows/deploy-edge-function.yml'), 'utf8')
+  const commands = [...wf.matchAll(/supabase functions deploy ([a-z-]+)((?:[^\n]*\\\n)*[^\n]*)/g)]
+
+  it('кожна функція деплоїться з --no-verify-jwt', () => {
+    const fns = readdirSync(resolve(process.cwd(), 'supabase/functions'), { withFileTypes: true })
+      .filter((d) => d.isDirectory() && !d.name.startsWith('_')).map((d) => d.name).sort()
+    // Антивакуум: деплой мусить стосуватись УСІХ функцій із репозиторію.
+    expect(commands.map((c) => c[1]).sort(), 'воркфлоу деплоїть не той набір функцій').toEqual(fns)
+    for (const c of commands) {
+      expect(c[2], `${c[1]}: без --no-verify-jwt шлюз відкине не-JWT ключ ще до функції`).toMatch(/--no-verify-jwt/)
+    }
+  })
+
+  it('зміна воркфлоу деплою сама перевикочує функції', () => {
+    expect(wf, 'прапорці деплою змінено, а функції лишаться зі старими до першої правки коду')
+      .toMatch(/paths:[\s\S]*?'\.github\/workflows\/deploy-edge-function\.yml'/)
   })
 })

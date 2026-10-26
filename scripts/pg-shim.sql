@@ -71,6 +71,15 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
   GRANT USAGE, SELECT ON SEQUENCES TO anon, authenticated, service_role;
 
+-- І на ФУНКЦІЇ — цього рядка тут не було, і саме ця прогалина сховала діру,
+-- знайдену лише на живій базі: Supabase видає EXECUTE на КОЖНУ нову функцію
+-- `anon` і `authenticated` ПРЯМИМ грантом, тож `REVOKE ... FROM PUBLIC` у
+-- міграції його не знімає. Без емуляції стенд показував службову функцію
+-- закритою, а прод віддавав її анонімно (get_due_lease_reminders, 065).
+-- Знімає це 075 — так само, як у проді.
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+  GRANT EXECUTE ON FUNCTIONS TO anon, authenticated, service_role;
+
 -- Схема storage теж належить платформі: у проді `anon`/`authenticated` мають
 -- USAGE і права на `storage.objects`, а обмежує їх RLS. Без цього перевірка
 -- storage-політик «проходила» б із ХИБНОЇ причини — `permission denied for

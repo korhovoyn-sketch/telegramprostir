@@ -218,10 +218,76 @@ BEGIN
       'current_app_user_id','get_app_user_id_from_auth_uid',
       'get_owner_db_ids','get_owner_property_ids',
       'get_editor_db_ids','get_editor_db_ids_from_auth_uid','get_editor_property_ids',
-      'get_realtor_db_ids','get_realtor_property_ids','get_realtor_collection_ids'
+      'get_realtor_db_ids','get_realtor_property_ids','get_realtor_collection_ids',
+      -- Те саме для гостьової гілки: пʼять політик {public} (обʼєкти, фото,
+      -- файли, розклад, платежі) кличуть його і для anon, а відповідає він
+      -- лише «чи Я гість цього обʼєкта».
+      'is_guest_of_property'
     );
   IF leaked IS NOT NULL THEN
-    RAISE EXCEPTION '052: anon має EXECUTE на SECURITY DEFINER функціях поза allowlist-ом: %', leaked;
+    RAISE EXCEPTION '052/075: anon має EXECUTE на SECURITY DEFINER функціях поза allowlist-ом: %', leaked;
+  END IF;
+
+  -- ── 075: службові функції не кличе НІХТО, крім service_role ───────────
+  -- Перевірка вище дивиться лише на anon, а цим функціям не можна й
+  -- authenticated: get_due_lease_reminders віддає дані ВСІХ власників, а
+  -- log_db_activity пише в журнал БУДЬ-ЯКОЇ бази. Обидві були відкриті в
+  -- проді, бо Supabase видає EXECUTE прямим грантом (емуляція — pg-shim).
+  SELECT string_agg(p.proname || '(' ||
+           CASE WHEN has_function_privilege('anon', p.oid, 'EXECUTE') THEN 'anon ' ELSE '' END ||
+           CASE WHEN has_function_privilege('authenticated', p.oid, 'EXECUTE') THEN 'authenticated' ELSE '' END || ')',
+         ', ' ORDER BY p.proname) INTO leaked
+  FROM pg_proc p
+  JOIN pg_namespace ns ON ns.oid = p.pronamespace AND ns.nspname = 'public'
+  WHERE p.proname IN ('get_due_lease_reminders', 'get_due_reminders_today',
+                      'get_due_guest_reminders', 'mark_overdue_payments', 'log_db_activity')
+    AND (has_function_privilege('anon', p.oid, 'EXECUTE')
+         OR has_function_privilege('authenticated', p.oid, 'EXECUTE'));
+  IF leaked IS NOT NULL THEN
+    RAISE EXCEPTION '075: службові функції викликає клієнт: %', leaked;
+  END IF;
+  -- Антивакуум: інакше «нікому не відкрито» означало б і «функцій немає».
+  IF (SELECT count(*) FROM pg_proc p JOIN pg_namespace ns ON ns.oid = p.pronamespace
+       WHERE ns.nspname = 'public' AND p.proname IN ('get_due_lease_reminders', 'log_db_activity')) <> 2 THEN
+    RAISE EXCEPTION '075: службових функцій не знайдено — перевірка вище нічого не міряла';
+  END IF;
+  IF NOT has_function_privilege('service_role', 'public.get_due_lease_reminders()'::regprocedure, 'EXECUTE') THEN
+    RAISE EXCEPTION '075: service_role втратив get_due_lease_reminders — крон не розішле нагадувань';
+  END IF;
+
+  -- ── 075: політики {public} кличуть лише те, що anon може виконати ──────
+  -- Друга межа того самого периметра. Закривши функцію для anon, легко
+  -- зачепити хелпер, який кличе САМА політика з роллю {public}: тоді
+  -- анонімний запит до таблиці падає помилкою замість порожнечі — у проді
+  -- це вже не «немає даних», а зламана сторінка. Питаємо ФІНАЛЬНІ політики,
+  -- а не текст міграцій: старі політики давно перестворені.
+  SELECT string_agg(DISTINCT f.proname, ', ') INTO leaked
+  FROM pg_policies pol
+  CROSS JOIN LATERAL regexp_matches(coalesce(pol.qual, '') || ' ' || coalesce(pol.with_check, ''),
+                                    '([a-z_][a-z0-9_]*)\(', 'g') AS m
+  JOIN pg_proc f ON f.proname = m[1]
+  JOIN pg_namespace ns ON ns.oid = f.pronamespace AND ns.nspname = 'public'
+  WHERE ('public' = ANY (pol.roles) OR 'anon' = ANY (pol.roles))
+    AND NOT has_function_privilege('anon', f.oid, 'EXECUTE');
+  IF leaked IS NOT NULL THEN
+    RAISE EXCEPTION '075: політики з роллю {public} кличуть функції, закриті для anon: %', leaked;
+  END IF;
+  -- Антивакуум: такі політики мусять існувати, інакше перевірка порожня.
+  IF NOT EXISTS (SELECT 1 FROM pg_policies pol
+                  WHERE 'public' = ANY (pol.roles)
+                    AND coalesce(pol.qual, '') LIKE '%is_guest_of_property(%') THEN
+    RAISE EXCEPTION '075: не знайдено жодної політики {public} із хелпером — перевірка вище нічого не міряла';
+  END IF;
+
+  -- ── 075: нова функція більше не відкривається сама ─────────────────────
+  -- Джерело класу — default privileges. Поки в них стоять anon/authenticated,
+  -- кожна наступна службова функція знову буде відкрита, хоч би як старанно
+  -- міграція знімала PUBLIC.
+  IF EXISTS (SELECT 1 FROM pg_default_acl d JOIN pg_namespace n ON n.oid = d.defaclnamespace
+              WHERE n.nspname = 'public' AND d.defaclobjtype = 'f'
+                AND pg_get_userbyid(d.defaclrole) = 'postgres'
+                AND array_to_string(d.defaclacl, ',') ~ '(^|,)(anon|authenticated)=') THEN
+    RAISE EXCEPTION '075: default privileges досі видають anon/authenticated EXECUTE на нові функції';
   END IF;
 
   -- ── 058: власник БЕЗ tg_id не потрапляє в розсилку ──────────────────────

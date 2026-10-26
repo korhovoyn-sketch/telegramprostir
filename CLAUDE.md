@@ -132,7 +132,7 @@ Two non-obvious things that broke auth historically and must stay correct:
 1. **`current_app_user_id()` resolves identity from the JWT *email* claim**, not a `tg_id` claim (Supabase doesn't add custom claims here). Email is `{tgId}@telegram.propspace.app`; the helper parses tg_id from it. A `tg_id`-claim version silently returns NULL → every RLS check fails → empty data everywhere.
 2. **No `handle_new_user` trigger may exist on `auth.users`.** The Supabase starter template installs one that inserts into `public.users` with stale column names; it makes GoTrue fail with "Database error creating new user". `003_reconcile.sql` drops it. The edge function is the only thing that writes `public.users`.
 
-The container running Claude Code on the web has **no outbound network** (Supabase host returns 403), so migrations cannot be pushed from here. `.github/workflows/migrate.yml` applies `supabase/migrations/**` on push to `main` (needs `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`, `SUPABASE_DB_PASSWORD` secrets). **One-time baseline required**: усі міграції до 040 застосовувались вручну, тож перед першим використанням запусти workflow вручну з `baseline=true` — він позначить наявні файли як застосовані без виконання SQL. До baseline міграції застосовуються в Dashboard SQL Editor; `supabase/verify_release.sql` перевіряє їхній стан одним запитом.
+The container running Claude Code on the web has **no outbound network** (Supabase host returns 403), so migrations cannot be pushed from here **через psql/CLI**. Але якщо власник підключив **конектор Supabase (MCP)**, живу базу видно: `execute_sql`, `get_advisors`, `list_edge_functions` тощо. Накат через нього — `execute_sql` із вмістом файлу, **не** `apply_migration`: друге пише версію в історію міграцій, а вона досі порожня, тож майбутній baseline у `migrate.yml` наткнувся б на «віддалену версію, якої немає локально». Будь-яку зміну проду — лише з явного дозволу власника; перед нею — сухий прогін у транзакції з `ROLLBACK`. `.github/workflows/migrate.yml` applies `supabase/migrations/**` on push to `main` (needs `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`, `SUPABASE_DB_PASSWORD` secrets). **One-time baseline required**: усі міграції до 040 застосовувались вручну, тож перед першим використанням запусти workflow вручну з `baseline=true` — він позначить наявні файли як застосовані без виконання SQL. До baseline міграції застосовуються в Dashboard SQL Editor; `supabase/verify_release.sql` перевіряє їхній стан одним запитом.
 
 ### Сповіщення: похідні блоки проти рядків у таблиці
 
@@ -328,6 +328,17 @@ Before finalising any backend change, mentally run through:
     — він питає `has_function_privilege('anon', …)` у справжньої БД і
     порівнює з allowlist-ом свідомо публічних, тож падає і на функції, якої
     ще не існує.
+    **На Supabase цього правила ДОВГО не вистачало, і видно це було лише на
+    живій базі.** Платформа тримає `ALTER DEFAULT PRIVILEGES … GRANT EXECUTE
+    ON FUNCTIONS TO anon, authenticated`, тобто нова функція одразу дістає
+    ПРЯМИЙ грант, і `REVOKE … FROM PUBLIC` його не знімає. Так 065 і 073
+    відкрили `get_due_lease_reminders` (PII усіх власників) і
+    `log_db_activity` (запис у журнал чужої бази). 075 прибрала ці гранти з
+    default privileges, тож для НОВИХ функцій правило знову правдиве, — але
+    службову функцію все одно пиши з `REVOKE ALL … FROM PUBLIC, anon,
+    authenticated`: це не залежить від стану default privileges. Стенд
+    тепер емулює цю поведінку (`pg-shim.sql`), тож без 075 він показує рівно
+    той список відкритих функцій, що був у проді.
 
 ### TypeScript & Type Safety Rules
 
@@ -1942,6 +1953,13 @@ This sandboxed environment has **no outbound network** to Vercel/Supabase previe
 > `SUPABASE_DB_PASSWORD` (16 запусків поспіль), тобто **жодної міграції CI не
 > накотив жодного разу** — усе в базі зроблено руками.
 
+> **СТАН НА 26.10.2026 — ЗАМІРЯНО НАПРЯМУ через конектор Supabase:
+> застосовано все до 075 включно, `verify_release.sql` віддає 72/72 `✅ OK`.**
+> 063–074 власник накотив сам (`RELEASE.sql`); 075 застосовано з цієї сесії з
+> його дозволу, після сухого прогону з `ROLLBACK`. Перед 075 таблиця давала
+> два ❌ (рядки 60 і 63) — саме вони й вивели на клас «default privileges»
+> (див. changelog «Перше підключення до проду»). Абзац нижче — історія.
+>
 > **СТАН НА 25.08.2026: міграції 048–062 ЗАСТОСОВАНІ, `verify_release.sql`
 > віддає 33/33 `✅ OK`.** 048–061 накотились одним файлом
 > `supabase/RELEASE.sql`, 062 — окремо, після того як звірка знайшла два
@@ -1958,10 +1976,26 @@ This sandboxed environment has **no outbound network** to Vercel/Supabase previe
 > Сама 024 не критична: `status='overdue'` у БД застосунок не читає, він
 > рахує прострочення на клієнті (`daysUntilDue < 0`).
 
-### 0ze. Видалення акаунта: імʼя йде слідом, автор не висне (074) — ЧЕКАЄ, РАЗОМ ІЗ 073
+### 0zf. Права на функції: те, що Supabase роздає сам (075) — ЗАСТОСОВАНО 26.10.2026
+
+Файл: `supabase/migrations/075_function_acl_supabase_defaults.sql`. **Безпекова.**
+Застосовано з сесії через конектор (з дозволу власника); входить і в
+`supabase/RELEASE.sql` (048–075), тож повторний накат файлу безпечний.
+
+| що було відкрито в проді | наслідок |
+|---|---|
+| `get_due_lease_reminders()` для anon і authenticated | анонім із публічним ключем отримував tg_id власника, назву обʼєкта й імʼя орендаря по ВСІХ власниках |
+| `log_db_activity(...)` для authenticated | будь-хто, хто увійшов, писав події в журнал ЧУЖОЇ бази |
+| клієнтські RPC для anon | даних не віддавали (кожна сама питає особу), але периметр ширший за задуманий |
+
+Перевірка — рядки 70–72. Що лишилось у лінтері Supabase (0028/0029) після 075 —
+рівно allowlist (превʼю /v, RLS-хелпери) плюс `rls_auto_enable`, event
+trigger самої Supabase, який напряму не викликається.
+
+### 0ze. Видалення акаунта: імʼя йде слідом, автор не висне (074) — ЗАСТОСОВАНО (заміряно 26.10.2026)
 
 Файл: `supabase/migrations/074_account_erasure.sql`. **Накочувати разом із
-073** (той самий `supabase/RELEASE.sql`, 048–074), а не окремо після неї.
+073** (той самий `supabase/RELEASE.sql`, 048–075), а не окремо після неї.
 
 | дефект | наслідок, поки 074 немає |
 |---|---|
@@ -1972,11 +2006,11 @@ This sandboxed environment has **no outbound network** to Vercel/Supabase previe
 підписи публічних переглядів («Веб-перегляд…»). Перевірка — рядки 67–68 у
 `verify_release.sql`. Деталі — changelog «фінальна перевірка готовності».
 
-### 0zd. Журнал змін і автор надходження (073) — ЧЕКАЄ
+### 0zd. Журнал змін і автор надходження (073) — ЗАСТОСОВАНО (заміряно 26.10.2026)
 
 Файл: `supabase/migrations/073_db_activity.sql`. Не безпекова в сенсі
 доступу — про ПІДЗВІТНІСТЬ у команді. Накочується тим самим
-`supabase/RELEASE.sql` (048–074), після 071 (надходження) і 072.
+`supabase/RELEASE.sql` (048–075), після 071 (надходження) і 072.
 
 `rent_payment_parts.created_by`/`created_by_name` ставить тригер (тіло
 запиту ігнорується — редактор не «запише» гроші від імені власника), а
@@ -1986,7 +2020,7 @@ This sandboxed environment has **no outbound network** to Vercel/Supabase previe
 **Порядок деплою НЕ критичний.** Автор — у `OPTIONAL_COLUMNS` (ретрай на
 42703), а екран журналу на `PGRST205` пояснює «ще не увімкнено».
 
-### 0zc. Ставка в часі і сума за період (072) — ЧЕКАЄ
+### 0zc. Ставка в часі і сума за період (072) — ЗАСТОСОВАНО (заміряно 26.10.2026)
 
 Файл: `supabase/migrations/072_rent_terms_history.sql`. Не безпекова —
 про гроші. Накочується тим самим `supabase/RELEASE.sql`, після 071.
@@ -1996,10 +2030,10 @@ This sandboxed environment has **no outbound network** to Vercel/Supabase previe
 **Порядок деплою НЕ критичний:** без таблиці клієнт рахує з поточної ставки,
 як доти, а вхід у «Суму за період» не показується.
 
-### 0zb. Часткова оплата (071) — ЧЕКАЄ
+### 0zb. Часткова оплата (071) — ЗАСТОСОВАНО (заміряно 26.10.2026)
 
 Файл: `supabase/migrations/071_partial_payments.sql`. Не безпекова — фіча.
-Накочується тим самим `supabase/RELEASE.sql` (048–074).
+Накочується тим самим `supabase/RELEASE.sql` (048–075).
 
 Таблиця надходжень `rent_payment_parts`, стан періоду `partial`, заморожена
 очікувана сума `amount_due`, RPC `record_rent_payment` і тригер, що рахує
@@ -2012,7 +2046,7 @@ This sandboxed environment has **no outbound network** to Vercel/Supabase previe
 календар і архів працюють як доти; `amount_due` читається з ретраєм без неї
 (`OPTIONAL_COLUMNS`). Без 071 записати частину суми просто немає як.
 
-### 0za. Нагадування не про вже сплачений платіж (070) — ЧЕКАЄ
+### 0za. Нагадування не про вже сплачений платіж (070) — ЗАСТОСОВАНО (заміряно 26.10.2026)
 
 Файл: `supabase/migrations/070_reminders_skip_paid.sql`. Не безпекова — про
 правдивість повідомлень. Накочується тим самим `supabase/RELEASE.sql`.
@@ -2024,10 +2058,10 @@ This sandboxed environment has **no outbound network** to Vercel/Supabase previe
 за гроші, які власник уже підтвердив. Перевірка — рядок 56 у
 `verify_release.sql`.
 
-### 0z. Цілісність доступів (069) — ЧЕКАЄ, ПРІОРИТЕТ
+### 0z. Цілісність доступів (069) — ЗАСТОСОВАНО (заміряно 26.10.2026)
 
 Файл: `supabase/migrations/069_access_integrity.sql`. **Безпекова й про дані.**
-Накочується тим самим `supabase/RELEASE.sql` (ідемпотентний, 048–074).
+Накочується тим самим `supabase/RELEASE.sql` (ідемпотентний, 048–075).
 
 | дефект | наслідок, поки 069 немає |
 |---|---|
@@ -2043,7 +2077,7 @@ This sandboxed environment has **no outbound network** to Vercel/Supabase previe
 нерозрізненні. Хто відкликав доступ раніше, мусить натиснути «Оновити
 посилання» ще раз.
 
-### 0y. Архів оренд лише для читання (068) — ЧЕКАЄ, РАЗОМ ІЗ 067
+### 0y. Архів оренд лише для читання (068) — ЗАСТОСОВАНО (заміряно 26.10.2026)
 
 Файл: `supabase/migrations/068_tenancies_read_only.sql`. **Безпекова.**
 
@@ -2060,7 +2094,7 @@ This sandboxed environment has **no outbound network** to Vercel/Supabase previe
 лише тоді, коли в неї та сама модель запису** — у папок користувач пише
 сам, в архіві не пише ніхто.
 
-### 0x. Архів правовідносин з орендарями (067) — ЧЕКАЄ НА ЗАСТОСУВАННЯ
+### 0x. Архів правовідносин з орендарями (067) — ЗАСТОСОВАНО (заміряно 26.10.2026)
 
 Файл: `supabase/migrations/067_tenancies.sql`. Не безпекова — фіча.
 
@@ -2078,7 +2112,7 @@ This sandboxed environment has **no outbound network** to Vercel/Supabase previe
 `properties.tenant_name`. Закриті до міграції відновити нізвідки: їх стирали
 на місці, і саме це й лікується.
 
-### 0w. Орендодавець (064) — ЧЕКАЄ НА ЗАСТОСУВАННЯ
+### 0w. Орендодавець (064) — ЗАСТОСОВАНО (заміряно 26.10.2026)
 
 Файл: `supabase/migrations/064_landlord_name.sql`. Не безпекова — фіча.
 
@@ -7799,3 +7833,109 @@ CORS-safelisted, тож кожен прогрів подвоювався preflig
 очікувані: `db-activity` — «2025 р.» тепер разом, а не «р.» окремим рядком,
 решта кадру ідентична; `legal-privacy` — у видимій частині лише дата
 «Оновлено» (нові абзаци про журнал і стирання імені лежать нижче кадру).
+
+## Changelog — перше підключення до проду: що бачить лише жива база (жовтень 2026)
+
+Запит власника: «зібрати все в одну міграцію, щоб запустити й усе». Посеред
+роботи він підключив конектор Supabase, і вперше за історію проєкту живу базу
+стало видно напряму, а не через слова власника й `verify_release.sql`.
+
+### Один файл: накат і перевірка в одному запуску
+
+`RELEASE.sql` тепер вклеює `verify_release.sql` ПІСЛЯ `COMMIT`: SQL Editor
+показує результат останнього запиту, що повернув рядки, тобто саме таблицю
+перевірки. Після, а не всередині транзакції, бо таблиця дивиться й на
+001–047: MISSING там — привід дозастосувати конкретну міграцію, а не
+відкочувати 048+. Звідси й нове правило для рядків перевірки: вона не сміє
+ПАДАТИ на базі до накату, лише показувати MISSING (`to_regclass`, а не
+`::regclass`; про нову таблицю питати каталог).
+
+Хвостова вибірка 051 (`owner_bypasses_rls`) після цього стала б невидимою,
+тож переїхала в таблицю рядком 69. Гарди стенду:
+- у виводі файлу мусять бути ВСІ пункти ✅ (повна кількість — антивакуум);
+- перевірка не падає на базі 001..047 і показує там ❌ > 0.
+
+**Знайдено в старому гарді, і це той самий клас, що й завжди:**
+`psql … | grep -c '❌' || true` під `pipefail` давав «0 MISSING», коли
+`verify_release.sql` ПАДАВ. Тобто зламана перевірка проходила як зелена.
+
+### Прод: 063–074 уже стояли, а два рядки були червоні
+
+Власник накотив `RELEASE.sql` сам, і таблиця дала 70 ✅ і два ❌: `anon` міг
+виконати `record_rent_payment` і `set_rent_amount_due`. Причина — у
+платформі, а не в цих функціях: Supabase тримає `ALTER DEFAULT PRIVILEGES …
+GRANT EXECUTE ON FUNCTIONS TO anon, authenticated`, тож кожна нова функція
+дістає ПРЯМИЙ грант, і `REVOKE … FROM PUBLIC` у міграції його не знімає.
+Повний замір показав, що гірше за ці два:
+
+| функція | що давала |
+|---|---|
+| `get_due_lease_reminders()` (065) | анонім із публічним ключем отримував tg_id власника, назву обʼєкта й імʼя орендаря по ВСІХ власниках; виклик від `anon` проходив без помилки |
+| `log_db_activity(...)` (073) | будь-хто, хто увійшов, писав події в журнал ЧУЖОЇ бази |
+
+**Чому стенд цього не бачив.** `pg-shim.sql` емулював default privileges
+Supabase для таблиць і послідовностей, а для ФУНКЦІЙ — ні. Модель платформи
+мала прогалину рівно там, де жив дефект, і гард `has_function_privilege('anon',
+…)` чесно міряв модель, а не прод. Емуляцію додано. Тепер без 075 стенд
+показує ТОЙ САМИЙ список відкритих функцій, що був у проді, тобто стенд і
+прод знову розповідають одне.
+
+**075 — чотири шари:**
+1. службові функції — лише `service_role`;
+2. `anon` — лише allowlist: превʼю /v і RLS-хелпери, які кличуть самі
+   політики `{public}`;
+3. тригерні функції — нікому: Postgres не питає EXECUTE при спрацюванні;
+4. джерело — прибрати anon/authenticated із default privileges.
+
+Кожен шар фальсифіковано окремо на стенді, і кожен падає на своїй
+перевірці. Allowlist описаний тричі (міграція, стенд, `verify_release`), тож
+юніт-тест звіряє всі три. Стенд окремо вимагає, щоб політики `{public}`
+кликали лише те, що `anon` може виконати: інакше закриття хелпера кладе
+анонімні запити помилкою. Звідси `is_guest_of_property` в allowlist — його
+кличуть пʼять політик `{public}`.
+
+**Застосовано з дозволу власника**, після сухого прогону на проді в
+транзакції з `ROLLBACK`. Прогін дав рівно задуманий результат, відкат
+перевірено окремим запитом. Після накату: 72/72 ✅, а `anon` на
+`get_due_lease_reminders` отримує `permission denied`. Через `execute_sql`, не
+`apply_migration`: історія міграцій у проді порожня, і запис однієї версії
+зламав би майбутній baseline.
+
+### Мій власний фікс минулого раунду не працював у проді
+
+`send-reminders` деплоїлась БЕЗ `--no-verify-jwt` (`verify_jwt: true` у списку
+функцій проду). А планувальник шле `Bearer <CRON_SECRET>`, і це випадковий
+рядок, не JWT. Шлюз Supabase відкидав би його з 401 ще ДО функції, тобто
+«секрет з одного місця» не спрацював би ніколи, навіть із правильно заданим
+секретом. Видно це лише в проді, не в коді функції. Прапорець додано, шлях
+воркфлоу — у тригер деплою (інакше зміна прапорця чекала б правки коду
+функції). Гард вимагає `--no-verify-jwt` у КОЖНОЇ функції з репозиторію, з
+антивакуумом на повний набір.
+
+### Що ще показала жива база
+
+- **Дві старі копії входу** (`Telegram-auth` з великої літери, `quick-processor`):
+  `generateLink`, CORS `*` при видачі токенів, неконстантне порівняння
+  підпису. Конектор не вміє видаляти функції, тож за вибором власника вони
+  замінені заглушкою 410. Видалити остаточно можна в дашборді.
+- **`public.objects`** — порожня таблиця від ранньої схеми (RLS без політик,
+  тобто клієнтам недосяжна). Не чіпали.
+- **Лінтер після 075:** 0028/0029 показують рівно allowlist плюс
+  `rls_auto_enable`, event trigger самої Supabase, який напряму не
+  викликається.
+
+### Залежності
+
+`undici` (транзитивно від jsdom) — безпечний фікс узято. `zod` дістав high
+(GHSA-mrhx-c7xc-m3w5: колекція без стелі довжини вичерпує памʼять), фікс
+лише мажорний. У нас це недосяжно. Edge-функції, єдине місце, де zod
+розбирає ЧУЖИЙ ввід, колекцій не мають узагалі. Клієнт розбирає zod-ом лише
+відповіді власних RPC. Обидві умови тепер гард: колекції без `.max()` в
+edge і заморожений список споживачів zod на клієнті. Перевірка
+розрізняє стелю на ЕЛЕМЕНТІ (`z.array(z.string().max(5))` не рахується) і на
+масиві.
+
+**Урок раунду ширший за будь-який із фіксів.** Стенд — це МОДЕЛЬ платформи,
+і прогалина моделі ховає рівно той клас, якого вона не моделює. Зелений
+стенд доводить правильність коду ВІДНОСНО моделі. Якщо живу базу видно,
+питати треба її.

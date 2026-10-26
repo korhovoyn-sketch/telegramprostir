@@ -2,6 +2,17 @@
 -- verify_release.sql — одна перевірка готовності БД до публікації.
 -- Запусти в Supabase Dashboard → SQL Editor. Кожен рядок результату має бути
 -- OK; будь-який MISSING = відповідна міграція не застосована (файл вказано).
+--
+-- Той самий запит ВКЛЕЄНО в кінець supabase/RELEASE.sql (після COMMIT), тож
+-- один запуск того файлу і накочує міграції, і показує цю таблицю. Окремо
+-- цей файл потрібен, щоб перевірити стан, нічого не застосовуючи.
+--
+-- ПРАВИЛО ДЛЯ НОВИХ РЯДКІВ: перевірка не сміє ПАДАТИ на базі ДО накату, де
+-- таблиць із нових міграцій ще немає, — лише показувати MISSING. Тому про
+-- нову таблицю питаємо КАТАЛОГ (`pg_class`, `to_regclass`), а не саму
+-- таблицю: запит до неї там — ERROR, і замість відповіді «чого бракує»
+-- людина побачила б помилку. З тієї ж причини `to_regclass(...)`, а не
+-- `'...'::regclass`. Гард — scripts/verify-migrations.sh (база 001..047).
 -- ============================================================================
 
 WITH checks(ord, item, migration, ok) AS (VALUES
@@ -307,7 +318,7 @@ WITH checks(ord, item, migration, ok) AS (VALUES
   -- КОЖНОМУ неповному надходженні, тобто фіча працювала б лише для повних.
   (59, 'rent_payment_records.status приймає partial', '071_partial_payments.sql',
       (SELECT COUNT(*) >= 1 FROM pg_constraint
-        WHERE conrelid = 'public.rent_payment_records'::regclass AND contype='c'
+        WHERE conrelid = to_regclass('public.rent_payment_records') AND contype='c'
           AND pg_get_constraintdef(oid) LIKE '%partial%')),
 
   -- 071-4: RPC є, автентифікованому доступна, анонімові — ні (правило 12:
@@ -384,7 +395,64 @@ WITH checks(ord, item, migration, ok) AS (VALUES
   (68, 'видалений акаунт: імʼя стирається з журналу, переглядів і гостьових лінків', '074_account_erasure.sql',
       (SELECT COUNT(*) = 3 FROM pg_trigger t
         WHERE NOT t.tgisinternal
-          AND t.tgname IN ('trg_erase_viewer_name', 'trg_erase_guest_name', 'trg_erase_actor_name')))
+          AND t.tgname IN ('trg_erase_viewer_name', 'trg_erase_guest_name', 'trg_erase_actor_name'))),
+
+  -- 051: стирання файлів при видаленні акаунта тримається на ЗОВНІШНІЙ умові —
+  -- власник функції обходить RLS (у Supabase це `postgres`), бо delete-політики
+  -- storage видані лише `authenticated`. Доти це показувала тільки хвостова
+  -- вибірка самої 051, а редактор SQL показує ЛИШЕ ОСТАННЮ таблицю — тож у
+  -- RELEASE.sql із вбудованою перевіркою її вже не видно. Тому вона тут.
+  -- Порада правильна: 051 дропає функцію і створює заново, тобто повторний
+  -- запуск у SQL Editor робить її власником саме `postgres`.
+  (69, 'delete_my_account: власник обходить RLS, anon не кличе', '051_delete_account_storage.sql',
+      (SELECT COALESCE(bool_and(
+                  has_function_privilege('authenticated', p.oid, 'EXECUTE')
+              AND NOT has_function_privilege('anon', p.oid, 'EXECUTE')
+              AND COALESCE((SELECT r.rolbypassrls FROM pg_roles r
+                             WHERE r.rolname = pg_get_userbyid(p.proowner)), false)), false)
+         FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND p.proname = 'delete_my_account')),
+
+  -- 075-1: anon виконує лише свідомо публічні функції. Supabase видає EXECUTE
+  -- на КОЖНУ нову функцію `anon` і `authenticated` прямим грантом, тож
+  -- `REVOKE ... FROM PUBLIC` у міграції його не знімає — так у проді й
+  -- лишились відкритими get_due_lease_reminders і log_db_activity. Список —
+  -- той самий, що в 075 і в scripts/verify-behaviour.sql (звіряє юніт-тест).
+  (70, 'anon кличе лише свідомо публічні функції', '075_function_acl_supabase_defaults.sql',
+      NOT EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+                   WHERE n.nspname = 'public' AND p.prokind = 'f'
+                     AND p.prorettype NOT IN ('trigger'::regtype, 'event_trigger'::regtype)
+                     AND NOT EXISTS (SELECT 1 FROM pg_depend d
+                                      WHERE d.classid = 'pg_proc'::regclass AND d.objid = p.oid AND d.deptype = 'e')
+                     AND has_function_privilege('anon', p.oid, 'EXECUTE')
+                     AND p.proname NOT IN (
+                       'get_public_db_preview', 'get_public_property_preview',
+                       'get_public_collection_preview', 'get_guest_property_preview',
+                       'record_public_view',
+                       'current_app_user_id', 'get_app_user_id_from_auth_uid',
+                       'get_owner_db_ids', 'get_owner_property_ids',
+                       'get_editor_db_ids', 'get_editor_db_ids_from_auth_uid', 'get_editor_property_ids',
+                       'get_realtor_db_ids', 'get_realtor_property_ids', 'get_realtor_collection_ids',
+                       'is_guest_of_property'))),
+
+  -- 075-2: службові функції — лише service_role. Перевірка вище дивиться на
+  -- anon, а цим не можна й тим, хто увійшов: одна віддає дані ВСІХ власників,
+  -- друга пише в журнал БУДЬ-ЯКОЇ бази.
+  (71, 'службові функції не кличе ні anon, ні authenticated', '075_function_acl_supabase_defaults.sql',
+      NOT EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+                   WHERE n.nspname = 'public'
+                     AND p.proname IN ('get_due_lease_reminders', 'get_due_reminders_today',
+                                       'get_due_guest_reminders', 'mark_overdue_payments', 'log_db_activity')
+                     AND (has_function_privilege('anon', p.oid, 'EXECUTE')
+                          OR has_function_privilege('authenticated', p.oid, 'EXECUTE')))),
+
+  -- 075-3: ДЖЕРЕЛО класу — default privileges. Поки в них anon/authenticated,
+  -- наступна службова функція знову відкриється сама.
+  (72, 'нова функція не відкривається anon/authenticated сама', '075_function_acl_supabase_defaults.sql',
+      NOT EXISTS (SELECT 1 FROM pg_default_acl d JOIN pg_namespace n ON n.oid = d.defaclnamespace
+                   WHERE n.nspname = 'public' AND d.defaclobjtype = 'f'
+                     AND pg_get_userbyid(d.defaclrole) = 'postgres'
+                     AND array_to_string(d.defaclacl, ',') ~ '(^|,)(anon|authenticated)='))
 )
 SELECT
   CASE WHEN ok THEN '✅ OK     ' ELSE '❌ MISSING' END AS status,

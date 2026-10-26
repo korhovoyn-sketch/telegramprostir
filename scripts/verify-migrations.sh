@@ -199,14 +199,26 @@ echo "✓ 074: висячого автора й імен без посиланн
 # тихо протухають: перевірка №1 шукала термін дії в `get_shared_collection`,
 # яку 049 ВИДАЛИЛА як IDOR, тобто вічно світила «MISSING → виконай 026» і
 # посилала оператора не туди. На свіжозібраній БД MISSING не має бути жодного.
-miss=$($PSQL -d shadow -At -f supabase/verify_release.sql | grep -c '❌' || true)
-if [ "$miss" != "0" ]; then
-  echo "✗ verify_release.sql звітує $miss MISSING на БД, зібраній з УСІХ міграцій —"
-  echo "  тобто протухла сама перевірка, а не база:"
-  $PSQL -d shadow -At -f supabase/verify_release.sql | grep '❌'
+#
+# АНТИВАКУУМ — повна кількість ✅, а не лише нуль ❌. Доти тут стояло
+# `psql … | grep -c '❌' || true`, і під `pipefail` впалий psql давав
+# порожній вивід, тобто «0 MISSING» — перевірка, що ПАДАЄ, проходила як
+# зелена. Тепер і сама вона мусить виконатись, і вивести ВСІ пункти.
+checks=$(grep -cE '^[[:space:]]+\([0-9]+,[[:space:]]' supabase/verify_release.sql)
+if ! vr_all=$($PSQL -d shadow -At -f supabase/verify_release.sql 2>&1); then
+  echo "✗ verify_release.sql ПАДАЄ на БД, зібраній з усіх міграцій:"
+  echo "$vr_all" | grep -E "ERROR" | head -3
   exit 1
 fi
-echo "✓ verify_release.sql: 0 MISSING"
+oks=$(printf '%s\n' "$vr_all" | grep -c '✅' || true)
+miss=$(printf '%s\n' "$vr_all" | grep -c '❌' || true)
+if [ "$miss" != "0" ] || [ "$oks" != "$checks" ]; then
+  echo "✗ verify_release.sql на БД з УСІХ міграцій: ✅ $oks із $checks, ❌ $miss —"
+  echo "  тобто протухла сама перевірка, а не база:"
+  printf '%s\n' "$vr_all" | grep '❌' || true
+  exit 1
+fi
+echo "✓ verify_release.sql: усі $checks пунктів ✅"
 
 # ── RELEASE.sql не розійшовся з міграціями ─────────────────────────────────
 # Склеєний файл — ПОХІДНИЙ. Якщо він розійдеться з `supabase/migrations/`,
@@ -233,7 +245,24 @@ for f in $(ls supabase/migrations/*.sql | sort); do
   [ "$n" -ge 48 ] && continue
   $PSQL -d shadow_rel -f "$f" >/dev/null 2>&1 || true
 done
-$PSQL -d shadow_rel -f supabase/RELEASE.sql >/dev/null
+# ПЕРЕВІРКА ВБУДОВАНА В ФАЙЛ: оператор запускає ОДИН файл і читає таблицю в
+# кінці. Тож гард питає рівно те, що побачить він: таблиця є, у ній УСІ
+# пункти verify_release.sql і жодного MISSING. Повна кількість — антивакуум:
+# таблиця, що не виконалась чи обірвалась, інакше теж «не має MISSING».
+if ! rel_out=$($PSQL -d shadow_rel -f supabase/RELEASE.sql 2>&1); then
+  echo "✗ RELEASE.sql падає на прод-подібній базі (001..047):"
+  echo "$rel_out" | grep -E "ERROR" | head -3
+  exit 1
+fi
+oks=$(printf '%s\n' "$rel_out" | grep -c '✅ OK' || true)
+bad=$(printf '%s\n' "$rel_out" | grep -c '❌' || true)
+if [ "$oks" != "$checks" ] || [ "$bad" != "0" ]; then
+  echo "✗ вбудована перевірка RELEASE.sql: ✅ $oks із $checks, ❌ $bad —"
+  echo "  оператор побачив би неповну або червону таблицю замість підтвердження"
+  printf '%s\n' "$rel_out" | grep '❌' | head -5 || true
+  exit 1
+fi
+echo "✓ RELEASE.sql сам показує таблицю перевірки: усі $checks пунктів ✅"
 # Повторний накат — доказ ідемпотентності (оператор може натиснути двічі).
 $PSQL -d shadow_rel -f supabase/RELEASE.sql >/dev/null
 psql -h "$SOCK" -p $PORT -U postgres -d shadow     -At -f scripts/schema-fingerprint.sql > /tmp/fp_a.txt
@@ -320,6 +349,29 @@ if [ "$left" != "00" ]; then
 fi
 echo "✓ RELEASE.sql атомарний: збій у зоні останньої міграції не лишає напівстану"
 
+# ── Перевірка не ПАДАЄ на базі ДО накату ──────────────────────────────────
+# Після відкату вище `shadow_atomic` — рівно прод-подібна база 001..047, де
+# таблиць із нових міграцій (оренди, надходження, журнал…) ще НЕМАЄ. Саме тут
+# оператор запускає verify_release.sql, щоб побачити, що бракує, — і рядок,
+# який звертається до такої таблиці напряму, дав би ERROR замість MISSING:
+# замість відповіді «чого бракує» людина отримала б помилку.
+#
+# Обидві половини обовʼязкові: повна кількість рядків доводить, що запит
+# виконався, а ❌ > 0 — що база справді ДО накату, інакше гард нічого не міряв.
+if ! vpre=$($PSQL -d shadow_atomic -At -f supabase/verify_release.sql 2>&1); then
+  echo "✗ verify_release.sql ПАДАЄ на базі до накату, а мав би показати MISSING:"
+  echo "$vpre" | grep -E "ERROR" | head -3
+  exit 1
+fi
+rows=$(printf '%s\n' "$vpre" | grep -cE '✅|❌' || true)
+red=$(printf '%s\n' "$vpre" | grep -c '❌' || true)
+if [ "$rows" != "$checks" ] || [ "$red" = "0" ]; then
+  echo "✗ verify_release.sql на базі до накату: рядків $rows із $checks, ❌ $red —"
+  echo "  або запит обірвався, або стенд уже не «до накату» і гард нічого не міряє"
+  exit 1
+fi
+echo "✓ verify_release.sql на базі до накату не падає: $checks пунктів, із них ❌ $red"
+
 # І навпаки: якщо бракує чогось ОБОВʼЯЗКОВОГО, файл мусить сказати ЩО САМЕ,
 # а не впасти на першому-ліпшому обʼєкті.
 psql -h "$SOCK" -p $PORT -U postgres -q -c "CREATE DATABASE shadow_bare" >/dev/null
@@ -334,6 +386,7 @@ if ! echo "$out" | grep -q "бракує того, на що спираєтьс�
   exit 1
 fi
 echo "✓ на базі без передумов файл називає, ЧОГО бракує і яку міграцію запустити"
+
 
 # ── Прогалина в КОЛОНЦІ, а не у функції ────────────────────────────────────
 # Той самий клас, інший бік: `mark_overdue_payments` бракувало функції, і це
