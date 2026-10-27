@@ -54,10 +54,16 @@ describe('периметр функцій: 075, стенд і прод пита�
   })
 
   it('службовий список однаковий у міграції, на стенді й у verify_release', () => {
-    const pick = (sql: string) => nameLists(sql, 'IN').filter((l) => l.includes('log_db_activity'))
+    // Ключ вибору — ОБИДВІ функції разом: лише повний службовий список має і
+    // `mark_overdue_payments` (052), і `log_db_activity` (073). За кожною
+    // окремо знаходяться й інші списки — рядок 052 у verify_release,
+    // антивакуумна пара на стенді, — і вибір «першого» залежав би від порядку
+    // перевірок у файлі.
+    const pick = (sql: string) => nameLists(sql, 'IN')
+      .filter((l) => l.includes('mark_overdue_payments') && l.includes('log_db_activity'))
     const [mig, stand, prod] = [pick(MIG), pick(STAND), pick(PROD)]
     expect(mig, 'у 075 не знайдено службового списку').toHaveLength(1)
-    expect(stand.length, 'у verify-behaviour не знайдено службового списку').toBeGreaterThanOrEqual(1)
+    expect(stand, 'у verify-behaviour має бути рівно один службовий список').toHaveLength(1)
     expect(prod, 'у verify_release не знайдено службового списку').toHaveLength(1)
     expect(mig[0]).toContain('get_due_lease_reminders')
     expect(stand[0], 'стенд і 075 розійшлись у службових функціях').toEqual(mig[0])

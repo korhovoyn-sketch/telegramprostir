@@ -40,6 +40,11 @@ function walk(dir: string, acc: string[] = []): string[] {
  * Схеми-колекції, у яких НЕМАЄ стелі довжини. `.max(` усередині аргументу
  * (на ЕЛЕМЕНТІ: `z.array(z.string().max(5))`) колекцію не обмежує — тому
  * аргумент пропускаємо за дужками й дивимось лише на ланцюг ПІСЛЯ нього.
+ *
+ * Колекцію в zod можна збудувати кількома шляхами, і кожен — окремий вхід:
+ * конструктор на просторі імен під БУДЬ-ЯКИМ імʼям (`z.`, `import * as v`),
+ * метод `.array()` на готовій схемі і `.rest()` кортежу. У `z.map` і
+ * `.rest()` стелі немає взагалі, тож вони — порушення завжди.
  */
 function unboundedCollections(src: string): string[] {
   const found: string[] = []
@@ -51,18 +56,40 @@ function unboundedCollections(src: string): string[] {
     }
     return src.length
   }
-  for (const m of src.matchAll(/\bz\.(array|set|record)\s*\(/g)) {
-    let i = closeOf(m.index! + m[0].length - 1) + 1
-    const chain: string[] = []
+  const chainAfter = (from: number): { names: string[]; end: number } => {
+    let i = from
+    const names: string[] = []
     for (;;) {
       const c = /^\s*\.\s*([A-Za-z_]\w*)\s*\(/.exec(src.slice(i))
       if (!c) break
-      chain.push(c[1])
+      names.push(c[1])
       i = closeOf(i + c[0].length - 1) + 1
     }
-    if (!chain.some((n) => n === 'max' || n === 'length')) {
-      found.push(src.slice(m.index!, Math.min(i, m.index! + 80)).replace(/\s+/g, ' '))
+    return { names, end: i }
+  }
+  const ns = new Set(['z'])
+  for (const m of src.matchAll(/import\s+(?:\*\s+as\s+(\w+)|\{([^}]*)\}|(\w+))\s+from\s+['"][^'"]*zod[^'"]*['"]/g)) {
+    if (m[1]) ns.add(m[1])
+    if (m[3]) ns.add(m[3])
+    for (const part of (m[2] ?? '').split(',')) {
+      const alias = /\bz\b(?:\s+as\s+(\w+))?/.exec(part.trim())
+      if (alias) ns.add(alias[1] ?? 'z')
     }
+  }
+  const names = [...ns].join('|')
+  const starts: { at: number; open: number; kind: string }[] = []
+  for (const m of src.matchAll(new RegExp(`\\b(?:${names})\\.(array|set|record|map)\\s*\\(`, 'g'))) {
+    starts.push({ at: m.index!, open: m.index! + m[0].length - 1, kind: m[1] })
+  }
+  for (const m of src.matchAll(/\.\s*(array|rest)\s*\(/g)) {
+    // Метод на ГОТОВІЙ схемі: перед крапкою стоїть закрита дужка.
+    if (!/\)\s*$/.test(src.slice(0, m.index!))) continue
+    starts.push({ at: m.index!, open: m.index! + m[0].length - 1, kind: m[1] })
+  }
+  for (const s of starts) {
+    const { names: chain, end } = chainAfter(closeOf(s.open) + 1)
+    const capped = s.kind !== 'map' && s.kind !== 'rest' && chain.some((n) => n === 'max' || n === 'length')
+    if (!capped) found.push(src.slice(s.at, Math.min(end, s.at + 80)).replace(/\s+/g, ' '))
   }
   return found
 }
@@ -183,6 +210,15 @@ describe('поверхня вразливих залежностей лишає�
     expect(unboundedCollections('z.array(z.string().max(5))')).toHaveLength(1)
     expect(unboundedCollections('z.array(z.string()).min(1).max(50)')).toEqual([])
     expect(unboundedCollections('z.record(z.string(), z.number())')).toHaveLength(1)
+    // Інші шляхи до колекції — кожен мусить бути видимий.
+    expect(unboundedCollections('z.string().array()')).toHaveLength(1)
+    expect(unboundedCollections('z.string().array().max(10)')).toEqual([])
+    expect(unboundedCollections('z.map(z.string(), z.number())')).toHaveLength(1)
+    expect(unboundedCollections('z.tuple([z.string()]).rest(z.number())')).toHaveLength(1)
+    expect(unboundedCollections("import * as v from 'https://esm.sh/zod@3'\nv.array(v.string())")).toHaveLength(1)
+    expect(unboundedCollections("import { z as q } from 'zod'\nq.set(q.string())")).toHaveLength(1)
+    // Антипозитив: звичайний масив JS, не схема.
+    expect(unboundedCollections('Array.from(x).map((y) => y)')).toEqual([])
 
     const offenders: string[] = []
     let schemas = 0

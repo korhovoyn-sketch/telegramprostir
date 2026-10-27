@@ -204,7 +204,7 @@ echo "✓ 074: висячого автора й імен без посиланн
 # `psql … | grep -c '❌' || true`, і під `pipefail` впалий psql давав
 # порожній вивід, тобто «0 MISSING» — перевірка, що ПАДАЄ, проходила як
 # зелена. Тепер і сама вона мусить виконатись, і вивести ВСІ пункти.
-checks=$(grep -cE '^[[:space:]]+\([0-9]+,[[:space:]]' supabase/verify_release.sql)
+checks=$(scripts/release-checks.sh supabase/verify_release.sql)
 if ! vr_all=$($PSQL -d shadow -At -f supabase/verify_release.sql 2>&1); then
   echo "✗ verify_release.sql ПАДАЄ на БД, зібраній з усіх міграцій:"
   echo "$vr_all" | grep -E "ERROR" | head -3

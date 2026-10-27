@@ -99,8 +99,11 @@ BEGIN
        )
   LOOP
     EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon', r.sig);
+    -- service_role — завжди: функція, відкрита ЛИШЕ через PUBLIC, інакше
+    -- втратила б і його, а від сервера її кличуть edge-функції.
+    EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO service_role', r.sig);
     IF r.authed THEN
-      EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO authenticated, service_role', r.sig);
+      EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO authenticated', r.sig);
     END IF;
   END LOOP;
 END $$;
@@ -124,8 +127,18 @@ BEGIN
 END $$;
 
 -- ── 4. Джерело: нова функція більше не відкривається сама ──────────────────
+-- І на рівні схеми, і ГЛОБАЛЬНО: схемні default privileges ДОДАЮТЬСЯ до
+-- глобальних, а не перекривають їх, тож глобальний грант зняти схемним
+-- REVOKE неможливо. На Supabase глобального запису для postgres немає (no-op),
+-- але міграція не сміє на це покладатись.
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
   REVOKE EXECUTE ON FUNCTIONS FROM anon, authenticated;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres
+  REVOKE EXECUTE ON FUNCTIONS FROM anon, authenticated;
+-- Чого цей шар НЕ покриває: default privileges ролі supabase_admin (вона теж
+-- видає anon/authenticated на public). Змінити їх postgres не може — він не
+-- член цієї ролі. Функції, які створює платформа, ловить рядок 70
+-- verify_release.sql: він дивиться на РЕЗУЛЬТАТ, а не на джерело.
 
 NOTIFY pgrst, 'reload schema';
 

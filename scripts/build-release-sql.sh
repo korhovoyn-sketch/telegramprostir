@@ -61,7 +61,7 @@ strip_own_tx() {
 VERIFY=supabase/verify_release.sql
 # Кількість пунктів перевірки — щоб шапка казала, скільки рядків має бути в
 # таблиці. Неповна таблиця інакше виглядала б так само «зеленою».
-checks=$(grep -cE '^[[:space:]]+\([0-9]+,[[:space:]]' "$VERIFY")
+checks=$(scripts/release-checks.sh "$VERIFY")
 
 files=$(ls supabase/migrations/*.sql | while read -r f; do
   b=$(basename "$f")

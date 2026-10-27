@@ -44,7 +44,7 @@
 --     повторний запуск безпечний;
 --   * ПЕРЕВІРКА ВБУДОВАНА: після COMMIT файл сам виконує
 --     supabase/verify_release.sql, і редактор показує її таблицю —
---     72 рядків, кожен має бути ✅ OK. Якщо замість таблиці помилка,
+--     74 рядків, кожен має бути ✅ OK. Якщо замість таблиці помилка,
 --     НІЧОГО не застосовано: усуньте причину й запустіть файл ще раз.
 -- ============================================================================
 
@@ -4396,8 +4396,11 @@ BEGIN
        )
   LOOP
     EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon', r.sig);
+    -- service_role — завжди: функція, відкрита ЛИШЕ через PUBLIC, інакше
+    -- втратила б і його, а від сервера її кличуть edge-функції.
+    EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO service_role', r.sig);
     IF r.authed THEN
-      EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO authenticated, service_role', r.sig);
+      EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO authenticated', r.sig);
     END IF;
   END LOOP;
 END $$;
@@ -4421,8 +4424,18 @@ BEGIN
 END $$;
 
 -- ── 4. Джерело: нова функція більше не відкривається сама ──────────────────
+-- І на рівні схеми, і ГЛОБАЛЬНО: схемні default privileges ДОДАЮТЬСЯ до
+-- глобальних, а не перекривають їх, тож глобальний грант зняти схемним
+-- REVOKE неможливо. На Supabase глобального запису для postgres немає (no-op),
+-- але міграція не сміє на це покладатись.
 ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
   REVOKE EXECUTE ON FUNCTIONS FROM anon, authenticated;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres
+  REVOKE EXECUTE ON FUNCTIONS FROM anon, authenticated;
+-- Чого цей шар НЕ покриває: default privileges ролі supabase_admin (вона теж
+-- видає anon/authenticated на public). Змінити їх postgres не може — він не
+-- член цієї ролі. Функції, які створює платформа, ловить рядок 70
+-- verify_release.sql: він дивиться на РЕЗУЛЬТАТ, а не на джерело.
 
 NOTIFY pgrst, 'reload schema';
 
@@ -4854,10 +4867,12 @@ WITH checks(ord, item, migration, ok) AS (VALUES
   -- RELEASE.sql із вбудованою перевіркою її вже не видно. Тому вона тут.
   -- Порада правильна: 051 дропає функцію і створює заново, тобто повторний
   -- запуск у SQL Editor робить її власником саме `postgres`.
-  (69, 'delete_my_account: власник обходить RLS, anon не кличе', '051_delete_account_storage.sql',
+  -- Що anon її НЕ кличе, тримає рядок 70 (075): `delete_my_account` поза
+  -- allowlist-ом. Тут лише те, що дає сама 051, — інакше ❌ радив би
+  -- перезапустити не ту міграцію.
+  (69, 'delete_my_account: власник обходить RLS, authenticated кличе', '051_delete_account_storage.sql',
       (SELECT COALESCE(bool_and(
                   has_function_privilege('authenticated', p.oid, 'EXECUTE')
-              AND NOT has_function_privilege('anon', p.oid, 'EXECUTE')
               AND COALESCE((SELECT r.rolbypassrls FROM pg_roles r
                              WHERE r.rolname = pg_get_userbyid(p.proowner)), false)), false)
          FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
@@ -4898,11 +4913,37 @@ WITH checks(ord, item, migration, ok) AS (VALUES
 
   -- 075-3: ДЖЕРЕЛО класу — default privileges. Поки в них anon/authenticated,
   -- наступна службова функція знову відкриється сама.
+  -- Схемний І глобальний запис: схемні default privileges додаються до
+  -- глобальних, тож глобальний грант пережив би схемний REVOKE.
   (72, 'нова функція не відкривається anon/authenticated сама', '075_function_acl_supabase_defaults.sql',
-      NOT EXISTS (SELECT 1 FROM pg_default_acl d JOIN pg_namespace n ON n.oid = d.defaclnamespace
-                   WHERE n.nspname = 'public' AND d.defaclobjtype = 'f'
+      NOT EXISTS (SELECT 1 FROM pg_default_acl d LEFT JOIN pg_namespace n ON n.oid = d.defaclnamespace
+                   WHERE (d.defaclnamespace = 0 OR n.nspname = 'public') AND d.defaclobjtype = 'f'
                      AND pg_get_userbyid(d.defaclrole) = 'postgres'
-                     AND array_to_string(d.defaclacl, ',') ~ '(^|,)(anon|authenticated)='))
+                     AND array_to_string(d.defaclacl, ',') ~ '(^|,)(anon|authenticated)=')),
+
+  -- 075-4: друга межа периметра. Закривши функцію для anon, легко зачепити
+  -- хелпер, який кличе САМА політика з роллю {public}: анонімний запит до
+  -- таблиці тоді падає помилкою замість порожнечі, тобто /v ламається.
+  -- Питаємо фінальні політики, а не текст міграцій.
+  (73, 'політики {public} кличуть лише функції, доступні anon', '075_function_acl_supabase_defaults.sql',
+      NOT EXISTS (SELECT 1 FROM pg_policies pol
+                   CROSS JOIN LATERAL regexp_matches(coalesce(pol.qual, '') || ' ' || coalesce(pol.with_check, ''),
+                                                     '([a-z_][a-z0-9_]*)\(', 'g') AS m
+                   JOIN pg_proc f ON f.proname = m[1]
+                   JOIN pg_namespace ns ON ns.oid = f.pronamespace AND ns.nspname = 'public'
+                  WHERE ('public' = ANY (pol.roles) OR 'anon' = ANY (pol.roles))
+                    AND NOT has_function_privilege('anon', f.oid, 'EXECUTE'))),
+
+  -- 075 закрила log_db_activity для клієнтів, тож журнал живе лише тим, що
+  -- тригери — SECURITY DEFINER, а їхній власник сам має EXECUTE. Тригер,
+  -- перестворений іншою роллю чи як INVOKER, валив би саму ДІЮ (його виклик
+  -- журналу не загорнутий у перехоплення), а не лише подію журналу.
+  (74, 'тригери журналу можуть писати в журнал', '073_db_activity.sql',
+      (SELECT COALESCE(bool_and(c.prosecdef AND has_function_privilege(c.proowner, l.oid, 'EXECUTE')), false)
+         FROM pg_proc l JOIN pg_namespace ln ON ln.oid = l.pronamespace AND ln.nspname = 'public'
+         JOIN pg_proc c ON c.prosrc LIKE '%log_db_activity(%' AND c.oid <> l.oid
+         JOIN pg_namespace cn ON cn.oid = c.pronamespace AND cn.nspname = 'public'
+        WHERE l.proname = 'log_db_activity'))
 )
 SELECT
   CASE WHEN ok THEN '✅ OK     ' ELSE '❌ MISSING' END AS status,

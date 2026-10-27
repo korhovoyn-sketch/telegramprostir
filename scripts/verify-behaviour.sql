@@ -283,8 +283,9 @@ BEGIN
   -- Джерело класу — default privileges. Поки в них стоять anon/authenticated,
   -- кожна наступна службова функція знову буде відкрита, хоч би як старанно
   -- міграція знімала PUBLIC.
-  IF EXISTS (SELECT 1 FROM pg_default_acl d JOIN pg_namespace n ON n.oid = d.defaclnamespace
-              WHERE n.nspname = 'public' AND d.defaclobjtype = 'f'
+  -- І схемний, і глобальний запис: схемні додаються до глобальних.
+  IF EXISTS (SELECT 1 FROM pg_default_acl d LEFT JOIN pg_namespace n ON n.oid = d.defaclnamespace
+              WHERE (d.defaclnamespace = 0 OR n.nspname = 'public') AND d.defaclobjtype = 'f'
                 AND pg_get_userbyid(d.defaclrole) = 'postgres'
                 AND array_to_string(d.defaclacl, ',') ~ '(^|,)(anon|authenticated)=') THEN
     RAISE EXCEPTION '075: default privileges досі видають anon/authenticated EXECUTE на нові функції';
