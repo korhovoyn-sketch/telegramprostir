@@ -25,6 +25,7 @@ import { resolve } from 'node:path'
  */
 
 const SRC = resolve(process.cwd(), 'src')
+const EDGE = resolve(process.cwd(), 'supabase/functions')
 
 function walk(dir: string, acc: string[] = []): string[] {
   for (const e of readdirSync(dir, { withFileTypes: true })) {
@@ -33,6 +34,64 @@ function walk(dir: string, acc: string[] = []): string[] {
     else if (/\.tsx?$/.test(e.name)) acc.push(p)
   }
   return acc
+}
+
+/**
+ * Схеми-колекції, у яких НЕМАЄ стелі довжини. `.max(` усередині аргументу
+ * (на ЕЛЕМЕНТІ: `z.array(z.string().max(5))`) колекцію не обмежує — тому
+ * аргумент пропускаємо за дужками й дивимось лише на ланцюг ПІСЛЯ нього.
+ *
+ * Колекцію в zod можна збудувати кількома шляхами, і кожен — окремий вхід:
+ * конструктор на просторі імен під БУДЬ-ЯКИМ імʼям (`z.`, `import * as v`),
+ * метод `.array()` на готовій схемі і `.rest()` кортежу. У `z.map` і
+ * `.rest()` стелі немає взагалі, тож вони — порушення завжди.
+ */
+function unboundedCollections(src: string): string[] {
+  const found: string[] = []
+  const closeOf = (open: number): number => {
+    let depth = 0
+    for (let i = open; i < src.length; i++) {
+      if (src[i] === '(') depth++
+      else if (src[i] === ')' && --depth === 0) return i
+    }
+    return src.length
+  }
+  const chainAfter = (from: number): { names: string[]; end: number } => {
+    let i = from
+    const names: string[] = []
+    for (;;) {
+      const c = /^\s*\.\s*([A-Za-z_]\w*)\s*\(/.exec(src.slice(i))
+      if (!c) break
+      names.push(c[1])
+      i = closeOf(i + c[0].length - 1) + 1
+    }
+    return { names, end: i }
+  }
+  const ns = new Set(['z'])
+  for (const m of src.matchAll(/import\s+(?:\*\s+as\s+(\w+)|\{([^}]*)\}|(\w+))\s+from\s+['"][^'"]*zod[^'"]*['"]/g)) {
+    if (m[1]) ns.add(m[1])
+    if (m[3]) ns.add(m[3])
+    for (const part of (m[2] ?? '').split(',')) {
+      const alias = /\bz\b(?:\s+as\s+(\w+))?/.exec(part.trim())
+      if (alias) ns.add(alias[1] ?? 'z')
+    }
+  }
+  const names = [...ns].join('|')
+  const starts: { at: number; open: number; kind: string }[] = []
+  for (const m of src.matchAll(new RegExp(`\\b(?:${names})\\.(array|set|record|map)\\s*\\(`, 'g'))) {
+    starts.push({ at: m.index!, open: m.index! + m[0].length - 1, kind: m[1] })
+  }
+  for (const m of src.matchAll(/\.\s*(array|rest)\s*\(/g)) {
+    // Метод на ГОТОВІЙ схемі: перед крапкою стоїть закрита дужка.
+    if (!/\)\s*$/.test(src.slice(0, m.index!))) continue
+    starts.push({ at: m.index!, open: m.index! + m[0].length - 1, kind: m[1] })
+  }
+  for (const s of starts) {
+    const { names: chain, end } = chainAfter(closeOf(s.open) + 1)
+    const capped = s.kind !== 'map' && s.kind !== 'rest' && chain.some((n) => n === 'max' || n === 'length')
+    if (!capped) found.push(src.slice(s.at, Math.min(end, s.at + 80)).replace(/\s+/g, ' '))
+  }
+  return found
 }
 
 describe('поверхня вразливих залежностей лишається недосяжною', () => {
@@ -127,5 +186,77 @@ describe('поверхня вразливих залежностей лишає�
     }
     expect(offenders, 'рантайм-код тягне інструмент збірки — він опиниться в out/ разом зі своїми advisory')
       .toEqual([])
+  })
+
+  /**
+   * `zod` — GHSA-mrhx-c7xc-m3w5 (high, 1.10.2026): `z.array` без стелі
+   * довжини накопичує по issue на КОЖЕН хибний елемент, без ліміту й без
+   * дострокового виходу, тож величезний масив у запиті вичерпує памʼять.
+   * Фікс — лише zod 4.6.6, тобто мажор (інший формат помилок, суворіший
+   * `.uuid()`), і не напередодні релізу.
+   *
+   * Досяжність вимагає ДВОХ речей разом: схеми-колекції без стелі і того,
+   * що саму колекцію підсовує СТОРОННІЙ. У нас немає жодної такої пари:
+   *   * edge-функції — єдине місце, де zod розбирає ЧУЖИЙ ввід (тіло запиту), —
+   *     колекцій не мають узагалі. Їхній zod до того ж з esm.sh, а не з
+   *     node_modules, тож `npm audit` його НЕ БАЧИТЬ — тим важливіше, щоб умову
+   *     тримав тест, а не памʼять;
+   *   * клієнт розбирає zod-ом лише відповіді ВЛАСНИХ RPC (по одному рядку):
+   *     масив там контролює наш сервер, тобто «напасти» може лише той, хто вже
+   *     володіє бекендом, — і поклав би лише вкладку самого користувача.
+   */
+  it('zod у edge-функціях: жодної колекції без стелі довжини', () => {
+    // Позитивний контроль: перевірка розрізняє стелю на ЕЛЕМЕНТІ і на масиві.
+    expect(unboundedCollections('z.array(z.string().max(5))')).toHaveLength(1)
+    expect(unboundedCollections('z.array(z.string()).min(1).max(50)')).toEqual([])
+    expect(unboundedCollections('z.record(z.string(), z.number())')).toHaveLength(1)
+    // Інші шляхи до колекції — кожен мусить бути видимий.
+    expect(unboundedCollections('z.string().array()')).toHaveLength(1)
+    expect(unboundedCollections('z.string().array().max(10)')).toEqual([])
+    expect(unboundedCollections('z.map(z.string(), z.number())')).toHaveLength(1)
+    expect(unboundedCollections('z.tuple([z.string()]).rest(z.number())')).toHaveLength(1)
+    expect(unboundedCollections("import * as v from 'https://esm.sh/zod@3'\nv.array(v.string())")).toHaveLength(1)
+    expect(unboundedCollections("import { z as q } from 'zod'\nq.set(q.string())")).toHaveLength(1)
+    // Антипозитив: звичайний масив JS, не схема.
+    expect(unboundedCollections('Array.from(x).map((y) => y)')).toEqual([])
+
+    const offenders: string[] = []
+    let schemas = 0
+    for (const dir of readdirSync(EDGE, { withFileTypes: true })) {
+      if (!dir.isDirectory()) continue
+      for (const f of walk(resolve(EDGE, dir.name))) {
+        const src = readFileSync(f, 'utf8')
+        if (!/['"][^'"]*zod@/.test(src)) continue
+        schemas += (src.match(/\bz\.object\s*\(/g) ?? []).length
+        for (const u of unboundedCollections(src)) offenders.push(`${f.replace(EDGE + '/', '')}: ${u}`)
+      }
+    }
+    // Антивакуум: інакше «колекцій немає» означало б і «схем не знайдено».
+    expect(schemas, 'у edge-функціях не знайдено жодної zod-схеми — гард осліп').toBeGreaterThanOrEqual(3)
+    expect(offenders,
+      'edge-функція розбирає ЧУЖИЙ ввід колекцією без .max() — GHSA-mrhx-c7xc-m3w5 стає досяжним (додай стелю)')
+      .toEqual([])
+  })
+
+  it('zod на клієнті розбирає лише відповіді власних RPC', () => {
+    const users: string[] = []
+    for (const f of walk(SRC)) {
+      const src = readFileSync(f, 'utf8')
+      if (!/(?:from\s+|import\s*\(\s*)['"]zod['"]/.test(src)) continue
+      users.push(f.replace(SRC + '/', ''))
+      expect(/\.rpc\s*\(/.test(src), `${f.replace(SRC + '/', '')} імпортує zod, але не кличе RPC — що саме він розбирає?`)
+        .toBe(true)
+    }
+    // Список ЗАМОРОЖЕНИЙ свідомо: новий споживач — це нове питання «чий це
+    // масив?», і відповісти на нього треба до мерджу, а не після інциденту.
+    expect(users.sort(),
+      'новий споживач zod: переконайся, що він не розбирає колекцію від користувача чи стороннього (GHSA-mrhx-c7xc-m3w5), і лише тоді додай сюди')
+      .toEqual([
+        'components/ui/ShareSheet.tsx',
+        'hooks/useAuth.ts',
+        'screens/PaymentConfirmScreen.tsx',
+        'screens/PaymentDueScreen.tsx',
+        'screens/QRScannerScreen.tsx',
+      ])
   })
 })

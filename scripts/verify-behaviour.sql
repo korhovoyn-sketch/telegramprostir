@@ -12,8 +12,10 @@ DECLARE
   r RECORD; n INT;
 BEGIN
   -- ── Фікстура: власник, база, обʼєкт, два фото (одне БЕЗ файлу), документ ──
-  INSERT INTO auth.users (id,email) VALUES
-    ('11111111-1111-1111-1111-111111111111','777001@telegram.propspace.app');
+  INSERT INTO auth.users (id,email,email_confirmed_at,raw_app_meta_data)
+    SELECT v.id::uuid, v.email, now(), jsonb_build_object('tg_id', split_part(v.email,'@',1))
+      FROM (VALUES
+    ('11111111-1111-1111-1111-111111111111','777001@telegram.propspace.app')) v(id,email);
   INSERT INTO users (id,tg_id,first_name,role) VALUES
     ('22222222-2222-2222-2222-222222222222',777001,'Тест','owner');
   INSERT INTO databases (id,owner_id,name,type) VALUES
@@ -92,7 +94,9 @@ DECLARE
   v JSONB; n INT;
 BEGIN
   -- ── 050: форма JSON гостьового превʼю ──────────────────────────────────
-  INSERT INTO auth.users (id,email) VALUES ('aaaaaaaa-0000-0000-0000-000000000001','777003@telegram.propspace.app');
+  INSERT INTO auth.users (id,email,email_confirmed_at,raw_app_meta_data)
+    SELECT v.id::uuid, v.email, now(), jsonb_build_object('tg_id', split_part(v.email,'@',1))
+      FROM (VALUES ('aaaaaaaa-0000-0000-0000-000000000001','777003@telegram.propspace.app')) v(id,email);
   INSERT INTO users (id,tg_id,first_name,role) VALUES ('bbbbbbbb-0000-0000-0000-000000000001',777003,'Микола','owner');
   INSERT INTO databases (id,owner_id,name,type,color) VALUES
     ('cccccccc-0000-0000-0000-000000000001','bbbbbbbb-0000-0000-0000-000000000001','БЦ Рубін','business_center','blue');
@@ -130,7 +134,9 @@ DO $$
 DECLARE v JSONB; nm TEXT;
 BEGIN
   -- ── 048: клейм записує імʼя гостя ──────────────────────────────────────
-  INSERT INTO auth.users (id,email) VALUES ('aaaaaaaa-0000-0000-0000-000000000002','777004@telegram.propspace.app');
+  INSERT INTO auth.users (id,email,email_confirmed_at,raw_app_meta_data)
+    SELECT v.id::uuid, v.email, now(), jsonb_build_object('tg_id', split_part(v.email,'@',1))
+      FROM (VALUES ('aaaaaaaa-0000-0000-0000-000000000002','777004@telegram.propspace.app')) v(id,email);
   INSERT INTO users (id,tg_id,first_name,last_name,role) VALUES
     ('bbbbbbbb-0000-0000-0000-000000000002',777004,'Олена','Ковальчук','owner');
   PERFORM set_config('request.jwt.claims','{"email":"777004@telegram.propspace.app"}',false);
@@ -159,7 +165,9 @@ BEGIN
   -- таблиця `notifications`, яку наповнює лише ця пара, не могла отримати
   -- жодного рядка. Джерельний гард такого не бачить у принципі: обидва типи
   -- в тексті виглядають правильно, розходяться вони лише у виконанні.
-  INSERT INTO auth.users (id,email) VALUES ('aaaaaaaa-0000-0000-0000-000000000052','777052@telegram.propspace.app');
+  INSERT INTO auth.users (id,email,email_confirmed_at,raw_app_meta_data)
+    SELECT v.id::uuid, v.email, now(), jsonb_build_object('tg_id', split_part(v.email,'@',1))
+      FROM (VALUES ('aaaaaaaa-0000-0000-0000-000000000052','777052@telegram.propspace.app')) v(id,email);
   INSERT INTO users (id,tg_id,first_name,role) VALUES ('bbbbbbbb-0000-0000-0000-000000000052',777052,'Нагадувач','owner');
   INSERT INTO databases (id,owner_id,name,type) VALUES
     ('cccccccc-0000-0000-0000-000000000052','bbbbbbbb-0000-0000-0000-000000000052','База нагадувань','business_center');
@@ -218,10 +226,77 @@ BEGIN
       'current_app_user_id','get_app_user_id_from_auth_uid',
       'get_owner_db_ids','get_owner_property_ids',
       'get_editor_db_ids','get_editor_db_ids_from_auth_uid','get_editor_property_ids',
-      'get_realtor_db_ids','get_realtor_property_ids','get_realtor_collection_ids'
+      'get_realtor_db_ids','get_realtor_property_ids','get_realtor_collection_ids',
+      -- Те саме для гостьової гілки: пʼять політик {public} (обʼєкти, фото,
+      -- файли, розклад, платежі) кличуть його і для anon, а відповідає він
+      -- лише «чи Я гість цього обʼєкта».
+      'is_guest_of_property'
     );
   IF leaked IS NOT NULL THEN
-    RAISE EXCEPTION '052: anon має EXECUTE на SECURITY DEFINER функціях поза allowlist-ом: %', leaked;
+    RAISE EXCEPTION '052/075: anon має EXECUTE на SECURITY DEFINER функціях поза allowlist-ом: %', leaked;
+  END IF;
+
+  -- ── 075: службові функції не кличе НІХТО, крім service_role ───────────
+  -- Перевірка вище дивиться лише на anon, а цим функціям не можна й
+  -- authenticated: get_due_lease_reminders віддає дані ВСІХ власників, а
+  -- log_db_activity пише в журнал БУДЬ-ЯКОЇ бази. Обидві були відкриті в
+  -- проді, бо Supabase видає EXECUTE прямим грантом (емуляція — pg-shim).
+  SELECT string_agg(p.proname || '(' ||
+           CASE WHEN has_function_privilege('anon', p.oid, 'EXECUTE') THEN 'anon ' ELSE '' END ||
+           CASE WHEN has_function_privilege('authenticated', p.oid, 'EXECUTE') THEN 'authenticated' ELSE '' END || ')',
+         ', ' ORDER BY p.proname) INTO leaked
+  FROM pg_proc p
+  JOIN pg_namespace ns ON ns.oid = p.pronamespace AND ns.nspname = 'public'
+  WHERE p.proname IN ('get_due_lease_reminders', 'get_due_reminders_today',
+                      'get_due_guest_reminders', 'mark_overdue_payments', 'log_db_activity')
+    AND (has_function_privilege('anon', p.oid, 'EXECUTE')
+         OR has_function_privilege('authenticated', p.oid, 'EXECUTE'));
+  IF leaked IS NOT NULL THEN
+    RAISE EXCEPTION '075: службові функції викликає клієнт: %', leaked;
+  END IF;
+  -- Антивакуум: інакше «нікому не відкрито» означало б і «функцій немає».
+  IF (SELECT count(*) FROM pg_proc p JOIN pg_namespace ns ON ns.oid = p.pronamespace
+       WHERE ns.nspname = 'public' AND p.proname IN ('get_due_lease_reminders', 'log_db_activity')) <> 2 THEN
+    RAISE EXCEPTION '075: службових функцій не знайдено — перевірка вище нічого не міряла';
+  END IF;
+  IF NOT has_function_privilege('service_role', 'public.get_due_lease_reminders()'::regprocedure, 'EXECUTE') THEN
+    RAISE EXCEPTION '075: service_role втратив get_due_lease_reminders — крон не розішле нагадувань';
+  END IF;
+
+  -- ── 075: політики {public} кличуть лише те, що anon може виконати ──────
+  -- Друга межа того самого периметра. Закривши функцію для anon, легко
+  -- зачепити хелпер, який кличе САМА політика з роллю {public}: тоді
+  -- анонімний запит до таблиці падає помилкою замість порожнечі — у проді
+  -- це вже не «немає даних», а зламана сторінка. Питаємо ФІНАЛЬНІ політики,
+  -- а не текст міграцій: старі політики давно перестворені.
+  SELECT string_agg(DISTINCT f.proname, ', ') INTO leaked
+  FROM pg_policies pol
+  CROSS JOIN LATERAL regexp_matches(coalesce(pol.qual, '') || ' ' || coalesce(pol.with_check, ''),
+                                    '([a-z_][a-z0-9_]*)\(', 'g') AS m
+  JOIN pg_proc f ON f.proname = m[1]
+  JOIN pg_namespace ns ON ns.oid = f.pronamespace AND ns.nspname = 'public'
+  WHERE ('public' = ANY (pol.roles) OR 'anon' = ANY (pol.roles))
+    AND NOT has_function_privilege('anon', f.oid, 'EXECUTE');
+  IF leaked IS NOT NULL THEN
+    RAISE EXCEPTION '075: політики з роллю {public} кличуть функції, закриті для anon: %', leaked;
+  END IF;
+  -- Антивакуум: такі політики мусять існувати, інакше перевірка порожня.
+  IF NOT EXISTS (SELECT 1 FROM pg_policies pol
+                  WHERE 'public' = ANY (pol.roles)
+                    AND coalesce(pol.qual, '') LIKE '%is_guest_of_property(%') THEN
+    RAISE EXCEPTION '075: не знайдено жодної політики {public} із хелпером — перевірка вище нічого не міряла';
+  END IF;
+
+  -- ── 075: нова функція більше не відкривається сама ─────────────────────
+  -- Джерело класу — default privileges. Поки в них стоять anon/authenticated,
+  -- кожна наступна службова функція знову буде відкрита, хоч би як старанно
+  -- міграція знімала PUBLIC.
+  -- І схемний, і глобальний запис: схемні додаються до глобальних.
+  IF EXISTS (SELECT 1 FROM pg_default_acl d LEFT JOIN pg_namespace n ON n.oid = d.defaclnamespace
+              WHERE (d.defaclnamespace = 0 OR n.nspname = 'public') AND d.defaclobjtype = 'f'
+                AND pg_get_userbyid(d.defaclrole) = 'postgres'
+                AND array_to_string(d.defaclacl, ',') ~ '(^|,)(anon|authenticated)=') THEN
+    RAISE EXCEPTION '075: default privileges досі видають anon/authenticated EXECUTE на нові функції';
   END IF;
 
   -- ── 058: власник БЕЗ tg_id не потрапляє в розсилку ──────────────────────
@@ -229,7 +304,9 @@ BEGIN
   -- пише маркер дедуплікації (він пишеться лише на `res.ok`) — тобто той
   -- самий рядок віддається ЩОДНЯ до кінця місяця. Дефект досяжний рівно з
   -- моменту, коли 052 вмикає нагадування.
-  INSERT INTO auth.users (id,email) VALUES ('aaaaaaaa-0000-0000-0000-000000000058','777058@telegram.propspace.app');
+  INSERT INTO auth.users (id,email,email_confirmed_at,raw_app_meta_data)
+    SELECT v.id::uuid, v.email, now(), jsonb_build_object('tg_id', split_part(v.email,'@',1))
+      FROM (VALUES ('aaaaaaaa-0000-0000-0000-000000000058','777058@telegram.propspace.app')) v(id,email);
   INSERT INTO users (id,tg_id,first_name,role) VALUES ('bbbbbbbb-0000-0000-0000-000000000058',NULL,'БезTG','owner');
   INSERT INTO databases (id,owner_id,name,type) VALUES
     ('cccccccc-0000-0000-0000-000000000058','bbbbbbbb-0000-0000-0000-000000000058','База безTG','business_center');
@@ -334,7 +411,9 @@ END $$;
 DO $$
 DECLARE n INT;
 BEGIN
-  INSERT INTO auth.users (id,email) VALUES ('aaaaaaaa-0000-0000-0000-000000000065','777065@telegram.propspace.app');
+  INSERT INTO auth.users (id,email,email_confirmed_at,raw_app_meta_data)
+    SELECT v.id::uuid, v.email, now(), jsonb_build_object('tg_id', split_part(v.email,'@',1))
+      FROM (VALUES ('aaaaaaaa-0000-0000-0000-000000000065','777065@telegram.propspace.app')) v(id,email);
   INSERT INTO users (id,tg_id,first_name,role) VALUES ('bbbbbbbb-0000-0000-0000-000000000065',777065,'Лізинг','owner');
   INSERT INTO databases (id,owner_id,name,type) VALUES
     ('cccccccc-0000-0000-0000-000000000065','bbbbbbbb-0000-0000-0000-000000000065','База 065','business_center');
@@ -750,6 +829,12 @@ END $$;
 -- журнал, що мовчить завжди, пройшов би всі «не записав зайвого».
 CREATE OR REPLACE FUNCTION pg_temp.as_user(p_tg BIGINT) RETURNS VOID
 LANGUAGE plpgsql AS $$ BEGIN
+  -- З 076 особу засвідчує обліковий запис, створений edge-функцією, а не
+  -- сам email у токені. Користувачі цього блоку сіються без нього, тож
+  -- «вхід» створює його тим самим шляхом, що й справжній перший вхід.
+  IF p_tg IS NOT NULL AND NOT EXISTS (SELECT 1 FROM auth.users WHERE email = p_tg || '@telegram.propspace.app') THEN
+    PERFORM auth.shim_create_user(NULL, p_tg || '@telegram.propspace.app');
+  END IF;
   PERFORM set_config('request.jwt.claims',
     CASE WHEN p_tg IS NULL THEN '' ELSE json_build_object('email', p_tg || '@telegram.propspace.app')::TEXT END,
     false);
@@ -935,8 +1020,10 @@ DECLARE
   r  RECORD;
   n  INT;
 BEGIN
-  INSERT INTO auth.users (id, email) VALUES
-    ('aaaaaaaa-0000-0000-0000-000000000741', '740002@telegram.propspace.app');
+  INSERT INTO auth.users (id,email,email_confirmed_at,raw_app_meta_data)
+    SELECT v.id::uuid, v.email, now(), jsonb_build_object('tg_id', split_part(v.email,'@',1))
+      FROM (VALUES
+    ('aaaaaaaa-0000-0000-0000-000000000741', '740002@telegram.propspace.app')) v(id,email);
   INSERT INTO users (id, tg_id, first_name, last_name, role) VALUES
     (o, 740001, 'Власник', 'Сімдесятчотири', 'owner'),
     (e, 740002, 'Олена', 'Стерта', 'realtor');
