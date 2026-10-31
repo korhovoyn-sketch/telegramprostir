@@ -18,10 +18,12 @@
 \set ON_ERROR_STOP on
 
 -- ── Дійові особи ────────────────────────────────────────────────────────────
-INSERT INTO auth.users (id,email) VALUES
+INSERT INTO auth.users (id,email,email_confirmed_at,raw_app_meta_data)
+    SELECT v.id::uuid, v.email, now(), jsonb_build_object('tg_id', split_part(v.email,'@',1))
+      FROM (VALUES
   ('e0000000-0000-0000-0000-00000000000a','900001@telegram.propspace.app'),  -- Аліса, власниця
   ('e0000000-0000-0000-0000-00000000000b','900002@telegram.propspace.app'),  -- Богдан, чужий власник
-  ('e0000000-0000-0000-0000-00000000000c','900003@telegram.propspace.app');  -- Клим, рієлтор/гість
+  ('e0000000-0000-0000-0000-00000000000c','900003@telegram.propspace.app')) v(id,email);  -- Клим, рієлтор/гість
 INSERT INTO users (id,tg_id,first_name,role) VALUES
   ('a0000000-0000-0000-0000-00000000000a',900001,'Аліса','owner'),
   ('a0000000-0000-0000-0000-00000000000b',900002,'Богдан','owner'),
@@ -36,6 +38,13 @@ INSERT INTO properties (id,db_id,owner_id,name,status,tenant_name,share_token) V
 
 CREATE OR REPLACE FUNCTION pg_temp.login(p_email TEXT) RETURNS VOID
 LANGUAGE plpgsql AS $$ BEGIN
+  -- З 076 особу засвідчує обліковий запис, створений edge-функцією, а не сам
+  -- email у токені. Частина блоків сіє лише профіль, тож «вхід» створює
+  -- запис тим самим шляхом, що й справжній перший вхід. Самозванця (запис
+  -- БЕЗ засвідчення) це не чіпає: рядок із таким email уже є.
+  IF NOT EXISTS (SELECT 1 FROM auth.users WHERE email = p_email) THEN
+    PERFORM auth.shim_create_user(NULL, p_email);
+  END IF;
   PERFORM set_config('request.jwt.claims', json_build_object('email',p_email)::TEXT, false);
   PERFORM set_config('request.jwt.claim.sub', '', false);
   -- `auth.role()` у шимі читає ОКРЕМИЙ клейм, і доти його не виставляв ніхто.
@@ -351,7 +360,9 @@ BEGIN
   -- `property_views.viewer_id` (NO ACTION — саме тому `delete_my_account`
   -- знеособлює його ПЕРЕД видаленням, інакше одна переглядова позначка
   -- блокувала б видалення акаунта).
-  INSERT INTO auth.users (id,email) VALUES ('e1000000-0000-0000-0000-000000000001','910001@telegram.propspace.app');
+  INSERT INTO auth.users (id,email,email_confirmed_at,raw_app_meta_data)
+    SELECT v.id::uuid, v.email, now(), jsonb_build_object('tg_id', split_part(v.email,'@',1))
+      FROM (VALUES ('e1000000-0000-0000-0000-000000000001','910001@telegram.propspace.app')) v(id,email);
   INSERT INTO users (id,tg_id,first_name,role) VALUES ('a1000000-0000-0000-0000-000000000001',910001,'Каскад','owner');
   INSERT INTO databases (id,owner_id,name,type) VALUES ('d1000000-0000-0000-0000-000000000001','a1000000-0000-0000-0000-000000000001','Каскадна','business_center');
   INSERT INTO property_folders (id,db_id,owner_id,name) VALUES ('90000000-0000-0000-0000-000000000001','d1000000-0000-0000-0000-000000000001','a1000000-0000-0000-0000-000000000001','Папка');
@@ -411,9 +422,11 @@ BEGIN
   -- мертвий лінк). Тут перевіряються ДВА входи, які досі не виконувались
   -- жодного разу, і ОБИДВА — парою з позитивом: «not_found» однаково
   -- пояснюється і правильною відмовою, і зламаною функцією.
-  INSERT INTO auth.users (id,email) VALUES
+  INSERT INTO auth.users (id,email,email_confirmed_at,raw_app_meta_data)
+    SELECT v.id::uuid, v.email, now(), jsonb_build_object('tg_id', split_part(v.email,'@',1))
+      FROM (VALUES
     ('e2000000-0000-0000-0000-000000000001','920001@telegram.propspace.app'),
-    ('e2000000-0000-0000-0000-000000000002','920002@telegram.propspace.app');
+    ('e2000000-0000-0000-0000-000000000002','920002@telegram.propspace.app')) v(id,email);
   INSERT INTO users (id,tg_id,first_name,role) VALUES
     ('a2000000-0000-0000-0000-000000000001',920001,'Власник2','owner'),
     ('a2000000-0000-0000-0000-000000000002',920002,'Рієлтор2','realtor');
@@ -463,7 +476,9 @@ BEGIN
   -- перевірки її проходили, бо виходили з функції раніше. Отже кожен RPC,
   -- виданий anon/authenticated, мусить бути ВИКЛИКАНИЙ там, де він має
   -- ПРАЦЮВАТИ, а не лише там, де має відмовити.
-  INSERT INTO auth.users (id,email) VALUES ('e3000000-0000-0000-0000-000000000001','930001@telegram.propspace.app');
+  INSERT INTO auth.users (id,email,email_confirmed_at,raw_app_meta_data)
+    SELECT v.id::uuid, v.email, now(), jsonb_build_object('tg_id', split_part(v.email,'@',1))
+      FROM (VALUES ('e3000000-0000-0000-0000-000000000001','930001@telegram.propspace.app')) v(id,email);
   INSERT INTO users (id,tg_id,first_name,role) VALUES ('a3000000-0000-0000-0000-000000000001',930001,'Свіп','realtor');
   INSERT INTO databases (id,owner_id,name,type,share_token) VALUES
     ('d3000000-0000-0000-0000-000000000001','a2000000-0000-0000-0000-000000000001','Свіп-база','business_center','tok_sweep_db');
@@ -547,7 +562,9 @@ BEGIN
   -- чернеткою, тож превʼю віддавало нуль рядків з іншої причини). На
   -- ОПУБЛІКОВАНІЙ підбірці вона підтвердилась: рієлтор публікував назву,
   -- ціну й фото чужого обʼєкта поруч зі СВОЇМИ контактами.
-  INSERT INTO auth.users (id,email) VALUES ('e9000000-0000-0000-0000-000000000001','940001@telegram.propspace.app');
+  INSERT INTO auth.users (id,email,email_confirmed_at,raw_app_meta_data)
+    SELECT v.id::uuid, v.email, now(), jsonb_build_object('tg_id', split_part(v.email,'@',1))
+      FROM (VALUES ('e9000000-0000-0000-0000-000000000001','940001@telegram.propspace.app')) v(id,email);
   INSERT INTO users (id,tg_id,first_name,role) VALUES ('a9000000-0000-0000-0000-000000000001',940001,'ЖертваК','owner');
   INSERT INTO databases (id,owner_id,name,type,share_token) VALUES
     ('d9000000-0000-0000-0000-000000000001','a9000000-0000-0000-0000-000000000001','База жертви','business_center','tok_victim9');
@@ -787,8 +804,10 @@ END $$;
 -- Кожна перевірка тут ПАРНА. «Редактор не пише в чужу базу» саме по собі
 -- однаково пояснюється і правильною політикою, і політикою, що не пускає
 -- нікуди — рівно та пастка, на якій свого часу спалився storage-гард.
-INSERT INTO auth.users (id,email) VALUES
-  ('e0000000-0000-0000-0000-0000000630ed','963001@telegram.propspace.app');
+INSERT INTO auth.users (id,email,email_confirmed_at,raw_app_meta_data)
+    SELECT v.id::uuid, v.email, now(), jsonb_build_object('tg_id', split_part(v.email,'@',1))
+      FROM (VALUES
+  ('e0000000-0000-0000-0000-0000000630ed','963001@telegram.propspace.app')) v(id,email);
 INSERT INTO users (id,tg_id,first_name,role) VALUES
   ('a0000000-0000-0000-0000-0000000630ed',963001,'Едіт-редактор','owner');
 INSERT INTO db_members (db_id,user_id,status,member_name) VALUES
@@ -1141,12 +1160,14 @@ END $$;
 -- знайдено ВИКОНАННЯМ, а не читанням. Кожна перевірка має три сторони: що
 -- мусить змінитись, що мусить ЛИШИТИСЬ (антигард на надто широкий фікс), і
 -- позитив, без якого «нуль» нічого не доводить.
-INSERT INTO auth.users (id,email) VALUES
+INSERT INTO auth.users (id,email,email_confirmed_at,raw_app_meta_data)
+    SELECT v.id::uuid, v.email, now(), jsonb_build_object('tg_id', split_part(v.email,'@',1))
+      FROM (VALUES
   ('e6900000-0000-0000-0000-000000000001','969001@telegram.propspace.app'),
   ('e6900000-0000-0000-0000-000000000002','969002@telegram.propspace.app'),
   ('e6900000-0000-0000-0000-000000000003','969003@telegram.propspace.app'),
   ('e6900000-0000-0000-0000-000000000004','969004@telegram.propspace.app'),
-  ('e6900000-0000-0000-0000-000000000005','969005@telegram.propspace.app');
+  ('e6900000-0000-0000-0000-000000000005','969005@telegram.propspace.app')) v(id,email);
 INSERT INTO users (id,tg_id,first_name,role) VALUES
   ('a6900000-0000-0000-0000-000000000001',969001,'Власник69','owner'),
   ('a6900000-0000-0000-0000-000000000002',969002,'Рієлтор69','realtor'),
@@ -1265,11 +1286,13 @@ END $$;
 -- Правило 11 на новій таблиці: знати `record_id` чужого періоду НЕ досить.
 -- Кожна відмова має пару-позитив — без неї «нуль» означав би й «відмовили
 -- всім» (той клас уже коштував раунду на storage, 054).
-INSERT INTO auth.users (id,email) VALUES
+INSERT INTO auth.users (id,email,email_confirmed_at,raw_app_meta_data)
+    SELECT v.id::uuid, v.email, now(), jsonb_build_object('tg_id', split_part(v.email,'@',1))
+      FROM (VALUES
   ('e7100000-0000-0000-0000-000000000001','971001@telegram.propspace.app'),
   ('e7100000-0000-0000-0000-000000000002','971002@telegram.propspace.app'),
   ('e7100000-0000-0000-0000-000000000003','971003@telegram.propspace.app'),
-  ('e7100000-0000-0000-0000-000000000004','971004@telegram.propspace.app');
+  ('e7100000-0000-0000-0000-000000000004','971004@telegram.propspace.app')) v(id,email);
 INSERT INTO users (id,tg_id,first_name,role) VALUES
   ('a7100000-0000-0000-0000-000000000001',971001,'Власник71','owner'),
   ('a7100000-0000-0000-0000-000000000002',971002,'Чужий71','owner'),
@@ -1371,11 +1394,13 @@ END $$;
 -- ════════════════════════════════════════════════════════════════════════════
 -- Позитив на кожну відмову: «історію не змінити» нічого не варте, якщо тригер
 -- теж перестав її писати (той клас 068 перевіряв окремо — тут так само).
-INSERT INTO auth.users (id,email) VALUES
+INSERT INTO auth.users (id,email,email_confirmed_at,raw_app_meta_data)
+    SELECT v.id::uuid, v.email, now(), jsonb_build_object('tg_id', split_part(v.email,'@',1))
+      FROM (VALUES
   ('e7200000-0000-0000-0000-000000000001','972001@telegram.propspace.app'),
   ('e7200000-0000-0000-0000-000000000002','972002@telegram.propspace.app'),
   ('e7200000-0000-0000-0000-000000000003','972003@telegram.propspace.app'),
-  ('e7200000-0000-0000-0000-000000000004','972004@telegram.propspace.app');
+  ('e7200000-0000-0000-0000-000000000004','972004@telegram.propspace.app')) v(id,email);
 INSERT INTO users (id,tg_id,first_name,role) VALUES
   ('a7200000-0000-0000-0000-000000000001',972001,'Власник72','owner'),
   ('a7200000-0000-0000-0000-000000000002',972002,'Чужий72','owner'),
@@ -1478,11 +1503,13 @@ END $$;
 -- 073: ЖУРНАЛ ЗМІН — бачать власник і редактор; ПИСАТИ не може ніхто з
 -- клієнтів; дії редактора під RLS записуються з його іменем
 -- ════════════════════════════════════════════════════════════════════════════
-INSERT INTO auth.users (id,email) VALUES
+INSERT INTO auth.users (id,email,email_confirmed_at,raw_app_meta_data)
+    SELECT v.id::uuid, v.email, now(), jsonb_build_object('tg_id', split_part(v.email,'@',1))
+      FROM (VALUES
   ('e7300000-0000-0000-0000-000000000001','973001@telegram.propspace.app'),
   ('e7300000-0000-0000-0000-000000000002','973002@telegram.propspace.app'),
   ('e7300000-0000-0000-0000-000000000003','973003@telegram.propspace.app'),
-  ('e7300000-0000-0000-0000-000000000004','973004@telegram.propspace.app');
+  ('e7300000-0000-0000-0000-000000000004','973004@telegram.propspace.app')) v(id,email);
 INSERT INTO users (id,tg_id,first_name,role) VALUES
   ('a7300000-0000-0000-0000-000000000001',973001,'Власник73','owner'),
   ('a7300000-0000-0000-0000-000000000002',973002,'Чужий73','owner'),

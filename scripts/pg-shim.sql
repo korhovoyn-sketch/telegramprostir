@@ -18,11 +18,29 @@ DO $$ BEGIN
   CREATE ROLE authenticator NOINHERIT NOLOGIN; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
 
--- auth.users: міграції читають email і id.
+-- auth.users: міграції читають email і id; з 076 — ще й засвідчення особи.
+-- `raw_app_meta_data` пише лише адмін-API (службовий ключ), тобто наша
+-- edge-функція; рядок, вставлений без нього, моделює акаунт, створений НЕ
+-- нею (самореєстрація, зміна email) — саме таким він і мусить лишатись.
 CREATE TABLE IF NOT EXISTS auth.users (
   id    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  email TEXT UNIQUE
+  email TEXT UNIQUE,
+  raw_app_meta_data  JSONB,
+  email_confirmed_at TIMESTAMPTZ,
+  is_anonymous       BOOLEAN NOT NULL DEFAULT false
 );
+-- Що робить edge-функція `telegram-auth` при створенні користувача:
+-- `admin.createUser({ email, email_confirm: true, app_metadata: { tg_id } })`.
+-- Перевірки сіють своїх користувачів цією функцією, а не голим INSERT, —
+-- інакше вони моделювали б не наших користувачів, а самозванців.
+CREATE OR REPLACE FUNCTION auth.shim_create_user(p_id UUID, p_email TEXT) RETURNS UUID
+LANGUAGE sql AS $$
+  INSERT INTO auth.users (id, email, email_confirmed_at, raw_app_meta_data)
+  VALUES (COALESCE(p_id, gen_random_uuid()), p_email, now(),
+          CASE WHEN p_email ~ '^\d{1,20}@telegram\.propspace\.app$'
+               THEN jsonb_build_object('tg_id', split_part(p_email, '@', 1)) END)
+  RETURNING id
+$$;
 
 -- auth.uid()/auth.role() — у проді їх дає GoTrue через JWT-клейми.
 CREATE OR REPLACE FUNCTION auth.uid() RETURNS UUID

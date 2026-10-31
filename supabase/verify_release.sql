@@ -480,7 +480,26 @@ WITH checks(ord, item, migration, ok) AS (VALUES
          FROM pg_proc l JOIN pg_namespace ln ON ln.oid = l.pronamespace AND ln.nspname = 'public'
          JOIN pg_proc c ON c.prosrc LIKE '%log_db_activity(%' AND c.oid <> l.oid
          JOIN pg_namespace cn ON cn.oid = c.pronamespace AND cn.nspname = 'public'
-        WHERE l.proname = 'log_db_activity'))
+        WHERE l.proname = 'log_db_activity')),
+
+  -- 076: особу засвідчує app_metadata, яку пише лише службовий ключ. Без
+  -- цього email у токені — єдине джерело особи, а його можна обрати самому
+  -- (самореєстрація в Auth, зміна email, анонімний вхід + зміна email).
+  (75, 'особа засвідчується сервером (app_metadata), а не лише email', '076_identity_server_provenance.sql',
+      (SELECT count(*) = 2 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace AND n.nspname = 'public'
+        WHERE p.proname IN ('current_app_user_id', 'get_app_user_id_from_auth_uid')
+          AND p.prosrc LIKE '%raw_app_meta_data%')),
+
+  -- 076, друга половина: жоден справжній користувач не лишився без
+  -- засвідчення — інакше він тихо бачить порожній застосунок. ❌ тут після
+  -- накату означає, що edge-функцію `telegram-auth` не передеплоєно (стара
+  -- версія створює нових користувачів без app_metadata).
+  (76, 'усі користувачі входу засвідчені (app_metadata.tg_id)', '076_identity_server_provenance.sql',
+      NOT EXISTS (SELECT 1 FROM auth.users au
+                   WHERE au.email ~ '^\d{1,20}@telegram\.propspace\.app$'
+                     AND au.email_confirmed_at IS NOT NULL
+                     AND EXISTS (SELECT 1 FROM public.users u WHERE u.tg_id::text = split_part(au.email, '@', 1))
+                     AND au.raw_app_meta_data->>'tg_id' IS DISTINCT FROM split_part(au.email, '@', 1)))
 )
 SELECT
   CASE WHEN ok THEN '✅ OK     ' ELSE '❌ MISSING' END AS status,

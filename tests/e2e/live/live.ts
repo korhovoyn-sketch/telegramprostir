@@ -37,8 +37,11 @@ ins AS (
   SELECT ${p.tg_id}, ${lit(p.username)}, ${lit(p.first_name)}, ${lit(p.language_code ?? 'uk')}, 'owner'
    WHERE NOT EXISTS (SELECT 1 FROM ex) RETURNING id),
 au AS (
-  INSERT INTO auth.users (email) VALUES ('${emailOf(p.tg_id)}')
-  ON CONFLICT (email) DO UPDATE SET email = EXCLUDED.email RETURNING id)
+  -- Те, що робить admin.createUser у edge-функції: підтверджений email і
+  -- app_metadata.tg_id, без якого 076 не визнає особу.
+  INSERT INTO auth.users (email, email_confirmed_at, raw_app_meta_data)
+  VALUES ('${emailOf(p.tg_id)}', now(), jsonb_build_object('tg_id', '${p.tg_id}'))
+  ON CONFLICT (email) DO UPDATE SET raw_app_meta_data = EXCLUDED.raw_app_meta_data RETURNING id)
 SELECT json_build_object('is_new', NOT EXISTS (SELECT 1 FROM ex), 'auth_id', (SELECT id FROM au));`)
   const { is_new, auth_id } = JSON.parse(out.trim())
   const row = JSON.parse((await psql(LIVE, `SELECT row_to_json(u) FROM (SELECT id,tg_id,tg_username,first_name,last_name,email,phone,role,language_code,currency,plan,notification_push,notification_weekly,notification_views,created_at,updated_at FROM users WHERE tg_id = ${p.tg_id}) u;`)).trim())

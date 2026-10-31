@@ -37,6 +37,23 @@ describe('edge-функції на місці', () => {
 describe('telegram-auth', () => {
   const src = read('telegram-auth')
 
+  // 076: особу засвідчує app_metadata.tg_id, і пише її лише ця функція.
+  it('кожен createUser ставить app_metadata.tg_id', () => {
+    const calls = [...src.matchAll(/auth\.admin\.createUser\(\{([\s\S]*?)\}\)/g)]
+    expect(calls.length, 'createUser зник — тест мовчав би').toBeGreaterThan(0)
+    for (const c of calls) expect(c[1], 'createUser без app_metadata — новий користувач не засвідчений і бачить порожній застосунок').toMatch(/app_metadata/)
+  })
+
+  it('чужий запис на email користувача видаляється, а не успадковується', () => {
+    // Раніше «невірний пароль» лікувався зміною пароля ЧУЖОГО запису: справжній
+    // користувач успадковував акаунт самозванця разом із його живими сесіями.
+    expect(src, 'updateUserById змінює пароль — так успадковується чужий запис').not.toMatch(/updateUserById\([^)]*\{\s*password/)
+    expect(src).toMatch(/auth\.admin\.deleteUser\(/)
+    // схема auth через REST не публікується — пошук іде службовою функцією
+    expect(src).not.toMatch(/\.schema\(\s*['"]auth['"]\s*\)/)
+    expect(src).toMatch(/rpc\(\s*'auth_user_id_by_email'/)
+  })
+
   it('рейт-лімітер ЧИТАЄ error і відмовляє на ньому (fails closed)', () => {
     // supabase-js РЕЗОЛВИТЬ збій запиту як `{data: null, error}` і не кидає, тож
     // catch його не ловить. Поки `error` не читався, будь-яка невдача давала
@@ -225,6 +242,17 @@ describe('діагностика конфігурації лишається д�
    * токен бота провалює HMAC, тобто вхід мертвий, а `!!` показував здоровий
    * прапорець.
    */
+  // GET діагностики публічний і без лімітера: без кешу кожен чужий запит
+  // ставав запитом до Bot API від імені нашого бота, тобто бота можна було
+  // довести до флуд-ліміту Telegram і зупинити нагадування.
+  it('проби діагностики кешуються, а не біжать на кожен публічний запит', () => {
+    const src = read('telegram-auth')
+    expect(src).toMatch(/const PROBE_TTL_MS = \d/)
+    expect(src, 'getMe мусить біжати лише без свіжого кешу').toMatch(/if \(!cached && checks\.bot_token\)/)
+    expect(src, 'запит у БД службовим ключем — теж').toMatch(/if \(!cached && allOk\)/)
+    expect(src).toMatch(/probeCache = \{ at: Date\.now\(\)/)
+  })
+
   it('валідність токена бота ПЕРЕВІРЯЄТЬСЯ, а не декларується', () => {
     const src = read('telegram-auth')
     expect(src, 'зникла проба getMe — `!!` знову каже лише «задано»')
@@ -237,7 +265,7 @@ describe('діагностика конфігурації лишається д�
     expect(src, 'хибний токен мусить валити ok, інакше проба нічого не міняє')
       .toMatch(/botTokenValid !== false/)
     expect(src, 'невідомий результат (мережа) НЕ сміє читатись як «зламано»')
-      .toMatch(/let botTokenValid: boolean \| null = null/)
+      .toMatch(/let botTokenValid: boolean \| null = (?:cached \? cached\.botTokenValid : )?null/)
     // `r.ok` звело б «токен недійсний» і «Telegram зараз відмовляє» в одне
     // `false`, а ціна помилки несиметрична: оператор іде ротувати РОБОЧИЙ
     // токен за хибним діагнозом.

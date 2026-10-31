@@ -12,8 +12,10 @@ DECLARE
   r RECORD; n INT;
 BEGIN
   -- ── Фікстура: власник, база, обʼєкт, два фото (одне БЕЗ файлу), документ ──
-  INSERT INTO auth.users (id,email) VALUES
-    ('11111111-1111-1111-1111-111111111111','777001@telegram.propspace.app');
+  INSERT INTO auth.users (id,email,email_confirmed_at,raw_app_meta_data)
+    SELECT v.id::uuid, v.email, now(), jsonb_build_object('tg_id', split_part(v.email,'@',1))
+      FROM (VALUES
+    ('11111111-1111-1111-1111-111111111111','777001@telegram.propspace.app')) v(id,email);
   INSERT INTO users (id,tg_id,first_name,role) VALUES
     ('22222222-2222-2222-2222-222222222222',777001,'Тест','owner');
   INSERT INTO databases (id,owner_id,name,type) VALUES
@@ -92,7 +94,9 @@ DECLARE
   v JSONB; n INT;
 BEGIN
   -- ── 050: форма JSON гостьового превʼю ──────────────────────────────────
-  INSERT INTO auth.users (id,email) VALUES ('aaaaaaaa-0000-0000-0000-000000000001','777003@telegram.propspace.app');
+  INSERT INTO auth.users (id,email,email_confirmed_at,raw_app_meta_data)
+    SELECT v.id::uuid, v.email, now(), jsonb_build_object('tg_id', split_part(v.email,'@',1))
+      FROM (VALUES ('aaaaaaaa-0000-0000-0000-000000000001','777003@telegram.propspace.app')) v(id,email);
   INSERT INTO users (id,tg_id,first_name,role) VALUES ('bbbbbbbb-0000-0000-0000-000000000001',777003,'Микола','owner');
   INSERT INTO databases (id,owner_id,name,type,color) VALUES
     ('cccccccc-0000-0000-0000-000000000001','bbbbbbbb-0000-0000-0000-000000000001','БЦ Рубін','business_center','blue');
@@ -130,7 +134,9 @@ DO $$
 DECLARE v JSONB; nm TEXT;
 BEGIN
   -- ── 048: клейм записує імʼя гостя ──────────────────────────────────────
-  INSERT INTO auth.users (id,email) VALUES ('aaaaaaaa-0000-0000-0000-000000000002','777004@telegram.propspace.app');
+  INSERT INTO auth.users (id,email,email_confirmed_at,raw_app_meta_data)
+    SELECT v.id::uuid, v.email, now(), jsonb_build_object('tg_id', split_part(v.email,'@',1))
+      FROM (VALUES ('aaaaaaaa-0000-0000-0000-000000000002','777004@telegram.propspace.app')) v(id,email);
   INSERT INTO users (id,tg_id,first_name,last_name,role) VALUES
     ('bbbbbbbb-0000-0000-0000-000000000002',777004,'Олена','Ковальчук','owner');
   PERFORM set_config('request.jwt.claims','{"email":"777004@telegram.propspace.app"}',false);
@@ -159,7 +165,9 @@ BEGIN
   -- таблиця `notifications`, яку наповнює лише ця пара, не могла отримати
   -- жодного рядка. Джерельний гард такого не бачить у принципі: обидва типи
   -- в тексті виглядають правильно, розходяться вони лише у виконанні.
-  INSERT INTO auth.users (id,email) VALUES ('aaaaaaaa-0000-0000-0000-000000000052','777052@telegram.propspace.app');
+  INSERT INTO auth.users (id,email,email_confirmed_at,raw_app_meta_data)
+    SELECT v.id::uuid, v.email, now(), jsonb_build_object('tg_id', split_part(v.email,'@',1))
+      FROM (VALUES ('aaaaaaaa-0000-0000-0000-000000000052','777052@telegram.propspace.app')) v(id,email);
   INSERT INTO users (id,tg_id,first_name,role) VALUES ('bbbbbbbb-0000-0000-0000-000000000052',777052,'Нагадувач','owner');
   INSERT INTO databases (id,owner_id,name,type) VALUES
     ('cccccccc-0000-0000-0000-000000000052','bbbbbbbb-0000-0000-0000-000000000052','База нагадувань','business_center');
@@ -296,7 +304,9 @@ BEGIN
   -- пише маркер дедуплікації (він пишеться лише на `res.ok`) — тобто той
   -- самий рядок віддається ЩОДНЯ до кінця місяця. Дефект досяжний рівно з
   -- моменту, коли 052 вмикає нагадування.
-  INSERT INTO auth.users (id,email) VALUES ('aaaaaaaa-0000-0000-0000-000000000058','777058@telegram.propspace.app');
+  INSERT INTO auth.users (id,email,email_confirmed_at,raw_app_meta_data)
+    SELECT v.id::uuid, v.email, now(), jsonb_build_object('tg_id', split_part(v.email,'@',1))
+      FROM (VALUES ('aaaaaaaa-0000-0000-0000-000000000058','777058@telegram.propspace.app')) v(id,email);
   INSERT INTO users (id,tg_id,first_name,role) VALUES ('bbbbbbbb-0000-0000-0000-000000000058',NULL,'БезTG','owner');
   INSERT INTO databases (id,owner_id,name,type) VALUES
     ('cccccccc-0000-0000-0000-000000000058','bbbbbbbb-0000-0000-0000-000000000058','База безTG','business_center');
@@ -401,7 +411,9 @@ END $$;
 DO $$
 DECLARE n INT;
 BEGIN
-  INSERT INTO auth.users (id,email) VALUES ('aaaaaaaa-0000-0000-0000-000000000065','777065@telegram.propspace.app');
+  INSERT INTO auth.users (id,email,email_confirmed_at,raw_app_meta_data)
+    SELECT v.id::uuid, v.email, now(), jsonb_build_object('tg_id', split_part(v.email,'@',1))
+      FROM (VALUES ('aaaaaaaa-0000-0000-0000-000000000065','777065@telegram.propspace.app')) v(id,email);
   INSERT INTO users (id,tg_id,first_name,role) VALUES ('bbbbbbbb-0000-0000-0000-000000000065',777065,'Лізинг','owner');
   INSERT INTO databases (id,owner_id,name,type) VALUES
     ('cccccccc-0000-0000-0000-000000000065','bbbbbbbb-0000-0000-0000-000000000065','База 065','business_center');
@@ -817,6 +829,12 @@ END $$;
 -- журнал, що мовчить завжди, пройшов би всі «не записав зайвого».
 CREATE OR REPLACE FUNCTION pg_temp.as_user(p_tg BIGINT) RETURNS VOID
 LANGUAGE plpgsql AS $$ BEGIN
+  -- З 076 особу засвідчує обліковий запис, створений edge-функцією, а не
+  -- сам email у токені. Користувачі цього блоку сіються без нього, тож
+  -- «вхід» створює його тим самим шляхом, що й справжній перший вхід.
+  IF p_tg IS NOT NULL AND NOT EXISTS (SELECT 1 FROM auth.users WHERE email = p_tg || '@telegram.propspace.app') THEN
+    PERFORM auth.shim_create_user(NULL, p_tg || '@telegram.propspace.app');
+  END IF;
   PERFORM set_config('request.jwt.claims',
     CASE WHEN p_tg IS NULL THEN '' ELSE json_build_object('email', p_tg || '@telegram.propspace.app')::TEXT END,
     false);
@@ -1002,8 +1020,10 @@ DECLARE
   r  RECORD;
   n  INT;
 BEGIN
-  INSERT INTO auth.users (id, email) VALUES
-    ('aaaaaaaa-0000-0000-0000-000000000741', '740002@telegram.propspace.app');
+  INSERT INTO auth.users (id,email,email_confirmed_at,raw_app_meta_data)
+    SELECT v.id::uuid, v.email, now(), jsonb_build_object('tg_id', split_part(v.email,'@',1))
+      FROM (VALUES
+    ('aaaaaaaa-0000-0000-0000-000000000741', '740002@telegram.propspace.app')) v(id,email);
   INSERT INTO users (id, tg_id, first_name, last_name, role) VALUES
     (o, 740001, 'Власник', 'Сімдесятчотири', 'owner'),
     (e, 740002, 'Олена', 'Стерта', 'realtor');

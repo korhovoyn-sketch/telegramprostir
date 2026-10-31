@@ -99,6 +99,23 @@ done
 $PSQL -d shadow_rls -f scripts/verify-rls.sql
 echo "✓ RLS-перевірки пройдено"
 
+# ── Пентест: перебір замість переліку ───────────────────────────────────────
+# verify-rls перевіряє ВІДОМІ сценарії. Пентест ходить УСІМА таблицями й
+# функціями від шести атакувальників (див. шапку scripts/pentest.sql) і
+# падає на всьому, чого нема в списку задуманого. Окрема чиста база: його
+# «рядки жертви» — це все, що не належить атакувальнику, і чужі залишки
+# попередніх перевірок зробили б підрахунок неточним.
+psql -h "$SOCK" -p $PORT -U postgres -q -c "CREATE DATABASE shadow_pt" >/dev/null
+$PSQL -d shadow_pt -f scripts/pg-shim.sql >/dev/null 2>&1
+for f in $(ls supabase/migrations/*.sql | sort); do
+  b=$(basename "$f"); case "$b" in 0041_*|009_*) continue;; esac
+  $PSQL -d shadow_pt -f "$f" >/dev/null 2>&1 || { echo "✗ (shadow_pt) $b"; exit 1; }
+done
+if ! out=$($PSQL -d shadow_pt -f scripts/pentest.sql 2>&1); then
+  echo "$out" | grep -E "❌|ERROR|вакуум" | head -40; exit 1
+fi
+echo "$out" | grep "✓ пентест"
+
 # ── Ремонтна половина 053 ───────────────────────────────────────────────────
 # 053 має ДВА боки (урок 046): політика — щоб нових підкиднів не було, і
 # переприсвоєння — щоб уже посаджені перестали діяти. Другий бік неможливо
