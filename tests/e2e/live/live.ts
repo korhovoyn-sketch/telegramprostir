@@ -141,7 +141,10 @@ SELECT COALESCE(current_app_user_id()::text, 'NULL') || '|' || COALESCE(get_app_
     if (req.method() === 'DELETE' && p.startsWith('object/')) {
       const bucket = p.replace('object/', '').split('/')[0]
       const names: string[] = JSON.parse(req.postData() ?? '{}').prefixes ?? []
-      const out = await psql(LIVE, `${prelude(claims)}WITH d AS (DELETE FROM storage.objects WHERE bucket_id = '${bucket}' AND name = ANY (ARRAY[${names.map((n) => `'${n.replace(/'/g, "''")}'`).join(',') || "''"}]::text[]) RETURNING name)
+      // Сервер Storage ставить прапорець захисту платформи сам перед своїм
+      // видаленням (pg-shim емулює тригер із проду), а відмову дає вже RLS.
+      const out = await psql(LIVE, `${prelude(claims)}SELECT set_config('storage.allow_delete_query', 'true', true);
+WITH d AS (DELETE FROM storage.objects WHERE bucket_id = '${bucket}' AND name = ANY (ARRAY[${names.map((n) => `'${n.replace(/'/g, "''")}'`).join(',') || "''"}]::text[]) RETURNING name)
 SELECT COALESCE(json_agg(json_build_object('name', name)), '[]'::json) FROM d; COMMIT;`)
       return json(r, JSON.parse(out.trim().split('\n').pop() || '[]'))
     }

@@ -73,6 +73,19 @@ describe('telegram-auth', () => {
       .toMatch(/if\s*\(\s*!decision\.allow\s*\)\s*return\s+false/)
   })
 
+  it('рейт-лімітер іде ПЕРШИМ атомарним запитом, старий шлях — лише запасний (077)', () => {
+    const fn = src.slice(src.indexOf('async function checkRateLimit'))
+      .slice(0, src.slice(src.indexOf('async function checkRateLimit')).indexOf('\n}\n') + 3)
+    const rpcAt = fn.search(/rpc\(\s*'rate_limit_hit'/)
+    const legacyAt = fn.indexOf(".from('rate_limits')")
+    expect(rpcAt, 'атомарний лімітер не викликається').toBeGreaterThan(-1)
+    expect(rpcAt, 'старий read-then-write стоїть РАНІШЕ за атомарний').toBeLessThan(legacyAt)
+    // Відповідь атомарного шляху — через тестований модуль, і її результат
+    // повертається ДО старого шляху: інакше обидва працювали б одночасно.
+    expect(fn).toMatch(/atomicDecision\(\s*hit\s*,\s*hitErr\s*\)/)
+    expect(fn).toMatch(/if\s*\(\s*atomic\s*!==\s*'fallback'\s*\)\s*return\s+atomic\s*===\s*'allow'/)
+  })
+
   it('tg_id іде в запит числом, а не рядком', () => {
     // BIGINT-колонка відкидає порівняння з рядком — колись це ламало вхід.
     expect(src).toMatch(/parseInt\(\s*tgUser\.id\s*,\s*10\s*\)/)

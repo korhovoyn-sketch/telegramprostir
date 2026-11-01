@@ -499,7 +499,35 @@ WITH checks(ord, item, migration, ok) AS (VALUES
                    WHERE au.email ~ '^\d{1,20}@telegram\.propspace\.app$'
                      AND au.email_confirmed_at IS NOT NULL
                      AND EXISTS (SELECT 1 FROM public.users u WHERE u.tg_id::text = split_part(au.email, '@', 1))
-                     AND au.raw_app_meta_data->>'tg_id' IS DISTINCT FROM split_part(au.email, '@', 1)))
+                     AND au.raw_app_meta_data->>'tg_id' IS DISTINCT FROM split_part(au.email, '@', 1))),
+
+  -- 077: платформа тримає на storage.objects статементний тригер, що кидає
+  -- 42501 на будь-який прямий DELETE без прапорця, — навіть на нуль рядків.
+  -- Без прапорця самостійне видалення акаунта падало в КОЖНОГО.
+  (77, 'видалення акаунта проходить захист сховища платформи', '077_storage_purge_and_rate_limit.sql',
+      (SELECT COALESCE(bool_or(p.prosrc LIKE '%storage.allow_delete_query%'), false)
+         FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace AND n.nspname = 'public'
+        WHERE p.proname = 'delete_my_account')),
+
+  -- 077: файли видаленого обʼєкта прибирає тригер. Політика сховища після
+  -- каскаду обʼєкта вже не впізнає, тож клієнтське прибирання не матчить
+  -- нічого — і фото лишались у публічному бакеті. Власник функції мусить
+  -- обходити RLS, інакше DELETE тихо не бачитиме жодного файлу.
+  (78, 'файли видаленого обʼєкта зникають разом із ним', '077_storage_purge_and_rate_limit.sql',
+      EXISTS (SELECT 1 FROM pg_trigger t
+                JOIN pg_proc f ON f.oid = t.tgfoid
+                JOIN pg_roles o ON o.oid = f.proowner
+               WHERE t.tgrelid = to_regclass('public.properties')
+                 AND t.tgname = 'trg_purge_deleted_property_files'
+                 AND t.tgenabled <> 'D' AND f.prosecdef AND o.rolbypassrls)),
+
+  -- 077: лімітер входу одним атомарним запитом і лише для службового ключа.
+  (79, 'лімітер входу атомарний і лише для службового ключа', '077_storage_purge_and_rate_limit.sql',
+      (SELECT COALESCE((SELECT has_function_privilege('service_role', p.oid, 'EXECUTE')
+                               AND NOT has_function_privilege('anon', p.oid, 'EXECUTE')
+                               AND NOT has_function_privilege('authenticated', p.oid, 'EXECUTE')
+                          FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace AND n.nspname = 'public'
+                         WHERE p.proname = 'rate_limit_hit' LIMIT 1), false)))
 )
 SELECT
   CASE WHEN ok THEN '✅ OK     ' ELSE '❌ MISSING' END AS status,

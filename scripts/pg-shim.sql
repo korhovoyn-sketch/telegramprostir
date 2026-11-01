@@ -105,3 +105,28 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public
 GRANT USAGE ON SCHEMA storage TO anon, authenticated, service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON storage.objects TO anon, authenticated, service_role;
 GRANT SELECT ON storage.buckets TO anon, authenticated, service_role;
+
+-- Захист платформи від ПРЯМОГО видалення з таблиць сховища — дослівно як у
+-- проді (`storage.protect_delete`). Тригер статементний, тож кидає 42501 на
+-- будь-який DELETE без прапорця, навіть на нуль рядків. Сервер Storage ставить
+-- `storage.allow_delete_query` сам перед своїми видаленнями; SQL-функція
+-- мусить зробити це явно. Без цієї емуляції стенд показував
+-- `delete_my_account()` робочою, а в проді вона падала для КОЖНОГО (лікує 077).
+-- Звідси правило для перевірок: шлях, що МОДЕЛЮЄ Storage API (видалення фото
+-- користувачем), ставить прапорець сам; прямий SQL — ні.
+CREATE OR REPLACE FUNCTION storage.protect_delete() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+  IF COALESCE(current_setting('storage.allow_delete_query', true), 'false') != 'true' THEN
+    RAISE EXCEPTION 'Direct deletion from storage tables is not allowed. Use the Storage API instead.'
+      USING HINT = 'This prevents accidental data loss from orphaned objects.',
+            ERRCODE = '42501';
+  END IF;
+  RETURN NULL;
+END $$;
+DROP TRIGGER IF EXISTS protect_objects_delete ON storage.objects;
+CREATE TRIGGER protect_objects_delete BEFORE DELETE ON storage.objects
+  FOR EACH STATEMENT EXECUTE FUNCTION storage.protect_delete();
+DROP TRIGGER IF EXISTS protect_buckets_delete ON storage.buckets;
+CREATE TRIGGER protect_buckets_delete BEFORE DELETE ON storage.buckets
+  FOR EACH STATEMENT EXECUTE FUNCTION storage.protect_delete();

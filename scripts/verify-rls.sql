@@ -330,6 +330,10 @@ BEGIN
   SET LOCAL ROLE authenticated;
   PERFORM set_config('request.jwt.claims', '', true);
   PERFORM set_config('request.jwt.claim.sub', 'e0000000-0000-0000-0000-00000000000a', true);
+  -- Видалення фото користувачем іде через Storage API, а той ставить прапорець
+  -- захисту платформи сам (pg-shim). Без нього тут спрацював би тригер, а не
+  -- політика, — тобто перевірка проходила б із хибної причини.
+  PERFORM set_config('storage.allow_delete_query', 'true', true);
 
   DELETE FROM storage.objects WHERE name = 'f0000000-0000-0000-0000-00000000000a/mine.jpg';
   GET DIAGNOSTICS n = ROW_COUNT;
@@ -1590,4 +1594,53 @@ BEGIN
 
   PERFORM set_config('request.jwt.claims', '', false);
   RAISE NOTICE '  ✓ 073: журнал пишуть лише тригери з іменем того, хто діяв; бачать власник і редактор';
+END $$;
+
+DO $$
+DECLARE
+  n   INT;
+  da  UUID := 'd0000000-0000-0000-0000-00000000077a';
+  pa  UUID := 'f0000000-0000-0000-0000-00000000077a';
+  pb  UUID := 'f0000000-0000-0000-0000-00000000077b';
+BEGIN
+  -- ── 077: файли видаленого обʼєкта — під тими самими правами, що й рядок ──
+  -- Тригер прибирання — SECURITY DEFINER, тобто обходить RLS сховища. Безпечно
+  -- це рівно тому, що він бачить ЛИШЕ рядки, які RLS дала видалити. Тут —
+  -- обидві половини: чужий DELETE не видаляє ні рядка, ні файлів; свій під
+  -- `authenticated` прибирає файли, хоча політика сховища після каскаду вже
+  -- не впізнала б обʼєкт.
+  INSERT INTO databases (id,owner_id,name,type) VALUES
+    (da,'a0000000-0000-0000-0000-00000000000a','База 077','business_center');
+  INSERT INTO properties (id,db_id,owner_id,name) VALUES
+    (pa, da,'a0000000-0000-0000-0000-00000000000a','Офіс 077'),
+    (pb,'d0000000-0000-0000-0000-00000000000b','a0000000-0000-0000-0000-00000000000b','Офіс 077 Богдана');
+  INSERT INTO storage.objects (bucket_id,name) VALUES
+    ('photos', pa || '/a.jpg'), ('property-files', pa || '/d.pdf'), ('photos', pb || '/b.jpg');
+
+  -- Богдан намагається видалити обʼєкт Аліси.
+  PERFORM pg_temp.login('900002@telegram.propspace.app');
+  SET LOCAL ROLE authenticated;
+  DELETE FROM properties WHERE id = pa;
+  GET DIAGNOSTICS n = ROW_COUNT;
+  RESET ROLE;
+  IF n <> 0 THEN RAISE EXCEPTION '077: Богдан видалив обʼєкт Аліси'; END IF;
+  SELECT count(*) INTO n FROM storage.objects WHERE name LIKE pa || '/%';
+  IF n <> 2 THEN RAISE EXCEPTION '077: заблоковане видалення стерло % файлів Аліси', 2 - n; END IF;
+
+  -- Аліса видаляє свій — файли йдуть разом із ним; файл Богдана цілий.
+  PERFORM pg_temp.login('900001@telegram.propspace.app');
+  SET LOCAL ROLE authenticated;
+  DELETE FROM properties WHERE id = pa;
+  GET DIAGNOSTICS n = ROW_COUNT;
+  RESET ROLE;
+  IF n <> 1 THEN RAISE EXCEPTION '077: Аліса не видалила власний обʼєкт (% рядків)', n; END IF;
+  SELECT count(*) INTO n FROM storage.objects WHERE name LIKE pa || '/%';
+  IF n <> 0 THEN RAISE EXCEPTION '077: файли видаленого обʼєкта лишились у сховищі (%)', n; END IF;
+  SELECT count(*) INTO n FROM storage.objects WHERE name LIKE pb || '/%';
+  IF n <> 1 THEN RAISE EXCEPTION '077: видалення Аліси зачепило файл Богдана'; END IF;
+
+  DELETE FROM properties WHERE id = pb;
+  DELETE FROM databases WHERE id = da;
+  PERFORM set_config('request.jwt.claims', '', false);
+  RAISE NOTICE '  ✓ 077: файли прибирає лише видалення, яке RLS пропустила; чужі цілі';
 END $$;

@@ -1099,3 +1099,144 @@ BEGIN
   PERFORM pg_temp.as_user(NULL);
   RAISE NOTICE '  ✓ 074: видалений акаунт не лишає ні імені, ні висячого ключа; гроші й події власника на місці';
 END $$;
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- 077: ФАЙЛИ ВИДАЛЕНОГО ОБʼЄКТА ЗНИКАЮТЬ РАЗОМ ІЗ НИМ; ЗАХИСТ ПЛАТФОРМИ
+-- ════════════════════════════════════════════════════════════════════════════
+-- Тригер прибирання перевіряється від postgres (RLS — у verify-rls.sql, там же
+-- «заблоковане видалення не чіпає файлів»). Емуляція `protect_delete` у
+-- pg-shim дослівна з проду, тож тут доводиться ще й те, що ні тригер, ні
+-- `delete_my_account` не спотикаються об неї.
+DO $$
+DECLARE
+  o  UUID := 'bbbbbbbb-0000-0000-0000-000000000077';
+  x  UUID := 'bbbbbbbb-0000-0000-0000-000000000771';
+  d  UUID := 'cccccccc-0000-0000-0000-000000000077';
+  dx UUID := 'cccccccc-0000-0000-0000-000000000771';
+  p1 UUID := 'dddddddd-0000-0000-0000-000000000771';
+  p2 UUID := 'dddddddd-0000-0000-0000-000000000772';
+  px UUID := 'dddddddd-0000-0000-0000-000000000773';
+  r  RECORD;
+  n  INT;
+BEGIN
+  INSERT INTO users (id, tg_id, first_name, role) VALUES
+    (o, 770001, 'Власник', 'owner'), (x, 770002, 'Сусід', 'owner');
+  INSERT INTO databases (id, owner_id, name, type) VALUES
+    (d, o, 'База 077', 'business_center'), (dx, x, 'Сусідня', 'business_center');
+  INSERT INTO properties (id, db_id, owner_id, name) VALUES
+    (p1, d, o, 'Офіс 1'), (p2, d, o, 'Офіс 2'), (px, dx, x, 'Чужий');
+  INSERT INTO storage.objects (bucket_id, name) VALUES
+    ('photos',         p1 || '/a.jpg'),
+    ('property-files', p1 || '/dogovir.pdf'),
+    ('photos',         p2 || '/b.jpg'),
+    ('photos',         px || '/c.jpg');
+
+  -- Один обʼєкт: його файли в ОБОХ бакетах зникають, сусідні — ні.
+  DELETE FROM properties WHERE id = p1;
+  SELECT count(*) INTO n FROM storage.objects WHERE name LIKE p1 || '/%';
+  IF n <> 0 THEN RAISE EXCEPTION '077: після видалення обʼєкта лишилось % його файлів — URL фото живі', n; END IF;
+  SELECT count(*) INTO n FROM storage.objects WHERE name LIKE p2 || '/%' OR name LIKE px || '/%';
+  IF n <> 2 THEN RAISE EXCEPTION '077: видалення обʼєкта зачепило ЧУЖІ файли (лишилось % з 2)', n; END IF;
+
+  -- Прапорець повертається: решта транзакції не мусить залежати від того,
+  -- чи спрацював тригер.
+  IF COALESCE(current_setting('storage.allow_delete_query', true), '') = 'true' THEN
+    RAISE EXCEPTION '077: тригер лишив прапорець захисту платформи увімкненим';
+  END IF;
+
+  -- База — каскадом: той самий тригер, той самий результат.
+  DELETE FROM databases WHERE id = d;
+  SELECT count(*) INTO n FROM storage.objects WHERE name LIKE p2 || '/%';
+  IF n <> 0 THEN RAISE EXCEPTION '077: видалення бази лишило файли її обʼєктів (%)', n; END IF;
+  SELECT count(*) INTO n FROM storage.objects WHERE name LIKE px || '/%';
+  IF n <> 1 THEN RAISE EXCEPTION '077: видалення бази зачепило файли сусіда'; END IF;
+
+  -- Платформа змінила механізм захисту (інший прапорець). Акаунт лишається
+  -- живим з ІМЕНОВАНОЮ причиною; видалення обʼєкта при цьому працює —
+  -- файли лишаються, як до 077, але основна функція не ламається.
+  CREATE OR REPLACE FUNCTION storage.protect_delete() RETURNS trigger LANGUAGE plpgsql AS $f$
+  BEGIN
+    IF COALESCE(current_setting('storage.zz_other_flag', true), 'false') != 'true' THEN
+      RAISE EXCEPTION 'Direct deletion from storage tables is not allowed.' USING ERRCODE = '42501';
+    END IF;
+    RETURN NULL;
+  END $f$;
+
+  PERFORM pg_temp.as_user(770002);
+  SELECT * INTO r FROM delete_my_account();
+  IF r.deleted OR r.error IS DISTINCT FROM 'storage_protected' THEN
+    RAISE EXCEPTION '077: під зміненим захистом видалення акаунта дало (%, %) замість відмови з причиною', r.deleted, r.error;
+  END IF;
+  SELECT count(*) INTO n FROM users WHERE id = x;
+  IF n <> 1 THEN RAISE EXCEPTION '077: акаунт зник, хоча файли стерти не вдалось'; END IF;
+  PERFORM pg_temp.as_user(NULL);
+
+  DELETE FROM properties WHERE id = px;
+  SELECT count(*) INTO n FROM properties WHERE id = px;
+  IF n <> 0 THEN RAISE EXCEPTION '077: тригер прибирання поклав видалення обʼєкта'; END IF;
+
+  -- Повернути дослівну емуляцію — від неї залежать інші перевірки.
+  CREATE OR REPLACE FUNCTION storage.protect_delete() RETURNS trigger LANGUAGE plpgsql AS $f$
+  BEGIN
+    IF COALESCE(current_setting('storage.allow_delete_query', true), 'false') != 'true' THEN
+      RAISE EXCEPTION 'Direct deletion from storage tables is not allowed. Use the Storage API instead.'
+        USING HINT = 'This prevents accidental data loss from orphaned objects.', ERRCODE = '42501';
+    END IF;
+    RETURN NULL;
+  END $f$;
+
+  -- Позитив тієї самої гілки: під справжнім захистом акаунт видаляється
+  -- разом із рештою файлів. Без нього «відмовив з причиною» не відрізнити від
+  -- «відмовляє завжди».
+  INSERT INTO properties (id, db_id, owner_id, name) VALUES (px, dx, x, 'Чужий');
+  PERFORM pg_temp.as_user(770002);
+  SELECT * INTO r FROM delete_my_account();
+  IF NOT r.deleted THEN RAISE EXCEPTION '077: під захистом платформи видалення акаунта відмовило (%)', r.error; END IF;
+  PERFORM pg_temp.as_user(NULL);
+  SELECT count(*) INTO n FROM storage.objects WHERE name LIKE px || '/%';
+  IF n <> 0 THEN RAISE EXCEPTION '077: видалення акаунта лишило % файлів', n; END IF;
+
+  DELETE FROM users WHERE id = o;
+  RAISE NOTICE '  ✓ 077: файли обʼєкта й бази зникають разом із рядком; чужі цілі; змінений захист — відмова з причиною';
+END $$;
+
+-- ── 077: лімітер ────────────────────────────────────────────────────────────
+-- Паралельність перевіряє verify-migrations.sh (окремі зʼєднання); тут —
+-- семантика вікна, стеля лічильника і периметр.
+DO $$
+DECLARE
+  got TEXT := '';
+  n   INT;
+BEGIN
+  FOR i IN 1..5 LOOP
+    got := got || CASE WHEN rate_limit_hit('zz:077', 3, 60000) THEN 't' ELSE 'f' END;
+  END LOOP;
+  IF got <> 'tttff' THEN RAISE EXCEPTION '077: лімітер на стелі 3 дав %, а не tttff', got; END IF;
+
+  SELECT count INTO n FROM rate_limits WHERE ip = 'zz:077';
+  IF n <> 4 THEN RAISE EXCEPTION '077: лічильник під флудом росте без меж (%), а не тримається на стелі+1', n; END IF;
+
+  -- Вікно минуло — рахунок з нуля.
+  UPDATE rate_limits SET reset_at = now() - interval '1 second' WHERE ip = 'zz:077';
+  IF NOT rate_limit_hit('zz:077', 3, 60000) THEN RAISE EXCEPTION '077: вікно минуло, а лімітер далі відмовляє'; END IF;
+  SELECT count INTO n FROM rate_limits WHERE ip = 'zz:077';
+  IF n <> 1 THEN RAISE EXCEPTION '077: нове вікно почалось не з одиниці (%)', n; END IF;
+
+  BEGIN
+    PERFORM rate_limit_hit('', 3, 60000);
+    RAISE EXCEPTION '077: порожній ключ прийнято';
+  EXCEPTION WHEN invalid_parameter_value THEN NULL;
+  END;
+
+  IF has_function_privilege('anon', 'rate_limit_hit(text,int,int)', 'EXECUTE')
+     OR has_function_privilege('authenticated', 'rate_limit_hit(text,int,int)', 'EXECUTE')
+     OR NOT has_function_privilege('service_role', 'rate_limit_hit(text,int,int)', 'EXECUTE') THEN
+    RAISE EXCEPTION '077: лімітер доступний не лише службовому ключу';
+  END IF;
+  IF has_function_privilege('authenticated', 'purge_deleted_property_files()', 'EXECUTE') THEN
+    RAISE EXCEPTION '077: тригерна функція прибирання видана клієнтам';
+  END IF;
+
+  DELETE FROM rate_limits WHERE ip = 'zz:077';
+  RAISE NOTICE '  ✓ 077: лімітер тримає стелю й вікно; доступний лише службовому ключу';
+END $$;

@@ -82,6 +82,20 @@ echo "✓ усі міграції виконались"
 $PSQL -d shadow -f scripts/verify-behaviour.sql
 echo "✓ поведінкові перевірки пройдено"
 
+# 077: лімітер під ПАРАЛЕЛЬНИМИ запитами. В одній сесії атомарність не
+# перевірити — потрібні окремі зʼєднання, що б'ються в той самий ключ
+# одночасно, рівно як N запитів входу до edge-функції. Стеля 20, запитів 40:
+# пропущено мусить бути РІВНО 20. Read-then-write (як було в edge-функції)
+# пропускав більше, бо всі читали той самий count.
+$PSQL -d shadow -c "DELETE FROM rate_limits WHERE ip = 'zz:par'" >/dev/null
+allowed=$(seq 40 | xargs -P 40 -I{} psql -h "$SOCK" -p $PORT -U postgres -d shadow -tAq \
+  -c "SELECT rate_limit_hit('zz:par', 20, 60000)" | grep -c '^t$' || true)
+if [ "$allowed" != "20" ]; then
+  echo "✗ 077: із 40 паралельних запитів при стелі 20 пропущено $allowed — лімітер не атомарний"; exit 1
+fi
+$PSQL -d shadow -c "DELETE FROM rate_limits WHERE ip = 'zz:par'" >/dev/null
+echo "✓ 077: лімітер тримає стелю під паралельними запитами (20 з 40)"
+
 # RLS ганяємо на ОКРЕМІЙ базі: попередній файл навмисно видаляє акаунти й
 # лишає по собі напівпорожній стан, а тут кожен count() має бути точним.
 psql -h "$SOCK" -p $PORT -U postgres -q -c "CREATE DATABASE shadow_rls" >/dev/null

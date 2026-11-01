@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 import { z } from 'https://esm.sh/zod@3.23.8'
 import { allowedOrigin, corsHeadersFor, serializeError } from '../_shared/cors.ts'
-import { rateDecision } from '../_shared/rateLimit.ts'
+import { atomicDecision, rateDecision } from '../_shared/rateLimit.ts'
 
 // This function's allowed methods (shared corsHeadersFor takes it as a param).
 const CORS_METHODS = 'POST, OPTIONS, GET'
@@ -44,6 +44,18 @@ async function checkRateLimit(
   windowMs = 60_000,
 ): Promise<boolean> {
   try {
+    // 077: ОДИН атомарний запит — INSERT … ON CONFLICT DO UPDATE … RETURNING під
+    // блокуванням рядка, тож паралельні запити бачать лічильник один одного.
+    // Старий шлях нижче лишається запасним ЛИШЕ на час між деплоєм функції і
+    // накатом міграції (див. `atomicDecision`); будь-яка інша помилка — відмова.
+    const { data: hit, error: hitErr } = await adminClient.rpc('rate_limit_hit', {
+      p_key: key,
+      p_max: maxRequests,
+      p_window_ms: windowMs,
+    })
+    const atomic = atomicDecision(hit, hitErr)
+    if (atomic !== 'fallback') return atomic === 'allow'
+
     // `error` МУСИТЬ читатись: supabase-js РЕЗОЛВИТЬ збій запиту як
     // `{data: null, error}` і не кидає, тож catch нижче для нього не спрацює.
     // Без цієї гілки будь-яка невдача (немає таблиці, зміна RLS, 5xx,
@@ -72,12 +84,10 @@ async function checkRateLimit(
       return true
     }
 
-    // ВІДОМА МЕЖА: read-then-write не атомарний, тож N паралельних запитів
-    // читають однаковий `count` і всі пишуть `+1` — стеля обходиться
-    // паралелізмом. Виправляється лише серверним `ON CONFLICT DO UPDATE …
-    // RETURNING`, тобто новою міграцією; поки її немає, це задокументована
-    // слабкість, а не непомічена. Практичний вплив обмежений: HMAC
-    // валідується ДО лімітера, тож виграє лише власник валідного initData.
+    // Запасний шлях НЕ атомарний: N паралельних запитів читають однаковий
+    // `count`, тож стеля обходиться паралелізмом. Тому він живе лише до накату
+    // 077; після нього сюди не доходить жоден запит. Вплив і тут обмежений:
+    // HMAC валідується ДО лімітера, тож виграє лише власник валідного initData.
     await adminClient
       .from('rate_limits')
       .update({ count: data!.count + 1 })

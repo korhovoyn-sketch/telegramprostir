@@ -46,3 +46,28 @@ export function rateDecision(
   if (row.count >= maxRequests) return { allow: false, action: 'none' }
   return { allow: true, action: 'increment' }
 }
+
+export type AtomicDecision = 'allow' | 'deny' | 'fallback'
+
+/**
+ * Відповідь атомарного лімітера `rate_limit_hit` (міграція 077).
+ *
+ * `fallback` — ЛИШЕ коли функції на сервері ще немає: edge-функція деплоїться
+ * з мерджем, а міграцію накочують руками пізніше. Відмова в цьому вікні означала
+ * б, що вхід лежить для ВСІХ, доки хтось не накотить SQL, — тому старий шлях
+ * лишається запасним. Будь-яка ІНША помилка — відмова (fail closed), рівно як
+ * у `rateDecision`: збій лімітера не сміє ставати пропуском.
+ *
+ * Ознаки відсутньої функції: PGRST202 (PostgREST не знайшов функцію в кеші
+ * схеми) і 42883 (Postgres: undefined_function).
+ *
+ * Пропуск — лише на булевому `true`: рядок «true», null чи обʼєкт означають,
+ * що відповідь не та, на яку розраховували, і це теж відмова.
+ */
+export function atomicDecision(
+  data: unknown,
+  error: { code?: string } | null | undefined,
+): AtomicDecision {
+  if (error) return error.code === 'PGRST202' || error.code === '42883' ? 'fallback' : 'deny'
+  return data === true ? 'allow' : 'deny'
+}
