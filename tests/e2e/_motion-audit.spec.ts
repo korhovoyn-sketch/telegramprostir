@@ -283,3 +283,4 @@ test('натиск на елементах із каскадом входу', as
   console.log('\n═══ натиск ═══\n' + out.join('\n'))
   expect(out.length).toBe(3)
 })
+

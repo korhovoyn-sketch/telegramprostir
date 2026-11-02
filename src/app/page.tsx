@@ -398,31 +398,34 @@ export default function Page() {
    * де кожен градієнт світлий (`.bg-blue` закінчується на #5480dc).
    *
    * Значення читається з DOM (`--bg-end` живе поряд із самим градієнтом у
-   * globals.css), щоб не заводити другу копію палітри в JS. Екрани ліниві, тож
-   * на момент першого коміту в дереві ще може стояти fallback — звідси кілька
-   * спроб на rAF, а не одна.
+   * globals.css), щоб не заводити другу копію палітри в JS.
+   *
+   * Екрани ліниві, тож поки вантажиться чанк, у дереві стоїть заглушка без
+   * фону — і колір треба взяти, коли ЗʼЯВИТЬСЯ справжній екран, а не за
+   * фіксовану кількість кадрів. Доти тут було 12 спроб на rAF, і працювало це
+   * лише тому, що заглушка була фіолетовою й відповідала САМА: будь-який
+   * ледачий екран діставав колір смуги ЗАГЛУШКИ (синій екран — фіолетову
+   * смугу), а на повільному чанку без неї смуга лишалась чорною.
    */
   useEffect(() => {
     const tg = window.Telegram?.WebApp
     if (!tg) return
-    let tries = 0
-    let raf = 0
-    const apply = () => {
-      const el = document.querySelector('#app-root .scr[class*="bg-"]') as HTMLElement | null
+    const apply = (): boolean => {
+      const el = document.querySelector('#app-root .scr[class*="bg-"]:not(.scr-wait)') as HTMLElement | null
       const end = el ? getComputedStyle(el).getPropertyValue('--bg-end').trim() : ''
-      if (!end) {
-        if (++tries < 12) raf = requestAnimationFrame(apply)
-        return
-      }
+      if (!end) return false
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const tgAny = tg as any
         tgAny.setBackgroundColor?.(end)
         tgAny.setBottomBarColor?.(end)
       } catch { /* старий клієнт — лишається типовий колір */ }
+      return true
     }
-    raf = requestAnimationFrame(apply)
-    return () => cancelAnimationFrame(raf)
+    if (apply()) return
+    const mo = new MutationObserver(() => { if (apply()) mo.disconnect() })
+    mo.observe(document.getElementById('app-root') ?? document.body, { childList: true, subtree: true })
+    return () => mo.disconnect()
   }, [screen, navKey])
 
   // BackButton: show/hide independently of handler registration

@@ -145,4 +145,21 @@ test('ледачий екран: заглушка нейтральна і не �
   expect(real, 'справжній екран мусив зʼявитись').toBeTruthy()
   expect(real!.anim, 'справжній екран входить сам, напрямком').toBe('navRight')
   expect(real!.wrapAnim, 'обгортка не рухається разом з екраном').toBe('none')
+
+  // Нижня смуга Telegram бере колір НИЗУ градієнта ЕКРАНА. Доти вона брала його
+  // з першого `.scr` з фоном — тобто з фіолетової заглушки, і синій екран
+  // діставав фіолетову смугу; а без кольору заглушки 12 кадрів очікування не
+  // вистачало повільному чанку, і смуга лишалась чорною.
+  const bar = () => page.evaluate(() => {
+    const w = window as unknown as Record<string, string | undefined>
+    const el = document.querySelector('#app-root .scr[class*="bg-"]:not(.scr-wait)')
+    return {
+      bottom: (w.__tgBottomBarColor ?? '').toLowerCase(),
+      end: el ? getComputedStyle(el).getPropertyValue('--bg-end').trim().toLowerCase() : '',
+    }
+  })
+  expect((await bar()).end, 'екран без --bg-end — перевірка стала б порожньою').toMatch(/^#[0-9a-f]{6}$/)
+  await expect.poll(async () => { const b = await bar(); return b.bottom === b.end }, {
+    message: 'нижня смуга не взяла колір екрана, що вантажився ліниво',
+  }).toBe(true)
 })
