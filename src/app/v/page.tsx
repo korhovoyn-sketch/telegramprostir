@@ -250,13 +250,21 @@ function GlobalStyles() {
 
       /* Main CTA: periodic sheen sweep + arrow nudge on hover */
       .v-cta { position: relative; overflow: hidden; }
+      /* Блик їде \`transform\`-ом, а не \`left\`: \`left\` — це перерахунок лейауту
+         КОЖЕН кадр, безкінечно, поки відкрита сторінка, і саме на головній
+         кнопці, яку бачить сторонній. Хід той самий: від -70% до 140% ширини
+         кнопки = 210% батька = 210/45 ≈ 466.7% власної ширини блика (відсоток
+         у translate береться від самого елемента). */
       .v-cta::after {
         content: ''; position: absolute; top: 0; bottom: 0; left: -70%; width: 45%;
         background: linear-gradient(105deg, transparent, rgba(255,255,255,.32), transparent);
-        transform: skewX(-20deg); pointer-events: none;
+        transform: translateX(0) skewX(-20deg); pointer-events: none;
         animation: vSheen 5s ease-in-out infinite;
       }
-      @keyframes vSheen { 0%, 74% { left: -70%; } 100% { left: 140%; } }
+      @keyframes vSheen {
+        0%, 74% { transform: translateX(0) skewX(-20deg); }
+        100% { transform: translateX(466.67%) skewX(-20deg); }
+      }
       .v-cta:active { transform: scale(.98); }
       .v-arr { display: inline-block; transition: transform .18s cubic-bezier(.34,1.56,.64,1); }
       @media (hover: hover) { .v-cta:hover .v-arr { transform: translateX(5px); } }
@@ -268,7 +276,7 @@ function GlobalStyles() {
       @media (hover: hover) { .v-tg:hover svg { transform: rotate(-14deg) scale(1.12) translateX(-1px); } }
 
       /* Content entrance: cards rise in with a stagger (delay set inline) */
-      .v-rise { animation: vRise .38s cubic-bezier(.22,.9,.34,1) both; }
+      .v-rise { animation: vRise .38s cubic-bezier(.22,.9,.34,1) backwards; }
       @keyframes vRise { from { opacity: 0; transform: translateY(12px); } }
 
       /* Gallery: thumb hover (поява знімка — \`.photo-img\` у globals.css) */

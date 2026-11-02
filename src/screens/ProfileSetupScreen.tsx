@@ -98,6 +98,7 @@ export default function ProfileSetupScreen() {
                 aria-label="Email"
                 className="fr-i"
                 type="email"
+                autoComplete="email"
                 maxLength={EMAIL_MAX}
                 placeholder="you@email.com"
                 value={email}
@@ -112,6 +113,7 @@ export default function ProfileSetupScreen() {
                 className="fr-i"
                 type="tel"
                 inputMode="tel"
+                autoComplete="tel"
                 maxLength={PHONE_MAX}
                 placeholder="+380 67 000 0000"
                 value={phone}

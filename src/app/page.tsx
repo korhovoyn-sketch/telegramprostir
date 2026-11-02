@@ -18,7 +18,7 @@ import type { ScreenName } from '@/types'
 const TG_CHROME_BG = '#040408'
 
 const screenFallback = (
-  <div className="scr bg-purple" style={{ alignItems: 'center', justifyContent: 'center' }}>
+  <div className="scr scr-wait" style={{ alignItems: 'center', justifyContent: 'center' }}>
     <div className="loader" />
   </div>
 )

@@ -24,7 +24,7 @@ import { filterRows } from './helpers/rowFilter'
 // dispatch воркфлоу `.github/workflows/update-snapshots.yml` на своїй гілці; він
 // перезніме кадри на раннері й закомітить їх туди ж.
 //
-test.skip(IN_SANDBOX, 'Візуальний бейслайн знімає й перевіряє CI: тутешній Chromium 141 растеризує текст інакше за раннерівський 148 (див. helpers/env.ts)')
+test.skip(IN_SANDBOX, 'Візуальний бейслайн знімає й перевіряє CI: тутешній Chromium (141, з листопада 2026 — 153) растеризує текст інакше за раннерівський 148 (див. helpers/env.ts)')
 //
 // Три джерела нестабільності знято:
 //  • анімації — `reducedMotion: 'reduce'` (застосунок має цей блок у globals.css)

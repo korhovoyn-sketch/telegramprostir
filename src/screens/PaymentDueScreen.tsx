@@ -9,7 +9,7 @@ import RetryState from '@/components/ui/RetryState'
 import { offlineGuard } from '@/lib/offline'
 import { supabase } from '@/lib/supabase'
 import { withOptionalColumns } from '@/lib/optionalColumns'
-import { sanitizeDecimal, scrollFocusedIntoView, humanizeDbError, currencySymbol, formatPrice } from '@/lib/utils'
+import { scrollFocusedIntoView, humanizeDbError, currencySymbol, formatPrice, caretEdit, editDecimal } from '@/lib/utils'
 import {
   RENT_PAYMENT_RECORD_COLUMNS, RENT_PAYMENT_RECORD_COLUMNS_PRE, RENT_TERMS_COLUMNS,
   expectedRentAt, fmtDueDate, type RentTermsRow,
@@ -177,7 +177,7 @@ export default function PaymentDueScreen() {
                 type="text" inputMode="decimal"
                 placeholder={tr('Введіть суму...')}
                 value={amount}
-                onChange={e => setAmount(sanitizeDecimal(e.target.value))}
+                onChange={e => setAmount(caretEdit(e, editDecimal))}
               />
               <span className="fld-u">{currencySymbol(user?.currency)}</span>
             </div>

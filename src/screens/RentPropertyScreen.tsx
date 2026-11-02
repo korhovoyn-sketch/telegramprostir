@@ -10,10 +10,7 @@ import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import { IconUser, IconCurrencyDollar, IconBolt, IconKey } from '@/components/Icons'
 import { offlineGuard } from '@/lib/offline'
 import { hapticNotify } from '@/lib/telegram'
-import {
-  sanitizeDecimal, scrollFocusedIntoView, calcRentUtils,
-  currencySymbol, rentUnitLabel, formatPrice,
-} from '@/lib/utils'
+import { scrollFocusedIntoView, calcRentUtils, currencySymbol, rentUnitLabel, formatPrice, caretEdit, editDecimal } from '@/lib/utils'
 import { tr } from '@/lib/i18n'
 import { useClosingConfirmation } from '@/hooks/useTelegram'
 
@@ -158,7 +155,7 @@ export default function RentPropertyScreen() {
                 inputMode="decimal"
                 placeholder="0"
                 value={rentRate}
-                onChange={e => setRentRate(sanitizeDecimal(e.target.value))}
+                onChange={e => setRentRate(caretEdit(e, editDecimal))}
               />
               <span className="fld-u">{rateUnit}</span>
             </div>
@@ -172,7 +169,7 @@ export default function RentPropertyScreen() {
                 inputMode="decimal"
                 placeholder="0"
                 value={utilitiesRate}
-                onChange={e => setUtilitiesRate(sanitizeDecimal(e.target.value))}
+                onChange={e => setUtilitiesRate(caretEdit(e, editDecimal))}
               />
               <span className="fld-u">{utilUnit}</span>
             </div>

@@ -3,9 +3,20 @@ import { existsSync } from 'node:fs'
 /**
  * Chromium, предвстановлений у пісочниці Claude Code на вебі. `playwright install`
  * там заборонений, тож ця збірка ЗАМОРОЖЕНА і не збігається з тією, що її ставить
- * CI: заміряно **141.0.7390.37** тут проти **148.0.7778.96** на раннері.
+ * CI: заміряно **141.0.7390.37** тут проти **148.0.7778.96** на раннері, а з
+ * листопада 2026 пісочниця має **153.0.8010.12** — новішу за CI, тобто розбіжність
+ * тепер в інший бік, але так само є.
  */
-export const SANDBOX_CHROMIUM = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'
+// Шлях до бінарника міняється разом зі збіркою (`chromium-1194/chrome-linux`
+// для 141, `chromium-1243/chrome-linux64` для 153), тож захардкоджений шлях
+// версії мовчки вимикав детектор: пісочниця переставала пропускати скріншоти,
+// а Playwright шукав власну збірку, якої тут немає. Стабільне імʼя —
+// симлінк `/opt/pw-browsers/chromium`; старий шлях лишається запасним.
+const SANDBOX_CANDIDATES = [
+  '/opt/pw-browsers/chromium',
+  '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+]
+export const SANDBOX_CHROMIUM = SANDBOX_CANDIDATES.find((p) => existsSync(p)) ?? SANDBOX_CANDIDATES[0]
 
 /**
  * Чи біжимо в пісочниці. Важливо не лише для `executablePath`, а й для візуального

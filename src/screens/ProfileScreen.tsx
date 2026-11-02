@@ -225,12 +225,12 @@ export default function ProfileScreen() {
           <div className="fr">
             <IconMail size={16} color="var(--t3)" />
             <span className="fr-l" style={{ marginLeft: 6 }}>Email</span>
-            <input aria-label="Email" ref={emailRef} className="fr-i" type="email" maxLength={EMAIL_MAX} placeholder={tr('Не вказано')} defaultValue={user.email ?? ''} onBlur={(e) => void saveContact('email', e.target.value)} />
+            <input aria-label="Email" ref={emailRef} className="fr-i" type="email" autoComplete="email" maxLength={EMAIL_MAX} placeholder={tr('Не вказано')} defaultValue={user.email ?? ''} onBlur={(e) => void saveContact('email', e.target.value)} />
           </div>
           <div className="fr">
             <IconPhone size={16} color="var(--t3)" />
             <span className="fr-l" style={{ marginLeft: 6 }}>{tr('Телефон')}</span>
-            <input aria-label={tr('Телефон')} ref={phoneRef} className="fr-i" type="tel" inputMode="tel" maxLength={PHONE_MAX} placeholder={tr('Не вказано')} defaultValue={user.phone ?? ''} onBlur={(e) => void saveContact('phone', e.target.value)} />
+            <input aria-label={tr('Телефон')} ref={phoneRef} className="fr-i" type="tel" inputMode="tel" autoComplete="tel" maxLength={PHONE_MAX} placeholder={tr('Не вказано')} defaultValue={user.phone ?? ''} onBlur={(e) => void saveContact('phone', e.target.value)} />
           </div>
         </div>
 

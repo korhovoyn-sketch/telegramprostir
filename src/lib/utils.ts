@@ -167,6 +167,60 @@ export function sanitizeInt(raw: string): string {
   return raw.replace(/\D/g, '')
 }
 
+// ── Редагування з кареткою ────────────────────────────────────────────────
+// Санітайзер сам по собі ламає КАРЕТКУ. Контрольований інпут: якщо після
+// onChange значення в стані не збігається з DOM, React записує своє, і
+// браузер ставить курсор у КІНЕЦЬ. Заміряно: відкинута літера посеред «1800»
+// лишала курсор на 4 замість 2, кома (→ крапка) — на 5 замість 3. Тобто
+// виправлення одного символу посеред суми вимагало повертати курсор руками.
+//
+// Тому правка рахує і значення, і нову позицію: каретка стає після тих
+// символів, що ПЕРЕЖИЛИ санітайзер ліворуч від неї.
+export interface CaretEdit { value: string; caret: number }
+
+export function editDecimal(raw: string, caret: number): CaretEdit {
+  let s = raw, at = caret
+  // Друга крапка, НАДРУКОВАНА посеред числа, переносила кому: «18.5» з
+  // крапкою після «1» ставало «1.85», тобто сума мовчки змінювалась удесятеро.
+  // Новий роздільник там, де роздільник уже є, — відкидається. Вставка
+  // («1,200,000») сюди не потрапляє: останній символ вставки — цифра.
+  const typed = at > 0 ? s[at - 1] : ''
+  if ((typed === '.' || typed === ',') && /[.,]/.test(s.slice(0, at - 1) + s.slice(at))) {
+    s = s.slice(0, at - 1) + s.slice(at)
+    at -= 1
+  }
+  const value = sanitizeDecimal(s)
+  return { value, caret: Math.min(sanitizeDecimal(s.slice(0, at)).length, value.length) }
+}
+
+export function editInt(raw: string, caret: number): CaretEdit {
+  const value = sanitizeInt(raw)
+  return { value, caret: Math.min(sanitizeInt(raw.slice(0, caret)).length, value.length) }
+}
+
+/**
+ * onChange числового поля: повертає значення для стану і, якщо санітайзер
+ * його змінив, повертає каретку туди, де її чекає користувач. Позиція
+ * ставиться мікрозадачею — ПІСЛЯ того, як React запише своє значення в DOM
+ * (запис і ставить курсор у кінець), і лише якщо поле досі в фокусі й
+ * містить саме це значення: наступний символ, що встиг прийти раніше, не
+ * сміє бути перебитий застарілою позицією.
+ */
+export function caretEdit(
+  e: import('react').ChangeEvent<HTMLInputElement>,
+  edit: (raw: string, caret: number) => CaretEdit,
+): string {
+  const el = e.target
+  const at = el.selectionStart ?? el.value.length
+  const r = edit(el.value, at)
+  if (r.value !== el.value) {
+    queueMicrotask(() => {
+      if (document.activeElement === el && el.value === r.value) el.setSelectionRange(r.caret, r.caret)
+    })
+  }
+  return r.value
+}
+
 // Bare currency sign for unit labels («₴/м²») — same mapping as formatPrice.
 export function currencySymbol(currency?: string | null): string {
   if (currency === 'EUR') return '€'

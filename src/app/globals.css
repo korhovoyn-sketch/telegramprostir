@@ -311,9 +311,27 @@ body{
 @keyframes navRight{from{transform:translateX(48px);opacity:0}}
 @keyframes navLeft{from{transform:translateX(-48px);opacity:0}}
 @keyframes navFade{from{opacity:0}}
-.nav-forward{animation:navRight .28s var(--ease-out) backwards}
-.nav-back{animation:navLeft .24s var(--ease-out) backwards}
-.nav-root{animation:navFade .2s ease backwards}
+/* ОДИН рух на перехід — і на КОРЕНІ екрана, а не на обгортці. Доти обгортка
+   їхала по X (navRight/navLeft), а `.scr` усередині неї — ще й по Y
+   (screenEnter): заміряно покадрово, «Назад» вів екран ПО ДІАГОНАЛІ
+   (48px X + 22px Y одночасно), а дві прозорості множились, тож екран
+   проявлявся пізніше, ніж здавалось із тривалостей. «Вперед» цього не мав
+   лише на ПЕРШОМУ вході — обгортка доїжджала, поки вантажився чанк, і екран
+   потім входив удруге, сам. Тобто вигляд переходу залежав від кешу.
+   Звідси: напрямок — на корені екрана (`> *` — бо корінь галереї й сплеша
+   не `.scr`), «root» (вкладки, вхід) — підйом лише для `.scr`, решті —
+   прозорість. Специфічність (0,2,0) у напрямку й заглушки свідома: вони
+   мусять перебити `.nav-wrap > .scr`. */
+.nav-wrap > *{animation:navFade .2s ease backwards}
+.nav-wrap > .scr{animation:screenEnter .34s var(--ease-out) backwards}
+.nav-wrap.nav-forward > *{animation:navRight .28s var(--ease-out) backwards}
+.nav-wrap.nav-back > *{animation:navLeft .24s var(--ease-out) backwards}
+/* Заглушка ледачого екрана не входить сама: інакше справжній екран, що її
+   замінить, увійде вдруге. Кольору теж не має — фіолетова заглушка перед
+   синім екраном читалась як спалах чужого екрана. Спінер — лише якщо чанк
+   іде довше 300мс: швидке завантаження інакше блимало б ним. */
+.nav-wrap > .scr-wait{animation:none}
+.scr-wait .loader{animation:spin .8s linear infinite,navFade .2s ease .3s backwards}
 
 /* ── BACKGROUNDS — reference: a rich multi-tone color field fills the
    lower ~70% of the screen and dissolves into black across the top
@@ -702,6 +720,16 @@ input,textarea,select{font-size:var(--fs-call);touch-action:manipulation}
    backdrop-filter (glass-картки, модалки). date/select каретки не мають —
    їм шар не потрібен (і стекінг-контекст може клiпати нативні поповери). */
 input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),textarea{-webkit-transform:translateZ(0);transform:translateZ(0)}
+/* Автозаповнення (iOS QuickType, менеджер паролів, Chrome): браузер малює
+   СВОЮ світлу підкладку й ТЕМНИЙ текст — на темному склі це яскрава плита з
+   нечитабельним значенням (email і телефон у профілі). Підкладку UA ставить
+   з !important, тож `background` її не перебʼє: текст і каретку тримає
+   -webkit-text-fill-color, а підкладку відкладає перехід, що за сесію не
+   закінчиться (тому в reduced-motion його тривалість окремо захищена).
+   Стан автозаповнення з тесту не відтворити — тримає джерельний гард. */
+input:-webkit-autofill,input:-webkit-autofill:hover,input:-webkit-autofill:focus{
+  -webkit-text-fill-color:var(--t1);caret-color:var(--t1);
+  transition:background-color 600000s 0s}
 .fr:focus-within{background:linear-gradient(90deg,rgba(34,158,217,.08),transparent)}
 .fr:focus-within .fr-l{color:var(--info-fg)}
 
@@ -723,7 +751,7 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 .sum-tot-v{font-size:var(--fs-t3);font-weight:var(--fw-bold);color:var(--t1);letter-spacing:-.03em}
 
 /* ── TOAST ── */
-.toast{position:fixed;left:14px;right:14px;top:calc(60px + var(--safe-top));padding:13px 14px;background:rgba(52,199,89,.18);backdrop-filter:blur(32px) saturate(200%);-webkit-backdrop-filter:blur(32px) saturate(200%);border:.5px solid rgba(52,199,89,.4);border-radius:var(--r-md);display:flex;align-items:center;gap:10px;z-index:var(--z-toast);animation:toastSlideIn .42s var(--ease-spr) both;will-change:transform}
+.toast{position:fixed;left:14px;right:14px;top:calc(60px + var(--safe-top));padding:13px 14px;background:rgba(52,199,89,.18);backdrop-filter:blur(32px) saturate(200%);-webkit-backdrop-filter:blur(32px) saturate(200%);border:.5px solid rgba(52,199,89,.4);border-radius:var(--r-md);display:flex;align-items:center;gap:10px;z-index:var(--z-toast);animation:toastSlideIn .42s var(--ease-spr) backwards;will-change:transform}
 .toast.err{background:rgba(255,59,48,.18);border-color:rgba(255,59,48,.4)}
 .toast.err .toast-ic{background:#FF3B30}
 .toast.err .toast-t{color:#ffacac}
@@ -744,7 +772,7 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
   display:flex;align-items:center;justify-content:center;flex-shrink:0}
 
 /* ── OFFLINE BANNER ── */
-.offline-banner{position:fixed;top:0;left:0;right:0;z-index:var(--z-banner);display:flex;align-items:center;justify-content:center;gap:7px;padding:calc(10px + var(--safe-top)) 16px 10px;background:rgba(255,149,0,.22);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);border-bottom:.5px solid rgba(255,149,0,.45);font-size:var(--fs-foot);font-weight:600;color:#FFD580;letter-spacing:.01em;animation:toastSlideIn .35s var(--ease-spr) both}
+.offline-banner{position:fixed;top:0;left:0;right:0;z-index:var(--z-banner);display:flex;align-items:center;justify-content:center;gap:7px;padding:calc(10px + var(--safe-top)) 16px 10px;background:rgba(255,149,0,.22);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);border-bottom:.5px solid rgba(255,149,0,.45);font-size:var(--fs-foot);font-weight:600;color:#FFD580;letter-spacing:.01em;animation:toastSlideIn .35s var(--ease-spr) backwards}
 
 /* ── RETRY STATE ── */
 .retry-wrap{display:flex;flex-direction:column;align-items:center;gap:14px;padding:40px 24px}
@@ -974,7 +1002,7 @@ input:not([type=date]):not([type=checkbox]):not([type=radio]):not([type=file]),t
 .orb-live .orb-eyes{transition:none}
 .orb-eye{width:9px;height:26px;border-radius:var(--r-pill);background:var(--orb-eye);
   box-shadow:0 0 14px rgba(255,255,255,.9),0 0 30px rgba(255,255,255,.45);
-  transition:transform var(--dur-sm) var(--ease-out),height var(--dur-sm) var(--ease-out)}
+  transition:transform var(--dur-sm) var(--ease-out)}
 .orb-eye.blink{transform:scaleY(.08)}
 .orb-eye.squint{transform:scaleY(.42)}
 
@@ -1182,7 +1210,7 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
 .notif-del:active{background:var(--glass-2);color:var(--err)}
 
 /* ── MODAL ── */
-.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:var(--z-overlay);display:flex;flex-direction:column;align-items:stretch;justify-content:flex-end;padding-bottom:min(var(--keyboard-h,0px),55vh);transition:padding-bottom .25s ease-out;animation:overlayFade var(--dur-md) ease both}
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:var(--z-overlay);display:flex;flex-direction:column;align-items:stretch;justify-content:flex-end;padding-bottom:min(var(--keyboard-h,0px),55vh);transition:padding-bottom .25s ease-out;animation:overlayFade var(--dur-md) ease backwards}
 /* Зняття ХИБНОГО ліфта не анімується — інакше шит «пригає».
    Фолбек `KB_FALLBACK_PX` вмикається, коли платформа мовчить довше за пробу; якщо
    вона потім таки стискає webview, ліфт знімається — але той самий .25s, що його
@@ -1202,7 +1230,11 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
    (normal — not a bug in the signal) made the sheet visibly SNAP between sizes
    every tick instead of resizing smoothly, reading as "shrinks so I can't work
    with it". Same .25s so both edges of the sheet move together. */
-.modal{width:100%;background:rgba(14,11,32,.72);backdrop-filter:blur(48px) saturate(220%) brightness(1.10);-webkit-backdrop-filter:blur(48px) saturate(220%) brightness(1.10);border-top:.5px solid rgba(255,255,255,.18);border-radius:var(--r-sheet) var(--r-sheet) 0 0;position:relative;animation:modalSlideUp .3s var(--ease-out) both;max-height:min(88vh,max(46vh,calc(var(--tg-vh,100svh) - var(--keyboard-h,0px) - 20px)));transition:max-height .25s ease-out;display:flex;flex-direction:column;overflow:hidden;box-shadow:inset 0 1.5px 0 rgba(255,255,255,.22),inset 0 .5px 0 rgba(255,255,255,.10)}
+/* Заповнення `backwards`, НЕ `both`: `forwards` тримав `translateY(0)` після
+   відкриття, а анімація в каскаді бʼє inline-стиль — свайп ставив шиту
+   transform, і шит НЕ РУХАВСЯ за пальцем (заміряно: палець 120px, шит 0px).
+   Те саме з `.modal-overlay` — затемнення не відгукувалось на жест. */
+.modal{width:100%;background:rgba(14,11,32,.72);backdrop-filter:blur(48px) saturate(220%) brightness(1.10);-webkit-backdrop-filter:blur(48px) saturate(220%) brightness(1.10);border-top:.5px solid rgba(255,255,255,.18);border-radius:var(--r-sheet) var(--r-sheet) 0 0;position:relative;animation:modalSlideUp .3s var(--ease-out) backwards;max-height:min(88vh,max(46vh,calc(var(--tg-vh,100svh) - var(--keyboard-h,0px) - 20px)));transition:max-height .25s ease-out;display:flex;flex-direction:column;overflow:hidden;box-shadow:inset 0 1.5px 0 rgba(255,255,255,.22),inset 0 .5px 0 rgba(255,255,255,.10)}
 /* БЕЗ will-change: шит уже має власний backdrop-filter, тож постійний
    композитний шар нічого не пришвидшує, зате тримається назавжди — а два
    вкладені шити давали два таких шари з блюром 48px. Те саме рішення й з тієї ж
@@ -1611,7 +1643,7 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
    No container: just the four tappable icons floating above the content.
    A soft bottom fade (not a visible element) keeps them legible when bright
    content (photos, cards) scrolls underneath. */
-.tabbar{position:absolute;left:0;right:0;bottom:0;height:calc(56px + var(--safe-bottom));padding:0 10px var(--safe-bottom);display:flex;align-items:stretch;gap:2px;z-index:var(--z-tabbar);animation:tabbarIn var(--dur-xl) var(--ease-spr) both}
+.tabbar{position:absolute;left:0;right:0;bottom:0;height:calc(56px + var(--safe-bottom));padding:0 10px var(--safe-bottom);display:flex;align-items:stretch;gap:2px;z-index:var(--z-tabbar);animation:tabbarIn var(--dur-xl) var(--ease-spr) backwards}
 .tabbar::before{display:none}
 .tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:rgba(255,255,255,.45);cursor:pointer;position:relative;z-index:var(--z-raised);transition:color .25s var(--ease),transform .15s var(--ease)}
 /* Icon hit zone — sizing only, no visual container */
@@ -1636,10 +1668,10 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
 .tabico.is-on .tabico-o{opacity:0;transform:scale(1.15)}
 .tabico.is-on .tabico-f{opacity:1;transform:scale(1)}
 /* Micro-animations on activation */
-.tab.on[data-t="db-list"] .tabico-f,.tab.on[data-t="realtor-dashboard"] .tabico-f{animation:tabHomeHop .45s var(--ease-spr) both}
-.tab.on[data-t="collections"] .tabico-f{animation:tabBookPop .45s var(--ease-spr) both}
-.tab.on[data-t="notifications"] .tabico-f{animation:tabBellRing .55s var(--ease) both;transform-origin:50% 18%}
-.tab.on[data-t="profile"] .tabico-f{animation:tabUserNod .45s var(--ease-spr) both}
+.tab.on[data-t="db-list"] .tabico-f,.tab.on[data-t="realtor-dashboard"] .tabico-f{animation:tabHomeHop .45s var(--ease-spr) backwards}
+.tab.on[data-t="collections"] .tabico-f{animation:tabBookPop .45s var(--ease-spr) backwards}
+.tab.on[data-t="notifications"] .tabico-f{animation:tabBellRing .55s var(--ease) backwards;transform-origin:50% 18%}
+.tab.on[data-t="profile"] .tabico-f{animation:tabUserNod .45s var(--ease-spr) backwards}
 @keyframes tabHomeHop{0%{transform:scale(.7) translateY(4px)}55%{transform:scale(1.12) translateY(-2px)}100%{transform:scale(1) translateY(0)}}
 @keyframes tabBookPop{0%{transform:scale(.6) rotate(-8deg)}60%{transform:scale(1.14) rotate(3deg)}100%{transform:scale(1) rotate(0)}}
 @keyframes tabBellRing{0%{transform:scale(.7) rotate(0)}30%{transform:scale(1.08) rotate(-14deg)}55%{transform:scale(1.02) rotate(11deg)}75%{transform:scale(1) rotate(-6deg)}100%{transform:scale(1) rotate(0)}}
@@ -1689,7 +1721,7 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
 /* ── QR ── */
 .qr-hero{margin:6px var(--g3) var(--g3);border-radius:var(--r-lg);padding:18px;display:flex;flex-direction:column;align-items:center;position:relative;overflow:hidden}
 .qr-hero::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at 50% 0%,rgba(255,255,255,.16),transparent 60%);pointer-events:none}
-.qr-wrap{width:140px;height:140px;background:#fff;border-radius:var(--r-md);padding:8px;box-shadow:0 12px 36px rgba(0,0,0,.36);position:relative;z-index:var(--z-content);animation:qrPop var(--dur-xl) var(--ease-spr) .2s both}
+.qr-wrap{width:140px;height:140px;background:#fff;border-radius:var(--r-md);padding:8px;box-shadow:0 12px 36px rgba(0,0,0,.36);position:relative;z-index:var(--z-content);animation:qrPop var(--dur-xl) var(--ease-spr) .2s backwards}
 .qr-meta{margin-top:12px;text-align:center;position:relative;z-index:var(--z-content)}
 .qr-name{font-size:var(--fs-note);font-weight:var(--fw-semi);color:var(--t1);letter-spacing:-.005em}
 .qr-link{font-size:var(--fs-cap2);color:rgba(180,210,255,.9);margin-top:3px;font-family:ui-monospace,'SF Mono',monospace}
@@ -1785,10 +1817,18 @@ svg.ico{overflow:visible}
 .modal.moving,.modal-overlay.moving{backdrop-filter:none;-webkit-backdrop-filter:none}
 @keyframes modalSlideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
 @keyframes overlayFade{from{opacity:0}to{opacity:1}}
-@keyframes modalSlideDown{from{transform:translateY(0)}to{transform:translateY(100%)}}
-@keyframes overlayFadeOut{from{opacity:1}to{opacity:0}}
+/* Виїзд БЕЗ `from`: початок береться з підлеглого значення, тобто з inline-
+   трансформа жесту. Із `from{translateY(0)}` шит, відпущений на 120px, спершу
+   стрибав угору до нуля і лише потім їхав униз; затемнення — так само з 1. */
+@keyframes modalSlideDown{to{transform:translateY(100%)}}
+@keyframes overlayFadeOut{to{opacity:0}}
 /* Exit animation — mirrors the open (slide-down + backdrop fade). */
-.modal.closing{animation:modalSlideDown .24s var(--ease-out) forwards}
+/* Тап/бекдроп — мʼякий старт (`--ease-soft`): експо-крива `--ease-out`
+   проходила ~75% шляху за перші три кадри і далі повзла невидимою смужкою —
+   заміряно, 338px за один інтервал кадру. Після ФЛІКУ ActionSheet ставить
+   inline `--ease-out`: там шит уже має швидкість пальця, і мʼякий старт
+   читався б як гальмо посеред жесту. */
+.modal.closing{animation:modalSlideDown .24s var(--ease-soft) forwards}
 .modal-overlay.closing{animation:overlayFadeOut .22s ease forwards;pointer-events:none}
 @keyframes cascadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 @keyframes tabbarIn{from{transform:translateY(140%) scale(.92);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
@@ -1797,7 +1837,6 @@ svg.ico{overflow:visible}
 @keyframes sparkleFloat{0%,100%{transform:translate(0,0) scale(.8) rotate(0deg);opacity:.3}25%{transform:translate(5px,-8px) scale(1.1) rotate(90deg);opacity:.9}50%{transform:translate(-3px,-15px) scale(1) rotate(180deg);opacity:.7}75%{transform:translate(-8px,-5px) scale(1.2) rotate(270deg);opacity:.9}}
 @keyframes shimmerSpin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 @keyframes glowPulse{0%,100%{opacity:.55;transform:scale(1)}50%{opacity:.85;transform:scale(1.15)}}
-@keyframes btnSuccess{0%{box-shadow:0 0 0 0 rgba(74,222,128,.6)}50%{box-shadow:0 0 0 12px rgba(74,222,128,0)}100%{box-shadow:0 0 0 0 rgba(74,222,128,0)}}
 @keyframes btnPulse{0%,100%{opacity:1}50%{opacity:0.6}}
 /* translateY, а НЕ top: це єдина безкінечна анімація застосунку, і в top-версії
    вона перераховувала лейаут КОЖЕН кадр усі 2s циклу, поки відкритий сканер.
@@ -1816,7 +1855,6 @@ svg.ico{overflow:visible}
 @keyframes screenEnter{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
 @keyframes statPop{from{opacity:0;transform:scale(.72) translateY(8px)}to{opacity:1;transform:scale(1) translateY(0)}}
 @keyframes segPop{0%{transform:scale(.86)}55%{transform:scale(1.07)}100%{transform:scale(1)}}
-@keyframes inputRing{0%{box-shadow:0 0 0 0 rgba(122,179,255,.55)}100%{box-shadow:0 0 0 5px rgba(122,179,255,0)}}
 @keyframes dotPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.55);opacity:.6}}
 @keyframes checkIn{from{transform:scale(0) rotate(-20deg);opacity:0}60%{transform:scale(1.18) rotate(4deg);opacity:1}to{transform:scale(1) rotate(0deg);opacity:1}}
 @keyframes slideRight{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:translateX(0)}}
@@ -1830,7 +1868,8 @@ svg.ico{overflow:visible}
    екрана перестає бачити контент під собою і перетворюється на плоску
    напівпрозору плашку. Кінцевий кадр і так дорівнює природному стану, тож
    візуально нічого не змінюється, зате backdrop-filter починає працювати. */
-.scr{animation:screenEnter .34s var(--ease-out) backwards}
+/* Сам вхід — у блоці SCREEN TRANSITIONS (`.nav-wrap > .scr`): там один рух на
+   перехід замість двох вкладених. */
 
 /* ── Active / press states (feel native on mobile) ── */
 
@@ -1910,23 +1949,32 @@ svg.ico{overflow:visible}
 .notif-i:active{background:var(--glass-2) !important}
 
 /* ── Segment selected pop ── */
-.seg-b.on{animation:segPop .22s var(--ease-spr) both}
-.fr-seg-b.on{animation:segPop .20s var(--ease-spr) both}
+.seg-b.on{animation:segPop .22s var(--ease-spr) backwards}
+.fr-seg-b.on{animation:segPop .20s var(--ease-spr) backwards}
 
 /* ── Unread notification dot heartbeat ── */
 .hdr-a-dot{animation:dotPulse 1.9s ease-in-out infinite}
 
-/* ── Input focus glow ── */
-.fr-i:focus,.fr-textarea:focus{animation:inputRing .42s ease-out;outline:none}
+/* ── Фокус поля форми ── */
+/* Спалаху `inputRing` тут більше немає, і свідомо. Він обводив box-shadow-ом
+   БОКС ІНПУТА, а в рядку `.fr` інпут — це права частина рядка після підпису,
+   без радіуса: на кожен тап виходив синій прямокутник із гострими кутами, що
+   починався посеред рядка й не збігався ні з рядком, ні з групою. Тобто та
+   сама «синя рамка на тапі», на яку власник уже скаржився (див. медіа-гейт
+   кільця нижче), тільки на 0.42с. Відгук на фокус дає РЯДОК
+   (`.fr:focus-within` — фон і колір підпису); текстове поле на всю групу
+   отримує той самий тон. Плюс тінь була фарбою щокадру, а не композитом. */
+.fr-i:focus,.fr-textarea:focus{outline:none}
+.fr-textarea:focus{background:linear-gradient(90deg,rgba(34,158,217,.08),transparent)}
 
 /* ── Tab content fade-in on switch ── */
-.tab-content-anim{animation:cascadeIn var(--dur-sm) ease both}
+.tab-content-anim{animation:cascadeIn var(--dur-sm) ease backwards}
 
 /* ── Stat card entrance ── */
-.stat-pop-anim{animation:statPop .3s var(--ease-spr) both}
+.stat-pop-anim{animation:statPop .3s var(--ease-spr) backwards}
 
 /* ── Progress bar fill animation ── */
-.anim-progress{width:var(--pw,100%);transform-origin:left center;animation:progressFill .6s var(--ease-out) both}
+.anim-progress{width:var(--pw,100%);transform-origin:left center;animation:progressFill .6s var(--ease-out) backwards}
 .fg:focus-within{background:rgba(255,255,255,.07) !important}
 .search-inline:focus-within{border-color:rgba(255,255,255,.28) !important;background:var(--glass-3) !important}
 
@@ -1963,7 +2011,7 @@ svg.ico{overflow:visible}
 .cmark-ring::after{content:'';position:absolute;inset:-1.5px;border-radius:inherit;box-shadow:0 0 0 6px rgba(148,214,255,.12),0 0 38px rgba(148,214,255,.3);opacity:0;animation:cmarkGlow 2s ease-in-out infinite}
 @keyframes cmarkGlow{50%{opacity:1}}
 /* Tooltip bubble — Liquid Glass dark glass card */
-.cmark-bubble{background:rgba(16,12,34,.95);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border:.5px solid rgba(255,255,255,.18);border-radius:var(--r-md);padding:14px 16px 12px;box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 16px 44px rgba(0,0,0,.64);pointer-events:auto;animation:cmarkIn .28s var(--ease-spr) both}
+.cmark-bubble{background:rgba(16,12,34,.95);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border:.5px solid rgba(255,255,255,.18);border-radius:var(--r-md);padding:14px 16px 12px;box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 16px 44px rgba(0,0,0,.64);pointer-events:auto;animation:cmarkIn .28s var(--ease-spr) backwards}
 @keyframes cmarkIn{from{opacity:0;transform:scale(.90)}to{opacity:1;transform:scale(1)}}
 .cmark-ttl{font-size:var(--fs-note);font-weight:700;color:var(--t1);margin-bottom:5px;line-height:1.35}
 .cmark-bdy{font-size:12.5px;color:var(--t2);line-height:1.5;margin-bottom:12px}
@@ -1983,68 +2031,75 @@ svg.ico{overflow:visible}
 .cmark-arr-dn{border-left:7px solid transparent;border-right:7px solid transparent;border-top:7px solid rgba(16,12,34,.95);bottom:-7px}
 
 /* ── Stat cards individual stagger ── */
-.stat-g .stat:nth-child(1){animation:statPop var(--dur-lg) var(--ease-spr) .04s both}
-.stat-g .stat:nth-child(2){animation:statPop var(--dur-lg) var(--ease-spr) .11s both}
-.stat-g .stat:nth-child(3){animation:statPop var(--dur-lg) var(--ease-spr) var(--dur-sm) both}
-.profile-stats .pstat:nth-child(1){animation:statPop var(--dur-lg) var(--ease-spr) .06s both}
-.profile-stats .pstat:nth-child(2){animation:statPop var(--dur-lg) var(--ease-spr) .13s both}
-.profile-stats .pstat:nth-child(3){animation:statPop var(--dur-lg) var(--ease-spr) .20s both}
+.stat-g .stat:nth-child(1){animation:statPop var(--dur-lg) var(--ease-spr) .04s backwards}
+.stat-g .stat:nth-child(2){animation:statPop var(--dur-lg) var(--ease-spr) .11s backwards}
+.stat-g .stat:nth-child(3){animation:statPop var(--dur-lg) var(--ease-spr) var(--dur-sm) backwards}
+.profile-stats .pstat:nth-child(1){animation:statPop var(--dur-lg) var(--ease-spr) .06s backwards}
+.profile-stats .pstat:nth-child(2){animation:statPop var(--dur-lg) var(--ease-spr) .13s backwards}
+.profile-stats .pstat:nth-child(3){animation:statPop var(--dur-lg) var(--ease-spr) .20s backwards}
 
 /* ── Extended list cascades ── */
+/* Заповнення `backwards`, НЕ `both` — у ВСІХ входах. `forwards` тримав кінцевий
+   кадр назавжди, а анімація в каскаді бʼє звичайні оголошення: `.row:active{
+   transform:scale(.99);opacity:.85}` не діяв (заміряно — рядок у `:active`,
+   transform одиничний), тобто картка обʼєкта, рядок бази, підбірка й плитки
+   профілю не відгукувались на натиск узагалі. На затримці `backwards` так
+   само тримає `from` (елемент схований), тож вигляд входу той самий.
+   `forwards` лишається лише там, де кінець ≠ природний стан: частинки орба
+   (зникають), виїзд шита й затемнення (до розмонтування), btnPress (живе,
+   лише поки `:active`). Гард — `motion-discipline.test.ts`. */
 /* Row (already exists — keep for rows, extend to 8) */
-.scr .list .row:nth-child(1){animation:cascadeIn var(--dur-lg) var(--ease) .04s both}
-.scr .list .row:nth-child(2){animation:cascadeIn var(--dur-lg) var(--ease) .09s both}
-.scr .list .row:nth-child(3){animation:cascadeIn var(--dur-lg) var(--ease) .14s both}
-.scr .list .row:nth-child(4){animation:cascadeIn var(--dur-lg) var(--ease) .19s both}
-.scr .list .row:nth-child(5){animation:cascadeIn var(--dur-lg) var(--ease) .24s both}
-.scr .list .row:nth-child(6){animation:cascadeIn var(--dur-lg) var(--ease) .28s both}
-.scr .list .row:nth-child(7){animation:cascadeIn var(--dur-lg) var(--ease) .31s both}
-.scr .list .row:nth-child(n+8){animation:cascadeIn var(--dur-lg) var(--ease) .33s both}
+.scr .list .row:nth-child(1){animation:cascadeIn var(--dur-lg) var(--ease) .04s backwards}
+.scr .list .row:nth-child(2){animation:cascadeIn var(--dur-lg) var(--ease) .09s backwards}
+.scr .list .row:nth-child(3){animation:cascadeIn var(--dur-lg) var(--ease) .14s backwards}
+.scr .list .row:nth-child(4){animation:cascadeIn var(--dur-lg) var(--ease) .19s backwards}
+.scr .list .row:nth-child(5){animation:cascadeIn var(--dur-lg) var(--ease) .24s backwards}
+.scr .list .row:nth-child(6){animation:cascadeIn var(--dur-lg) var(--ease) .28s backwards}
+.scr .list .row:nth-child(7){animation:cascadeIn var(--dur-lg) var(--ease) .31s backwards}
+.scr .list .row:nth-child(n+8){animation:cascadeIn var(--dur-lg) var(--ease) .33s backwards}
 /* Obj-cards */
 /* Flat list only (no folders) — accordion cards reveal via .fold-wrap instead. */
-.list > .obj-card:nth-child(1){animation:cascadeIn .36s var(--ease) .04s both}
-.list > .obj-card:nth-child(2){animation:cascadeIn .36s var(--ease) .09s both}
-.list > .obj-card:nth-child(3){animation:cascadeIn .36s var(--ease) .14s both}
-.list > .obj-card:nth-child(4){animation:cascadeIn .36s var(--ease) .19s both}
-.list > .obj-card:nth-child(5){animation:cascadeIn .36s var(--ease) .24s both}
-.list > .obj-card:nth-child(n+6){animation:cascadeIn .36s var(--ease) .28s both}
+.list > .obj-card:nth-child(1){animation:cascadeIn .36s var(--ease) .04s backwards}
+.list > .obj-card:nth-child(2){animation:cascadeIn .36s var(--ease) .09s backwards}
+.list > .obj-card:nth-child(3){animation:cascadeIn .36s var(--ease) .14s backwards}
+.list > .obj-card:nth-child(4){animation:cascadeIn .36s var(--ease) .19s backwards}
+.list > .obj-card:nth-child(5){animation:cascadeIn .36s var(--ease) .24s backwards}
+.list > .obj-card:nth-child(n+6){animation:cascadeIn .36s var(--ease) .28s backwards}
 /* Collection cards */
-.list .collection-c:nth-child(1){animation:cascadeIn .36s var(--ease) .04s both}
-.list .collection-c:nth-child(2){animation:cascadeIn .36s var(--ease) .09s both}
-.list .collection-c:nth-child(3){animation:cascadeIn .36s var(--ease) .14s both}
-.list .collection-c:nth-child(n+4){animation:cascadeIn .36s var(--ease) .19s both}
+.list .collection-c:nth-child(1){animation:cascadeIn .36s var(--ease) .04s backwards}
+.list .collection-c:nth-child(2){animation:cascadeIn .36s var(--ease) .09s backwards}
+.list .collection-c:nth-child(3){animation:cascadeIn .36s var(--ease) .14s backwards}
+.list .collection-c:nth-child(n+4){animation:cascadeIn .36s var(--ease) .19s backwards}
 /* Format cards */
-.format-list .format-card:nth-child(1){animation:cascadeIn .34s var(--ease) .03s both}
-.format-list .format-card:nth-child(2){animation:cascadeIn .34s var(--ease) .08s both}
-.format-list .format-card:nth-child(3){animation:cascadeIn .34s var(--ease) .13s both}
-.format-list .format-card:nth-child(4){animation:cascadeIn .34s var(--ease) var(--dur-sm) both}
+.format-list .format-card:nth-child(1){animation:cascadeIn .34s var(--ease) .03s backwards}
+.format-list .format-card:nth-child(2){animation:cascadeIn .34s var(--ease) .08s backwards}
+.format-list .format-card:nth-child(3){animation:cascadeIn .34s var(--ease) .13s backwards}
+.format-list .format-card:nth-child(4){animation:cascadeIn .34s var(--ease) var(--dur-sm) backwards}
 
 /* ── Stat-g block entrance (overridden by child statPop) ── */
 .scr .stat-g{animation:none}
 
 /* ── Notification items cascade ── */
-.notif-l .notif-i:nth-child(1){animation:cascadeIn .34s var(--ease) .03s both}
-.notif-l .notif-i:nth-child(2){animation:cascadeIn .34s var(--ease) .08s both}
-.notif-l .notif-i:nth-child(3){animation:cascadeIn .34s var(--ease) .13s both}
-.notif-l .notif-i:nth-child(n+4){animation:cascadeIn .34s var(--ease) .17s both}
+.notif-l .notif-i:nth-child(1){animation:cascadeIn .34s var(--ease) .03s backwards}
+.notif-l .notif-i:nth-child(2){animation:cascadeIn .34s var(--ease) .08s backwards}
+.notif-l .notif-i:nth-child(3){animation:cascadeIn .34s var(--ease) .13s backwards}
+.notif-l .notif-i:nth-child(n+4){animation:cascadeIn .34s var(--ease) .17s backwards}
 
 /* ── View list items cascade (SharingAnalytics) ── */
-.view-l .view-i:nth-child(1){animation:slideRight .32s var(--ease) .05s both}
-.view-l .view-i:nth-child(2){animation:slideRight .32s var(--ease) .10s both}
-.view-l .view-i:nth-child(3){animation:slideRight .32s var(--ease) .15s both}
-.view-l .view-i:nth-child(n+4){animation:slideRight .32s var(--ease) .19s both}
+.view-l .view-i:nth-child(1){animation:slideRight .32s var(--ease) .05s backwards}
+.view-l .view-i:nth-child(2){animation:slideRight .32s var(--ease) .10s backwards}
+.view-l .view-i:nth-child(3){animation:slideRight .32s var(--ease) .15s backwards}
+.view-l .view-i:nth-child(n+4){animation:slideRight .32s var(--ease) .19s backwards}
 
 /* ── Check icon pop for success/done states ── */
-.icon-check-pop{animation:checkIn .36s var(--ease-spr) both}
+.icon-check-pop{animation:checkIn .36s var(--ease-spr) backwards}
 
 /* ── Glass card section entrance in forms ── */
-.body > .over:nth-child(1) + .glass-s,.body > .over:nth-child(1) + .fg{animation:cascadeIn .32s var(--ease-out) .08s both}
-.body > .over:nth-child(3) + .glass-s,.body > .over:nth-child(3) + .fg{animation:cascadeIn .32s var(--ease-out) .14s both}
-.body > .over:nth-child(5) + .glass-s,.body > .over:nth-child(5) + .fg{animation:cascadeIn .32s var(--ease-out) .20s both}
-.body > .over:nth-child(7) + .glass-s,.body > .over:nth-child(7) + .fg{animation:cascadeIn .32s var(--ease-out) var(--dur-md) both}
+.body > .over:nth-child(1) + .glass-s,.body > .over:nth-child(1) + .fg{animation:cascadeIn .32s var(--ease-out) .08s backwards}
+.body > .over:nth-child(3) + .glass-s,.body > .over:nth-child(3) + .fg{animation:cascadeIn .32s var(--ease-out) .14s backwards}
+.body > .over:nth-child(5) + .glass-s,.body > .over:nth-child(5) + .fg{animation:cascadeIn .32s var(--ease-out) .20s backwards}
+.body > .over:nth-child(7) + .glass-s,.body > .over:nth-child(7) + .fg{animation:cascadeIn .32s var(--ease-out) var(--dur-md) backwards}
 
-/* ── Success flash on mbtn ── */
-.mbtn.flash-success{animation:btnSuccess var(--dur-xl) ease-out}
 
 /* ── Loading pulse on mbtn ── */
 .mbtn.is-loading{animation:btnPulse 1.2s ease-in-out infinite}
@@ -2530,7 +2585,8 @@ html[data-tg-client='mobile'] body::after { content: none; }
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
-  .scr { animation: none }
+  .nav-wrap > * { animation: none !important }
+  input:-webkit-autofill { transition-duration: 600000s !important }
   .shimmer-ring::before,.glow-orb,.sticker,.sparkle { animation: none !important }
 }
 
@@ -2642,8 +2698,8 @@ html[data-tg-client='mobile'] body::after { content: none; }
    КЛАСОМ (`.fr-i`, `.fld input`, `.search-inline input`, `.fold-mng-input`,
    `.fr-textarea`), а клас перебиває селектор за типом — тобто `outline:none` із
    цих правил гасив кільце всюди, де воно мало значення. Плюс `.fr-i:focus`
-   окремо ставить `outline:none` разом із анімацією `inputRing` (це тач-афорданс,
-   і він лишається).
+   окремо ставить `outline:none` (тач-афорданс фокуса — тон рядка
+   `.fr:focus-within`, а не спалах навколо інпута: див. «Фокус поля форми»).
    Тому: та сама специфічність, але ПІЗНІШЕ в файлі. Новий контрол зі своїм
    `outline:none` треба додавати сюди, а не «десь поряд із собою».
    Медіа-гейт — див. блок «Кільце фокуса на ПОЛІ» вище: на тачі текстове поле
