@@ -210,6 +210,10 @@ test('натиск доходить до рендера на елементах 
       return !!e && e.getAnimations().every((a) => a.playState === 'finished')
     }, sel)
     const el = page.locator(sel).first()
+    // Елемент — у центр: біля низу екрана точку натиску законно накриває
+    // плаваюча кнопка чи таббар, і `:active` дістався б їм.
+    await el.evaluate((e) => e.scrollIntoView({ block: 'center' }))
+    await page.waitForTimeout(250)
     const box = (await el.boundingBox())!
     await page.mouse.move(box.x + box.width / 2, box.y + Math.min(box.height / 2, 24))
     await page.mouse.down()
