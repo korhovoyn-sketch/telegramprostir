@@ -308,7 +308,7 @@ test('власник: папки й пакетні дії', async ({ page }) => 
   await menu(page, 'Виділити обʼєкти')
   await page.locator('.obj-card').first().click()
   await shot(page, 'select-mode')
-  await page.getByText('У папку').click()
+  await page.getByText('У папку', { exact: true }).click()
   await page.waitForTimeout(800)
   await shot(page, 'folder-picker')
   console.log('PICKER:', await text(page, 300))

@@ -114,7 +114,7 @@ test('owner: objects — sort, search, select & reorder modes', async ({ page })
 
   // Select mode via the action sheet; "Вибрати все"/"Зняти все" toggle
   await page.getByLabel('Меню бази').click()
-  await page.getByText("Виділити обʼєкти").click()
+  await page.getByText("Виділити обʼєкти", { exact: true }).click()
   await expect(page.getByText("Оберіть обʼєкти для дії")).toBeVisible()
   await page.getByText('Вибрати все').click()
   await expect(page.getByText('Зняти все')).toBeVisible()
