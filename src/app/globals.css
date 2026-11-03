@@ -1450,6 +1450,9 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
    правило, через яке його немає на `.nav-wrap` і `.modal`. */
 .fold-wrap{overflow:hidden}
 .fold-wrap-inner{display:flex;flex-direction:column;gap:10px;padding-top:10px}
+/* Порожня папка: пояснення замість смужки 10px. Колір — `--t2`: це відповідь
+   «що тут і як наповнити», а не капшен. */
+.fold-empty{padding:2px 12px 4px;font-size:var(--fs-foot);line-height:var(--lh-norm);color:var(--t2)}
 /* Під час розгортання/згортання глушимо backdrop-filter на картках усередині:
    переблюрювати 24 скляні шари щокадру — головна причина рваної анімації.
    На швидкості різниці не видно, а кадри перестають падати. */

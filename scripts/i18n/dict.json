@@ -1215,5 +1215,7 @@
   "міс.": "mo.",
   "платежі": "payments",
   "платежів": "payments",
-  "платіж": "payment"
+  "платіж": "payment",
+  "Порожня папка. Щоб додати обʼєкти: меню бази → «Виділити обʼєкти» → «У папку».": "Empty folder. To add units: database menu → “Select units” → “To folder”.",
+  "Порожня папка.": "Empty folder."
 }

@@ -29,6 +29,45 @@ const EASE = 'cubic-bezier(.16,1,.3,1)'
  * застосунку, що обходило власне ж правило.
  */
 
+/** Ближчий предок, що прокручується; без нього — сам документ. */
+function scrollerOf(el: HTMLElement): HTMLElement {
+  for (let p = el.parentElement; p; p = p.parentElement) {
+    const oy = getComputedStyle(p).overflowY
+    if (oy === 'auto' || oy === 'scroll') return p
+  }
+  return (document.scrollingElement ?? document.documentElement) as HTMLElement
+}
+
+/** Нижній край ВИДИМОЇ частини скролера, у координатах вʼюпорта. */
+function visibleBottom(sc: HTMLElement): number {
+  if (sc === document.scrollingElement) return window.innerHeight
+  return sc.getBoundingClientRect().top + sc.clientTop + sc.clientHeight
+}
+
+/**
+ * Якоріння прокрутки знімається на ЧАС РУХУ — лічильником, бо дві папки можуть
+ * рухатись одночасно, і перша, що доїхала, не сміє повернути якоріння другій.
+ *
+ * Навіщо: Chromium (тобто Telegram на Android) після згортання з упором у низ
+ * сторінки при наступному розгортанні тягне прокрутку за висотою. Рух нижче
+ * обмежений видимою частиною, а решта висоти відпускається в `auto` одним
+ * кадром — з якорінням це був би стрибок заголовка на всю невидиму частину.
+ * Без якоріння геометрія однакова в усіх рушіях: заголовок стоїть, тіло росте
+ * під ним.
+ */
+const anchorHolds = new WeakMap<HTMLElement, number>()
+function holdAnchoring(sc: HTMLElement) {
+  const n = anchorHolds.get(sc) ?? 0
+  if (n === 0) sc.style.overflowAnchor = 'none'
+  anchorHolds.set(sc, n + 1)
+}
+function releaseAnchoring(sc: HTMLElement) {
+  const n = (anchorHolds.get(sc) ?? 1) - 1
+  if (n > 0) { anchorHolds.set(sc, n); return }
+  anchorHolds.delete(sc)
+  sc.style.overflowAnchor = ''
+}
+
 export default function Collapsible({ open, id, className, children }: {
   open: boolean
   /** Ціль `aria-controls` кнопки-заголовка — без неї звʼязок «кнопка ↔ тіло»
@@ -73,12 +112,36 @@ export default function Collapsible({ open, id, className, children }: {
       return
     }
 
-    const to = open ? inner.getBoundingClientRect().height : 0
+    // РУХАЄТЬСЯ ЛИШЕ ВИДИМЕ. Тривалість і крива однакові для папки на 1 картку
+    // і на 24, тож доти рух великої майже весь ішов ЗА краєм екрана. Заміряно
+    // (8 карток, 1452px, під заголовком видно 254px): розгортання заповнювало
+    // всю видиму частину за ОДИН кадр, а 280мс руху лишались невидимими;
+    // згортання ~70мс стояло (висота падала там, де її не видно) і потім
+    // повзло хвостом кривої. Для 24 карток мертвий старт — ~135мс.
+    //
+    // Тому розгортання їде лише до низу скролера (решту відпускає `auto` в
+    // кінці — нижче краю, тобто непомітно), а згортання стартує з нього:
+    // невидиму частину знято відразу. Не більше, ніж є вмісту під краєм —
+    // інакше прокрутка впреться в нове дно і стрибне; з тієї ж причини на час
+    // руху знято якоріння (див. `holdAnchoring`).
+    const sc = scrollerOf(outer)
+    const room = Math.max(0, visibleBottom(sc) - outer.getBoundingClientRect().top)
+    let start = from
+    let to = 0
+    if (open) {
+      to = Math.min(inner.getBoundingClientRect().height, Math.max(from, room))
+    } else {
+      const below = Math.max(0, sc.scrollHeight - sc.scrollTop - sc.clientHeight)
+      start = from - Math.min(Math.max(0, from - room), below)
+    }
+    holdAnchoring(sc)
+    let held = true
+    const release = () => { if (held) { held = false; releaseAnchoring(sc) } }
 
     // Fix the start height so the animation has a concrete origin (height:auto
     // is not interpolable), and make sure a collapsing section stays painted
     // until it has finished shrinking.
-    outer.style.height = `${from}px`
+    outer.style.height = `${start}px`
     outer.style.visibility = 'visible'
     outer.classList.add('fold-anim')
 
@@ -90,7 +153,7 @@ export default function Collapsible({ open, id, className, children }: {
     // хвіст `anim.finished` нижче, тобто у спокої, а не покадрово.
     outer.style.opacity = '1'
     const anim = outer.animate(
-      [{ height: `${from}px` }, { height: `${to}px` }],
+      [{ height: `${start}px` }, { height: `${to}px` }],
       { duration: DURATION, easing: EASE, fill: 'forwards' },
     )
     animRef.current = anim
@@ -104,8 +167,11 @@ export default function Collapsible({ open, id, className, children }: {
         outer.style.height = open ? 'auto' : '0px'
         outer.style.opacity = open ? '1' : '0'
         outer.style.visibility = open ? 'visible' : 'hidden'
+        // Якоріння — лише після кадру, у якому `auto` вже розкладено: інакше
+        // саме цей кадр і посунув би прокрутку.
+        requestAnimationFrame(() => requestAnimationFrame(release))
       })
-      .catch(() => { /* cancelled by a newer toggle — nothing to clean up */ })
+      .catch(() => { /* cancelled by a newer toggle — cleanup releases */ })
 
     // ПЕРЕРИВАННЯ: висоту треба ЗАМОРОЗИТИ в інлайновий стиль ДО `cancel()`.
     //
@@ -126,6 +192,7 @@ export default function Collapsible({ open, id, className, children }: {
     return () => {
       outer.style.height = `${outer.getBoundingClientRect().height}px`
       anim.cancel()
+      release()
     }
   }, [open])
 
