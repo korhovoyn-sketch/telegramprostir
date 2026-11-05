@@ -407,3 +407,46 @@ describe('деплой: шлюз не стоїть між функцією і ї
       .toMatch(/paths:[\s\S]*?'\.github\/workflows\/deploy-edge-function\.yml'/)
   })
 })
+
+/**
+ * ВОРКФЛОУ НЕ СМІЮТЬ ЗАЛЕЖАТИ ВІД ТОГО, ЩО ПЛАТФОРМА ЗМІНИТЬ МОВЧКИ.
+ *
+ * Мердж #135 дав два падіння, жодне не в коді. CLI Supabase (`version:
+ * latest`) почав питати підтвердження деплою, а без терміналу виходив з
+ * «Nothing was changed» — тобто прод лишився на СТАРИХ функціях. А
+ * `ubuntu-latest` став 26.04: Playwright 1.60 там не ставить браузер, а
+ * Postgres уже 18. Обидва гарди дивляться на ВЖИТОК: на саму команду й на сам
+ * `runs-on`, а не на те, що про них сказано в коментарі.
+ */
+describe('воркфлоу: команди CLI і образ раннера', () => {
+  const dir = resolve(process.cwd(), '.github/workflows')
+  const files = readdirSync(dir).filter((f) => f.endsWith('.yml'))
+  // Без рядків-коментарів: там команди згадуються словами, а не виконуються.
+  const src = (f: string) => readFileSync(resolve(dir, f), 'utf8')
+    .split('\n').filter((l) => !l.trim().startsWith('#')).join('\n')
+  // Команда разом із рядками-продовженнями (`\` у кінці рядка).
+  const cmd = /supabase (functions deploy|secrets set|db push|migration repair)\b((?:[^\n]*\\\n)*[^\n]*)/g
+
+  it('кожна змінювальна команда Supabase CLI має --yes', () => {
+    let seen = 0
+    for (const f of files) {
+      for (const m of src(f).matchAll(cmd)) {
+        seen++
+        expect(m[0], `${f}: «supabase ${m[1]}» без --yes — у CI вона нічого не змінить і впаде`).toMatch(/--yes\b/)
+      }
+    }
+    // антивакуум: 4 деплої + 2 секрети + db push + repair
+    expect(seen, 'гард не знайшов команд CLI — регекс осліп').toBeGreaterThanOrEqual(8)
+  })
+
+  it('образ раннера закріплено, а не ubuntu-latest', () => {
+    let jobs = 0
+    for (const f of files) {
+      for (const m of src(f).matchAll(/runs-on:\s*(\S+)/g)) {
+        jobs++
+        expect(m[1], `${f}: runs-on ${m[1]} — образ зміниться без попередження`).not.toMatch(/-latest$/)
+      }
+    }
+    expect(jobs, 'гард не знайшов жодного runs-on').toBeGreaterThan(5)
+  })
+})
