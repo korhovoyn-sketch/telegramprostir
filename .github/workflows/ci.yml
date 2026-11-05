@@ -32,7 +32,10 @@ concurrency:
 jobs:
   static-and-unit:
     name: type-check · lint · build · unit
-    runs-on: ubuntu-latest
+    # Образ ЗАКРІПЛЕНО: `ubuntu-latest` у листопаді 2026 став 26.04, якого
+    # Playwright 1.60 не підтримує (браузер не ставиться), а Postgres там 18 —
+    # тобто раннер мовчки змінив і рушій, і базу під усіма гардами.
+    runs-on: ubuntu-24.04
     env:
       NEXT_PUBLIC_SUPABASE_URL: http://localhost:9999
       NEXT_PUBLIC_SUPABASE_ANON_KEY: test-anon-key
@@ -82,7 +85,7 @@ jobs:
 
   migrations:
     name: міграції (справжній Postgres)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       # ЧОМУ ЦЕ ОКРЕМА РОБОТА. `supabase/migrations/` була ЄДИНОЮ текою репо
@@ -102,7 +105,7 @@ jobs:
 
   e2e:
     name: e2e (Playwright)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

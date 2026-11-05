@@ -12,7 +12,7 @@ on:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -30,6 +30,10 @@ jobs:
           fi
           echo "All required secrets are configured."
 
+      # `--yes` у кожній команді нижче — не формальність. З листопада 2026
+      # CLI (`version: latest`) питає підтвердження деплою, а в CI терміналу
+      # немає: без прапорця він пише «Nothing was changed» і виходить з 1.
+      # Так мердж #135 лишив у проді СТАРІ функції. Гард — edge-invariants.
       - uses: supabase/setup-cli@v1
         with:
           version: latest
@@ -40,7 +44,8 @@ jobs:
         run: |
           supabase functions deploy telegram-auth \
             --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} \
-            --no-verify-jwt
+            --no-verify-jwt \
+            --yes
 
       - name: Deploy validate-upload function
         env:
@@ -48,7 +53,8 @@ jobs:
         run: |
           supabase functions deploy validate-upload \
             --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} \
-            --no-verify-jwt
+            --no-verify-jwt \
+            --yes
 
       - name: Deploy telegram-bot function
         env:
@@ -56,7 +62,8 @@ jobs:
         run: |
           supabase functions deploy telegram-bot \
             --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} \
-            --no-verify-jwt
+            --no-verify-jwt \
+            --yes
 
       # БЕЗ перевірки JWT на шлюзі, як і решта. Функція автентифікує виклик
       # САМА (CRON_SECRET або службовий ключ, порівняння за сталий час,
@@ -69,4 +76,5 @@ jobs:
         run: |
           supabase functions deploy send-reminders \
             --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} \
-            --no-verify-jwt
+            --no-verify-jwt \
+            --yes

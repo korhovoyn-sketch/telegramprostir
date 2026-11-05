@@ -26,7 +26,7 @@ on:
 
 jobs:
   setup:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Verify secrets
         run: |
@@ -59,7 +59,8 @@ jobs:
             TELEGRAM_BOT_TOKEN="${{ secrets.TELEGRAM_BOT_TOKEN }}" \
             TELEGRAM_BOT_USERNAME="${{ inputs.bot_username }}" \
             TELEGRAM_APP_NAME="${{ inputs.app_name }}" \
-            --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+            --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} \
+            --yes
           echo "Supabase secrets updated."
 
       - name: Register Telegram webhook
