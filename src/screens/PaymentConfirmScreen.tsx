@@ -12,7 +12,7 @@ import { confirmAction } from '@/lib/confirm'
 import { assertAffected } from '@/lib/dbWrite'
 import { supabase } from '@/lib/supabase'
 import { withOptionalColumns } from '@/lib/optionalColumns'
-import { sanitizeDecimal, scrollFocusedIntoView, humanizeDbError, currencySymbol, formatPrice, localDay } from '@/lib/utils'
+import { scrollFocusedIntoView, humanizeDbError, currencySymbol, formatPrice, localDay, caretEdit, editDecimal } from '@/lib/utils'
 import {
   RENT_PAYMENT_RECORD_COLUMNS, RENT_PAYMENT_RECORD_COLUMNS_PRE, RENT_PAYMENT_PART_COLUMNS, RENT_PAYMENT_PART_COLUMNS_PRE, RENT_TERMS_COLUMNS,
   expectedRentAt, fmtDueDate, isPartsUnavailable, remainingFor, type RentTermsRow,
@@ -419,7 +419,7 @@ export default function PaymentConfirmScreen() {
                 type="text" inputMode="decimal"
                 placeholder={tr('Введіть суму...')}
                 value={amount}
-                onChange={e => setAmount(sanitizeDecimal(e.target.value))}
+                onChange={e => setAmount(caretEdit(e, editDecimal))}
               />
               <span className="fld-u">{currencySymbol(user?.currency)}</span>
             </div>

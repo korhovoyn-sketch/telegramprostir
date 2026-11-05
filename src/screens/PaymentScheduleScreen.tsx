@@ -7,7 +7,7 @@ import Header from '@/components/ui/Header'
 import RetryState from '@/components/ui/RetryState'
 import { offlineGuard } from '@/lib/offline'
 import { supabase } from '@/lib/supabase'
-import { sanitizeInt, scrollFocusedIntoView, humanizeDbError } from '@/lib/utils'
+import { scrollFocusedIntoView, humanizeDbError, caretEdit, editInt } from '@/lib/utils'
 import { RENT_PAYMENT_COLUMNS } from '@/lib/rentPayments'
 import { IconCalendar, IconBellRing } from '@/components/Icons'
 import type { RentPayment } from '@/types'
@@ -138,7 +138,7 @@ export default function PaymentScheduleScreen() {
               aria-label={tr('День місяця')}
               className="fr-i"
               type="text" inputMode="numeric" maxLength={2}
-              value={dueDay} onChange={e => setDueDay(sanitizeInt(e.target.value))}
+              value={dueDay} onChange={e => setDueDay(caretEdit(e, editInt))}
             />
           </div>
           <div className="fr">
@@ -147,7 +147,7 @@ export default function PaymentScheduleScreen() {
               aria-label={tr('Нагадати за, днів')}
               className="fr-i"
               type="text" inputMode="numeric" maxLength={2}
-              value={notifyDays} onChange={e => { const v = sanitizeInt(e.target.value); setNotifyDays(v && parseInt(v, 10) > 14 ? '14' : v) }}
+              value={notifyDays} onChange={e => { const v = caretEdit(e, editInt); setNotifyDays(v && parseInt(v, 10) > 14 ? '14' : v) }}
             />
           </div>
         </div>

@@ -109,6 +109,12 @@ export default function ActionSheet({ open, title, subtitle, onClose, children, 
   const wasOpenRef = useRef(open)
   useEffect(() => {
     if (open) {
+      // Персистентний шит (ConfirmHost) переживає цикл: залишки свайпу
+      // попереднього закриття (позиція, крива виїзду) інакше дісталися б
+      // наступному показу.
+      const el = modalRef.current, ov = overlayRef.current
+      if (el) { el.style.transform = ''; el.style.transition = ''; el.style.animationTimingFunction = '' }
+      if (ov) { ov.style.opacity = ''; ov.style.transition = '' }
       setRendered(true)
       setClosing(false)
       // Компонент тепер живе довше за один цикл відкриття/закриття (на
@@ -208,11 +214,11 @@ export default function ActionSheet({ open, title, subtitle, onClose, children, 
       // Летить дія — повертаємо на місце, як і звичайний недостатній свайп.
     }
     if (!busyRef.current && (dy > DRAG_CLOSE_PX || (v > FLING_VELOCITY && dy > FLING_MIN_PX))) {
-      if (el) {
-        el.style.transition = 'transform .2s cubic-bezier(.4,0,1,1)'
-        el.style.transform = 'translateY(100%)'
-      }
-      if (ov) { ov.style.transition = 'opacity .2s ease'; ov.style.opacity = '0' }
+      // Виїзд веде анімація `closing`, і вона стартує З ТІЄЇ ТОЧКИ, де
+      // відпустили палець (у `modalSlideDown` немає `from`). Власний перехід
+      // тут був би другим рухом поверх неї. Крива — різкий старт: шит уже має
+      // швидкість жесту, мʼякий старт `closing` читався б як гальмо.
+      if (el) el.style.animationTimingFunction = 'var(--ease-out)'
       onClose()
       return
     }

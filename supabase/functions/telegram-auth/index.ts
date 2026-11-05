@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0'
 import { z } from 'https://esm.sh/zod@3.23.8'
 import { allowedOrigin, corsHeadersFor, serializeError } from '../_shared/cors.ts'
-import { rateDecision } from '../_shared/rateLimit.ts'
+import { atomicDecision, rateDecision } from '../_shared/rateLimit.ts'
 
 // This function's allowed methods (shared corsHeadersFor takes it as a param).
 const CORS_METHODS = 'POST, OPTIONS, GET'
@@ -44,6 +44,18 @@ async function checkRateLimit(
   windowMs = 60_000,
 ): Promise<boolean> {
   try {
+    // 077: ОДИН атомарний запит — INSERT … ON CONFLICT DO UPDATE … RETURNING під
+    // блокуванням рядка, тож паралельні запити бачать лічильник один одного.
+    // Старий шлях нижче лишається запасним ЛИШЕ на час між деплоєм функції і
+    // накатом міграції (див. `atomicDecision`); будь-яка інша помилка — відмова.
+    const { data: hit, error: hitErr } = await adminClient.rpc('rate_limit_hit', {
+      p_key: key,
+      p_max: maxRequests,
+      p_window_ms: windowMs,
+    })
+    const atomic = atomicDecision(hit, hitErr)
+    if (atomic !== 'fallback') return atomic === 'allow'
+
     // `error` МУСИТЬ читатись: supabase-js РЕЗОЛВИТЬ збій запиту як
     // `{data: null, error}` і не кидає, тож catch нижче для нього не спрацює.
     // Без цієї гілки будь-яка невдача (немає таблиці, зміна RLS, 5xx,
@@ -72,12 +84,10 @@ async function checkRateLimit(
       return true
     }
 
-    // ВІДОМА МЕЖА: read-then-write не атомарний, тож N паралельних запитів
-    // читають однаковий `count` і всі пишуть `+1` — стеля обходиться
-    // паралелізмом. Виправляється лише серверним `ON CONFLICT DO UPDATE …
-    // RETURNING`, тобто новою міграцією; поки її немає, це задокументована
-    // слабкість, а не непомічена. Практичний вплив обмежений: HMAC
-    // валідується ДО лімітера, тож виграє лише власник валідного initData.
+    // Запасний шлях НЕ атомарний: N паралельних запитів читають однаковий
+    // `count`, тож стеля обходиться паралелізмом. Тому він живе лише до накату
+    // 077; після нього сюди не доходить жоден запит. Вплив і тут обмежений:
+    // HMAC валідується ДО лімітера, тож виграє лише власник валідного initData.
     await adminClient
       .from('rate_limits')
       .update({ count: data!.count + 1 })
@@ -91,6 +101,15 @@ async function checkRateLimit(
     return false
   }
 }
+
+// Результат проб діагностики (`getMe` у Telegram і запит у БД службовим
+// ключем) кешується на хвилину в памʼяті інстансу. GET діагностики публічний і
+// без лімітера, тож без кешу будь-хто перетворював би кожен свій запит на
+// запит до Bot API від імені НАШОГО бота — і міг би довести його до флуд-
+// ліміту Telegram, тобто зупинити нагадування. Хвилинна давнина для
+// діагностики конфігурації несуттєва.
+const PROBE_TTL_MS = 60_000
+let probeCache: { at: number; botTokenValid: boolean | null; db: boolean } | null = null
 
 // Returns { ok, data } on success or { ok: false, code } on failure.
 // Splitting HMAC vs expiry lets us return different 401 codes to the client.
@@ -169,6 +188,8 @@ function classifyError(msg: string): ErrCode {
     return m.includes('database error') ? 'TRIGGER_CONFLICT' : 'AUTH_CONFLICT'
   }
   if (m.includes('sign in failed') || m.includes('no session')) return 'AUTH_CONFLICT'
+  if (m.includes('auth lookup failed')) return 'DB_SETUP'
+  if (m.includes('auth metadata update failed')) return 'AUTH_CONFLICT'
   return 'INTERNAL'
 }
 
@@ -245,8 +266,9 @@ Deno.serve(async (req) => {
     // токен непорожній — порівнювати нема з чим, поки його немає взагалі.
     // Повертається САМЕ булеве: тіло `getMe` містить юзернейм бота, і хоч він
     // публічний, діагностиці він не потрібен.
-    let botTokenValid: boolean | null = null
-    if (checks.bot_token) {
+    const cached = probeCache && Date.now() - probeCache.at < PROBE_TTL_MS ? probeCache : null
+    let botTokenValid: boolean | null = cached ? cached.botTokenValid : null
+    if (!cached && checks.bot_token) {
       const ctl = new AbortController()
       const t = setTimeout(() => ctl.abort(), 5000)
       try {
@@ -266,8 +288,8 @@ Deno.serve(async (req) => {
     }
 
     // Optionally probe DB connectivity when config looks good
-    let db = false
-    if (allOk) {
+    let db = cached ? cached.db : false
+    if (!cached && allOk) {
       try {
         const admin = createClient(
           Deno.env.get('SUPABASE_URL')!,
@@ -277,6 +299,8 @@ Deno.serve(async (req) => {
         db = !error
       } catch { /* ignore — db check is best-effort */ }
     }
+
+    if (!cached) probeCache = { at: Date.now(), botTokenValid, db }
 
     return new Response(
       JSON.stringify({
@@ -396,59 +420,54 @@ Deno.serve(async (req) => {
     }
 
     // ── Create Supabase auth session ──────────────────────────────────────
-    // Strategy:
-    //   - New users  (existing == null): createUser then signIn
-    //   - Returning users (existing != null): skip createUser, go straight to signIn
-    //   - Recovery: if signIn fails for a returning user (auth.users deleted externally),
-    //     recreate the auth account and retry once
-    //   - Recovery 2: if signIn fails due to password mismatch (SERVICE_KEY rotated),
-    //     update the password via admin and retry
+    // ОСОБУ ЗАСВІДЧУЄ `app_metadata.tg_id` (міграція 076), а не email. Email
+    // `{tg}@telegram.propspace.app` може отримати й не ця функція: самореєстрація
+    // в Auth з публічним ключем, зміна email власного (зокрема анонімного)
+    // акаунта. `app_metadata` пише ЛИШЕ службовий ключ, тобто тільки тут.
+    //
+    // Наш запис від чужого відрізняє ПАРОЛЬ: він виводиться з SERVICE_KEY, і
+    // знати його не може ніхто, крім цієї функції. Тож:
+    //   1. вхід нашим паролем вдався → запис наш; бракує засвідчення — ставимо;
+    //   2. не вдався, а запис із цим email є → він НЕ наш (самозванець, що
+    //      зайняв email наперед, або запис після ротації ключа) → видаляємо
+    //      і створюємо справжній. Самозванець при цьому втрачає і токени;
+    //   3. запису немає → створюємо.
+    // Раніше п.2 «лагодився» зміною пароля ЧУЖОГО запису — тобто справжній
+    // користувач успадковував акаунт самозванця разом із його сесіями.
     const email    = `${tgUser.id}@telegram.propspace.app`
     const password = await derivePassword(SERVICE_KEY, email)
+    const appMeta  = { tg_id: String(tgId) }
 
-    if (!existing) {
+    const anonClient = createClient(SUPABASE_URL, ANON_KEY)
+    let signInResult = await anonClient.auth.signInWithPassword({ email, password })
+
+    if (signInResult.error) {
+      // Пошук запису за email — службовою функцією (076): схема `auth` через
+      // REST не публікується, тож попередній прямий запит у цю схему тут не працював.
+      const { data: foreignId, error: lookupErr } = await adminClient
+        .rpc('auth_user_id_by_email', { p_email: email })
+      if (lookupErr) throw new Error(`Auth lookup failed: ${lookupErr.message}`)
+      if (foreignId) {
+        console.warn('[telegram-auth] email occupied by a record we did not create — replacing it')
+        const { error: delErr } = await adminClient.auth.admin.deleteUser(foreignId as string)
+        if (delErr) throw new Error(`Auth account recreation failed: ${delErr.message}`)
+      }
       const { error: createErr } = await adminClient.auth.admin.createUser({
         email,
         password,
         email_confirm: true,
+        app_metadata: appMeta,
       })
       if (createErr) throw new Error(`Auth user creation failed: ${createErr.message}`)
-    }
-
-    const anonClient   = createClient(SUPABASE_URL, ANON_KEY)
-    let signInResult   = await anonClient.auth.signInWithPassword({ email, password })
-
-    // Recovery path A: returning user whose auth.users row was deleted externally
-    if (signInResult.error && existing) {
-      const errMsg = signInResult.error.message ?? ''
-      console.warn('[telegram-auth] signIn failed for existing user:', errMsg)
-
-      if (errMsg.toLowerCase().includes('invalid login credentials')) {
-        // Could be: (a) auth.users row missing, or (b) password hash mismatch (key rotated).
-        // Use schema('auth') to do a targeted email lookup instead of scanning all users.
-        // deno-lint-ignore no-explicit-any
-        const { data: authRow } = await (adminClient as any)
-          .schema('auth')
-          .from('users')
-          .select('id')
-          .eq('email', email)
-          .maybeSingle()
-
-        if (authRow?.id) {
-          // Row exists but password is wrong (SERVICE_KEY changed) — update password
-          await adminClient.auth.admin.updateUserById(authRow.id, { password })
-          signInResult = await anonClient.auth.signInWithPassword({ email, password })
-        } else {
-          // Row truly missing — recreate
-          const { error: reCreateErr } = await adminClient.auth.admin.createUser({
-            email, password, email_confirm: true,
-          })
-          if (reCreateErr && !reCreateErr.message?.toLowerCase().includes('already')) {
-            throw new Error(`Auth account recreation failed: ${reCreateErr.message}`)
-          }
-          signInResult = await anonClient.auth.signInWithPassword({ email, password })
-        }
-      }
+      signInResult = await anonClient.auth.signInWithPassword({ email, password })
+    } else if (signInResult.data?.user?.app_metadata?.tg_id !== appMeta.tg_id) {
+      // Наш запис, створений до 076: засвідчуємо. Перевірка в БД читає
+      // app_metadata з таблиці, тож доступ зʼявляється одразу, без нового входу.
+      const u = signInResult.data.user
+      const { error: metaErr } = await adminClient.auth.admin.updateUserById(u.id, {
+        app_metadata: { ...(u.app_metadata ?? {}), ...appMeta },
+      })
+      if (metaErr) throw new Error(`Auth metadata update failed: ${metaErr.message}`)
     }
 
     if (signInResult.error) throw new Error(`Sign in failed: ${signInResult.error.message}`)

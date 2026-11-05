@@ -147,7 +147,7 @@ test('folders: bulk move sends a folder_id PATCH', async ({ page }) => {
   await openObjects(page)
 
   await page.getByLabel('Меню бази').click()
-  await page.getByText("Виділити обʼєкти").click()
+  await page.getByText("Виділити обʼєкти", { exact: true }).click()
   await page.locator('.obj-card', { hasText: 'Офіс 103' }).click()
   await expect(page.getByText('1 обрано')).toBeVisible()
 

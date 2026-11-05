@@ -144,6 +144,31 @@ describe('хелпер ідентичності не переозначуєть�
   })
 })
 
+// ── 076: особа засвідчується сервером ──────────────────────────────────────
+// Email `{tg}@telegram.propspace.app` може отримати не лише edge-функція
+// (самореєстрація в Auth, зміна email). Тому обидва резолвери вимагають
+// `raw_app_meta_data.tg_id`, яку пише лише службовий ключ. Наступна міграція,
+// що переозначить резолвер «по-старому», тихо відкрила б захоплення акаунта
+// для будь-кого, хто зайняв email майбутнього користувача, — і verify_release
+// побачив би це лише якщо вона ОСТАННЯ за номером.
+describe('резолвери особи вимагають засвідчення сервером (076)', () => {
+  it.each(['current_app_user_id', 'get_app_user_id_from_auth_uid'])('%s від 076 не переозначується без app_metadata', (fn) => {
+    const late = readdirSync(DIR).filter((f) => /^\d{3}_/.test(f) && Number(f.slice(0, 3)) >= 76)
+    let seen = 0
+    for (const f of late) {
+      const sql = readFileSync(resolve(DIR, f), 'utf-8')
+        .split('\n').filter((l) => !l.trimStart().startsWith('--')).join('\n')
+      const re = new RegExp(`CREATE\\s+OR\\s+REPLACE\\s+FUNCTION\\s+(?:public\\.)?${fn}\\s*\\([\\s\\S]*?\\$\\$([\\s\\S]*?)\\$\\$`, 'gi')
+      for (const m of sql.matchAll(re)) {
+        seen++
+        expect(m[1], `${f}: ${fn} без засвідчення app_metadata — повертає захоплення через зайнятий email`).toMatch(/raw_app_meta_data->>'tg_id'/)
+      }
+    }
+    // антивакуум: сама 076 мусить знаходитись цим пошуком
+    expect(seen, `${fn}: пошук не знайшов жодного визначення від 076`).toBeGreaterThan(0)
+  })
+})
+
 describe('релізна звірка знає кожен клієнтський RPC', () => {
   /**
    * КОЖЕН RPC, ЯКИЙ МОЖЕ ПОКЛИКАТИ КЛІЄНТ, МУСИТЬ БУТИ В `verify_release.sql`.

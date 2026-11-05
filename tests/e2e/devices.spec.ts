@@ -118,13 +118,20 @@ const labelSpill = (page: Page) => page.evaluate((): Spill[] => {
     range.selectNodeContents(e)
     const tr = range.getBoundingClientRect()
     range.detach()
-    const inner = r.width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)
+    // Обидві величини — у ЛЕЙАУТНИХ пікселях. Схована плаваюча кнопка
+    // (`fab-off`) стоїть зі `scale:.94`, а Range і бокс віддають ВІЗУАЛЬНІ
+    // розміри, тоді як падінги — лейаутні. Віднімати одне від другого
+    // означало б «вилазить на 1px», якого немає: так гард упав на збірці
+    // Chromium, що малює текст на піксель ширше (153 проти 148).
+    const k = e.offsetWidth ? r.width / e.offsetWidth : 1
+    const inner = e.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)
+    const text = tr.width / k
     // 1px — на субпіксельне округлення, не «майже влізло».
-    if (tr.width > inner + 1) {
+    if (text > inner + 1) {
       out.push({
         cls: e.className.toString().slice(0, 24),
         label: (e.textContent || '').trim().slice(0, 28),
-        text: Math.round(tr.width), box: Math.round(inner),
+        text: Math.round(text), box: Math.round(inner),
       })
     }
   })

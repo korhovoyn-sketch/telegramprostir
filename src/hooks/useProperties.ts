@@ -371,6 +371,10 @@ export function useProperties(dbId?: string) {
       if (error) throw error
       assertAffected(deleted, 1, tr('видалення обʼєкта'))
 
+      // Файли прибирає СЕРВЕР — тригер 077, у тій самій транзакції, що й
+      // видалення рядка. Цей виклик після каскаду зазвичай не знаходить нічого:
+      // політика сховища питає про обʼєкт, якого вже немає. Він лишається
+      // безпечним запасним шляхом — порядок «спершу рядок» тримається.
       if (photos && photos.length > 0) {
         await supabase.storage.from('photos').remove(photos.map((p) => p.storage_path))
       }
@@ -415,6 +419,10 @@ export function useProperties(dbId?: string) {
       if (error) throw error
       assertAffected(deleted, ids.length, tr('видалення обʼєктів'))
 
+      // Файли прибирає СЕРВЕР — тригер 077, у тій самій транзакції, що й
+      // видалення рядка. Цей виклик після каскаду зазвичай не знаходить нічого:
+      // політика сховища питає про обʼєкт, якого вже немає. Він лишається
+      // безпечним запасним шляхом — порядок «спершу рядок» тримається.
       if (photos && photos.length > 0) {
         await supabase.storage.from('photos').remove(photos.map(p => p.storage_path))
       }

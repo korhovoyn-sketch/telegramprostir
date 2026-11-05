@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { readFileSync, existsSync } from 'node:fs'
+import { readFileSync, existsSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 /**
@@ -37,6 +37,23 @@ describe('edge-функції на місці', () => {
 describe('telegram-auth', () => {
   const src = read('telegram-auth')
 
+  // 076: особу засвідчує app_metadata.tg_id, і пише її лише ця функція.
+  it('кожен createUser ставить app_metadata.tg_id', () => {
+    const calls = [...src.matchAll(/auth\.admin\.createUser\(\{([\s\S]*?)\}\)/g)]
+    expect(calls.length, 'createUser зник — тест мовчав би').toBeGreaterThan(0)
+    for (const c of calls) expect(c[1], 'createUser без app_metadata — новий користувач не засвідчений і бачить порожній застосунок').toMatch(/app_metadata/)
+  })
+
+  it('чужий запис на email користувача видаляється, а не успадковується', () => {
+    // Раніше «невірний пароль» лікувався зміною пароля ЧУЖОГО запису: справжній
+    // користувач успадковував акаунт самозванця разом із його живими сесіями.
+    expect(src, 'updateUserById змінює пароль — так успадковується чужий запис').not.toMatch(/updateUserById\([^)]*\{\s*password/)
+    expect(src).toMatch(/auth\.admin\.deleteUser\(/)
+    // схема auth через REST не публікується — пошук іде службовою функцією
+    expect(src).not.toMatch(/\.schema\(\s*['"]auth['"]\s*\)/)
+    expect(src).toMatch(/rpc\(\s*'auth_user_id_by_email'/)
+  })
+
   it('рейт-лімітер ЧИТАЄ error і відмовляє на ньому (fails closed)', () => {
     // supabase-js РЕЗОЛВИТЬ збій запиту як `{data: null, error}` і не кидає, тож
     // catch його не ловить. Поки `error` не читався, будь-яка невдача давала
@@ -54,6 +71,19 @@ describe('telegram-auth', () => {
       .toMatch(/rateDecision\(\s*data\s*,\s*!!error/)
     expect(fn, 'відмова лімітера не веде до `return false`')
       .toMatch(/if\s*\(\s*!decision\.allow\s*\)\s*return\s+false/)
+  })
+
+  it('рейт-лімітер іде ПЕРШИМ атомарним запитом, старий шлях — лише запасний (077)', () => {
+    const fn = src.slice(src.indexOf('async function checkRateLimit'))
+      .slice(0, src.slice(src.indexOf('async function checkRateLimit')).indexOf('\n}\n') + 3)
+    const rpcAt = fn.search(/rpc\(\s*'rate_limit_hit'/)
+    const legacyAt = fn.indexOf(".from('rate_limits')")
+    expect(rpcAt, 'атомарний лімітер не викликається').toBeGreaterThan(-1)
+    expect(rpcAt, 'старий read-then-write стоїть РАНІШЕ за атомарний').toBeLessThan(legacyAt)
+    // Відповідь атомарного шляху — через тестований модуль, і її результат
+    // повертається ДО старого шляху: інакше обидва працювали б одночасно.
+    expect(fn).toMatch(/atomicDecision\(\s*hit\s*,\s*hitErr\s*\)/)
+    expect(fn).toMatch(/if\s*\(\s*atomic\s*!==\s*'fallback'\s*\)\s*return\s+atomic\s*===\s*'allow'/)
   })
 
   it('tg_id іде в запит числом, а не рядком', () => {
@@ -225,6 +255,17 @@ describe('діагностика конфігурації лишається д�
    * токен бота провалює HMAC, тобто вхід мертвий, а `!!` показував здоровий
    * прапорець.
    */
+  // GET діагностики публічний і без лімітера: без кешу кожен чужий запит
+  // ставав запитом до Bot API від імені нашого бота, тобто бота можна було
+  // довести до флуд-ліміту Telegram і зупинити нагадування.
+  it('проби діагностики кешуються, а не біжать на кожен публічний запит', () => {
+    const src = read('telegram-auth')
+    expect(src).toMatch(/const PROBE_TTL_MS = \d/)
+    expect(src, 'getMe мусить біжати лише без свіжого кешу').toMatch(/if \(!cached && checks\.bot_token\)/)
+    expect(src, 'запит у БД службовим ключем — теж').toMatch(/if \(!cached && allOk\)/)
+    expect(src).toMatch(/probeCache = \{ at: Date\.now\(\)/)
+  })
+
   it('валідність токена бота ПЕРЕВІРЯЄТЬСЯ, а не декларується', () => {
     const src = read('telegram-auth')
     expect(src, 'зникла проба getMe — `!!` знову каже лише «задано»')
@@ -237,7 +278,7 @@ describe('діагностика конфігурації лишається д�
     expect(src, 'хибний токен мусить валити ok, інакше проба нічого не міняє')
       .toMatch(/botTokenValid !== false/)
     expect(src, 'невідомий результат (мережа) НЕ сміє читатись як «зламано»')
-      .toMatch(/let botTokenValid: boolean \| null = null/)
+      .toMatch(/let botTokenValid: boolean \| null = (?:cached \? cached\.botTokenValid : )?null/)
     // `r.ok` звело б «токен недійсний» і «Telegram зараз відмовляє» в одне
     // `false`, а ціна помилки несиметрична: оператор іде ротувати РОБОЧИЙ
     // токен за хибним діагнозом.
@@ -333,5 +374,36 @@ describe('telegram-bot: обовʼязкові команди', () => {
   })
   it('команда з адресою бота (`/start@bot`) розпізнається', () => {
     expect(src).toMatch(/split\('@'\)\[0\]/)
+  })
+})
+
+describe('деплой: шлюз не стоїть між функцією і її власною автентифікацією', () => {
+  /**
+   * Кожна функція автентифікує виклик САМА: HMAC initData, secret_token
+   * Telegram, CRON_SECRET, власник обʼєкта. Перевірка JWT на шлюзі Supabase
+   * тут не додає захисту, зате ламає шлях, де ключ — не JWT.
+   *
+   * Так і сталось: `send-reminders` деплоїлась БЕЗ `--no-verify-jwt`, а
+   * планувальник шле `Bearer <CRON_SECRET>` — випадковий рядок. Шлюз відкидав
+   * його з 401 ще до функції, тож фікс «секрет із одного місця» не міг
+   * спрацювати НІКОЛИ, хоч секрет на обох боках і збігався б. Видно це лише в
+   * проді (`verify_jwt: true` у списку функцій), а не в коді функції.
+   */
+  const wf = readFileSync(resolve(process.cwd(), '.github/workflows/deploy-edge-function.yml'), 'utf8')
+  const commands = [...wf.matchAll(/supabase functions deploy ([a-z-]+)((?:[^\n]*\\\n)*[^\n]*)/g)]
+
+  it('кожна функція деплоїться з --no-verify-jwt', () => {
+    const fns = readdirSync(resolve(process.cwd(), 'supabase/functions'), { withFileTypes: true })
+      .filter((d) => d.isDirectory() && !d.name.startsWith('_')).map((d) => d.name).sort()
+    // Антивакуум: деплой мусить стосуватись УСІХ функцій із репозиторію.
+    expect(commands.map((c) => c[1]).sort(), 'воркфлоу деплоїть не той набір функцій').toEqual(fns)
+    for (const c of commands) {
+      expect(c[2], `${c[1]}: без --no-verify-jwt шлюз відкине не-JWT ключ ще до функції`).toMatch(/--no-verify-jwt/)
+    }
+  })
+
+  it('зміна воркфлоу деплою сама перевикочує функції', () => {
+    expect(wf, 'прапорці деплою змінено, а функції лишаться зі старими до першої правки коду')
+      .toMatch(/paths:[\s\S]*?'\.github\/workflows\/deploy-edge-function\.yml'/)
   })
 })

@@ -925,6 +925,8 @@ export const EN: Record<string, string> = {
   "Попросіть власника надіслати QR-код або посилання, потім натисніть цю кнопку.": "Ask the owner to send a QR code or a link, then tap this button.",
   "Порожній файл": "Empty file",
   "Порожня папка буде видалена.": "The empty folder will be deleted.",
+  "Порожня папка.": "Empty folder.",
+  "Порожня папка. Щоб додати обʼєкти: меню бази → «Виділити обʼєкти» → «У папку».": "Empty folder. To add units: database menu → “Select units” → “To folder”.",
   "Посилання або токен": "Link or token",
   "Посилання для перегляду": "Link for viewing",
   "Посилання застаріло, видалено або відкликано. Зверніться до власника.": "The link has expired, been deleted or revoked. Contact the owner.",

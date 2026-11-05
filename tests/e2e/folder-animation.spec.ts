@@ -159,3 +159,159 @@ test('заголовок папки — кнопка зі станом, дося
   await page.keyboard.press('Enter')
   await expect(hd).toHaveAttribute('aria-expanded', 'false')
 })
+
+/**
+ * ВЕЛИКА ПАПКА: рухається ВИДИМЕ, а не вся висота.
+ *
+ * Тривалість і крива однакові для папки на 1 картку і на 24, тож доти рух
+ * велико́ї майже весь відбувався ЗА краєм екрана. Заміряно (8 карток, 1452px,
+ * під заголовком видно 254px): розгортання заповнювало ВСЮ видиму частину за
+ * ОДИН кадр, решта 280мс руху — невидимі; згортання ~70мс стояло (висота
+ * падала лише в невидимій частині), а потім повзло хвостом кривої. Для папки
+ * на 24 картки мертвий старт — ~135мс.
+ *
+ * Тому анімується лише те, що можна побачити: розгортання — до низу
+ * скролера, згортання — від нього (невидима частина знімається відразу і
+ * непомітно). Ключові кадри перевіряються НАПРЯМУ: від цього не залежить
+ * темп кадрів під навантаженням.
+ */
+async function openWith(page: Page, collapsed: string[], props: { folder_id: string | null }[] = PROPERTIES) {
+  await setup(page)
+  await page.route('**/rest/v1/properties**', (r) => jsonRoute(r, props))
+  await page.addInitScript(([k, v]) => {
+    if (!sessionStorage.getItem('__seeded')) { localStorage.setItem(k, v); sessionStorage.setItem('__seeded', '1') }
+  }, [`ps:foldCollapse:${USER.id}:${DB_ID}`, JSON.stringify(collapsed)])
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20000 })
+  await page.getByText('Міком Палац').first().click()
+  await expect(page.getByText(`Всі (${props.length})`)).toBeVisible()
+  await expect(page.locator('.fold-hd')).toHaveCount(props.some((p) => !p.folder_id) ? 2 : 1)
+  await page.waitForTimeout(700)
+}
+
+/** Тапає заголовок і пише покадрово висоту, видиму частину, верх заголовка і ключові кадри руху. */
+function tapAndSample(page: Page, frames = 24, nth = 0) {
+  return page.evaluate(async ({ frames, nth }) => {
+    const hd = document.querySelectorAll('.fold-hd')[nth] as HTMLElement
+    const wrap = document.getElementById(hd.getAttribute('aria-controls')!) as HTMLElement
+    const sc = document.querySelector('.body') as HTMLElement
+    const sr = sc.getBoundingClientRect()
+    const room = Math.round(sr.top + sc.clientHeight - wrap.getBoundingClientRect().top)
+    const vis = () => { const r = wrap.getBoundingClientRect(); return Math.round(Math.max(0, Math.min(r.bottom, sr.top + sc.clientHeight) - Math.max(r.top, sr.top))) }
+    const full = Math.round((wrap.firstElementChild as HTMLElement).getBoundingClientRect().height)
+    const out: { h: number; vis: number; top: number }[] = []
+    const snap = () => out.push({ h: Math.round(wrap.getBoundingClientRect().height), vis: vis(), top: Math.round(hd.getBoundingClientRect().top) })
+    snap()
+    hd.click()
+    // Ефект, що запускає рух, біжить після коміту — ключові кадри беремо з
+    // першого кадру, на якому анімація вже є.
+    let kf: number[] = []
+    for (let i = 0; i < frames; i++) {
+      await new Promise((r) => requestAnimationFrame(() => r(null)))
+      const a = wrap.getAnimations()[0]
+      if (!kf.length && a) kf = (a.effect as KeyframeEffect).getKeyframes().map((k) => parseFloat(String(k.height)))
+      snap()
+    }
+    return { room, full, kf, frames: out }
+  }, { frames, nth })
+}
+
+test('велика папка: анімується лише ВИДИМА частина', async ({ page }) => {
+  await openWith(page, [A])
+
+  const ex = await tapAndSample(page)
+  // антивакуум: папка справді вища за видиму частину, інакше обмежувати нічого
+  expect(ex.full, `папка мусить бути вищою за видиму частину: ${ex.full} vs ${ex.room}`).toBeGreaterThan(ex.room * 2)
+  expect(ex.kf.length, 'розгортання не запустило анімацію').toBe(2)
+  expect(ex.kf[1], `розгортання жене висоту ДАЛІ видимого (${ex.kf[1]} > ${ex.room})`).toBeLessThanOrEqual(ex.room + 1)
+  const seen = new Set(ex.frames.map((f) => f.vis))
+  expect(seen.size, `видима частина мусить РУХАТИСЬ, а не зʼявитись кадром: ${JSON.stringify(ex.frames.map((f) => f.vis))}`).toBeGreaterThan(3)
+  expect(ex.frames[ex.frames.length - 1].h, 'після руху папка розкрита повністю').toBe(ex.full)
+
+  await page.waitForTimeout(300)
+  const co = await tapAndSample(page)
+  expect(co.kf[0], `згортання стартує з НЕВИДИМОЇ висоти (${co.kf[0]} > ${co.room})`).toBeLessThanOrEqual(co.room + 1)
+  // Видиме мусить почати рухатись на першому ж кадрі руху, а не після паузи.
+  const firstMove = co.frames.findIndex((f) => f.vis < co.frames[0].vis)
+  expect(firstMove, `згортання стоїть ${firstMove} кадрів: ${JSON.stringify(co.frames.map((f) => f.vis))}`).toBeLessThanOrEqual(3)
+  // ...і заголовок не стрибає: зняття невидимої частини не сміє зачепити прокрутку
+  expect(new Set([...ex.frames, ...co.frames].map((f) => f.top)).size, 'заголовок зрушив під час руху').toBe(1)
+})
+
+/**
+ * Прокрутку змінює ЛИШЕ рух, а не його кінець. Chromium (Android) якорить
+ * прокрутку, і після згортання з упором у низ сторінки наступне розгортання
+ * тягнуло сторінку за собою; з обмеженим рухом це дало б стрибок на ~190px у
+ * мить, коли висота відпускається в `auto`. Тому на час руху якоріння знято.
+ */
+test('розгортання після згортання внизу сторінки: заголовок не стрибає', async ({ page }) => {
+  // Остання секція («Без папки», 2 картки) — під великою папкою, тобто внизу.
+  const loose = [9, 10].map((n) => ({ ...prop(n), folder_id: null }))
+  await openWith(page, [], [...PROPERTIES, ...loose])
+  await page.evaluate(() => { const b = document.querySelector('.body') as HTMLElement; b.scrollTop = b.scrollHeight })
+  await page.waitForTimeout(300)
+  // Згортання з упором у низ: прокрутка законно сповзає разом із висотою.
+  const co = await tapAndSample(page, 24, 1)
+  // антивакуум: заголовок видно і сторінка справді впирається в низ
+  expect(co.frames[0].top).toBeGreaterThan(0)
+  const coSteps = co.frames.slice(1).map((f, i) => Math.abs(f.top - co.frames[i].top))
+  expect(Math.max(...coSteps), `згортання: заголовок стрибнув ${JSON.stringify(co.frames.map((f) => f.top))}`).toBeLessThan(co.room * 0.6)
+  await page.waitForTimeout(300)
+  const ex = await tapAndSample(page, 30, 1)
+  // Кінець руху — найнебезпечніший кадр: там висота йде в `auto`.
+  const steps = ex.frames.slice(1).map((f, i) => Math.abs(f.top - ex.frames[i].top))
+  expect(Math.max(...steps), `розгортання: заголовок стрибнув ${JSON.stringify(ex.frames.map((f) => f.top))}`).toBeLessThan(40)
+  // антивакуум: розгортання справді відбулось і щось показало
+  expect(ex.frames[ex.frames.length - 1].vis).toBeGreaterThan(50)
+})
+
+/**
+ * ПОШУК розгортає всі секції примусово — і тап по заголовку там був МЕРТВИМ:
+ * стрілка не рухалась, секція лишалась відкритою, вібро відгукувалось. Гірше —
+ * тап тихо змінював ЗБЕРЕЖЕНИЙ стан, тож після очищення пошуку папка, згорнута
+ * до нього, поверталась розгорнутою (заміряно: `[a1,b1]` → `[b1]`).
+ */
+test('під час пошуку заголовок працює, а збережений вибір не чіпає', async ({ page }) => {
+  const key = `ps:foldCollapse:${USER.id}:${DB_ID}`
+  await openWith(page, [A])
+  const hd = page.locator('.fold-hd')
+  await expect(hd).toHaveAttribute('aria-expanded', 'false')
+
+  await page.getByPlaceholder('Пошук обʼєкту...').fill('Офіс')
+  await expect(hd, 'пошук розгортає секцію').toHaveAttribute('aria-expanded', 'true')
+  await hd.click()
+  await expect(hd, 'тап під час пошуку мусить згорнути секцію').toHaveAttribute('aria-expanded', 'false')
+  await hd.click()
+  await expect(hd).toHaveAttribute('aria-expanded', 'true')
+  await hd.click()
+  await expect(hd).toHaveAttribute('aria-expanded', 'false')
+  expect(await page.evaluate((k) => localStorage.getItem(k), key), 'тап під час пошуку переписав збережений стан').toBe(JSON.stringify([A]))
+
+  // Новий запит — нові знахідки: секції знову відкриті.
+  await page.getByPlaceholder('Пошук обʼєкту...').fill('Офіс 1')
+  await expect(hd).toHaveAttribute('aria-expanded', 'true')
+
+  await page.getByPlaceholder('Пошук обʼєкту...').fill('')
+  await expect(hd, 'після пошуку — збережений вибір').toHaveAttribute('aria-expanded', 'false')
+})
+
+/**
+ * ПОРОЖНЯ папка розгорталась у смужку 10px — заголовок перемикав НІЩО. Тепер
+ * у тілі пояснення, як її наповнити.
+ */
+test('порожня папка каже, що вона порожня і як її наповнити', async ({ page }) => {
+  const E = '40000000-0000-0000-0000-0000000000e1'
+  await setup(page)
+  await page.route('**/rest/v1/property_folders**', (r) => jsonRoute(r, [...FOLDERS, { ...FOLDERS[0], id: E, name: 'Нова папка', sort_order: 200 }]))
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20000 })
+  await page.getByText('Міком Палац').first().click()
+  await expect(page.locator('.fold-hd')).toHaveCount(2)
+
+  const body = page.locator(`#fold-body-${E}`)
+  await expect(body.locator('.fold-empty')).toBeVisible()
+  await expect(body).toContainText('Порожня папка')
+  await expect(body, 'підказка мусить називати шлях').toContainText('У папку')
+  // антивакуум: папка з обʼєктами підказки не має
+  await expect(page.locator(`#fold-body-${A} .fold-empty`)).toHaveCount(0)
+})

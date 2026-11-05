@@ -1,5 +1,6 @@
 import { test, expect, type Page, type Route } from '@playwright/test'
 import { setupApp, DEFAULT_USER, jsonRoute as json } from './helpers/harness'
+import { ownerFixtures, OWNER_SCREENS } from './helpers/screens'
 
 // ─── Input fields across device sizes ─────────────────────────────────────────
 // The load-bearing rule (CLAUDE.md): every focusable input renders at >= 16px so
@@ -277,4 +278,31 @@ test('нижня смуга Telegram бере колір НИЗУ градієн
   expect(bars.bg, 'фон webview лишився чорним — саме він і проглядає навколо клавіатури').toBe(bars.end)
   // Верх — навпаки, мусить лишатись темним разом із початком градієнта.
   expect(bars.header, 'верхня смуга не має брати колір низу').not.toBe(bars.end)
+})
+
+test('каретка лишається на місці, коли санітайзер змінює введене', async ({ page }) => {
+  // Контрольований інпут: якщо onChange кладе в стан не те, що в DOM, React
+  // записує своє значення, і браузер ставить курсор у КІНЕЦЬ. Заміряно до
+  // фікса: відкинута літера посеред «1800» лишала курсор на 4 замість 2,
+  // кома посеред числа — на 5 замість 3, а друга крапка робила з «18.5»
+  // «1.85». Тест іде в БРАУЗЕРІ, бо позицію виставляє мікрозадача після
+  // запису React — чистий юніт цього не бачить.
+  await ownerFixtures(page)
+  await OWNER_SCREENS.find((s) => s.label === 'property-form-new')!.go(page)
+  const field = page.getByLabel('Орендна ставка за м²')
+  await field.scrollIntoViewIfNeeded()
+
+  const edit = async (initial: string, pos: number, key: string) => {
+    await field.fill(initial)
+    await field.evaluate((el: HTMLInputElement, p) => { el.focus(); el.setSelectionRange(p, p) }, pos)
+    await page.keyboard.type(key)
+    await page.waitForTimeout(30)
+    return field.evaluate((el: HTMLInputElement) => ({ v: el.value, s: el.selectionStart }))
+  }
+
+  // контроль: цифра посеред числа — React нічого не переписує
+  expect(await edit('1800', 2, '5')).toEqual({ v: '18500', s: 3 })
+  expect(await edit('1800', 2, 'a'), 'відкинутий символ викинув курсор у кінець').toEqual({ v: '1800', s: 2 })
+  expect(await edit('1800', 2, ','), 'кома (→ крапка) викинула курсор у кінець').toEqual({ v: '18.00', s: 3 })
+  expect(await edit('18.5', 1, '.'), 'друга крапка мовчки перенесла кому').toEqual({ v: '18.5', s: 1 })
 })

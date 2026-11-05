@@ -12,8 +12,10 @@ DECLARE
   r RECORD; n INT;
 BEGIN
   -- ── Фікстура: власник, база, обʼєкт, два фото (одне БЕЗ файлу), документ ──
-  INSERT INTO auth.users (id,email) VALUES
-    ('11111111-1111-1111-1111-111111111111','777001@telegram.propspace.app');
+  INSERT INTO auth.users (id,email,email_confirmed_at,raw_app_meta_data)
+    SELECT v.id::uuid, v.email, now(), jsonb_build_object('tg_id', split_part(v.email,'@',1))
+      FROM (VALUES
+    ('11111111-1111-1111-1111-111111111111','777001@telegram.propspace.app')) v(id,email);
   INSERT INTO users (id,tg_id,first_name,role) VALUES
     ('22222222-2222-2222-2222-222222222222',777001,'Тест','owner');
   INSERT INTO databases (id,owner_id,name,type) VALUES
@@ -92,7 +94,9 @@ DECLARE
   v JSONB; n INT;
 BEGIN
   -- ── 050: форма JSON гостьового превʼю ──────────────────────────────────
-  INSERT INTO auth.users (id,email) VALUES ('aaaaaaaa-0000-0000-0000-000000000001','777003@telegram.propspace.app');
+  INSERT INTO auth.users (id,email,email_confirmed_at,raw_app_meta_data)
+    SELECT v.id::uuid, v.email, now(), jsonb_build_object('tg_id', split_part(v.email,'@',1))
+      FROM (VALUES ('aaaaaaaa-0000-0000-0000-000000000001','777003@telegram.propspace.app')) v(id,email);
   INSERT INTO users (id,tg_id,first_name,role) VALUES ('bbbbbbbb-0000-0000-0000-000000000001',777003,'Микола','owner');
   INSERT INTO databases (id,owner_id,name,type,color) VALUES
     ('cccccccc-0000-0000-0000-000000000001','bbbbbbbb-0000-0000-0000-000000000001','БЦ Рубін','business_center','blue');
@@ -130,7 +134,9 @@ DO $$
 DECLARE v JSONB; nm TEXT;
 BEGIN
   -- ── 048: клейм записує імʼя гостя ──────────────────────────────────────
-  INSERT INTO auth.users (id,email) VALUES ('aaaaaaaa-0000-0000-0000-000000000002','777004@telegram.propspace.app');
+  INSERT INTO auth.users (id,email,email_confirmed_at,raw_app_meta_data)
+    SELECT v.id::uuid, v.email, now(), jsonb_build_object('tg_id', split_part(v.email,'@',1))
+      FROM (VALUES ('aaaaaaaa-0000-0000-0000-000000000002','777004@telegram.propspace.app')) v(id,email);
   INSERT INTO users (id,tg_id,first_name,last_name,role) VALUES
     ('bbbbbbbb-0000-0000-0000-000000000002',777004,'Олена','Ковальчук','owner');
   PERFORM set_config('request.jwt.claims','{"email":"777004@telegram.propspace.app"}',false);
@@ -159,7 +165,9 @@ BEGIN
   -- таблиця `notifications`, яку наповнює лише ця пара, не могла отримати
   -- жодного рядка. Джерельний гард такого не бачить у принципі: обидва типи
   -- в тексті виглядають правильно, розходяться вони лише у виконанні.
-  INSERT INTO auth.users (id,email) VALUES ('aaaaaaaa-0000-0000-0000-000000000052','777052@telegram.propspace.app');
+  INSERT INTO auth.users (id,email,email_confirmed_at,raw_app_meta_data)
+    SELECT v.id::uuid, v.email, now(), jsonb_build_object('tg_id', split_part(v.email,'@',1))
+      FROM (VALUES ('aaaaaaaa-0000-0000-0000-000000000052','777052@telegram.propspace.app')) v(id,email);
   INSERT INTO users (id,tg_id,first_name,role) VALUES ('bbbbbbbb-0000-0000-0000-000000000052',777052,'Нагадувач','owner');
   INSERT INTO databases (id,owner_id,name,type) VALUES
     ('cccccccc-0000-0000-0000-000000000052','bbbbbbbb-0000-0000-0000-000000000052','База нагадувань','business_center');
@@ -218,10 +226,77 @@ BEGIN
       'current_app_user_id','get_app_user_id_from_auth_uid',
       'get_owner_db_ids','get_owner_property_ids',
       'get_editor_db_ids','get_editor_db_ids_from_auth_uid','get_editor_property_ids',
-      'get_realtor_db_ids','get_realtor_property_ids','get_realtor_collection_ids'
+      'get_realtor_db_ids','get_realtor_property_ids','get_realtor_collection_ids',
+      -- Те саме для гостьової гілки: пʼять політик {public} (обʼєкти, фото,
+      -- файли, розклад, платежі) кличуть його і для anon, а відповідає він
+      -- лише «чи Я гість цього обʼєкта».
+      'is_guest_of_property'
     );
   IF leaked IS NOT NULL THEN
-    RAISE EXCEPTION '052: anon має EXECUTE на SECURITY DEFINER функціях поза allowlist-ом: %', leaked;
+    RAISE EXCEPTION '052/075: anon має EXECUTE на SECURITY DEFINER функціях поза allowlist-ом: %', leaked;
+  END IF;
+
+  -- ── 075: службові функції не кличе НІХТО, крім service_role ───────────
+  -- Перевірка вище дивиться лише на anon, а цим функціям не можна й
+  -- authenticated: get_due_lease_reminders віддає дані ВСІХ власників, а
+  -- log_db_activity пише в журнал БУДЬ-ЯКОЇ бази. Обидві були відкриті в
+  -- проді, бо Supabase видає EXECUTE прямим грантом (емуляція — pg-shim).
+  SELECT string_agg(p.proname || '(' ||
+           CASE WHEN has_function_privilege('anon', p.oid, 'EXECUTE') THEN 'anon ' ELSE '' END ||
+           CASE WHEN has_function_privilege('authenticated', p.oid, 'EXECUTE') THEN 'authenticated' ELSE '' END || ')',
+         ', ' ORDER BY p.proname) INTO leaked
+  FROM pg_proc p
+  JOIN pg_namespace ns ON ns.oid = p.pronamespace AND ns.nspname = 'public'
+  WHERE p.proname IN ('get_due_lease_reminders', 'get_due_reminders_today',
+                      'get_due_guest_reminders', 'mark_overdue_payments', 'log_db_activity')
+    AND (has_function_privilege('anon', p.oid, 'EXECUTE')
+         OR has_function_privilege('authenticated', p.oid, 'EXECUTE'));
+  IF leaked IS NOT NULL THEN
+    RAISE EXCEPTION '075: службові функції викликає клієнт: %', leaked;
+  END IF;
+  -- Антивакуум: інакше «нікому не відкрито» означало б і «функцій немає».
+  IF (SELECT count(*) FROM pg_proc p JOIN pg_namespace ns ON ns.oid = p.pronamespace
+       WHERE ns.nspname = 'public' AND p.proname IN ('get_due_lease_reminders', 'log_db_activity')) <> 2 THEN
+    RAISE EXCEPTION '075: службових функцій не знайдено — перевірка вище нічого не міряла';
+  END IF;
+  IF NOT has_function_privilege('service_role', 'public.get_due_lease_reminders()'::regprocedure, 'EXECUTE') THEN
+    RAISE EXCEPTION '075: service_role втратив get_due_lease_reminders — крон не розішле нагадувань';
+  END IF;
+
+  -- ── 075: політики {public} кличуть лише те, що anon може виконати ──────
+  -- Друга межа того самого периметра. Закривши функцію для anon, легко
+  -- зачепити хелпер, який кличе САМА політика з роллю {public}: тоді
+  -- анонімний запит до таблиці падає помилкою замість порожнечі — у проді
+  -- це вже не «немає даних», а зламана сторінка. Питаємо ФІНАЛЬНІ політики,
+  -- а не текст міграцій: старі політики давно перестворені.
+  SELECT string_agg(DISTINCT f.proname, ', ') INTO leaked
+  FROM pg_policies pol
+  CROSS JOIN LATERAL regexp_matches(coalesce(pol.qual, '') || ' ' || coalesce(pol.with_check, ''),
+                                    '([a-z_][a-z0-9_]*)\(', 'g') AS m
+  JOIN pg_proc f ON f.proname = m[1]
+  JOIN pg_namespace ns ON ns.oid = f.pronamespace AND ns.nspname = 'public'
+  WHERE ('public' = ANY (pol.roles) OR 'anon' = ANY (pol.roles))
+    AND NOT has_function_privilege('anon', f.oid, 'EXECUTE');
+  IF leaked IS NOT NULL THEN
+    RAISE EXCEPTION '075: політики з роллю {public} кличуть функції, закриті для anon: %', leaked;
+  END IF;
+  -- Антивакуум: такі політики мусять існувати, інакше перевірка порожня.
+  IF NOT EXISTS (SELECT 1 FROM pg_policies pol
+                  WHERE 'public' = ANY (pol.roles)
+                    AND coalesce(pol.qual, '') LIKE '%is_guest_of_property(%') THEN
+    RAISE EXCEPTION '075: не знайдено жодної політики {public} із хелпером — перевірка вище нічого не міряла';
+  END IF;
+
+  -- ── 075: нова функція більше не відкривається сама ─────────────────────
+  -- Джерело класу — default privileges. Поки в них стоять anon/authenticated,
+  -- кожна наступна службова функція знову буде відкрита, хоч би як старанно
+  -- міграція знімала PUBLIC.
+  -- І схемний, і глобальний запис: схемні додаються до глобальних.
+  IF EXISTS (SELECT 1 FROM pg_default_acl d LEFT JOIN pg_namespace n ON n.oid = d.defaclnamespace
+              WHERE (d.defaclnamespace = 0 OR n.nspname = 'public') AND d.defaclobjtype = 'f'
+                AND pg_get_userbyid(d.defaclrole) = 'postgres'
+                AND array_to_string(d.defaclacl, ',') ~ '(^|,)(anon|authenticated)=') THEN
+    RAISE EXCEPTION '075: default privileges досі видають anon/authenticated EXECUTE на нові функції';
   END IF;
 
   -- ── 058: власник БЕЗ tg_id не потрапляє в розсилку ──────────────────────
@@ -229,7 +304,9 @@ BEGIN
   -- пише маркер дедуплікації (він пишеться лише на `res.ok`) — тобто той
   -- самий рядок віддається ЩОДНЯ до кінця місяця. Дефект досяжний рівно з
   -- моменту, коли 052 вмикає нагадування.
-  INSERT INTO auth.users (id,email) VALUES ('aaaaaaaa-0000-0000-0000-000000000058','777058@telegram.propspace.app');
+  INSERT INTO auth.users (id,email,email_confirmed_at,raw_app_meta_data)
+    SELECT v.id::uuid, v.email, now(), jsonb_build_object('tg_id', split_part(v.email,'@',1))
+      FROM (VALUES ('aaaaaaaa-0000-0000-0000-000000000058','777058@telegram.propspace.app')) v(id,email);
   INSERT INTO users (id,tg_id,first_name,role) VALUES ('bbbbbbbb-0000-0000-0000-000000000058',NULL,'БезTG','owner');
   INSERT INTO databases (id,owner_id,name,type) VALUES
     ('cccccccc-0000-0000-0000-000000000058','bbbbbbbb-0000-0000-0000-000000000058','База безTG','business_center');
@@ -334,7 +411,9 @@ END $$;
 DO $$
 DECLARE n INT;
 BEGIN
-  INSERT INTO auth.users (id,email) VALUES ('aaaaaaaa-0000-0000-0000-000000000065','777065@telegram.propspace.app');
+  INSERT INTO auth.users (id,email,email_confirmed_at,raw_app_meta_data)
+    SELECT v.id::uuid, v.email, now(), jsonb_build_object('tg_id', split_part(v.email,'@',1))
+      FROM (VALUES ('aaaaaaaa-0000-0000-0000-000000000065','777065@telegram.propspace.app')) v(id,email);
   INSERT INTO users (id,tg_id,first_name,role) VALUES ('bbbbbbbb-0000-0000-0000-000000000065',777065,'Лізинг','owner');
   INSERT INTO databases (id,owner_id,name,type) VALUES
     ('cccccccc-0000-0000-0000-000000000065','bbbbbbbb-0000-0000-0000-000000000065','База 065','business_center');
@@ -750,6 +829,12 @@ END $$;
 -- журнал, що мовчить завжди, пройшов би всі «не записав зайвого».
 CREATE OR REPLACE FUNCTION pg_temp.as_user(p_tg BIGINT) RETURNS VOID
 LANGUAGE plpgsql AS $$ BEGIN
+  -- З 076 особу засвідчує обліковий запис, створений edge-функцією, а не
+  -- сам email у токені. Користувачі цього блоку сіються без нього, тож
+  -- «вхід» створює його тим самим шляхом, що й справжній перший вхід.
+  IF p_tg IS NOT NULL AND NOT EXISTS (SELECT 1 FROM auth.users WHERE email = p_tg || '@telegram.propspace.app') THEN
+    PERFORM auth.shim_create_user(NULL, p_tg || '@telegram.propspace.app');
+  END IF;
   PERFORM set_config('request.jwt.claims',
     CASE WHEN p_tg IS NULL THEN '' ELSE json_build_object('email', p_tg || '@telegram.propspace.app')::TEXT END,
     false);
@@ -935,8 +1020,10 @@ DECLARE
   r  RECORD;
   n  INT;
 BEGIN
-  INSERT INTO auth.users (id, email) VALUES
-    ('aaaaaaaa-0000-0000-0000-000000000741', '740002@telegram.propspace.app');
+  INSERT INTO auth.users (id,email,email_confirmed_at,raw_app_meta_data)
+    SELECT v.id::uuid, v.email, now(), jsonb_build_object('tg_id', split_part(v.email,'@',1))
+      FROM (VALUES
+    ('aaaaaaaa-0000-0000-0000-000000000741', '740002@telegram.propspace.app')) v(id,email);
   INSERT INTO users (id, tg_id, first_name, last_name, role) VALUES
     (o, 740001, 'Власник', 'Сімдесятчотири', 'owner'),
     (e, 740002, 'Олена', 'Стерта', 'realtor');
@@ -1011,4 +1098,145 @@ BEGIN
 
   PERFORM pg_temp.as_user(NULL);
   RAISE NOTICE '  ✓ 074: видалений акаунт не лишає ні імені, ні висячого ключа; гроші й події власника на місці';
+END $$;
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- 077: ФАЙЛИ ВИДАЛЕНОГО ОБʼЄКТА ЗНИКАЮТЬ РАЗОМ ІЗ НИМ; ЗАХИСТ ПЛАТФОРМИ
+-- ════════════════════════════════════════════════════════════════════════════
+-- Тригер прибирання перевіряється від postgres (RLS — у verify-rls.sql, там же
+-- «заблоковане видалення не чіпає файлів»). Емуляція `protect_delete` у
+-- pg-shim дослівна з проду, тож тут доводиться ще й те, що ні тригер, ні
+-- `delete_my_account` не спотикаються об неї.
+DO $$
+DECLARE
+  o  UUID := 'bbbbbbbb-0000-0000-0000-000000000077';
+  x  UUID := 'bbbbbbbb-0000-0000-0000-000000000771';
+  d  UUID := 'cccccccc-0000-0000-0000-000000000077';
+  dx UUID := 'cccccccc-0000-0000-0000-000000000771';
+  p1 UUID := 'dddddddd-0000-0000-0000-000000000771';
+  p2 UUID := 'dddddddd-0000-0000-0000-000000000772';
+  px UUID := 'dddddddd-0000-0000-0000-000000000773';
+  r  RECORD;
+  n  INT;
+BEGIN
+  INSERT INTO users (id, tg_id, first_name, role) VALUES
+    (o, 770001, 'Власник', 'owner'), (x, 770002, 'Сусід', 'owner');
+  INSERT INTO databases (id, owner_id, name, type) VALUES
+    (d, o, 'База 077', 'business_center'), (dx, x, 'Сусідня', 'business_center');
+  INSERT INTO properties (id, db_id, owner_id, name) VALUES
+    (p1, d, o, 'Офіс 1'), (p2, d, o, 'Офіс 2'), (px, dx, x, 'Чужий');
+  INSERT INTO storage.objects (bucket_id, name) VALUES
+    ('photos',         p1 || '/a.jpg'),
+    ('property-files', p1 || '/dogovir.pdf'),
+    ('photos',         p2 || '/b.jpg'),
+    ('photos',         px || '/c.jpg');
+
+  -- Один обʼєкт: його файли в ОБОХ бакетах зникають, сусідні — ні.
+  DELETE FROM properties WHERE id = p1;
+  SELECT count(*) INTO n FROM storage.objects WHERE name LIKE p1 || '/%';
+  IF n <> 0 THEN RAISE EXCEPTION '077: після видалення обʼєкта лишилось % його файлів — URL фото живі', n; END IF;
+  SELECT count(*) INTO n FROM storage.objects WHERE name LIKE p2 || '/%' OR name LIKE px || '/%';
+  IF n <> 2 THEN RAISE EXCEPTION '077: видалення обʼєкта зачепило ЧУЖІ файли (лишилось % з 2)', n; END IF;
+
+  -- Прапорець повертається: решта транзакції не мусить залежати від того,
+  -- чи спрацював тригер.
+  IF COALESCE(current_setting('storage.allow_delete_query', true), '') = 'true' THEN
+    RAISE EXCEPTION '077: тригер лишив прапорець захисту платформи увімкненим';
+  END IF;
+
+  -- База — каскадом: той самий тригер, той самий результат.
+  DELETE FROM databases WHERE id = d;
+  SELECT count(*) INTO n FROM storage.objects WHERE name LIKE p2 || '/%';
+  IF n <> 0 THEN RAISE EXCEPTION '077: видалення бази лишило файли її обʼєктів (%)', n; END IF;
+  SELECT count(*) INTO n FROM storage.objects WHERE name LIKE px || '/%';
+  IF n <> 1 THEN RAISE EXCEPTION '077: видалення бази зачепило файли сусіда'; END IF;
+
+  -- Платформа змінила механізм захисту (інший прапорець). Акаунт лишається
+  -- живим з ІМЕНОВАНОЮ причиною; видалення обʼєкта при цьому працює —
+  -- файли лишаються, як до 077, але основна функція не ламається.
+  CREATE OR REPLACE FUNCTION storage.protect_delete() RETURNS trigger LANGUAGE plpgsql AS $f$
+  BEGIN
+    IF COALESCE(current_setting('storage.zz_other_flag', true), 'false') != 'true' THEN
+      RAISE EXCEPTION 'Direct deletion from storage tables is not allowed.' USING ERRCODE = '42501';
+    END IF;
+    RETURN NULL;
+  END $f$;
+
+  PERFORM pg_temp.as_user(770002);
+  SELECT * INTO r FROM delete_my_account();
+  IF r.deleted OR r.error IS DISTINCT FROM 'storage_protected' THEN
+    RAISE EXCEPTION '077: під зміненим захистом видалення акаунта дало (%, %) замість відмови з причиною', r.deleted, r.error;
+  END IF;
+  SELECT count(*) INTO n FROM users WHERE id = x;
+  IF n <> 1 THEN RAISE EXCEPTION '077: акаунт зник, хоча файли стерти не вдалось'; END IF;
+  PERFORM pg_temp.as_user(NULL);
+
+  DELETE FROM properties WHERE id = px;
+  SELECT count(*) INTO n FROM properties WHERE id = px;
+  IF n <> 0 THEN RAISE EXCEPTION '077: тригер прибирання поклав видалення обʼєкта'; END IF;
+
+  -- Повернути дослівну емуляцію — від неї залежать інші перевірки.
+  CREATE OR REPLACE FUNCTION storage.protect_delete() RETURNS trigger LANGUAGE plpgsql AS $f$
+  BEGIN
+    IF COALESCE(current_setting('storage.allow_delete_query', true), 'false') != 'true' THEN
+      RAISE EXCEPTION 'Direct deletion from storage tables is not allowed. Use the Storage API instead.'
+        USING HINT = 'This prevents accidental data loss from orphaned objects.', ERRCODE = '42501';
+    END IF;
+    RETURN NULL;
+  END $f$;
+
+  -- Позитив тієї самої гілки: під справжнім захистом акаунт видаляється
+  -- разом із рештою файлів. Без нього «відмовив з причиною» не відрізнити від
+  -- «відмовляє завжди».
+  INSERT INTO properties (id, db_id, owner_id, name) VALUES (px, dx, x, 'Чужий');
+  PERFORM pg_temp.as_user(770002);
+  SELECT * INTO r FROM delete_my_account();
+  IF NOT r.deleted THEN RAISE EXCEPTION '077: під захистом платформи видалення акаунта відмовило (%)', r.error; END IF;
+  PERFORM pg_temp.as_user(NULL);
+  SELECT count(*) INTO n FROM storage.objects WHERE name LIKE px || '/%';
+  IF n <> 0 THEN RAISE EXCEPTION '077: видалення акаунта лишило % файлів', n; END IF;
+
+  DELETE FROM users WHERE id = o;
+  RAISE NOTICE '  ✓ 077: файли обʼєкта й бази зникають разом із рядком; чужі цілі; змінений захист — відмова з причиною';
+END $$;
+
+-- ── 077: лімітер ────────────────────────────────────────────────────────────
+-- Паралельність перевіряє verify-migrations.sh (окремі зʼєднання); тут —
+-- семантика вікна, стеля лічильника і периметр.
+DO $$
+DECLARE
+  got TEXT := '';
+  n   INT;
+BEGIN
+  FOR i IN 1..5 LOOP
+    got := got || CASE WHEN rate_limit_hit('zz:077', 3, 60000) THEN 't' ELSE 'f' END;
+  END LOOP;
+  IF got <> 'tttff' THEN RAISE EXCEPTION '077: лімітер на стелі 3 дав %, а не tttff', got; END IF;
+
+  SELECT count INTO n FROM rate_limits WHERE ip = 'zz:077';
+  IF n <> 4 THEN RAISE EXCEPTION '077: лічильник під флудом росте без меж (%), а не тримається на стелі+1', n; END IF;
+
+  -- Вікно минуло — рахунок з нуля.
+  UPDATE rate_limits SET reset_at = now() - interval '1 second' WHERE ip = 'zz:077';
+  IF NOT rate_limit_hit('zz:077', 3, 60000) THEN RAISE EXCEPTION '077: вікно минуло, а лімітер далі відмовляє'; END IF;
+  SELECT count INTO n FROM rate_limits WHERE ip = 'zz:077';
+  IF n <> 1 THEN RAISE EXCEPTION '077: нове вікно почалось не з одиниці (%)', n; END IF;
+
+  BEGIN
+    PERFORM rate_limit_hit('', 3, 60000);
+    RAISE EXCEPTION '077: порожній ключ прийнято';
+  EXCEPTION WHEN invalid_parameter_value THEN NULL;
+  END;
+
+  IF has_function_privilege('anon', 'rate_limit_hit(text,int,int)', 'EXECUTE')
+     OR has_function_privilege('authenticated', 'rate_limit_hit(text,int,int)', 'EXECUTE')
+     OR NOT has_function_privilege('service_role', 'rate_limit_hit(text,int,int)', 'EXECUTE') THEN
+    RAISE EXCEPTION '077: лімітер доступний не лише службовому ключу';
+  END IF;
+  IF has_function_privilege('authenticated', 'purge_deleted_property_files()', 'EXECUTE') THEN
+    RAISE EXCEPTION '077: тригерна функція прибирання видана клієнтам';
+  END IF;
+
+  DELETE FROM rate_limits WHERE ip = 'zz:077';
+  RAISE NOTICE '  ✓ 077: лімітер тримає стелю й вікно; доступний лише службовому ключу';
 END $$;

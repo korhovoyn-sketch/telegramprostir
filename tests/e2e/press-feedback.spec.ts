@@ -192,3 +192,36 @@ test('клікабельний вигляд означає справжню ді
     'елемент виглядає натискним, але не є дією — палець його втискає, і нічого не стається')
     .toEqual([])
 })
+
+/**
+ * Правило `:active` може ІСНУВАТИ і не ДІЯТИ — тест вище бачить лише перше.
+ * Вхід списку з `animation … both` тримав кінцевий transform назавжди, а
+ * анімація в каскаді бʼє звичайні оголошення: рядок був у `:active`, але
+ * `scale(.99)` до рендера не доходив. Тож тут міряється computed style ПІД
+ * пальцем, уже після входу.
+ */
+test('натиск доходить до рендера на елементах із каскадом входу', async ({ page }) => {
+  test.setTimeout(90_000)
+  await ownerFixtures(page)
+  for (const [label, sel] of [['db-list', '.list .row'], ['db-objects', '.obj-card'], ['profile', '.profile-stats .pstat']] as const) {
+    await OWNER_SCREENS.find((s) => s.label === label)!.go(page)
+    await page.waitForFunction((s) => {
+      const e = document.querySelector(s)
+      return !!e && e.getAnimations().every((a) => a.playState === 'finished')
+    }, sel)
+    const el = page.locator(sel).first()
+    // Елемент — у центр: біля низу екрана точку натиску законно накриває
+    // плаваюча кнопка чи таббар, і `:active` дістався б їм.
+    await el.evaluate((e) => e.scrollIntoView({ block: 'center' }))
+    await page.waitForTimeout(250)
+    const box = (await el.boundingBox())!
+    await page.mouse.move(box.x + box.width / 2, box.y + Math.min(box.height / 2, 24))
+    await page.mouse.down()
+    await page.waitForTimeout(300)
+    const r = await el.evaluate((e) => ({ active: e.matches(':active'), tf: getComputedStyle(e).transform }))
+    await page.mouse.up()
+    // антивакуум: натиск справді зареєстровано
+    expect(r.active, `${label}: ${sel} не в :active — замір нічого не доводить`).toBe(true)
+    expect(r.tf, `${label}: ${sel} у :active, але масштаб натиску не діє`).not.toMatch(/^(none|matrix\(1, 0, 0, 1, 0, 0\))$/)
+  }
+})

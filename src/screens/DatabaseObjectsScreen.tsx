@@ -77,8 +77,28 @@ export default function DatabaseObjectsScreen() {
     } catch { return new Set<string>() }
   })
 
+  // Під час пошуку секції розгорнуті примусово, щоб знахідки не ховались у
+  // згорнутій папці. Доти тап по заголовку там був МЕРТВИМ (стрілка стояла,
+  // секція лишалась відкритою) і при цьому тихо переписував ЗБЕРЕЖЕНИЙ вибір:
+  // папка, згорнута до пошуку, після нього поверталась розгорнутою. Тому тап
+  // під час пошуку — окремий стан ЦЬОГО запиту: новий запит — нові знахідки,
+  // усе знову відкрите; збережене не чіпається.
+  const searchQ = search.trim()
+  const forceExpand = searchQ !== ''
+  const [searchFold, setSearchFold] = useState<{ q: string; keys: Set<string> }>(() => ({ q: '', keys: new Set() }))
+  const searchCollapsed = searchFold.q === searchQ ? searchFold.keys : null
+
   function toggleFolder(key: string) {
     hapticSelection()
+    if (forceExpand) {
+      setSearchFold(prev => {
+        const keys = new Set(prev.q === searchQ ? prev.keys : [])
+        if (keys.has(key)) keys.delete(key)
+        else keys.add(key)
+        return { q: searchQ, keys }
+      })
+      return
+    }
     setCollapsed(prev => {
       const next = new Set(prev)
       if (next.has(key)) next.delete(key)
@@ -373,9 +393,6 @@ export default function DatabaseObjectsScreen() {
     if (noneCount > 0) out.push({ key: '__none__', id: null, name: tr('Без папки'), items: none, count: noneCount })
     return out
   }, [foldersEnabled, reorderMode, filtered, visible, folders, foldersById, search, tab])
-
-  // Під час пошуку розгортаємо всі секції, щоб знахідки не ховались у згорнутій папці.
-  const forceExpand = search.trim() !== ''
 
   if (!db && dbFetchDone) return (
     <div className="scr bg-blue">
@@ -830,7 +847,7 @@ export default function DatabaseObjectsScreen() {
           // колонки. Тому `cards` тут за тією ж умовою, що й у пласкому списку.
           <div className={`list fold-list ${reorderMode || compactView ? '' : 'cards'}`}>
             {sections.map((sec) => {
-              const open = forceExpand || !collapsed.has(sec.key)
+              const open = forceExpand ? !searchCollapsed?.has(sec.key) : !collapsed.has(sec.key)
               return (
                 <div key={sec.key} className="fold-sec">
                   {/* Заголовок — `<button>`, а не `<div>`: це ЄДИНИЙ орган
@@ -850,7 +867,16 @@ export default function DatabaseObjectsScreen() {
                     <span className="fold-hd-cnt">{sec.count}</span>
                   </button>
                   <Collapsible open={open} id={`fold-body-${sec.key}`} className="fold-wrap-inner">
-                    {sec.items.map((p) => renderCard(p, 0))}
+                    {/* Порожня папка розгорталась у смужку 10px — заголовок
+                        перемикав ніщо. `count`, а не `items`: папка, чиї обʼєкти
+                        ще у хвості вікна рендера, НЕ порожня. */}
+                    {sec.count === 0 ? (
+                      <div className="fold-empty">
+                        {isOwner
+                          ? tr('Порожня папка. Щоб додати обʼєкти: меню бази → «Виділити обʼєкти» → «У папку».')
+                          : tr('Порожня папка.')}
+                      </div>
+                    ) : sec.items.map((p) => renderCard(p, 0))}
                   </Collapsible>
                 </div>
               )

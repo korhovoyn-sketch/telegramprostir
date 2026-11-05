@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { rateDecision } from '../../supabase/functions/_shared/rateLimit'
+import { atomicDecision, rateDecision } from '../../supabase/functions/_shared/rateLimit'
 
 /**
  * ПЕРШИЙ ТЕСТ EDGE-ФУНКЦІЙ У ЦЬОМУ РЕПО.
@@ -54,5 +54,33 @@ describe('rateDecision', () => {
     // «нескінченне вікно з count, що ніколи не росте».
     const bad = { count: 999, reset_at: 'не-дата' }
     expect(rateDecision(bad, false, NOW, MAX)).toEqual({ allow: true, action: 'reset' })
+  })
+})
+
+describe('atomicDecision — відповідь rate_limit_hit (077)', () => {
+  it('пропуск лише на булевому true', () => {
+    expect(atomicDecision(true, null)).toBe('allow')
+    expect(atomicDecision(false, null)).toBe('deny')
+    // відповідь не та, на яку розраховували, — теж відмова, а не пропуск
+    expect(atomicDecision('true', null)).toBe('deny')
+    expect(atomicDecision(null, null)).toBe('deny')
+    expect(atomicDecision({ rate_limit_hit: true }, null)).toBe('deny')
+  })
+
+  it('запасний шлях — ЛИШЕ коли функції ще немає на сервері', () => {
+    // edge-функція деплоїться з мерджем, міграцію накочують пізніше: відмова в
+    // цьому вікні поклала б вхід для всіх
+    expect(atomicDecision(null, { code: 'PGRST202' })).toBe('fallback')
+    expect(atomicDecision(null, { code: '42883' })).toBe('fallback')
+  })
+
+  it('будь-яка інша помилка — відмова (fail closed)', () => {
+    // антивакуум до попереднього: «fallback на будь-яку помилку» відкрив би
+    // шлюз на кожному збої, тобто повернув би fail-open іншими дверима
+    expect(atomicDecision(null, { code: '57014' })).toBe('deny')   // statement timeout
+    expect(atomicDecision(null, { code: '42501' })).toBe('deny')   // permission denied
+    expect(atomicDecision(null, { code: 'PGRST301' })).toBe('deny')
+    expect(atomicDecision(null, {})).toBe('deny')
+    expect(atomicDecision(true, { code: '08006' })).toBe('deny')   // помилка важить більше за дані
   })
 })

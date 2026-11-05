@@ -5,7 +5,7 @@
 -- Джерело правди — supabase/migrations/; CI звіряє, що цей файл їм
 -- відповідає (робота `migrations`, крок «RELEASE.sql не розійшовся»).
 --
--- Містить міграції 27 шт., від 48 і далі:
+-- Містить міграції 30 шт., від 48 і далі:
 --   * 048_guest_name.sql
 --   * 049_drop_idor_get_shared_collection.sql
 --   * 050_guest_preview_owner_check.sql
@@ -33,6 +33,9 @@
 --   * 072_rent_terms_history.sql
 --   * 073_db_activity.sql
 --   * 074_account_erasure.sql
+--   * 075_function_acl_supabase_defaults.sql
+--   * 076_identity_server_provenance.sql
+--   * 077_storage_purge_and_rate_limit.sql
 --
 -- ЯК НАКОЧУВАТИ: вставити цілком і виконати ОДИН раз.
 --   * усе загорнуте в BEGIN/COMMIT — при будь-якій помилці НІЧОГО не
@@ -41,8 +44,10 @@
 --     не лишилось обʼєктів попередніх (verify-migrations.sh);
 --   * файл ІДЕМПОТЕНТНИЙ (перевірено повторним накатом у CI), тож
 --     повторний запуск безпечний;
---   * після нього запусти supabase/verify_release.sql — усі рядки
---     мають бути ✅ OK.
+--   * ПЕРЕВІРКА ВБУДОВАНА: після COMMIT файл сам виконує
+--     supabase/verify_release.sql, і редактор показує її таблицю —
+--     79 рядків, кожен має бути ✅ OK. Якщо замість таблиці помилка,
+--     НІЧОГО не застосовано: усуньте причину й запустіть файл ще раз.
 -- ============================================================================
 
 BEGIN;
@@ -4290,4 +4295,1062 @@ UPDATE property_views SET viewer_name = NULL
 NOTIFY pgrst, 'reload schema';
 
 
+-- ─────────────────────────────────────────────────────────────────────────
+-- 075_function_acl_supabase_defaults.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- ============================================================================
+-- 075 — ПРАВА НА ФУНКЦІЇ: те, що Supabase роздає САМ
+-- ============================================================================
+-- ЩО ЛІКУЄ. Знайдено на ЖИВІЙ базі (перше пряме підключення до проду), а не
+-- на стенді — і саме тому стенд цього не бачив:
+--
+--   Supabase тримає `ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA
+--   public GRANT EXECUTE ON FUNCTIONS TO anon, authenticated, service_role`.
+--   Тобто кожна функція, яку міграція створює через CREATE FUNCTION, одразу
+--   дістає ПРЯМИЙ грант `anon` і `authenticated`. Наші міграції знімали лише
+--   PUBLIC (правило 12), а прямий грант від цього не зникає. `CREATE OR
+--   REPLACE` наявної функції права зберігає, тож уражені саме ті, що
+--   зʼявились уперше після накату 062.
+--
+-- Заміряно в проді до цієї міграції:
+--   * get_due_lease_reminders() — SECURITY DEFINER без параметрів, віддає
+--     tg_id власника, назву обʼєкта й ІМʼЯ ОРЕНДАРЯ по ВСІХ власниках —
+--     викликалась з публічного anon-ключа без помилки. Той самий клас, що
+--     052/062 закрили для get_due_reminders_today; 065 його повторила.
+--   * log_db_activity(...) — SECURITY DEFINER, пише подію в журнал БУДЬ-ЯКОЇ
+--     бази за переданим db_id. Будь-хто, хто увійшов, міг підкинути
+--     «надходження» чи «здано в оренду» в журнал чужої бази — тобто журнал,
+--     який 073 обіцяє «не можна підправити», підправлявся одним RPC.
+--   * клієнтські RPC для тих, хто увійшов (claim_*, lookup_shared_*,
+--     manage_share, subscribe_to_shared_db, record_rent_payment,
+--     set_rent_amount_due), викликались і анонімно. Кожна сама питає, хто
+--     кличе, тож даних це не віддавало, — але периметр був ширший, ніж
+--     задумано, і лінтер Supabase (0028/0029) це бачить.
+--
+-- ЧОТИРИ ШАРИ, кожен ідемпотентний:
+--   1. службові функції — лише service_role;
+--   2. anon — лише свідомо публічні: превʼю /v за токеном і RLS-хелпери, які
+--      кличуть самі політики з роллю {public} (той самий allowlist, що в
+--      scripts/verify-behaviour.sql і в рядку 70 verify_release.sql);
+--   3. тригерні функції — нікому, крім власника: їх викликає сам Postgres,
+--      і права EXECUTE в того, хто змінює рядок, він при цьому не питає;
+--   4. ДЖЕРЕЛО: прибрати прямий грант anon/authenticated із default
+--      privileges, щоб нова функція більше не відкривалась сама. Після
+--      цього правило 12 («REVOKE ... FROM PUBLIC закриває») стає правдою і
+--      на Supabase. PUBLIC Postgres видає на нові функції й далі, тож
+--      клієнтський RPC без явного GRANT працює, як працював.
+--
+-- Функції розширень і event trigger-и не чіпаємо: вони не наші.
+-- ============================================================================
+
+
+-- ── 1. Службові: лише service_role ─────────────────────────────────────────
+-- По ІМЕНІ, по всіх перевантаженнях (урок 062: у проді буває інша форма
+-- функції, ніж у репозиторії). Відсутня функція пропускається: 024 у проді
+-- немає, і `mark_overdue_payments` там не існує взагалі.
+DO $$
+DECLARE r RECORD;
+BEGIN
+  FOR r IN
+    SELECT p.oid::regprocedure AS sig
+      FROM pg_proc p JOIN pg_namespace ns ON ns.oid = p.pronamespace
+     WHERE ns.nspname = 'public'
+       AND p.proname IN ('get_due_lease_reminders', 'get_due_reminders_today',
+                         'get_due_guest_reminders', 'mark_overdue_payments',
+                         'log_db_activity')
+  LOOP
+    EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon, authenticated', r.sig);
+    EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO service_role', r.sig);
+  END LOOP;
+END $$;
+
+-- ── 2. anon: лише свідомо публічні ─────────────────────────────────────────
+-- Решта звичайних функцій лишається тим, хто увійшов. Якщо функція досі
+-- відкрита через PUBLIC, знімаємо його і видаємо authenticated явно — інакше
+-- разом з anon закрили б і клієнтський RPC для всіх.
+DO $$
+DECLARE r RECORD;
+BEGIN
+  FOR r IN
+    SELECT p.oid::regprocedure AS sig,
+           has_function_privilege('authenticated', p.oid, 'EXECUTE') AS authed
+      FROM pg_proc p JOIN pg_namespace ns ON ns.oid = p.pronamespace
+     WHERE ns.nspname = 'public'
+       AND p.prokind = 'f'
+       AND p.prorettype NOT IN ('trigger'::regtype, 'event_trigger'::regtype)
+       AND NOT EXISTS (SELECT 1 FROM pg_depend d
+                        WHERE d.classid = 'pg_proc'::regclass AND d.objid = p.oid AND d.deptype = 'e')
+       AND has_function_privilege('anon', p.oid, 'EXECUTE')
+       AND p.proname NOT IN (
+         -- Публічна /v і гостьовий превʼю: ключ — нездогадний токен, кожна
+         -- функція сама перевіряє його й термін дії.
+         'get_public_db_preview', 'get_public_property_preview',
+         'get_public_collection_preview', 'get_guest_property_preview',
+         'record_public_view',
+         -- RLS-хелпери, які кличуть самі політики з роллю {public}: без
+         -- EXECUTE анонімний запит падав би помилкою замість порожнечі.
+         -- Відповідають лише «про мене» (057), тож чужого графа не віддають.
+         'current_app_user_id', 'get_app_user_id_from_auth_uid',
+         'get_owner_db_ids', 'get_owner_property_ids',
+         'get_editor_db_ids', 'get_editor_db_ids_from_auth_uid', 'get_editor_property_ids',
+         'get_realtor_db_ids', 'get_realtor_property_ids', 'get_realtor_collection_ids',
+         'is_guest_of_property'
+       )
+  LOOP
+    EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon', r.sig);
+    -- service_role — завжди: функція, відкрита ЛИШЕ через PUBLIC, інакше
+    -- втратила б і його, а від сервера її кличуть edge-функції.
+    EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO service_role', r.sig);
+    IF r.authed THEN
+      EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO authenticated', r.sig);
+    END IF;
+  END LOOP;
+END $$;
+
+-- ── 3. Тригерні функції: нікому, крім власника ─────────────────────────────
+-- Викликати їх напряму неможливо, тож це не діра, — але лінтер рахує їх
+-- серед відкритих SECURITY DEFINER, і в шумі губиться справжня.
+DO $$
+DECLARE r RECORD;
+BEGIN
+  FOR r IN
+    SELECT p.oid::regprocedure AS sig
+      FROM pg_proc p JOIN pg_namespace ns ON ns.oid = p.pronamespace
+     WHERE ns.nspname = 'public'
+       AND p.prorettype = 'trigger'::regtype
+       AND NOT EXISTS (SELECT 1 FROM pg_depend d
+                        WHERE d.classid = 'pg_proc'::regclass AND d.objid = p.oid AND d.deptype = 'e')
+  LOOP
+    EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon, authenticated', r.sig);
+  END LOOP;
+END $$;
+
+-- ── 4. Джерело: нова функція більше не відкривається сама ──────────────────
+-- І на рівні схеми, і ГЛОБАЛЬНО: схемні default privileges ДОДАЮТЬСЯ до
+-- глобальних, а не перекривають їх, тож глобальний грант зняти схемним
+-- REVOKE неможливо. На Supabase глобального запису для postgres немає (no-op),
+-- але міграція не сміє на це покладатись.
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+  REVOKE EXECUTE ON FUNCTIONS FROM anon, authenticated;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres
+  REVOKE EXECUTE ON FUNCTIONS FROM anon, authenticated;
+-- Чого цей шар НЕ покриває: default privileges ролі supabase_admin (вона теж
+-- видає anon/authenticated на public). Змінити їх postgres не може — він не
+-- член цієї ролі. Функції, які створює платформа, ловить рядок 70
+-- verify_release.sql: він дивиться на РЕЗУЛЬТАТ, а не на джерело.
+
+NOTIFY pgrst, 'reload schema';
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 076_identity_server_provenance.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- ============================================================================
+-- 076: ОСОБУ ДАЄ СЕРВЕР, А НЕ EMAIL, ЯКИЙ ОБИРАЄ САМ КОРИСТУВАЧ
+-- ============================================================================
+-- Обидва резолвери особи (`current_app_user_id()` для всіх політик таблиць і
+-- `get_app_user_id_from_auth_uid()` для сховища) виводили tg_id з EMAIL
+-- облікового запису: `{tg_id}@telegram.propspace.app`. Якір домену (031/045/
+-- 066) захищав від ЧУЖОГО домену, але не від того, що такий самий email
+-- може отримати не наша edge-функція, а будь-хто:
+--
+--   * реєстрація в Supabase Auth з ПУБЛІЧНИМ ключем (`signUp`) — якщо в Auth
+--     увімкнено реєстрацію email/пароль без підтвердження;
+--   * зміна email власного акаунта (`updateUser`), зокрема АНОНІМНОГО — а
+--     анонімний вхід у проді вже вмикався (31 такий акаунт, березень 2026).
+--
+-- Атака (відтворено на стенді): зловмисник займає email `920001@…` для
+-- Telegram-id, який ще не входив; коли жертва вперше входить, edge-функція
+-- створює її профіль із tg_id 920001, і токен ЗЛОВМИСНИКА відтепер резолвиться
+-- у профіль жертви — він бачить і змінює все, що вона введе. Залежність від
+-- налаштувань Auth, яких цей репозиторій не контролює, — і є дефект.
+--
+-- Рішення: особу засвідчує `auth.users.raw_app_meta_data.tg_id`. Його може
+-- записати ЛИШЕ службовий ключ (адмін-API), тобто наша edge-функція; сам
+-- користувач змінює `user_metadata`, але не `app_metadata`. Читається з БД,
+-- а не з токена: так перевірка діє й для вже виданих токенів, щойно рядок
+-- засвідчено, і не залежить від того, чи потрапило поле в JWT.
+--
+-- Вимагається ЗБІГ двох джерел: tg_id з app_metadata == локальна частина
+-- email. Акаунт, що змінив собі email на чужий, має app_metadata від ІНШОГО
+-- tg_id і не резолвиться ні в кого.
+--
+-- ПОРЯДОК ДЕПЛОЮ: edge-функція `telegram-auth` (ставить app_metadata новим і
+-- наявним користувачам) → ця міграція. У зворотному порядку новий користувач,
+-- створений у проміжку старою функцією, лишився б без засвідчення до свого
+-- наступного входу. Наявних закриває бекфіл нижче.
+-- ============================================================================
+
+
+-- ── Бекфіл засвідчення ──────────────────────────────────────────────────────
+-- Позначаються лише ті, хто вже є легальним користувачем: email у форматі
+-- входу, ПІДТВЕРДЖЕНИЙ (edge-функція створює з `email_confirm: true`), не
+-- анонімний і з профілем. Бекфіл довіряє поточному стану бази — на проді
+-- 31.10.2026 таких акаунтів рівно три, і всі троє створені edge-функцією
+-- (підтверджені, з профілем, жодного з чужим провайдером).
+UPDATE auth.users au
+   SET raw_app_meta_data = COALESCE(au.raw_app_meta_data, '{}'::jsonb)
+                           || jsonb_build_object('tg_id', SPLIT_PART(au.email, '@', 1))
+ WHERE au.email ~ '^\d{1,20}@telegram\.propspace\.app$'
+   AND au.email_confirmed_at IS NOT NULL
+   AND NOT COALESCE(au.is_anonymous, false)
+   AND NOT COALESCE(au.raw_app_meta_data ? 'tg_id', false)
+   AND EXISTS (SELECT 1 FROM public.users u
+                WHERE u.tg_id = SPLIT_PART(au.email, '@', 1)::BIGINT);
+
+-- ── Резолвер для політик таблиць ────────────────────────────────────────────
+CREATE OR REPLACE FUNCTION current_app_user_id()
+RETURNS UUID
+LANGUAGE plpgsql STABLE SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  jwt_email TEXT;
+  tg_id_val BIGINT;
+BEGIN
+  jwt_email := current_setting('request.jwt.claims', true)::jsonb->>'email';
+  IF jwt_email IS NULL OR jwt_email !~ '^\d{1,20}@telegram\.propspace\.app$' THEN
+    RETURN NULL;
+  END IF;
+  tg_id_val := SPLIT_PART(jwt_email, '@', 1)::BIGINT;
+  IF tg_id_val <= 0 THEN
+    RETURN NULL;
+  END IF;
+  -- 076: email з токена — лише ПІДКАЗКА, яку обирає сам користувач. Особу
+  -- засвідчує app_metadata того ж облікового запису, і лише коли збігаються
+  -- обидва.
+  IF NOT EXISTS (
+    SELECT 1 FROM auth.users au
+     WHERE au.email = jwt_email
+       AND au.raw_app_meta_data->>'tg_id' = tg_id_val::TEXT
+  ) THEN
+    RETURN NULL;
+  END IF;
+  RETURN (SELECT id FROM users WHERE tg_id = tg_id_val LIMIT 1);
+EXCEPTION WHEN OTHERS THEN RETURN NULL;
+END;
+$$;
+
+-- ── Резолвер для сховища (контекст, де надійний лише `sub`) ─────────────────
+CREATE OR REPLACE FUNCTION get_app_user_id_from_auth_uid()
+RETURNS UUID
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT u.id
+  FROM public.users u
+  JOIN auth.users au ON au.id = auth.uid()
+  WHERE u.tg_id = (SPLIT_PART(au.email, '@', 1)::BIGINT)
+    -- Якір домену й формату (031/045) лишається.
+    AND au.email ~ '^\d{1,20}@telegram\.propspace\.app$'
+    AND u.tg_id > 0
+    -- 076: засвідчення сервером — app_metadata збігається з email.
+    AND au.raw_app_meta_data->>'tg_id' = SPLIT_PART(au.email, '@', 1)
+  LIMIT 1;
+$$;
+
+-- ── Службовий пошук запису входу за email ──────────────────────────────────
+-- Потрібен edge-функції, щоб прибрати ЧУЖИЙ запис, який зайняв email
+-- користувача наперед: адмін-API Auth шукає лише за id, а схема `auth` через
+-- REST не публікується. Тільки службовий ключ — у клієнтських руках це був би
+-- оракул «чи зареєстрований такий Telegram-id».
+CREATE OR REPLACE FUNCTION auth_user_id_by_email(p_email TEXT)
+RETURNS UUID
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT id FROM auth.users WHERE email = p_email LIMIT 1
+$$;
+REVOKE ALL ON FUNCTION auth_user_id_by_email(TEXT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION auth_user_id_by_email(TEXT) TO service_role;
+
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- 077_storage_purge_and_rate_limit.sql
+-- ─────────────────────────────────────────────────────────────────────────
+-- ============================================================================
+-- 077: ФАЙЛИ ЗНИКАЮТЬ РАЗОМ ІЗ РЯДКОМ, ЛІМІТЕР — ОДНИМ ЗАПИТОМ
+-- ============================================================================
+-- Три речі, знайдені читанням живої бази (жовтень 2026).
+--
+-- 1. ВИДАЛЕННЯ АКАУНТА В ПРОДІ ПАДАЛО ДЛЯ ВСІХ. Supabase Storage тримає на
+--    `storage.objects` тригер `protect_objects_delete`: статементний BEFORE
+--    DELETE, що кидає 42501, якщо в транзакції не виставлено
+--    `storage.allow_delete_query = 'true'`. Сервер Storage ставить цей прапорець
+--    перед власними видаленнями; SQL-функція мусить зробити це сама.
+--    `delete_my_account()` (051) робила два прямі DELETE без прапорця, а
+--    тригер СТАТЕМЕНТНИЙ — тобто спрацьовує й тоді, коли жоден рядок не
+--    підпадає під умову. Отже кожен виклик падав, навіть у користувача без
+--    жодного файлу, і самостійне стирання з §5 Політики в проді не працювало.
+--    Стенд цього не бачив: його модель сховища тригера не мала (тепер має,
+--    `scripts/pg-shim.sql`).
+--
+-- 2. ФОТО ВИДАЛЕНОГО ОБʼЄКТА ЛИШАЛИСЬ ПУБЛІЧНИМИ. Клієнт чистить сховище ПІСЛЯ
+--    видалення рядка (правило 9), але політики сховища дозволяють видалення
+--    лише щодо ІСНУЮЧОГО обʼєкта (`get_owner_property_ids(...)`). Після
+--    каскаду `remove()` не матчить нічого й віддає порожній список без
+--    помилки, а фото лишаються в публічному бакеті за URL, які роздавались на
+--    /v, — назавжди й без способу їх знайти. Порядку, який це лікує на
+--    клієнті, не існує: той самий аналіз, що для акаунта в 051.
+--    Тому прибирання переїжджає в тригер AFTER DELETE на `properties`: лише
+--    для рядків, які РЕАЛЬНО видалились (RLS пропустив), і в тій самій
+--    транзакції. Покриває всі шляхи — обʼєкт, пакет, базу й акаунт (каскади).
+--
+-- 3. ЛІМІТЕР ВХОДУ НЕ БУВ АТОМАРНИМ. Edge-функція читала `count` і писала
+--    `count + 1`, тож N паралельних запитів читали те саме значення, і стеля
+--    обходилась паралелізмом. `rate_limit_hit` робить це одним
+--    INSERT … ON CONFLICT DO UPDATE … RETURNING під блокуванням рядка.
+--
+-- МЕЖА, НАЗВАНА ЧЕСНО: прямий DELETE прибирає РЯДКИ МЕТАДАНИХ. Через API і
+-- публічний URL файл після цього не віддається (резолв іде через ту саму
+-- таблицю), але байти в S3 лишаються — саме від цього тригер платформи
+-- застерігає. Обмін свідомий: недосяжний залишок проти фото видаленого обʼєкта,
+-- яке будь-хто відкриває за старим посиланням. Кешована CDN-копія може
+-- віддаватись до спливу свого TTL.
+-- ============================================================================
+
+
+-- ── 1. Видалення акаунта з прапорцем платформи ──────────────────────────────
+-- Тіло — 051 дослівно, крім прапорця і гілки `insufficient_privilege`. Сигнатура
+-- і тип результату ті самі, тож CREATE OR REPLACE без DROP.
+CREATE OR REPLACE FUNCTION delete_my_account()
+RETURNS TABLE (deleted BOOLEAN, error TEXT)
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_uid         UUID;
+  v_auth_uid    UUID;
+  v_want_photos BIGINT := 0;
+  v_want_files  BIGINT := 0;
+  v_got_photos  BIGINT := 0;
+  v_got_files   BIGINT := 0;
+BEGIN
+  v_uid := current_app_user_id();
+  IF v_uid IS NULL THEN
+    RETURN QUERY SELECT FALSE, 'not_authenticated'::TEXT; RETURN;
+  END IF;
+
+  -- Файли — ПЕРШИМИ, поки власність ще резолвиться (див. 051).
+  BEGIN
+    -- Передумова 051: власник функції обходить RLS, інакше «файлів немає» і
+    -- «файлів не видно» нерозрізненні.
+    IF NOT COALESCE((SELECT rolbypassrls FROM pg_roles WHERE rolname = current_user), FALSE)
+       AND COALESCE((SELECT relrowsecurity FROM pg_class WHERE oid = 'storage.objects'::regclass), FALSE)
+    THEN
+      RETURN QUERY SELECT FALSE, 'storage_not_verifiable'::TEXT; RETURN;
+    END IF;
+
+    -- 077: без прапорця тригер платформи кидає 42501 на БУДЬ-ЯКИЙ прямий
+    -- DELETE. Локально для транзакції: далі в ній він потрібен ще й каскаду
+    -- (тригер обʼєктів нижче), а сама транзакція — це один виклик RPC.
+    PERFORM set_config('storage.allow_delete_query', 'true', true);
+
+    SELECT count(*) INTO v_want_photos FROM storage.objects
+     WHERE bucket_id = 'photos'
+       AND SPLIT_PART(name, '/', 1) IN (
+         SELECT p.id::TEXT FROM properties p WHERE p.owner_id = v_uid
+       );
+    SELECT count(*) INTO v_want_files FROM storage.objects
+     WHERE bucket_id = 'property-files'
+       AND SPLIT_PART(name, '/', 1) IN (
+         SELECT p.id::TEXT FROM properties p WHERE p.owner_id = v_uid
+       );
+
+    DELETE FROM storage.objects
+     WHERE bucket_id = 'photos'
+       AND SPLIT_PART(name, '/', 1) IN (
+         SELECT p.id::TEXT FROM properties p WHERE p.owner_id = v_uid
+       );
+    GET DIAGNOSTICS v_got_photos = ROW_COUNT;
+
+    DELETE FROM storage.objects
+     WHERE bucket_id = 'property-files'
+       AND SPLIT_PART(name, '/', 1) IN (
+         SELECT p.id::TEXT FROM properties p WHERE p.owner_id = v_uid
+       );
+    GET DIAGNOSTICS v_got_files = ROW_COUNT;
+  EXCEPTION
+    WHEN undefined_table THEN
+      v_want_photos := 0; v_got_photos := 0;
+      v_want_files  := 0; v_got_files  := 0;
+    -- Платформа змінила механізм захисту (інша назва прапорця тощо). Акаунт
+    -- лишається живим з ІМЕНОВАНОЮ причиною, а не загальною помилкою: стан
+    -- «є акаунт і є файли» оборотний, «немає акаунта, є файли» — ні.
+    WHEN insufficient_privilege THEN
+      RETURN QUERY SELECT FALSE, 'storage_protected'::TEXT; RETURN;
+  END;
+
+  IF v_got_photos < v_want_photos OR v_got_files < v_want_files THEN
+    RETURN QUERY SELECT FALSE, 'storage_not_cleared'::TEXT; RETURN;
+  END IF;
+
+  UPDATE property_views SET viewer_id = NULL WHERE viewer_id = v_uid;
+
+  BEGIN
+    UPDATE guest_links SET guest_user_id = NULL, status = 'revoked'
+    WHERE guest_user_id = v_uid;
+  EXCEPTION WHEN undefined_table OR undefined_column THEN NULL;
+  END;
+
+  BEGIN
+    DELETE FROM db_members WHERE user_id = v_uid;
+  EXCEPTION WHEN undefined_table THEN NULL;
+  END;
+
+  SELECT id INTO v_auth_uid FROM auth.users
+   WHERE email = (SELECT tg_id::TEXT || '@telegram.propspace.app' FROM users WHERE id = v_uid);
+
+  DELETE FROM users WHERE id = v_uid;
+
+  IF v_auth_uid IS NOT NULL THEN
+    DELETE FROM auth.users WHERE id = v_auth_uid;
+  END IF;
+
+  RETURN QUERY SELECT TRUE, NULL::TEXT;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION delete_my_account() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION delete_my_account() TO authenticated;
+
+-- ── 2. Файли видаленого обʼєкта зникають разом із ним ───────────────────────
+-- Статементний тригер з таблицею переходу: пакетне видалення й каскад бази
+-- дають ОДИН запит до сховища, а не по запиту на обʼєкт.
+--
+-- Чого тригер свідомо НЕ робить — не валить видалення обʼєкта, якщо платформа
+-- змінила механізм захисту: недоступне видалення обʼєкта — видимий збій
+-- основної функції, а лишені файли — той самий стан, що був до 077. Для
+-- акаунта навпаки (вище): там обіцянка стирання сильніша, і краще відмовити.
+CREATE OR REPLACE FUNCTION purge_deleted_property_files()
+RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_prev TEXT := current_setting('storage.allow_delete_query', true);
+BEGIN
+  BEGIN
+    PERFORM set_config('storage.allow_delete_query', 'true', true);
+    DELETE FROM storage.objects o
+     WHERE o.bucket_id IN ('photos', 'property-files')
+       AND SPLIT_PART(o.name, '/', 1) IN (SELECT g.id::TEXT FROM gone g);
+    -- Прапорець повертається до попереднього значення: решта транзакції
+    -- (наприклад, `delete_my_account`, що поставила його сама) не мусить
+    -- залежати від того, чи спрацював цей тригер.
+    PERFORM set_config('storage.allow_delete_query', COALESCE(v_prev, ''), true);
+  EXCEPTION
+    WHEN undefined_table OR invalid_schema_name THEN NULL;
+    WHEN insufficient_privilege THEN
+      RAISE WARNING '[077] файли видалених обʼєктів не прибрано: сховище відхилило прямий DELETE';
+  END;
+  RETURN NULL;
+END;
+$$;
+
+-- Тригерна функція — нікому (075): Postgres не питає EXECUTE при спрацюванні.
+REVOKE ALL ON FUNCTION purge_deleted_property_files() FROM PUBLIC, anon, authenticated;
+
+DROP TRIGGER IF EXISTS trg_purge_deleted_property_files ON properties;
+CREATE TRIGGER trg_purge_deleted_property_files
+  AFTER DELETE ON properties
+  REFERENCING OLD TABLE AS gone
+  FOR EACH STATEMENT
+  EXECUTE FUNCTION purge_deleted_property_files();
+
+-- ── 3. Лімітер одним запитом ────────────────────────────────────────────────
+-- Повертає TRUE, якщо запит у межах стелі. Конфлікт по ключу блокує рядок, тож
+-- паралельні виклики бачать результат один одного, а не той самий `count`.
+-- `LEAST` — щоб лічильник під флудом не ріс без меж (INT переповнився б
+-- помилкою, а помилка лімітера — це відмова у вході для справжнього
+-- користувача).
+--
+-- SECURITY INVOKER: кличе лише службовий ключ, у якого й так є права на
+-- таблицю, тож definer нічого не дає, а розширив би периметр.
+CREATE OR REPLACE FUNCTION rate_limit_hit(p_key TEXT, p_max INT, p_window_ms INT)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+DECLARE
+  v_count INT;
+BEGIN
+  IF p_key IS NULL OR p_key = '' OR p_max IS NULL OR p_max < 1
+     OR p_window_ms IS NULL OR p_window_ms < 1 THEN
+    RAISE EXCEPTION 'rate_limit_hit: invalid arguments' USING ERRCODE = '22023';
+  END IF;
+
+  INSERT INTO rate_limits AS r (ip, count, reset_at)
+  VALUES (p_key, 1, now() + make_interval(secs => p_window_ms / 1000.0))
+  ON CONFLICT (ip) DO UPDATE
+     SET count    = CASE WHEN r.reset_at <= now() THEN 1
+                         ELSE LEAST(r.count + 1, p_max + 1) END,
+         reset_at = CASE WHEN r.reset_at <= now() THEN EXCLUDED.reset_at
+                         ELSE r.reset_at END
+  RETURNING r.count INTO v_count;
+
+  RETURN v_count <= p_max;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION rate_limit_hit(TEXT, INT, INT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION rate_limit_hit(TEXT, INT, INT) TO service_role;
+
+NOTIFY pgrst, 'reload schema';
+
+
 COMMIT;
+
+-- ─────────────────────────────────────────────────────────────────────────
+-- ПЕРЕВІРКА ГОТОВНОСТІ — supabase/verify_release.sql дослівно
+-- ─────────────────────────────────────────────────────────────────────────
+-- ЧОМУ ТУТ, А НЕ ОКРЕМИМ ФАЙЛОМ. Другий файл — другий крок, і його легко не
+-- зробити: оператор бачить «Success» і вважає, що все на місці. А «Success»
+-- каже лише, що текст виконався, — не що база тепер така, як треба.
+--
+-- ЧОМУ ПІСЛЯ COMMIT, А НЕ ВСЕРЕДИНІ. Перевірка дивиться й на те, що мали дати
+-- міграції 001–047. MISSING там — привід дозастосувати конкретну міграцію,
+-- а не причина відкочувати 048+.
+--
+-- ЩО ПОКАЖЕ РЕДАКТОР. Supabase SQL Editor показує результат ОСТАННЬОГО
+-- запиту, що повернув рядки, — тобто саме цю таблицю. Якщо накат упав, сюди
+-- виконання не доходить: увесь текст іде одним запитом, і Postgres
+-- зупиняє його на першій помилці. Тоді замість таблиці видно помилку.
+--
+-- Тому сама перевірка не сміє ПАДАТИ (див. правило в шапці verify_release):
+-- помилка ПІСЛЯ COMMIT читалась би як «не застосувалось», хоч усе застосовано.
+
+-- ============================================================================
+-- verify_release.sql — одна перевірка готовності БД до публікації.
+-- Запусти в Supabase Dashboard → SQL Editor. Кожен рядок результату має бути
+-- OK; будь-який MISSING = відповідна міграція не застосована (файл вказано).
+--
+-- Той самий запит ВКЛЕЄНО в кінець supabase/RELEASE.sql (після COMMIT), тож
+-- один запуск того файлу і накочує міграції, і показує цю таблицю. Окремо
+-- цей файл потрібен, щоб перевірити стан, нічого не застосовуючи.
+--
+-- ПРАВИЛО ДЛЯ НОВИХ РЯДКІВ: перевірка не сміє ПАДАТИ на базі ДО накату, де
+-- таблиць із нових міграцій ще немає, — лише показувати MISSING. Тому про
+-- нову таблицю питаємо КАТАЛОГ (`pg_class`, `to_regclass`), а не саму
+-- таблицю: запит до неї там — ERROR, і замість відповіді «чого бракує»
+-- людина побачила б помилку. З тієї ж причини `to_regclass(...)`, а не
+-- `'...'::regclass`. Гард — scripts/verify-migrations.sh (база 001..047).
+-- ============================================================================
+
+WITH checks(ord, item, migration, ok) AS (VALUES
+  -- 026: security audit fixes
+  -- 049 ВИДАЛИЛА get_shared_collection як IDOR (SECURITY DEFINER по UUID,
+  -- виданий anon, без звірки токена — ротація лінка її не стосувалась).
+  -- Тому перевіряємо ВІДСУТНІСТЬ, а не наявність терміну дії: доти цей рядок
+  -- вічно світив «MISSING → виконай 026» і посилав оператора не туди.
+  (1,  'get_shared_collection ВІДСУТНЯ (IDOR, прибрано 049)', '049_drop_idor_get_shared_collection.sql',
+      NOT EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+                  WHERE n.nspname='public' AND p.proname='get_shared_collection')),
+  (2,  'індекс idx_audit_log_user_created', '026_security_audit_fixes.sql',
+      EXISTS (SELECT 1 FROM pg_indexes WHERE indexname='idx_audit_log_user_created')),
+
+  -- 036/037: share management + db share fixes
+  (3,  'RPC subscribe_to_shared_db', '036/037_db_share_fixes.sql',
+      EXISTS (SELECT 1 FROM pg_proc WHERE proname='subscribe_to_shared_db')),
+  (4,  'RPC manage_share', '036/037_db_share_fixes.sql',
+      EXISTS (SELECT 1 FROM pg_proc WHERE proname='manage_share')),
+  (5,  'databases.share_token NOT NULL', '037_db_share_fixes.sql',
+      EXISTS (SELECT 1 FROM information_schema.columns
+              WHERE table_name='databases' AND column_name='share_token' AND is_nullable='NO')),
+
+  -- 038: storage write hardening (пермісивні політики МАЮТЬ зникнути)
+  -- УВАГА: тут стояло «виконай 038», і це була НЕБЕЗПЕЧНА порада. 038 несе
+  -- копію get_app_user_id_from_auth_uid() ДО 031 — без доменного якоря і
+  -- tg_id>0 — тож на базі, де 045 застосована, а 038 ні (реальний стан
+  -- проду), запуск 038 відкотив би фікс і знову відкрив захоплення акаунта.
+  -- 062 робить лише те, чого бракує, і функцій ідентичності не чіпає.
+  (6,  'photos: пермісивні політики запису ВИДАЛЕНІ', '062_legacy_permissive_and_acl.sql',
+      NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='storage'
+                  AND tablename='objects'
+                  AND policyname IN ('photos_insert_auth','photos_delete_auth'))),
+  (7,  'photos: строга storage_photos_insert існує', '038_storage_write_hardening.sql',
+      EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='storage'
+              AND tablename='objects' AND policyname='storage_photos_insert')),
+  (8,  'property_files: INSERT вимагає володіння об''єктом', '038_storage_write_hardening.sql',
+      EXISTS (SELECT 1 FROM pg_policies WHERE tablename='property_files'
+              AND cmd='INSERT' AND with_check LIKE '%properties%')),
+
+  -- 039: parking
+  (9,  'properties.parking_type + ev_charger', '039_parking_fields.sql',
+      (SELECT count(*)=2 FROM information_schema.columns
+       WHERE table_name='properties' AND column_name IN ('parking_type','ev_charger'))),
+  (10, 'rent_type CHECK містить per_day', '039_parking_fields.sql',
+      EXISTS (SELECT 1 FROM pg_constraint WHERE conname='properties_rent_type_check'
+              AND pg_get_constraintdef(oid) LIKE '%per_day%')),
+
+  -- 040: public preview fixes
+  (11, 'get_public_property_preview віддає owner_currency', '040_public_preview_fixes.sql',
+      EXISTS (SELECT 1 FROM pg_proc WHERE proname='get_public_property_preview'
+              AND pg_get_function_result(oid) LIKE '%owner_currency%')),
+  (12, 'get_public_db_preview віддає sale_price + currency', '040_public_preview_fixes.sql',
+      EXISTS (SELECT 1 FROM pg_proc WHERE proname='get_public_db_preview'
+              AND pg_get_function_result(oid) LIKE '%property_sale_price%')),
+  (13, 'record_public_view(p_token, p_kind)', '040_public_preview_fixes.sql',
+      EXISTS (SELECT 1 FROM pg_proc WHERE proname='record_public_view'
+              AND pg_get_function_arguments(oid) LIKE '%p_kind%')),
+  (14, 'property_views.db_id/collection_id', '040_public_preview_fixes.sql',
+      (SELECT count(*)=2 FROM information_schema.columns
+       WHERE table_name='property_views' AND column_name IN ('db_id','collection_id'))),
+
+  -- 041: team members
+  (18, 'db_members існує з RLS', '041_team_members.sql',
+      EXISTS (SELECT 1 FROM pg_class WHERE relname='db_members' AND relrowsecurity)),
+  (19, 'редакторські політики на properties/payments', '041_team_members.sql',
+      (SELECT count(*)>=2 FROM pg_policies WHERE policyname IN ('props_editor_all','rent_payments_editor_all'))),
+  (20, 'RPC claim_team_invite', '041_team_members.sql',
+      EXISTS (SELECT 1 FROM pg_proc WHERE proname='claim_team_invite')),
+
+  -- 045: КРИТИЧНО — регресія ідентифікації (038/041 стерли фікс 031). Маркер
+  -- `tg_id > 0` унікальний для виправленої версії — вразлива копія (038/041) її
+  -- не має, тож самої substring-перевірки досить (без неоднозначності LIKE-екранування бекслеша в regex-літералі).
+  (21, 'get_app_user_id_from_auth_uid має tg_id>0 (031/045 hardening)', '045_fix_auth_uid_identity_regression.sql',
+      EXISTS (SELECT 1 FROM pg_proc WHERE proname='get_app_user_id_from_auth_uid'
+              AND prosrc LIKE '%tg_id > 0%')),
+  (22, 'get_editor_db_ids_from_auth_uid має tg_id>0 (045 hardening)', '045_fix_auth_uid_identity_regression.sql',
+      EXISTS (SELECT 1 FROM pg_proc WHERE proname='get_editor_db_ids_from_auth_uid'
+              AND prosrc LIKE '%tg_id > 0%')),
+
+  (23, 'нагадування ВЗАГАЛІ викликаються (тип результату полагоджено)', '052_reminders_fix_and_lockdown.sql',
+      EXISTS (SELECT 1 FROM pg_proc WHERE proname='get_due_reminders_today'
+              AND prosrc LIKE '%p.name::TEXT%')),
+  (24, 'anon НЕ має службових функцій (дефолтний PUBLIC знято)', '062_legacy_permissive_and_acl.sql',
+      NOT EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+                  WHERE n.nspname='public'
+                    AND p.proname IN ('get_due_reminders_today','get_due_guest_reminders','mark_overdue_payments')
+                    AND has_function_privilege('anon', p.oid, 'EXECUTE'))),
+
+  (25, 'props_owner_all перевіряє, що БАЗА твоя (не лише owner_id)', '053_owner_policies_target_ownership.sql',
+      EXISTS (SELECT 1 FROM pg_policies WHERE tablename='properties'
+              AND policyname='props_owner_all' AND with_check LIKE '%get_owner_db_ids%')),
+  (26, 'платежі перевіряють, що ОБʼЄКТ твій', '053_owner_policies_target_ownership.sql',
+      (SELECT count(*)=2 FROM pg_policies
+       WHERE tablename IN ('rent_payments','rent_payment_records')
+         AND with_check LIKE '%get_owner_property_ids%')),
+  (27, 'нагадування не розсилають чужих даних (rp.owner_id = p.owner_id)', '053_owner_policies_target_ownership.sql',
+      EXISTS (SELECT 1 FROM pg_proc WHERE proname='get_due_reminders_today'
+              AND prosrc LIKE '%rp.owner_id = p.owner_id%')),
+
+  -- Підрядок — свідома МЕЖА цього файлу, не недогляд: у Dashboard не можна
+  -- виконати успішну гілку, не створивши справжньої підписки. Доказ виконанням
+  -- дає CI (`verify-rls.sql`, блок «відкликання», позитивний контроль).
+  (28, 'subscribe_to_shared_db не падає на успішній гілці (ON CONFLICT)', '055_fix_subscribe_ambiguous_db_id.sql',
+      EXISTS (SELECT 1 FROM pg_proc WHERE proname='subscribe_to_shared_db'
+              AND prosrc LIKE '%variable_conflict use_column%')),
+
+  (29, 'підбірка не приймає чужий обʼєкт (056)', '056_collection_target_access.sql',
+      EXISTS (SELECT 1 FROM pg_policies WHERE tablename='collection_properties'
+              AND policyname='col_props_realtor_all' AND with_check LIKE '%get_realtor_property_ids%')),
+  (30, 'публічна підбірка не світить чужий обʼєкт (056)', '056_collection_target_access.sql',
+      EXISTS (SELECT 1 FROM pg_proc WHERE proname='get_public_collection_preview'
+              AND prosrc LIKE '%realtor_subscriptions rs%')),
+
+  (31, 'revoke ЗНИЩУЄ токен, а не лише протермінює (060)', '060_revoke_destroys_token.sql',
+      EXISTS (SELECT 1 FROM pg_proc WHERE proname='manage_share'
+              AND prosrc LIKE '%IN (''rotate'',''revoke'')%')),
+  (32, 'телефон на /v лише за згодою (061)', '061_public_phone_opt_in.sql',
+      EXISTS (SELECT 1 FROM information_schema.columns
+              WHERE table_name='users' AND column_name='public_phone')
+      AND EXISTS (SELECT 1 FROM pg_proc WHERE proname='get_public_db_preview'
+                  AND prosrc LIKE '%public_phone%')),
+
+  -- Пермісивна політика поруч зі строгою робить строгу безглуздою: правила
+  -- обʼєднуються через OR. Рядок 8 цього НЕ бачив — він перевіряє лише, що
+  -- строга існує, а не що пермісивної немає. Знайдено на живій базі.
+  (33, 'property_files: пермісивні realtor-політики ВИДАЛЕНІ', '062_legacy_permissive_and_acl.sql',
+      NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='property_files'
+                  AND policyname IN ('pfiles_insert_realtor','pfiles_update_realtor'))),
+
+  -- Наскрізні інваріанти
+  (15, 'RLS увімкнено на всіх 15 таблицях', 'будь-яка пропущена',
+      (SELECT count(*)>=15 FROM pg_tables t JOIN pg_class c ON c.relname=t.tablename
+       WHERE t.schemaname='public' AND c.relrowsecurity)),
+  (16, 'handle_new_user тригер на auth.users ВІДСУТНІЙ', '003_reconcile.sql',
+      NOT EXISTS (SELECT 1 FROM pg_trigger tg JOIN pg_class c ON c.oid=tg.tgrelid
+                  JOIN pg_namespace n ON n.oid=c.relnamespace
+                  WHERE n.nspname='auth' AND c.relname='users' AND tg.tgname LIKE '%handle_new_user%')),
+  (17, 'current_app_user_id парсить email-claim', '002_rls/003_reconcile.sql',
+      EXISTS (SELECT 1 FROM pg_proc WHERE proname='current_app_user_id'
+              AND prosrc LIKE '%email%')),
+
+  -- Решта КЛІЄНТСЬКИХ RPC. Їх не було тут, і це прогалина саме того класу, що
+  -- вже коштувала накату: файл спирався на `mark_overdue_payments`, якої в
+  -- проді не існувало, бо 024 ніколи не застосовували. Тобто прогалини всередині
+  -- 001–047 ДОВЕДЕНІ, а не гіпотетичні — отже присутність будь-якої функції з
+  -- того діапазону треба ПИТАТИ, а не припускати.
+  --
+  -- `lookup_shared_collection` — найгірший випадок: визначена ЛИШЕ в 020/023,
+  -- у RELEASE.sql її немає, тож накат 048–062 її не створює. Якщо в проді її
+  -- немає, deep link `col_<token>` (вхід за посиланням на підбірку) падає, і
+  -- жоден файл репозиторію про це не скаже.
+  (34, 'RPC lookup_shared_collection', '020/023_public_share_tokens.sql',
+      EXISTS (SELECT 1 FROM pg_proc WHERE proname='lookup_shared_collection')),
+  (35, 'RPC lookup_shared_property', '020/023, оновлює 059',
+      EXISTS (SELECT 1 FROM pg_proc WHERE proname='lookup_shared_property')),
+  (36, 'RPC claim_guest_link', '027_guest_role.sql, оновлює 048',
+      EXISTS (SELECT 1 FROM pg_proc WHERE proname='claim_guest_link')),
+  (37, 'RPC get_guest_property_preview', '027_guest_role.sql, оновлює 050',
+      EXISTS (SELECT 1 FROM pg_proc WHERE proname='get_guest_property_preview')),
+  (38, 'RPC delete_my_account', '051_delete_account_storage.sql',
+      EXISTS (SELECT 1 FROM pg_proc WHERE proname='delete_my_account')),
+
+  -- 063: сліди переглядів. ДВІ окремі перевірки, бо політика має дві гілки і
+  -- кожна лікує свій випадок: без першої редактор команди не пише слід на
+  -- картці, без другої перегляд БАЗИ не пише НІХТО (рядок бази має
+  -- `property_id = NULL`, а `NULL IN (...)` дає NULL, не FALSE — предикат не
+  -- виконувався в принципі й при цьому мовчав).
+  (39, 'views_insert_auth: гілка РЕДАКТОРА команди', '063_view_insert_editors_and_dbs.sql',
+      EXISTS (SELECT 1 FROM pg_policies
+               WHERE tablename='property_views' AND policyname='views_insert_auth'
+                 AND with_check LIKE '%get_editor_property_ids%')),
+  (40, 'views_insert_auth: гілка рядка БАЗИ (property_id IS NULL)', '063_view_insert_editors_and_dbs.sql',
+      EXISTS (SELECT 1 FROM pg_policies
+               WHERE tablename='property_views' AND policyname='views_insert_auth'
+                 AND with_check LIKE '%get_editor_db_ids%')),
+  -- Урок 062: «строга політика існує» НЕ означає, що вона діє — пермісивна
+  -- поруч робить її безглуздою, бо правила обʼєднуються через OR. Тому
+  -- окремо перевіряємо, що INSERT-політика на цій таблиці РІВНО ОДНА.
+  (41, 'property_views: INSERT-політика рівно одна', '063_view_insert_editors_and_dbs.sql',
+      (SELECT count(*) FROM pg_policies
+        WHERE tablename='property_views' AND cmd='INSERT') = 1),
+
+  -- 064: орендодавець. Колонки — на ОБИДВОХ таблицях: без бази немає дефолта,
+  -- без обʼєкта немає перевизначення, і кожна половина окремо безглузда.
+  -- Третій рядок — про ПРЕВʼЮ: колонки можуть бути на місці, а публічна /v
+  -- усе одно нічого не показує, бо функція їх не віддає.
+  (42, 'databases.landlord_name', '064_landlord_name.sql',
+      EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_schema='public' AND table_name='databases' AND column_name='landlord_name')),
+  (43, 'properties.landlord_name', '064_landlord_name.sql',
+      EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_schema='public' AND table_name='properties' AND column_name='landlord_name')),
+  (44, 'усі три публічні превʼю віддають property_landlord_name', '064_landlord_name.sql',
+      (SELECT count(*) FROM pg_proc
+        WHERE proname IN ('get_public_property_preview','get_public_db_preview','get_public_collection_preview')
+          AND pg_get_function_result(oid) LIKE '%property_landlord_name%') = 3),
+
+  -- 065: нагадування про кінець договору. Перевіряємо ІСНУВАННЯ функції — те,
+  -- що вона невидима для `anon`, тримає окремий гард (scripts/verify-behaviour),
+  -- бо в тексті GRANT цього не видно (правило 12).
+  (45, 'RPC get_due_lease_reminders', '065_lease_reminders.sql',
+      EXISTS (SELECT 1 FROM pg_proc WHERE proname='get_due_lease_reminders')),
+
+  -- 066-1: якір особи. Перевіряємо саме ТІЛО: `CREATE OR REPLACE` міг бути
+  -- перекритий пізнішою копією без якоря — рівно так 038 колись стерла фікс
+  -- 031, і по тексту міграції цього не видно.
+  (46, 'current_app_user_id: домен заякорено і tg_id > 0', '066_identity_anchor_storage_enum_guest_target.sql',
+      (SELECT prosrc LIKE '%telegram\\.propspace\\.app$%' AND prosrc LIKE '%tg_id_val <= 0%'
+         FROM pg_proc WHERE proname='current_app_user_id' LIMIT 1)),
+
+  -- 066-2: бакет фото не перелічується. Перевіряємо ВІДСУТНІСТЬ пермісивного
+  -- варіанта, а не наявність строгого: політики обʼєднуються через OR, тож
+  -- пермісивна поруч зі строгою робить строгу безглуздою (урок 062).
+  (47, 'storage_photos_select звужено до authenticated', '066_identity_anchor_storage_enum_guest_target.sql',
+      (SELECT COUNT(*) = 1 FROM pg_policies
+        WHERE schemaname='storage' AND tablename='objects'
+          AND policyname='storage_photos_select'
+          AND 'authenticated' = ANY(roles) AND NOT ('public' = ANY(roles))
+          AND qual LIKE '%get_owner_property_ids%')),
+
+  -- 066-3: гостьовий лінк перевіряє ціль.
+  (48, 'db_guest_select звіряє owner_id цілі з видавцем', '066_identity_anchor_storage_enum_guest_target.sql',
+      (SELECT COUNT(*) = 1 FROM pg_policies
+        WHERE tablename='databases' AND policyname='db_guest_select'
+          AND qual LIKE '%owner_id%')),
+
+  -- 067-1: сама таблиця архіву з RLS. Без неї екран працює, просто вимкнений.
+  (49, 'tenancies: таблиця існує і RLS увімкнена', '067_tenancies.sql',
+      (SELECT COALESCE((SELECT relrowsecurity FROM pg_class WHERE relname='tenancies'), false))),
+
+  -- 067-2: ТРИГЕР, а не лише функція. Функція без тригера — це мертвий код:
+  -- жоден зі ТРЬОХ клієнтських шляхів звільнення її не покличе, і архів
+  -- лишиться назавжди порожнім, не подавши жодного сигналу.
+  (50, 'trg_sync_tenancy висить на properties', '067_tenancies.sql',
+      (SELECT COUNT(*) = 1 FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
+        WHERE c.relname='properties' AND t.tgname='trg_sync_tenancy' AND NOT t.tgisinternal)),
+
+  -- 067-3: рівно ОДНА відкрита оренда на обʼєкт. Без цього індексу повторне
+  -- відкриття плодило б дублі, і «отримано» рахувалось би двічі.
+  (51, 'частковий UNIQUE: одна відкрита оренда на обʼєкт', '067_tenancies.sql',
+      (SELECT COUNT(*) = 1 FROM pg_indexes
+        WHERE tablename='tenancies' AND indexname='idx_tenancies_one_open')),
+
+  -- 068: архів — ЛИШЕ читання для клієнтів, двома шарами. Перевіряється
+  -- ВІДСУТНІСТЬ політик запису, а не наявність SELECT-політики: строга
+  -- політика поруч із пермісивною нічого не значить (урок рядка 33).
+  (52, 'tenancies: клієнт не має права запису (політики + табличні права)', '068_tenancies_read_only.sql',
+      (SELECT NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='tenancies' AND cmd <> 'SELECT')
+          AND EXISTS (SELECT 1 FROM pg_policies WHERE tablename='tenancies' AND cmd = 'SELECT')
+          AND COALESCE((SELECT NOT has_table_privilege('authenticated', c.oid, 'DELETE')
+                               AND NOT has_table_privilege('authenticated', c.oid, 'UPDATE')
+                               AND NOT has_table_privilege('authenticated', c.oid, 'INSERT')
+                          FROM pg_class c WHERE c.relname='tenancies' AND c.relkind='r'), false))),
+
+  -- 069-1: гостьове запрошення не знижує власника, що МАЄ бази. Без цього
+  -- власник, який прийняв чуже запрошення, втрачає таббар «Бази» назавжди.
+  (53, 'claim_guest_link не знижує власника з базами', '069_access_integrity.sql',
+      (SELECT COUNT(*) >= 1 FROM pg_proc
+        WHERE proname='claim_guest_link'
+          AND prosrc LIKE '%NOT EXISTS (SELECT 1 FROM databases d WHERE d.owner_id = v_uid)%')),
+
+  -- 069-2: «Відкликати доступ» / «Оновити посилання» забирають доступ у вже
+  -- підписаних рієлторів. Без цього шит обіцяв те, чого сервер не робив.
+  (54, 'manage_share: rotate/revoke знімають підписки рієлторів', '069_access_integrity.sql',
+      (SELECT COUNT(*) >= 1 FROM pg_proc
+        WHERE proname='manage_share'
+          AND prosrc LIKE '%DELETE FROM realtor_subscriptions%')),
+
+  -- 069-3: ремонт відпрацював — знижених власників не лишилось. Перевіряє
+  -- ДАНІ, а не код: функцію можна виправити, а людей так і не повернути.
+  (55, 'немає гостей, що володіють базами (ремонт 069)', '069_access_integrity.sql',
+      (SELECT NOT EXISTS (SELECT 1 FROM users u
+                           WHERE u.role='guest'
+                             AND EXISTS (SELECT 1 FROM databases d WHERE d.owner_id = u.id)))),
+
+  -- 070: нагадування НЕ йде про вже підтверджений платіж. Обидві функції —
+  -- власницька й гостьова: орендар-гість отримував те саме хибне «оплата
+  -- через 3 дні», хоч сам уже заплатив.
+  (56, 'нагадування пропускають підтверджені платежі (власник і гість)', '070_reminders_skip_paid.sql',
+      (SELECT COUNT(*) = 2 FROM pg_proc
+        WHERE proname IN ('get_due_reminders_today','get_due_guest_reminders')
+          AND prosrc LIKE '%FROM rent_payment_records r%'
+          AND prosrc LIKE '%r.status = ''paid''%')),
+
+  -- 071-1: надходження — окрема таблиця з RLS, і обидві політики питають про
+  -- ЦІЛЬ (обʼєкт власника чи бази команди), а не лише «чи це мій рядок».
+  (57, 'rent_payment_parts: RLS увімкнена, власник і редактор', '071_partial_payments.sql',
+      (SELECT COALESCE((SELECT c.relrowsecurity FROM pg_class c
+                          WHERE c.relname='rent_payment_parts' AND c.relkind='r'), false)
+          AND (SELECT COUNT(*) = 2 FROM pg_policies
+                WHERE tablename='rent_payment_parts'
+                  AND policyname IN ('parts_owner_all','parts_editor_all')
+                  AND with_check LIKE '%property_ids%'))),
+
+  -- 071-2: ТРИГЕР, а не лише функція — інакше надходження пишуться, а
+  -- підсумок періоду (сума, статус) лишається старим, і календар бреше.
+  (58, 'trg_sync_rent_record_from_parts висить на rent_payment_parts', '071_partial_payments.sql',
+      (SELECT COUNT(*) = 1 FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
+        WHERE c.relname='rent_payment_parts' AND t.tgname='trg_sync_rent_record_from_parts' AND NOT t.tgisinternal)),
+
+  -- 071-3: статус «частково» легальний. Без нового CHECK тригер падав би на
+  -- КОЖНОМУ неповному надходженні, тобто фіча працювала б лише для повних.
+  (59, 'rent_payment_records.status приймає partial', '071_partial_payments.sql',
+      (SELECT COUNT(*) >= 1 FROM pg_constraint
+        WHERE conrelid = to_regclass('public.rent_payment_records') AND contype='c'
+          AND pg_get_constraintdef(oid) LIKE '%partial%')),
+
+  -- 071-4: RPC є, автентифікованому доступна, анонімові — ні (правило 12:
+  -- без явного REVOKE дефолтний PUBLIC лишився б).
+  (60, 'record_rent_payment: authenticated так, anon ні', '071_partial_payments.sql',
+      (SELECT COALESCE((SELECT has_function_privilege('authenticated', p.oid, 'EXECUTE')
+                               AND NOT has_function_privilege('anon', p.oid, 'EXECUTE')
+                          FROM pg_proc p WHERE p.proname='record_rent_payment' LIMIT 1), false))),
+
+  -- 072-1: історія умов — лише ЧИТАННЯ для клієнтів (урок 068). Друга
+  -- половина важливіша за першу: без неї «політика за зразком» відкрила б
+  -- запис мовчки, і «ставка, що діяла тоді» стала б тим, що захотіли.
+  (61, 'property_rent_terms: RLS, лише SELECT, запис клієнтам закритий', '072_rent_terms_history.sql',
+      (SELECT COALESCE((SELECT c.relrowsecurity FROM pg_class c
+                          WHERE c.relname='property_rent_terms' AND c.relkind='r'), false)
+          AND (SELECT COUNT(*) = 2 FROM pg_policies
+                WHERE tablename='property_rent_terms' AND cmd='SELECT'
+                  AND policyname IN ('rent_terms_owner_select','rent_terms_editor_select'))
+          AND (SELECT COUNT(*) = 0 FROM pg_policies
+                WHERE tablename='property_rent_terms' AND cmd <> 'SELECT')
+          AND CASE WHEN to_regclass('public.property_rent_terms') IS NULL THEN false
+                   ELSE NOT has_table_privilege('authenticated', 'public.property_rent_terms', 'INSERT') END)),
+
+  -- 072-2: ТРИГЕР, а не лише функція — без нього історія лишається порожньою
+  -- назавжди, і борг рахується з поточної ставки БЕЗ жодного сигналу.
+  (62, 'trg_record_rent_terms висить на properties', '072_rent_terms_history.sql',
+      (SELECT COUNT(*) = 1 FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
+        WHERE c.relname='properties' AND t.tgname='trg_record_rent_terms' AND NOT t.tgisinternal)),
+
+  -- 072-3: сума за період — authenticated так, anon ні (правило 12).
+  (63, 'set_rent_amount_due: authenticated так, anon ні', '072_rent_terms_history.sql',
+      (SELECT COALESCE((SELECT has_function_privilege('authenticated', p.oid, 'EXECUTE')
+                               AND NOT has_function_privilege('anon', p.oid, 'EXECUTE')
+                          FROM pg_proc p WHERE p.proname='set_rent_amount_due' LIMIT 1), false))),
+
+  -- 073-1: журнал змін — лише ЧИТАННЯ для клієнтів (урок 068): журнал, який
+  -- редактор може підправити, не відповідає на «хто це зробив».
+  (64, 'db_activity: RLS, лише SELECT, запис клієнтам закритий', '073_db_activity.sql',
+      (SELECT COALESCE((SELECT c.relrowsecurity FROM pg_class c
+                          WHERE c.relname='db_activity' AND c.relkind='r'), false)
+          AND (SELECT COUNT(*) = 2 FROM pg_policies
+                WHERE tablename='db_activity' AND cmd='SELECT'
+                  AND policyname IN ('activity_owner_select','activity_editor_select'))
+          AND (SELECT COUNT(*) = 0 FROM pg_policies
+                WHERE tablename='db_activity' AND cmd <> 'SELECT')
+          AND CASE WHEN to_regclass('public.db_activity') IS NULL THEN false
+                   ELSE NOT has_table_privilege('authenticated', 'public.db_activity', 'INSERT') END)),
+
+  -- 073-2: ТРИГЕРИ на всіх пʼяти таблицях. Таблиця без тригерів — це журнал,
+  -- що мовчить завжди, тобто «змін не було», яке читається як правда.
+  (65, 'журнал: тригери на properties, надходженнях, періодах, розкладі, документах, фото', '073_db_activity.sql',
+      (SELECT COUNT(*) = 6 FROM pg_trigger t
+        WHERE NOT t.tgisinternal AND t.tgname IN (
+          'trg_activity_property', 'trg_activity_rent_part', 'trg_activity_rent_record',
+          'trg_activity_rent_schedule', 'trg_activity_property_files', 'trg_activity_property_photos'))),
+
+  -- 073-3: автора надходження ставить сервер — інакше редактор міг би
+  -- «записати» гроші від імені власника.
+  (66, 'rent_payment_parts: автор ставиться тригером', '073_db_activity.sql',
+      (SELECT COUNT(*) = 1 FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid
+        WHERE c.relname='rent_payment_parts' AND t.tgname='trg_stamp_rent_part_author' AND NOT t.tgisinternal)),
+
+  -- 074-1: автор надходження звільняється, коли акаунт видалено. Без винятку
+  -- тригер 073 скасовував каскад `SET NULL`, і ключ лишався на неіснуючому
+  -- користувачі — логічний бекап на такому обмеженні не відновлюється.
+  (67, 'автор надходження не висне після видалення акаунта', '074_account_erasure.sql',
+      (SELECT COALESCE(bool_or(p.prosrc LIKE '%NOT EXISTS (SELECT 1 FROM users u WHERE u.id = OLD.created_by)%'), false)
+         FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND p.proname = 'stamp_rent_part_author')),
+
+  -- 074-2: імʼя йде слідом за посиланням — у журналі, переглядах і гостьових
+  -- лінках. Без тригерів «видалити акаунт і всі повʼязані дані» з Політики
+  -- лишається неправдою щодо чужих баз.
+  (68, 'видалений акаунт: імʼя стирається з журналу, переглядів і гостьових лінків', '074_account_erasure.sql',
+      (SELECT COUNT(*) = 3 FROM pg_trigger t
+        WHERE NOT t.tgisinternal
+          AND t.tgname IN ('trg_erase_viewer_name', 'trg_erase_guest_name', 'trg_erase_actor_name'))),
+
+  -- 051: стирання файлів при видаленні акаунта тримається на ЗОВНІШНІЙ умові —
+  -- власник функції обходить RLS (у Supabase це `postgres`), бо delete-політики
+  -- storage видані лише `authenticated`. Доти це показувала тільки хвостова
+  -- вибірка самої 051, а редактор SQL показує ЛИШЕ ОСТАННЮ таблицю — тож у
+  -- RELEASE.sql із вбудованою перевіркою її вже не видно. Тому вона тут.
+  -- Порада правильна: 051 дропає функцію і створює заново, тобто повторний
+  -- запуск у SQL Editor робить її власником саме `postgres`.
+  -- Що anon її НЕ кличе, тримає рядок 70 (075): `delete_my_account` поза
+  -- allowlist-ом. Тут лише те, що дає сама 051, — інакше ❌ радив би
+  -- перезапустити не ту міграцію.
+  (69, 'delete_my_account: власник обходить RLS, authenticated кличе', '051_delete_account_storage.sql',
+      (SELECT COALESCE(bool_and(
+                  has_function_privilege('authenticated', p.oid, 'EXECUTE')
+              AND COALESCE((SELECT r.rolbypassrls FROM pg_roles r
+                             WHERE r.rolname = pg_get_userbyid(p.proowner)), false)), false)
+         FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+        WHERE n.nspname = 'public' AND p.proname = 'delete_my_account')),
+
+  -- 075-1: anon виконує лише свідомо публічні функції. Supabase видає EXECUTE
+  -- на КОЖНУ нову функцію `anon` і `authenticated` прямим грантом, тож
+  -- `REVOKE ... FROM PUBLIC` у міграції його не знімає — так у проді й
+  -- лишились відкритими get_due_lease_reminders і log_db_activity. Список —
+  -- той самий, що в 075 і в scripts/verify-behaviour.sql (звіряє юніт-тест).
+  (70, 'anon кличе лише свідомо публічні функції', '075_function_acl_supabase_defaults.sql',
+      NOT EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+                   WHERE n.nspname = 'public' AND p.prokind = 'f'
+                     AND p.prorettype NOT IN ('trigger'::regtype, 'event_trigger'::regtype)
+                     AND NOT EXISTS (SELECT 1 FROM pg_depend d
+                                      WHERE d.classid = 'pg_proc'::regclass AND d.objid = p.oid AND d.deptype = 'e')
+                     AND has_function_privilege('anon', p.oid, 'EXECUTE')
+                     AND p.proname NOT IN (
+                       'get_public_db_preview', 'get_public_property_preview',
+                       'get_public_collection_preview', 'get_guest_property_preview',
+                       'record_public_view',
+                       'current_app_user_id', 'get_app_user_id_from_auth_uid',
+                       'get_owner_db_ids', 'get_owner_property_ids',
+                       'get_editor_db_ids', 'get_editor_db_ids_from_auth_uid', 'get_editor_property_ids',
+                       'get_realtor_db_ids', 'get_realtor_property_ids', 'get_realtor_collection_ids',
+                       'is_guest_of_property'))),
+
+  -- 075-2: службові функції — лише service_role. Перевірка вище дивиться на
+  -- anon, а цим не можна й тим, хто увійшов: одна віддає дані ВСІХ власників,
+  -- друга пише в журнал БУДЬ-ЯКОЇ бази.
+  (71, 'службові функції не кличе ні anon, ні authenticated', '075_function_acl_supabase_defaults.sql',
+      NOT EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+                   WHERE n.nspname = 'public'
+                     AND p.proname IN ('get_due_lease_reminders', 'get_due_reminders_today',
+                                       'get_due_guest_reminders', 'mark_overdue_payments', 'log_db_activity')
+                     AND (has_function_privilege('anon', p.oid, 'EXECUTE')
+                          OR has_function_privilege('authenticated', p.oid, 'EXECUTE')))),
+
+  -- 075-3: ДЖЕРЕЛО класу — default privileges. Поки в них anon/authenticated,
+  -- наступна службова функція знову відкриється сама.
+  -- Схемний І глобальний запис: схемні default privileges додаються до
+  -- глобальних, тож глобальний грант пережив би схемний REVOKE.
+  (72, 'нова функція не відкривається anon/authenticated сама', '075_function_acl_supabase_defaults.sql',
+      NOT EXISTS (SELECT 1 FROM pg_default_acl d LEFT JOIN pg_namespace n ON n.oid = d.defaclnamespace
+                   WHERE (d.defaclnamespace = 0 OR n.nspname = 'public') AND d.defaclobjtype = 'f'
+                     AND pg_get_userbyid(d.defaclrole) = 'postgres'
+                     AND array_to_string(d.defaclacl, ',') ~ '(^|,)(anon|authenticated)=')),
+
+  -- 075-4: друга межа периметра. Закривши функцію для anon, легко зачепити
+  -- хелпер, який кличе САМА політика з роллю {public}: анонімний запит до
+  -- таблиці тоді падає помилкою замість порожнечі, тобто /v ламається.
+  -- Питаємо фінальні політики, а не текст міграцій.
+  (73, 'політики {public} кличуть лише функції, доступні anon', '075_function_acl_supabase_defaults.sql',
+      NOT EXISTS (SELECT 1 FROM pg_policies pol
+                   CROSS JOIN LATERAL regexp_matches(coalesce(pol.qual, '') || ' ' || coalesce(pol.with_check, ''),
+                                                     '([a-z_][a-z0-9_]*)\(', 'g') AS m
+                   JOIN pg_proc f ON f.proname = m[1]
+                   JOIN pg_namespace ns ON ns.oid = f.pronamespace AND ns.nspname = 'public'
+                  WHERE ('public' = ANY (pol.roles) OR 'anon' = ANY (pol.roles))
+                    AND NOT has_function_privilege('anon', f.oid, 'EXECUTE'))),
+
+  -- 075 закрила log_db_activity для клієнтів, тож журнал живе лише тим, що
+  -- тригери — SECURITY DEFINER, а їхній власник сам має EXECUTE. Тригер,
+  -- перестворений іншою роллю чи як INVOKER, валив би саму ДІЮ (його виклик
+  -- журналу не загорнутий у перехоплення), а не лише подію журналу.
+  (74, 'тригери журналу можуть писати в журнал', '073_db_activity.sql',
+      (SELECT COALESCE(bool_and(c.prosecdef AND has_function_privilege(c.proowner, l.oid, 'EXECUTE')), false)
+         FROM pg_proc l JOIN pg_namespace ln ON ln.oid = l.pronamespace AND ln.nspname = 'public'
+         JOIN pg_proc c ON c.prosrc LIKE '%log_db_activity(%' AND c.oid <> l.oid
+         JOIN pg_namespace cn ON cn.oid = c.pronamespace AND cn.nspname = 'public'
+        WHERE l.proname = 'log_db_activity')),
+
+  -- 076: особу засвідчує app_metadata, яку пише лише службовий ключ. Без
+  -- цього email у токені — єдине джерело особи, а його можна обрати самому
+  -- (самореєстрація в Auth, зміна email, анонімний вхід + зміна email).
+  (75, 'особа засвідчується сервером (app_metadata), а не лише email', '076_identity_server_provenance.sql',
+      (SELECT count(*) = 2 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace AND n.nspname = 'public'
+        WHERE p.proname IN ('current_app_user_id', 'get_app_user_id_from_auth_uid')
+          AND p.prosrc LIKE '%raw_app_meta_data%')),
+
+  -- 076, друга половина: жоден справжній користувач не лишився без
+  -- засвідчення — інакше він тихо бачить порожній застосунок. ❌ тут після
+  -- накату означає, що edge-функцію `telegram-auth` не передеплоєно (стара
+  -- версія створює нових користувачів без app_metadata).
+  (76, 'усі користувачі входу засвідчені (app_metadata.tg_id)', '076_identity_server_provenance.sql',
+      NOT EXISTS (SELECT 1 FROM auth.users au
+                   WHERE au.email ~ '^\d{1,20}@telegram\.propspace\.app$'
+                     AND au.email_confirmed_at IS NOT NULL
+                     AND EXISTS (SELECT 1 FROM public.users u WHERE u.tg_id::text = split_part(au.email, '@', 1))
+                     AND au.raw_app_meta_data->>'tg_id' IS DISTINCT FROM split_part(au.email, '@', 1))),
+
+  -- 077: платформа тримає на storage.objects статементний тригер, що кидає
+  -- 42501 на будь-який прямий DELETE без прапорця, — навіть на нуль рядків.
+  -- Без прапорця самостійне видалення акаунта падало в КОЖНОГО.
+  (77, 'видалення акаунта проходить захист сховища платформи', '077_storage_purge_and_rate_limit.sql',
+      (SELECT COALESCE(bool_or(p.prosrc LIKE '%storage.allow_delete_query%'), false)
+         FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace AND n.nspname = 'public'
+        WHERE p.proname = 'delete_my_account')),
+
+  -- 077: файли видаленого обʼєкта прибирає тригер. Політика сховища після
+  -- каскаду обʼєкта вже не впізнає, тож клієнтське прибирання не матчить
+  -- нічого — і фото лишались у публічному бакеті. Власник функції мусить
+  -- обходити RLS, інакше DELETE тихо не бачитиме жодного файлу.
+  (78, 'файли видаленого обʼєкта зникають разом із ним', '077_storage_purge_and_rate_limit.sql',
+      EXISTS (SELECT 1 FROM pg_trigger t
+                JOIN pg_proc f ON f.oid = t.tgfoid
+                JOIN pg_roles o ON o.oid = f.proowner
+               WHERE t.tgrelid = to_regclass('public.properties')
+                 AND t.tgname = 'trg_purge_deleted_property_files'
+                 AND t.tgenabled <> 'D' AND f.prosecdef AND o.rolbypassrls)),
+
+  -- 077: лімітер входу одним атомарним запитом і лише для службового ключа.
+  (79, 'лімітер входу атомарний і лише для службового ключа', '077_storage_purge_and_rate_limit.sql',
+      (SELECT COALESCE((SELECT has_function_privilege('service_role', p.oid, 'EXECUTE')
+                               AND NOT has_function_privilege('anon', p.oid, 'EXECUTE')
+                               AND NOT has_function_privilege('authenticated', p.oid, 'EXECUTE')
+                          FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace AND n.nspname = 'public'
+                         WHERE p.proname = 'rate_limit_hit' LIMIT 1), false)))
+)
+SELECT
+  CASE WHEN ok THEN '✅ OK     ' ELSE '❌ MISSING' END AS status,
+  item,
+  CASE WHEN ok THEN '' ELSE '→ виконай ' || migration END AS action
+FROM checks ORDER BY ord;
