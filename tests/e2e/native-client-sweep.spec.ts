@@ -155,6 +155,15 @@ test('нативний клієнт: усі екрани власника жив
   await expect(cta, 'назва введена — кнопка активна').toBeEnabled()
   await alive(page, 'property-form-create+input')
 
+  // ── Повернення до недописаної форми: чернетка відновлюється рядком у формі
+  await page.waitForTimeout(900) // дебаунс запису чернетки 600мс
+  await toObjects(page)
+  await page.locator('.fbtn').click()
+  await expect(page.getByText('Чернетку відновлено')).toBeVisible({ timeout: 15_000 })
+  await alive(page, 'property-form-draft')
+  await expect(cta).toHaveText('Додати обʼєкт')
+  await expect(cta, 'відновлена назва — кнопка активна').toBeEnabled()
+
   // ── Редагування обʼєкта: збереження + видалення в хедері
   await toObjects(page)
   await objectAction(page, 'Редагувати')

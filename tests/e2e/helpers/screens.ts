@@ -201,7 +201,7 @@ export async function ownerFixtures(page: Page, platform?: string) {
 }
 
 /** Список баз — точка входу власника, з якої стартує кожен крок. */
-async function atDbList(page: Page) {
+export async function atDbList(page: Page) {
   await page.goto('/')
   await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
 }
@@ -215,7 +215,7 @@ async function atDbList(page: Page) {
  * `property-detail` шукав `.obj-card`, якого вже не було, і чекав до самого
  * таймауту тесту.
  */
-async function atDbObjects(page: Page) {
+export async function atDbObjects(page: Page) {
   await atDbList(page)
   await page.getByText('БЦ Рубін').first().click()
   await expect(page.getByText('Всі (3)')).toBeVisible({ timeout: 15_000 })
@@ -226,7 +226,7 @@ async function atDbObjects(page: Page) {
 }
 
 /** Пункт меню бази — усі owner-екрани другого рівня відкриваються звідти. */
-async function viaDbMenu(page: Page, item: string, done: RegExp | string) {
+export async function viaDbMenu(page: Page, item: string, done: RegExp | string) {
   await atDbObjects(page)
   await page.getByLabel('Меню бази').click()
   await expect(page.locator('.modal')).toBeVisible()
@@ -675,6 +675,22 @@ export const OWNER_SCREENS: ScreenStep[] = [
       ]))
       await viaDbMenu(page, 'Журнал змін', /Журнал змін/)
       await expect(page.locator('.act-row').first()).toBeVisible({ timeout: 15_000 })
+    },
+  },
+  {
+    // ФОРМА З ВІДНОВЛЕНОЮ ЧЕРНЕТКОЮ — інший стан рендера: над полями стоїть
+    // рядок «Чернетку відновлено» з дією «Очистити», і він зсуває всю форму
+    // вниз, тобто в світлішу частину градієнта. Доти це був тост, що 5с
+    // накривав поле назви (тап по назві стирав чернетку). Крок передостанній:
+    // чернетка лишається в сховищі, тож форма, відкрита пізніше, малювала б і
+    // цей рядок — а після `empty-state` бази вже немає.
+    label: 'property-form-draft',
+    go: async (page) => {
+      await atDbObjects(page)
+      await page.evaluate((k) => localStorage.setItem(k, JSON.stringify({ name: 'Офіс 205', floor: '2' })),
+        `draft_v1:${OWNER.id}:prop-new:${DB_ID}`)
+      await page.getByLabel('Додати обʼєкт').click()
+      await expect(page.getByText('Чернетку відновлено')).toBeVisible({ timeout: 15_000 })
     },
   },
   {

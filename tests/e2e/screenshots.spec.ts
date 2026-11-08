@@ -213,6 +213,19 @@ test('screens · owner journey', async ({ page }) => {
   await page.goto('/'); await page.getByText('Мої бази').waitFor()
   await page.getByText('БЦ Рубін').first().click(); await page.getByText('Всі (3)').waitFor()
 
+  // Повернення до недописаної форми: чернетка — рядком у формі, а не тостом,
+  // що накривав поле назви. Після кадру чернетку прибрано, щоб наступні кадри
+  // форми не малювали цей рядок.
+  const draftKey = `draft_v1:${OWNER.id}:prop-new:${DB_ID}`
+  await page.evaluate((k) => localStorage.setItem(k, JSON.stringify({ name: 'Офіс 205', floor: '2' })), draftKey)
+  await snap(page, 'property-form-draft', async () => {
+    await page.getByLabel("Додати обʼєкт").click()
+    await page.getByText('Чернетку відновлено').waitFor()
+  })
+  await page.evaluate((k) => localStorage.removeItem(k), draftKey)
+  await page.goto('/'); await page.getByText('Мої бази').waitFor()
+  await page.getByText('БЦ Рубін').first().click(); await page.getByText('Всі (3)').waitFor()
+
   await snap(page, 'sharing-analytics', async () => {
     await page.getByLabel('Меню бази').click()
     await page.getByText('Аналітика і поширення').click()

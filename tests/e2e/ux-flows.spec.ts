@@ -135,9 +135,26 @@ test('draft: typed input survives leaving the form and can be discarded', async 
   await expect(page.getByText('Чернетку відновлено')).toBeVisible()
   await expect(page.getByPlaceholder('Офіс 101')).toHaveValue('Недописаний офіс')
 
+  // Повідомлення — РЯДОК У ФОРМІ, а не тост: тост 5с накривав поле назви, а
+  // його «Очистити» лягала рівно в центр поля, тож тап по назві, щоб дописати
+  // чернетку, її СТИРАВ. Тап по полю мусить влучати в поле й лишати значення.
+  const field = page.getByPlaceholder('Офіс 101')
+  const hit = await field.evaluate((el) => {
+    const r = el.getBoundingClientRect()
+    const h = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+    return h === el || el.contains(h)
+  })
+  expect(hit, 'центр поля назви перекрито — тап туди не влучить у поле').toBe(true)
+  await field.click()
+  await expect(field).toHaveValue('Недописаний офіс')
+  await expect(page.getByText('Чернетку відновлено')).toBeVisible()
+
   // «Очистити» discards the draft and resets the form
-  await page.locator('.toast-act', { hasText: 'Очистити' }).click()
+  await page.locator('.draft-note-act', { hasText: 'Очистити' }).click()
   await expect(page.getByPlaceholder('Офіс 101')).toHaveValue('')
+  await expect(page.getByText('Чернетку відновлено')).toHaveCount(0)
+  expect(await page.evaluate(() => Object.keys(localStorage).some((k) => k.startsWith('draft_v1:'))),
+    'чернетка лишилась у сховищі після «Очистити»').toBe(false)
 })
 
 test('duplicate: opens the form prefilled with the next free name, tenant not copied', async ({ page }) => {
