@@ -277,6 +277,16 @@ export async function mockBackend(page: Page, opts: HarnessOptions = {}) {
       } catch { /* ignore parse errors */ }
     }
     const accept = route.request().headers()['accept'] ?? ''
+    // ЯК RLS: єдина політика таблиці — `users_own`, тож ЧУЖИЙ рядок не
+    // віддається ніколи. Доти мок на будь-який id віддавав поточного
+    // користувача, і екран, що читав чужий профіль напряму, виглядав робочим.
+    const wanted = /[?&]id=eq\.([0-9a-f-]+)/.exec(route.request().url())?.[1]
+    if (wanted && wanted !== currentUser.id) {
+      return accept.includes('object')
+        ? route.fulfill({ status: 406, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' },
+            body: JSON.stringify({ code: 'PGRST116', message: 'JSON object requested, multiple (or no) rows returned' }) })
+        : json(route, [])
+    }
     return json(route, accept.includes('object') ? currentUser : [currentUser])
   })
 }

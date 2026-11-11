@@ -164,6 +164,22 @@ for (const [label, url, marker] of VIEWS) {
  * розсипаються рядки з трьома контролами. Публічну сторінку на ньому не міряв
  * ніхто, бо `devices.spec.ts` ходить лише екранами застосунку.
  */
+// Знайдено проходом на живій базі: КОЖНЕ відкриття /v кидало помилку гідратації
+// (React #418). У коментарі всередині інлайнового CSS стояло слово-тег у кутових
+// дужках; сервер екранує таке в тексті стилю, клієнт — ні, тексти розходились, і
+// React викидав серверну розмітку та малював сторінку наново. Жоден тест цього
+// не бачив: ніхто не слухав `pageerror` на сторінці, яку бачать сторонні.
+test('публічна /v гідратується без помилок', async ({ page }) => {
+  const errors: string[] = []
+  page.on('pageerror', (e) => errors.push(e.message.slice(0, 160)))
+  await setup(page)
+  for (const [, url] of VIEWS) {
+    await page.goto(url)
+    await page.waitForTimeout(1200)
+  }
+  expect(errors, errors.join('\n')).toEqual([])
+})
+
 test('публічна /v тримається на 360px', async ({ page }) => {
   await page.setViewportSize({ width: 360, height: 740 })
   await setup(page)
