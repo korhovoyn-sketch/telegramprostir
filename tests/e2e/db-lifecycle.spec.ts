@@ -244,6 +244,26 @@ test('створення бази: шлюз порожньої назви, по�
   expect(body.type).toBeTruthy()
 })
 
+// Знайдено проходом на живій базі: після створення «‹ Бази» в шапці нової
+// бази не робила НІЧОГО. `backThenReplace` знімає зі стека попередній екран —
+// це правильно для «деталь → форма → деталь», а тут попереднім був САМ список
+// баз, тож стек лишався порожнім і `back()` повертав false.
+test('створення бази: «Бази» в шапці нової бази веде у список, а не в нікуди', async ({ page }) => {
+  const wire = freshWire()
+  await setup(page, wire)
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+  await page.getByRole('button', { name: /Створити базу|Додати базу/ }).first().click()
+  await page.locator('input').first().fill('БЦ Новий')
+  await page.locator('.type-card').first().click()
+  await page.locator('.mbtn').first().click()
+  await expect(page.getByText(/Всі \(/), 'після створення — екран нової бази').toBeVisible({ timeout: 15_000 })
+  await page.locator('.hdr-back').click()
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 5_000 })
+  // І форма створення у стек не повертається: ще один «назад» не має куди йти.
+  await expect(page.getByText('Нова база')).toHaveCount(0)
+})
+
 test('створення бази: 403 лишає на формі і не веде в неіснуючу базу', async ({ page }) => {
   const wire = freshWire()
   await setup(page, wire)

@@ -797,7 +797,7 @@ export default function DatabaseObjectsScreen() {
           <div className="empty-state" style={{ paddingTop: 24 }}>
             <div className="empty-ic">🏢</div>
             <div className="empty-h">{tr('Немає обʼєктів')}</div>
-            <div className="empty-s">{isOwner ? tr('Натисни + щоб додати перший обʼєкт') : tr('У цій базі поки немає обʼєктів')}</div>
+            <div className="empty-s">{isOwner ? tr('Додай перший обʼєкт, щоб почати облік') : tr('У цій базі поки немає обʼєктів')}</div>
             {isOwner && (
               <button
                 className="mbtn success mbtn-flow"
@@ -905,7 +905,9 @@ export default function DatabaseObjectsScreen() {
           variant="create"
           compact
           raised
-          hidden={fabHidden}
+          // Порожня база вже має свою дію в потоці — друга така сама кнопка
+          // під нею лише сіяла сумнів «а це те саме?» (як було на db-list).
+          hidden={fabHidden || (!loading && !error && properties.length === 0)}
           icon={<IconPlus size={14} />}
           label={tr('Додати обʼєкт')}
           onClick={() => navigate('property-form', { dbId: db.id })}

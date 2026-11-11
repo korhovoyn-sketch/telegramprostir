@@ -516,7 +516,9 @@ export default function PropertyFormScreen() {
       if (ok) hapticNotify('success')
       if (ok && draftKey) lsRemove(draftKey)
     } else {
-      const ok = await createProperty(payload)
+      // Той самий рахунок, що в масовому: без нього рядок діставав 0 і після
+      // ручного впорядкування (100, 200, …) новий обʼєкт стрибав на початок.
+      const ok = await createProperty({ ...payload, sort_order: nextSortBase(properties) + 100 })
       if (ok) hapticNotify('success')
       if (ok && draftKey) lsRemove(draftKey)
     }

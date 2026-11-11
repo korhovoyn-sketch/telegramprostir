@@ -235,7 +235,9 @@ export function useProperties(dbId?: string) {
         err = fb.error
       }
       if (err) throw err
-      setProperties((prev) => [created as Property, ...prev])
+      // У КІНЕЦЬ: там він і стане після перезавантаження (sort_order — далі за
+      // максимум). На початку він стояв лише до першого оновлення списку.
+      setProperties((prev) => [...prev, created as Property])
       showToast({ type: 'success', title: tr('Обʼєкт додано') })
       backThenReplace('db-objects', { dbId: payload.db_id })
       return true

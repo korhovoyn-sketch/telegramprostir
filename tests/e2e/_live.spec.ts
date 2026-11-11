@@ -55,7 +55,7 @@ async function back(page: Page) {
 async function toast(page: Page) {
   const t = page.locator('.toast').last()
   await t.waitFor({ state: 'visible', timeout: 8000 }).catch(() => {})
-  return (await t.textContent().catch(() => '')) ?? ''
+  return (await t.textContent({ timeout: 1000 }).catch(() => '')) ?? ''
 }
 
 async function reset(p: Persona) {
@@ -98,7 +98,8 @@ async function toDb(page: Page, name = 'БЦ Живий') {
 test('власник: обʼєкти — створення, редагування, дублювання, масово', async ({ page }) => {
   await open(page, OWNER)
   await toDb(page)
-  await page.getByLabel("Додати обʼєкт").click()
+  // Порожня база має одну дію — в потоці; плаваюча там схована.
+  await page.getByRole('button', { name: 'Додати перший обʼєкт' }).click()
   await expect(page.getByText("Новий обʼєкт")).toBeVisible()
   await page.getByPlaceholder('Офіс 101').fill('Офіс 201')
   await page.getByPlaceholder('47').fill('50')
@@ -159,8 +160,8 @@ test('власник: оренда, звільнення, скасування, 
   let st = await db(`SELECT p.status, p.tenant_name, p.lease_start_date, (SELECT count(*) FROM tenancies t WHERE t.property_id=p.id) n, (SELECT count(*) FROM tenancies t WHERE t.property_id=p.id AND ended_at IS NULL) open FROM properties p WHERE name='Офіс 201А'`)
   console.log('RENT:', JSON.stringify(st))
 
+  // Звільнення — без підтвердження: дія оборотна, скасування живе в тості.
   await page.getByRole('button', { name: /Звільнити/ }).click()
-  await confirmSheet(page).catch(() => console.log('no confirm dialog'))
   const t1 = await toast(page)
   await shot(page, 'vacate-toast')
   console.log('VACATE toast:', t1)
