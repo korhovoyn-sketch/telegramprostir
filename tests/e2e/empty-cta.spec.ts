@@ -57,6 +57,27 @@ test('порожні бази: рівно одна первинна дія', asy
     .toHaveLength(1)
 })
 
+// Третій екран того самого класу, знайдений проходом на живій базі: щойно
+// створена база малювала зелену «Додати перший обʼєкт» і під нею плаваючу
+// «Додати обʼєкт» — це ПЕРШИЙ екран нового власника після створення бази.
+test('порожня база: рівно одна первинна дія', async ({ page }) => {
+  await emptyBackend(page, OWNER)
+  const DB = { id: '10000000-0000-0000-0000-000000000001', owner_id: OWNER.id, name: 'БЦ Порожній', address: null,
+    type: 'business_center', color: 'blue', created_at: '2025-09-01T09:00:00.000Z', updated_at: '2025-09-01T09:00:00.000Z', properties: [] }
+  await page.route('**/rest/v1/databases**', (r: Route) =>
+    jsonRoute(r, (r.request().headers()['accept'] ?? '').includes('object') ? DB : [DB]))
+  await page.goto('/')
+  await page.getByText('БЦ Порожній').first().click()
+  await expect(page.getByText('Немає обʼєктів')).toBeVisible({ timeout: 20_000 })
+  await page.waitForTimeout(600)
+
+  const labels = await ctaLabels(page)
+  expect(labels, `на порожньому екрані має бути РІВНО одна первинна дія: ${labels.join(' | ')}`)
+    .toHaveLength(1)
+  // Підказка не сміє посилатись на кнопку, якої на екрані немає.
+  await expect(page.locator('.empty-s')).not.toContainText('+')
+})
+
 test('порожні підбірки: рівно одна первинна дія', async ({ page }) => {
   await emptyBackend(page, REALTOR)
   await page.goto('/')

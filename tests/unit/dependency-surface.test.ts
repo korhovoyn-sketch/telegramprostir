@@ -145,6 +145,7 @@ describe('поверхня вразливих залежностей лишає�
    * | `vitest` (+ `tinypool`, `@vitest/mocker`) | Path Traversal у redirect-моку; **critical**: Prototype Pollution → RCE в опціях воркера | vitest 5 |
    * | `tailwindcss` (+ `braces`, `micromatch`, `chokidar`, `postcss-selector-parser`, `postcss-nested`) | ReDoS/stack exhaustion на глобах `content`, квадратичний парс селекторів | tailwind 4 |
    * | `eslint-config-next` (+ `fast-glob`, `@next/eslint-plugin-next`) | ті самі глоби — лише під час лінту | 14 → мажор |
+   * | `@typescript-eslint/*`, `glob`, `test-exclude` (через `minimatch` 10.x) | DoS на ампліфікації globparts — глоби лінту й покриття | minimatch 11; typescript-eslint 8.72 досі `^10` |
    *
    * `tinypool` позначений critical, і саме тому тут стоїть таблиця, а не
    * «dev — отже байдуже»: RCE-гаджет вимагає підконтрольних опцій воркера, а

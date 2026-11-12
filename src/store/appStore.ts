@@ -40,6 +40,12 @@ interface AppState {
    * Before: history=[A, B], screen=C  →  After: history=[A], screen=newScreen
    */
   backThenReplace: (screen: ScreenName, params?: ScreenParams) => void
+  /**
+   * Стати на `screen` так, щоб «назад» вів на `home`. Для СТВОРЕННЯ сутності:
+   * форму відкривають зі списку, тож `backThenReplace` зняв би зі стека сам
+   * список — і «назад» з нового екрана не вів би нікуди.
+   */
+  navigateVia: (home: ScreenName, screen: ScreenName, params?: ScreenParams) => void
   back: () => boolean
   setUser: (user: User | null) => void
   showToast: (toast: Toast) => void
@@ -102,6 +108,18 @@ export const useAppStore = create<AppState>((set, get) => ({
       history: history.length > 0 ? history.slice(0, -1) : [],
       navKey: navKey + 1,
       navDirection: 'forward',
+    })
+  },
+
+  navigateVia: (home, screen, params = {}) => {
+    const nextLastDbId = (params as ScreenParams).dbId as string | undefined
+    set({
+      screen,
+      screenParams: params,
+      history: [{ screen: home, params: {} }],
+      navKey: get().navKey + 1,
+      navDirection: 'forward',
+      ...(nextLastDbId ? { lastDbId: nextLastDbId } : {}),
     })
   },
 

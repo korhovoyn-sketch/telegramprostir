@@ -17,13 +17,16 @@ import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import { IconShare, IconPhoto, IconMessage, IconBuilding, IconRuler, IconParking, IconCalendar } from '@/components/Icons'
 import { sharePublicUrl , hapticSelection } from '@/lib/telegram'
 import { formatPrice, calcRentUtils, rentUnitLabel, DB_TYPE_LABELS, getInitials, formatLeasePeriod, humanizeDbError, matchesQuery } from '@/lib/utils'
-import type { Database, Property, PropertyStatus, User } from '@/types'
+import type { Database, Property, PropertyStatus } from '@/types'
+
+/** Те, що власник показує кожному з посиланням на базу — не рядок `users`. */
+interface OwnerContact { first_name: string; last_name?: string; tg_username?: string; currency?: string }
 import { tr } from '@/lib/i18n'
 
 export default function RealtorDatabaseScreen() {
   const { screenParams, navigate, showToast, user } = useAppSlice('screenParams', 'navigate', 'showToast', 'user')
   const [db, setDb] = useState<Database | null>(null)
-  const [owner, setOwner] = useState<User | null>(null)
+  const [owner, setOwner] = useState<OwnerContact | null>(null)
   const [properties, setProperties] = useState<Property[]>([])
   const [loading, setLoading] = useState(true)
   // Два РІЗНІ стани, і злиті вони давали тупик: `gone` — рядка бази RLS
@@ -58,11 +61,24 @@ export default function RealtorDatabaseScreen() {
       setDb(dbData)
       setProperties((propsRes.data ?? []) as unknown as Property[])
 
-      // Load owner info for contact card
-      if (dbData.owner_id) {
-        const { data: ownerData } = await supabase
-          .from('users').select('id,tg_id,tg_username,first_name,last_name,phone,currency').eq('id', dbData.owner_id).single()
-        if (ownerData) setOwner(ownerData as User)
+      // Контакт власника — тим самим шляхом, що й публічна /v: превʼю за
+      // share-токеном. Прямий запит у `users` не працював НІКОЛИ: єдина
+      // політика таблиці — `users_own`, тож чужий рядок RLS не віддає, і картка
+      // лишалась безіменним «Власник» без кнопки «Написати», а ціни йшли
+      // валютою рієлтора. Превʼю віддає рівно те, що власник і так показує
+      // кожному з цим посиланням (телефон — лише за його згодою, 061).
+      if (dbData.share_token) {
+        const { data: rows } = await supabase.rpc('get_public_db_preview', { p_token: dbData.share_token }).limit(1)
+        const o = (Array.isArray(rows) ? rows[0] : null) as Record<string, unknown> | null
+        const str = (v: unknown) => (typeof v === 'string' && v ? v : undefined)
+        if (o && str(o.owner_first_name)) {
+          setOwner({
+            first_name: str(o.owner_first_name)!,
+            last_name: str(o.owner_last_name),
+            tg_username: str(o.owner_tg_username),
+            currency: str(o.owner_currency),
+          })
+        }
       }
     } catch (e) {
       setError('net')

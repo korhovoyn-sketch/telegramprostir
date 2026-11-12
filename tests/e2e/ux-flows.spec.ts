@@ -135,9 +135,26 @@ test('draft: typed input survives leaving the form and can be discarded', async 
   await expect(page.getByText('Чернетку відновлено')).toBeVisible()
   await expect(page.getByPlaceholder('Офіс 101')).toHaveValue('Недописаний офіс')
 
+  // Повідомлення — РЯДОК У ФОРМІ, а не тост: тост 5с накривав поле назви, а
+  // його «Очистити» лягала рівно в центр поля, тож тап по назві, щоб дописати
+  // чернетку, її СТИРАВ. Тап по полю мусить влучати в поле й лишати значення.
+  const field = page.getByPlaceholder('Офіс 101')
+  const hit = await field.evaluate((el) => {
+    const r = el.getBoundingClientRect()
+    const h = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+    return h === el || el.contains(h)
+  })
+  expect(hit, 'центр поля назви перекрито — тап туди не влучить у поле').toBe(true)
+  await field.click()
+  await expect(field).toHaveValue('Недописаний офіс')
+  await expect(page.getByText('Чернетку відновлено')).toBeVisible()
+
   // «Очистити» discards the draft and resets the form
-  await page.locator('.toast-act', { hasText: 'Очистити' }).click()
+  await page.locator('.draft-note-act', { hasText: 'Очистити' }).click()
   await expect(page.getByPlaceholder('Офіс 101')).toHaveValue('')
+  await expect(page.getByText('Чернетку відновлено')).toHaveCount(0)
+  expect(await page.evaluate(() => Object.keys(localStorage).some((k) => k.startsWith('draft_v1:'))),
+    'чернетка лишилась у сховищі після «Очистити»').toBe(false)
 })
 
 test('duplicate: opens the form prefilled with the next free name, tenant not copied', async ({ page }) => {
@@ -156,6 +173,41 @@ test('duplicate: opens the form prefilled with the next free name, tenant not co
   // 101..103 taken → the copy becomes 104; fields copied, tenant NOT
   await expect(page.getByPlaceholder('Офіс 101')).toHaveValue('Офіс 104')
   await expect(page.locator('.fr-seg-b.on', { hasText: 'Вільно' })).toBeVisible()
+})
+
+// Знайдено проходом на живій базі: масове створення нумерувало `sort_order`
+// від максимуму, а одиночне й дублювання не слали його взагалі — рядок діставав
+// 0. Тож після ручного «Змінити порядок» (усі стають 100, 200, …) новий обʼєкт
+// стрибав на ПЕРШЕ місце, а створений масово — в кінець.
+test('одиночне створення і дублікат стають у КІНЕЦЬ списку, як і масове', async ({ page }) => {
+  await fixtures(page)
+  const bodies: Record<string, unknown>[] = []
+  await page.route('**/rest/v1/properties**', (route) => {
+    if (route.request().method() !== 'POST') return route.fallback()
+    const b = JSON.parse(route.request().postData() ?? '{}')
+    bodies.push(b)
+    return json(route, { ...PROPERTIES[1], ...b, id: `20000000-0000-0000-0000-00000000030${bodies.length}`, photos: [] }, 201)
+  })
+  await page.goto('/')
+  await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+  await page.getByText('БЦ Рубін').first().click()
+  await expect(page.getByText('Всі (3)')).toBeVisible()
+
+  await page.getByLabel('Додати обʼєкт').click()
+  await page.getByPlaceholder('Офіс 101', { exact: true }).fill('Офіс 201')
+  await page.getByRole('button', { name: 'Додати обʼєкт' }).click()
+  await expect.poll(() => bodies.length, { timeout: 10_000 }).toBe(1)
+  expect(bodies[0].sort_order, 'одиночний: далі за найбільший наявний (300)').toBe(400)
+  await expect(page.getByText('Всі (3)')).toBeVisible()
+
+  await page.locator('.obj-card', { hasText: 'Офіс 101' }).locator('.obj-more').click()
+  await page.waitForTimeout(420)
+  await page.locator('.sheet-row').filter({ hasText: 'Дублювати' }).click()
+  await expect(page.getByText('Новий обʼєкт')).toBeVisible()
+  await page.getByRole('button', { name: 'Додати обʼєкт' }).click()
+  await expect.poll(() => bodies.length, { timeout: 10_000 }).toBe(2)
+  // Мок списку не знає про щойно створений рядок, тож база рахунку та сама.
+  expect(bodies[1].sort_order, 'дублікат: теж далі за найбільший наявний').toBe(400)
 })
 
 test('SWR: db list paints from the local snapshot even when the network is down', async ({ page }) => {

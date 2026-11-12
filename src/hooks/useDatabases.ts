@@ -83,7 +83,7 @@ export function dbMonthlyUtils(props: DbPropRow[], dbType: string | undefined): 
 export function useDatabases() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const { setDatabases, databases, showToast, backThenReplace } = useAppSlice('setDatabases', 'databases', 'showToast', 'backThenReplace')
+  const { setDatabases, databases, showToast, backThenReplace, navigateVia } = useAppSlice('setDatabases', 'databases', 'showToast', 'backThenReplace', 'navigateVia')
   const userId = useAppStore((s) => s.user?.id)
   const setMemberDbIds = useAppStore(st => st.setMemberDbIds)
 
@@ -240,7 +240,11 @@ export function useDatabases() {
 
       setDatabases([created, ...databases])
       showToast({ type: 'success', title: tr('Базу створено') })
-      if (opts?.navigate !== false) backThenReplace('db-objects', { dbId: created.id })
+      // НЕ backThenReplace: форму відкривають зі списку баз (або з порожнього
+      // стану), і він зняв би зі стека сам список — «‹ Бази» в шапці нової бази
+      // не вела б нікуди. Дім — завжди список: порожній стан після створення
+      // вже неправдивий.
+      if (opts?.navigate !== false) navigateVia('db-list', 'db-objects', { dbId: created.id })
       return created
     } catch (e) {
       showToast({ type: 'error', title: tr('Помилка'), subtitle: humanizeDbError(e) })
@@ -248,7 +252,7 @@ export function useDatabases() {
     } finally {
       setLoading(false)
     }
-  }, [userId, databases, setDatabases, showToast, backThenReplace])
+  }, [userId, databases, setDatabases, showToast, navigateVia])
 
   const updateDatabase = useCallback(async (id: string, payload: Partial<Database>) => {
     setLoading(true)

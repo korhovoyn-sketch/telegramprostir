@@ -147,6 +147,7 @@ export default function PropertyFormScreen() {
   const isNewBlank = !isEdit && !duplicateId
   const draftKey = user && screenParams.dbId ? `draft_v1:${user.id}:prop-new:${screenParams.dbId}` : null
   const draftReadyRef = useRef(false)
+  const [draftRestored, setDraftRestored] = useState(false)
 
   useEffect(() => {
     if (!isNewBlank || !draftKey || draftReadyRef.current) return
@@ -178,22 +179,24 @@ export default function PropertyFormScreen() {
       setAddress(String(d.address ?? ''))
       setUtilities(Array.isArray(d.utilities) ? (d.utilities as string[]) : [])
       setFolderId((d.folderId as string | null) ?? null)
-      showToast({
-        type: 'info',
-        title: tr('Чернетку відновлено'),
-        subtitle: tr('Незбережений обʼєкт з минулого разу'),
-        actionLabel: tr('Очистити'),
-        onAction: () => {
-          lsRemove(draftKey)
-          setName(''); setFloor(''); setStatus('free'); setAreaUseful(''); setAreaTotal(''); setAreaBasis('total')
-          setRentType('per_m2'); setRentRate(''); setUtilitiesRate(''); setHasParking(false)
-          setParkingSpaces('1'); setParkingType(''); setEvCharger(false); setDescription('')
-          setSalePrice(''); setTenantName(''); setLandlordName(''); setLeaseStartDate(''); setLeaseEndDate('')
-          setAddress(''); setUtilities([]); setFolderId(null)
-        },
-      })
+      // РЯДОК У ФОРМІ, а не тост — і це не смак. Тост стоїть зверху
+      // (60px) і 5с ПОВНІСТЮ накривав поле назви разом із відновленим
+      // значенням, а його «Очистити» лягала рівно в центр поля: людина, що
+      // тапала назву, щоб дописати чернетку, СТИРАЛА її. Рядок нічого не
+      // перекриває й не зникає по таймеру.
+      setDraftRestored(true)
     } catch { /* corrupted draft — ignore */ }
-  }, [isNewBlank, draftKey, showToast])
+  }, [isNewBlank, draftKey])
+
+  const clearDraft = () => {
+    if (draftKey) lsRemove(draftKey)
+    setDraftRestored(false)
+    setName(''); setFloor(''); setStatus('free'); setAreaUseful(''); setAreaTotal(''); setAreaBasis('total')
+    setRentType('per_m2'); setRentRate(''); setUtilitiesRate(''); setHasParking(false)
+    setParkingSpaces('1'); setParkingType(''); setEvCharger(false); setDescription('')
+    setSalePrice(''); setTenantName(''); setLandlordName(''); setLeaseStartDate(''); setLeaseEndDate('')
+    setAddress(''); setUtilities([]); setFolderId(null)
+  }
 
   useEffect(() => {
     if (!isNewBlank || !draftKey || !draftReadyRef.current) return
@@ -513,7 +516,9 @@ export default function PropertyFormScreen() {
       if (ok) hapticNotify('success')
       if (ok && draftKey) lsRemove(draftKey)
     } else {
-      const ok = await createProperty(payload)
+      // Той самий рахунок, що в масовому: без нього рядок діставав 0 і після
+      // ручного впорядкування (100, 200, …) новий обʼєкт стрибав на початок.
+      const ok = await createProperty({ ...payload, sort_order: nextSortBase(properties) + 100 })
       if (ok) hapticNotify('success')
       if (ok && draftKey) lsRemove(draftKey)
     }
@@ -572,6 +577,17 @@ export default function PropertyFormScreen() {
         onFocusCapture={scrollFocusedIntoView}
         onInputCapture={() => { touchedRef.current = true }}
       >
+        {draftRestored && (
+          <div className="draft-note" role="status">
+            <span className="draft-note-t">
+              {tr('Чернетку відновлено')}
+              <span className="draft-note-s">{tr('Незбережений обʼєкт з минулого разу')}</span>
+            </span>
+            <button type="button" className="draft-note-act" onClick={() => { hapticSelection(); clearDraft() }}>
+              {tr('Очистити')}
+            </button>
+          </div>
+        )}
         {/* Basic */}
         <div className="over"><span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><IconBuilding size={14} color="var(--info)" />{tr('Основне')}</span></div>
         <div className="fg glass-s" style={{ margin: '0 12px 16px' }}>
@@ -649,7 +665,7 @@ export default function PropertyFormScreen() {
                 onClick={() => { hapticSelection(); setFolderOpen(o => !o) }}
               >
                 <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconFolder size={14} color="var(--t3)" />{tr('Папка')}</span>
-                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, color: folderId ? 'var(--t1)' : 'var(--t3)', fontSize: 'var(--fs-call)' }}>
+                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, color: 'var(--t1)', fontSize: 'var(--fs-call)' }}>
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 180 }}>
                     {folders.find(f => f.id === folderId)?.name ?? tr('Без папки')}
                   </span>
