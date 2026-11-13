@@ -35,7 +35,7 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
      Префікс `rc-`, а не `r-`, навмисно: гард шкали парсить `--r-*` і брав би
      службовий відступ за легальний радіус контейнера. */
   --rc-out:var(--r-sm);--rc-pad:2px;--rc-in:calc(var(--rc-out) - var(--rc-pad));
-  --g1:4px;--g2:8px;--g3:12px;--g4:16px;--g5:20px;--g6:24px;
+  --g2:8px;--g3:12px;--g4:16px;--g5:20px;--g6:24px;
   --pad-card:14px;--row-h:52px;--btn-h:52px;--input-h:48px;
   /* ── Apple HIG type scale (compact web, 1px ≈ 1pt) ── */
   --fs-cap3:10px;   /* Caption 3  — micro labels, dot counters */
@@ -51,7 +51,6 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
   --fs-t3:20px;     /* Title 3    — section display titles */
   --fs-t2:22px;     /* Title 2    — stat numbers, main headings */
   --fs-t1:28px;     /* Title 1    — hero numbers */
-  --fs-lg:34px;     /* Large Title — display hero */
   /* ── Line heights ── */
   --lh-tight:1.12;  /* Headings, large text */
   --lh-snug:1.28;   /* Cards, list items */
@@ -63,7 +62,6 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
   --glass-1:rgba(255,255,255,.04);--glass-card:rgba(6,5,14,.22);
   --glass-2:rgba(255,255,255,.08);
   --glass-3:rgba(255,255,255,.14);
-  --glass-4:rgba(255,255,255,.22);
   /* Базовий фон застосунку (той самий, що в body) і колір скляної рамки —
      обидва раніше використовувались як var(--bg)/var(--glass-bd), не будучи
      оголошеними: невідомий токен робить властивість невалідною, тож фон
@@ -72,7 +70,6 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
   --glass-bd:rgba(255,255,255,.16);
   --bd:.5px solid rgba(255,255,255,.16);
   --bd-s:.5px solid rgba(255,255,255,.26);
-  --bd-strong:1px solid rgba(255,255,255,.32);
   --t1:#fff;
   --t2:rgba(255,255,255,.84);
   --t3:rgba(255,255,255,.74);
@@ -139,7 +136,6 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
   --dv-cyan-bg:rgba(6,182,212,.13);--dv-cyan-bd:rgba(6,182,212,.26);
   --tg-blue:#229ED9;--tg-blue-light:#2AABEE;--accent:var(--tg-blue-light);
   --r-icon:11px;
-  --r-phone:42px;
   /* ── Криві БЕЗ перельоту (рішення власника, серпень 2026) ──
      Обидві раніше були пружинними: `--ease` виходила на 1.4, `--ease-spr` на
      1.56, тобто елемент пролітав повз своє місце і вертався. На покадровому
@@ -205,12 +201,8 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
   --dur-xs:.12s;--dur-sm:.18s;--dur-md:.26s;--dur-lg:.38s;--dur-xl:.5s;
   /* Shadow tokens */
   --shadow-btn-blue:0 8px 24px rgba(34,158,217,.42),inset 0 1px 0 rgba(255,255,255,.32);
-  --shadow-btn-blue-hover:0 12px 32px rgba(34,158,217,.55),inset 0 1px 0 rgba(255,255,255,.35);
   --shadow-btn-danger:0 8px 24px rgba(226,75,74,.42),inset 0 1px 0 rgba(255,255,255,.32);
-  --shadow-btn-danger-hover:0 12px 32px rgba(226,75,74,.55),inset 0 1px 0 rgba(255,255,255,.35);
   --shadow-btn-success:0 8px 24px rgba(52,199,89,.42),inset 0 1px 0 rgba(255,255,255,.32);
-  --shadow-btn-success-hover:0 12px 32px rgba(52,199,89,.55),inset 0 1px 0 rgba(255,255,255,.35);
-  --shadow-fab:0 8px 22px rgba(196,35,120,.42),inset 0 1px 0 rgba(255,255,255,.3);
   /* ── Рецепти тіні, що ПОВТОРЮЮТЬСЯ ──
      Більшість `box-shadow` тут — не висота, а власна графіка правила (фокус-
      кільце, світіння, inset-смуга сповіщення), і зводити їх у токени було б
