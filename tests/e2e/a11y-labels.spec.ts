@@ -111,6 +111,16 @@ test('усі поля, кнопки та зображення мають дос�
   await objectAction(page, 'Редагувати')
   await expect(page.getByText('Редагування')).toBeVisible()
   await auditScreen(page, 'property-form')
+
+  // Тост — єдиний елемент, що живе ПОВЕРХ будь-якого екрана лише 3.5с після
+  // дії, тож обхід у стані спокою його не бачив ніколи: кнопка закриття стояла
+  // без імені, і читалка озвучувала її просто як «кнопка». Помилка валідації —
+  // найдешевший спосіб викликати тост у цьому екрані.
+  await page.getByLabel('Корисна площа, м²').fill('500')
+  await page.locator('.mbtn').click()
+  await expect(page.locator('.toast')).toBeVisible()
+  await auditScreen(page, 'toast')
+  await expect(page.locator('.toast').getByRole('button', { name: 'Закрити' })).toBeVisible()
 })
 
 test('поля екранів оренди й папок названі', async ({ page }) => {

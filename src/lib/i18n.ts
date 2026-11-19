@@ -88,6 +88,7 @@ export async function loadLang(lang: Lang): Promise<void> {
   if (lang === 'uk') {
     current = 'uk'
     dict = {}
+    applyDocumentLang('uk')
     return
   }
   // Мова стає активною ЛИШЕ після того, як словник приїхав: інакше перший
@@ -96,6 +97,18 @@ export async function loadLang(lang: Lang): Promise<void> {
   const mod = await import('./dict-en')
   dict = mod.EN
   current = 'en'
+  applyDocumentLang('en')
+}
+
+/**
+ * `lang` обирає голос читалки: англійський текст під `lang="uk"` озвучується
+ * українською вимовою й стає нерозбірливим. `layout.tsx` задає атрибут
+ * статично (`uk`), а мова перемикається в рантаймі, тож ставити його мусить
+ * той самий код, що міняє мову, — разом із нею, а не раніше словника.
+ */
+function applyDocumentLang(lang: Lang): void {
+  if (typeof document === 'undefined') return
+  document.documentElement.lang = lang
 }
 
 /** Синхронне читання збереженої мови. Доступ до localStorage кидає у

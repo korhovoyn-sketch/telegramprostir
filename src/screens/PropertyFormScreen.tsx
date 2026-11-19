@@ -18,7 +18,7 @@ import { UTILITY_META } from '@/lib/utilityMeta'
 import FilesList from '@/components/ui/FilesList'
 import { currencySymbol, formatPrice, calcRent, calcUtilities, basisArea, rentUnitLabel, nextCopyName, bulkCreateNames, objectsWord, scrollFocusedIntoView, caretEdit, editDecimal, editInt } from '@/lib/utils'
 import type { PropertyStatus, RentType, ParkingType, AreaBasis } from '@/types'
-import { tr } from '@/lib/i18n'
+import { tr, locale } from '@/lib/i18n'
 import { lsRemove } from '@/lib/localState'
 import { useClosingConfirmation } from '@/hooks/useTelegram'
 
@@ -860,12 +860,12 @@ export default function PropertyFormScreen() {
               </div>
               <div className="fr">
                 <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconKey size={14} color="var(--t3)" />{tr('Договір з')}</span>
-                <input aria-label={tr('Договір від')} className="fr-i" type="date" lang="uk-UA" value={leaseStartDate} onChange={e => setLeaseStartDate(e.target.value)}
+                <input aria-label={tr('Договір від')} className="fr-i" type="date" lang={locale()} value={leaseStartDate} onChange={e => setLeaseStartDate(e.target.value)}
                   style={{ colorScheme: 'dark' }} />
               </div>
               <div className="fr">
                 <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconKey size={14} color="var(--t3)" />{tr('Договір до')}</span>
-                <input aria-label={tr('Договір до')} className="fr-i" type="date" lang="uk-UA" value={leaseEndDate} onChange={e => setLeaseEndDate(e.target.value)}
+                <input aria-label={tr('Договір до')} className="fr-i" type="date" lang={locale()} value={leaseEndDate} onChange={e => setLeaseEndDate(e.target.value)}
                   style={{ colorScheme: 'dark' }} />
               </div>
             </div>
