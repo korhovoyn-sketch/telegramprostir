@@ -9,7 +9,7 @@ import { hapticSelection, hapticNotify } from '@/lib/telegram'
 import Header from '@/components/ui/Header'
 import { parseCsv } from '@/lib/csv'
 import { supabase } from '@/lib/supabase'
-import { sanitizeDecimal, objectsWord, STATUS_LABELS } from '@/lib/utils'
+import { sanitizeDecimal, objectsWord, hasArea, STATUS_LABELS } from '@/lib/utils'
 import { IconFile, IconCheck, IconBan, IconLayoutGrid } from '@/components/Icons'
 import type { Property, PropertyStatus } from '@/types'
 import { tr } from '@/lib/i18n'
@@ -211,10 +211,11 @@ export default function ImportObjectsScreen() {
   )
 
   const parsed = useMemo(() => {
-    if (nameCol < 0) return { ok: [] as NewProperty[], skipped: [] as string[], tooLong: [] as string[], noName: 0 }
+    if (nameCol < 0) return { ok: [] as NewProperty[], skipped: [] as string[], tooLong: [] as string[], badArea: [] as string[], noName: 0 }
     const ok: NewProperty[] = []
     const skipped: string[] = []
     const tooLong: string[] = []
+    const badArea: string[] = []
     const seen = new Set<string>()
     let noName = 0
     for (const r of body) {
@@ -230,6 +231,15 @@ export default function ImportObjectsScreen() {
       }
       const over = (Object.keys(MAX_LEN) as Field[]).find((f) => val(f).length > MAX_LEN[f]!)
       if (over) { tooLong.push(name.length > 40 ? `${name.slice(0, 40)}…` : name); continue }
+      // Те саме правило, що у формі (одиночне й масове створення): частина не
+      // більша за ціле. Переставлені колонки чи описка в одній клітинці інакше
+      // давали обʼєкт з корисною площею більшою за розрахункову.
+      const areaU = num(val('area_useful'))
+      const areaT = num(val('area_total'))
+      if (hasArea(areaU) && hasArea(areaT) && areaU > areaT) {
+        badArea.push(name.length > 40 ? `${name.slice(0, 40)}…` : name)
+        continue
+      }
       const rawStatus = val('status').toLowerCase()
       const status: PropertyStatus = STATUS_ALIAS[rawStatus] ?? 'free'
       ok.push({
@@ -237,8 +247,8 @@ export default function ImportObjectsScreen() {
         name,
         floor: val('floor') || null,
         status,
-        area_useful: num(val('area_useful')),
-        area_total: num(val('area_total')),
+        area_useful: areaU,
+        area_total: areaT,
         area_basis: BASIS_ALIAS[val('area_basis').toLowerCase()] ?? 'total',
         rent_type: parseRentType(val('rent_type'), dbType),
         rent_rate: num(val('rent_rate')),
@@ -260,7 +270,7 @@ export default function ImportObjectsScreen() {
         sort_order: 0,
       })
     }
-    return { ok, skipped, tooLong, noName }
+    return { ok, skipped, tooLong, badArea, noName }
   }, [body, mapping, nameCol, dbId, existing, dbType])
 
   // Той самий шлях, що в інпута: `handleFile` — єдина точка розбору CSV.
@@ -399,6 +409,12 @@ export default function ImportObjectsScreen() {
                     <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 4 }}>
                       {tr('Пропущено (задовге значення):')}{' '}{parsed.tooLong.slice(0, 8).join(', ')}
                       {parsed.tooLong.length > 8 ? tr(' та ще {0}', parsed.tooLong.length - 8) : ''}
+                    </div>
+                  )}
+                  {parsed.badArea.length > 0 && (
+                    <div style={{ fontSize: 'var(--fs-cap1)', color: 'var(--t3)', marginTop: 4 }}>
+                      {tr('Пропущено (корисна площа більша за розрахункову):')}{' '}{parsed.badArea.slice(0, 8).join(', ')}
+                      {parsed.badArea.length > 8 ? tr(' та ще {0}', parsed.badArea.length - 8) : ''}
                     </div>
                   )}
                   {parsed.noName > 0 && (

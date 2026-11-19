@@ -13,7 +13,7 @@ function createSupabaseClient(): SBClient {
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   if (!url || !key) {
     const missing = !url ? 'NEXT_PUBLIC_SUPABASE_URL' : 'NEXT_PUBLIC_SUPABASE_ANON_KEY'
-    throw new Error(`[PropSpace] Missing environment variable: ${missing}. Set it in Vercel project settings.`)
+    throw new Error(`[prostir] Missing environment variable: ${missing}. Set it in Vercel project settings.`)
   }
   const client = createClient(url, key, {
     auth: {

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useAppSlice } from '@/store/appStore'
 import { useAuth } from '@/hooks/useAuth'
-import { DB_TYPE_LABELS, rentUnitLabel, objectsWord, DB_COLORS, STATUS_BADGE_CLS, formatPrice } from '@/lib/utils'
+import { DB_TYPE_LABELS, areaPair, rentUnitLabel, objectsWord, DB_COLORS, STATUS_BADGE_CLS, formatPrice } from '@/lib/utils'
 import { IconBuilding, IconRuler, IconCurrencyDollar, IconX } from '@/components/Icons'
 import { tr } from '@/lib/i18n'
 import { lsSet } from '@/lib/localState'
@@ -249,9 +249,9 @@ export default function GuestDatabaseScreen() {
                     <IconBuilding size={14} color="var(--t3)" />{tr('{0} поверх', p.floor)}
                   </div>
                 )}
-                {p.area_useful != null && (
+                {areaPair(p.area_useful, p.area_total) && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--fs-foot)', color: 'var(--t2)' }}>
-                    <IconRuler size={14} color="var(--t3)" />{p.area_useful}{p.area_total ? `/${p.area_total}` : ''} {tr('м²')}
+                    <IconRuler size={14} color="var(--t3)" />{areaPair(p.area_useful, p.area_total)} {tr('м²')}
                   </div>
                 )}
                 {p.status && (
@@ -295,11 +295,11 @@ export default function GuestDatabaseScreen() {
                         {STATUS_LABELS()[prop.status] ?? prop.status}
                       </span>
                     </div>
-                    {prop.area_useful != null && (
+                    {areaPair(prop.area_useful, prop.area_total) && (
                       <div className="obj-met">
                         <div className="obj-mt">
                           <IconRuler size={14} color="var(--t3)" />
-                          <span>{prop.area_useful}{prop.area_total ? `/${prop.area_total}` : ''} {tr('м²')}</span>
+                          <span>{areaPair(prop.area_useful, prop.area_total)} {tr('м²')}</span>
                         </div>
                       </div>
                     )}
@@ -378,10 +378,10 @@ export default function GuestDatabaseScreen() {
                   )}
                 </div>
                 <div className="obj-met">
-                  {p.property_area_useful != null && (
+                  {areaPair(p.property_area_useful, p.property_area_total) && (
                     <div className="obj-mt">
                       <IconRuler size={14} color="var(--t3)" />
-                      <span>{p.property_area_useful}{p.property_area_total != null ? `/${p.property_area_total}` : ''} {tr('м²')}</span>
+                      <span>{areaPair(p.property_area_useful, p.property_area_total)} {tr('м²')}</span>
                     </div>
                   )}
                   {p.property_rent_rate != null && (

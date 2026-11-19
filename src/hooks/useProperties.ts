@@ -61,16 +61,36 @@ function one<T>(data: unknown): T {
  * `select=`. Без ретраю бекенд без 064 відмовляв КОЖНОМУ збереженню: форма
  * обʼєкта, «Здати в оренду», «Звільнити» — усе йде сюди.
  */
-function updateRow(id: string, payload: Partial<Property>) {
+function updateRow(id: string, payload: Partial<Property>, ifUnchangedSince?: string) {
   return withOptionalColumns((pre) => {
     const body = { ...payload, updated_at: new Date().toISOString() }
-    return supabase
-      .from('properties')
-      .update(pre ? stripOptionalKeys(body) : body)
-      .eq('id', id)
-      .select(pre ? PROPERTY_WITH_PHOTOS_PRE043 : PROPERTY_WITH_PHOTOS)
-      .single()
+    const patch = pre ? stripOptionalKeys(body) : body
+    const cols = pre ? PROPERTY_WITH_PHOTOS_PRE043 : PROPERTY_WITH_PHOTOS
+    // Оптимістична конкурентність: запис лише якщо рядок з моменту читання не
+    // змінювали. Мітка йде РЯДКОМ, як її віддав сервер: розбір у Date обрізав
+    // би мікросекунди до мілісекунд, і рівність не зійшлась би ніколи. Дві
+    // гілки, а не умовне `.eq` посеред ланцюга: гард `mutation-discipline`
+    // читає ланцюг цілком і мусить бачити в ньому `.select()`.
+    return ifUnchangedSince
+      ? supabase.from('properties').update(patch).eq('id', id).eq('updated_at', ifUnchangedSince).select(cols).single()
+      : supabase.from('properties').update(patch).eq('id', id).select(cols).single()
   })
+}
+
+/**
+ * 0 рядків від PostgREST — це дві різні речі, нерозрізненні на дроті: рядок
+ * змінили, поки форма була відкрита (конфлікт), або запис заблокувала RLS.
+ * Розрізняє лише наступне читання: рядок видно з ІНШОЮ міткою — конфлікт;
+ * не видно, або мітка та сама, — відмова, і перезаписувати там нічого.
+ */
+async function findConflict(id: string, since: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('properties')
+    .select('updated_at')
+    .eq('id', id)
+    .maybeSingle()
+  if (error || !data) return null
+  return data.updated_at !== since ? data.updated_at : null
 }
 
 export function useProperties(dbId?: string) {
@@ -295,7 +315,15 @@ export function useProperties(dbId?: string) {
   const updateProperty = useCallback(async (
     id: string,
     payload: Partial<Property>,
-    opts?: { optimistic?: boolean; silent?: boolean; errorTitle?: string },
+    opts?: {
+      optimistic?: boolean
+      silent?: boolean
+      errorTitle?: string
+      /** `updated_at`, який форма прочитала при відкритті: запис іде лише якщо рядок не змінювали. */
+      ifUnchangedSince?: string
+      /** Рядок змінили. Викликач отримує нову мітку і САМ показує повідомлення (йому потрібна дія «Перезаписати»). */
+      onConflict?: (currentUpdatedAt: string) => void
+    },
   ): Promise<boolean> => {
     // Optimistic path: apply locally right away, sync in the background,
     // roll back on failure. Used for one-tap status changes (free/rent) so
@@ -332,9 +360,18 @@ export function useProperties(dbId?: string) {
 
     setLoading(true)
     try {
-      const { data, error } = await updateRow(id, payload)
+      const { data, error } = await updateRow(id, payload, opts?.ifUnchangedSince)
 
-      if (error) throw error
+      if (error) {
+        if (opts?.ifUnchangedSince && opts.onConflict && (error as { code?: string }).code === 'PGRST116') {
+          const latest = await findConflict(id, opts.ifUnchangedSince)
+          if (latest) {
+            opts.onConflict(latest)
+            return false
+          }
+        }
+        throw error
+      }
       const updated = withSortedPhotos(one<Property>(data))
       setProperties((prev) => prev.map((p) => (p.id === id ? updated : p)))
       if (!opts?.silent) showToast({ type: 'success', title: tr('Збережено') })

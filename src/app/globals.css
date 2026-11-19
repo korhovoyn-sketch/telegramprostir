@@ -2560,7 +2560,7 @@ html[data-tg-client='mobile'] body::after { content: none; }
    просто на таббар, поверх іконок (заміряно на 1440×900). */
 @media (min-width: 900px) and (min-height: 1010px) {
   body::after {
-    content: 'PropSpace · Telegram Mini App';
+    content: 'prostir · Telegram Mini App';
     position: fixed;
     bottom: 22px;
     left: 50%;

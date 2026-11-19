@@ -9,7 +9,7 @@ import Header from '@/components/ui/Header'
 import Toggle from '@/components/ui/Toggle'
 import { IconFileExport, IconFile, IconAdjustments, IconChartBar, IconCheck } from '@/components/Icons'
 import { toCsv, CSV_BOM } from '@/lib/csv'
-import { effectiveLandlord, withSortedPhotos, calcRentUtils, currencySymbol, rentUnitLabel, objectsWord, DB_TYPE_LABELS, STATUS_LABELS, formatLeaseDate, humanizeDbError, safeFileName, photoUrl } from '@/lib/utils'
+import { effectiveLandlord, withSortedPhotos, calcRentUtils, hasArea, currencySymbol, rentUnitLabel, objectsWord, DB_TYPE_LABELS, STATUS_LABELS, formatLeaseDate, humanizeDbError, safeFileName, photoUrl } from '@/lib/utils'
 import { UTILITY_META } from '@/lib/utilityMeta'
 import type { Property, Database } from '@/types'
 import { locale, tr } from '@/lib/i18n'
@@ -320,14 +320,14 @@ async function generatePDF(
   doc.triangle(W - 60, 0, W, 0, W, bandH, 'F')
   doc.setGState(new GState({ opacity: 1 }))
 
-  // "PropSpace" wordmark
+  // "prostir" wordmark
   doc.setFont('Roboto', 'bold')
   doc.setFontSize(8)
   // Текст НА кольоровій смузі бере власний колір теми: `TXMUT`/`TXSEC` — це
   // сірі теми СТОРІНКИ, і на синій заливці вони майже зникали.
   doc.setTextColor(...tpl.onAccent)
   doc.setGState(new GState({ opacity: 0.62 }))
-  doc.text('PROPSPACE', M, 11)
+  doc.text('PROSTIR', M, 11)
   doc.setGState(new GState({ opacity: 1 }))
 
   // DB name
@@ -478,7 +478,7 @@ async function generatePDF(
     doc.setFont('Roboto', 'bold')
     doc.setFontSize(7.5)
     doc.setTextColor(255, 255, 255)
-    doc.text('PROPSPACE  ·  ' + db.name.toUpperCase(), M, 8)
+    doc.text('PROSTIR  ·  ' + db.name.toUpperCase(), M, 8)
     doc.setFont('Roboto', 'normal')
     doc.setTextColor(...tpl.onAccent)
     doc.setGState(new GState({ opacity: 0.7 }))
@@ -1030,7 +1030,7 @@ async function generateExcel(
   const summaryData: (string | number)[][] = [
     [tr('Зведена таблиця'), `${db.name}`],
     [],
-    [tr('Статус'), tr('Кількість'), tr('Розрахункова площа (м²)'), tr('Сума оренди ({0}/міс)', cur)],
+    [tr('Статус'), tr('Кількість'), tr('Корисна площа (м²)'), tr('Розрахункова площа (м²)'), tr('Сума оренди ({0}/міс)', cur)],
   ]
   const statuses: Array<{ key: string; label: string }> = [
     { key: 'free',     label: tr('Вільно')  },
@@ -1047,14 +1047,18 @@ async function generateExcel(
   }
   statuses.forEach(({ key, label }) => {
     const group = properties.filter(p => p.status === key)
-    const totalArea = group.reduce((s, p) => s + (p.area_useful ?? 0), 0)
+    // Кожна колонка сумує СВОЄ поле. Колись тут було одне число під підписом
+    // «Розрахункова площа», зібране з `area_useful`: 45 м² під чужою назвою.
+    const usefulArea = group.reduce((s, p) => s + (hasArea(p.area_useful) ? p.area_useful : 0), 0)
+    const billableArea = group.reduce((s, p) => s + (hasArea(p.area_total) ? p.area_total : 0), 0)
     const totalRent = group.reduce((s, p) => s + monthlyRentOnly(p), 0)
-    summaryData.push([label, group.length, totalArea, totalRent])
+    summaryData.push([label, group.length, usefulArea, billableArea, totalRent])
   })
   summaryData.push([
     tr('ВСЬОГО'),
     properties.length,
-    properties.reduce((s, p) => s + (p.area_useful ?? 0), 0),
+    properties.reduce((s, p) => s + (hasArea(p.area_useful) ? p.area_useful : 0), 0),
+    properties.reduce((s, p) => s + (hasArea(p.area_total) ? p.area_total : 0), 0),
     properties.reduce((s, p) => {
       const r = monthlyRentOnly(p)
       return s + r
@@ -1062,7 +1066,7 @@ async function generateExcel(
   ])
 
   const wsSummary = XLSX.utils.aoa_to_sheet(summaryData)
-  wsSummary['!cols'] = [{ wch: 14 }, { wch: 12 }, { wch: 22 }, { wch: 22 }]
+  wsSummary['!cols'] = [{ wch: 14 }, { wch: 12 }, { wch: 22 }, { wch: 24 }, { wch: 22 }]
 
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, tr('Обʼєкти'))

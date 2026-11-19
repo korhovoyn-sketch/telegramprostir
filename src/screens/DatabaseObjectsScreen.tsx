@@ -22,7 +22,7 @@ import Collapsible from '@/components/ui/Collapsible'
 import { IconCheck, IconPlus, IconDots, IconPhoto, IconChevronUp, IconChevronDown, IconBuilding, IconRuler, IconParking, IconCalendar, IconActivity, IconCurrencyDollar, IconEdit, IconCopy, IconUser, IconUsers, IconFile, IconLayers, IconLayoutGrid, IconChartBar, IconKey, IconFileExport, IconCircleCheck, IconAdjustments, IconTrash, IconChevronRight, IconFolder, IconInbox, IconArchive, IconClock } from '@/components/Icons'
 import DatabaseStatsPanel from '@/components/ui/DatabaseStatsPanel'
 import FloatingButton from '@/components/ui/FloatingButton'
-import { overridesLandlord, formatPrice, monthlyRent, calcRentUtils, basisArea, floorSortKey, computedRentUnit, rentUnitLabel, objectsWord, DB_TYPE_LABELS, formatLeasePeriod, STATUS_COLORS, matchesQuery } from '@/lib/utils'
+import { overridesLandlord, formatPrice, monthlyRent, calcRentUtils, basisArea, areaPair, hasArea, listedArea, floorSortKey, computedRentUnit, rentUnitLabel, objectsWord, DB_TYPE_LABELS, formatLeasePeriod, STATUS_COLORS, matchesQuery } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import type { Database, Property, PropertyStatus } from '@/types'
 import CoachMark from '@/components/ui/CoachMark'
@@ -286,7 +286,7 @@ export default function DatabaseObjectsScreen() {
         const fa = floorSortKey(a.floor), fb = floorSortKey(b.floor)
         return fa !== fb ? fa - fb : (a.floor ?? '').localeCompare(b.floor ?? '', 'uk')
       })
-      case 'area':   return [...base].sort((a, b) => (b.area_useful ?? 0) - (a.area_useful ?? 0))
+      case 'area':   return [...base].sort((a, b) => listedArea(b.area_useful, b.area_total) - listedArea(a.area_useful, a.area_total))
       // Порівнюються МІСЯЧНІ суми, а не сирі ставки: `calcRent` для per_day
       // віддає ДОБОВУ ставку, тож місце за $30/добу ($900/міс) ставало нижче
       // за оренду $500/міс — у базі паркінга, де змішані обидва типи.
@@ -455,7 +455,7 @@ export default function DatabaseObjectsScreen() {
             <div className="row-s">
               {p.tenant_name?.trim() && <><IconBuilding size={14} color="var(--t3)" /><span>{p.name}</span></>}
               {p.floor && <><IconLayers size={14} color="var(--t3)" /><span>{tr('{0} пов.', p.floor)}</span></>}
-              {p.area_useful && <><IconRuler size={14} color="var(--t3)" /><span>{p.area_useful} {tr('м²')}</span></>}
+              {areaPair(p.area_useful, p.area_total) && <><IconRuler size={14} color="var(--t3)" /><span>{hasArea(p.area_useful) ? p.area_useful : areaPair(p.area_useful, p.area_total)} {tr('м²')}</span></>}
             </div>
           </div>
           <div className="row-r">
@@ -574,9 +574,9 @@ export default function DatabaseObjectsScreen() {
                 {/* Один рядок фактів: поверх · площа — компактно, без розсипаної сітки */}
                 <div className="obj-s">
                   {p.floor && <><IconBuilding size={14} color="var(--t3)" /><span>{tr('{0} поверх', p.floor)}</span></>}
-                  {p.area_useful != null && <>
+                  {areaPair(p.area_useful, p.area_total) && <>
                     {p.floor && <span className="obj-s-sep">·</span>}
-                    <IconRuler size={14} color="var(--t3)" /><span>{p.area_useful}/{p.area_total ?? p.area_useful} {tr('м²')}</span>
+                    <IconRuler size={14} color="var(--t3)" /><span>{areaPair(p.area_useful, p.area_total)} {tr('м²')}</span>
                   </>}
                 </div>
               </div>
