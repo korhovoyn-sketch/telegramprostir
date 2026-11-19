@@ -57,6 +57,7 @@ test('перемикач у профілі справді перемикає м�
 
   await page.goto('/')
   await expect(page.getByText('Мої бази')).toBeVisible({ timeout: 20_000 })
+  await expect(page.locator('html')).toHaveAttribute('lang', 'uk')
 
   await page.getByLabel('Профіль').click()
   await expect(page.getByText('Мова')).toBeVisible()
@@ -70,6 +71,12 @@ test('перемикач у профілі справді перемикає м�
   await expect(page.getByText('Language')).toBeVisible({ timeout: 10_000 })
   const after = await screenText(page)
   expect(CYR.test(after), `кирилиця лишилась: ${after.slice(0, 200)}`).toBe(false)
+
+  // `lang` обирає голос читалки: англійський екран під `lang="uk"` озвучувався
+  // б українською вимовою. Статичний `uk` із layout до перезавантаження не
+  // міняв ніхто — перемикач мови мусить міняти й його. Початкове `uk` вище
+  // (антивакуум) — з розмітки, тож зміну робить саме перемикач.
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en')
 })
 
 test('мова переживає перезапуск застосунку', async ({ page }) => {
@@ -82,6 +89,9 @@ test('мова переживає перезапуск застосунку', as
   await page.goto('/')
   await expect(page.getByText('My databases')).toBeVisible({ timeout: 20_000 })
   expect(CYR.test(await screenText(page)), 'перший кадр після перезапуску український').toBe(false)
+  // Той самий інваріант на ХОЛОДНОМУ старті: мову підхоплює сплеш, а не
+  // перемикач, тож `lang` мусить іти за нею й там.
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en')
 })
 
 test('англійською числа й дати беруть англійську локаль', async ({ page }) => {

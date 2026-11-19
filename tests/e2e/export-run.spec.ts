@@ -380,3 +380,45 @@ test('в Excel клікабельне лише ОДНОЗНАЧНЕ посила
   expect(many?.v, 'у клітинці мусять бути обидва URL').toMatch(/p2\/0\.jpg.+p2\/1\.jpg/)
   expect(many?.l, 'посилання на кілька знімків не може вести лише в один').toBeUndefined()
 })
+
+/**
+ * «ЗВЕДЕНА» ПОРІВНЮЄ ТОЙ САМИЙ ПІДПИС З ТИМ САМИМ ПОЛЕМ.
+ *
+ * Колонка мала заголовок «Розрахункова площа (м²)», а сумувала `area_useful`.
+ * На обʼєкті 45/52 м² таблиця показувала 45 під підписом «розрахункова» — тобто
+ * цифру, якої такої площі ніхто не вводив, у документі, який власник надсилає
+ * клієнтові. Тепер дві колонки, кожна зі СВОЇМ полем; різні значення у
+ * фікстурі навмисні: з однаковими (45/45) обидві реалізації збігались би.
+ */
+test('Excel: у «Зведеній» кожна колонка площі сумує своє поле', async ({ page }) => {
+  const wire: Wire = { selects: [] }
+  await stubShare(page)
+  await setup(page, wire, [
+    { ...prop(1, 'free'), area_useful: 40, area_total: 50 },
+    { ...prop(2, 'free'), area_useful: 30, area_total: 36 },
+    { ...prop(3, 'occupied'), area_useful: 45, area_total: 52 },
+  ])
+  await openExport(page)
+  await page.getByText('Excel таблиця').click()
+  await page.getByRole('button', { name: /Завантажити Excel/ }).click()
+  await expect(page.getByText(/Excel збережено/)).toBeVisible({ timeout: 20_000 })
+
+  const files = await sharedFiles(page)
+  const XLSX = await import('xlsx')
+  const wb = XLSX.read(Buffer.from(files[0].b64, 'base64'), { type: 'buffer' })
+  const rows = XLSX.utils.sheet_to_json<(string | number)[]>(wb.Sheets['Зведена'], { header: 1, blankrows: false })
+  const head = rows.findIndex((r) => Array.isArray(r) && r.includes('Статус'))
+  expect(head, 'рядок заголовків «Статус» не знайдено').toBeGreaterThanOrEqual(0)
+
+  const useful = rows[head].indexOf('Корисна площа (м²)')
+  const total = rows[head].indexOf('Розрахункова площа (м²)')
+  expect(useful, 'колонки корисної площі немає').toBeGreaterThanOrEqual(0)
+  expect(total, 'колонки розрахункової площі немає').toBeGreaterThanOrEqual(0)
+
+  const rowOf = (label: string) => rows.find((r, i) => i > head && r[0] === label) as (string | number)[]
+  // Антивакуум: різні числа в парі — інакше «сума корисних» і «сума розрахункових»
+  // нерозрізненні, і гард проходив би на коді, що сумує не те поле.
+  expect([rowOf('Вільно')[useful], rowOf('Вільно')[total]]).toEqual([70, 86])
+  expect([rowOf('Зайнято')[useful], rowOf('Зайнято')[total]]).toEqual([45, 52])
+  expect([rowOf('ВСЬОГО')[useful], rowOf('ВСЬОГО')[total]]).toEqual([115, 138])
+})

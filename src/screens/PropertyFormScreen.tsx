@@ -18,7 +18,7 @@ import { UTILITY_META } from '@/lib/utilityMeta'
 import FilesList from '@/components/ui/FilesList'
 import { currencySymbol, formatPrice, calcRent, calcUtilities, basisArea, rentUnitLabel, nextCopyName, bulkCreateNames, objectsWord, scrollFocusedIntoView, caretEdit, editDecimal, editInt } from '@/lib/utils'
 import type { PropertyStatus, RentType, ParkingType, AreaBasis } from '@/types'
-import { tr } from '@/lib/i18n'
+import { tr, locale } from '@/lib/i18n'
 import { lsRemove } from '@/lib/localState'
 import { useClosingConfirmation } from '@/hooks/useTelegram'
 
@@ -47,6 +47,15 @@ export default function PropertyFormScreen() {
   // Префіл зроблено з кеш-рядка (`_stale`) — його треба переграти РІВНО ОДИН
   // раз, коли мережа підтвердить свіжий рядок.
   const prefilledStaleRef = useRef(false)
+  // `updated_at` рядка, з якого заповнено форму. Запис іде лише якщо рядок з
+  // того часу не змінювали (див. `ifUnchangedSince` у useProperties). Береться
+  // В ТОЙ САМИЙ МОМЕНТ, що й значення полів, тож перегравання префілу зі
+  // свіжого рядка оновлює й мітку — вони завжди з одного знімка.
+  const baselineRef = useRef<string | undefined>(undefined)
+  // Найсвіжіший `handleSave` для дії тоста: замикання, захоплене при показі
+  // тоста, надіслало б значення полів на МОМЕНТ конфлікту, а не на момент тапу.
+  const saveRef = useRef<(() => Promise<void>) | null>(null)
+  useEffect(() => { saveRef.current = handleSave })
   // Користувач уже щось увів. Тоді переграння префілу СКАСОВУЄТЬСЯ: свіжий рядок
   // не має права затерти введене (саме так виглядає «зміни не зберігаються»).
   const touchedRef = useRef(false)
@@ -234,6 +243,7 @@ export default function PropertyFormScreen() {
     if (isEdit && existing && (prefilledRef.current !== existing.id || upgradeFromStale)) {
       prefilledRef.current = existing.id
       prefilledStaleRef.current = !!existing._stale
+      baselineRef.current = existing.updated_at
       setName(existing.name)
       setFloor(existing.floor ?? '')
       setStatus(existing.status)
@@ -454,7 +464,21 @@ export default function PropertyFormScreen() {
       // збереженні користувача викидало з форми (втрачаючи всі правки) на
       // екран деталей зі СТАРИМИ значеннями — а єдиний тост зі скаргою
       // встигав зникнути. Гілки СТВОРЕННЯ поруч завжди перевіряли `ok`.
-      const ok = await updateProperty(editId, payload)
+      const ok = await updateProperty(editId, payload, {
+        ifUnchangedSince: baselineRef.current,
+        onConflict: (latest) => {
+          // Нова мітка — і повторне збереження перезапише чужі зміни СВІДОМО:
+          // користувач бачив повідомлення. Тап по головній кнопці робить те саме.
+          baselineRef.current = latest
+          showToast({
+            type: 'error',
+            title: tr('Обʼєкт змінили в іншому місці'),
+            subtitle: tr('Збереження перезапише ці зміни'),
+            actionLabel: tr('Перезаписати'),
+            onAction: () => { void saveRef.current?.() },
+          })
+        },
+      })
       if (!ok) return
       hapticNotify('success')
       // Повертаємось РІВНО туди, звідки відкрили форму.
@@ -860,12 +884,12 @@ export default function PropertyFormScreen() {
               </div>
               <div className="fr">
                 <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconKey size={14} color="var(--t3)" />{tr('Договір з')}</span>
-                <input aria-label={tr('Договір від')} className="fr-i" type="date" lang="uk-UA" value={leaseStartDate} onChange={e => setLeaseStartDate(e.target.value)}
+                <input aria-label={tr('Договір від')} className="fr-i" type="date" lang={locale()} value={leaseStartDate} onChange={e => setLeaseStartDate(e.target.value)}
                   style={{ colorScheme: 'dark' }} />
               </div>
               <div className="fr">
                 <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconKey size={14} color="var(--t3)" />{tr('Договір до')}</span>
-                <input aria-label={tr('Договір до')} className="fr-i" type="date" lang="uk-UA" value={leaseEndDate} onChange={e => setLeaseEndDate(e.target.value)}
+                <input aria-label={tr('Договір до')} className="fr-i" type="date" lang={locale()} value={leaseEndDate} onChange={e => setLeaseEndDate(e.target.value)}
                   style={{ colorScheme: 'dark' }} />
               </div>
             </div>

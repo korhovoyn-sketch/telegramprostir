@@ -5,7 +5,7 @@ import { Photo } from '@/components/ui/Photo'
 import { supabase } from '@/lib/supabase'
 import { TG_BOT, buildDeepLink } from '@/lib/telegram'
 import { IconBuilding, IconRuler, IconMapPin, IconBolt, IconPhoto } from '@/components/Icons'
-import { photoUrl, calcRentUtils, basisArea, rentUnitLabel, parkingTypeLabel, formatPrice, objectsWord, pluralUk, DB_COLORS } from '@/lib/utils'
+import { photoUrl, calcRentUtils, basisArea, hasArea, areaPair, rentUnitLabel, parkingTypeLabel, formatPrice, objectsWord, pluralUk, DB_COLORS } from '@/lib/utils'
 import { tr } from '@/lib/i18n'
 
 // ── data types returned by the RPCs ──────────────────────────────────────────
@@ -117,7 +117,7 @@ const DB_TYPE_LABEL = (): Record<string, string> => ({
   parking: tr('Паркінг'),
 })
 
-function fmtArea(a: number | null) { return a ? tr('{0} м²', a) : null }
+function fmtArea(u: number | null, t: number | null) { const s = areaPair(u, t); return s ? tr('{0} м²', s) : null }
 // Currency comes from the owner's profile (migration 040); default to USD for
 // responses from a not-yet-migrated backend.
 function fmtPrice(n: number | null, currency?: string | null, suffix = '') {
@@ -546,16 +546,16 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
       </div>
 
       {/* Area */}
-      {(data.property_area_useful || data.property_area_total) && (
+      {(hasArea(data.property_area_useful) || hasArea(data.property_area_total)) && (
         <div className="v-rise" style={{ ...s.card, animationDelay: '80ms' }}>
           <div style={{ display: 'flex' }}>
-            {data.property_area_useful && (
+            {hasArea(data.property_area_useful) && (
               <div style={{ flex: 1, padding: '12px 16px', borderRight: '.5px solid rgba(255,255,255,.08)' }}>
                 <div style={{ fontSize: 'var(--fs-cap2)', color: 'rgba(255,255,255,.4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>{tr('Корисна площа')}</div>
                 <div style={{ fontSize: 'var(--fs-t3)', fontWeight: 700 }}>{data.property_area_useful} <span style={{ fontSize: 'var(--fs-note)' }}>{tr('м²')}</span></div>
               </div>
             )}
-            {data.property_area_total && (
+            {hasArea(data.property_area_total) && (
               <div style={{ flex: 1, padding: '12px 16px' }}>
                 <div style={{ fontSize: 'var(--fs-cap2)', color: 'rgba(255,255,255,.4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }}>{tr('Розрахункова площа')}</div>
                 <div style={{ fontSize: 'var(--fs-t3)', fontWeight: 700 }}>{data.property_area_total} <span style={{ fontSize: 'var(--fs-note)' }}>{tr('м²')}</span></div>
@@ -587,7 +587,7 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
                 {fmtPrice(data.property_rent_rate, currency, rentUnitLabel(data.property_rent_type))}
               </span>
             </div>
-            {data.property_utilities_rate && (
+            {(data.property_utilities_rate ?? 0) > 0 && (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 'var(--fs-foot)', color: 'rgba(255,255,255,.6)' }}>{tr('Експлуатаційні')}</span>
                 <span style={{ fontSize: 'var(--fs-head)', fontWeight: 700 }}>
@@ -742,7 +742,7 @@ function DatabaseView({ rows, token }: { rows: DbRow[]; token: string }) {
                   </div>
                   <div style={{ display: 'flex', gap: 12, marginTop: 6, flexWrap: 'wrap' }}>
                     {p.property_floor && <span style={{ fontSize: 'var(--fs-cap1)', color: 'rgba(255,255,255,.5)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconBuilding size={12} color="rgba(255,255,255,.5)" />{tr('{0} пов.', p.property_floor)}</span>}
-                    {p.property_area_useful && <span style={{ fontSize: 'var(--fs-cap1)', color: 'rgba(255,255,255,.5)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconRuler size={12} color="rgba(255,255,255,.5)" />{p.property_area_useful} {tr('м²')}</span>}
+                    {areaPair(p.property_area_useful, p.property_area_total) && <span style={{ fontSize: 'var(--fs-cap1)', color: 'rgba(255,255,255,.5)', display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconRuler size={12} color="rgba(255,255,255,.5)" />{areaPair(p.property_area_useful, p.property_area_total)} {tr('м²')}</span>}
                     {p.property_status === 'for_sale' && p.property_sale_price ? (
                       <span className="num" style={{ fontSize: 'var(--fs-cap1)', fontWeight: 700, color: '#60a5fa' }}>
                         {fmtPrice(p.property_sale_price, p.owner_currency)}
@@ -848,7 +848,7 @@ function CollectionView({ rows, token }: { rows: ColRow[]; token: string }) {
                   <div style={{ fontSize: 'var(--fs-cap1)', color: 'rgba(255,255,255,.5)' }}>
                     {[
                       p.property_floor ? tr('{0} пов.', p.property_floor) : null,
-                      fmtArea(p.property_area_useful),
+                      fmtArea(p.property_area_useful, p.property_area_total),
                       p.property_status === 'for_sale' && p.property_sale_price
                         ? fmtPrice(p.property_sale_price, p.owner_currency)
                         : p.property_rent_rate

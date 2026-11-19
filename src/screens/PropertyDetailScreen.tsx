@@ -17,7 +17,7 @@ import FilesList from '@/components/ui/FilesList'
 import FloatingButton from '@/components/ui/FloatingButton'
 import SpaceOrb, { type OrbStatus } from '@/components/ui/SpaceOrb'
 import { Photo } from '@/components/ui/Photo'
-import { effectiveLandlord, formatPrice, calcRentUtils, computedRentUnit, parkingTypeLabel, STATUS_LABELS, STATUS_COLORS, formatLeasePeriod, photoUrl, daysUntil } from '@/lib/utils'
+import { effectiveLandlord, formatPrice, calcRentUtils, hasArea, computedRentUnit, parkingTypeLabel, STATUS_LABELS, STATUS_COLORS, formatLeasePeriod, photoUrl, daysUntil } from '@/lib/utils'
 import { UTILITY_META } from '@/lib/utilityMeta'
 import { supabase } from '@/lib/supabase'
 import { recordPropertyView } from '@/lib/viewTracking'
@@ -285,7 +285,7 @@ export default function PropertyDetailScreen() {
         {/* Details grid */}
         <div className="glass-s" style={{ margin: '16px 12px 12px', borderRadius: 'var(--r-md)', padding: '14px' }}>
           <div className="obj-grid">
-            {property.area_useful && (
+            {hasArea(property.area_useful) && (
               <div className="obj-f">
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                   <IconRuler size={14} color="var(--info)" />{isParking ? tr('Площа місця') : tr('Корисна площа')}
@@ -293,7 +293,7 @@ export default function PropertyDetailScreen() {
                 <div className="obj-fv">{property.area_useful} {tr('м²')}</div>
               </div>
             )}
-            {property.area_total && (
+            {hasArea(property.area_total) && (
               <div className="obj-f">
                 <div className="obj-fl" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                   <IconRuler size={14} color="var(--info)" />{tr('Розрахункова площа')}

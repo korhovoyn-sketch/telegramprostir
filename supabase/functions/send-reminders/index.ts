@@ -134,7 +134,7 @@ Deno.serve(async (req) => {
         row.tenant_name ? `👤 Орендар: ${escapeHtml(row.tenant_name)}` : '',
         `📅 Дата оплати: ${row.due_day}-е число місяця`,
         '',
-        'Відкрийте PropSpace для підтвердження отримання.',
+        'Відкрийте prostir для підтвердження отримання.',
       ].filter(Boolean).join('\n')
 
       const res = await sendTelegramMessage(row.tg_id, text)
@@ -172,7 +172,7 @@ Deno.serve(async (req) => {
         `🏢 <b>${escapeHtml(row.property_name)}</b>`,
         `📅 Дата оплати: ${row.due_day}-е число місяця`,
         '',
-        'Відкрийте PropSpace для перегляду деталей.',
+        'Відкрийте prostir для перегляду деталей.',
       ].join('\n')
 
       const res = await sendTelegramMessage(row.tg_id, text)
@@ -216,7 +216,7 @@ Deno.serve(async (req) => {
         row.tenant_name ? `👤 Орендар: ${escapeHtml(row.tenant_name)}` : '',
         `📅 Закінчується ${when} (${row.lease_end_date})`,
         '',
-        'Відкрийте PropSpace, щоб продовжити або звільнити обʼєкт.',
+        'Відкрийте prostir, щоб продовжити або звільнити обʼєкт.',
       ].filter(Boolean).join('\n')
 
       const res = await sendTelegramMessage(row.tg_id, text)

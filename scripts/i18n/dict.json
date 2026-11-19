@@ -1217,5 +1217,10 @@
   "платежів": "payments",
   "платіж": "payment",
   "Порожня папка. Щоб додати обʼєкти: меню бази → «Виділити обʼєкти» → «У папку».": "Empty folder. To add units: database menu → “Select units” → “To folder”.",
-  "Порожня папка.": "Empty folder."
+  "Порожня папка.": "Empty folder.",
+  "Обʼєкт змінили в іншому місці": "The object was changed elsewhere",
+  "Збереження перезапише ці зміни": "Saving will overwrite those changes",
+  "Перезаписати": "Overwrite",
+  "Корисна площа (м²)": "Usable area (m²)",
+  "Пропущено (корисна площа більша за розрахункову):": "Skipped (usable area is larger than billable area):"
 }

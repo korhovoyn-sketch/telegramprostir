@@ -7,7 +7,7 @@ import { StatusBadge } from '@/components/ui/Badge'
 import Header from '@/components/ui/Header'
 import RetryState from '@/components/ui/RetryState'
 import { IconBuilding, IconTelegram } from '@/components/Icons'
-import { formatPrice, calcRent, basisArea, computedRentUnit, photoUrl, thumbBackground } from '@/lib/utils'
+import { formatPrice, calcRent, basisArea, areaPair, computedRentUnit, photoUrl, thumbBackground } from '@/lib/utils'
 import { openTgUrl } from '@/lib/telegram'
 import type { PropertyStatus, RentType } from '@/types'
 import { tr } from '@/lib/i18n'
@@ -272,8 +272,8 @@ export default function SharedCollectionScreen() {
                     <div className="row-t">{p.name}</div>
                     <div className="row-s" style={{ gap: 6, flexWrap: 'wrap', marginTop: 3 }}>
                       <StatusBadge status={p.status} />
-                      {p.area_useful && (
-                        <span>{p.area_useful}{p.area_total ? `/${p.area_total}` : ''} {tr('м²')}</span>
+                      {areaPair(p.area_useful, p.area_total) && (
+                        <span>{areaPair(p.area_useful, p.area_total)} {tr('м²')}</span>
                       )}
                       {p.floor && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconBuilding size={12} color="var(--t3)" />{tr('{0} пов.', p.floor)}</span>}
                       {rent > 0 && p.status !== 'for_sale' && (

@@ -1,6 +1,7 @@
 'use client'
 
 import { useAppSlice } from '@/store/appStore'
+import { tr } from '@/lib/i18n'
 import { IconCheck, IconX, IconAlertTriangle } from '@/components/Icons'
 
 export default function Toast() {
@@ -29,6 +30,7 @@ export default function Toast() {
       <button
         className="toast-close"
         onClick={hideToast}
+        aria-label={tr('Закрити')}
         style={{ background: 'none', border: 'none', cursor: 'pointer' }}
       >
         <IconX size={14} />

@@ -16,7 +16,7 @@ import { StatusBadge } from '@/components/ui/Badge'
 import SkeletonLoader from '@/components/ui/SkeletonLoader'
 import { IconShare, IconPhoto, IconMessage, IconBuilding, IconRuler, IconParking, IconCalendar } from '@/components/Icons'
 import { sharePublicUrl , hapticSelection } from '@/lib/telegram'
-import { formatPrice, calcRentUtils, rentUnitLabel, DB_TYPE_LABELS, getInitials, formatLeasePeriod, humanizeDbError, matchesQuery } from '@/lib/utils'
+import { formatPrice, calcRentUtils, areaPair, rentUnitLabel, DB_TYPE_LABELS, getInitials, formatLeasePeriod, humanizeDbError, matchesQuery } from '@/lib/utils'
 import type { Database, Property, PropertyStatus } from '@/types'
 
 /** Те, що власник показує кожному з посиланням на базу — не рядок `users`. */
@@ -217,7 +217,7 @@ export default function RealtorDatabaseScreen() {
                     <StatusBadge status={p.status} />
                   </div>
                   <div className="obj-met">
-                    {p.area_useful && <div className="obj-mt"><IconRuler size={12} color="var(--t3)" /><span>{p.area_useful}/{p.area_total ?? p.area_useful} {tr('м²')}</span></div>}
+                    {areaPair(p.area_useful, p.area_total) && <div className="obj-mt"><IconRuler size={12} color="var(--t3)" /><span>{areaPair(p.area_useful, p.area_total)} {tr('м²')}</span></div>}
                     {p.has_parking && <div className="obj-mt"><IconParking size={12} color="var(--t3)" /><span>{p.parking_spaces} {tr('м.')}</span></div>}
                     {(p.photos?.length ?? 0) > 0 && <div className="obj-mt"><IconPhoto size={12} /> {p.photos!.length}</div>}
                     {p.status === 'occupied' && formatLeasePeriod(p.lease_start_date, p.lease_end_date) && (

@@ -51,7 +51,7 @@ function legalUrl(path: 'privacy' | 'terms'): string | null {
 }
 
 const HELP_TEXT =
-  'PropSpace — облік нерухомості в Telegram: бази обʼєктів, оренда, платежі, ' +
+  'prostir — облік нерухомості в Telegram: бази обʼєктів, оренда, платежі, ' +
   'поширення для ріелторів і команди.\n\n' +
   '/start — відкрити застосунок\n' +
   '/help — ця довідка\n' +
@@ -125,15 +125,15 @@ Deno.serve(async (req) => {
           : 'підбіркою'
         await sendMessage(
           chatId,
-          `З вами поділилися ${noun} у PropSpace. Натисніть кнопку нижче, щоб переглянути 👇`,
-          '🏠 Відкрити в PropSpace',
+          `З вами поділилися ${noun} у prostir. Натисніть кнопку нижче, щоб переглянути 👇`,
+          '🏠 Відкрити в prostir',
           buildAppLink(param),
         )
       } else {
         await sendMessage(
           chatId,
-          'Вітаємо у PropSpace! 🏠\n\nКеруйте нерухомістю, базами об\'єктів та платежами прямо в Telegram. Натисніть кнопку нижче, щоб почати.',
-          '🚀 Відкрити PropSpace',
+          'Вітаємо у prostir! 🏠\n\nКеруйте нерухомістю, базами об\'єктів та платежами прямо в Telegram. Натисніть кнопку нижче, щоб почати.',
+          '🚀 Відкрити prostir',
           buildAppLink(),
         )
       }
@@ -142,14 +142,14 @@ Deno.serve(async (req) => {
       // конфіденційності і віддавав її на /privacy.
       const url = legalUrl('privacy')
       if (url) {
-        await sendMessage(chatId, 'Політика конфіденційності PropSpace: які дані ми обробляємо, навіщо і як їх видалити.', '🔒 Політика конфіденційності', url)
+        await sendMessage(chatId, 'Політика конфіденційності prostir: які дані ми обробляємо, навіщо і як їх видалити.', '🔒 Політика конфіденційності', url)
       } else {
-        await sendMessage(chatId, 'Політика конфіденційності доступна в застосунку: Профіль → «Конфіденційність».', '🚀 Відкрити PropSpace', buildAppLink())
+        await sendMessage(chatId, 'Політика конфіденційності доступна в застосунку: Профіль → «Конфіденційність».', '🚀 Відкрити prostir', buildAppLink())
       }
     } else if (chatId && text) {
       // /help і БУДЬ-ЯКИЙ інший текст: бот, що мовчить, читається як зламаний,
       // а людина, яка пише в чат бота, зазвичай шукає, як відкрити застосунок.
-      await sendMessage(chatId, HELP_TEXT, '🚀 Відкрити PropSpace', buildAppLink())
+      await sendMessage(chatId, HELP_TEXT, '🚀 Відкрити prostir', buildAppLink())
     }
   } catch (e) {
     // Log server-side only; always return 200 so Telegram doesn't retry-storm.

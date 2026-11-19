@@ -297,6 +297,16 @@ export function formatDate(iso: string): string {
   return d.toLocaleDateString(locale(), { day: 'numeric', month: 'short' })
 }
 
+/**
+ * Площа ЗАДАНА: додатне скінченне число. 0 — це «не вказано», а не площа нуль:
+ * форма читає поля як `parseFloat(x) || undefined`, і збережений 0 мусить
+ * вестись так само на КОЖНІЙ поверхні. Без цього превʼю форми рахувало від
+ * розрахункової площі, а збережена картка — від нуля.
+ */
+export function hasArea(n: number | null | undefined): n is number {
+  return typeof n === 'number' && Number.isFinite(n) && n > 0
+}
+
 // Which area a per-m² rate multiplies by. Owners choose per object (form
 // toggle); default is 'total' (розрахункова, the renamed area_total). When the
 // chosen area is missing, fall back to the other so nothing computes to zero.
@@ -307,7 +317,39 @@ export function basisArea(
 ): number {
   const chosen = areaBasis === 'useful' ? areaUseful : areaTotal
   const fallback = areaBasis === 'useful' ? areaTotal : areaUseful
-  return chosen ?? fallback ?? 0
+  if (hasArea(chosen)) return chosen
+  return hasArea(fallback) ? fallback : 0
+}
+
+/**
+ * Пара площ одного обʼєкта для рядка метаданих: «45/52» (корисна/розрахункова),
+ * лише корисна — «45», лише розрахункова — «—/52», жодної — null.
+ *
+ * Три правила, кожне виправляє знайдене: (1) невідома площа не вдає відому —
+ * було «45/45» (`area_total ?? area_useful`), тобто розрахункова, якої ніхто не
+ * вводив; (2) обʼєкт лише з розрахунковою площею (а база за замовчуванням саме
+ * вона) показує її — раніше рядок з площею зникав, хоча ціну рахували з неї;
+ * (3) нуль не друкується: `{p.area_useful && …}` у JSX виводить літеральне «0».
+ */
+export function areaPair(
+  areaUseful: number | null | undefined,
+  areaTotal: number | null | undefined,
+): string | null {
+  const u = hasArea(areaUseful)
+  const t = hasArea(areaTotal)
+  if (u && t) return `${areaUseful}/${areaTotal}`
+  if (u) return String(areaUseful)
+  if (t) return `—/${areaTotal}`
+  return null
+}
+
+/** Розмір для сортування «за площею»: корисна, а за її відсутності — розрахункова, не 0. */
+export function listedArea(
+  areaUseful: number | null | undefined,
+  areaTotal: number | null | undefined,
+): number {
+  if (hasArea(areaUseful)) return areaUseful
+  return hasArea(areaTotal) ? areaTotal : 0
 }
 
 // Numeric key for floor sorting. Floors are free-text ("1", "-1", "B-1", "МП",

@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { EN } from '@/lib/dict-en'
@@ -110,6 +110,61 @@ describe('плюрали і локаль', () => {
     await loadLang('en')
     expect(tr('Максимум {0} обʼєктів за раз', 500)).toBe('Maximum 500 units at a time')
     await loadLang('uk')
+  })
+})
+
+describe('мова документа', () => {
+  afterEach(async () => { await loadLang('uk') })
+
+  it('<html lang> іде за мовою інтерфейсу', async () => {
+    // `lang` обирає голос читалки: англійський текст під `lang="uk"`
+    // озвучувався б українською вимовою, тобто був би нерозбірливим. Атрибут
+    // ставив лише `layout.tsx` статично, тож після перемикача мови він
+    // лишався `uk` до перезавантаження. Початкове значення — сторонній
+    // маркер: інакше тест проходив би, лишись атрибут `uk` з розмітки.
+    document.documentElement.lang = 'xx'
+    await loadLang('en')
+    expect(document.documentElement.lang).toBe('en')
+    await loadLang('uk')
+    expect(document.documentElement.lang).toBe('uk')
+  })
+
+  it('словник, що не приїхав, мову документа не міняє', async () => {
+    // Мова стає активною ЛИШЕ після словника — і `lang` разом із нею, а не
+    // раніше: інакше на мить документ заявляв би англійську при українському
+    // тексті на екрані.
+    document.documentElement.lang = 'uk'
+    const pending = loadLang('en')
+    expect(document.documentElement.lang).toBe('uk')
+    await pending
+    expect(document.documentElement.lang).toBe('en')
+  })
+})
+
+describe('мова поля дати', () => {
+  it('екрани не зашивають мову в `lang=`', () => {
+    // Нативне поле дати бере формат і підписи з `lang` елемента, тож зашита
+    // `uk-UA` лишала англомовному користувачу українські «дд.мм.рррр» просто
+    // у формі обʼєкта — єдине місце, де мова перемикалась би наполовину. Два
+    // інші поля дат без `lang` наслідують `<html lang>`, який тепер іде за
+    // мовою; зашитий атрибут перебивав би й це. Виняток один і явний —
+    // `layout.tsx`, де стоїть початкове значення розмітки.
+    const offenders: string[] = []
+    let visited = 0
+    const walk = (dir: string) => {
+      for (const e of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, e.name)
+        if (e.isDirectory()) { walk(full); continue }
+        if (!full.endsWith('.tsx') || full.endsWith(join('app', 'layout.tsx'))) continue
+        visited++
+        const src = readFileSync(full, 'utf8')
+        for (const m of src.matchAll(/\blang\s*=\s*(?:"[^"]*"|'[^']*')/g)) offenders.push(`${full}: ${m[0]}`)
+      }
+    }
+    walk('src')
+    // Антивакуум: обхід справді бачив екрани, а не порожню теку.
+    expect(visited, 'обхід src нічого не знайшов').toBeGreaterThan(20)
+    expect(offenders, 'зашита мова в атрибуті lang').toEqual([])
   })
 })
 

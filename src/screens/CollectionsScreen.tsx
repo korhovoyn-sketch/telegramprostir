@@ -18,7 +18,7 @@ import TabBar from '@/components/ui/TabBar'
 import { StatusBadge } from '@/components/ui/Badge'
 import ActionSheet from '@/components/ui/ActionSheet'
 import { IconPlus, IconShare, IconX, IconChevronLeft, IconTrash, IconBuilding, IconChartBar, IconChevronRight } from '@/components/Icons'
-import { formatPrice, calcRent, basisArea, computedRentUnit, objectsWord, formatDate, photoUrl, humanizeDbError, withSortedPhotos, thumbBackground } from '@/lib/utils'
+import { formatPrice, calcRent, basisArea, areaPair, computedRentUnit, objectsWord, formatDate, photoUrl, humanizeDbError, withSortedPhotos, thumbBackground } from '@/lib/utils'
 import ShareSheet from '@/components/ui/ShareSheet'
 import type { Property, Collection } from '@/types'
 import CoachMark from '@/components/ui/CoachMark'
@@ -407,10 +407,10 @@ function CollectionDetail({
                     <div className="row-t">{p.name}</div>
                     <div className="row-s" style={{ gap: 6, flexWrap: 'wrap' }}>
                       <StatusBadge status={p.status} />
-                      {p.area_useful && (
-                        <span>{p.area_useful} {tr('м²')}</span>
+                      {areaPair(p.area_useful, p.area_total) && (
+                        <span>{areaPair(p.area_useful, p.area_total)} {tr('м²')}</span>
                       )}
-                      {p.rent_rate && (
+                      {(p.rent_rate ?? 0) > 0 && (
                         <span>{getRentLabel(p, currency)}</span>
                       )}
                     </div>
@@ -479,7 +479,7 @@ function CollectionDetail({
                         <div className="row-t" style={{ fontSize: 'var(--fs-foot)' }}>{p.name}</div>
                         <div className="row-s" style={{ gap: 4 }}>
                           <StatusBadge status={p.status} />
-                          {p.area_useful && <span>{p.area_useful} {tr('м²')}</span>}
+                          {areaPair(p.area_useful, p.area_total) && <span>{areaPair(p.area_useful, p.area_total)} {tr('м²')}</span>}
                         </div>
                       </div>
                       <button
