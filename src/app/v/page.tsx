@@ -587,7 +587,7 @@ function PropertyView({ data, token }: { data: PropertyPreview; token: string })
                 {fmtPrice(data.property_rent_rate, currency, rentUnitLabel(data.property_rent_type))}
               </span>
             </div>
-            {data.property_utilities_rate && (
+            {(data.property_utilities_rate ?? 0) > 0 && (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: 'var(--fs-foot)', color: 'rgba(255,255,255,.6)' }}>{tr('Експлуатаційні')}</span>
                 <span style={{ fontSize: 'var(--fs-head)', fontWeight: 700 }}>
