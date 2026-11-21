@@ -10,6 +10,7 @@ import { IconFolder, IconEdit, IconTrash, IconChevronUp, IconChevronDown, IconCh
 import { hapticSelection, hapticNotify } from '@/lib/telegram'
 import { objectsWord, scrollFocusedIntoView } from '@/lib/utils'
 import { confirmAction } from '@/lib/confirm'
+import { offlineGuard } from '@/lib/offline'
 import type { PropertyFolder } from '@/types'
 import { tr } from '@/lib/i18n'
 
@@ -47,7 +48,7 @@ export default function FolderManageScreen() {
 
   async function handleCreate() {
     const name = newName.trim()
-    if (!name || creating) return
+    if (!name || creating || offlineGuard()) return
     setCreating(true)
     try {
       const created = await createFolder(name)
@@ -62,8 +63,14 @@ export default function FolderManageScreen() {
     setEditName(f.name)
   }
   function commitEdit() {
-    if (editingId && editName.trim()) renameFolder(editingId, editName)
+    if (editingId && editName.trim() && !offlineGuard()) renameFolder(editingId, editName)
     setEditingId(null)
+  }
+
+  function move(id: string, direction: 'up' | 'down') {
+    if (offlineGuard()) return
+    hapticSelection()
+    reorderFolder(id, direction)
   }
 
   async function askDelete(folder: PropertyFolder) {
@@ -78,7 +85,9 @@ export default function FolderManageScreen() {
       confirmLabel: tr('Видалити'),
       destructive: true,
     })
-    if (!ok) return
+    // Гард офлайну ПІСЛЯ підтвердження: інакше тост про офлайн зʼявляється раніше,
+    // ніж людина щось підтвердила.
+    if (!ok || offlineGuard()) return
     await deleteFolder(folder.id)
   }
 
@@ -146,8 +155,8 @@ export default function FolderManageScreen() {
                     </>
                   ) : (
                     <>
-                      <button aria-label={tr('Вгору')} disabled={i === 0} onClick={() => { hapticSelection(); reorderFolder(f.id, 'up') }}><IconChevronUp size={16} /></button>
-                      <button aria-label={tr('Вниз')} disabled={i === folders.length - 1} onClick={() => { hapticSelection(); reorderFolder(f.id, 'down') }}><IconChevronDown size={16} /></button>
+                      <button aria-label={tr('Вгору')} disabled={i === 0} onClick={() => move(f.id, 'up')}><IconChevronUp size={16} /></button>
+                      <button aria-label={tr('Вниз')} disabled={i === folders.length - 1} onClick={() => move(f.id, 'down')}><IconChevronDown size={16} /></button>
                       <button aria-label={tr('Перейменувати')} onClick={() => startEdit(f)}><IconEdit size={16} /></button>
                       <button aria-label={tr('Видалити')} className="danger" onClick={() => void askDelete(f)}><IconTrash size={16} /></button>
                     </>

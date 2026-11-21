@@ -211,6 +211,65 @@ BEGIN
 END $$;
 
 DO $$
+DECLARE n INT; fid UUID; pid UUID := 'f0000000-0000-0000-0000-00000000000a';
+BEGIN
+  -- ── 6б. 043: папки — що можна редактору, а що стороннім ────────────────────
+  -- Редактор (900002) — член команди бази Аліси; гість (900003) має доступ лише
+  -- до ОДНОГО обʼєкта і папок бази не бачить. Кожна відмова тут має пару-
+  -- позитив: інакше «відмовлено» не відрізнити від «політика не пускає нікого».
+  PERFORM pg_temp.login('900002@telegram.propspace.app');
+  SET LOCAL ROLE authenticated;
+
+  INSERT INTO property_folders (db_id, owner_id, name)
+  VALUES ('d0000000-0000-0000-0000-00000000000a','a0000000-0000-0000-0000-00000000000a','Папка редактора')
+  RETURNING id INTO fid;
+
+  BEGIN
+    INSERT INTO property_folders (db_id, owner_id, name)
+    VALUES ('d0000000-0000-0000-0000-00000000000a','a0000000-0000-0000-0000-00000000000b','Привласнена');
+    RAISE EXCEPTION '043: редактор створив папку з owner_id, що не належить власнику бази';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+
+  UPDATE property_folders SET name = 'Перейменована' WHERE id = fid;
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n <> 1 THEN RAISE EXCEPTION '043: редактор не зміг перейменувати папку своєї команди'; END IF;
+
+  UPDATE properties SET folder_id = fid WHERE id = pid;
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n <> 1 THEN RAISE EXCEPTION '043: редактор не зміг покласти обʼєкт у папку'; END IF;
+  RESET ROLE;
+
+  -- Гість: папок бази НЕ бачить і не змінює (позитив — редактор бачив її вище).
+  PERFORM pg_temp.login('900003@telegram.propspace.app');
+  SET LOCAL ROLE authenticated;
+  SELECT count(*) INTO n FROM property_folders WHERE db_id = 'd0000000-0000-0000-0000-00000000000a';
+  IF n <> 0 THEN RAISE EXCEPTION '043: гість бачить % папок чужої бази', n; END IF;
+  DELETE FROM property_folders WHERE id = fid;
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n <> 0 THEN RAISE EXCEPTION '043: гість ВИДАЛИВ папку чужої бази'; END IF;
+  BEGIN
+    INSERT INTO property_folders (db_id, owner_id, name)
+    VALUES ('d0000000-0000-0000-0000-00000000000a','a0000000-0000-0000-0000-00000000000a','Гостьова');
+    RAISE EXCEPTION '043: гість створив папку в чужій базі';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  RESET ROLE;
+
+  -- Видалення папки РОЗГРУПОВУЄ, а не видаляє: редактор видаляє — обʼєкт лишається.
+  PERFORM pg_temp.login('900002@telegram.propspace.app');
+  SET LOCAL ROLE authenticated;
+  DELETE FROM property_folders WHERE id = fid;
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n <> 1 THEN RAISE EXCEPTION '043: редактор не зміг видалити папку'; END IF;
+  SELECT count(*) INTO n FROM properties WHERE id = pid AND folder_id IS NULL;
+  IF n <> 1 THEN RAISE EXCEPTION '043: після видалення папки обʼєкт зник або лишився привʼязаним до неї'; END IF;
+  RESET ROLE;
+
+  RAISE NOTICE '  ✓ RLS: папки — редактор керує ними з owner_id власника, гість не бачить; видалення папки розгруповує (043)';
+END $$;
+
+DO $$
 DECLARE n INT;
 BEGIN
   -- ── 7. anon не дістає ДАНИХ із таблиць ──────────────────────────────────
