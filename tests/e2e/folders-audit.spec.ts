@@ -142,7 +142,7 @@ test('офлайн: створення, перейменування, зміна
 
   await page.getByLabel('Видалити').first().click()
   // Підтвердження нативного попапа в харнесі вимкнене — тож це DOM-фолбек.
-  await page.getByRole('button', { name: 'Видалити', exact: true }).last().click()
+  await page.locator('.modal .modal-btn', { hasText: 'Видалити' }).click()
   await page.waitForTimeout(700)
 
   expect(mutations, 'офлайн жодна мутація папок не мусить летіти в мережу').toEqual([])
@@ -209,7 +209,7 @@ test('чернетка з уже видаленою папкою: поле ка�
   // мусить показувати «Без папки» і НЕ нести мертвий uuid далі.
   await expect(page.locator('.fr-tap', { hasText: 'Папка' }).getByText('Без папки')).toBeVisible()
 
-  await page.getByRole('button', { name: 'Створити', exact: true }).click()
+  await page.getByRole('button', { name: 'Додати обʼєкт', exact: true }).click()
   await expect.poll(() => wire.propPosts.length, { timeout: 8_000 }).toBeGreaterThan(0)
   const sent = wire.propPosts[0]
   expect(sent.folder_id ?? null, 'мертва папка не мусить їхати в INSERT').not.toBe(DEAD)

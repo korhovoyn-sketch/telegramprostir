@@ -33,6 +33,13 @@ export function useFolders(dbId?: string) {
    * створює папку, яка вже існує.
    */
   const [error, setError] = useState<string | null>(null)
+  /**
+   * Список папок ПРИЇХАВ (або таблиці немає). Без цього порожній список двозначний:
+   * «папок немає» і «ще не завантажили» виглядають однаково, а від цього залежать
+   * дві перевірки — дубль імені при створенні й «мертва» папка у формі обʼєкта.
+   */
+  const [loaded, setLoaded] = useState(false)
+  const loadedRef = useRef(false)
   const { showToast } = useAppSlice('showToast')
   const userId = useAppStore((s) => s.user?.id)
 
@@ -53,10 +60,12 @@ export function useFolders(dbId?: string) {
         .order('created_at', { ascending: true })
 
       if (error) {
-        if (isMissingFolderTable(error)) { setUnavailable(true); setFolders([]); return }
+        if (isMissingFolderTable(error)) { setUnavailable(true); setFolders([]); loadedRef.current = true; setLoaded(true); return }
         throw error
       }
       setFolders((data ?? []) as PropertyFolder[])
+      loadedRef.current = true
+      setLoaded(true)
     } catch (e) {
       setError(humanizeDbError(e))
       showToast({ type: 'error', title: tr('Помилка завантаження папок'), subtitle: humanizeDbError(e) })
@@ -70,6 +79,12 @@ export function useFolders(dbId?: string) {
     if (!targetDbId || !userId) return null
     const trimmed = name.trim()
     if (!trimmed) return null
+    // Список невідомий (ще летить або не доїхав) — перевірка на дубль нічого не
+    // знає, і друга «Орендарі» пішла б на сервер. Краще попросити почекати.
+    if (!loadedRef.current) {
+      showToast({ type: 'error', title: tr('Список папок ще не завантажено'), subtitle: tr('Зачекайте мить і повторіть') })
+      return null
+    }
     // Дублікати імен збивають з пантелику (дві однакові папки в списку) — не даємо.
     if (foldersRef.current.some(f => f.name.trim().toLowerCase() === trimmed.toLowerCase())) {
       showToast({ type: 'error', title: tr('Така папка вже є'), subtitle: tr('«{0}» вже існує в цій базі', trimmed) })
@@ -179,5 +194,5 @@ export function useFolders(dbId?: string) {
     }
   }, [showToast])
 
-  return { folders, loading, unavailable, error, loadFolders, createFolder, renameFolder, deleteFolder, reorderFolder }
+  return { folders, loading, loaded, unavailable, error, loadFolders, createFolder, renameFolder, deleteFolder, reorderFolder }
 }

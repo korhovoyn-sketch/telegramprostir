@@ -54,9 +54,14 @@ export default function FolderPickerScreen() {
     const name = newName.trim()
     if (!name || busy || offlineGuard()) return
     setBusy(true)
-    const created = await createFolder(name)
-    if (!created) { setBusy(false); return }
-    const ok = await moveToFolder(ids, created.id)
+    // Папка з такою назвою вже є — і це не лише чужа: після збою переміщення
+    // створена щойно папка лишається в списку, а повторний тап «Створити й
+    // перемістити» впирався у «Така папка вже є» і не робив нічого. Тож
+    // переміщаємо в наявну замість того, щоб відмовляти.
+    const existing = folders.find((f) => f.name.trim().toLowerCase() === name.toLowerCase())
+    const target = existing ?? await createFolder(name)
+    if (!target) { setBusy(false); return }
+    const ok = await moveToFolder(ids, target.id)
     setBusy(false)
     if (ok) back()
   }

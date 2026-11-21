@@ -1222,5 +1222,7 @@
   "Збереження перезапише ці зміни": "Saving will overwrite those changes",
   "Перезаписати": "Overwrite",
   "Корисна площа (м²)": "Usable area (m²)",
-  "Пропущено (корисна площа більша за розрахункову):": "Skipped (usable area is larger than billable area):"
+  "Пропущено (корисна площа більша за розрахункову):": "Skipped (usable area is larger than billable area):",
+  "Список папок ще не завантажено": "The folder list hasn't loaded yet",
+  "Зачекайте мить і повторіть": "Wait a moment and try again"
 }
