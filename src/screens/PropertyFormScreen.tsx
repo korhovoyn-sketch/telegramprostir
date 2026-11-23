@@ -31,7 +31,7 @@ const PARKING_TYPES = (): { v: ParkingType; l: string }[] => ([
 export default function PropertyFormScreen() {
   const { screenParams, backThenReplace, back, showToast, user, isOnline, databases } = useAppSlice('screenParams', 'backThenReplace', 'back', 'showToast', 'user', 'isOnline', 'databases')
   const { properties, loadProperties, createProperty, createProperties, updateProperty, deleteProperty, loading, error: loadError } = useProperties(screenParams.dbId)
-  const { folders, unavailable: foldersUnavailable, loadFolders, createFolder } = useFolders(screenParams.dbId)
+  const { folders, loaded: foldersLoaded, unavailable: foldersUnavailable, loadFolders, createFolder } = useFolders(screenParams.dbId)
 
   const editId = screenParams.propertyId
   const isEdit = !!editId
@@ -138,6 +138,14 @@ export default function PropertyFormScreen() {
   useEffect(() => {
     if (screenParams.dbId) loadFolders(screenParams.dbId)
   }, [screenParams.dbId, loadFolders])
+
+  // Папку, якої вже немає (видалена, відколи збережено чернетку чи відкрито
+  // обʼєкт-джерело копії), скидаємо: поле й так показує «Без папки», а збереження
+  // слало б мертвий uuid і падало на зовнішньому ключі («Некоректні дані»).
+  // Лише коли список ДІЙСНО приїхав — інакше порожній список скидав би вибір.
+  useEffect(() => {
+    if (foldersLoaded && folderId && !folders.some((f) => f.id === folderId)) setFolderId(null)
+  }, [foldersLoaded, folders, folderId])
 
   useClosingConfirmation()
 
