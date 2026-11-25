@@ -107,6 +107,11 @@ export function enPage(page: Page): Page {
               /\[aria-label="([^"]+)"\]/g,
               (_, v: string) => `[aria-label="${tr(v)}"]`,
             )
+            // `locator('.over', { hasText: 'Заборгованість' })` — текст теж у
+            // ФІЛЬТРІ, а не в селекторі; без цього кроки з таким фільтром
+            // шукали б українське слово на англійському екрані.
+            const o = args[1] as { hasText?: Sel } | undefined
+            if (o && o.hasText !== undefined) args[1] = { ...o, hasText: conv(o.hasText) }
           } else if (prop === 'getByRole' && args[1] && typeof args[1] === 'object') {
             const o = args[1] as { name?: Sel }
             if (o.name !== undefined) args[1] = { ...o, name: conv(o.name) }

@@ -1433,6 +1433,9 @@ button.notif-i{width:100%;background:none;font:inherit;color:inherit;text-align:
 /* Готове посилання в шиті/екрані — моноспейс-блок із переносом. Був інлайновим
    обʼєктом стилю, продубльованим у двох екранах. */
 .link-mono{word-break:break-all;font-size:var(--fs-cap1);color:var(--t3);font-family:monospace;background:var(--glass-1);border-radius:var(--r-sm);padding:8px 10px;margin-top:6px}
+/* Пояснення в тій самій коробці, що й посилання: `break-all` годиться URL, але
+   рве слова звичайного тексту посередині («configured.» → «configur-ed.»). */
+.link-mono.link-note{word-break:normal;overflow-wrap:break-word;font-family:inherit}
 
 /* ── FOLDERS ── */
 /* Accordion section = header + collapsible body. Sections are the .list children;

@@ -791,7 +791,7 @@ export const REALTOR_SCREENS: ScreenStep[] = [
       await page.locator('.tabbar [aria-label="Підбірки"]').click()
       await page.getByText('Для клієнта А').first().click()
       await page.getByText('Аналітика підбірки').click()
-      await expect(page.locator('.hdr-t')).toHaveText('Аналітика підбірки', { timeout: 15_000 })
+      await expect(page.locator('.hdr-t')).toHaveText(/Аналітика підбірки|Collection analytics/, { timeout: 15_000 })
     },
   },
   {

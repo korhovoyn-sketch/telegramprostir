@@ -267,7 +267,7 @@ export default function DatabaseListScreen() {
           <div className="empty-state" style={{ paddingTop: 32 }}>
             <div className="empty-ic">🔍</div>
             <div className="empty-h">{tr('Нічого не знайдено')}</div>
-            <div className="empty-s">{tr('Немає баз за запитом "')}{search}&quot;</div>
+            <div className="empty-s">{tr('Немає баз за запитом "{0}"', search)}</div>
           </div>
         ) : filtered.length === 0 && !showPropResults ? (
           <div className="empty-state" style={{ paddingTop: 32 }}>
