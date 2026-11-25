@@ -672,7 +672,7 @@ export default function PropertyFormScreen() {
           </div>
           <div className="fr">
             <span className="fr-l" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><IconActivity size={14} color="var(--t3)" />{tr('Статус')}</span>
-            <div className="fr-seg" style={{ maxWidth: 200 }}>
+            <div className="fr-seg" style={{ maxWidth: 220 }}>
               {([
                 { v: 'free', l: tr('Вільно') },
                 { v: 'occupied', l: tr('Зайнято') },
