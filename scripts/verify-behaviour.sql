@@ -1240,3 +1240,242 @@ BEGIN
   DELETE FROM rate_limits WHERE ip = 'zz:077';
   RAISE NOTICE '  ✓ 077: лімітер тримає стелю й вікно; доступний лише службовому ключу';
 END $$;
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- 078: ТЕ, ЩО КЛІЄНТ НЕ СМІЄ ПИСАТИ САМ
+-- ════════════════════════════════════════════════════════════════════════════
+-- Кожне «не може» — разом із «а той, кому МОЖНА, — може»: відмова всім і
+-- відмова правильно на дроті нерозрізненні. Від імені клієнта = `SET LOCAL ROLE
+-- authenticated` (тригери питають `current_user`), а шляхи, що пишуть ці
+-- колонки легально (клейм, служба), — поруч як позитивний контроль.
+DO $$
+DECLARE
+  o  UUID := 'bbbbbbbb-0000-0000-0000-000000000078';
+  r  UUID := 'bbbbbbbb-0000-0000-0000-000000000781';
+  d  UUID := 'cccccccc-0000-0000-0000-000000000078';
+  p  UUID := 'dddddddd-0000-0000-0000-000000000781';
+  v  JSONB;
+  n  INT;
+  nm TEXT;
+  tok TEXT;
+BEGIN
+  INSERT INTO users (id, tg_id, first_name, last_name, role) VALUES
+    (o, 780001, 'Власник', 'Сімдесят', 'owner'),
+    (r, 780002, 'Реалтор', 'Р', 'realtor');
+  INSERT INTO databases (id, owner_id, name, type, share_token)
+    VALUES (d, o, 'База 078', 'business_center', 'tok078db');
+  INSERT INTO properties (id, db_id, owner_id, name, status, rent_type, rent_rate, share_token)
+    VALUES (p, d, o, 'Офіс 78', 'occupied', 'fixed', 1000, 'tok078p');
+  INSERT INTO rent_payments (property_id, owner_id, due_day, notify_days_before, is_active)
+    VALUES (p, o, 5, 3, true);
+  INSERT INTO realtor_subscriptions (realtor_id, db_id) VALUES (r, d);
+
+  -- `auth.role()` у шимі читає ОКРЕМИЙ клейм (див. verify-rls.sql): без нього
+  -- політика з `auth.role() = 'authenticated'` відмовляє завжди, і перевірка
+  -- «не пускає» доводила б нічого.
+  PERFORM set_config('request.jwt.claim.role', 'authenticated', false);
+
+  -- ── 1. tg_id: клієнт не міняє, служба міняє ──────────────────────────────
+  PERFORM pg_temp.as_user(780002);
+  SET LOCAL ROLE authenticated;
+  BEGIN
+    UPDATE users SET tg_id = 780999 WHERE id = r;
+    RAISE EXCEPTION '078: клієнт змінив собі tg_id — майбутня жертва успадкує цей рядок';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  UPDATE users SET phone = '+380000000078' WHERE id = r;
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n <> 1 THEN RAISE EXCEPTION '078: позитив — власний телефон не оновився (%)', n; END IF;
+  RESET ROLE;
+  UPDATE users SET tg_id = 780002 WHERE id = r;   -- служба: той самий запис, без помилки
+  UPDATE users SET tg_id = 780003 WHERE id = r;
+  UPDATE users SET tg_id = 780002 WHERE id = r;
+
+  -- ── 2. Членство: вставити «активним», підмінити, переписати — не можна ───
+  PERFORM pg_temp.as_user(780001);
+  SET LOCAL ROLE authenticated;
+  BEGIN
+    INSERT INTO db_members (db_id, role, status, user_id, member_name)
+      VALUES (d, 'editor', 'active', r, 'Придумане імʼя');
+    RAISE EXCEPTION '078: власник посадив активного редактора без згоди';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    INSERT INTO db_members (db_id, role, user_id) VALUES (d, 'editor', r);
+    RAISE EXCEPTION '078: власник вписав user_id в інвайт';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  INSERT INTO db_members (db_id, label) VALUES (d, 'мій інвайт') RETURNING invite_token INTO tok;
+  BEGIN
+    UPDATE db_members SET status = 'active' WHERE invite_token = tok;
+    RAISE EXCEPTION '078: власник сам активував інвайт';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    UPDATE db_members SET member_name = 'Підробка' WHERE invite_token = tok;
+    RAISE EXCEPTION '078: власник переписав імʼя члена';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  RESET ROLE;
+
+  -- Позитив: клейм (DEFINER) ставить усе легально, власник відкликає.
+  PERFORM pg_temp.as_user(780002);
+  SET LOCAL ROLE authenticated;
+  v := claim_team_invite(tok);
+  IF v ->> 'db_id' IS DISTINCT FROM d::TEXT THEN RAISE EXCEPTION '078: клейм інвайта не спрацював (%)', v; END IF;
+  RESET ROLE;
+  SELECT member_name INTO nm FROM db_members WHERE invite_token = tok;
+  IF nm IS DISTINCT FROM 'Реалтор Р' THEN RAISE EXCEPTION '078: клейм не поставив справжнє імʼя (%)', nm; END IF;
+  PERFORM pg_temp.as_user(780001);
+  SET LOCAL ROLE authenticated;
+  UPDATE db_members SET status = 'revoked' WHERE invite_token = tok;
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n <> 1 THEN RAISE EXCEPTION '078: позитив — власник не відкликав членство (%)', n; END IF;
+  RESET ROLE;
+
+  -- ── 2b. Гостьовий лінк: те саме ──────────────────────────────────────────
+  PERFORM pg_temp.as_user(780001);
+  SET LOCAL ROLE authenticated;
+  BEGIN
+    INSERT INTO guest_links (owner_id, db_id, status, guest_user_id, guest_name)
+      VALUES (o, d, 'active', r, 'Підробка');
+    RAISE EXCEPTION '078: власник посадив активного гостя без згоди';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  INSERT INTO guest_links (owner_id, db_id, label) VALUES (o, d, 'гість') RETURNING invite_token INTO tok;
+  BEGIN
+    UPDATE guest_links SET guest_user_id = r WHERE invite_token = tok;
+    RAISE EXCEPTION '078: власник вписав гостя в лінк';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    UPDATE guest_links SET db_id = NULL, property_id = p WHERE invite_token = tok;
+    RAISE EXCEPTION '078: власник перенаціляв уже виданий лінк';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  RESET ROLE;
+  PERFORM pg_temp.as_user(780002);
+  SET LOCAL ROLE authenticated;
+  v := claim_guest_link(tok);
+  IF v ->> 'db_id' IS DISTINCT FROM d::TEXT THEN RAISE EXCEPTION '078: клейм гостьового лінка не спрацював (%)', v; END IF;
+  RESET ROLE;
+  SELECT guest_name INTO nm FROM guest_links WHERE invite_token = tok;
+  IF nm IS DISTINCT FROM 'Реалтор Р' THEN RAISE EXCEPTION '078: клейм не поставив імʼя гостя (%)', nm; END IF;
+
+  -- ── 3. Слід перегляду: особу й імʼя ставить сервер ───────────────────────
+  PERFORM pg_temp.as_user(780002);
+  SET LOCAL ROLE authenticated;
+  INSERT INTO property_views (property_id, viewer_id, viewer_name, action)
+    VALUES (p, r, 'Президент', 'view');
+  INSERT INTO property_views (property_id, viewer_id, viewer_name, action)
+    VALUES (p, r, repeat('я', 100000), 'view');
+  BEGIN
+    INSERT INTO property_views (property_id, viewer_id, viewer_name, action)
+      VALUES (p, o, 'Власник Сімдесят', 'view');
+    RAISE EXCEPTION '078: реалтор записав перегляд від імені ВЛАСНИКА';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  -- Спроба видати себе за анонімне відкриття (NULL + службовий підпис) не
+  -- накручує лічильник: рядок лягає від імені ТОГО, хто його пише.
+  INSERT INTO property_views (property_id, viewer_id, viewer_name, action)
+    VALUES (p, NULL, 'Веб-перегляд', 'view');
+  RESET ROLE;
+  SELECT count(*) INTO n FROM property_views WHERE property_id = p AND viewer_id = r AND viewer_name = 'Реалтор Р';
+  IF n <> 3 THEN RAISE EXCEPTION '078: імʼя глядача не з профілю — % з 3 рядків мають справжнє', n; END IF;
+  SELECT count(*) INTO n FROM property_views WHERE property_id = p AND viewer_id IS NULL;
+  IF n <> 0 THEN RAISE EXCEPTION '078: клієнт створив % анонімних рядків — лічильник накручується', n; END IF;
+  -- Позитив: публічний шлях (DEFINER, anon) пише свій службовий підпис.
+  PERFORM set_config('request.jwt.claim.role', 'anon', false);
+  SET LOCAL ROLE anon;
+  IF NOT record_public_view('tok078p', 'prop') THEN RAISE EXCEPTION '078: публічний перегляд не записався'; END IF;
+  RESET ROLE;
+  PERFORM set_config('request.jwt.claim.role', 'authenticated', false);
+  SELECT count(*) INTO n FROM property_views WHERE property_id = p AND viewer_id IS NULL AND viewer_name = 'Веб-перегляд';
+  IF n <> 1 THEN RAISE EXCEPTION '078: службовий підпис публічного перегляду зник (%)', n; END IF;
+
+  -- ── 4. Платежі ───────────────────────────────────────────────────────────
+  PERFORM pg_temp.as_user(780001);
+  SET LOCAL ROLE authenticated;
+  v := record_rent_payment(p, DATE '2026-09-05', 10, now(), NULL, 'NaN'::NUMERIC);
+  IF v ->> 'error' IS DISTINCT FROM 'invalid_amount' THEN RAISE EXCEPTION '078: NaN очікувана сума прийнята (%)', v; END IF;
+  v := record_rent_payment(p, DATE '2999-01-01', 10, now());
+  IF v ->> 'error' IS DISTINCT FROM 'invalid_period' THEN RAISE EXCEPTION '078: період 2999 прийнято (%)', v; END IF;
+  v := record_rent_payment(p, DATE '1900-01-01', 10, now());
+  IF v ->> 'error' IS DISTINCT FROM 'invalid_period' THEN RAISE EXCEPTION '078: період 1900 прийнято (%)', v; END IF;
+  v := set_rent_amount_due(p, DATE '2999-01-01', 100);
+  IF v ->> 'error' IS DISTINCT FROM 'invalid_period' THEN RAISE EXCEPTION '078: сума за період 2999 прийнята (%)', v; END IF;
+  v := record_rent_payment(p, DATE '2026-09-05', 10, now(), repeat('я', 500));
+  IF v ->> 'error' IS NOT NULL THEN RAISE EXCEPTION '078: довга примітка валить функцію (%)', v; END IF;
+  SELECT length(notes) INTO n FROM rent_payment_parts WHERE record_id = (v ->> 'record_id')::UUID;
+  IF n <> 200 THEN RAISE EXCEPTION '078: примітка не обрізана до 200 (%)', n; END IF;
+  SELECT count(*) INTO n FROM rent_payment_records WHERE property_id = p AND (amount_due IS NOT NULL AND amount_due <> amount_due);
+  IF n <> 0 THEN RAISE EXCEPTION '078: у періоді лишилась NaN-сума'; END IF;
+  -- Позитив: звичайна оплата з очікуваною сумою й межове «сьогодні» проходять.
+  v := record_rent_payment(p, DATE '2026-10-05', 400, now(), 'аванс', 1000);
+  IF v ->> 'status' IS DISTINCT FROM 'partial' OR (v ->> 'amount_due')::NUMERIC <> 1000 THEN
+    RAISE EXCEPTION '078: позитив — часткова оплата зламана (%)', v;
+  END IF;
+  v := record_rent_payment(p, CURRENT_DATE, 10, now());
+  IF v ->> 'error' IS NOT NULL THEN RAISE EXCEPTION '078: позитив — період сьогодні відхилено (%)', v; END IF;
+  RESET ROLE;
+
+  -- ── 5. Межі значень ──────────────────────────────────────────────────────
+  PERFORM pg_temp.as_user(780001);
+  SET LOCAL ROLE authenticated;
+  BEGIN UPDATE properties SET rent_rate = -50 WHERE id = p;
+    RAISE EXCEPTION '078: відʼємна ставка прийнята';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN UPDATE properties SET rent_rate = 'NaN'::FLOAT8 WHERE id = p;
+    RAISE EXCEPTION '078: NaN-ставка прийнята';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN UPDATE properties SET area_useful = 'Infinity'::FLOAT8 WHERE id = p;
+    RAISE EXCEPTION '078: нескінченна площа прийнята';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN UPDATE properties SET lease_start_date = '2030-01-01', lease_end_date = '2020-01-01' WHERE id = p;
+    RAISE EXCEPTION '078: кінець договору раніше початку прийнято';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN UPDATE properties SET name = '   ' WHERE id = p;
+    RAISE EXCEPTION '078: порожня назва обʼєкта прийнята';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN UPDATE databases SET name = '' WHERE id = d;
+    RAISE EXCEPTION '078: порожня назва бази прийнята';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN INSERT INTO collections (realtor_id, name) VALUES (o, '');
+    RAISE EXCEPTION '078: порожня назва підбірки прийнята';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  -- Позитив: усе законне, включно з порожніми НЕобовʼязковими полями.
+  UPDATE properties SET rent_rate = 18.5, area_useful = 45, area_total = 52, sale_price = NULL,
+         lease_start_date = '2026-01-01', lease_end_date = '2026-12-31' WHERE id = p;
+  GET DIAGNOSTICS n = ROW_COUNT;
+  IF n <> 1 THEN RAISE EXCEPTION '078: позитив — законне оновлення обʼєкта не пройшло (%)', n; END IF;
+  UPDATE properties SET rent_rate = NULL, area_useful = NULL, area_total = NULL,
+         lease_start_date = NULL, lease_end_date = NULL WHERE id = p;
+  RESET ROLE;
+
+  -- ── 6. Гість не бачить рядків документів ─────────────────────────────────
+  INSERT INTO property_files (property_id, owner_id, storage_path, file_name, mime_type, file_size)
+    VALUES (p, o, p || '/doc.pdf', 'Договір.pdf', 'application/pdf', 100);
+  -- Реалтор Р — ще й гість цього обʼєкта (лінк із 2b).
+  PERFORM pg_temp.as_user(780002);
+  SET LOCAL ROLE authenticated;
+  IF NOT is_guest_of_property(p) THEN RAISE EXCEPTION '078: фікстура — гостьовий доступ не діє'; END IF;
+  RESET ROLE;
+  -- Позитив: файлові рядки бачить той, кому вони належать.
+  PERFORM pg_temp.as_user(780001);
+  SET LOCAL ROLE authenticated;
+  SELECT count(*) INTO n FROM property_files WHERE property_id = p;
+  IF n <> 1 THEN RAISE EXCEPTION '078: позитив — власник не бачить свого файлу (%)', n; END IF;
+  RESET ROLE;
+  DELETE FROM realtor_subscriptions WHERE realtor_id = r;   -- лишаємо ЛИШЕ гостьовий шлях
+  PERFORM pg_temp.as_user(780002);
+  SET LOCAL ROLE authenticated;
+  SELECT count(*) INTO n FROM property_files WHERE property_id = p;
+  RESET ROLE;
+  IF n <> 0 THEN RAISE EXCEPTION '078: гість бачить % назв документів, яких не може відкрити', n; END IF;
+
+  PERFORM pg_temp.as_user(NULL);
+  PERFORM set_config('request.jwt.claim.role', '', false);
+  DELETE FROM property_views WHERE viewer_id = r;   -- FK без ON DELETE (знеособлює delete_my_account)
+  DELETE FROM users WHERE id IN (o, r);
+  RAISE NOTICE '  ✓ 078: tg_id, членство, слід перегляду, суми й межі — клієнт не пише того, що ставить сервер';
+END $$;

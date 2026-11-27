@@ -113,7 +113,9 @@ export default function PaymentDueScreen() {
         showToast({
           type: 'error',
           title: tr('Суму не змінено'),
-          subtitle: res.error === 'invalid_amount' ? tr('Некоректна сума') : tr('Обʼєкт не знайдено'),
+          subtitle: res.error === 'invalid_amount' ? tr('Некоректна сума')
+            : res.error === 'invalid_period' ? tr('Некоректний період платежу')
+            : tr('Обʼєкт не знайдено'),
         })
         return
       }

@@ -527,7 +527,47 @@ WITH checks(ord, item, migration, ok) AS (VALUES
                                AND NOT has_function_privilege('anon', p.oid, 'EXECUTE')
                                AND NOT has_function_privilege('authenticated', p.oid, 'EXECUTE')
                           FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace AND n.nspname = 'public'
-                         WHERE p.proname = 'rate_limit_hit' LIMIT 1), false)))
+                         WHERE p.proname = 'rate_limit_hit' LIMIT 1), false))),
+
+  -- 078: tg_id — якір особи, і міняти його клієнту не можна: edge-функція
+  -- входу шукає користувача саме по ньому, тож хто виставив своєму рядку
+  -- чужий (ще не зареєстрований) tg_id, той отруює майбутній вхід жертви.
+  (80, 'tg_id користувача клієнт змінити не може', '078_client_write_integrity.sql',
+      EXISTS (SELECT 1 FROM pg_trigger t
+               WHERE t.tgrelid = to_regclass('public.users')
+                 AND t.tgname = 'trg_guard_user_identity' AND t.tgenabled <> 'D')),
+
+  -- 078: членство, гостьовий лінк і слід перегляду — поля клейму й особи
+  -- ставить сервер. Без цього власник садив «активного редактора» без згоди,
+  -- а рієлтор підписував перегляд чужим імʼям.
+  (81, 'членство, гостьовий лінк і слід перегляду не підробляються клієнтом', '078_client_write_integrity.sql',
+      (SELECT count(*) = 3 FROM pg_trigger t
+        WHERE t.tgenabled <> 'D'
+          AND ((t.tgrelid = to_regclass('public.db_members')     AND t.tgname = 'trg_guard_member_claim_fields')
+            OR (t.tgrelid = to_regclass('public.guest_links')    AND t.tgname = 'trg_guard_guest_claim_fields')
+            OR (t.tgrelid = to_regclass('public.property_views') AND t.tgname = 'trg_stamp_property_view')))),
+
+  -- 078: межі значень (NaN, відʼємні, нескінченні ставки й площі, порожні
+  -- назви, кінець договору раніше початку).
+  (82, 'ставки, площі, дати й назви мають межі', '078_client_write_integrity.sql',
+      (SELECT count(*) = 5 FROM pg_constraint c
+        WHERE c.conname IN ('properties_numbers_sane', 'properties_lease_order', 'properties_name_not_blank',
+                            'databases_name_not_blank', 'collections_name_not_blank'))),
+
+  -- 078: гість не бачить рядків документів (вміст він і так відкрити не міг:
+  -- політика сховища гостьової гілки не має). Перевіряється ВІДСУТНІСТЬ
+  -- пермісивної політики — той самий урок, що в рядку 33.
+  (83, 'гість не бачить назв документів, яких не може відкрити', '078_client_write_integrity.sql',
+      NOT EXISTS (SELECT 1 FROM pg_policies
+                   WHERE schemaname = 'public' AND tablename = 'property_files'
+                     AND policyname = 'pfiles_select_guest')),
+
+  -- 078: record_rent_payment блокує період ДО вставки надходження — інакше
+  -- два одночасні надходження давали deadlock (заміряно: 16 із 20).
+  (84, 'надходження одного періоду не б''ються в deadlock', '078_client_write_integrity.sql',
+      (SELECT COALESCE(bool_or(p.prosrc LIKE '%FOR UPDATE%' AND p.prosrc LIKE '%invalid_period%'), false)
+         FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace AND n.nspname = 'public'
+        WHERE p.proname = 'record_rent_payment'))
 )
 SELECT
   CASE WHEN ok THEN '✅ OK     ' ELSE '❌ MISSING' END AS status,

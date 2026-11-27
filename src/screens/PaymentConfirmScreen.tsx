@@ -33,6 +33,7 @@ function rpcErrorText(code: string): string {
   switch (code) {
     case 'invalid_amount': return tr('Некоректна сума')
     case 'invalid_date': return tr('Дата отримання не може бути в майбутньому')
+    case 'invalid_period': return tr('Некоректний період платежу')
     case 'not_found': return tr('Обʼєкт не знайдено')
     default: return tr('Платіж не зберігся')
   }

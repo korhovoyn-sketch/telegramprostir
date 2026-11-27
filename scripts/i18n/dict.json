@@ -1224,5 +1224,6 @@
   "Список папок ще не завантажено": "The folder list hasn't loaded yet",
   "Зачекайте мить і повторіть": "Wait a moment and try again",
   "Немає баз за запитом \"{0}\"": "No databases match “{0}”",
-  "Немає результатів для \"{0}\"": "No results for “{0}”"
+  "Немає результатів для \"{0}\"": "No results for “{0}”",
+  "Некоректний період платежу": "Invalid payment period"
 }

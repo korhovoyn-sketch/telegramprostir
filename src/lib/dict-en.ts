@@ -666,6 +666,7 @@ export const EN: Record<string, string> = {
   "Некоректна сума": "Invalid amount",
   "Некоректне значення": "Invalid value",
   "Некоректне значення в одному з полів. Перевірте дати й числа.": "One of the fields has an invalid value. Check the dates and numbers.",
+  "Некоректний період платежу": "Invalid payment period",
   "Некоректні дані. Перевірте введене й спробуйте ще раз.": "Invalid data. Check what you entered and try again.",
   "Немає": "None",
   "Немає баз": "No databases",

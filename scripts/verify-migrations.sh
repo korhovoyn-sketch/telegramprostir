@@ -96,6 +96,25 @@ fi
 $PSQL -d shadow -c "DELETE FROM rate_limits WHERE ip = 'zz:par'" >/dev/null
 echo "✓ 077: лімітер тримає стелю під паралельними запитами (20 з 40)"
 
+# 078: два надходження ОДНОГО періоду одночасно. Вставка бере FOR KEY SHARE на
+# період, а тригер підсумку просить FOR UPDATE — без блокування періоду ДО
+# вставки дві сесії тримали слабше й чекали сильнішого: заміряно 16 deadlock-ів
+# із 20. В одній сесії цього не відтворити — потрібні окремі зʼєднання.
+$PSQL -d shadow -c "
+SELECT auth.shim_create_user(NULL, '780100@telegram.propspace.app');
+INSERT INTO users (id,tg_id,first_name,role) VALUES ('bbbbbbbb-0000-0000-0000-000000000780',780100,'Паралель','owner');
+INSERT INTO databases (id,owner_id,name,type) VALUES ('cccccccc-0000-0000-0000-000000000780','bbbbbbbb-0000-0000-0000-000000000780','Паралель','business_center');
+INSERT INTO properties (id,db_id,owner_id,name,status,rent_type,rent_rate) VALUES ('dddddddd-0000-0000-0000-000000000780','cccccccc-0000-0000-0000-000000000780','bbbbbbbb-0000-0000-0000-000000000780','Паралель','occupied','fixed',100);" >/dev/null
+par_err=$(seq 20 | xargs -P 20 -I{} psql -h "$SOCK" -p $PORT -U postgres -d shadow -tAq -c "
+SELECT set_config('request.jwt.claims','{\"email\":\"780100@telegram.propspace.app\"}',false), set_config('request.jwt.claim.role','authenticated',false);
+SET ROLE authenticated;
+SELECT record_rent_payment('dddddddd-0000-0000-0000-000000000780','2026-09-05',10,now(),NULL,100)" 2>&1 >/dev/null | grep -c "ERROR" || true)
+par_parts=$($PSQL -d shadow -At -c "SELECT count(*) FROM rent_payment_parts pp JOIN rent_payment_records r ON r.id=pp.record_id WHERE r.property_id='dddddddd-0000-0000-0000-000000000780'")
+if [ "$par_err" != "0" ] || [ "$par_parts" != "20" ]; then
+  echo "✗ 078: із 20 паралельних надходжень одного періоду помилок $par_err, записано $par_parts із 20 — період не блокується до вставки"; exit 1
+fi
+echo "✓ 078: 20 паралельних надходжень одного періоду — без deadlock, усі записані"
+
 # RLS ганяємо на ОКРЕМІЙ базі: попередній файл навмисно видаляє акаунти й
 # лишає по собі напівпорожній стан, а тут кожен count() має бути точним.
 psql -h "$SOCK" -p $PORT -U postgres -q -c "CREATE DATABASE shadow_rls" >/dev/null
