@@ -811,7 +811,7 @@ export default function DatabaseObjectsScreen() {
           <div className="empty-state" style={{ paddingTop: 24 }}>
             <div className="empty-ic">🔍</div>
             <div className="empty-h">{tr('Нічого не знайдено')}</div>
-            <div className="empty-s">{tr('Немає результатів для "')}{search}&quot;</div>
+            <div className="empty-s">{tr('Немає результатів для "{0}"', search)}</div>
             <button
               style={{ marginTop: 16, padding: '8px 20px', borderRadius: 'var(--r-pill)', background: 'var(--glass-2)', border: 'var(--bd)', color: 'var(--t2)', fontSize: 'var(--fs-foot)', cursor: 'pointer' }}
               onClick={() => setSearch('')}

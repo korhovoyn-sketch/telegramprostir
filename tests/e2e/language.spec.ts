@@ -123,3 +123,17 @@ test('на ВХОДІ вирішує профіль акаунта, а не мо
   // намалював би англійську й мова «блимала» б через запуск.
   expect(await page.evaluate(() => localStorage.getItem('ps_lang'))).toBe('uk')
 })
+
+test('після виходу екран входу — тією мовою, яку обрано на пристрої', async ({ page }) => {
+  // `#fromLogout` — документований шлях сплеша повз відновлення сесії, і він
+  // виходив РАНІШЕ за завантаження словника: англомовний користувач, що щойно
+  // вийшов, бачив екран входу українською. Мова пристрою (`ps_lang`) при
+  // виході свідомо лишається — це налаштування, а не дані акаунта.
+  await setupApp(page, { user: { ...USER, role: null, language_code: 'en' } })
+  await page.addInitScript(() => localStorage.setItem('ps_lang', 'en'))
+
+  await page.goto('/#fromLogout')
+  await expect(page.getByRole('button', { name: 'Sign in with Telegram' })).toBeVisible({ timeout: 20_000 })
+  expect(CYR.test(await screenText(page)), 'екран входу після виходу український').toBe(false)
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en')
+})

@@ -132,6 +132,11 @@ export default function SplashScreen() {
       // go straight to WelcomeScreen without auto-login — prevents a flash of logged-in state.
       if (typeof window !== 'undefined' && window.location.hash === '#fromLogout') {
         window.history.replaceState(null, '', window.location.pathname + window.location.search)
+        // Мова пристрою переживає вихід (це налаштування, а не дані акаунта), тож
+        // і екран входу мусить бути нею: без цього вихід перемикав англомовного
+        // користувача на українську саме на екрані, де він має вводити далі.
+        await loadLang(startupLang())
+        if (cancelled) return
         setProgress(100)
         navigateRoot('welcome', { fromLogout: true })
         return

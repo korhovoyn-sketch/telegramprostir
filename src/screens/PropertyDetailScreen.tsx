@@ -621,9 +621,14 @@ export default function PropertyDetailScreen() {
         )}
 
         {/* Files section */}
-        <div ref={filesSectionRef}>
-          <FilesList propertyId={property.id} isOwner={isOwner} />
-        </div>
+        {/* Гість документів не бачить: політика сховища гостьової гілки не має,
+            тож список малювався б, а кожен тап давав «Не вдалося відкрити».
+            Рядки файлів гостю теж не віддаються (078). */}
+        {!isGuest && (
+          <div ref={filesSectionRef}>
+            <FilesList propertyId={property.id} isOwner={isOwner} />
+          </div>
+        )}
 
         {property.description && (
           <>

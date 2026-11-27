@@ -44,7 +44,9 @@ fs.writeFileSync(outPath, `/**
  *   Вільно → Vacant          Зайнято → Occupied     Продаж → For sale
  *   орендар → tenant         орендодавець → landlord
  *   договір → lease          експлуатаційні → service charges
- *   корисна площа → usable area   розрахункова площа → billable area
+ *   корисна площа → usable area   розрахункова площа → rentable area
+ *   ріелтор → agent          здати в оренду → rent out
+ *   оновити посилання → reset link
  *
  * «Вільно» — саме \`Vacant\`, а не \`Free\`: англійською \`free\` читається
  * як «безкоштовно», тобто статус обʼєкта перетворився б на обіцянку ціни.

@@ -165,7 +165,7 @@ export default function CreateInviteScreen() {
           {usable ? (
             <div className="link-mono" style={{ margin: '0 12px 16px' }}>{link}</div>
           ) : (
-            <div className="link-mono" style={{ margin: '0 12px 16px' }}>
+            <div className="link-mono link-note" style={{ margin: '0 12px 16px' }}>
               {tr('Посилання не сформувалось: у застосунку не налаштований юзернейм бота. Запрошення вже створене — надішліть його після налаштування.')}
             </div>
           )}
